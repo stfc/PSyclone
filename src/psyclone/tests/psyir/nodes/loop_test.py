@@ -238,7 +238,7 @@ def test_loop_create_invalid():
     one = Literal("1", INTEGER_SINGLE_TYPE)
     children = [Assignment.create(
         Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
-        one)]
+        one.copy())]
 
     # invalid variable (test_check_variable tests check all ways a
     # variable could be invalid. Here we just check that the

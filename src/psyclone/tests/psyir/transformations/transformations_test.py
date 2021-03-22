@@ -45,13 +45,13 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyGen import ACCLoopDirective
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement
+    Reference, Return, Schedule, Statement
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
-    TransformationError
+from psyclone.psyir.transformations import LoopFuseTrans, ProfileTrans, \
+    RegionTrans, TransformationError
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans
-from psyclone.tests.utilities import get_invoke
 
 
 def test_accloop():

@@ -72,7 +72,7 @@ def create_range(array_symbol, dim):
         Reference(array_symbol), int_dim)
     ubound = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(array_symbol), int_dim)
+        Reference(array_symbol), int_dim.copy())
     return Range.create(lbound, ubound)
 
 
@@ -580,7 +580,9 @@ def test_validate_intrinsic():
     array_y_2 = create_array_y_2d_slice(symbol_table)
     matmul = BinaryOperation.create(BinaryOperation.Operator.MATMUL,
                                     array_y_2, array_x)
-    assignment = Assignment.create(array_x, matmul)
+    reference = ArrayReference.create(
+        symbol_table.lookup("x"), [create_range(symbol_table.lookup("x"), 1)])
+    assignment = Assignment.create(reference, matmul)
 
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:

@@ -196,3 +196,20 @@ def test_literal_children_validation():
         literal.addchild(Literal("2", INTEGER_SINGLE_TYPE))
     assert ("Item 'Literal' can't be child 0 of 'Literal'. Literal is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_literal_can_be_copied():
+    ''' Test that a Literal node can be copied. '''
+
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
+
+    literal1 = literal.copy()
+    assert isinstance(literal1, Literal)
+    assert literal1 is not literal
+    assert literal1.value == "1"
+    assert literal1.datatype is INTEGER_SINGLE_TYPE
+
+    # Modifying the new literal does not affect the original
+    literal1._value = "2"
+    assert literal1.value == "2"
+    assert literal.value == "1"

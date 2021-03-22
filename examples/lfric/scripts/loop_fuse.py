@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''File containing a PSyclone transformation script for the Dynamo0.3
 API to apply loop fusion generically. Fusion is attempted for all
@@ -42,7 +43,8 @@ applied via the -s option in the psyclone script.
 
 '''
 from __future__ import absolute_import, print_function
-from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.transformations import TransformationError
 
 
 def trans(psy):
@@ -51,7 +53,7 @@ def trans(psy):
 
     '''
     total_fused = 0
-    lf_trans = DynamoLoopFuseTrans()
+    lf_trans = LFRicLoopFuseTrans()
     lf_trans.same_space = True
 
     # Loop over all of the Invokes in the PSy object
