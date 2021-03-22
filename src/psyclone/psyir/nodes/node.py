@@ -147,7 +147,7 @@ class ChildrenList(list):
 
         :raises GenerationError: if the given item is not an orphan.
         '''
-        if item.parent and not item._orphan_regardless_parent:
+        if item.parent and not item.has_constructor_parent:
             raise GenerationError(
                 "Item '{0}' can't be added as child of '{1}' because it is not"
                 " an orphan. It already has a '{2}' as a parent.".format(
@@ -156,13 +156,37 @@ class ChildrenList(list):
                     item.parent.coloured_name(False)))
 
     def _set_parent_link(self, item):
-        # if  item._orphan_regardless_parent: check parents match!
-        item._parent = self._node_reference
-        item._orphan_regardless_parent = False
+        '''
+        Set parent connection of the given item to this ChildrenList's node.
 
-    def _del_parent_link(self, item):
+        :param item: item which the parent connection need to be updated.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        if item.parent and item.has_constructor_parent:
+            if item.parent is not self._node_reference:
+                raise GenerationError(
+                    "Can't set '{0}' as the parent of '{1}' because its "
+                    "constructor parent argument was set for '{2}'."
+                    .format(self._node_reference.coloured_name(False),
+                            item.coloured_name(False),
+                            item.parent.coloured_name(False)))
+        # pylint: disable=protected-access
+        item._parent = self._node_reference
+        item._has_constructor_parent = False
+
+    @staticmethod
+    def _del_parent_link(item):
+        '''
+        Delete parent connection of the given item.
+
+        :param item: item which the parent connection need to be updated.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        # This is done from here with protected access because its the parent
+        # who it is in charge of maintaining its children connections.
+        # pylint: disable=protected-access
         item._parent = None
-        item._orphan_regardless_parent = False
+        item._has_constructor_parent = False
 
     def append(self, item):
         ''' Extends list append method with children node validation.
@@ -312,9 +336,9 @@ class Node(object):
                                       self._children_valid_format)
         if children:
             self._children.extend(children)
-        self._orphan_regardless_parent = False
+        self._has_constructor_parent = False
         if parent is not None:
-            self._orphan_regardless_parent = True
+            self._has_constructor_parent = True
         self._parent = parent
         # Reference into fparser2 AST (if any)
         self._ast = ast
@@ -832,7 +856,20 @@ class Node(object):
 
     @property
     def parent(self):
+        '''
+        :returns: the parent node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+        '''
         return self._parent
+
+    @property
+    def has_constructor_parent(self):
+        '''
+        :returns: whether the constructor has predefined a parent connection
+            which is not yet realised.
+        :rtype: bool
+        '''
+        return self._has_constructor_parent
 
     @property
     def position(self):

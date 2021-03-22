@@ -48,6 +48,15 @@ def test_member_constructor():
     assert mem.children == []
 
 
+def test_member_constructor_errors():
+    ''' Test the validation checks in the constructor. '''
+    with pytest.raises(TypeError) as err:
+        nodes.Member("hello", parent="wrong")
+    assert ("parent of a Member must be either a "
+            "(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)Member "
+            "but found 'str'" in str(err.value))
+
+
 def test_member_can_be_copied():
     ''' Test that a Member node can be copied. '''
 

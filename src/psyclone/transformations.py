@@ -181,8 +181,6 @@ class ParallelLoopTrans(LoopTrans):
         Returns the directive object to insert into the Schedule.
         Must be implemented by sub-class.
 
-        :param parent: the parent of this Directive in the Schedule.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param children: list of nodes that will be children of this Directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: the number of tightly-nested loops to which \
@@ -411,8 +409,6 @@ class OMPLoopTrans(ParallelLoopTrans):
         Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param parent: the Node that will be the parent of the created \
-                       directive Node.
         :param children: list of Nodes that will be the children of \
                          the created directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
@@ -553,8 +549,6 @@ class ACCLoopTrans(ParallelLoopTrans):
         Creates the ACCLoopDirective needed by this sub-class of
         transformation.
 
-        :param parent: the parent Node of the new directive Node.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param children: list of child nodes of the new directive Node.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: number of nested loops to collapse or None if \

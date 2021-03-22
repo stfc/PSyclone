@@ -55,6 +55,10 @@ def test_kernelschedule_constructor():
     # A KernelSchedule does not return anything
     assert ksched.return_type is None
     assert ksched.parent is None
+    # Now create a KernelSchedule with a parent
+    cnode = Container("BigBox")
+    ksched2 = KernelSchedule("plan", parent=cnode)
+    assert ksched2.parent is cnode
 
 
 def test_kernelschedule_str():

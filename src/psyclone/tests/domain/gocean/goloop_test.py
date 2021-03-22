@@ -59,8 +59,8 @@ def test_goloop_no_parent():
     goloop = GOLoop(loop_type="inner", parent=schedule)
     schedule.children = [goloop]
     # Now remove parent and children
-    goloop._parent = None
-    goloop.children = None
+    goloop.detach()
+    goloop.children = []
     # Try and generate the code for this loop even though it
     # has no parent schedule and no children
     with pytest.raises(GenerationError):

@@ -561,8 +561,10 @@ class Invoke(object):
         # create the schedule
         self._schedule = schedule_class(self._name, alg_invocation.kcalls,
                                         reserved_names)
-        #if self.invokes:
-        #    self.invokes.psy.container.addchild(self._schedule)
+
+        # TODO #1170: Must be fixed before uncommenting the code below
+        # if self.invokes:
+        #     self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -3375,6 +3377,8 @@ class InlinedKern(Kern):
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     '''
     # Textual description of the node.
     _children_valid_format = "Schedule"

@@ -2448,6 +2448,7 @@ class Fparser2Reader(object):
                 currentparent.addchild(elsebody)
                 # The parent=currentparent of the IfBlock constructor was
                 # wrong, but it's needed for symbol table resolutions.
+                # FIXME
                 ifblock._parent = None
                 elsebody.addchild(ifblock)
                 elsebody.ast = node.content[start_idx + 1]

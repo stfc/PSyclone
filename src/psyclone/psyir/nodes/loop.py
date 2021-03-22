@@ -526,13 +526,14 @@ class Loop(Statement):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        # Avoid circular dependency
         from psyclone.psyGen import zero_reduction_variables, InvokeSchedule
 
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.
 
             :param expr: a PSyIR expression.
-                :type expr: :py:class:`psyclone.psyir.nodes.Node`
+            :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
             :returns: True if it is equal to the literal '1', false otherwise.
             '''

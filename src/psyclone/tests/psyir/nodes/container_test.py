@@ -56,6 +56,12 @@ def test_container_init():
     assert isinstance(container._symbol_table, SymbolTable)
 
 
+def test_container_init_parent():
+    '''Test that a container parent argument is stored as expected.'''
+    container = Container("test", parent="hello")
+    assert container.parent == "hello"
+
+
 def test_container_name():
     '''Test that the container name can be set and changed as
     expected.'''
