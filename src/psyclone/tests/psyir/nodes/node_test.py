@@ -827,10 +827,6 @@ def test_children_setter():
     testnode.children = [Statement(), Statement()]
     assert isinstance(testnode.children, ChildrenList)
 
-    # It also accepts None
-    testnode.children = None
-    assert testnode.children is None
-
     # Other types are not accepted
     with pytest.raises(TypeError) as error:
         testnode.children = Node()
@@ -986,3 +982,80 @@ def test_detach():
 
     # Executing it again still succeeds
     assert node1.detach() is node1
+
+
+def test_parent_references_coherency():
+    ''' Check that the parent references keep updated with the children
+    node operations. '''
+    parent = Schedule()
+
+    # Children addition methods
+    node1 = Statement()
+    parent.addchild(node1)
+    assert node1.parent is parent
+
+    node2 = Statement()
+    parent.children.append(node2)
+    assert node2.parent is parent
+
+    node3 = Statement()
+    parent.children.extend([node3])
+    assert node3.parent is parent
+
+    node4 = Statement()
+    parent.children.insert(0, node4)
+    assert node4.parent is parent
+
+    # Node deletion
+    node = parent.children.pop()
+    assert node.parent is None
+    assert node is node3
+
+    del parent.children[0]
+    assert node4.parent is None
+
+    parent.children = []
+    assert node2.parent is None
+
+    # The insertion has deletions and additions
+    parent.addchild(node1)
+    parent.children[0] = node2
+    assert node1.parent is None
+    assert node2.parent is parent
+
+    # The assignment also deletes and adds nodes
+    parent.addchild(node1)
+    parent.children = parent.children + [node3]
+    assert node1.parent is parent
+    assert node2.parent is parent
+    assert node3.parent is parent
+
+
+def test_node_constructor_with_parent():
+    ''' Check that the node constructor parent parameter works as expected. '''
+    parent = Schedule()
+    wrong_parent = Schedule()
+
+    # By default no parent reference is given
+    node = Statement()
+    assert node.parent is None
+    assert node.has_constructor_parent is False
+
+    # The parent argument can predefine the parent reference
+    node = Return(parent=parent)
+    assert node.parent is parent
+    assert node.has_constructor_parent is True
+
+    # Then only an addition to this predefined parent is accepted
+    with pytest.raises(GenerationError) as err:
+        wrong_parent.addchild(node)
+    assert ("'Schedule' cannot be set as parent of 'Return' because its "
+            "constructor predefined the parent reference to a different "
+            "'Schedule' node." in str(err.value))
+
+    # Once given the proper parent, it can act as a regular node
+    parent.addchild(node)
+    assert node.parent is parent
+    assert node.has_constructor_parent is False
+    wrong_parent.addchild(node.detach())
+    assert node.parent is wrong_parent

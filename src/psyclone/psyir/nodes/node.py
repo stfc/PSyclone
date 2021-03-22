@@ -165,8 +165,9 @@ class ChildrenList(list):
         if item.parent and item.has_constructor_parent:
             if item.parent is not self._node_reference:
                 raise GenerationError(
-                    "Can't set '{0}' as the parent of '{1}' because its "
-                    "constructor parent argument was set for '{2}'."
+                    "'{0}' cannot be set as parent of '{1}' because its "
+                    "constructor predefined the parent reference to a "
+                    "different '{2}' node."
                     .format(self._node_reference.coloured_name(False),
                             item.coloured_name(False),
                             item.parent.coloured_name(False)))
@@ -839,14 +840,12 @@ class Node(object):
         ''' Set a new children list.
 
         :param my_children: new list of children.
-        :type my_children: list or NoneType
+        :type my_children: list
 
-        :raises TypeError: if the given children parameter is not a list \
-            nor NoneType.
+        :raises TypeError: if the given children parameter is not a list.
         '''
-        if my_children is None:
-            self._children = None
-        elif isinstance(my_children, list):
+        if isinstance(my_children, list):
+            self.pop_all_children()  # First remove existing children if any
             self._children = ChildrenList(self, self._validate_child,
                                           self._children_valid_format)
             self._children.extend(my_children)
@@ -1267,11 +1266,15 @@ class Node(object):
         '''
         self._parent = None
         self._annotations = other.annotations[:]
-        self.children = [child.copy() for child in other.children]
+        # Invalidate shallow copied children list
+        self._children = ChildrenList(self, self._validate_child,
+                                      self._children_valid_format)
+        # And make a recursive copy of each child instead
+        self.children.extend([child.copy() for child in other.children])
 
     def copy(self):
         ''' Return a copy of this node. This is a bespoke implementation for
-        PSyIR nodes that will deepcopy some of its recursive data-structure 
+        PSyIR nodes that will deepcopy some of its recursive data-structure
         (e.g. the children tree), while not copying other attributes (e.g.
         top-level parent reference).
 
