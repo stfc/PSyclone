@@ -47,20 +47,23 @@ from psyclone.domain.common.algorithm import \
     AlgorithmInvokeCall, KernelLayerRef
 from psyclone.domain.common.transformations import InvokeTrans
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import Call, CodeBlock, Literal, Reference
+from psyclone.psyir.nodes import Call, CodeBlock, Literal, Reference, \
+    ArrayReference, Literal, BinaryOperation
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, Symbol, \
     StructureType
 from psyclone.psyir.nodes.node import ChildrenList
 
 
-def check_kernel(klr, name):
+def check_reference(klr, name, arg_name):
     '''Utility routine that checks that the kernel layer metadata
-    reference argument has the expected structure.
+    reference argument has the expected structure if its argument is a
+    reference.
 
     :param klr: the KernelLayerRef node being tested.
     :type klr: :py:class:`psyclone.domain.common.algorithm.KernelLayerRef`
-
     :param str name: the name of the symbol within a reference that is \
+        an argument to klr.
+    :param str arg_name: the name of the argument passed to the ..
         an argument to klr.
 
     '''
@@ -69,7 +72,45 @@ def check_kernel(klr, name):
     assert len(klr.children) == 1
     arg = klr.children[0]
     assert type(arg) == Reference
-    assert arg.symbol.name == "field"
+    assert arg.symbol.name == arg_name
+
+
+def check_literal(klr, name, arg_value):
+    '''Utility routine that checks that the kernel layer metadata
+    reference argument has the expected structure if its argument is a
+    literal.
+
+    :param klr: the KernelLayerRef node being tested.
+    :type klr: :py:class:`psyclone.domain.common.algorithm.KernelLayerRef`
+
+    :param str value: the value of the literal that is an argument to klr.
+
+    '''
+    assert type(klr) == KernelLayerRef
+    assert klr.symbol.name == name
+    assert len(klr.children) == 1
+    arg = klr.children[0]
+    assert type(arg) == Literal
+    assert arg.value == arg_value
+
+
+def create_psyir(code):
+    ''' Utility to create a PSyIR tree from Fortran code.
+    
+    :param str code: Fortran code encoded as a string
+
+    :returns: psyir tree representing the Fortran code
+    :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    fortran_reader = FortranStringReader(code)
+    f2008_parser = ParserFactory().create(std="f2008")
+    parse_tree = f2008_parser(fortran_reader)
+
+    psyir_reader = Fparser2Reader()
+    psyir = psyir_reader.generate_psyir(parse_tree)
+
+    return psyir
 
 
 def test_init():
@@ -96,22 +137,18 @@ def test_parse_args_get_symbol():
         "  call invoke(kern(1.0))\n"
         "end subroutine alg\n")
 
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
-
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
-
+    psyir = create_psyir(code)
     code_block = psyir[0].children[0]
     assert isinstance(code_block, CodeBlock)
 
+    # Check expected output from parse_args
     nodes = InvokeTrans.parse_args(code_block, code_block._fp2_nodes[0])
     assert isinstance(nodes, ChildrenList)
     assert len(nodes) == 1
     assert isinstance(nodes[0], Literal)
     assert nodes[0].value == "1.0"
 
+    # Check expected output from get_symbol when no symbol exists
     with pytest.raises(KeyError):
         _ = code_block.scope.symbol_table.lookup("kern")
     symbol = InvokeTrans.get_symbol(code_block, code_block._fp2_nodes[0])
@@ -119,20 +156,24 @@ def test_parse_args_get_symbol():
     assert symbol.name == "kern"
     symbol2 = code_block.scope.symbol_table.lookup("kern")
     assert symbol2 is symbol
+
+    # Check expected output from get_symbol when symbol already exists
     symbol3 = InvokeTrans.get_symbol(code_block, code_block._fp2_nodes[0])
     assert symbol3 is symbol
 
     
-# specialise_symbol
 def test_specialise_symbol():
     '''Test that the specialise_symbol method work as expected.
 
     '''
     symbol = Symbol("hello")
+
+    # Check that a Symbol is specialised
     InvokeTrans.specialise_symbol(symbol)
     assert isinstance(symbol, TypeSymbol)
     assert isinstance(symbol.datatype, StructureType)
 
+    # Check that something that is not a symbol is ignored
     test = "hello"
     InvokeTrans.specialise_symbol(test)
     assert isinstance(test, str)
@@ -141,15 +182,21 @@ def test_specialise_symbol():
 
 def test_call_error():
     '''Test that the expected exception is raised in the validate method
-    when the supplied node is the wrong type.
+    when the supplied node is the wrong type. Also check that the
+    validate method from within the apply method.
 
     '''
     invoke_trans = InvokeTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate("hello")
     assert ("Error in InvokeTrans transformation. The supplied call argument "
-            "should be a `Call` node with name 'invoke' but found 'str'."
-            in str(info.value))
+            "should be a `Call` node but found 'str'." in str(info.value))
+
+    # Check that validate is called via the apply method
+    with pytest.raises(TransformationError) as info:
+        invoke_trans.apply("hello")
+    assert ("Error in InvokeTrans transformation. The supplied call argument "
+            "should be a `Call` node but found 'str'." in str(info.value))
 
 
 def test_invoke_error():
@@ -162,84 +209,219 @@ def test_invoke_error():
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(Call(RoutineSymbol("hello")))
     assert ("Error in InvokeTrans transformation. The supplied call argument "
-            "should be a `Call` node but found 'str'." in str(info.value))
+            "should be a `Call` node with name 'invoke' but found 'hello'."
+            in str(info.value))
 
 
-# unexpected call argument code block content
-# unexpected call arument
-
-# apply calls validate
-
-
-# apply (existing tests?)
-def test_invoke_kern():
-    '''Test that an invoke containing a reference to metadata describing a
-    kernel within a PSyclone algorithm layer is transformed into
-    PSyclone-specific AlgorithmInvokeCall and KernelLayerRef classes.
+def test_array_reference():
+    '''Test that the validate method does not raise an exception if a
+    PSyIR ArrayReference is found.
 
     '''
     code = (
-        "module algorithm_mod\n"
-        "use kern_mod, only: kern\n"
-        "use field_mod, only: r2d_field\n"
-        "contains\n"
-        "  subroutine alg()\n"
-        "    type(r2d_field) :: field\n"
-        "    call invoke(kern(field))\n"
-        "  end subroutine alg\n"
-        "end module algorithm_mod\n")
+        "subroutine alg()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : r2d_field\n"
+        "  type(r2d_field) :: field\n"
+        "  call invoke(kern(field))\n"
+        "end subroutine alg\n")
 
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
+    psyir = create_psyir(code)
+    assert isinstance(psyir[0].children[0], ArrayReference)
+    invoke_trans = InvokeTrans()
+    invoke_trans.validate(psyir[0])
 
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
+
+def test_code_block_error():
+    '''Test that the validate method raises an exception if unexpected
+    content is found in a CodeBlock.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : r2d_field\n"
+        "  type(r2d_field) :: field\n"
+        "  call invoke(field=field)\n"
+        "end subroutine alg\n")
+
+    psyir = create_psyir(code)
+    invoke_trans = InvokeTrans()
+    with pytest.raises(TransformationError) as info:
+        invoke_trans.validate(psyir[0])
+    assert ("The supplied call argument contains a CodeBlock with content "
+            "(Actual_Arg_Spec) which is not a StructureConstructor."
+            in str(info.value))
+
+
+def test_arg_error():
+    '''Test that the validate method raises an exception if unexpected
+    content is found as an argument to an invoke.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : r2d_field\n"
+        "  type(r2d_field) :: field\n"
+        "  call invoke('hello')\n"
+        "end subroutine alg\n")
+
+    psyir = create_psyir(code)
+    invoke_trans = InvokeTrans()
+    with pytest.raises(TransformationError) as info:
+        invoke_trans.validate(psyir[0])
+    assert ("The arguments to this invoke call are expected to be a "
+            "CodeBlock or an ArrayReference, but found 'Literal'."
+            in str(info.value))
+
+
+def test_apply_arrayref():
+    '''Test that an invoke with an array reference argument is transformed
+    into PSyclone-specific AlgorithmInvokeCall and KernelLayerRef
+    classes.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod, only: kern\n"
+        "  use field_mod, only: r2d_field\n"
+        "  type(r2d_field) :: field\n"
+        "  call invoke(kern(field))\n"
+        "end subroutine alg\n")
+
+    psyir = create_psyir(code)
+    assert len(psyir[0].children) == 1
+    assert isinstance(psyir[0].children[0], ArrayReference)
 
     invoke_trans = InvokeTrans()
-    invoke_trans.apply(psyir.children[0][0])
+    invoke_trans.apply(psyir[0])
 
-    invoke = psyir.children[0][0]
+    invoke = psyir.children[0]
     assert type(invoke) == AlgorithmInvokeCall
     assert len(invoke.children) == 1
-    check_kernel(invoke.children[0], "kern")
+    check_reference(invoke.children[0], "kern", "field")
 
 
-def test_multi_invoke_kern():
-    '''Test that multiple invokes each containing more than one reference
-    to a kernel's metadata within a PSyclone algorithm layer are
-    transformed into PSyclone-specific AlgorithmInvokeCall and
-    KernelLayerRef classes.
+def test_apply_codeblock():
+    '''Test that an invoke with a code block argument is transformed
+    into PSyclone-specific AlgorithmInvokeCall and KernelLayerRef
+    classes.
 
     '''
     code = (
-        "module algorithm_mod\n"
-        "use field_mod, only: r2d_field\n"
-        "use kern_mod, only: kern1, kern2\n"
-        "contains\n"
-        "  subroutine alg()\n"
-        "    type(r2d_field) :: field\n"
-        "    call invoke(kern1(field), &\n"
-        "                kern2(field))\n"
-        "    call invoke(kern1(field), &\n"
-        "                kern2(field))\n"
-        "  end subroutine alg\n"
-        "end module algorithm_mod\n")
+        "subroutine alg()\n"
+        "  use kern_mod, only: kern\n"
+        "  call invoke(kern(0.0))\n"
+        "end subroutine alg\n")
 
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
-
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
+    psyir = create_psyir(code)
+    assert len(psyir[0].children) == 1
+    assert isinstance(psyir[0].children[0], CodeBlock)
 
     invoke_trans = InvokeTrans()
-    invoke_trans.apply(psyir.children[0][0])
-    invoke_trans.apply(psyir.children[0][1])
+    invoke_trans.apply(psyir[0])
 
-    for index in [0, 1]:
-        invoke = psyir.children[0][index]
-        assert type(invoke) == AlgorithmInvokeCall
-        assert len(invoke.children) == 2
-        check_kernel(invoke.children[0], "kern1")
-        check_kernel(invoke.children[1], "kern2")
+    invoke = psyir.children[0]
+    assert type(invoke) == AlgorithmInvokeCall
+    assert len(invoke.children) == 1
+    check_literal(invoke.children[0], "kern", "0.0")
+
+
+def test_apply_codeblocks():
+    '''Test that an invoke with a code block argument containing multiple
+    structure constructors is transformed into PSyclone-specific
+    AlgorithmInvokeCall and KernelLayerRef classes.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod, only: kern\n"
+        "  call invoke(kern(0.0), kern(1.0))\n"
+        "end subroutine alg\n")
+
+    psyir = create_psyir(code)
+    assert len(psyir[0].children) == 1
+    assert isinstance(psyir[0].children[0], CodeBlock)
+
+    invoke_trans = InvokeTrans()
+    invoke_trans.apply(psyir[0])
+
+    invoke = psyir.children[0]
+    assert type(invoke) == AlgorithmInvokeCall
+    assert len(invoke.children) == 2
+    check_literal(invoke.children[0], "kern", "0.0")
+    check_literal(invoke.children[1], "kern", "1.0")
+
+
+def test_apply_mixed():
+    '''Test that an invoke with a mixture of code block and array
+    reference arguments is transformed into PSyclone-specific
+    AlgorithmInvokeCall and KernelLayerRef classes.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod, only: kern\n"
+        "  use field_mod, only: r2d_field\n"
+        "  type(r2d_field) :: field\n"
+        "  call invoke(kern(0.0), kern(1.0), kern(field), kern(2.0))\n"
+        "end subroutine alg\n")
+
+    psyir = create_psyir(code)
+    assert len(psyir[0].children) == 3
+    assert isinstance(psyir[0].children[0], CodeBlock)
+    assert isinstance(psyir[0].children[1], ArrayReference)
+    assert isinstance(psyir[0].children[2], CodeBlock)
+
+    invoke_trans = InvokeTrans()
+    invoke_trans.apply(psyir[0])
+
+    invoke = psyir.children[0]
+    assert type(invoke) == AlgorithmInvokeCall
+    assert len(invoke.children) == 4
+    check_literal(invoke.children[0], "kern", "0.0")
+    check_literal(invoke.children[1], "kern", "1.0")
+    check_reference(invoke.children[2], "kern", "field")
+    check_literal(invoke.children[3], "kern", "2.0")
+
+
+def test_apply_expr():
+    '''Test that an invoke with a mixture of code block and array
+    reference arguments as expresssions is transformed into PSyclone-specific
+    AlgorithmInvokeCall and KernelLayerRef classes.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod, only: kern\n"
+        "  use field_mod, only: r2d_field\n"
+        "  type(r2d_field) :: field\n"
+        "  call invoke(kern((field+field)/2), kern((field+field)/2,1.0))\n"
+        "end subroutine alg\n")
+
+    psyir = create_psyir(code)
+    assert len(psyir[0].children) == 2
+    assert isinstance(psyir[0].children[0], ArrayReference)
+    assert isinstance(psyir[0].children[1], CodeBlock)
+
+    invoke_trans = InvokeTrans()
+    invoke_trans.apply(psyir[0])
+
+    invoke = psyir.children[0]
+    assert type(invoke) == AlgorithmInvokeCall
+    assert len(invoke.children) == 2
+
+    klr = invoke.children[0]
+    assert type(klr) == KernelLayerRef
+    assert klr.symbol.name == "kern"
+    assert len(klr.children) == 1
+    arg = klr.children[0]
+    assert isinstance(arg, BinaryOperation)
+
+    klr = invoke.children[1]
+    assert type(klr) == KernelLayerRef
+    assert klr.symbol.name == "kern"
+    assert len(klr.children) == 2
+    arg0 = klr.children[0]
+    assert isinstance(arg, BinaryOperation)

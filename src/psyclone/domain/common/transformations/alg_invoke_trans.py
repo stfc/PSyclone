@@ -38,7 +38,9 @@ algorithm layer to a PSyclone algorithm-layer-specific invoke call
 which uses specialised classes.
 
 '''
-from psyclone.psyir.nodes import Call, ArrayReference
+from fparser.two.Fortran2003 import Structure_Constructor
+
+from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock
 from psyclone.psyir.symbols import Symbol, TypeSymbol, StructureType, \
     RoutineSymbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
@@ -97,8 +99,9 @@ class InvokeTrans(Transformation):
         :type fp2_node: \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: YYY the name of the StructureConstructor.
-        :rtype: XXX
+        :returns: the symbol capturing the name and type of the \
+            StructureConstructor.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         name = fp2_node.children[0].string
@@ -115,6 +118,10 @@ class InvokeTrans(Transformation):
         '''If the symbol argument is a Symbol then change it into a
         TypeSymbol.
 
+        :param symbol: a symbol that will be modified to a TypeSymbol \
+            if it is a Symbol.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
         '''
         # pylint: disable=unidiomatic-typecheck
         if type(symbol) is Symbol:
@@ -122,7 +129,26 @@ class InvokeTrans(Transformation):
             symbol.datatype = StructureType()
 
     def validate(self, call, options=None):
-        ''' validate before applying the transformation '''
+        '''Validate the call argument.
+
+        :param call: a PSyIR call node capturing an invoke call in \
+            generic PSyIR.
+        :type call: :py:class:`psyclone.psyir.nodes.Call`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the supplied call argument is \
+            not a PSyIR Call node.
+        :raises TransformationError: if the supplied call argument \
+            does not have the expected name which would identify it as an \
+            invoke call.
+        :raises TransformationError: if the invoke arguments are not a \
+            PSyIR ArrayReference or CodeBlock.
+        :raises TransformationError: if an invoke argument is a \
+            CodeBlock but that code block does not only contain fparser2 \
+            StructureConstructor nodes.
+
+        '''
         if not isinstance(call, Call):
             raise TransformationError(
                 "Error in {0} transformation. The supplied call argument "
@@ -133,28 +159,34 @@ class InvokeTrans(Transformation):
                 "Error in {0} transformation. The supplied call argument "
                 "should be a `Call` node with name '{1}' but found '{2}'."
                 "".format(self.name, self._invoke_name, call.routine.name))
-        # each arg is one of x,y,z
         for arg in call.children:
             if isinstance(arg, ArrayReference):
                 pass
             elif isinstance(arg, CodeBlock):
-                for fp2_node in call_arg._fp2_nodes:
+                for fp2_node in arg._fp2_nodes:
                     if not isinstance(fp2_node, Structure_Constructor):
                         raise TransformationError(
                             "Error in {0} transformation. The supplied call "
                             "argument contains a CodeBlock with content "
-                            "({1}) that is not a StructureConstructor"
+                            "({1}) which is not a StructureConstructor."
                             "".format(self.name, type(fp2_node).__name__))
             else:
                 raise TransformationError(
                     "Error in {0} transformation. The arguments to this "
                     "invoke call are expected to be a CodeBlock or an "
                     "ArrayReference, but found '{1}'."
-                    "".format(self.name, type(arg).__name__)
+                    "".format(self.name, type(arg).__name__))
 
     def apply(self, call, options=None):
-        ''' apply transformation to the supplied node '''
-        
+        ''' apply transformation to the supplied node.
+
+        :param call: a PSyIR call node capturing an invoke call in \
+            generic PSyIR.
+        :type call: :py:class:`psyclone.psyir.nodes.Call`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        '''        
         self.validate(call, options=options)
         
         kernel_calls = []
