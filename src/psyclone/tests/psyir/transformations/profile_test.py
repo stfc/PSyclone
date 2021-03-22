@@ -45,11 +45,10 @@ import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import (colored, Node, ProfileNode, Loop, Literal,
+from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
                                   Assignment, Return, Reference,
                                   KernelSchedule, Schedule)
 from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
@@ -64,33 +63,6 @@ def teardown_function():
     to make sure any further tests will not be ran with profiling enabled.
     '''
     Profiler.set_options([])
-
-
-def test_malformed_profile_node(monkeypatch):
-    ''' Check that we raise the expected error if a ProfileNode does not have
-    a single Schedule node as its child. '''
-    pnode = ProfileNode()
-    monkeypatch.setattr(pnode, "_children", [])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-    monkeypatch.setattr(pnode, "_children", [Node(), Node()])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-
-
-@pytest.mark.parametrize("value", [["a", "b"], ("a"), ("a", "b", "c"),
-                                   ("a", []), ([], "a")])
-def test_profile_node_invalid_name(value):
-    '''Test that the expected exception is raised when an invalid profile
-    name is provided to a ProfileNode.
-
-    '''
-    with pytest.raises(InternalError) as excinfo:
-        _ = ProfileNode(options={"region_name": value})
-    assert ("Error in PSyDataNode. The name must be a tuple containing "
-            "two non-empty strings." in str(excinfo.value))
 
 
 # -----------------------------------------------------------------------------

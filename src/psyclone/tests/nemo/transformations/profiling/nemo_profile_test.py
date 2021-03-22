@@ -90,7 +90,7 @@ def get_nemo_schedule(parser, code):
     return psy, schedule
 
 
-def test_profile_single_loop(parser, fort_writer):
+def test_profile_single_loop(parser):
     ''' Check that the correct code is added to the generated Fortran
     when profiling a single loop nest. '''
     psy, schedule = get_nemo_schedule(parser,
@@ -118,10 +118,6 @@ def test_profile_single_loop(parser, fort_writer):
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
         "  CALL profile_psy_data0 % PostEnd\n" in code)
-    schedule.lower_to_language_level()
-    code = fort_writer(schedule)
-    print(code)
-    assert 0
 
 
 def test_profile_single_loop_named(parser):
