@@ -440,6 +440,7 @@ class MeshPropertiesMetaData(object):
                 raise ParseError("Duplicate mesh property "
                                  "found: '{0}'.".format(prop))
 
+
 class DynKernMetadata(KernelType):
     ''' Captures the Kernel subroutine code and metadata describing
     the subroutine for the Dynamo 0.3 API.
