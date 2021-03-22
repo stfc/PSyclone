@@ -154,8 +154,10 @@ def test_name_clash_derived_type_def(f2008_parser):
 
 @pytest.mark.usefixtures("f2008_parser")
 @pytest.mark.parametrize("use_stmt", ["use grid_mod, only: grid_type",
+                                      "use grid_mod, only: GRID_TYPE",
                                       "use grid_mod"])
-def test_parse_derived_type(use_stmt):
+@pytest.mark.parametrize("type_name", ["GRID_TYPE", "grid_type"])
+def test_parse_derived_type(use_stmt, type_name):
     ''' Check that the fronted correctly creates a TypeSymbol of type
     StructureType from the declaration of a derived type. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -164,10 +166,11 @@ def test_parse_derived_type(use_stmt):
     reader = FortranStringReader("{0}\n"
                                  "type :: my_type\n"
                                  "  integer :: flag\n"
-                                 "  type(grid_type), private :: grid\n"
+                                 "  type({1}), private :: grid\n"
                                  "  real, dimension(3) :: posn\n"
                                  "end type my_type\n"
-                                 "type(my_type) :: var\n".format(use_stmt))
+                                 "type(my_type) :: var\n".format(use_stmt,
+                                                                 type_name))
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")

@@ -127,7 +127,7 @@ class UnaryOperation(Operation):
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10',
+        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10', 'SUM',
         # Logical Operators
         'NOT',
         # Trigonometric Operators
