@@ -438,8 +438,12 @@ their metadata and subroutine arguments.
 
 Domain kernels are distinct from the other three, user-supplied kernel
 types in that they must be passed data for the whole domain rather
-than a single cell-column.  The reason for this is that they are
-intended to allow existing, "i-first" physics code to be called from
+than a single cell-column. This permits the use of kernels that have
+not been written to conform to the single-column approach which
+simplifies the integration with existing code. Obviously, any
+parallelisation in the 'domain' kernel must be consistent with that
+in the rest of the application. The motivation for such kernels in
+LFRic is that they allow existing, "i-first" physics code to be called from
 the PSy layer. Since those routines currently contain their own,
 i-first looping structure (and associated OpenMP parallelisation), the
 most efficient way to use them is to avoid enclosing them within a
@@ -2003,8 +2007,9 @@ identical to those for general-purpose kernels (described :ref:`above
 are not permitted any type of operator argument or any argument with a
 stencil access. The only difference is that, since the kernel operates
 on the whole domain, the number of columns in the mesh (``ncell_2d``)
-must be passed in as the second argument (after ``nlayers``). ``ncell_2d``
-is an integer of kind ``i_def`` with intent ``in``.
+must be passed in. This is provided as the second argument to the
+kernel (after ``nlayers``). ``ncell_2d`` is an integer of kind
+``i_def`` with intent ``in``.
 
 .. _dynamo0.3-kernel-arg-intents:
 
