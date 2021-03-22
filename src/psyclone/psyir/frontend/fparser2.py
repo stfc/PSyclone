@@ -2413,10 +2413,20 @@ class Fparser2Reader(object):
             clause = node.content[start_idx]
             case = clause.items[0]
 
-            # We add currentparent temporally as the parent to aid in symbol
-            # table resolutions, but it may not be the right parent and it may
-            # have to be modified if it's added to a different parent node.
-            ifblock = IfBlock(parent=currentparent, annotations=['was_case'])
+            # If rootif is already initialised we chain the new case in the
+            # last else branch, otherwise we start a new IfBlock
+            if rootif:
+                elsebody = Schedule(parent=currentparent)
+                currentparent.addchild(elsebody)
+                ifblock = IfBlock(annotations=['was_case'])
+                elsebody.addchild(ifblock)
+                elsebody.ast = node.content[start_idx + 1]
+                elsebody.ast_end = node.content[end_idx - 1]
+            else:
+                ifblock = IfBlock(parent=currentparent,
+                                  annotations=['was_case'])
+                rootif = ifblock
+
             if idx == 0:
                 # If this is the first IfBlock then have it point to
                 # the original SELECT CASE in the parse tree
@@ -2440,21 +2450,6 @@ class Fparser2Reader(object):
             ifblock.addchild(ifbody)
             ifbody.ast = node.content[start_idx + 1]
             ifbody.ast_end = node.content[end_idx - 1]
-
-            if rootif:
-                # If rootif is already initialised we chain the new
-                # case in the last else branch.
-                elsebody = Schedule(parent=currentparent)
-                currentparent.addchild(elsebody)
-                # The parent=currentparent of the IfBlock constructor was
-                # wrong, but it's needed for symbol table resolutions.
-                # FIXME
-                ifblock._parent = None
-                elsebody.addchild(ifblock)
-                elsebody.ast = node.content[start_idx + 1]
-                elsebody.ast_end = node.content[end_idx - 1]
-            else:
-                rootif = ifblock
 
             currentparent = ifblock
 

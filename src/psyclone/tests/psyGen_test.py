@@ -637,7 +637,6 @@ def test_inlinedkern_children_validation():
 def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
-    my_arguments = Arguments(None)
 
     class KernType(object):
         ''' temporary dummy class '''
@@ -651,8 +650,13 @@ def test_call_abstract_methods():
             self.module_name = "dummy_module"
             self.ktype = ktype
 
+    class DummyArguments(Arguments):
+        ''' temporary dummy class '''
+        def __init__(self, call, parent_call):
+            Arguments.__init__(self, parent_call)
+
     dummy_call = DummyClass(my_ktype)
-    my_call = Kern(None, dummy_call, "dummy", my_arguments)
+    my_call = Kern(None, dummy_call, "dummy", DummyArguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Kern.local_vars should be implemented" in str(excinfo.value)

@@ -2462,9 +2462,9 @@ class Kern(Statement):
                  the Algorithm layer code.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param str name: the name of the routine being called.
-    :param arguments: object holding information on the kernel arguments, \
+    :param ArgumentsClass: class to create the kernel arguments, \
                       as extracted from kernel meta-data.
-    :type arguments: :py:class:`psyclone.psyGen.Arguments`
+    :type ArgumentsClass: type of :py:class:`psyclone.psyGen.Arguments`
 
     :raises GenerationError: if any of the arguments to the call are \
                              duplicated.
@@ -2472,9 +2472,9 @@ class Kern(Statement):
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
 
-    def __init__(self, parent, call, name, arguments):
+    def __init__(self, parent, call, name, ArgumentsClass):
         super(Kern, self).__init__(self, parent=parent)
-        self._arguments = arguments
+        self._arguments = ArgumentsClass(call, self)
         self._name = name
         self._iterates_over = call.ktype.iterates_over
 
@@ -2495,7 +2495,7 @@ class Kern(Statement):
 
         # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
-        args = args_filter(arguments.args,
+        args = args_filter(self._arguments.args,
                            arg_types=VALID_SCALAR_NAMES,
                            arg_accesses=reduction_modes)
         if args:
@@ -2767,10 +2767,9 @@ class CodedKern(Kern):
     _colour = "magenta"
 
     def __init__(self, KernelArguments, call, parent=None, check=True):
-        self._parent = parent
         super(CodedKern, self).__init__(parent, call,
                                         call.ktype.procedure.name,
-                                        KernelArguments(call, self))
+                                        KernelArguments)
         self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
