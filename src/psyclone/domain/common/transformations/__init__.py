@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 from psyclone.domain.common.transformations.alg_invoke_trans import InvokeTrans
+from psyclone.domain.common.transformations.alg_psyir_trans import AlgPSyIRTrans
 
-__all__ = [InvokeTrans]
+__all__ = [InvokeTrans, AlgPSyIRTrans]
 

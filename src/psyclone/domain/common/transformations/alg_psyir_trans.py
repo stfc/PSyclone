@@ -38,28 +38,61 @@ PSyclone algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Call
-from psyclone.domain.common.transformations import AlgInvokeTrans
-
+from psyclone.psyir.nodes import Call, Routine, Container
+from psyclone.domain.common.transformations import InvokeTrans
+from psyclone.psyir.transformations import TransformationError
 
 class AlgPSyIRTrans(Transformation):
     '''Transform a generic PSyIR representation of the Algorithm layer to
-    a PSyclone version with specialised domain-specific nodes. '''
+    a PSyclone version with specialised domain-specific nodes.
 
+    :param str invoke_name: the name used to specify an invoke \
+        call. This is an optional argument that defaults to 'invoke'.
+
+    '''
     def __init__(self, invoke_name="invoke"):
-        ''' xxx '''
-        self._invoke_trans = AlgInvokeTrans()
+        self._invoke_trans = InvokeTrans()
         self._invoke_name = invoke_name
 
     def validate(self, node, options=None):
-        ''' validate before applying the transformation '''
-        # Check node is a top-level PSyIR node
-        pass
+        '''Validate the supplied PSyIR tree.
+        
+        :param node: A PSyIR node that is the root of a PSyIR tree.
+        :type node: :py:class:`psyclone.psyir.node.Routine` or \
+            :py:class:`psyclone.psyir.node.Container`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
-    def trans(self, node, options=None):
-        ''' apply transformation to the supplied node '''
+        :raises TransformationError: if the supplied node argument is \
+            not a Routine or a Container.
+        :raises TransformationError: if the supplied node argument has \
+            a parent.
 
-        self._validate(node, options=options)
+        '''
+        if not isinstance(node, (Routine, Container)):
+            raise TransformationError(
+                "Error in {0} transformation. The supplied call argument "
+                "should be a Routine or Container node but found '{1}'."
+                "".format(self.name, type(node).__name__))
+        if node.parent:
+            raise TransformationError(
+                "Error in {0} transformation. The supplied node should be the "
+                "root of a PSyIR tree but this node has a parent."
+                "".format(self.name))
+
+    def apply(self, psyir, options=None):
+        ''' apply transformation to the supplied psyir node '''
+
+        self.validate(psyir, options=options)
         for call in psyir.walk(Call):
             if call.routine.name.lower() == self._invoke_name:
                 self._invoke_trans.apply(call, options=options)
+
+    @property
+    def name(self):
+        '''
+        :returns: a name identifying this transformation.
+        :rtype: str
+
+        '''
+        return "AlgPSyIRTrans"

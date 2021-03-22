@@ -216,4 +216,9 @@ class InvokeTrans(Transformation):
 
     @property
     def name(self):
+        '''
+        :returns: a name identifying this transformation.
+        :rtype: str
+
+        '''
         return "InvokeTrans"
