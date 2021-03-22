@@ -1708,6 +1708,30 @@ class ACCLoopDirective(ACCDirective):
                 text += " COLLAPSE({0})".format(self._collapse)
         self._add_region(start_text=text)
 
+    def begin_string(self):
+        ''' Returns the beginning statement of this directive, i.e.
+        "acc loop" plus any qualifiers. The visitor is responsible for
+        adding the correct characters to mark this as a directive (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        result = "acc loop"
+        if self._sequential:
+            result += " seq"
+        else:
+            if self._independent:
+                result += " independent"
+            if self._collapse:
+                result += " collapse({0})".format(self._collapse)
+        return result
+
+    def end_string(self):
+        ''' Would return the end string for this directive but "acc loop"
+        doesn't have a closing directive. '''
+        return ""
+
 
 class OMPDirective(Directive):
     '''
@@ -4554,6 +4578,11 @@ class ACCDataDirective(ACCDirective):
         return result
 
     def end_string(self):
+        '''
+        :returns: the text for the end of this directive region.
+        :rtype: str
+
+        '''
         result = "acc end data"
         return result
 

@@ -334,7 +334,7 @@ def test_loop_inside_kernels(parser):
     assert ("  !$acc kernels\n"
             "  !$acc loop independent\n"
             "  do ji = 1, jpj, 1\n" in output)
-    assert ("  end do\n"
+    assert ("  enddo\n"
             "  !$acc end kernels\n" in output)
 
 
@@ -366,6 +366,7 @@ def test_two_loops_inside_kernels(parser):
             "  do ji = 1, 10, 1\n" in output)
     assert ("  enddo\n"
             "  !$acc end kernels\n"
+            "\n"
             "end program" in output)
     loop_trans.apply(schedule[0].dir_body[1])
     output = str(psy.gen).lower()
@@ -373,6 +374,7 @@ def test_two_loops_inside_kernels(parser):
             "  do ji = 1, 5, 1\n" in output)
     assert ("  enddo\n"
             "  !$acc end kernels\n"
+            "\n"
             "end program" in output)
 
 
@@ -396,11 +398,12 @@ def test_loop_after_implicit_kernels(parser):
     loop_trans.apply(schedule[0].dir_body[1])
     output = str(psy.gen).lower()
     assert ("  !$acc kernels\n"
-            "  array(:,:) = - 1.0\n"
+            "  array(:,:) = -1.0\n"
             "  !$acc loop independent\n"
             "  do ji = 1, 5, 1\n" in output)
     assert ("  enddo\n"
             "  !$acc end kernels\n"
+            "\n"
             "end program" in output)
 
 

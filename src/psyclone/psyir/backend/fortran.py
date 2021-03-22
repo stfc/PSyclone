@@ -1261,8 +1261,9 @@ class FortranWriter(PSyIRVisitor):
         for child in node.dir_body:
             result_list.append(self._visit(child))
 
-        result_list.append("{0}!${1}\n".format(self._nindent,
-                                               node.end_string()))
+        end_string = node.end_string()
+        if end_string:
+            result_list.append("{0}!${1}\n".format(self._nindent, end_string))
         return "".join(result_list)
 
     def call_node(self, node):
