@@ -6180,8 +6180,10 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     assert upperbound == "ncolour_fld_m"
     # Manually add an un-coloured kernel to the loop that we coloured
     loop = loops[2]
-    monkeypatch.setattr(loops[3].loop_body[0], "is_coloured", lambda: True)
-    loop.loop_body.children.append(loops[3].loop_body[0])
+    kern = loops[3].loop_body[0].detach()
+    monkeypatch.setattr(kern, "is_coloured", lambda: True)
+    loop.loop_body.children.append(kern)
+    kern.parent = loop.loop_body
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "

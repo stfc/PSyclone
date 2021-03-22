@@ -490,8 +490,9 @@ def test_swap_symbol():
     assert ("Cannot swap symbols that have different names, got: 'var1' and "
             "'var2'" in str(err.value))
     # Finally, check that the method correctly adds the new symbol to the
-    # table and removes the old one.
-    symbol3 = DataSymbol("var1", REAL_TYPE)
+    # table and removes the old one (even if the case of the name of the
+    # new symbol differs from the original).
+    symbol3 = DataSymbol("Var1", REAL_TYPE)
     sym_table.swap(symbol1, symbol3)
     assert sym_table.lookup("var1") is symbol3
     assert symbol1 not in sym_table._symbols
@@ -536,7 +537,9 @@ def test_swap_symbol_properties():
         sym_table.swap_symbol_properties(symbol1, symbol4)
     assert "Symbol 'var2' is not in the symbol table." in str(excinfo.value)
 
-    # Raise exception if both symbols have the same name
+    # Raise exception if both symbols have the same name. The only way this
+    # can currently occur is if they are the same symbol (as the normalised
+    # symbol name is used as the key in the symbol table).
     with pytest.raises(ValueError) as excinfo:
         sym_table.swap_symbol_properties(symbol1, symbol1)
     assert("The symbols should have different names, but found 'var1' for "

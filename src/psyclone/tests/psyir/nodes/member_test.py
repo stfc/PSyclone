@@ -55,3 +55,19 @@ def test_member_constructor_errors():
     assert ("parent of a Member must be either a "
             "(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)Member "
             "but found 'str'" in str(err.value))
+
+
+def test_member_can_be_copied():
+    ''' Test that a Member node can be copied. '''
+
+    member = nodes.Member("name1")
+
+    member1 = member.copy()
+    assert isinstance(member1, nodes.Member)
+    assert member1 is not member
+    assert member1.name == "name1"
+
+    # Modifying the new member does not affect the original
+    member1._component_name = "name2"
+    assert member1.name == "name2"
+    assert member.name == "name1"

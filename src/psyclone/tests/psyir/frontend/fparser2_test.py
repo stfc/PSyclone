@@ -161,7 +161,7 @@ def test_is_bound_full_extent():
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
-    my_range = Range.create(one, one)
+    my_range = Range.create(one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
@@ -174,8 +174,8 @@ def test_is_bound_full_extent():
                                      BinaryOperation.Operator.UBOUND)
 
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, one, one)
-    my_range = Range.create(operator, one)
+        BinaryOperation.Operator.UBOUND, one.copy(), one.copy())
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting operator to be Operator.LBOUND, but found
@@ -184,8 +184,8 @@ def test_is_bound_full_extent():
                                      BinaryOperation.Operator.LBOUND)
 
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, one, one)
-    my_range = Range.create(operator, one)
+        BinaryOperation.Operator.LBOUND, one.copy(), one.copy())
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference but found Literal
@@ -194,8 +194,8 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(DataSymbol("x", INTEGER_TYPE)), one)
-    my_range = Range.create(operator, one)
+        Reference(DataSymbol("x", INTEGER_TYPE)), one.copy())
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference symbol x to be the same as array symbol a
@@ -205,7 +205,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1.0", REAL_TYPE))
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting integer but found real
@@ -215,7 +215,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("2", INTEGER_TYPE))
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting literal value 2 to be the same as the current array
@@ -226,7 +226,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # valid
@@ -279,7 +279,7 @@ def test_is_array_range_literal():
     # 1st dimension, first argument to range is an operator, not a literal
     assert not _is_array_range_literal(array_reference, 1, 0, 1)
 
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator.copy(), one.copy())
 
     # Range.create checks for valid datatype. Therefore change to
     # invalid after creation.
@@ -290,7 +290,7 @@ def test_is_array_range_literal():
     # not an integer literal.
     assert not _is_array_range_literal(array_reference, 1, 1, 1)
 
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     # 1st dimension, second argument to range has an unexpected
     # value.
@@ -315,17 +315,18 @@ def test_is_range_full_extent():
     _is_range_full_extent(my_range)
 
     # Invalid start (as 1st argument should be lower bound)
-    my_range = Range.create(ubound_op, ubound_op, one)
+    my_range = Range.create(ubound_op.copy(), ubound_op.copy(), one.copy())
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid stop (as 2nd argument should be upper bound)
-    my_range = Range.create(lbound_op, lbound_op, one)
+    my_range = Range.create(lbound_op.copy(), lbound_op.copy(), one.copy())
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid step (as 3rd argument should be Literal)
-    my_range = Range.create(lbound_op, ubound_op, ubound_op)
+    my_range = Range.create(lbound_op.copy(), ubound_op.copy(),
+                            ubound_op.copy())
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
@@ -395,14 +396,15 @@ def test_array_notation_rank():
     range1 = Range.create(lbound_op1, ubound_op1)
     range2 = Range.create(lbound_op3, ubound_op3)
     one = Literal("1", INTEGER_TYPE)
-    array = ArrayReference.create(symbol, [range1, one, range2])
+    array = ArrayReference.create(symbol, [range1, one.copy(), range2])
     result = Fparser2Reader._array_notation_rank(array)
     # Two array dimensions use array notation.
     assert result == 2
 
     # Make one of the array notation dimensions differ from what is required.
-    range2 = Range.create(lbound_op3, one)
-    array = ArrayReference.create(symbol, [range1, one, range2])
+    range1.parent = None
+    range2 = Range.create(lbound_op3.copy(), one.copy())
+    array = ArrayReference.create(symbol, [range1, one.copy(), range2])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("Only array notation of the form my_array(:, :, ...) is "
@@ -1681,58 +1683,78 @@ def test_handling_part_ref():
     assert len(new_node.children) == 3  # Array dimensions
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_intrinsics():
+@pytest.fixture(scope="module", name="symbol_table")
+def make_symbol_table():
+    '''
+    pytest fixture to create and populate a symbol table for the
+    'test_handling_intrinsics' test below.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    symbol_table.new_symbol("a", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    symbol_table.new_symbol("b", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    symbol_table.new_symbol("c", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    symbol_table.new_symbol("idx", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    symbol_table.new_symbol("mask", symbol_type=DataSymbol,
+                            datatype=ArrayType(INTEGER_TYPE, [10]))
+    return symbol_table
+
+
+@pytest.mark.parametrize(
+    "code, expected_type, expected_op",
+    [('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
+     ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
+     ('x = asin(a)', UnaryOperation, UnaryOperation.Operator.ASIN),
+     ('idx = ceiling(a)', UnaryOperation, UnaryOperation.Operator.CEIL),
+     ('x = abs(a)', UnaryOperation, UnaryOperation.Operator.ABS),
+     ('x = cos(a)', UnaryOperation, UnaryOperation.Operator.COS),
+     ('x = acos(a)', UnaryOperation, UnaryOperation.Operator.ACOS),
+     ('x = tan(a)', UnaryOperation, UnaryOperation.Operator.TAN),
+     ('x = atan(a)', UnaryOperation, UnaryOperation.Operator.ATAN),
+     ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
+     ('x = real(a, 8)', BinaryOperation, BinaryOperation.Operator.REAL),
+     ('x = int(a)', UnaryOperation, UnaryOperation.Operator.INT),
+     ('x = int(a, 8)', BinaryOperation, BinaryOperation.Operator.INT),
+     ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
+     ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
+     ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
+     ('x = matmul(a, b)', BinaryOperation,
+      BinaryOperation.Operator.MATMUL),
+     ('x = max(a, b)', BinaryOperation, BinaryOperation.Operator.MAX),
+     ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
+     ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
+     ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
+     ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
+     ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
+     ('x = sum(a)', UnaryOperation, UnaryOperation.Operator.SUM),
+     ('x = sum(a, idx)', BinaryOperation, BinaryOperation.Operator.SUM),
+     ('x = suM(a, idx, mask)', NaryOperation, NaryOperation.Operator.SUM),
+     # Check that we get a CodeBlock for an unsupported N-ary operation
+     ('x = reshape(a, b, c)', CodeBlock, None)])
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
     ''' Test that fparser2 Intrinsic_Function_Reference nodes are
     handled appropriately.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     processor = Fparser2Reader()
-
-    # Test parsing all supported binary operators.
-    testlist = (
-        ('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
-        ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
-        ('x = asin(a)', UnaryOperation, UnaryOperation.Operator.ASIN),
-        ('ix = ceiling(a)', UnaryOperation, UnaryOperation.Operator.CEIL),
-        ('x = abs(a)', UnaryOperation, UnaryOperation.Operator.ABS),
-        ('x = cos(a)', UnaryOperation, UnaryOperation.Operator.COS),
-        ('x = acos(a)', UnaryOperation, UnaryOperation.Operator.ACOS),
-        ('x = tan(a)', UnaryOperation, UnaryOperation.Operator.TAN),
-        ('x = atan(a)', UnaryOperation, UnaryOperation.Operator.ATAN),
-        ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
-        ('x = real(a, 8)', CodeBlock, None),
-        ('x = int(a)', UnaryOperation, UnaryOperation.Operator.INT),
-        ('x = int(a, 8)', CodeBlock, None),
-        ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
-        ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
-        ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
-        ('x = matmul(a, b)', BinaryOperation,
-         BinaryOperation.Operator.MATMUL),
-        ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
-        ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
-        ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
-        ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
-        ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
-        ('x = sum(a, idim)', BinaryOperation, BinaryOperation.Operator.SUM),
-        ('x = suM(a, idim, mask)', NaryOperation, NaryOperation.Operator.SUM),
-        # Check that we get a CodeBlock for an unsupported N-ary operation
-        ('x = reshape(a, b, c)', CodeBlock, None),
-    )
-
-    for code, expected_type, expected_op in testlist:
-        fake_parent = Schedule()
-        reader = FortranStringReader(code)
-        fp2node = Execution_Part.match(reader)[0][0]
-        processor.process_nodes(fake_parent, [fp2node])
-        assert len(fake_parent.children) == 1
-        assert isinstance(fake_parent[0].rhs, expected_type), \
+    fake_parent = Schedule(symbol_table=symbol_table)
+    reader = FortranStringReader(code)
+    fp2node = Execution_Part.match(reader)[0][0]
+    processor.process_nodes(fake_parent, [fp2node])
+    assign = fake_parent.children[0]
+    assert isinstance(assign, Assignment)
+    assert isinstance(assign.rhs, expected_type), \
+        "Fails when parsing '" + code + "'"
+    if expected_type is not CodeBlock:
+        assert assign.rhs._operator == expected_op, \
             "Fails when parsing '" + code + "'"
-        if expected_type is not CodeBlock:
-            assert fake_parent[0].rhs._operator == expected_op, \
-                "Fails when parsing '" + code + "'"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2098,10 +2120,12 @@ def test_handling_if_construct():
     assert len(ifnode.children) == 3
     assert ifnode.condition.children[0].name == 'condition1'
     assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.children[1].parent is ifnode
     assert ifnode.children[1].ast is fparser2if_construct.content[1]
     assert ifnode.children[1].ast_end is fparser2if_construct.content[2]
     assert ifnode.if_body[0].children[0].name == 'branch1'
     assert isinstance(ifnode.children[2], Schedule)
+    assert ifnode.children[2].parent is ifnode
     assert ifnode.children[2].ast is fparser2if_construct.content[3]
 
     # Second level contains condition2, branch2, elsebody
@@ -2109,8 +2133,10 @@ def test_handling_if_construct():
     assert 'was_elseif' in ifnode.annotations
     assert ifnode.condition.children[0].name == 'condition2'
     assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.children[1].parent is ifnode
     assert ifnode.if_body[0].children[0].name == 'branch2'
     assert isinstance(ifnode.children[2], Schedule)
+    assert ifnode.children[2].parent is ifnode
 
     # Third level is just branch3
     elsebody = ifnode.else_body[0]
