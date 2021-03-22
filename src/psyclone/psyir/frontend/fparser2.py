@@ -699,6 +699,7 @@ class Fparser2Reader(object):
         ('tan', UnaryOperation.Operator.TAN),
         ('atan', UnaryOperation.Operator.ATAN),
         ('sqrt', UnaryOperation.Operator.SQRT),
+        ('sum', UnaryOperation.Operator.SUM),
         ('real', UnaryOperation.Operator.REAL),
         ('nint', UnaryOperation.Operator.NINT),
         ('int', UnaryOperation.Operator.INT)])

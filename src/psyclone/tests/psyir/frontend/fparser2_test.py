@@ -1732,6 +1732,7 @@ def make_symbol_table():
      ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
      ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
      ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
+     ('x = sum(a)', UnaryOperation, UnaryOperation.Operator.SUM),
      ('x = sum(a, idx)', BinaryOperation, BinaryOperation.Operator.SUM),
      ('x = suM(a, idx, mask)', NaryOperation, NaryOperation.Operator.SUM),
      # Check that we get a CodeBlock for an unsupported N-ary operation
