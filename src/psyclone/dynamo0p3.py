@@ -142,8 +142,9 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
 
 
 # Valid LFRic loop types. The default is "" which is over cells (in the
-# horizontal plane).
-VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
+# horizontal plane). A "null" loop doesn't iterate over anything but is
+# required for the halo-exchange logic.
+VALID_LOOP_TYPES = ["dofs", "colours", "colour", "", "null"]
 
 # Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
 # TODO #870 rm 'cells' from list below.
@@ -364,6 +365,17 @@ class RefElementMetaData(object):
                                  "found: '{0}'.".format(prop))
 
 
+class MeshProperty(Enum):
+    '''
+    Enumeration of the various properties of the mesh that a kernel may
+    require (either named in metadata or implicitly, depending on the type
+    of kernel).
+
+    '''
+    ADJACENT_FACE = 1
+    NCELL_2D = 2
+
+
 class MeshPropertiesMetaData(object):
     '''
     Parses any mesh-property kernel metadata and stores the properties that
@@ -378,15 +390,9 @@ class MeshPropertiesMetaData(object):
     :raises ParseError: if a duplicate mesh property is found.
 
     '''
-    # pylint: disable=too-few-public-methods
-    class Property(Enum):
-        '''
-        Enumeration of the various properties of the mesh that a kernel may
-        request. The names of each of these corresponds to the names that must
-        be used in kernel metadata.
-
-        '''
-        ADJACENT_FACE = 1
+    # The properties that may be specified in kernel meta-data are a subset
+    # of the MeshProperty enumeration values.
+    supported_properties = [MeshProperty.ADJACENT_FACE]
 
     def __init__(self, kernel_name, type_declns):
         # The list of mesh properties requested in the meta-data.
@@ -415,15 +421,18 @@ class MeshPropertiesMetaData(object):
             # argument to which gives a mesh property.
             for prop in mesh_props:
                 for arg in prop.args:
-                    self.properties.append(
-                        self.Property[str(arg).upper()])
-        except KeyError:
-            # We found a reference-element property that we don't recognise.
-            # Sort for consistency when testing.
-            sorted_names = sorted([prop.name for prop in self.Property])
-            raise ParseError(
-                "Unsupported mesh property: '{0}'. Supported "
-                "values are: {1}".format(arg, sorted_names))
+                    mesh_prop = MeshProperty[str(arg).upper()]
+                    if mesh_prop not in self.supported_properties:
+                        raise KeyError()
+                    self.properties.append(mesh_prop)
+        except KeyError as err:
+            # We found a mesh property that we don't recognise or that
+            # is not supported.
+            six.raise_from(
+                ParseError("Unsupported mesh property in metadata: '{0}'. "
+                           "Supported values are: {1}".format(
+                               arg, [prop.name for prop in
+                                     self.supported_properties])), err)
 
         # Check for duplicate properties
         for prop in self.properties:
@@ -1867,11 +1876,15 @@ class LFRicMeshProperties(DynCollection):
         # The (ordered) list of mesh properties required by this invoke or
         # kernel stub.
         self._properties = []
+        need_ncell_2d = False
 
         for call in self._calls:
             if call.mesh:
                 self._properties += [prop for prop in call.mesh.properties
                                      if prop not in self._properties]
+            if call.iterates_over == "domain" and not need_ncell_2d:
+                need_ncell_2d = True
+                self._properties.append(MeshProperty.NCELL_2D)
 
         # Store properties in symbol table
         for prop in self._properties:
@@ -1907,7 +1920,7 @@ class LFRicMeshProperties(DynCollection):
         arg_list = []
 
         for prop in self._properties:
-            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+            if prop == MeshProperty.ADJACENT_FACE:
                 # Is this kernel already being passed the number of horizontal
                 # faces of the reference element?
                 has_nfaces = (
@@ -1940,14 +1953,14 @@ class LFRicMeshProperties(DynCollection):
                     else:
                         adj_face += "(:,{0})".format(cell_name)
                 arg_list.append(adj_face)
+
             else:
                 raise InternalError(
                     "kern_args: found unsupported mesh property '{0}' when "
                     "generating arguments for kernel '{1}'. Only members of "
-                    "the MeshPropertiesMetaData.Property Enum are permitted "
+                    "the MeshProperty Enum are permitted "
                     "({2}).".format(
-                        str(prop), self._kernel.name,
-                        list(MeshPropertiesMetaData.Property)))
+                        str(prop), self._kernel.name, list(MeshProperty)))
 
         return arg_list
 
@@ -1975,19 +1988,23 @@ class LFRicMeshProperties(DynCollection):
         for prop in self._properties:
             # The DynMeshes class will have created a mesh object so we
             # don't need to do that here.
-            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+            if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self._symbol_table.symbol_from_tag(
                     "adjacent_face").name + "(:,:) => null()"
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True, entity_decls=[adj_face]))
+            elif prop == MeshProperty.NCELL_2D:
+                name = self._symbol_table.symbol_from_tag("ncell_2d").name
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[name]))
             else:
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when "
                     "generating invoke declarations. Only members of "
-                    "the MeshPropertiesMetaData.Property Enum are permitted "
-                    "({1}).".format(
-                        str(prop), list(MeshPropertiesMetaData.Property)))
+                    "the MeshProperty Enum are permitted "
+                    "({1}).".format(str(prop), list(MeshProperty)))
 
     def _stub_declarations(self, parent):
         '''
@@ -2011,7 +2028,7 @@ class LFRicMeshProperties(DynCollection):
                 "not a kernel.")
 
         for prop in self._properties:
-            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+            if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self._symbol_table.symbol_from_tag(
                     "adjacent_face").name
                 # 'nfaces_re_h' will have been declared by the
@@ -2027,9 +2044,8 @@ class LFRicMeshProperties(DynCollection):
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when generating "
                     "declarations for kernel stub. Only members of the "
-                    "MeshPropertiesMetaData.Property Enum are permitted "
-                    "({1})".format(str(prop),
-                                   list(MeshPropertiesMetaData.Property)))
+                    "MeshProperty Enum are permitted "
+                    "({1})".format(str(prop), list(MeshProperty)))
 
     def initialise(self, parent):
         '''
@@ -2039,6 +2055,8 @@ class LFRicMeshProperties(DynCollection):
         :param parent: node in the f2pygen tree to which to add statements.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: if an unsupported mesh property is encountered.
+
         '''
         if not self._properties:
             return
@@ -2047,11 +2065,25 @@ class LFRicMeshProperties(DynCollection):
         parent.add(CommentGen(parent, " Initialise mesh properties"))
         parent.add(CommentGen(parent, ""))
 
-        adj_face = self._symbol_table.symbol_from_tag("adjacent_face").name
         mesh = self._symbol_table.symbol_from_tag("mesh").name
 
-        parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
-                             rhs=mesh+"%get_adjacent_face()"))
+        for prop in self._properties:
+            if prop == MeshProperty.ADJACENT_FACE:
+                adj_face = self._symbol_table.symbol_from_tag(
+                    "adjacent_face").name
+                parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
+                                     rhs=mesh+"%get_adjacent_face()"))
+
+            elif prop == MeshProperty.NCELL_2D:
+                name = self._symbol_table.symbol_from_tag("ncell_2d").name
+                parent.add(AssignGen(parent, lhs=name,
+                                     rhs=mesh+"%get_ncells_2d()"))
+            else:
+                raise InternalError(
+                    "Found unsupported mesh property '{0}' when generating "
+                    "initialisation code. Only members of the "
+                    "MeshProperty Enum are permitted "
+                    "({1})".format(str(prop), list(MeshProperty)))
 
 
 class DynReferenceElement(DynCollection):
@@ -2406,7 +2438,8 @@ class DynDofmaps(DynCollection):
 
         for call in self._calls:
             # We only need a dofmap if the kernel operates on a cell_column
-            if call.iterates_over == "cell_column":
+            # or the domain.
+            if call.iterates_over in ["cell_column", "domain"]:
                 for unique_fs in call.arguments.unique_fss:
                     # We only need a dofmap if there is a *field* on this
                     # function space. If there is then we use it to look
@@ -3639,10 +3672,10 @@ class DynMeshes(object):
     '''
     Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
-    one mesh object required (when colouring, doing distributed memory or
-    querying the reference element). However, kernels performing inter-grid
-    operations require multiple mesh objects as well as mesh maps and other
-    quantities.
+    one mesh object required (when calling kernels with operates_on==domain,
+    colouring, doing distributed memory or querying the reference element).
+    However, kernels performing inter-grid operations require multiple mesh
+    objects as well as mesh maps and other quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
     where a field on a coarse mesh is mapped onto a fine mesh. The second
@@ -3669,7 +3702,6 @@ class DynMeshes(object):
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
-
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -3689,7 +3721,8 @@ class DynMeshes(object):
         requires_mesh = False
         for call in self._schedule.coded_kernels():
 
-            if (call.reference_element.properties or call.mesh.properties):
+            if (call.reference_element.properties or
+                    call.mesh.properties or call.iterates_over == "domain"):
                 requires_mesh = True
 
             if not call.is_intergrid:
@@ -6375,8 +6408,8 @@ class HaloReadAccess(HaloDepth):
         '''
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
-        # no test required here as all calls exist within a loop
-        loop = call.parent.parent
+
+        loop = call.ancestor(DynLoop)
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -6493,28 +6526,31 @@ class DynLoop(Loop):
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
-        # set our variable at initialisation as it might be required
-        # by other classes before code generation
-        if self.loop_type == "colours":
-            tag = "colours_loop_idx"
-            suggested_name = "colour"
-        elif self.loop_type == "colour":
-            tag = "cell_loop_idx"
-            suggested_name = "cell"
-        elif self.loop_type == "dofs":
-            tag = "dof_loop_idx"
-            suggested_name = "df"
-        else:
-            tag = "cell_loop_idx"
-            suggested_name = "cell"
+        # Set our variable at initialisation as it might be required
+        # by other classes before code generation. A 'null' loop does not
+        # have an associated variable.
+        if self.loop_type != "null":
 
-        symtab = self.scope.symbol_table
-        try:
-            self.variable = symtab.lookup_with_tag(tag)
-        except KeyError:
-            self.variable = symtab.new_symbol(
-                suggested_name, tag, symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
+            if self.loop_type == "colours":
+                tag = "colours_loop_idx"
+                suggested_name = "colour"
+            elif self.loop_type == "colour":
+                tag = "cell_loop_idx"
+                suggested_name = "cell"
+            elif self.loop_type == "dofs":
+                tag = "dof_loop_idx"
+                suggested_name = "df"
+            else:
+                tag = "cell_loop_idx"
+                suggested_name = "cell"
+
+            symtab = self.scope.symbol_table
+            try:
+                self.variable = symtab.lookup_with_tag(tag)
+            except KeyError:
+                self.variable = symtab.new_symbol(
+                    suggested_name, tag, symbol_type=DataSymbol,
+                    datatype=INTEGER_TYPE)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -6543,6 +6579,9 @@ class DynLoop(Loop):
         :rtype: str
 
         '''
+        if self._loop_type == "null":
+            return "{0}[type='null']".format(self.coloured_name(colour))
+
         if self._upper_bound_halo_depth:
             upper_bound = "{0}({1})".format(self._upper_bound_name,
                                             self._upper_bound_halo_depth)
@@ -6564,7 +6603,9 @@ class DynLoop(Loop):
         :param kern: Kernel object to use to populate state of Loop
         :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
-        :raises GenerationError: for an unexpected function space.
+        :raises GenerationError: if the field updated by the kernel has an \
+            unexpected function space or if the kernel's 'operates-on' is \
+            not consistent with the loop type.
 
         '''
         self._kern = kern
@@ -6572,6 +6613,12 @@ class DynLoop(Loop):
         self._field = kern.arguments.iteration_space_arg()
         self._field_name = self._field.name
         self._field_space = self._field.function_space
+
+        if self.loop_type == "null" and kern.iterates_over != "domain":
+            raise GenerationError(
+                "A DynLoop of type 'null' can only contain a kernel that "
+                "operates on the 'domain' but kernel '{0}' operates on "
+                "'{1}'.".format(kern.name, kern.iterates_over))
         self._iteration_space = kern.iterates_over  # cell_columns etc.
 
         # Loop bounds
@@ -6685,6 +6732,7 @@ class DynLoop(Loop):
         :raises GenerationError: if self._lower_bound_name is not "start" \
                                  for sequential code.
         :raises GenerationError: if self._lower_bound_name is unrecognised.
+
         '''
         if not Config.get().distributed_memory and \
            self._lower_bound_name != "start":
@@ -6693,35 +6741,35 @@ class DynLoop(Loop):
                 "found '{0}'".format(self._upper_bound_name))
         if self._lower_bound_name == "start":
             return "1"
+
+        # the start of our space is the end of the previous space +1
+        if self._lower_bound_name == "inner":
+            prev_space_name = self._lower_bound_name
+            prev_space_index_str = str(self._lower_bound_index + 1)
+        elif self._lower_bound_name == "ncells":
+            prev_space_name = "inner"
+            prev_space_index_str = "1"
+        elif (self._lower_bound_name == "cell_halo" and
+              self._lower_bound_index == 1):
+            prev_space_name = "ncells"
+            prev_space_index_str = ""
+        elif (self._lower_bound_name == "cell_halo" and
+              self._lower_bound_index > 1):
+            prev_space_name = self._lower_bound_name
+            prev_space_index_str = str(self._lower_bound_index - 1)
         else:
-            # the start of our space is the end of the previous space +1
-            if self._lower_bound_name == "inner":
-                prev_space_name = self._lower_bound_name
-                prev_space_index_str = str(self._lower_bound_index + 1)
-            elif self._lower_bound_name == "ncells":
-                prev_space_name = "inner"
-                prev_space_index_str = "1"
-            elif (self._lower_bound_name == "cell_halo" and
-                  self._lower_bound_index == 1):
-                prev_space_name = "ncells"
-                prev_space_index_str = ""
-            elif (self._lower_bound_name == "cell_halo" and
-                  self._lower_bound_index > 1):
-                prev_space_name = self._lower_bound_name
-                prev_space_index_str = str(self._lower_bound_index - 1)
-            else:
-                raise GenerationError(
-                    "Unsupported lower bound name '{0}' "
-                    "found".format(self._lower_bound_name))
-            mesh_obj_name = self.root.symbol_table.symbol_from_tag("mesh").name
-            return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
-                + prev_space_index_str + ")+1"
+            raise GenerationError(
+                "Unsupported lower bound name '{0}' "
+                "found".format(self._lower_bound_name))
+        mesh_obj_name = self.root.symbol_table.symbol_from_tag("mesh").name
+        return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
+            + prev_space_index_str + ")+1"
 
     def _upper_bound_fortran(self):
         ''' Create the associated fortran code for the type of upper bound
 
         :return: Fortran code for the upper bound of this loop
-        :rtype: String
+        :rtype: str
 
         '''
         # precompute halo_index as a string as we use it in more than
@@ -7073,16 +7121,22 @@ class DynLoop(Loop):
                                   "colours within an OpenMP "
                                   "parallel region.")
 
-        # Generate the upper and lower loop bounds
-        # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
-        # TODO: Issue #696. Add kind (precision) when the support in Literal
-        #                   class is implemented.
-        self.start_expr = Literal(self._lower_bound_fortran(),
-                                  INTEGER_TYPE, parent=self)
-        self.stop_expr = Literal(self._upper_bound_fortran(),
-                                 INTEGER_TYPE, parent=self)
+        if self._loop_type != "null":
+            # Generate the upper and lower loop bounds
+            # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
+            # TODO: Issue #696. Add kind (precision) when the support in the
+            #                   Literal class is implemented.
+            self.start_expr = Literal(self._lower_bound_fortran(),
+                                      INTEGER_TYPE, parent=self)
+            self.stop_expr = Literal(self._upper_bound_fortran(),
+                                     INTEGER_TYPE, parent=self)
 
-        Loop.gen_code(self, parent)
+            super(DynLoop, self).gen_code(parent)
+        else:
+            # This is a 'null' loop and therefore we do not actually generate
+            # a loop - we go on down to the children instead.
+            for child in self.loop_body.children:
+                child.gen_code(parent)
 
         if Config.get().distributed_memory and self._loop_type != "colour":
 
@@ -7091,9 +7145,14 @@ class DynLoop(Loop):
 
             if fields:
                 parent.add(CommentGen(parent, ""))
-                parent.add(CommentGen(parent,
-                                      " Set halos dirty/clean for fields "
-                                      "modified in the above loop"))
+                if self._loop_type != "null":
+                    prev_node_name = "loop"
+                else:
+                    prev_node_name = "kernel"
+                parent.add(
+                    CommentGen(parent, " Set halos dirty/clean for fields "
+                               "modified in the above {0}".format(
+                                          prev_node_name)))
                 parent.add(CommentGen(parent, ""))
                 from psyclone.psyGen import OMPParallelDoDirective
                 use_omp_master = False
@@ -7198,8 +7257,9 @@ class DynKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
     information to generate appropriate PSy layer code for the Kernel
-    instance or to generate a Kernel stub'''
+    instance or to generate a Kernel stub.
 
+    '''
     # An instance of this `namedtuple` is used to store information on each of
     # the quadrature rules required by a kernel.
     #
@@ -7211,9 +7271,12 @@ class DynKern(CodedKern):
                         ["alg_name", "psy_name", "kernel_args"])
 
     def __init__(self):
+        # The super-init is called from the _setup() method which in turn
+        # is called from load().
         # pylint: disable=super-init-not-called
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
+        self._parent = None
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -7703,7 +7766,7 @@ class DynKern(CodedKern):
                            kind=api_config.default_kind["integer"],
                            entity_decls=["cell"]))
 
-        parent_loop = self.parent.parent
+        parent_loop = self.ancestor(DynLoop)
 
         # Check whether this kernel reads from an operator
         op_args = parent_loop.args_filter(
@@ -8757,14 +8820,31 @@ class DynKernelArgument(KernelArgument):
 class DynKernCallFactory(object):
     ''' Create the necessary framework for a Dynamo kernel call.
     This consists of a Loop over cells containing a call to the
-    user-supplied kernel routine. '''
+    user-supplied kernel routine.
+
+    '''
     @staticmethod
     def create(call, parent=None):
-        ''' Create the objects needed for a call to the kernel
-        described in the call object '''
+        '''
+        Create the objects needed for a call to the kernel
+        described in the call object.
 
-        # Loop over cells
-        cloop = DynLoop(parent=parent)
+        :param call: information on the kernel call as obtained from the \
+                     Algorithm layer.
+        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+        :param parent: the parent of this kernel call in the PSyIR.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        '''
+        if call.ktype.iterates_over == "domain":
+            # Kernel operates on whole domain so there is no loop.
+            # We still need a loop object though as that is where the logic
+            # for handling halo exchanges is currently implemented.
+            loop_type = "null"
+        else:
+            # Loop over cells, indicated by an empty string.
+            loop_type = ""
+        cloop = DynLoop(parent=parent, loop_type=loop_type)
 
         # The kernel itself
         kern = DynKern()
@@ -8775,8 +8855,6 @@ class DynKernCallFactory(object):
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
-
-        # Return the outermost loop
         return cloop
 
 

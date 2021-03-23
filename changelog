@@ -443,6 +443,9 @@
 	143 PR #1131 for #1116. Make the number of any*space function
 	spaces (and basis supported datatypes) configurable.
 
+	144) PR #1082 for #925. Adds code generation support for
+	operates_on=domain kernels in LFRic.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
