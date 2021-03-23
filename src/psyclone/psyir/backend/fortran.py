@@ -47,8 +47,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
-    SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
-    TypeSymbol
+    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Routine, Reference, Literal, DataNode, CodeBlock, Member, Range, Schedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -616,19 +615,23 @@ class FortranWriter(PSyIRVisitor):
         routine_symbols = [symbol for symbol in symbol_table.symbols
                            if isinstance(symbol, RoutineSymbol)]
         for sym in routine_symbols:
-            if (not isinstance(sym.interface, (LocalInterface,
-                                               GlobalInterface)) and
+            if (isinstance(sym.interface, UnresolvedInterface) and
                     sym.name.upper() not in FORTRAN_INTRINSICS):
                 if not wildcard_imports_checked:
                     has_wildcard_import = symbol_table.has_wildcard_imports()
                     wildcard_imports_checked = True
                 if not has_wildcard_import:
                     raise VisitorError(
-                        "Routine symbol '{0}' does not have a global or local"
-                        "interface, is not a Fortran intrinsic and there is no"
-                        " wildcard import which could bring it into scope. "
-                        "This is not supported by the Fortran back-end.".
-                        format(sym.name))
+                        "Routine symbol '{0}' does not have a GlobalInterface "
+                        "or LocalInterface, is not a Fortran intrinsic and "
+                        "there is no wildcard import which could bring it into"
+                        " scope. This is not supported by the Fortran "
+                        "back-end.".format(sym.name))
+            if isinstance(sym.interface, ArgumentInterface):
+                raise VisitorError(
+                    "Routine symbol '{0}' is passed as an argument (has an "
+                    "ArgumentInterface). This is not supported by the Fortran"
+                    " back-end.".format(sym.name))
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)

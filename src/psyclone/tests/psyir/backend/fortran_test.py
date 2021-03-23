@@ -735,15 +735,25 @@ def test_gen_decls_routine(fort_writer):
     symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
     result = fort_writer.gen_decls(symbol_table)
     assert result == ""
-    # Now add a user-defined routine symbol
-    symbol_table.add(RoutineSymbol("arg_sub", interface=ArgumentInterface()))
+    # Now add a user-defined routine symbol but with an (unsupported)
+    # ArgumentInterface
+    rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
+    symbol_table.add(rsym)
+    with pytest.raises(VisitorError) as info:
+        _ = fort_writer.gen_decls(symbol_table)
+    assert ("Routine symbol 'arg_sub' is passed as an argument (has an "
+            "ArgumentInterface). This is not supported by the Fortran "
+            "back-end." in str(info.value))
+    # Replace that symbol with one that has a deferred interface
+    symbol_table.remove(rsym)
+    symbol_table.add(RoutineSymbol("sub2", interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as info:
         _ = fort_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbol 'arg_sub' does not have a global or localinterface, is"
-        " not a Fortran intrinsic and there is no wildcard import which could "
-        "bring it into scope. This is not supported by the Fortran back-end."
-        in str(info.value))
+        "Routine symbol 'sub2' does not have a GlobalInterface or "
+        "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
+        "import which could bring it into scope. This is not supported by the "
+        "Fortran back-end." in str(info.value))
     # Now add a wildcard import from a ContainerSymbol
     csym = ContainerSymbol("some_mod")
     csym.wildcard_import = True
