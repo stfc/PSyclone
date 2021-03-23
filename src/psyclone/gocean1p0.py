@@ -56,8 +56,9 @@ from psyclone.configuration import Config, ConfigurationError
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference, BinaryOperation, Reference
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, Call, \
+    KernelSchedule, StructureReference, BinaryOperation, Reference, \
+    CodeBlock, Assignment
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange
@@ -198,6 +199,61 @@ class GOInvokes(Invokes):
         scope.add(UseGen(scope, name="parallel_mod", only=True,
                          funcnames=["get_rank"]))
         return "get_rank()"
+
+    def gen_code(self, parent):
+        '''
+        Create the f2pygen AST for each Invoke in the PSy layer.
+
+        :param parent: the parent node in the AST to which to add content.
+        :type parent: `psyclone.f2pygen.ModuleGen`
+        '''
+        from psyclone.f2pygen import PSyIRGen
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        for invoke in self.invoke_list:
+            # Set container parent reference
+            invoke.schedule.parent = self.psy.container
+
+            # If the const_loop_bounds flag is True, we need to declare
+            # and initialize the loop bounds variables.
+            if invoke.schedule.const_loop_bounds:
+                i_stop = invoke.schedule.symbol_table.new_symbol(
+                    invoke.schedule.iloop_stop, symbol_type=DataSymbol,
+                    datatype=INTEGER_TYPE)
+                j_stop = invoke.schedule.symbol_table.new_symbol(
+                    invoke.schedule.jloop_stop, symbol_type=DataSymbol,
+                    datatype=INTEGER_TYPE)
+
+                # Look-up the loop bounds using the first field object in the
+                # list
+                api_config = Config.get().api_conf("gocean1.0")
+                xstop = api_config.grid_properties["go_grid_xstop"].fortran \
+                    .format(invoke.unique_args_arrays[0])
+                ystop = api_config.grid_properties["go_grid_ystop"].fortran \
+                    .format(invoke.unique_args_arrays[0])
+
+                block = Comment(FortranStringReader(
+                    "! Look-up loop bounds\n", ignore_comments=False))
+                codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
+                invoke.schedule.children.insert(0, codeblock)
+                codeblock.parent = invoke.schedule
+                # Get last argument declaration
+                field = invoke.schedule.symbol_table.argument_list[-1]
+                assign1 = Assignment.create(
+                            Reference(i_stop),
+                            StructureReference.create(
+                                field, xstop.split('%')[1:]))
+                assign2 = Assignment.create(
+                            Reference(j_stop),
+                            StructureReference.create(
+                                field, ystop.split('%')[1:]))
+                invoke.schedule.children.insert(1, assign1)
+                invoke.schedule.children.insert(2, assign2)
+                assign1.parent = invoke.schedule
+                assign2.parent = invoke.schedule
+
+            invoke.schedule.lower_to_language_level()
+            parent.add(PSyIRGen(parent, invoke.schedule))
 
 
 class GOInvoke(Invoke):
@@ -1968,19 +2024,22 @@ class GOKernelArgument(KernelArgument):
                                property is not 'go_r_scalar' or 'go_i_scalar'.
 
         '''
-        # All GOcean fields are r2d_type.
+        # All GOcean fields are r2d_field
         if self.argument_type == "field":
-            # r2d_type can have DeferredType and UnresolvedInterface because
+            # r2d_field can have DeferredType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = self._call.root.symbol_table.symbol_from_tag(
-                "r2d_type", symbol_type=TypeSymbol, datatype=DeferredType(),
+                "r2d_field", symbol_type=TypeSymbol, datatype=DeferredType(),
                 interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
-                return REAL_TYPE
+                go_wp = self._call.root.symbol_table.symbol_from_tag(
+                    "go_wp", symbol_type=DataSymbol, datatype=DeferredType(),
+                    interface=UnresolvedInterface())
+                return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
             if self.space.lower() == "go_i_scalar":
                 return INTEGER_TYPE
             raise InternalError("GOcean expects scalar arguments to be of"
@@ -2072,7 +2131,7 @@ class GOKernelGridArgument(Argument):
         # Find field from which to access grid properties
         base_field = self._call.arguments.find_grid_access().name
         tag = "AlgArgs_" + base_field
-        symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+        symbol = self._call.scope.symbol_table.lookup_with_tag(tag)
 
         # Get aggregate grid type accessors without the base name
         access = self.dereference(base_field).split('%')[1:]
@@ -2704,6 +2763,22 @@ class GOHaloExchange(HaloExchange):
 
         # Name of the HaloExchange method in the GOcean infrastructure.
         self._halo_exchange_name = "halo_exchange"
+
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs. A GOHaloExchange is replaced by a call to the
+        dl_esm_inf method
+
+        '''
+        rsymbol = RoutineSymbol(self.field.name + "%" +
+                                self._halo_exchange_name)
+        call_node = Call(rsymbol)
+
+        self.replace_with(call_node)
+        call_node.parent = self.parent
+        # Set depth argument to 1
+        call_node.addchild(Literal("1", INTEGER_TYPE, parent=call_node))
 
     def gen_code(self, parent):
         '''GOcean specific code generation for this class.

@@ -2914,9 +2914,18 @@ class CodedKern(Kern):
         routine with the appropriate arguments.
 
         '''
-        symtab = self.scope.symbol_table
-        rsymbol = RoutineSymbol(self._name)
-        symtab.add(rsymbol)
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        try:
+            rsymbol = symtab.lookup(self._name)
+        except KeyError:
+            rsymbol = RoutineSymbol(self._name)
+            symtab.add(rsymbol)
+            if not self.module_inline:
+                # Import subroutine symbol
+                csymbol = ContainerSymbol(self._module_name)
+                symtab.add(csymbol)
+                rsymbol.interface = GlobalInterface(csymbol)
+
         call_node = Call(rsymbol)
 
         # Swap itself with the appropriate Call node
@@ -2926,12 +2935,6 @@ class CodedKern(Kern):
         for argument in self.arguments.psyir_expressions():
             call_node.addchild(argument)
             argument.parent = call_node
-
-        if not self.module_inline:
-            # Import subroutine symbol
-            csymbol = ContainerSymbol(self._module_name)
-            symtab.add(csymbol)
-            rsymbol.interface = GlobalInterface(csymbol)
 
     def gen_code(self, parent):
         '''
@@ -3772,14 +3775,7 @@ class Argument(object):
                 tag = "AlgArgs_" + self._text
 
                 # Prepare the Argument Interface Access value
-                if access and access.name == "READ":
-                    argument_access = ArgumentInterface.Access.READ
-                elif access and access.name == "WRITE":
-                    argument_access = ArgumentInterface.Access.WRITE
-                else:
-                    # If access is READWRITE, INC, SUM, UNKNOWN or no access
-                    # is given, use a READWRITE argument interface.
-                    argument_access = ArgumentInterface.Access.READWRITE
+                argument_access = ArgumentInterface.Access.READWRITE
 
                 # Find the tag or create a new symbol with expected attributes
                 new_argument = symtab.symbol_from_tag(
@@ -3790,7 +3786,8 @@ class Argument(object):
 
                 # Unless the argument already exists with another interface
                 # (e.g. globals) they come from the invoke argument list
-                if isinstance(new_argument.interface, ArgumentInterface):
+                if (isinstance(new_argument.interface, ArgumentInterface) and
+                        new_argument not in previous_arguments):
                     symtab.specify_argument_list(previous_arguments +
                                                  [new_argument])
 
