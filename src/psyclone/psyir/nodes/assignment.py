@@ -208,7 +208,13 @@ class Assignment(Statement):
                 while opn:
                     if opn.operator in REDUCTION_OPERATORS:
                         # The current array range is in an argument to a
-                        # reduction operation
+                        # reduction operation so we assume that the result
+                        # is a scalar.
+                        # TODO 658 this could still be a reduction into an
+                        # array (e.g. SUM(a(:,:), 1)) but we need to be able
+                        # to interrogate the type of a PSyIR expression in
+                        # order to be sure. e.g. SUM(a(:,:), mask(:,:)) will
+                        # return a scalar.
                         break
                     opn = opn.ancestor(Operation)
                 else:

@@ -140,14 +140,15 @@ def test_is_array_range():
     '''
     one = Literal("1.0", REAL_TYPE)
     int_one = Literal("1", INTEGER_TYPE)
+    int_ten = Literal("10", INTEGER_TYPE)
 
     # lhs is an array reference with a range
     array_type = ArrayType(REAL_TYPE, [10, 10])
     symbol = DataSymbol("x", array_type)
-    my_range = Range.create(int_one, int_one.copy(), int_one.copy())
-    array_ref = ArrayReference.create(symbol, [my_range, int_one.copy()])
+    x_range = Range.create(int_one, int_ten.copy(), int_one.copy())
+    array_ref = ArrayReference.create(symbol, [x_range, int_one.copy()])
     assignment = Assignment.create(array_ref, one.copy())
-    assert assignment.is_array_range
+    assert assignment.is_array_range is True
 
     # Check when lhs consists of various forms of structure access
     grid_type = StructureType.create([
@@ -193,15 +194,63 @@ def test_is_array_range():
     assert fld_assign.is_array_range is True
 
     # When the slice has two operator ancestors, none of which are a reduction
-    # e.g y(1, INT(ABS(map(:)))) = 1.0
-    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10])
+    # e.g y(1, INT(ABS(map(:, 1)))) = 1.0
+    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10, 10])
     map_sym = DataSymbol("map", int_array_type)
+    lbound1 = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(map_sym), int_one.copy())
+    ubound1 = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(map_sym), int_one.copy())
+    my_range1 = Range.create(lbound1, ubound1)
     abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
                                    ArrayReference.create(map_sym,
-                                                         [my_range.copy()]))
+                                                         [my_range1,
+                                                          int_one.copy()]))
     int_op = UnaryOperation.create(UnaryOperation.Operator.INT, abs_op)
     assignment = Assignment.create(
         ArrayReference.create(symbol, [int_one.copy(), int_op]),
+        one.copy())
+    assert assignment.is_array_range is True
+
+
+@pytest.mark.xfail(reason="#658 needs typing of PSyIR expressions")
+def test_array_range_with_reduction():
+    ''' Test that we correctly identify an array range when it is the result
+        of a reduction from an array, e.g x(1, INT(SUM(map(:, :), 1))) = 1.0
+
+    '''
+    one = Literal("1.0", REAL_TYPE)
+    int_one = Literal("1", INTEGER_TYPE)
+    int_two = Literal("2", INTEGER_TYPE)
+    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10, 10])
+    map_sym = DataSymbol("map", int_array_type)
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    symbol = DataSymbol("x", array_type)
+    lbound1 = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(map_sym), int_one.copy())
+    ubound1 = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(map_sym), int_one.copy())
+    my_range1 = Range.create(lbound1, ubound1)
+    lbound2 = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(map_sym), int_two.copy())
+    ubound2 = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(map_sym), int_two.copy())
+    my_range2 = Range.create(lbound2, ubound2)
+    bsum_op = BinaryOperation.create(BinaryOperation.Operator.SUM,
+                                     ArrayReference.create(map_sym,
+                                                           [my_range1,
+                                                            my_range2]),
+                                     int_one.copy())
+    int_op2 = UnaryOperation.create(UnaryOperation.Operator.INT, bsum_op)
+    assignment = Assignment.create(
+        ArrayReference.create(symbol,
+                              [int_one.copy(), int_op2]),
         one.copy())
     assert assignment.is_array_range is True
 
