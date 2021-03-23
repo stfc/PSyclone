@@ -446,6 +446,9 @@
 	144) PR #1082 for #925. Adds code generation support for
 	operates_on=domain kernels in LFRic.
 
+	145) PR #1162 for #1160. Add Fortran backend support for unresolved
+	interfaces when there is wildcard imports.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
