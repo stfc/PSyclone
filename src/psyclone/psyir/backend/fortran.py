@@ -47,8 +47,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
-    SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
-    TypeSymbol
+    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Routine, Reference, Literal, DataNode, CodeBlock, Member, Range, Schedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -601,34 +600,57 @@ class FortranWriter(PSyIRVisitor):
             which does not have a GlobalInterface or LocalInterface as this \
             is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
-                              argument declarations exist in symbol_table.
-        :raises VisitorError: if any symbols representing variables (i.e. \
-            not kind parameters) without an explicit declaration or 'use' \
-            are encountered.
+            argument declarations exist in symbol_table.
+        :raises VisitorError: if there are any symbols in the supplied table \
+            that do not have an explicit declaration and there are no \
+            wildcard imports.
 
         '''
         declarations = ""
+        # Keep a record of whether we've already checked for any wildcard
+        # imports to save doing so repeatedly
+        wildcard_imports_checked = False
+        has_wildcard_import = False
 
-        if not all([isinstance(symbol.interface, (LocalInterface,
-                                                  GlobalInterface))
-                    for symbol in symbol_table.symbols
-                    if isinstance(symbol, RoutineSymbol)]):
-            raise VisitorError(
-                "Routine symbols without a global or local interface are not "
-                "supported by the Fortran back-end.")
+        routine_symbols = [symbol for symbol in symbol_table.symbols
+                           if isinstance(symbol, RoutineSymbol)]
+        for sym in routine_symbols:
+            if (isinstance(sym.interface, UnresolvedInterface) and
+                    sym.name.upper() not in FORTRAN_INTRINSICS):
+                if not wildcard_imports_checked:
+                    has_wildcard_import = symbol_table.has_wildcard_imports()
+                    wildcard_imports_checked = True
+                if not has_wildcard_import:
+                    raise VisitorError(
+                        "Routine symbol '{0}' does not have a GlobalInterface "
+                        "or LocalInterface, is not a Fortran intrinsic and "
+                        "there is no wildcard import which could bring it into"
+                        " scope. This is not supported by the Fortran "
+                        "back-end.".format(sym.name))
+            if isinstance(sym.interface, ArgumentInterface):
+                raise VisitorError(
+                    "Routine symbol '{0}' is passed as an argument (has an "
+                    "ArgumentInterface). This is not supported by the Fortran"
+                    " back-end.".format(sym.name))
 
         # Does the symbol table contain any symbols with a deferred
-        # interface (i.e. we don't know how they are brought into scope) that
-        # are not KIND parameters?
-        unresolved_datasymbols = symbol_table.get_unresolved_datasymbols(
-            ignore_precision=True)
+        # interface (i.e. we don't know how they are brought into scope)
+        unresolved_datasymbols = symbol_table.get_unresolved_datasymbols()
+
         if unresolved_datasymbols:
-            symbols_txt = ", ".join(
-                ["'" + sym + "'" for sym in unresolved_datasymbols])
-            raise VisitorError(
-                "The following symbols are not explicitly declared or imported"
-                " from a module (in the local scope) and are not KIND "
-                "parameters: {0}".format(symbols_txt))
+            # We do have unresolved symbols. Is there at least one wildcard
+            # import which could be bringing them into scope?
+            if not wildcard_imports_checked:
+                has_wildcard_import = symbol_table.has_wildcard_imports()
+                wildcard_imports_checked = True
+            if not has_wildcard_import:
+                symbols_txt = ", ".join(
+                    ["'" + sym + "'" for sym in unresolved_datasymbols])
+                raise VisitorError(
+                    "The following symbols are not explicitly declared or "
+                    "imported from a module and there are no wildcard imports "
+                    "which could be bringing them into scope: {0}".format(
+                        symbols_txt))
 
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also
@@ -746,7 +768,7 @@ class FortranWriter(PSyIRVisitor):
         # variables at the routine level scope. For this reason, at this
         # point we have to unify all declarations and resolve possible name
         # clashes that appear when merging the scopes.
-        whole_routine_scope = SymbolTable()
+        whole_routine_scope = SymbolTable(node)
         for schedule in node.walk(Schedule):
             for symbol in schedule.symbol_table.symbols:
                 try:

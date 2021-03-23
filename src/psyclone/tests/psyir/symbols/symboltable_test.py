@@ -759,6 +759,22 @@ def test_lookup_with_tag_3():
                     in str(info.value))
 
 
+def test_has_wildcard_imports():
+    ''' Test the has_wildcard_imports() method. '''
+    sched_table, container_table = create_hierarchy()
+    # We have no wildcard imports initially
+    assert sched_table.has_wildcard_imports() is False
+    assert container_table.has_wildcard_imports() is False
+    csym = ContainerSymbol("some_mod")
+    container_table.add(csym)
+    # Adding a container symbol without a wildcard import has no effect
+    assert container_table.has_wildcard_imports() is False
+    # Now give it a wildcard import
+    csym.wildcard_import = True
+    assert container_table.has_wildcard_imports() is True
+    assert sched_table.has_wildcard_imports() is True
+
+
 def test_view(capsys):
     '''Test the view method of the SymbolTable class, it should print to
     standard out a representation of the full SymbolTable.'''
