@@ -39,6 +39,7 @@
 '''
 
 from psyclone.errors import InternalError, FieldNotFoundError, GenerationError
+from psyclone.configuration import Config
 
 
 class FunctionSpace(object):
@@ -83,13 +84,18 @@ class FunctionSpace(object):
         CONTINUOUS_FUNCTION_SPACES + READ_ONLY_FUNCTION_SPACES
 
     # Valid any_space metadata (general FS, could be continuous or
-    # discontinuous)
-    VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
+    # discontinuous). The number of 'ANY_SPACE' spaces is set in the
+    # PSyclone configuration file.
+    VALID_ANY_SPACE_NAMES = [
+        "any_space_{0}".format(x+1) for x in
+        range(Config.get().api_conf("dynamo0.3").num_any_space)]
 
     # Valid any_discontinuous_space metadata (general FS known to be
-    # discontinuous)
-    VALID_ANY_DISCONTINUOUS_SPACE_NAMES = \
-        ["any_discontinuous_space_{0}".format(x+1) for x in range(10)]
+    # discontinuous). The number of 'ANY_DISCONTINUOU_SPACE' spaces is
+    # set in the PSyclone configuration file.
+    VALID_ANY_DISCONTINUOUS_SPACE_NAMES = [
+        "any_discontinuous_space_{0}".format(x+1) for x in
+        range(Config.get().api_conf("dynamo0.3").num_any_discontinuous_space)]
 
     # Valid discontinuous FS names (for optimisation purposes)
     VALID_DISCONTINUOUS_NAMES = DISCONTINUOUS_FUNCTION_SPACES +\
