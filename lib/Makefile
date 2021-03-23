@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #------------------------------------------------------------------------------
 # Authors: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # This Makefile just creates the Fortran base class for the PSyData library
 # from the jinja template psy_data_base.jinja. The compile functionality it
@@ -61,4 +62,4 @@ all:
 
 
 clean:
-	rm -f psy_data_base.f90
+	rm -f psy_data_base.f90 *.o *.mod
