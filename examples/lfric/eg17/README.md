@@ -2,23 +2,23 @@
 
 **Author:** J. Henrichs, Bureau of Meteorology
 
-This directory contains some standalone, runnable examples of LFRic.
+This directory contains some standalone, runnable examples of LFRic code.
 They are based on a subset of the LFRic infrastructure library
 included in
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
 Significant refactoring was required in order to only include a
-small number of infrastructure files from the original LFRic sources.
+small number of infrastructure files from the original LFRic source files.
 In many case unnecessary dependencies were just removed. Some examples:
-- XIOS was just removed (i.e. code that used it simply removed).
+- XIOS was just removed (i.e. code that used XIOS was simply removed).
 - YAXT/MPI was completely removed (code that used it was simply removed).
-- some dependencies were removed (for example the global_mesh module
+- Some dependencies were removed (for example the ``global_mesh`` module
   also provides functionality for managing collections/maps of 
-  global meshes. This needlessly increase the number of files required).
+  global meshes. This needlessly increases the number of files required).
 - Other support was just removed (e.g. UGRID, ...), though NetCDF
   support is included.
 
-As a result of this the initialisation of LFRic is somewhat different from
-the full LFRic code. For example, LFRic typically uses grid-IDs to pass
+As a result, the initialisation of LFRic is somewhat different from
+the full LFRic model. For example, LFRic typically uses grid-IDs to pass
 grids between subroutines (which requires global management objects to handle
 the IDs), while the PSyclone LFRic infrastructure relies on passing pointers
 to objects.
@@ -29,7 +29,7 @@ The examples in this subdirectory show:
   PSyclone is used to process two invoke statements.
 - A stand-alone example using [NetCDF](./full_example_netcdf) to read
   in a mesh.
-- [Extraction](./full_example_extract) of input- and output-parameters
+- [Extraction](./full_example_extract) of input and output parameters
   of a kernel to a NetCDF file.
 
 Detailed instructions are in the ``README.md`` files in the corresponding

@@ -60,6 +60,7 @@ The following steps are required for this (using simplified code examples):
     ```
 
 ## Compilation
+
 A simple makefile is provided to compile the example. It needs the
 infrastructure library ``liblfric.a`` provided in
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
@@ -74,6 +75,7 @@ make compile
 ```
 
 ## Running
+
 The binary ``example`` can be executed without any parameters:
 ```shell
 ./example

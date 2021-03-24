@@ -2015,11 +2015,13 @@ logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
   :ref:`dynamo0.3-api-meta-args` for more details).
 
 
-File Name Conventions
-+++++++++++++++++++++
+Kernel Naming Conventions
++++++++++++++++++++++++++
+
 LFRic development uses strict naming conventions related to kernels.
 While they are not a requirement for PSyclone itself, any LFRic
-development should follow these conventions:
+development should follow these conventions (see e.g.
+:ref:`LFRic examples <examples_lfric>` in PSyclone):
 
 Module name:
     ``<base_name>_kernel_mod``
@@ -2028,10 +2030,11 @@ Kernel type name:
 Subroutine name:
     ``<base_name>_code``
 
-The latest version of the coding style guidelines are availabe from the
-`UK Met Office
+The latest version of the LFRic coding style guidelines are availabe in this
+`LFRic wiki page
 <https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
-(needs a UK Met Office wiki account).
+(requires login access to MOSRS, see the above :ref:`introduction <dynamo0.3-api>`
+to the LFRic API).
 
 .. _lfric-built-ins:
 

@@ -92,9 +92,6 @@ main_alg.o:	main_psy.o
 
 main_alg.f90: main_psy.f90
 
-transform: main_psy.f90
-
-
 %_psy.f90:	%.x90
 	${PSYCLONE} -s ./extract_transform.py \
 	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<

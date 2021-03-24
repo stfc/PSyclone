@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2020-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ program main
     integer(kind=i_def)                        :: ndata_sz
 
     ! Use the unit-testing constructor:
-    global_mesh = global_mesh_netcdf_type("mesh_BiP128x16-400x400.nc", "dynamics")
+    global_mesh = global_mesh_netcdf_type("mesh_BiP128x16-400x100.nc", "dynamics")
     global_mesh_ptr => global_mesh
 
     partitioner_ptr => partitioner_planar

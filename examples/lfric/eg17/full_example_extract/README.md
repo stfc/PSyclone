@@ -10,6 +10,7 @@ at the moment). See the [PSyKE](https://psyclone.readthedocs.io/en/stable/psyke.
 chapter of the PSyclone documentation for details about this transformation.
 
 ## Compilation
+
 A simple makefile is provided to compile the example. It needs:
 - the infrastructure library ``liblfric.a`` provided in
   ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``
@@ -35,7 +36,8 @@ of the LFRic infrastructure libraries is set using
 PSyclone.
 
 ## Running
-You can execute the binary ``extract`` without additional parameters:
+
+The binary can be executed using ``extract`` without additional parameters:
 ```shell
 ./extract 
  Mesh has           5 layers.

@@ -2,12 +2,12 @@
 
 This example contains the minimum infrastructure required to create
 a field, and call a simple kernel on this field. The grid is read
-from the NetCDF file ``mesh_BiP128x16-400x400.nc``. The following 
+from the NetCDF file ``mesh_BiP128x16-400x100.nc``. The following
 steps are required for this (using simplified code examples):
 
 1) A global mesh is created from a NetCDF file:
     ```fortran
-    global_mesh = global_mesh_type("mesh_BiP128x16-400x400.nc", "dynamics")
+    global_mesh = global_mesh_type("mesh_BiP128x16-400x100.nc", "dynamics")
     ```
    
 2) A 1x1 planar partition for one process is created:
@@ -60,6 +60,7 @@ steps are required for this (using simplified code examples):
     ```
 
 ## Compilation
+
 A simple makefile is provided to compile the example. It needs 
 a full installation of NetCDF, since it is using ``nf-config`` to
 query the required compiler and linker flags, and the
@@ -76,6 +77,7 @@ export F90FLAGS="-Wall -g -fcheck=bound $(nf-config --fflags)"
 make compile
 ```
 ## Running
+
 The binary ``example`` can be executed without any parameters:
 ```shell
 ./example
