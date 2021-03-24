@@ -80,6 +80,7 @@ class LoopTrans(Transformation):
                 formed) Loop.
         :raises TransformationError: if any of the nodes within the loop are \
                 of an unsupported type.
+        :raises TransformationError: if the loop is of 'null' type.
         :raises TransformationError: if the supplied options are not a \
                 dictionary.
 
@@ -117,6 +118,14 @@ class LoopTrans(Transformation):
                         "Nodes of type '{0}' cannot be enclosed by a {1} "
                         "transformation".format(type(item).__name__,
                                                 self.name))
+
+        # A 'null' loop is one which exists in the PSyIR hierarchy (mainly for
+        # halo-exchange logic) but does *not* correspond to an actual loop
+        # in the code that is generated for the PSy layer.
+        if node.loop_type == 'null':
+            raise TransformationError(
+                "Cannot apply a {0} transformation to a 'null' loop.".format(
+                    self.name))
 
         # The checks below this point only apply to the NEMO API and can be
         # removed once #435 is done.
