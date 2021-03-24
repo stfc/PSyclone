@@ -108,9 +108,8 @@ class Profiler():
     def add_profile_nodes(schedule, loop_class):
         '''This function inserts all required Profiling Nodes (for invokes
         and kernels, as specified on the command line) into a schedule. An
-        invoke will not be profiled if it contains no statements, if it
-        contains more than one Return or if the Return is not the last
-        statement.
+        invoke will not be profiled if it contains more than one Return or if
+        the Return is not the last statement.
 
         :param schedule: The schedule to instrument.
         :type schedule: :py:class:`psyclone.psyGen.InvokeSchedule` or subclass
@@ -162,10 +161,4 @@ class Profiler():
                           "contains one or more Return statements.".format(
                               schedule.name), file=sys.stderr)
             else:
-                if schedule.children:
-                    profile_trans.apply(schedule.children)
-                else:
-                    # TODO #11 use logging instead.
-                    print("Not adding profiling to routine '{0}' because it "
-                          "does not contain any statements.".format(
-                              schedule.name), file=sys.stderr)
+                profile_trans.apply(schedule.children)
