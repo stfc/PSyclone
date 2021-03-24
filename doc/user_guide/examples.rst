@@ -172,8 +172,6 @@ is described in details in
 `the hands-on practicals documentation
 <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_.
 
-
-
 GOcean
 ------
 
