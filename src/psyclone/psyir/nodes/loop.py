@@ -527,6 +527,7 @@ class Loop(Statement):
 
         '''
         # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables, InvokeSchedule
 
         def is_unit_literal(expr):

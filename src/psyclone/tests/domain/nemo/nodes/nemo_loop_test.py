@@ -40,8 +40,7 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.nemo import NemoLoop, NemoKern
-from psyclone.psyir.nodes import Assignment, Loop, Node, Literal, \
-    Reference, Schedule
+from psyclone.psyir.nodes import Assignment, Loop, Literal, Reference, Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.errors import GenerationError
@@ -168,7 +167,6 @@ def test_kernel():
     assert not nemo_loop.kernel
 
     schedule = nemo_loop.loop_body
-    children = [Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))]
     nemo_kern = NemoKern(schedule.pop_all_children(), None)
     schedule.children = [nemo_kern]
     assert nemo_loop.kernel

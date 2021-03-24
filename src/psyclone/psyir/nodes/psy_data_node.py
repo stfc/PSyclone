@@ -299,6 +299,8 @@ class PSyDataNode(Statement):
             be added to each variable name in the post_var_list.
 
         '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Kern, InvokeSchedule
         # TODO: #415 Support different classes of PSyData calls.
         invoke = self.ancestor(InvokeSchedule).invoke

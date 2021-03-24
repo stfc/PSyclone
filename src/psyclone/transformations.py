@@ -49,7 +49,8 @@ from fparser.two.Fortran2003 import Subroutine_Subprogram, \
     Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
     Implicit_Part, Comment
 from psyclone import psyGen
-from psyclone.psyGen import Transformation, Kern, InvokeSchedule
+from psyclone.psyGen import Transformation, Kern, InvokeSchedule, \
+    ACCLoopDirective, OMPDoDirective
 from psyclone.errors import InternalError
 from psyclone.psyir import nodes
 from psyclone.configuration import Config
@@ -422,8 +423,6 @@ class OMPLoopTrans(ParallelLoopTrans):
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for '!$omp do' "
                 "directives.")
-
-        from psyclone.psyGen import OMPDoDirective
         _directive = OMPDoDirective(children=children,
                                     omp_schedule=self.omp_schedule,
                                     reprod=self._reprod)
@@ -554,7 +553,6 @@ class ACCLoopTrans(ParallelLoopTrans):
         :param int collapse: number of nested loops to collapse or None if \
                              no collapse attribute is required.
         '''
-        from psyclone.psyGen import ACCLoopDirective
         directive = ACCLoopDirective(children=children,
                                      collapse=collapse,
                                      independent=self._independent,
@@ -1927,8 +1925,6 @@ class GOLoopSwapTrans(LoopTrans):
 
         schedule = outer.root
         inner = outer.loop_body[0]
-        parent = outer.parent
-        index = parent.children.index(outer)
 
         # create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [inner, outer])

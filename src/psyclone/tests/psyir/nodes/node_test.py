@@ -816,7 +816,7 @@ def test_children_is_orphan_same_parent():
 
 
 def test_children_setter():
-    ''' Test that the children setter sets-up accepts lists or None or raises
+    ''' Test that the children setter sets-up accepts lists or raises
     the appropriate issue. '''
     testnode = Schedule()
 
@@ -824,14 +824,24 @@ def test_children_setter():
     assert isinstance(testnode.children, ChildrenList)
 
     # When is set up with a list, this becomes a ChildrenList
-    testnode.children = [Statement(), Statement()]
+    statement1 = Statement()
+    statement2 = Statement()
+    testnode.children = [statement1, statement2]
     assert isinstance(testnode.children, ChildrenList)
+    assert statement1.parent is testnode
+    assert statement2.parent is testnode
 
     # Other types are not accepted
     with pytest.raises(TypeError) as error:
         testnode.children = Node()
     assert "The 'my_children' parameter of the node.children setter must be" \
-           " a list or None." in str(error.value)
+           " a list." in str(error.value)
+
+    # If a children list is overwritten, it properly disconnects the previous
+    # children
+    testnode.children = []
+    assert statement1.parent is None
+    assert statement2.parent is None
 
 
 def test_lower_to_language_level(monkeypatch):

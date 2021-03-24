@@ -373,7 +373,8 @@ def test_apply1(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
-    root = trans.apply(matmul)
+    root = matmul.root
+    trans.apply(matmul)
     writer = FortranWriter()
     result = writer(root)
     assert (
@@ -405,9 +406,10 @@ def test_apply2(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
+    root = matmul.root
     matmul.children[0].children[2] = Literal("1", INTEGER_TYPE)
     matmul.children[1].children[1] = Literal("2", INTEGER_TYPE)
-    root = trans.apply(matmul)
+    trans.apply(matmul)
     writer = FortranWriter()
     result = writer(root)
     assert (
@@ -439,6 +441,7 @@ def test_apply3(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
+    root = matmul.root
     matrix = matmul.children[0]
     lhs_vector = matrix.parent.parent.lhs
     matrix_symbol = matrix.symbol
@@ -452,7 +455,7 @@ def test_apply3(tmpdir):
     lhs_vector_symbol = lhs_vector.symbol
     lhs_vector_symbol._shape = [Literal("10", INTEGER_TYPE)]
     lhs_vector.replace_with(Reference(lhs_vector_symbol))
-    root = trans.apply(matmul)
+    trans.apply(matmul)
     writer = FortranWriter()
     result = writer(root)
     assert (
@@ -486,12 +489,13 @@ def test_apply4(tmpdir):
     one = Literal("1", INTEGER_TYPE)
     five = Literal("5", INTEGER_TYPE)
     matmul = create_matmul()
+    root = matmul.root
     assignment = matmul.parent
     vector = assignment.scope.symbol_table.lookup("y")
     assignment.children[0] = ArrayReference.create(
             vector, [Range.create(one, five, one.copy()),
                      one.copy()])
-    root = trans.apply(matmul)
+    trans.apply(matmul)
     writer = FortranWriter()
     result = writer(root)
     assert (

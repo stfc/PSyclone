@@ -345,5 +345,3 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         assignment.parent.children.insert(assignment.position, iloop)
         # remove the original matmul
         assignment.parent.children.remove(assignment)
-
-        return iloop.root

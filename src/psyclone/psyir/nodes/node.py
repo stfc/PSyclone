@@ -140,12 +140,18 @@ class ChildrenList(list):
 
     def _check_is_orphan(self, item):
         '''
-        Checks that the provided item is an orphan (has no parent).
+        Checks that the provided item is an orphan (has no parent or the parent
+        was predefined in the constructor but the other end of connection has
+        not finalised until now).
 
         :param item: object that needs to be validated.
         :type item: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises GenerationError: if the given item is not an orphan.
+        :raises GenerationError: if the item had been provided with a parent \
+            argument on its constructor and this operation is trying to \
+            make its parent a different node.
+
         '''
         if item.parent and not item.has_constructor_parent:
             raise GenerationError(
@@ -154,14 +160,6 @@ class ChildrenList(list):
                     item.coloured_name(False),
                     self._node_reference.coloured_name(False),
                     item.parent.coloured_name(False)))
-
-    def _set_parent_link(self, item):
-        '''
-        Set parent connection of the given item to this ChildrenList's node.
-
-        :param item: item which the parent connection need to be updated.
-        :type item: :py:class:`psyclone.psyir.nodes.Node`
-        '''
         if item.parent and item.has_constructor_parent:
             if item.parent is not self._node_reference:
                 raise GenerationError(
@@ -171,9 +169,18 @@ class ChildrenList(list):
                     .format(self._node_reference.coloured_name(False),
                             item.coloured_name(False),
                             item.parent.coloured_name(False)))
+
+    def _set_parent_link(self, node):
+        '''
+        Set parent connection of the given item to this ChildrenList's node.
+
+        :param node: node for which the parent connection need to be updated.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
         # pylint: disable=protected-access
-        item._parent = self._node_reference
-        item._has_constructor_parent = False
+        node._parent = self._node_reference
+        node._has_constructor_parent = False
 
     @staticmethod
     def _del_parent_link(item):
@@ -182,9 +189,10 @@ class ChildrenList(list):
 
         :param item: item which the parent connection need to be updated.
         :type item: :py:class:`psyclone.psyir.nodes.Node`
+
         '''
-        # This is done from here with protected access because its the parent
-        # who it is in charge of maintaining its children connections.
+        # This is done from here with protected access because it's the parent
+        # which is in charge of maintaining its children connections.
         # pylint: disable=protected-access
         item._parent = None
         item._has_constructor_parent = False
@@ -337,9 +345,11 @@ class Node(object):
                                       self._children_valid_format)
         if children:
             self._children.extend(children)
-        self._has_constructor_parent = False
-        if parent is not None:
-            self._has_constructor_parent = True
+        # Keep a record of whether a parent node was supplied when constructing
+        # this object. In this case it still won't appear in the parent's
+        # children list. When both ends of the reference are connected this
+        # will become False.
+        self._has_constructor_parent = parent is not None
         self._parent = parent
         # Reference into fparser2 AST (if any)
         self._ast = ast
@@ -851,7 +861,7 @@ class Node(object):
             self._children.extend(my_children)
         else:
             raise TypeError("The 'my_children' parameter of the node.children"
-                            " setter must be a list or None.")
+                            " setter must be a list.")
 
     @property
     def parent(self):
@@ -865,7 +875,7 @@ class Node(object):
     def has_constructor_parent(self):
         '''
         :returns: whether the constructor has predefined a parent connection
-            which is not yet realised.
+            but the parent's children list doesn't include this node yet.
         :rtype: bool
         '''
         return self._has_constructor_parent
@@ -1265,6 +1275,7 @@ class Node(object):
 
         '''
         self._parent = None
+        self._has_constructor_parent = False
         self._annotations = other.annotations[:]
         # Invalidate shallow copied children list
         self._children = ChildrenList(self, self._validate_child,

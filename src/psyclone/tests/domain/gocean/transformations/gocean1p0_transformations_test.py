@@ -221,7 +221,7 @@ def test_omp_parallel_loop(tmpdir):
 
     omp = GOceanOMPParallelLoopTrans()
     cbtrans = GOConstLoopBoundsTrans()
-    omp.apply(schedule.children[0])
+    omp.apply(schedule[0])
     cbtrans.apply(schedule, {"const_bounds": True})
 
     gen = str(psy.gen)
@@ -277,7 +277,7 @@ def test_omp_region_with_single_loop(tmpdir):
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
 
-    omp_schedule, _ = ompr.apply(schedule.children[1])
+    omp_schedule, _ = ompr.apply(schedule[1])
 
     # Replace the original loop schedule with the transformed one
     invoke.schedule = omp_schedule
@@ -326,7 +326,7 @@ def test_omp_region_with_slice(tmpdir):
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
-    omp_schedule, _ = ompr.apply(schedule.children[1:])
+    omp_schedule, _ = ompr.apply(schedule[1:])
 
     # Replace the original loop schedule with the transformed one
     invoke.schedule = omp_schedule

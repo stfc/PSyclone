@@ -72,8 +72,6 @@ class ArrayMember(ArrayMixin, Member):
         :param indices: the array-index expressions.
         :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode` or
             :py:class:`psyclone.psyir.nodes.Range`
-        :param parent: the parent of this node in the PSyIR tree.
-        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :raises GenerationError: if the supplied `indices` argument is not \
                                  a list.

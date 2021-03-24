@@ -56,7 +56,6 @@ def test_array_node_str():
     array_type = ArrayType(INTEGER_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("aname", array_type)
     kschedule.symbol_table.add(symbol)
-    assignment = Assignment()
     array = ArrayReference(symbol)
     coloredtext = colored("ArrayReference", ArrayReference._colour)
     assert coloredtext+"[name:'aname']" in array.node_str()

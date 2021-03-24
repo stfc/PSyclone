@@ -2462,8 +2462,9 @@ class Kern(Statement):
                  the Algorithm layer code.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param str name: the name of the routine being called.
-    :param ArgumentsClass: class to create the kernel arguments, \
-                      as extracted from kernel meta-data.
+    :param ArgumentsClass: class to create the object that holds all \
+        information on the kernel arguments, as extracted from kernel \
+        meta-data (and accessible here via call.ktype).
     :type ArgumentsClass: type of :py:class:`psyclone.psyGen.Arguments`
 
     :raises GenerationError: if any of the arguments to the call are \
@@ -2920,7 +2921,7 @@ class CodedKern(Kern):
             call_node.addchild(argument)
 
         # Swap itself with the appropriate Call node
-        self.parent.children[self.position] = call_node
+        self.replace_with(call_node)
 
         if not self.module_inline:
             # Import subroutine symbol
