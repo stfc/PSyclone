@@ -237,8 +237,12 @@ class GOInvokes(Invokes):
                 codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
                 invoke.schedule.children.insert(0, codeblock)
                 codeblock.parent = invoke.schedule
-                # Get last argument declaration
-                field = invoke.schedule.symbol_table.argument_list[-1]
+                # Get a field argument from the argument list
+                for arg in invoke.schedule.symbol_table.argument_list:
+                    if isinstance(arg.datatype, TypeSymbol):
+                        if arg.datatype.name == "r2d_field":
+                            field = arg
+                            break
                 assign1 = Assignment.create(
                             Reference(i_stop),
                             StructureReference.create(
@@ -1998,6 +2002,12 @@ class GOKernelArgument(KernelArgument):
                                "scalar".
 
         '''
+        # If the argument name is just a number (e.g. '0') if returns a
+        # constant Literal expression
+        if self.name.isnumeric():
+            return Literal(self.name, INTEGER_TYPE)
+
+        # Otherwise its some form of Reference
         symbol = self._call.scope.symbol_table.lookup(self.name)
 
         # Gocean field arguments are StructureReferences to the %data attribute
