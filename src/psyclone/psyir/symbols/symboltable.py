@@ -1011,6 +1011,23 @@ class SymbolTable(object):
         # Re-insert modified symbol
         self.add(symbol)
 
+    def has_wildcard_imports(self):
+        '''
+        Searches this symbol table and then up through any parent symbol
+        tables for a ContainerSymbol that has a wildcard import.
+
+        :returns: True if a wildcard import is found, False otherwise.
+        :rtype: bool
+
+        '''
+        current_table = self
+        while current_table:
+            for sym in current_table.containersymbols:
+                if sym.wildcard_import:
+                    return True
+            current_table = current_table.parent_symbol_table()
+        return False
+
     def view(self):
         '''
         Print a representation of this Symbol Table to stdout.
