@@ -147,6 +147,12 @@ class PSyDataNode(Statement):
         var_name = self.add_psydata_class_prefix("PSyDataType")
         try:
             type_sym = symtab.lookup(var_name)
+            if (not isinstance(type_sym.interface, GlobalInterface) or
+                    type_sym.interface.container_symbol is not csym):
+                raise InternalError(
+                    "Symbol table already contains a symbol named '{0}' but "
+                    "its interface does not refer to the '{1}' container.".
+                    format(var_name, csym.name))
         except KeyError:
             type_sym = TypeSymbol(var_name, DeferredType(),
                                   interface=GlobalInterface(csym))

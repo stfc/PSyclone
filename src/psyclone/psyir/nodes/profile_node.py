@@ -45,7 +45,6 @@ from fparser.two import Fortran2003
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.symbols import ContainerSymbol
 
 
 class ProfileNode(PSyDataNode):
@@ -148,7 +147,8 @@ class ProfileNode(PSyDataNode):
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place. This ProfileNode is replaced by
         a pair of CodeBlocks (representing the calls to the start and stop
-        procedures) with the body of the ProfileNode inserted between them.
+        procedures) with the body (children) of the ProfileNode inserted
+        between them.
 
         '''
         for child in self.children:
@@ -159,16 +159,6 @@ class ProfileNode(PSyDataNode):
             routine_name = self._module_name
         else:
             routine_name = routine_schedule.name
-
-        symbol_table = self.scope.symbol_table
-
-        # Ensure that we have a container symbol for the API access
-        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
-        try:
-            csym = symbol_table.lookup(fortran_module)
-        except KeyError:
-            csym = ContainerSymbol(fortran_module)
-            symbol_table.add(csym)
 
         if self._region_name:
             region_name = self._region_name

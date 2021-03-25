@@ -56,6 +56,10 @@ class CodeBlock(Statement, DataNode):
     :type structure: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
     :param parent: the parent node of this code block in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param annotations: tags that provide additional information about \
+        the node. The node should still be functionally correct when \
+        ignoring these tags.
+    :type annotations: list of str or NoneType
 
     '''
     # Textual description of the node.

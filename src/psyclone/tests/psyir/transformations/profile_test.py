@@ -60,7 +60,7 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 def teardown_function():
     '''This function is called at the end of any test function. It disables
     any automatic profiling set. This is necessary in case of a test failure
-    to make sure any further tests will not be ran with profiling enabled.
+    to make sure any further tests will not be run with profiling enabled.
     '''
     Profiler.set_options([])
 
@@ -154,19 +154,6 @@ def test_profile_errors2():
         Profiler.set_options(["invalid"])
     assert ("options must be one of 'invokes', 'kernels'"
             in str(gen_error.value))
-
-
-# -----------------------------------------------------------------------------
-def test_c_code_creation():
-    '''Tests the handling when trying to create C code, which is not supported
-    at this stage.
-    '''
-
-    profile_node = ProfileNode()
-    with pytest.raises(NotImplementedError) as excinfo:
-        profile_node.gen_c_code()
-    assert "Generation of C code is not supported for profiling" \
-        in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------

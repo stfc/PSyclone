@@ -49,6 +49,37 @@ from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 
 
+def teardown_function():
+    '''This function is called at the end of any test function. It disables
+    any automatic profiling set. This is necessary in case of a test failure
+    to make sure any further tests will not be run with profiling enabled.
+    '''
+    Profiler.set_options([])
+
+
+def test_profile_node_construction():
+    ''' Basic checks for the construction of a ProfileNode. '''
+    pnode = ProfileNode()
+    assert pnode._class_string == "profile_"
+    assert str(pnode) == ("ProfileStart[var=profile_psy_data]\n"
+                          "ProfileEnd")
+    pnode2 = ProfileNode(options={"region_name": ("my_mod", "first")})
+    assert pnode2._module_name == "my_mod"
+    assert pnode2._region_name == "first"
+
+
+def test_c_code_creation():
+    '''Tests the handling when trying to create C code, which is not supported
+    at this stage.
+    '''
+
+    profile_node = ProfileNode()
+    with pytest.raises(NotImplementedError) as excinfo:
+        profile_node.gen_c_code()
+    assert "Generation of C code is not supported for profiling" \
+        in str(excinfo.value)
+
+
 def test_malformed_profile_node(monkeypatch):
     ''' Check that we raise the expected error if a ProfileNode does not have
     a single Schedule node as its child. '''
@@ -130,6 +161,29 @@ def test_lower_to_lang_level_single_node(parser):
     assert isinstance(dsym.datatype, UnknownFortranType)
     assert (dsym.datatype.declaration ==
             "type(profile_PSyDataType), save, target ::")
+
+
+def test_lower_named_profile_node():
+    ''' Test that the lower_to_language_level method behaves as expected when
+    a ProfileNode has pre-set names for the module and region.
+
+    '''
+    Profiler.set_options([Profiler.INVOKES])
+    symbol_table = SymbolTable()
+    arg1 = symbol_table.new_symbol(
+        symbol_type=DataSymbol, datatype=REAL_TYPE)
+    assign1 = Assignment.create(Reference(arg1), Literal("0.0", REAL_TYPE))
+    kschedule = KernelSchedule.create(
+        "work1", symbol_table, [assign1, Return()])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    pnode = kschedule.walk(ProfileNode)[0]
+    # Manually set the module and region names (to save using a transformation)
+    pnode._module_name = "my_mod"
+    pnode._region_name = "first"
+    kschedule.lower_to_language_level()
+    cblocks = kschedule.walk(CodeBlock)
+    assert ("PreStart('my_mod', 'first', 0, 0)" in
+            str(cblocks[0].get_ast_nodes[0]))
 
 
 def test_lower_to_lang_level_multi_node(parser):

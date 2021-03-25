@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -44,6 +44,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans
+from psyclone.psyir.symbols import ContainerSymbol, GlobalInterface
 from psyclone.tests.utilities import get_invoke
 
 
@@ -153,6 +154,25 @@ def test_psy_data_node_tree_correct():
     # second child, next to the inserted ExtractNode
     assert parent.children[1] is third_child
     assert third_child.parent is parent
+
+
+# -----------------------------------------------------------------------------
+def test_psy_data_node_incorrect_container():
+    ''' Check that the PSyDataNode constructor raises the expected error if
+    the symbol table already contains an entry for the PSyDataType that is
+    not associated with the PSyData container. '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    csym = schedule.symbol_table.new_symbol("some_mod",
+                                            symbol_type=ContainerSymbol)
+    schedule.symbol_table.new_symbol("PSyDataType",
+                                     interface=GlobalInterface(csym))
+    data_trans = PSyDataTrans()
+    with pytest.raises(InternalError) as err:
+        data_trans.apply(schedule[0].loop_body)
+    assert ("already contains a symbol named 'PSyDataType' but its interface "
+            "does not refer to the 'psy_data_mod' container" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
