@@ -312,6 +312,10 @@ class Loop(Statement):
 
     @property
     def loop_type(self):
+        '''
+        :returns: the (domain-specific) type of this loop.
+        :rtype: str
+        '''
         return self._loop_type
 
     @loop_type.setter

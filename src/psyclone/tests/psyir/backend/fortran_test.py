@@ -49,7 +49,7 @@ from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
-    StructureReference, Schedule
+    StructureReference, Schedule, Routine, Return
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -684,23 +684,82 @@ def test_gen_decls(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table)
     assert ("The following symbols are not explicitly declared or imported "
-            "from a module (in the local scope) and are not KIND parameters: "
+            "from a module and there are no wildcard "
+            "imports which could be bringing them into scope: "
             "'unknown'" in str(excinfo.value))
+
+
+def test_gen_decls_nested_scope(fort_writer):
+    ''' Test that gen_decls() correctly checks for potential wildcard imports
+    of an unresolved symbol in an outer scope.
+
+    '''
+    inner_table = SymbolTable()
+    inner_table.add(DataSymbol("unknown1", INTEGER_TYPE,
+                               interface=UnresolvedInterface()))
+    routine = Routine.create("my_func", inner_table, [Return()])
+    cont_table = SymbolTable()
+    _ = Container.create("my_mod", cont_table, [routine])
+
+    cont_table.add(ContainerSymbol("my_module"))
+    # Innermost symbol table contains "unknown1" and there's no way it can
+    # be brought into scope
+    with pytest.raises(VisitorError) as err:
+        fort_writer.gen_decls(inner_table)
+    assert ("symbols are not explicitly declared or imported from a module "
+            "and there are no wildcard imports which "
+            "could be bringing them into scope: 'unknown1'" in str(err.value))
+    # Add a ContainerSymbol with a wildcard import in the outermost scope
+    csym = ContainerSymbol("other_mod")
+    csym.wildcard_import = True
+    cont_table.add(csym)
+    # The inner symbol table contains a symbol with an unresolved interface
+    # but nothing that requires an actual declaration
+    result = fort_writer.gen_decls(inner_table)
+    assert result == ""
+    # Move the wildcard import into the innermost table
+    cont_table.remove(csym)
+    inner_table.add(csym)
+    result = fort_writer.gen_decls(inner_table)
+    assert result == ""
 
 
 def test_gen_decls_routine(fort_writer):
     '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not a GlobalInterface.
+    of a routine symbol is not a GlobalInterface, unless there's a wildcard
+    import from a Container.
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(RoutineSymbol("arg_sub", interface=ArgumentInterface()))
+    # Check that a RoutineSymbol representing an intrinsic is OK
+    symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
+    result = fort_writer.gen_decls(symbol_table)
+    assert result == ""
+    # Now add a user-defined routine symbol but with an (unsupported)
+    # ArgumentInterface
+    rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
+    symbol_table.add(rsym)
+    with pytest.raises(VisitorError) as info:
+        _ = fort_writer.gen_decls(symbol_table)
+    assert ("Routine symbol 'arg_sub' is passed as an argument (has an "
+            "ArgumentInterface). This is not supported by the Fortran "
+            "back-end." in str(info.value))
+    # Replace that symbol with one that has a deferred interface
+    symbol_table.remove(rsym)
+    symbol_table.add(RoutineSymbol("sub2", interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as info:
         _ = fort_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbol 'arg_sub' does not have a global or localinterface "
-        "and is not a Fortran intrinsic. This is not supported"
-        " by the Fortran back-end." in str(info.value))
+        "Routine symbol 'sub2' does not have a GlobalInterface or "
+        "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
+        "import which could bring it into scope. This is not supported by the "
+        "Fortran back-end." in str(info.value))
+    # Now add a wildcard import from a ContainerSymbol
+    csym = ContainerSymbol("some_mod")
+    csym.wildcard_import = True
+    symbol_table.add(csym)
+    result = fort_writer.gen_decls(symbol_table)
+    assert result == ""
 
 
 def test_gen_routine_access_stmts(fort_writer):

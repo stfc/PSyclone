@@ -2740,7 +2740,12 @@ class Kern(Statement):
                   coloured loop.
         :rtype: bool
         '''
-        return self.parent.parent.loop_type == "colour"
+        parent_loop = self.ancestor(Loop)
+        while parent_loop:
+            if parent_loop.loop_type == "colour":
+                return True
+            parent_loop = parent_loop.ancestor(Loop)
+        return False
 
     def clear_cached_data(self):
         '''This function is called to remove all cached data (which

@@ -184,9 +184,11 @@ class ArgOrdering(object):
         # this quantity for *every* operator it encounters.
         # if self._kern.arguments.has_operator(op_type="gh_operator"):
         #     self.mesh_ncell3d()
-        # Pass the number of columns in the mesh if this kernel has a CMA
-        # operator argument
-        if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
+        # Pass the number of columns in the mesh if this kernel operates on
+        # the 'domain' or has a CMA operator argument
+        if (self._kern.iterates_over == "domain" or
+                self._kern.arguments.has_operator(
+                    op_type="gh_columnwise_operator")):
             self.mesh_ncell2d(var_accesses=var_accesses)
 
         if self._kern.is_intergrid:

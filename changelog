@@ -443,6 +443,16 @@
 	143 PR #1131 for #1116. Make the number of any*space function
 	spaces (and basis supported datatypes) configurable.
 
+	144) PR #1082 for #925. Adds code generation support for
+	operates_on=domain kernels in LFRic.
+
+	145) PR #1162 for #1160. Add Fortran backend support for unresolved
+	interfaces when there is wildcard imports.
+
+        146) PR #1157 for #478. Updates the LoopFusion transformation so
+        that the 'same space' option is now provided with the options
+        dict, in line with the way other transformations work.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
