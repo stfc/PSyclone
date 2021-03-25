@@ -2914,6 +2914,11 @@ class CodedKern(Kern):
         routine with the appropriate arguments.
 
         '''
+        # If the kernel has been transformed then we rename it. If it
+        # is *not* being module inlined then we also write it to file.
+        self.rename_and_write()
+
+        # Create the appropriate symbols
         symtab = self.ancestor(InvokeSchedule).symbol_table
         try:
             rsymbol = symtab.lookup(self._name)
@@ -2935,6 +2940,7 @@ class CodedKern(Kern):
         for argument in self.arguments.psyir_expressions():
             call_node.addchild(argument)
             argument.parent = call_node
+
 
     def gen_code(self, parent):
         '''
