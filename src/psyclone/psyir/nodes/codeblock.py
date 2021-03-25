@@ -62,6 +62,7 @@ class CodeBlock(Statement, DataNode):
     _children_valid_format = "<LeafNode>"
     _text_name = "CodeBlock"
     _colour = "red"
+    valid_annotations = ("profile-start")
 
     class Structure(Enum):
         '''
@@ -75,8 +76,8 @@ class CodeBlock(Statement, DataNode):
         # The Code Block comprises one or more Fortran expressions.
         EXPRESSION = 2
 
-    def __init__(self, fp2_nodes, structure, parent=None):
-        super(CodeBlock, self).__init__(parent=parent)
+    def __init__(self, fp2_nodes, structure, parent=None, annotations=None):
+        super(CodeBlock, self).__init__(parent=parent, annotations=annotations)
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
