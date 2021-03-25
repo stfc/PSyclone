@@ -38,12 +38,15 @@
 
 from __future__ import absolute_import
 import pytest
+from fparser.two import Fortran2003
 from psyclone.psyir.nodes import (Node, ProfileNode, Literal, Assignment,
                                   Reference, Return, KernelSchedule, Loop,
                                   CodeBlock)
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
+    ContainerSymbol, TypeSymbol, UnknownFortranType, GlobalInterface
 from psyclone.profiler import Profiler
 from psyclone.errors import InternalError
+from psyclone.tests.utilities import get_invoke
 
 
 def test_malformed_profile_node(monkeypatch):
@@ -73,22 +76,87 @@ def test_profile_node_invalid_name(value):
             "two non-empty strings." in str(excinfo.value))
 
 
-def test_lower_to_lang_level(parser):
-    ''' Test the lower_to_language_level() method. '''
+def test_lower_to_lang_level_single_node(parser):
+    ''' Test the lower_to_language_level() method when a Schedule contains
+    a single ProfileNode.
+
+    '''
     Profiler.set_options([Profiler.INVOKES])
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=REAL_TYPE)
     zero = Literal("0.0", REAL_TYPE)
+    one = Literal("1.0", REAL_TYPE)
     assign1 = Assignment.create(Reference(arg1), zero)
-    assign2 = Assignment.create(Reference(arg1), zero.copy())
+    assign2 = Assignment.create(Reference(arg1), one)
 
     kschedule = KernelSchedule.create(
         "work1", symbol_table, [assign1, assign2, Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
-    kschedule.view()
     assert isinstance(kschedule.children[0], ProfileNode)
+    assert isinstance(kschedule.children[-1], Return)
     kschedule.lower_to_language_level()
-    assert isinstance(kschedule.children[0], CodeBlock)
-    kschedule.view()
-    assert 0
+    # The ProfileNode should have been replaced by two CodeBlocks with its
+    # children inserted between them.
+    assert isinstance(kschedule[0], CodeBlock)
+    # The first CodeBlock should have the "profile-start" annotation.
+    assert kschedule[0].annotations == ["profile-start"]
+    ptree = kschedule[0].get_ast_nodes
+    assert len(ptree) == 1
+    assert isinstance(ptree[0], Fortran2003.Call_Stmt)
+    assert kschedule[1] is assign1
+    assert kschedule[2] is assign2
+    assert isinstance(kschedule[-2], CodeBlock)
+    assert kschedule[-2].annotations == []
+    ptree = kschedule[-2].get_ast_nodes
+    assert len(ptree) == 1
+    assert isinstance(ptree[0], Fortran2003.Call_Stmt)
+    assert isinstance(kschedule[-1], Return)
+    # Check that the symbol table contains the appropriate symbols:
+    # A Container for the profile_psy_data_mod module
+    table = kschedule.symbol_table
+    csym = table.lookup("profile_psy_data_mod")
+    assert isinstance(csym, ContainerSymbol)
+    # A type symbol for the derived type used to capture profiling data
+    type_sym = table.lookup("profile_PSyDataType")
+    assert isinstance(type_sym, TypeSymbol)
+    assert isinstance(type_sym.interface, GlobalInterface)
+    assert type_sym.interface.container_symbol is csym
+    # A symbol of derived type to contain the profiling data. As it must
+    # have the (unsupported) 'save' and 'target' attributes, it has to be of
+    # UnknownFortranType.
+    dsym = table.lookup("profile_psy_data")
+    assert isinstance(dsym, DataSymbol)
+    assert isinstance(dsym.datatype, UnknownFortranType)
+    assert (dsym.datatype.declaration ==
+            "type(profile_PSyDataType), save, target ::")
+
+
+def test_lower_to_lang_level_multi_node(parser):
+    ''' Test the lower_to_language_level() method when a Schedule contains
+    multiple ProfileNodes.
+
+    '''
+    # We use a GOcean example containing multiple kernel calls
+    Profiler.set_options([Profiler.KERNELS])
+    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
+                           idx=0)
+    sched = invoke.schedule
+    table = sched.symbol_table
+    Profiler.add_profile_nodes(sched, Loop)
+    sched.lower_to_language_level()
+    sym0 = table.lookup("profile_psy_data")
+    assert isinstance(sym0, DataSymbol)
+    sym1 = table.lookup("profile_psy_data_1")
+    assert isinstance(sym1, DataSymbol)
+    cblocks = sched.walk(CodeBlock)
+    ptree = cblocks[0].get_ast_nodes
+    code = str(ptree[0]).lower()
+    assert "call profile_psy_data % prestart('invoke_0', 'r0'" in code
+    assert cblocks[0].annotations == ["profile-start"]
+    assert cblocks[1].annotations == []
+    ptree = cblocks[2].get_ast_nodes
+    code = str(ptree[0]).lower()
+    assert "call profile_psy_data_1 % prestart('invoke_0', 'r1'" in code
+    assert cblocks[2].annotations == ["profile-start"]
+    assert cblocks[3].annotations == []

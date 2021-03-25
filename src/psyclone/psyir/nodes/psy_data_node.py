@@ -45,7 +45,9 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import (SymbolTable, TypeSymbol, DataSymbol,
+                                    ContainerSymbol, DeferredType,
+                                    UnknownFortranType, GlobalInterface)
 
 
 # =============================================================================
@@ -133,12 +135,32 @@ class PSyDataNode(Statement):
             # FIXME: This may not be a good solution
             symtab = SymbolTable()
 
+        # Ensure that we have a container symbol for the API access
+        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
+        try:
+            csym = symtab.lookup(fortran_module)
+        except KeyError:
+            csym = ContainerSymbol(fortran_module)
+            symtab.add(csym)
+
+        # The type symbol for PSyData variables
+        var_name = self.add_psydata_class_prefix("PSyDataType")
+        try:
+            type_sym = symtab.lookup(var_name)
+        except KeyError:
+            type_sym = TypeSymbol(var_name, DeferredType(),
+                                  interface=GlobalInterface(csym))
+            symtab.add(type_sym)
+
         # Store the name of the PSyData variable that is used for this
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
+        psydata_type = UnknownFortranType(
+            "type({0}), save, target ::".format(type_sym.name))
         self._var_name = symtab.new_symbol(
-            self._psy_data_symbol_with_prefix).name
+            self._psy_data_symbol_with_prefix, symbol_type=DataSymbol,
+            datatype=psydata_type).name
 
         # Name of the region. In general at constructor time we might
         # not have a parent subroutine or any child nodes, so
@@ -153,7 +175,8 @@ class PSyDataNode(Statement):
         # query the actual name of region (e.g. during generation of a driver
         # for an extract node). If the user does not define a name, i.e.
         # module_name and region_name are empty, a unique name will be
-        # computed in gen_code(). If this name would then be stored in
+        # computed in gen_code() or lower_to_language_level(). If this name
+        # would then be stored in
         # module_name and region_name, and gen() is called again, the
         # names would not be computed again, since the code detects already
         # defined module and region names. This can then result in duplicated
@@ -412,8 +435,6 @@ class PSyDataNode(Statement):
         '''
         raise NotImplementedError("Generation of C code is not supported "
                                   "for PSyDataNode.")
-
-    # -------------------------------------------------------------------------
 
     # -------------------------------------------------------------------------
 

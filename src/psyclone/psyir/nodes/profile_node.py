@@ -45,9 +45,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, TypeSymbol,
-                                    GlobalInterface, DeferredType,
-                                    INTEGER_TYPE)
+from psyclone.psyir.symbols import ContainerSymbol
 
 
 class ProfileNode(PSyDataNode):
@@ -148,19 +146,22 @@ class ProfileNode(PSyDataNode):
     def lower_to_language_level(self):
         '''
         Lowers this node (and all children) to language-level PSyIR. The
-        PSyIR tree is modified in-place.
+        PSyIR tree is modified in-place. This ProfileNode is replaced by
+        a pair of CodeBlocks (representing the calls to the start and stop
+        procedures) with the body of the ProfileNode inserted between them.
 
         '''
         for child in self.children:
             child.lower_to_language_level()
 
+        routine_schedule = self.ancestor(Routine)
         if self._module_name:
-            name = self._module_name
+            routine_name = self._module_name
         else:
-            name = self.ancestor(Routine).name
-        routine_name = name # Literal(name, CHARACTER_TYPE)
+            routine_name = routine_schedule.name
 
         symbol_table = self.scope.symbol_table
+
         # Ensure that we have a container symbol for the API access
         fortran_module = self.add_psydata_class_prefix(self.fortran_module)
         try:
@@ -169,40 +170,25 @@ class ProfileNode(PSyDataNode):
             csym = ContainerSymbol(fortran_module)
             symbol_table.add(csym)
 
-        for symbol in self.symbols:
-            try:
-                sym = symbol_table.lookup(symbol)
-                # assert sym.interface = 
-            except KeyError:
-                sym = DataSymbol(symbol, INTEGER_TYPE,
-                                 interface=GlobalInterface(csym))
-                symbol_table.add(sym)
-
-        # The type symbol for PSyData variables
-        var_name = self.add_psydata_class_prefix("PSyDataType")
-        try:
-            type_sym = symbol_table.lookup(var_name)
-        except KeyError:
-            type_sym = TypeSymbol(var_name, DeferredType(),
-                                  interface=GlobalInterface(csym))
-
-        # Create a name for this region
         if self._region_name:
-            name = self._region_name
+            region_name = self._region_name
         else:
-            name = "rTODO"
-        region_name = name #Literal(name, CHARACTER_TYPE)
+            # Create a name for this region by finding where this ProfileNode
+            # is in the list of ProfileNodes in this Invoke. We allow for any
+            # previously lowered ProfileNodes by checking for CodeBlocks with
+            # the "profile-start" annotation.
+            pnodes = routine_schedule.walk((ProfileNode, CodeBlock))
+            region_idx = 0
+            for node in pnodes[0:pnodes.index(self)]:
+                if (isinstance(node, ProfileNode) or
+                        "profile-start" in node.annotations):
+                    region_idx += 1
+            region_name = "r{0}".format(region_idx)
 
-        var_name = self.add_psydata_class_prefix("psy_data")
-
-        # Create a symbol for this PSyData region
-        # TODO This symbol needs the 'save' and 'target' attributes in Fortran
-        dsym = symbol_table.new_symbol(var_name, symbol_type=DataSymbol,
-                                       datatype=type_sym)
-
-        # PSyData end call
+        # PSyData end call. Since the PSyIR cannot represent type-bound
+        # procedures, this call has to be contained in a CodeBlock.
         reader = FortranStringReader(
-            "CALL {0}%PostEnd".format(var_name))
+            "CALL {0}%PostEnd".format(self._var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         pecall = Fortran2003.Call_Stmt(reader)
@@ -210,15 +196,24 @@ class ProfileNode(PSyDataNode):
         self.parent.children.insert(self.position+1, end_call)
         end_call.parent = self.parent
 
-        # PSyData start call (replaces existing PSyDataNode)
+        # PSyData start call (replaces existing PSyDataNode). Again is a call
+        # to a type-bound procedure so must be contained in a CodeBlock.
         reader = FortranStringReader(
             "CALL {2}%PreStart('{0}', '{1}', 0, 0)".format(
-                routine_name, region_name, var_name))
+                routine_name, region_name, self._var_name))
         reader.set_format(FortranFormat(True, False))
         pscall = Fortran2003.Call_Stmt(reader)
-        start_call = CodeBlock([pscall], CodeBlock.Structure.STATEMENT)
+        # We annotate this CodeBlock to record the fact that it represents
+        # the start of a profiling region.
+        start_call = CodeBlock([pscall], CodeBlock.Structure.STATEMENT,
+                               annotations=["profile-start"])
 
-        for child in self.children[0].pop_all_children():
+        # Insert the body of the profiled region between the start and
+        # end calls
+        for child in reversed(self.profile_body.pop_all_children()):
             self.parent.children.insert(self.position+1, child)
             child.parent = self.parent
+
+        # Finally, replace this ProfileNode with the CodeBlock containing the
+        # start call
         self.replace_with(start_call)
