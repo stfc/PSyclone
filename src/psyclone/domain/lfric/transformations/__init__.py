@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors J. Henrichs, Bureau of Meteorology
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 '''Transformation module for LFRic.
 '''
 
 from psyclone.domain.lfric.transformations.lfric_extract_trans \
     import LFRicExtractTrans
+from psyclone.domain.lfric.transformations.lfric_invoke_trans import \
+    LFRicInvokeTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
-__all__ = ['LFRicExtractTrans']
+__all__ = ['LFRicExtractTrans', 'LFRicInvokeTrans']

@@ -128,6 +128,25 @@ class InvokeTrans(Transformation):
             symbol.specialise(TypeSymbol)
             symbol.datatype = StructureType()
 
+    def _validate_fp2_node(self, fp2_node):
+        '''Separate validation routine for an fparser2 node within a code
+        block. This is separated to make it simpler to subclass.
+
+        :param fp2_node: an fparser2 Structure Constructor node.
+        :type fp2_node: \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+
+        :raises TransformationError: if the fparser2 node is not a \
+            Structure Constructor.
+
+        '''
+        if not isinstance(fp2_node, Structure_Constructor):
+            raise TransformationError(
+                "Error in {0} transformation. The supplied call "
+                "argument contains a CodeBlock with content "
+                "({1}) which is not a StructureConstructor."
+                "".format(self.name, type(fp2_node).__name__))
+
     def validate(self, call, options=None):
         '''Validate the call argument.
 
@@ -144,9 +163,6 @@ class InvokeTrans(Transformation):
             invoke call.
         :raises TransformationError: if the invoke arguments are not a \
             PSyIR ArrayReference or CodeBlock.
-        :raises TransformationError: if an invoke argument is a \
-            CodeBlock but that code block does not only contain fparser2 \
-            StructureConstructor nodes.
 
         '''
         if not isinstance(call, Call):
@@ -164,12 +180,7 @@ class InvokeTrans(Transformation):
                 pass
             elif isinstance(arg, CodeBlock):
                 for fp2_node in arg._fp2_nodes:
-                    if not isinstance(fp2_node, Structure_Constructor):
-                        raise TransformationError(
-                            "Error in {0} transformation. The supplied call "
-                            "argument contains a CodeBlock with content "
-                            "({1}) which is not a StructureConstructor."
-                            "".format(self.name, type(fp2_node).__name__))
+                    self._validate_fp2_node(fp2_node)
             else:
                 raise TransformationError(
                     "Error in {0} transformation. The arguments to this "
@@ -222,3 +233,6 @@ class InvokeTrans(Transformation):
 
         '''
         return "InvokeTrans"
+
+
+__all__ = ['InvokeTrans']
