@@ -62,10 +62,13 @@ class CodeBlock(Statement, DataNode):
     :type annotations: list of str or NoneType
 
     '''
-    # Textual description of the node.
+    #: Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "CodeBlock"
     _colour = "red"
+    #: The annotations that are supported by this node.
+    #: profile-start - this node has replaced a ProfileNode during the lowering
+    #:                 of the PSyIR to language level.
     valid_annotations = ("profile-start")
 
     class Structure(Enum):
