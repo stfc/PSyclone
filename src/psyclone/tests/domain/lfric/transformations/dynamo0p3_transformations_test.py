@@ -988,7 +988,7 @@ def test_loop_fuse_same_space_error():
     ftrans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         ftrans.apply(None, None, {"same_space": "foo"})
-    assert ("The value of the 'same_space' flag must be either Boolean or "
+    assert ("The value of the 'same_space' flag must be either bool or "
             "None type, but the type of flag provided was 'str'."
             in str(excinfo.value))
 

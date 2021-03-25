@@ -68,7 +68,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
     The optional argument `same_space` can be set as
 
-    >>> ftrans.apply(schedule[0], schedule[1], {"same-space": True})
+    >>> ftrans.apply(schedule[0], schedule[1], {"same_space": True})
 
     when applying the transformation.
 
@@ -89,7 +89,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["same_space"]: this optional flag, set to `True`, \
-            asserts that an unknown iteration space (i.e. `ANY_SPACE`)
+            asserts that an unknown iteration space (i.e. `ANY_SPACE`) \
             matches the other iteration space. This is set at the user's own \
             risk. If both iteration spaces are discontinuous the loops can be \
             fused without having to use the `same_space` flag.
@@ -126,7 +126,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         if same_space and not isinstance(same_space, bool):
             raise TransformationError(
                 "Error in {0} transformation: The value of the 'same_space' "
-                "flag must be either Boolean or None type, but the type of "
+                "flag must be either bool or None type, but the type of "
                 "flag provided was '{1}'.".
                 format(self.name, type(same_space).__name__))
         super(LFRicLoopFuseTrans, self).validate(node1, node2,
