@@ -64,8 +64,8 @@ def trans(psy):
     else:
         # Loop fuse the two built-in kernels. The 'same_space' flag needs to
         # be set as built-ins are over ANY_SPACE.
-        ftrans.same_space = True
-        schedule, _ = ftrans.apply(schedule[0], schedule[1])
+        schedule, _ = ftrans.apply(schedule[0], schedule[1],
+                                   {"same_space": True})
 
         # Add an OpenMP parallel do directive to the resultant loop-fused loop
         schedule, _ = otrans.apply(schedule.children[0])

@@ -3290,13 +3290,15 @@ checks then call the generic ones internally.
 The use of the Dynamo0.3-API-specific transformations is exactly the
 same as the equivalent generic ones in all cases excepting
 **LFRicLoopFuseTrans**. In this case an additional optional argument
-**same_space** can be set after creating an instance of the transformation.
+**same_space** can be set when applying the transformation.
 The reason for this is to allow loop fusion when one or more of the
 iteration spaces is determined by a function space that is unknown by
 PSyclone at compile time. This is the case when the ``ANY_SPACE_<n>``
-function space is specified in the Kernel metadata. Setting
-``ftrans.same_space = True`` allows the user to specify that the spaces are
-the same. This option should therefore be used with caution. PSyclone will
+function space is specified in the Kernel metadata. Adding
+``{"same_space": True}`` as option when applying the transformation allows
+the user to specify that the spaces are the same (see
+:ref:`sec_transformations_available` for using options in transformations).
+This option should therefore be used with caution. PSyclone will
 raise an error if **same_space** is used when at least one of the function
 spaces is not ``ANY_SPACE_<n>`` or both spaces are not the same. In general,
 PSyclone will not allow loop fusion if it does not know the spaces
