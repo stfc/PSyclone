@@ -108,9 +108,7 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
-    expected = '''\
-    subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)
-      use fortcl, only: create_rw_buffer\n'''
+    expected = "subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
 
     # When in debug mode, import also the check_status function
     if debug_mode:
@@ -124,8 +122,9 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       integer xstart, xstop, ystart, ystop
       integer(kind=c_size_t), target :: localsize(2)
       integer(kind=c_size_t), target :: globalsize(2)
-      integer(kind=c_intptr_t), target :: write_event
-      integer(kind=c_size_t) size_in_bytes
+      integer(kind=c_intptr_t) u_fld_cl_mem
+      integer(kind=c_intptr_t) p_fld_cl_mem
+      integer(kind=c_intptr_t) cu_fld_cl_mem
       integer(kind=c_intptr_t), target, save :: kernel_compute_cu_code
       logical, save :: first_time=.true.
       integer ierr
@@ -156,8 +155,9 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
     expected = '''\
       integer(kind=c_size_t), target :: localsize(2)
       integer(kind=c_size_t), target :: globalsize(2)
-      integer(kind=c_intptr_t), target :: write_event
-      integer(kind=c_size_t) size_in_bytes
+      integer(kind=c_intptr_t) u_fld_cl_mem
+      integer(kind=c_intptr_t) p_fld_cl_mem
+      integer(kind=c_intptr_t) cu_fld_cl_mem
       integer(kind=c_intptr_t), target, save :: kernel_compute_cu_code
       logical, save :: first_time=.true.
       integer ierr
@@ -175,6 +175,12 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
         num_cmd_queues = get_num_cmd_queues()
         cmd_queues => get_cmd_queues()
         kernel_compute_cu_code = get_kernel_by_name("compute_cu_code")
+        call initialise_device_buffer(cu_fld)
+        call cu_fld%write_to_device()
+        call initialise_device_buffer(p_fld)
+        call p_fld%write_to_device()
+        call initialise_device_buffer(u_fld)
+        call u_fld%write_to_device()
       end if'''
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
@@ -198,8 +204,14 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
-    # Set up globalsize and localsize values
+    # Cast dl_esm_inf pointers to cl_mem handlers
     expected = '''\
+      cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)'''
+
+    # Set up globalsize and localsize values
+    expected += '''
       globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
       localsize = (/64, 1/)'''
 
@@ -211,13 +223,12 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         CALL check_status("Global size is not a multiple of local size \
 (mandatory in OpenCL < 2.0).", -1)
       END IF'''
-    assert expected in generated_code
 
     # Call the set_args subroutine with the boundaries corrected for the
     # OpenCL 0-indexing
     expected += '''
       CALL compute_cu_code_set_args(kernel_compute_cu_code, \
-cu_fld%device_ptr, p_fld%device_ptr, u_fld%device_ptr, \
+cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
 xstart - 1, xstop - 1, \
 ystart - 1, ystop - 1)'''
 

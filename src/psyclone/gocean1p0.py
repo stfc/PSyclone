@@ -59,7 +59,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Return, Call, Assignment
+    Call, Assignment
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange
@@ -1563,18 +1563,21 @@ class GOKern(CodedKern):
         ft_block = self.root._first_time_block
         for arg in self._arguments.args:
             if arg.argument_type == "field":
+                # We need the buffer initialisation routine in the Invoke
                 try:
                     init_buf = symtab.lookup_with_tag("ocl_init_buffer_func")
                 except KeyError:
-                    # If the subroutines does not exist, it needs to be
+                    # If the subroutines doe not exist, it needs to be
                     # generated first.
                     self.gen_ocl_initialise_buffer(parent.parent)
                     init_buf = symtab.lookup_with_tag("ocl_init_buffer_func")
 
-                # Insert call to init_buff
+                # Insert call to init_buffer routine
                 field = symtab.lookup(arg.name)
                 call = Call.create(init_buf, [Reference(field)])
                 ft_block.add(PSyIRGen(ft_block, call))
+
+                # Insert call to write_to_device method
                 call = Call.create(
                     RoutineSymbol(arg.name+"%write_to_device()"), [])
                 ft_block.add(PSyIRGen(ft_block, call))
@@ -1600,6 +1603,7 @@ class GOKern(CodedKern):
                 parent.add(PSyIRGen(parent, assig))
 
             elif arg.argument_type == "grid_property" and not arg.is_scalar:
+                # We need the grid buffers initialisation routine in the Invoke
                 try:
                     init_buf = symtab.lookup_with_tag("ocl_init_grid_buffers")
                 except KeyError:
@@ -1608,12 +1612,12 @@ class GOKern(CodedKern):
                     self.gen_ocl_initialise_grid_buffers(parent.parent)
                     init_buf = symtab.lookup_with_tag("ocl_init_grid_buffers")
 
-                # Insert call
+                # Insert grid initialisation call
                 field = symtab.lookup(self._arguments.find_grid_access().name)
                 call = Call.create(init_buf, [Reference(field)])
                 ft_block.add(PSyIRGen(ft_block, call))
 
-                # Grid write
+                # We need the grid buffers writing routine in the Invoke
                 try:
                     init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
                 except KeyError:
@@ -1622,7 +1626,7 @@ class GOKern(CodedKern):
                     self.gen_ocl_write_grid_buffers(parent.parent)
                     init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
 
-                # Insert call
+                # Insert grid writing call
                 field = symtab.lookup(self._arguments.find_grid_access().name)
                 call = Call.create(init_buf, [Reference(field)])
                 ft_block.add(PSyIRGen(ft_block, call))
@@ -1648,6 +1652,7 @@ class GOKern(CodedKern):
             "write_grid_buffers", symbol_type=RoutineSymbol,
             tag="ocl_write_grid_buffers").name
 
+        # Code of the subroutine in Fortran
         code = '''
         subroutine write_device_grid(field)
             USE fortcl, ONLY: get_cmd_queues
@@ -1681,9 +1686,9 @@ class GOKern(CodedKern):
         for grid_prop in ['area_t', 'area_u', 'area_v', 'dx_u', 'dx_v',
                           'dx_t', 'dy_u', 'dy_v', 'dy_t', 'gphiu', 'gphiv']:
             code += write_str.format(grid_prop)
-
         code += "end subroutine write_device_grid"
 
+        # Obtain the PSyIR representation of the code above
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")
@@ -1741,6 +1746,7 @@ class GOKern(CodedKern):
         except KeyError:
             write_fp = self.gen_ocl_write_to_device_function(f2pygen_module)
 
+        # Code of the subroutine in Fortran
         code = '''
         subroutine initialise_device_buffer(field)
             USE fortcl, ONLY: create_rw_buffer
@@ -1761,6 +1767,7 @@ class GOKern(CodedKern):
         end subroutine initialise_device_buffer
         '''.format(num_x, num_y, host_buff, read_fp, write_fp)
 
+        # Obtain the PSyIR representation of the code above
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")
@@ -1776,8 +1783,8 @@ class GOKern(CodedKern):
 
     def gen_ocl_initialise_grid_buffers(self, f2pygen_module):
         '''
-        Insert a f2pygen subroutine to initialise the OpenCL buffer in a
-        OpenCL device using FortCL in the given f2pygen module and return
+        Insert a f2pygen subroutine to initialise the OpenCL grid buffers in
+        the OpenCL device using FortCL in the given f2pygen module and return
         its name.
 
         :param f2pygen_module: the module where the new function will be \
@@ -1803,21 +1810,20 @@ class GOKern(CodedKern):
         num_x = props["go_grid_nx"].fortran.format("field")
         num_y = props["go_grid_ny"].fortran.format("field")
 
-        # Fields need to provide a function pointer to how the
-        # device data is going to be read and written, if it doesn't
-        # exist, create the appropriate subroutine first.
+        # Fields need to provide a function pointer to how the device data is
+        # going to be read and written from the host, if these doesn't exist
+        # they have to be generated.
         try:
             read_fp = symtab.lookup_with_tag("ocl_read_func").name
         except KeyError:
-            # If the subroutines does not exist, it needs to be
-            # generated first.
             read_fp = self.gen_ocl_read_from_device_function(f2pygen_module)
+
         try:
-            write_fp = \
-                symtab.lookup_with_tag("ocl_write_func").name
+            write_fp = symtab.lookup_with_tag("ocl_write_func").name
         except KeyError:
             write_fp = self.gen_ocl_write_to_device_function(f2pygen_module)
 
+        # Code of the subroutine in Fortran
         code = '''
         subroutine initialise_device_grid(field)
             USE fortcl, ONLY: create_rw_buffer
@@ -1847,6 +1853,7 @@ class GOKern(CodedKern):
         end subroutine initialise_device_grid
         '''.format(num_x, num_y, host_buff, read_fp, write_fp)
 
+        # Obtain the PSyIR representation of the code above
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")
@@ -1859,7 +1866,6 @@ class GOKern(CodedKern):
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
 
         return subroutine_name
-
 
     def gen_ocl_read_from_device_function(self, f2pygen_module):
         '''
@@ -1880,7 +1886,7 @@ class GOKern(CodedKern):
             "read_from_device", symbol_type=RoutineSymbol,
             tag="ocl_read_func").name
 
-        # x is contiguous
+        # Code of the subroutine in Fortran
         code = '''
         subroutine read_sub(from, to, startx, starty, nx, ny, blocking)
             USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
@@ -1931,6 +1937,7 @@ class GOKern(CodedKern):
         end subroutine read_sub
         '''
 
+        # Obtain the PSyIR representation of the code above
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")
@@ -1950,6 +1957,7 @@ class GOKern(CodedKern):
             "write_to_device", symbol_type=RoutineSymbol,
             tag="ocl_write_func").name
 
+        # Code of the subroutine in Fortran
         code = '''
         subroutine write_sub(from, to, startx, starty, nx, ny, blocking)
             USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
@@ -2000,6 +2008,7 @@ class GOKern(CodedKern):
         end subroutine write_sub
         '''
 
+        # Obtain the PSyIR representation of the code above
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")

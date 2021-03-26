@@ -558,7 +558,9 @@ class PSyIRGen(BaseGen):
         # Fortran parser.
         fortran_writer = FortranWriter()
         # FortranStringReader makes any string starting with 'c' a comment,
-        # which happens when the content is a Call. The whitespace fixes it.
+        # which happens when the content is a Call. Since we know that
+        # FortranWriter doesn't produce 'c' comments we add a simple
+        # whitespace to fix it.
         reader = FortranStringReader(' ' + fortran_writer(content),
                                      ignore_comments=False)
         fparser1_parser = FortranParser(reader, ignore_comments=False)

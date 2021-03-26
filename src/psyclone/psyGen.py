@@ -1064,6 +1064,8 @@ class InvokeSchedule(Routine):
                                entity_decls=[first],
                                initial_values=[".true."]))
             if_first = IfThenGen(parent, first)
+            # Keep a reference to the block of code executed only the first
+            # iteration of the invoke.
             self._first_time_block = if_first
             parent.add(if_first)
             if_first.add(AssignGen(if_first, lhs=first, rhs=".false."))
