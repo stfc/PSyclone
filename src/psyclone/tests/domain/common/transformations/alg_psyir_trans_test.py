@@ -45,7 +45,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.domain.common.algorithm import \
     AlgorithmInvokeCall, KernelLayerRef
-from psyclone.domain.common.transformations import InvokeTrans, AlgPSyIRTrans
+from psyclone.domain.common.transformations import InvokeTrans, AlgTrans
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Literal, Reference, \
     ArrayReference, Literal, BinaryOperation, Routine, Container
@@ -119,10 +119,10 @@ def test_init():
     name method returns the expected value.
 
     '''
-    alg_trans = AlgPSyIRTrans()
+    alg_trans = AlgTrans()
     assert alg_trans._invoke_name == "invoke"
-    assert alg_trans.name == "AlgPSyIRTrans"
-    alg_trans = AlgPSyIRTrans(invoke_name="test")
+    assert alg_trans.name == "AlgTrans"
+    alg_trans = AlgTrans(invoke_name="test")
     assert alg_trans._invoke_name == "test"
     assert isinstance(alg_trans._invoke_trans, InvokeTrans)
 
@@ -144,7 +144,7 @@ def test_validate_node_error():
 
     psyir = create_psyir(code)
 
-    alg_trans = AlgPSyIRTrans()
+    alg_trans = AlgTrans()
     with pytest.raises(TransformationError) as info:
         alg_trans.validate("hello")
     assert ("The supplied call argument should be a Routine or Container "
@@ -183,7 +183,7 @@ def test_apply():
         "end module alg_mod\n")
 
     psyir = create_psyir(code)
-    alg_trans = AlgPSyIRTrans()
+    alg_trans = AlgTrans()
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
     assert len(psyir.walk(KernelLayerRef)) == 0

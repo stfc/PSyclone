@@ -42,7 +42,7 @@ from psyclone.psyir.nodes import Call, Routine, Container
 from psyclone.domain.common.transformations import InvokeTrans
 from psyclone.psyir.transformations import TransformationError
 
-class AlgPSyIRTrans(Transformation):
+class AlgTrans(Transformation):
     '''Transform a generic PSyIR representation of the Algorithm layer to
     a PSyclone version with specialised domain-specific nodes.
 
@@ -95,4 +95,7 @@ class AlgPSyIRTrans(Transformation):
         :rtype: str
 
         '''
-        return "AlgPSyIRTrans"
+        return "AlgTrans"
+
+
+__all__ = [AlgTrans]

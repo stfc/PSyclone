@@ -142,7 +142,7 @@ def test_parse_args_get_symbol():
     assert isinstance(code_block, CodeBlock)
 
     # Check expected output from parse_args
-    nodes = InvokeTrans.parse_args(code_block, code_block._fp2_nodes[0])
+    nodes = InvokeTrans._parse_args(code_block, code_block._fp2_nodes[0])
     assert isinstance(nodes, ChildrenList)
     assert len(nodes) == 1
     assert isinstance(nodes[0], Literal)
@@ -151,14 +151,14 @@ def test_parse_args_get_symbol():
     # Check expected output from get_symbol when no symbol exists
     with pytest.raises(KeyError):
         _ = code_block.scope.symbol_table.lookup("kern")
-    symbol = InvokeTrans.get_symbol(code_block, code_block._fp2_nodes[0])
+    symbol = InvokeTrans._get_symbol(code_block, code_block._fp2_nodes[0])
     assert isinstance(symbol, TypeSymbol)
     assert symbol.name == "kern"
     symbol2 = code_block.scope.symbol_table.lookup("kern")
     assert symbol2 is symbol
 
     # Check expected output from get_symbol when symbol already exists
-    symbol3 = InvokeTrans.get_symbol(code_block, code_block._fp2_nodes[0])
+    symbol3 = InvokeTrans._get_symbol(code_block, code_block._fp2_nodes[0])
     assert symbol3 is symbol
 
     
@@ -169,13 +169,13 @@ def test_specialise_symbol():
     symbol = Symbol("hello")
 
     # Check that a Symbol is specialised
-    InvokeTrans.specialise_symbol(symbol)
+    InvokeTrans._specialise_symbol(symbol)
     assert isinstance(symbol, TypeSymbol)
     assert isinstance(symbol.datatype, StructureType)
 
     # Check that something that is not a symbol is ignored
     test = "hello"
-    InvokeTrans.specialise_symbol(test)
+    InvokeTrans._specialise_symbol(test)
     assert isinstance(test, str)
     assert test == "hello"
 
