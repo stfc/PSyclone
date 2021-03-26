@@ -1463,7 +1463,9 @@ class ACCEnterDataDirective(ACCDirective):
 class ACCParallelDirective(ACCDirective):
     '''
     Class representing the !$ACC PARALLEL directive of OpenACC
-    in the PSyIR.
+    in the PSyIR. By default it includes the 'DEFAULT(PRESENT)' clause which
+    means this node must either come after an EnterDataDirective or within
+    a DataDirective.
 
     '''
     def node_str(self, colour=True):
@@ -1620,7 +1622,8 @@ class ACCParallelDirective(ACCDirective):
         and end of this parallel region.
         '''
         self._pre_gen_validate()
-        self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
+        self._add_region(start_text="PARALLEL", end_text="END PARALLEL",
+                         data_movement="present")
 
 
 class ACCLoopDirective(ACCDirective):

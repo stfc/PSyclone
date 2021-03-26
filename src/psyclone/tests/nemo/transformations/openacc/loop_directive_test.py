@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -92,16 +92,20 @@ def test_explicit_loop(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     para_trans = TransInfo().get_trans_name('ACCParallelTrans')
+    data_trans = TransInfo().get_trans_name('ACCDataTrans')
     para_trans.apply(schedule.children)
     schedule, _ = acc_trans.apply(schedule[0].dir_body[0])
     schedule, _ = acc_trans.apply(schedule[0].dir_body[1],
                                   {"independent": False})
+    data_trans.apply(schedule)
+
     code = str(psy.gen)
     assert ("PROGRAM do_loop\n"
             "  INTEGER :: ji\n"
             "  INTEGER, PARAMETER :: jpj = 13\n"
             "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-            "  !$ACC PARALLEL\n"
+            "  !$ACC DATA COPYOUT(sto_tmp,sto_tmp2)\n"
+            "  !$ACC PARALLEL DEFAULT(PRESENT)\n"
             "  !$ACC LOOP INDEPENDENT\n"
             "  DO ji = 1, jpj\n"
             "    sto_tmp(ji) = 1.0D0\n"
@@ -111,6 +115,7 @@ def test_explicit_loop(parser):
             "    sto_tmp2(ji) = 1.0D0\n"
             "  END DO\n"
             "  !$ACC END PARALLEL\n"
+            "  !$ACC END DATA\n"
             "END PROGRAM do_loop" in code)
 
 

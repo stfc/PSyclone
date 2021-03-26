@@ -1293,7 +1293,8 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        # TODO perform validation checks here or do this in a separate visitor?
+        # TODO perform validation checks here or do this in a separate visitor
+        # or get the base visitor class to call the appropriate routine?
         # node._pre_gen_validate()
         result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
 
