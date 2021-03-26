@@ -77,11 +77,11 @@ def test_nemo_omp_parallel():
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
     correct = '''!$omp parallel private(a,i)
-    do i = 1, 20, 2
-      a = 2 * i
-      b(i) = b(i) + a
-    enddo
-!$omp end parallel'''
+  do i = 1, 20, 2
+    a = 2 * i
+    b(i) = b(i) + a
+  enddo
+  !$omp end parallel'''
     assert correct in result
 
     cvisitor = CWriter()
@@ -143,7 +143,7 @@ def test_gocean_omp_parallel():
     fvisitor = FortranWriter()
     result = fvisitor(omp_sched[0])
     correct = '''!$omp parallel
-  a = b
+a = b
 !$omp end parallel'''
     assert correct in result
 
@@ -184,12 +184,12 @@ def test_nemo_omp_do():
 
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    correct = '''!$omp do schedule(static)
-    do i = 1, 20, 2
-      a = 2 * i
-      b(i) = b(i) + a
-    enddo
-!$omp end do'''
+    correct = '''  !$omp do schedule(static)
+  do i = 1, 20, 2
+    a = 2 * i
+    b(i) = b(i) + a
+  enddo
+  !$omp end do'''
     assert correct in result
 
     cvisitor = CWriter()
@@ -231,7 +231,7 @@ def test_gocean_omp_do():
     # the OMP node:
     result = fvisitor(omp_sched[0])
     correct = '''!$omp do schedule(static)
-  a = b
+a = b
 !$omp end do'''
     assert correct in result
 

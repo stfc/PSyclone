@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, PSyDataNode, Call
+    Routine, PSyDataNode, Call, StructureReference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -1528,6 +1528,26 @@ class ACCParallelDirective(ACCDirective):
 
         parent.add(DirectiveGen(parent, "acc", "end", "parallel", ""))
 
+    def begin_string(self):
+        '''
+        Returns the beginning statement of this directive, i.e.
+        "acc begin parallel" plus any qualifiers. The visitor is responsible
+        for adding the correct characters to mark this as a directive (e.g.
+        "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        return "acc begin parallel default(present)"
+
+    def end_string(self):
+        '''
+        :returns: the closing statement for this directive.
+        :rtype: str
+        '''
+        return "acc end parallel"
+
     @property
     def ref_list(self):
         '''
@@ -1707,6 +1727,30 @@ class ACCLoopDirective(ACCDirective):
             if self._collapse:
                 text += " COLLAPSE({0})".format(self._collapse)
         self._add_region(start_text=text)
+
+    def begin_string(self):
+        ''' Returns the beginning statement of this directive, i.e.
+        "acc loop" plus any qualifiers. The visitor is responsible for
+        adding the correct characters to mark this as a directive (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        result = "acc loop"
+        if self._sequential:
+            result += " seq"
+        else:
+            if self._independent:
+                result += " independent"
+            if self._collapse:
+                result += " collapse({0})".format(self._collapse)
+        return result
+
+    def end_string(self):
+        ''' Would return the end string for this directive but "acc loop"
+        doesn't have a closing directive. '''
+        return ""
 
 
 class OMPDirective(Directive):
@@ -4426,6 +4470,23 @@ class ACCKernelsDirective(ACCDirective):
                     variables.append(arg)
         return variables
 
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "acc kernels ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        result = "acc kernels"
+        if self._default_present:
+            result += " default(present)"
+        return result
+
+    def end_string(self):
+        return "acc end kernels"
+
     def update(self):
         '''
         Updates the fparser2 AST by inserting nodes for this ACC kernels
@@ -4485,6 +4546,69 @@ class ACCDataDirective(ACCDirective):
         self._pre_gen_validate()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "acc data". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        :raises NotImplementedError: TODO
+
+        '''
+        result = "acc data"
+
+        struct_accesses = self.walk(StructureReference)
+        if struct_accesses:
+            raise NotImplementedError("Derived-type references are not yet "
+                                      "supported within OpenACC data regions.")
+
+        # Identify the inputs and outputs to the region (variables that
+        # are read and written).
+        from psyclone.core.access_info import VariablesAccessInfo
+        var_accesses = VariablesAccessInfo(self)
+        readers = set()
+        writers = set()
+        for var in var_accesses.all_vars:
+            accesses = var_accesses[var]
+            if not accesses.all_accesses[0].indices:
+                # We ignore scalars
+                continue
+            if accesses.is_read():
+                readers.add(var)
+            if accesses.is_written():
+                writers.add(var)
+        readwrites = readers.intersection(writers)
+        # Are any of the read-writes written before they are read?
+        for var in list(readwrites)[:]:
+            accesses = var_accesses[var]
+            if accesses[0].access_type == AccessType.WRITE:
+                # First access is a write so treat as a write
+                writers.add(var)
+                readers.discard(var)
+                readwrites.discard(var)
+        readers_list = sorted(list(readers - readwrites))
+        writers_list = sorted(list(writers - readwrites))
+        readwrites_list = sorted(list(readwrites))
+        if readers_list:
+            result += " copyin({0})".format(",".join(readers_list))
+        if writers_list:
+            result += " copyout({0})".format(",".join(writers_list))
+        if readwrites_list:
+            result += " copy({0})".format(",".join(readwrites_list))
+
+        return result
+
+    def end_string(self):
+        '''
+        :returns: the text for the end of this directive region.
+        :rtype: str
+
+        '''
+        result = "acc end data"
+        return result
 
 
 # For Sphinx AutoAPI documentation generation
