@@ -135,9 +135,11 @@ end module test''')
     fvisitor = FortranWriter()
     with pytest.raises(NotImplementedError) as err:
         _ = fvisitor(sched)
+    # Allow for the vagaries of py2 output versus py3
+    err_msg = str(err.value).replace("u'", "'")
     assert ("Structure (derived-type) references are not yet supported within "
             "OpenACC data regions but found: ['grid%flag', 'grid%data(i)']" in
-            str(err.value))
+            err_msg)
 
 
 # ----------------------------------------------------------------------------
