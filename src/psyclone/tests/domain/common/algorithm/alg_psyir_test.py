@@ -141,8 +141,8 @@ def test_kernellayerref_create_invalid_symbol():
     symbol = Symbol("hello")
     with pytest.raises(GenerationError) as info:
         _ = KernelFunctor.create(symbol, [])
-    assert ("Call create symbol argument should be a TypeSymbol but found "
-            "'Symbol'." in str(info.value))
+    assert ("KernelFunctor create() symbol argument should be a TypeSymbol "
+            "but found 'Symbol'." in str(info.value))
 
 
 def test_kernellayerref_create_invalid_args1():
@@ -153,8 +153,8 @@ def test_kernellayerref_create_invalid_args1():
     symbol = TypeSymbol("hello", StructureType())
     with pytest.raises(GenerationError) as info:
         _ = KernelFunctor.create(symbol, "Not a list")
-    assert ("Call create arguments argument should be a list but found "
-            "'str'." in str(info.value))
+    assert ("KernelFunctor create() arguments argument should be a list "
+            "but found 'str'." in str(info.value))
 
 
 def test_kernellayerref_invalid_args2():

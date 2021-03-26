@@ -84,26 +84,25 @@ class KernelFunctor(Reference):
         '''Create an instance of class cls given valid instances of a
         TypeSymbol, and a list of child nodes for its arguments.
 
-        :param symbol: the name of the kernel metadata type that
-        this onject references.
-
+        :param symbol: the name of the kernel type that this object \
+            references.
         :type routine: py:class:`psyclone.psyir.symbols.TypeSymbol`
         :param arguments: the arguments to this routine. These are \
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
         :returns: an instance of cls.
-        :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call` or subclass thereof.
 
         '''
         if not isinstance(symbol, TypeSymbol):
             raise GenerationError(
-                "Call create symbol argument should be a TypeSymbol but "
-                "found '{0}'.".format(type(symbol).__name__))
+                "KernelFunctor create() symbol argument should be a "
+                "TypeSymbol but found '{0}'.".format(type(symbol).__name__))
         if not isinstance(arguments, list):
             raise GenerationError(
-                "Call create arguments argument should be a list but found "
-                "'{0}'.".format(type(arguments).__name__))
+                "KernelFunctor create() arguments argument should be a list "
+                "but found '{0}'.".format(type(arguments).__name__))
 
         call = cls(symbol)
         call.children = arguments

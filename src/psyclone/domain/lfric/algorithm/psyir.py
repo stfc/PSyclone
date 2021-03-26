@@ -41,13 +41,15 @@ from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
 
 
 class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
-    '''An invoke call in an LFRic Algorithm layer.
+    '''An invoke call from the LFRic Algorithm layer.
 
     :param routine: the routine that this call calls.
     :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param str description: xxx
+    :param description: an optional description of the \
+        LFRicAlgorithmInvokeCall. Defaults to None.
+    :type description: str or NoneType
 
     '''
     _text_name = "LFRicAlgorithmInvokeCall"
@@ -60,7 +62,7 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
     def create(cls, routine, arguments, description=None):
         '''Create an instance of class cls given valid instances of a routine
         symbol, a list of child nodes for its arguments and an
-        optional name.
+        optional description.
 
         :param routine: the routine that class cls calls.
         :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -81,6 +83,7 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         '''
         instance = super(LFRicAlgorithmInvokeCall, cls).create(
             routine, arguments)
+        # pylint: disable=protected-access
         instance._description = description
         return instance
 
