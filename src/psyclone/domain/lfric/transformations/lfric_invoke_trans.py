@@ -38,18 +38,16 @@ algorithm layer to an LFRic algorithm-layer-specific invoke call which
 uses specialised classes.
 
 '''
-from fparser.two.Fortran2003 import \
-    Actual_Arg_Spec, Name, Char_Literal_Constant, Structure_Constructor
-from psyclone.psyir.nodes import Call, CodeBlock, ArrayReference
-from psyclone.psyir.symbols import Symbol, TypeSymbol, \
-    StructureType, RoutineSymbol
-from psyclone.domain.lfric.algorithm import \
-    LfricBuiltinRef, LfricCodedKernelRef, LfricAlgorithmInvokeCall
-from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
-from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.domain.common.transformations import InvokeTrans
+from fparser.two.Fortran2003 import Actual_Arg_Spec, Name, \
+    Char_Literal_Constant, Structure_Constructor
+
+from psyclone.psyir.nodes import ArrayReference
 from psyclone.psyir.transformations import TransformationError
+
+from psyclone.domain.common.transformations import InvokeTrans
+from psyclone.domain.lfric.algorithm import LfricBuiltinRef, \
+    LfricCodedKernelRef, LfricAlgorithmInvokeCall
+from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 
 
 class LFRicInvokeTrans(InvokeTrans):
@@ -61,17 +59,39 @@ class LFRicInvokeTrans(InvokeTrans):
         call. This is an optional argument that defaults to 'invoke'.
 
     '''
+    def __init__(self, invoke_name="invoke"):
+        self._call_description = None
+        super(LFRicInvokeTrans, self).__init__(invoke_name=invoke_name)
+
     def validate(self, call, options=None):
-        ''' xxx '''
+        ''' Check that the call argument has the expected structure.
+
+        :param call: the PSyIR invoke call to be validated.
+        :type call :py:class:`psyclone.psyir.nodes.Call`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        '''
         self._call_description = None
         super(LFRicInvokeTrans, self).validate(call, options=options)
-        
 
     def _validate_fp2_node(self, fp2_node):
-        '''Specialise the fparser2 node validation routine to additionally
-        validate named arguments, which are specific to the LFRic API.
+        '''Specialisation of the fparser2 node validation routine to
+        additionally validate named arguments, which are specific to
+        the LFRic API.
 
-        xxxx
+        :param fp2_node: an fparser2 Structure Constructor or Actual \
+            Arg Spec node.
+        :type fp2_node: \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor` or \
+            :py:class:`fparser.two.Fortran2003.Actual_Arg_Spec
+
+        :raises TransformationError: if the named argument is not in \
+            the expected form.
+        :raises TransformationError: if more than one named argument \
+            is found.
+        :raises TransformationError: if the fparser2 node is not the \
+            expected type.
 
         '''
         if isinstance(fp2_node, Structure_Constructor):
@@ -99,7 +119,15 @@ class LFRicInvokeTrans(InvokeTrans):
                 "".format(self.name, type(fp2_node).__name__))
 
     def apply(self, call, options=None):
+        ''' Apply the transformation to the supplied node.
 
+        :param call: a PSyIR call node capturing an invoke call in \
+            generic PSyIR.
+        :type call: :py:class:`psyclone.psyir.nodes.Call`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        '''
         self.validate(call, options=options)
 
         call_description = None
@@ -119,7 +147,6 @@ class LFRicInvokeTrans(InvokeTrans):
                     type_symbol = call_arg.symbol
                 arg_info.append((node_type, type_symbol, args))
             else:
-                # codeblock containing 1..n kernel or builtin and 0 or 1 named arguments    
                 for fp2_node in call_arg._fp2_nodes:
                     if isinstance(fp2_node, Actual_Arg_Spec):
                         # This child is a named argument
@@ -131,19 +158,17 @@ class LFRicInvokeTrans(InvokeTrans):
                             node_type = LfricBuiltinRef
                         else:
                             node_type = LfricCodedKernelRef
-                        # TODO FIX LOOKUP OF SYMBOL IN SYMBOL TABLE FOR BUILTINS
-                        type_symbol = get_symbol(call, fp2_node)
-                        args = parse_args(call_arg, fp2_node)
+                        type_symbol = InvokeTrans._get_symbol(call, fp2_node)
+                        args = InvokeTrans._parse_args(call_arg, fp2_node)
                         arg_info.append((node_type, type_symbol, args))
-            
+
             for (node_type, type_symbol, args) in arg_info:
-                InvokeTrans.specialise_symbol(type_symbol)
+                InvokeTrans._specialise_symbol(type_symbol)
                 calls.append(node_type.create(type_symbol, args))
 
         invoke_call = LfricAlgorithmInvokeCall.create(
             call.routine, calls, description=call_description)
         call.replace_with(invoke_call)
-
 
     @property
     def name(self):

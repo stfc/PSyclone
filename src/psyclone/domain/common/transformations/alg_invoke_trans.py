@@ -64,7 +64,7 @@ class InvokeTrans(Transformation):
         self._invoke_name = invoke_name
 
     @staticmethod
-    def parse_args(code_block, fp2_node):
+    def _parse_args(code_block, fp2_node):
         '''Return the arguments from a Structure Constructor stored as a
         CodeBlock containing an fparser2 ast.
 
@@ -89,7 +89,7 @@ class InvokeTrans(Transformation):
         return args
 
     @staticmethod
-    def get_symbol(call, fp2_node):
+    def _get_symbol(call, fp2_node):
         '''Return the name of a Structure Constructor stored as a CodeBlock
         containing an fparser2 ast.
 
@@ -114,7 +114,7 @@ class InvokeTrans(Transformation):
         return type_symbol
 
     @staticmethod
-    def specialise_symbol(symbol):
+    def _specialise_symbol(symbol):
         '''If the symbol argument is a Symbol then change it into a
         TypeSymbol.
 
@@ -189,7 +189,7 @@ class InvokeTrans(Transformation):
                     "".format(self.name, type(arg).__name__))
 
     def apply(self, call, options=None):
-        ''' apply transformation to the supplied node.
+        ''' Apply the transformation to the supplied node.
 
         :param call: a PSyIR call node capturing an invoke call in \
             generic PSyIR.
@@ -197,7 +197,7 @@ class InvokeTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        '''        
+        '''
         self.validate(call, options=options)
         
         kernel_calls = []
@@ -212,12 +212,12 @@ class InvokeTrans(Transformation):
             else:
                 # CodeBlock containing a structure constructor
                 for fp2_node in call_arg._fp2_nodes:
-                    type_symbol = self.get_symbol(call, fp2_node)
-                    args = self.parse_args(call_arg, fp2_node)
+                    type_symbol = self._get_symbol(call, fp2_node)
+                    args = self._parse_args(call_arg, fp2_node)
                     arg_info.append((type_symbol, args))
 
             for (type_symbol, args) in arg_info:
-                self.specialise_symbol(type_symbol)
+                self._specialise_symbol(type_symbol)
                 kernel_calls.append(KernelLayerRef.create(
                     type_symbol, args))
 
