@@ -40,8 +40,9 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import LoopFuseTrans, GOceanLoopFuseTrans, \
-    GOceanOMPParallelLoopTrans
+from psyclone.psyir.transformations import LoopFuseTrans
+from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
+from psyclone.transformations import GOceanOMPParallelLoopTrans
 
 API = "gocean0.1"
 

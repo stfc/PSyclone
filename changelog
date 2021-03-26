@@ -379,40 +379,79 @@
 
 	122) PR #1128 for #1127. Fix Sphinx-RTD builds of user and developer guides.
 
-        123) PR #1117 for #1003. Change intent for 'GH_WRITE' arguments from
-        'in' to 'inout' (because a kernel does not write to all data points in
-        a field).
+	123) PR #1117 for #1003. Change intent for 'GH_WRITE' arguments from
+	'in' to 'inout' (because a kernel does not write to all data points in
+	a field).
 
 	124) PR #1063 towards #935. Add basic support for specialisation of
 	symbols.
 
-        125) PR #1073 for #1022. Updates the Makefiles for the examples
-        and tutorials to make them consistent. Default target for the tutorials
-        is now 'transform'.
+	125) PR #1073 for #1022. Updates the Makefiles for the examples
+	and tutorials to make them consistent. Default target for the tutorials
+	is now 'transform'.
 
 	126) PR #1095 for #1083. Adds a LoopTrans base class that Loop
 	transformations can subclass and use any common functionality.
 
 	127) PR #1138 for #1137. Add support for Fortran Program in the PSyIR.
 
-        128) PR #1122 for #1112. Restructures the way the colour to use
-        for a given PSyIR node is specified.
+	128) PR #1122 for #1112. Restructures the way the colour to use
+	for a given PSyIR node is specified.
 
-        129) PR #1125 for #1114. Harmonises LFRic built-in and module names to
-        consistently use "LFRic" rather than "Dyn".
+	129) PR #1125 for #1114. Harmonises LFRic built-in and module names to
+	consistently use "LFRic" rather than "Dyn".
 
-        130) PR #1065 for #1061. Re-structures the GOcean PSyData examples.
+	130) PR #1065 for #1061. Re-structures the GOcean PSyData examples.
 
-        131) PR #1141 for #1132. Small fix to ensure depth() returns correct
-        values for a GOcean kernel with 'pointwise' access.
+	131) PR #1141 for #1132. Small fix to ensure depth() returns correct
+	values for a GOcean kernel with 'pointwise' access.
 
-        132) PR #1096 for #1056. Add GOcean transformations to insert
-        boundary masks inside kernels and eliminate return statements.
+	132) PR #1096 for #1056. Add GOcean transformations to insert
+	boundary masks inside kernels and eliminate return statements.
 
 	133) PR #1109 for issue #402. Add NEMO processing scripts to the
 	repository.
 
 	134) PR #1135 for issue #1124. Add a replace_with method to PSyIR node.
+
+	135) PR #1126 for #1098. Add kernel stub generation support for the
+	'2D cross' stencils in the LFRic API.
+
+        136) PR #1145 for #1107. Adds new LFRic builtins (type-conversion,
+        SIGN, plus others).
+
+        137) PR #1133 for #1130. Uses GOcean stencil metadata to correctly
+        populate the field access information (dependency analysis) for a
+        GOcean kernel.
+
+        138) PR #1154 for #1153. Work towards improving usability of
+        loop fusion transformation. Moves transformations into separate
+        files in the appropriate directories.
+
+	139) PR #1155 for #529. Adds PSyIR support for REAL and INT
+        BinaryOperations.
+
+        140) PR #1144 for #1136. Add checks that PSyIR nodes are only children
+        of one parent.
+
+	141) PR #1150 for #1146. Fixed bug in PSyIR, making the name
+	matching in the Node swap method case insensitive.
+
+	142) PR #1166 for #1152. Adds support for the unary sum operator
+	in the PSyIR and the fparser2psyir reader.
+
+	143 PR #1131 for #1116. Make the number of any*space function
+	spaces (and basis supported datatypes) configurable.
+
+	144) PR #1082 for #925. Adds code generation support for
+	operates_on=domain kernels in LFRic.
+
+	145) PR #1162 for #1160. Add Fortran backend support for unresolved
+	interfaces when there is wildcard imports.
+
+        146) PR #1157 for #478. Updates the LoopFusion transformation so
+        that the 'same space' option is now provided with the options
+        dict, in line with the way other transformations work.
 
 release 1.9.0 20th May 2020
 

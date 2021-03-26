@@ -92,11 +92,12 @@ def test_range_create():
     assert erange.children[1] is stop
     assert erange.parent is None
     # Parent but no step
-    erange2 = Range.create(start, stop, parent=parent)
+    erange2 = Range.create(start.copy(), stop.copy(), parent=parent)
     assert erange2.parent is parent
     assert erange2.children[2].value == "1"
     # Parent and step supplied
-    erange3 = Range.create(start, stop, step=Literal("5", INTEGER_SINGLE_TYPE),
+    erange3 = Range.create(start.copy(), stop.copy(),
+                           Literal("5", INTEGER_SINGLE_TYPE),
                            parent=parent)
     assert erange3.parent is parent
     assert erange3.children[2].value == "5"
@@ -136,6 +137,8 @@ def test_range_literals_props():
             ScalarType.Precision.UNDEFINED)
     assert erange.children[2].value == "1"
     # Create another one with a specified step
+    start = Literal("10", INTEGER_SINGLE_TYPE)
+    stop = Literal("20", INTEGER_SINGLE_TYPE)
     erange2 = Range.create(start, stop, Literal("5", INTEGER_SINGLE_TYPE))
     assert erange2.children[0] is start
     assert erange2.children[1] is stop

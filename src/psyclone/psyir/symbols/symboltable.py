@@ -595,7 +595,7 @@ class SymbolTable(object):
 
         :raises TypeError: if either old/new_symbol are not Symbols.
         :raises SymbolError: if `old_symbol` and `new_symbol` don't have \
-                             the same name.
+                             the same name (after normalising).
         '''
         if not isinstance(old_symbol, Symbol):
             raise TypeError("Symbol to remove must be of type Symbol but "
@@ -603,7 +603,10 @@ class SymbolTable(object):
         if not isinstance(new_symbol, Symbol):
             raise TypeError("Symbol to add must be of type Symbol but "
                             "got '{0}'".format(type(new_symbol).__name__))
-        if old_symbol.name != new_symbol.name:
+        # The symbol table is not case sensitive so we must normalise the
+        # symbol names before comparing them.
+        if (self._normalize(old_symbol.name) !=
+                self._normalize(new_symbol.name)):
             raise SymbolError(
                 "Cannot swap symbols that have different names, got: '{0}' "
                 "and '{1}'".format(old_symbol.name, new_symbol.name))
@@ -1007,6 +1010,23 @@ class SymbolTable(object):
 
         # Re-insert modified symbol
         self.add(symbol)
+
+    def has_wildcard_imports(self):
+        '''
+        Searches this symbol table and then up through any parent symbol
+        tables for a ContainerSymbol that has a wildcard import.
+
+        :returns: True if a wildcard import is found, False otherwise.
+        :rtype: bool
+
+        '''
+        current_table = self
+        while current_table:
+            for sym in current_table.containersymbols:
+                if sym.wildcard_import:
+                    return True
+            current_table = current_table.parent_symbol_table()
+        return False
 
     def view(self):
         '''

@@ -45,18 +45,19 @@ import inspect
 from importlib import import_module
 import pytest
 from psyclone.configuration import Config
+from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans, \
+    GOMoveIterationBoundariesInsideKernelTrans
 from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import TransformationError, LoopTrans
+from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
+    TransformationError
 from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
-    LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
+    GOLoopSwapTrans, OMPParallelTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
-    GOceanLoopFuseTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, \
+    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, \
     OCLTrans, OMPLoopTrans
-from psyclone.domain.gocean.transformations import \
-    GOMoveIterationBoundariesInsideKernelTrans
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
@@ -182,6 +183,8 @@ def test_loop_fuse_error(monkeypatch):
     schedule = invoke.schedule
 
     lftrans = GOceanLoopFuseTrans()
+    assert str(lftrans) == "Fuse two adjacent loops together with " \
+                           "GOcean-specific validity checks"
 
     # Apply loop fuse, but the first node is not a loop:
     with pytest.raises(TransformationError) as err:
@@ -886,9 +889,15 @@ def test_go_omp_loop_applied_to_non_loop():
 
     # Attempt to (erroneously) apply the GO OMP Loop transformation
     # to the first node in the schedule (which is now itself an
-    # OMP Loop transformation)
-    with pytest.raises(TransformationError):
+    # OMPDoDirective).
+    with pytest.raises(TransformationError) as err:
+        ompl.validate(omp_schedule.children[0])
+    assert ("Target of GOceanOMPLoopTrans transformation must be a sub-class "
+            "of Loop but got 'OMPDoDirective'" in str(err.value))
+    with pytest.raises(TransformationError) as err:
         _, _ = ompl.apply(omp_schedule.children[0])
+    assert ("Target of GOceanOMPLoopTrans transformation must be a sub-class "
+            "of Loop but got 'OMPDoDirective'" in str(err.value))
 
 
 def test_go_omp_loop_applied_to_wrong_loop_type():
@@ -908,8 +917,14 @@ def test_go_omp_loop_applied_to_wrong_loop_type():
     ompl = GOceanOMPLoopTrans()
     # Attempt to apply the transformation to the loop that has been
     # given an incorrect type
-    with pytest.raises(TransformationError):
+    with pytest.raises(TransformationError) as err:
+        ompl.validate(schedule.children[0])
+    assert ("The requested loop is not of type inner or outer" in
+            str(err.value))
+    with pytest.raises(TransformationError) as err:
         _, _ = ompl.apply(schedule.children[0])
+    assert ("The requested loop is not of type inner or outer" in
+            str(err.value))
 
 
 def test_go_omp_parallel_loop_applied_to_non_loop():
@@ -1526,16 +1541,16 @@ def test_go_loop_swap_wrong_loop_type():
     Test loop swapping transform when supplied loops are not GOLoops.
     '''
     swap = GOLoopSwapTrans()
-    psy, invoke = get_invoke("1.0.1_single_named_invoke.f90",
-                             "dynamo0.3", idx=0, dist_mem=True)
+    _, invoke = get_invoke("1.0.1_single_named_invoke.f90",
+                           "dynamo0.3", idx=0, dist_mem=True)
     with pytest.raises(TransformationError) as error:
         swap.apply(invoke.schedule.children[4])
 
     assert re.search("Given node .* is not a GOLoop, but an instance of "
                      ".*DynLoop", str(error.value)) is not None
 
-    psy, invoke_loop1 = get_invoke("test27_loop_swap.f90", API, idx=1,
-                                   dist_mem=False)
+    _, invoke_loop1 = get_invoke("test27_loop_swap.f90", API, idx=1,
+                                 dist_mem=False)
     schedule = invoke_loop1.schedule
     loop = schedule[0].loop_body[0]
     assert isinstance(loop, GOLoop)

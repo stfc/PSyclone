@@ -352,3 +352,36 @@ def test_naryoperation_children_validation():
         nary.addchild(statement)
     assert ("Item 'Return' can't be child 3 of 'NaryOperation'. The valid "
             "format is: '[DataNode]+'.") in str(excinfo.value)
+
+
+def test_operations_can_be_copied():
+    ''' Test that an operation can be copied. '''
+
+    operands = [Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE)),
+                Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                Reference(DataSymbol("tmp3", REAL_SINGLE_TYPE))]
+    operation = NaryOperation.create(NaryOperation.Operator.MAX, operands)
+
+    operation1 = operation.copy()
+    assert isinstance(operation1, NaryOperation)
+    assert operation1 is not operation
+    assert operation1.operator is NaryOperation.Operator.MAX
+    assert operation1.children[0].symbol.name == "tmp1"
+    assert operation1.children[0] is not operands[0]
+    assert operation1.children[0].parent is operation1
+    assert operation1.children[1].symbol.name == "tmp2"
+    assert operation1.children[1] is not operands[1]
+    assert operation1.children[1].parent is operation1
+    assert operation1.children[2].symbol.name == "tmp3"
+    assert operation1.children[2] is not operands[2]
+    assert operation1.children[2].parent is operation1
+    assert len(operation1.children) == 3
+    assert len(operation.children) == 3
+
+    # Modifying the new operation does not affect the original
+    operation1._operator = NaryOperation.Operator.MIN
+    operation1.children.pop()
+    assert len(operation1.children) == 2
+    assert len(operation.children) == 3
+    assert operation1.operator is NaryOperation.Operator.MIN
+    assert operation.operator is NaryOperation.Operator.MAX

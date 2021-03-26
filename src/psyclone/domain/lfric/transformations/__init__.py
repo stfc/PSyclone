@@ -39,6 +39,8 @@
 
 from psyclone.domain.lfric.transformations.lfric_extract_trans \
     import LFRicExtractTrans
+from psyclone.domain.lfric.transformations.lfric_loop_fuse_trans \
+    import LFRicLoopFuseTrans
 from psyclone.domain.lfric.transformations.lfric_invoke_trans import \
     LFRicInvokeTrans
 from psyclone.domain.lfric.transformations.lfric_alg_trans import \
@@ -48,4 +50,7 @@ from psyclone.domain.lfric.transformations.lfric_alg_trans import \
 # this package e.g.:
 # from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
-__all__ = ['LFRicExtractTrans', 'LFRicInvokeTrans', 'LFRicAlgTrans']
+__all__ = ['LFRicExtractTrans',
+           'LFRicLoopFuseTrans',
+           'LFRicInvokeTrans',
+           'LFRicAlgTrans']

@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import DataSymbol, SymbolError, \
 from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
-from psyclone.transformations import DynamoLoopFuseTrans
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
 # pylint: disable=redefined-outer-name
 from psyclone.psyir.nodes.node import colored
@@ -251,8 +251,7 @@ def test_node_args():
     for idx, arg in enumerate(kern2.arguments.args):
         assert arg == loop2_args[idx]
     # 4) Loop fuse
-    ftrans = DynamoLoopFuseTrans()
-    ftrans.same_space = True
+    ftrans = LFRicLoopFuseTrans()
     schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]
     kern1 = loop.loop_body[0]
@@ -759,6 +758,66 @@ def test_children_validation():
     assert loop.children[0].value == "2"
 
 
+def test_children_is_orphan_validation():
+    ''' Test that all kinds of children addition operations make sure that a
+    child is orphan before accepting it as its own child. '''
+    # Create 2 schedules and add a child in the first Schedule
+    schedule1 = Schedule()
+    schedule2 = Schedule()
+    statement = Return(parent=schedule1)
+    schedule1.addchild(statement)
+
+    # Try to move the child without removing the parent connection first
+    errmsg = ("Item 'Return' can't be added as child of 'Schedule' because "
+              "it is not an orphan. It already has a 'Schedule' as a parent.")
+    with pytest.raises(GenerationError) as error:
+        schedule2.addchild(statement)
+    assert errmsg in str(error.value)
+
+    with pytest.raises(GenerationError) as error:
+        schedule2.children.append(statement)
+    assert errmsg in str(error.value)
+
+    with pytest.raises(GenerationError) as error:
+        schedule2.children.insert(0, statement)
+    assert errmsg in str(error.value)
+
+    with pytest.raises(GenerationError) as error:
+        schedule2.children.extend([statement])
+    assert errmsg in str(error.value)
+
+    with pytest.raises(GenerationError) as error:
+        schedule2.children = [statement]
+    assert errmsg in str(error.value)
+
+    schedule2.addchild(Return())
+    with pytest.raises(GenerationError) as error:
+        schedule2.children[0] = statement
+    assert errmsg in str(error.value)
+
+    # It can be added when it has been detached from its previous parent
+    schedule2.addchild(statement.detach())
+
+
+@pytest.mark.xfail(reason="Adding non-orphan nodes to the same parent where "
+                          "it already belongs to doesn't make it fail at the "
+                          "moment. #294. Could solve this issue by making the"
+                          " parent-child set atomic.")
+def test_children_is_orphan_same_parent():
+    ''' Test children addition operations with a node that is not an orphan
+    and already belongs to the parent to which it is being added.'''
+    # Create 2 schedules and add a child in the first Schedule
+    schedule1 = Schedule()
+    statement = Return(parent=schedule1)
+    schedule1.addchild(statement)
+
+    with pytest.raises(GenerationError) as error:
+        schedule1.addchild(statement)
+    assert ("Item 'Return' can't be added as child of 'Schedule' because "
+            "it is not an orphan. It already has a 'Schedule' as a parent."
+            in str(error.value))
+
+
 def test_children_setter():
     ''' Test that the children setter sets-up accepts lists or None or raises
     the appropriate issue. '''
@@ -881,3 +940,57 @@ def test_replace_with_error2():
             "Generation Error: Item 'Container' can't be child 0 of "
             "'Schedule'. The valid format is: '[Statement]*'." in
             str(info.value))
+
+
+def test_copy():
+    ''' Check that the copy method of a generic Node creates a duplicate of
+    the original node'''
+    tnode = Node()
+    duplicated_instance = tnode.copy()
+    assert isinstance(duplicated_instance, type(tnode))
+    assert duplicated_instance is not tnode
+    assert duplicated_instance.parent is None
+
+
+def test_pop_all_children():
+    ''' Check that the pop_all_children method removes the children nodes
+    from the children list and return them all in a list. '''
+
+    # Create a PSyIR tree
+    parent = Schedule()
+    node1 = Statement(parent=parent)
+    parent.addchild(node1)
+    node2 = Statement(parent=parent)
+    parent.addchild(node2)
+
+    # Execute pop_all_children method
+    result = parent.pop_all_children()
+
+    # Check the resulting nodes and connections are as expected
+    assert isinstance(result, list)
+    assert len(parent.children) == 0
+    assert node1.parent is None
+    assert node2.parent is None
+    assert result[0] is node1 and result[1] is node2
+
+
+def test_detach():
+    ''' Check that the detach method removes a node from its parent node. '''
+
+    # Create a PSyIR tree
+    parent = Schedule()
+    node1 = Statement(parent=parent)
+    parent.addchild(node1)
+    node2 = Statement(parent=parent)
+    parent.addchild(node2)
+
+    # Execute the detach method on node 1, it should return itself
+    assert node1.detach() is node1
+
+    # Check that the resulting nodes and connections are correct
+    assert node1.parent is None
+    assert len(parent.children) == 1
+    assert parent.children[0] is node2
+
+    # Executing it again still succeeds
+    assert node1.detach() is node1

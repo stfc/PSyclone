@@ -39,11 +39,12 @@ have to test it using various sub-classes. '''
 from __future__ import absolute_import
 import inspect
 import pytest
-from psyclone.psyir.transformations import TransformationError, LoopTrans
+from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
+    TransformationError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyGen import CodedKern
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelLoopTrans, LoopFuseTrans
+from psyclone.transformations import OMPParallelLoopTrans
 from psyclone import transformations, psyir
 
 
@@ -56,9 +57,10 @@ def test_loop_trans_name():
     assert trans2.name == "LoopFuseTrans"
 
 
-def test_loop_trans_validate():
+def test_loop_trans_validate(monkeypatch):
     ''' Test the validation checks on the loop node provided to the
     transformation. '''
+    # We have to use sub-class of LoopTrans as it itself is abstract.
     trans = OMPParallelLoopTrans()
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
                            dist_mem=False)
@@ -69,7 +71,14 @@ def test_loop_trans_validate():
     # Check that validate is OK with a valid loop
     loop = invoke.schedule.walk(Loop)[0]
     trans.validate(loop)
-    # Break the loop
+    # Pretend that the loop is of 'null' type
+    monkeypatch.setattr(loop, "_loop_type", "null")
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    assert ("Cannot apply a OMPParallelLoopTrans transformation to a "
+            "'null' loop" in str(err.value))
+    monkeypatch.undo()
+    # Break the contents of the loop
     loop.children = loop.children[0:1]
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)

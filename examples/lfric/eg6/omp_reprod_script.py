@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,13 +33,16 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''File containing a PSyclone transformation script for the dynamo0p3
 API to apply loop fusion and then OpenMP parallelisation to an invoke
 with two Kernels. This can be applied via the -s option in the
 generator.py script.'''
-from psyclone.transformations import OMPParallelTrans, DynamoLoopFuseTrans, \
-    Dynamo0p3OMPLoopTrans
+
+from psyclone.configuration import Config
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.transformations import OMPParallelTrans, Dynamo0p3OMPLoopTrans
 
 
 def trans(psy):
@@ -47,12 +50,11 @@ def trans(psy):
     loop fusion and OpenMP for a particular example.'''
     otrans = OMPParallelTrans()
     ltrans = Dynamo0p3OMPLoopTrans()
-    ftrans = DynamoLoopFuseTrans()
+    ftrans = LFRicLoopFuseTrans()
 
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
-    from psyclone.configuration import Config
     config = Config.get()
     if config.api_conf("dynamo0.3").compute_annexed_dofs and \
        config.distributed_memory:
@@ -63,8 +65,8 @@ def trans(psy):
     else:
         # Loop fuse the two built-in kernels. The 'same_space' flag needs to
         # be set as built-ins are over ANY_SPACE.
-        ftrans.same_space = True
-        schedule, _ = ftrans.apply(schedule[0], schedule[1])
+        schedule, _ = ftrans.apply(schedule[0], schedule[1],
+                                   {"same_space": True})
 
         # Add an OpenMP do directive to the resultant loop-fused loop,
         # specifying that we want reproducible reductions

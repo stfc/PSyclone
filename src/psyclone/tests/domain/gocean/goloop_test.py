@@ -72,8 +72,8 @@ def test_goloop_no_children():
     kernel calls '''
     gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
     # Try and generate the code for this loop even though it
     # has no children
@@ -88,8 +88,8 @@ def test_goloop_unsupp_offset():
     # This test expects constant loop bounds
     gosched._const_loop_bounds = True
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
     gokern = GOKern()
     # Set the index-offset of this kernel to a value that is not
@@ -105,8 +105,8 @@ def test_goloop_unmatched_offsets():
     two different index offsets '''
     gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
     gokern1 = GOKern()
     gokern2 = GOKern()
@@ -163,7 +163,7 @@ def test_goloop_grid_property_psyir_expression():
             "not begin with '{0}': 'wrong%one'" in str(err.value))
     gref = loop._grid_property_psyir_expression("{0}%grid%xstart")
     assert isinstance(gref, StructureReference)
-    assert gref.parent is loop
+    assert gref.parent is None
     assert gref.symbol.name == "cv_fld"
 
 
