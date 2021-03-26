@@ -77,7 +77,6 @@ PGI_VERSION = 1940  # i.e. 19.4
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
-ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
 PROFILE_TRANS = ProfileTrans()
 

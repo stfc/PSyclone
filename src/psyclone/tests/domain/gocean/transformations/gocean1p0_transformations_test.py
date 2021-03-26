@@ -1626,8 +1626,9 @@ def test_acc_parallel_trans(tmpdir):
 
     with pytest.raises(GenerationError) as err:
         _ = str(psy.gen)
-    assert ("an ACC parallel region must also contain an ACC enter data "
-            "directive but none was found for invoke_0" in str(err.value))
+    assert ("An ACC parallel region must either be preceeded by an ACC enter "
+            "data directive or enclosed within an ACC data region but in "
+            "'invoke_0' this is not the case" in str(err.value))
 
     accdt = ACCEnterDataTrans()
     new_sched, _ = accdt.apply(schedule)
@@ -1878,9 +1879,9 @@ def test_accloop(tmpdir):
     # directive and we need one for the parallel region to work
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("A Schedule containing an ACC parallel region must also "
-            "contain an ACC enter data directive but none was found for "
-            "invoke_0" in str(err.value))
+    assert ("An ACC parallel region must either be preceeded by an ACC enter "
+            "data directive or enclosed within an ACC data region but in "
+            "'invoke_0' this is not the case." in str(err.value))
 
     # Add a data region
     new_sched, _ = accdata.apply(new_sched)

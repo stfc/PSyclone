@@ -39,6 +39,8 @@
 
 from __future__ import absolute_import
 import pytest
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.visitor import VisitorError
@@ -46,8 +48,7 @@ from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.transformations import (ACCKernelsTrans, ACCDataTrans,
                                       ACCParallelTrans)
-from psyclone.nemo import NemoInvokeSchedule
-from psyclone.tests.utilities import create_schedule, get_invoke
+from psyclone.tests.utilities import get_invoke
 
 
 NEMO_TEST_CODE = '''
@@ -65,30 +66,32 @@ end module test'''
 
 
 # ----------------------------------------------------------------------------
-def test_nemo_acc_kernels():
-    '''Tests if an OpenACC kernels directive in NEMO is handled correctly.
+@pytest.mark.parametrize("default_present, expected",
+                         [(True, " default(present)"), (False, "")])
+def test_nemo_acc_kernels(default_present, expected, parser):
+    '''
+    Tests that an OpenACC kernels directive is handled correctly in the
+    NEMO API.
     '''
     # Generate fparser2 parse tree from Fortran code.
-    schedule = create_schedule(NEMO_TEST_CODE, "tmp")
-    # Currently the creation of PSyIR for the NEMO API does not quite
-    # produce the expected structure so replace the root KernelSchedule
-    # with a NemoInvokeSchedule so that it is accepted by the transformation.
-    # TODO #737
-    nemo_sched = NemoInvokeSchedule.create("tmp", schedule.symbol_table,
-                                           schedule.pop_all_children())
+    reader = FortranStringReader(NEMO_TEST_CODE)
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    nemo_sched = psy.invokes.invoke_list[0].schedule
+
     # Now apply a kernels transform
     ktrans = ACCKernelsTrans()
-    ktrans.apply(nemo_sched[0])
+    options = {"default_present": default_present}
+    ktrans.apply(nemo_sched[0], options)
 
     fvisitor = FortranWriter()
     result = fvisitor(nemo_sched)
-    print(result)
-    correct = '''!$acc kernels
+    correct = '''!$acc kernels{0}
 do i = 1, 20, 2
   a = 2 * i
   b(i) = b(i) + a
 enddo
-!$acc end kernels'''
+!$acc end kernels'''.format(expected)
     assert correct in result
 
     cvisitor = CWriter()
@@ -98,17 +101,15 @@ enddo
 
 
 # ----------------------------------------------------------------------------
-def test_nemo_acc_parallel():
+def test_nemo_acc_parallel(parser):
     '''Tests that an OpenACC parallel directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
-    schedule = create_schedule(NEMO_TEST_CODE, "tmp")
-    # Currently the creation of PSyIR for the NEMO API does not quite
-    # produce the expected structure so replace the root KernelSchedule
-    # with a NemoInvokeSchedule so that it is accepted by the transformation.
-    # TODO #737
-    nemo_sched = NemoInvokeSchedule.create("tmp", schedule.symbol_table,
-                                           schedule.pop_all_children())
+    reader = FortranStringReader(NEMO_TEST_CODE)
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    nemo_sched = psy.invokes.invoke_list[0].schedule
+
     # Now apply an ACC parallel transform
     dtrans = ACCDataTrans()
     ktrans = ACCParallelTrans()

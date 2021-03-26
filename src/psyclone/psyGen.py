@@ -1486,6 +1486,38 @@ class ACCParallelDirective(ACCDirective):
         '''
         return "ACC_parallel_" + str(self.abs_position)
 
+    def _pre_gen_validate(self):
+        '''
+        Check that the PSyIR tree containing this node is valid. Since we
+        use 'default(present)', this node must either be the child of an
+        ACCDataDirective or the parent Schedule must contain an
+        ACCEnterDataDirective.
+
+        :raises GenerationError: if this ACCParallel node is not preceeded by \
+            an ACCEnterDataDirective or the child of an ACCDataDirective.
+
+        '''
+        # We can't use Node.ancestor() because the enter data directive does
+        # not have children. Instead, we go back up to the Schedule and
+        # walk down from there.
+        routine = self.ancestor(Routine)
+        nodes = routine.walk(ACCEnterDataDirective)
+        # Check that any enter-data directive comes before this parallel
+        # directive
+        if nodes and nodes[0].abs_position > self.abs_position:
+            raise GenerationError(
+                "An ACC parallel region must be preceeded by an ACC enter-"
+                "data directive but in '{0}' this is not the case.".
+                format(routine.name))
+
+        if not nodes and not self.ancestor(ACCDataDirective):
+            raise GenerationError(
+                "An ACC parallel region must either be preceeded by an ACC "
+                "enter data directive or enclosed within an ACC data region "
+                "but in '{0}' this is not the case.".format(routine.name))
+
+        super(ACCParallelDirective, self)._pre_gen_validate()
+
     def gen_code(self, parent):
         '''
         Generate the elements of the f2pygen AST for this Node in the Schedule.
@@ -1495,26 +1527,6 @@ class ACCParallelDirective(ACCDirective):
 
         '''
         self._pre_gen_validate()
-
-        # Since we use "default(present)" the Schedule must contain an
-        # 'enter data' directive. We don't mandate the order in which
-        # transformations are applied so we have to check for that here.
-        # We can't use Node.ancestor() because the data directive does
-        # not have children. Instead, we go back up to the Schedule and
-        # walk down from there.
-        nodes = self.root.walk(ACCEnterDataDirective)
-        if len(nodes) != 1:
-            raise GenerationError(
-                "A Schedule containing an ACC parallel region must also "
-                "contain an ACC enter data directive but none was found for "
-                "{0}".format(self.root.invoke.name))
-        # Check that the enter-data directive comes before this parallel
-        # directive
-        if nodes[0].abs_position > self.abs_position:
-            raise GenerationError(
-                "An ACC parallel region must be preceeded by an ACC enter-"
-                "data directive but in {0} this is not the case.".
-                format(self.root.invoke.name))
 
         # "default(present)" means that the compiler is to assume that
         # all data required by the parallel region is already present

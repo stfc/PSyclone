@@ -1293,6 +1293,8 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
+        # TODO perform validation checks here or do this in a separate visitor?
+        # node._pre_gen_validate()
         result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
 
         for child in node.dir_body:
