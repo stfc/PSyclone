@@ -40,8 +40,8 @@
 from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, Reference
+from psyclone.psyGen import PSyFactory, TransInfo, Directive
+from psyclone.psyir.nodes import Assignment, Reference, Loop
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
@@ -53,16 +53,91 @@ from psyclone.tests.utilities import get_invoke
 
 NEMO_TEST_CODE = '''
 module test
-  contains
+contains
 subroutine tmp()
   integer :: i, a
-  integer, dimension(:) :: b
+  integer, dimension(:) :: b, c, d
   do i = 1, 20, 2
-    a = 2 * i
-    b(i) = b(i) + a
+    a = 2 * i + d(i)
+    c(i) = a
+    b(i) = b(i) + a + c(i)
   enddo
 end subroutine tmp
 end module test'''
+
+DOUBLE_LOOP = ("program do_loop\n"
+               "integer :: ji, jj\n"
+               "integer, parameter :: jpi=16, jpj=16\n"
+               "real(kind=wp) :: sto_tmp(jpi, jpj)\n"
+               "do jj = 1,jpj\n"
+               "  do ji = 1,jpi\n"
+               "    sto_tmp(ji, jj) = 1.0d0\n"
+               "  end do\n"
+               "end do\n"
+               "end program do_loop\n")
+
+
+# ----------------------------------------------------------------------------
+def test_acc_data_region(parser):
+    ''' Test that an ACCDataDirective node generates the expected code. '''
+    # Generate fparser2 parse tree from Fortran code.
+    reader = FortranStringReader(NEMO_TEST_CODE)
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    sched = psy.invokes.invoke_list[0].schedule
+    dtrans = ACCDataTrans()
+    dtrans.apply(sched)
+    fvisitor = FortranWriter()
+    result = fvisitor(sched)
+    assert ("!$acc data copyin(d) copyout(c) copy(b)\n"
+            "do i = 1, 20, 2\n" in result)
+    assert ("enddo\n"
+            "!$acc end data\n" in result)
+    assigns = sched.walk(Assignment)
+    # Remove the read from array 'd'
+    assigns[0].detach()
+    result = fvisitor(sched)
+    assert ("!$acc data copyout(c) copy(b)\n"
+            "do i = 1, 20, 2\n" in result)
+    # Remove the readwrite of array 'b'
+    assigns[2].detach()
+    result = fvisitor(sched)
+    assert ("!$acc data copyout(c)\n"
+            "do i = 1, 20, 2\n" in result)
+
+
+# ----------------------------------------------------------------------------
+def test_acc_data_region_no_struct(parser):
+    '''
+    Test that we refuse to generate code if a data region includes references
+    to structures.
+    '''
+    reader = FortranStringReader('''
+module test
+  use some_mod, only: grid_type
+  type(grid_type) :: grid
+contains
+subroutine tmp()
+  integer :: i
+  integer, dimension(:) :: b
+
+  do i = 1, 20, 2
+    b(i) = b(i) + i + grid%flag
+    grid%data(i) = i
+  enddo
+end subroutine tmp
+end module test''')
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    sched = psy.invokes.invoke_list[0].schedule
+    dtrans = ACCDataTrans()
+    dtrans.apply(sched)
+    fvisitor = FortranWriter()
+    with pytest.raises(NotImplementedError) as err:
+        _ = fvisitor(sched)
+    assert ("Structure (derived-type) references are not yet supported within "
+            "OpenACC data regions but found: ['grid%flag', 'grid%data(i)']" in
+            str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -88,8 +163,9 @@ def test_nemo_acc_kernels(default_present, expected, parser):
     result = fvisitor(nemo_sched)
     correct = '''!$acc kernels{0}
 do i = 1, 20, 2
-  a = 2 * i
-  b(i) = b(i) + a
+  a = 2 * i + d(i)
+  c(i) = a
+  b(i) = b(i) + a + c(i)
 enddo
 !$acc end kernels'''.format(expected)
     assert correct in result
@@ -117,23 +193,65 @@ def test_nemo_acc_parallel(parser):
     ktrans.apply(nemo_sched[0])
     dtrans.apply(nemo_sched[0])
 
-    fvisitor = FortranWriter()
-    result = fvisitor(nemo_sched)
+    fort_writer = FortranWriter()
+    result = fort_writer(nemo_sched)
 
-    correct = '''!$acc data copy(b)
-!$acc begin parallel default(present)
+    correct = '''!$acc begin parallel default(present)
 do i = 1, 20, 2
-  a = 2 * i
-  b(i) = b(i) + a
+  a = 2 * i + d(i)
+  c(i) = a
+  b(i) = b(i) + a + c(i)
 enddo
-!$acc end parallel
-!$acc end data'''
+!$acc end parallel'''
     assert correct in result
 
     cvisitor = CWriter()
     with pytest.raises(VisitorError) as err:
         _ = cvisitor(nemo_sched[0])
     assert "Unsupported node 'ACCDataDirective' found" in str(err.value)
+
+
+# ----------------------------------------------------------------------------
+def test_acc_loop(parser):
+    ''' Tests that an OpenACC loop directive is handled correctly. '''
+    reader = FortranStringReader(DOUBLE_LOOP)
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    # An ACC Loop must be within a KERNELS or PARALLEL region
+    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans.apply(schedule.children)
+    loops = schedule[0].walk(Loop)
+    _ = acc_trans.apply(loops[0], {"sequential": True})
+    fort_writer = FortranWriter()
+    result = fort_writer(schedule)
+    assert ("!$acc kernels\n"
+            "!$acc loop seq\n"
+            "do jj = 1, jpj, 1\n" in result)
+    loop_dir = loops[0].ancestor(Directive)
+    # Rather than keep apply the transformation with different options,
+    # change the internal state of the Directive directly.
+    loop_dir._sequential = False
+    result = fort_writer(schedule)
+    assert ("!$acc kernels\n"
+            "!$acc loop independent\n"
+            "do jj = 1, jpj, 1\n" in result)
+    loop_dir._collapse = 2
+    result = fort_writer(schedule)
+    assert ("!$acc kernels\n"
+            "!$acc loop independent collapse(2)\n"
+            "do jj = 1, jpj, 1\n" in result)
+    loop_dir._independent = False
+    result = fort_writer(schedule)
+    assert ("!$acc kernels\n"
+            "!$acc loop collapse(2)\n"
+            "do jj = 1, jpj, 1\n" in result)
+    loop_dir._collapse = None
+    result = fort_writer(schedule)
+    assert ("!$acc kernels\n"
+            "!$acc loop\n"
+            "do jj = 1, jpj, 1\n" in result)
 
 
 # ----------------------------------------------------------------------------

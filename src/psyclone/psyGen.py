@@ -4570,15 +4570,24 @@ class ACCDataDirective(ACCDirective):
         :returns: the opening statement of this directive.
         :rtype: str
 
-        :raises NotImplementedError: TODO
+        :raises NotImplementedError: if the region contains one or more \
+                                     references to structures (TODO #1028).
 
         '''
         result = "acc data"
 
         struct_accesses = self.walk(StructureReference)
         if struct_accesses:
-            raise NotImplementedError("Derived-type references are not yet "
-                                      "supported within OpenACC data regions.")
+            # TODO #1028. Dependence analysis does not yet work for structure
+            # references.
+            # Have to import here to avoid circular dependency
+            # pylint: ignore=import-outside-toplevel
+            from psyclone.psyir.backend.fortran import FortranWriter
+            fwriter = FortranWriter()
+            ref_list = [fwriter(ref) for ref in struct_accesses]
+            raise NotImplementedError(
+                "Structure (derived-type) references are not yet supported "
+                "within OpenACC data regions but found: {0}".format(ref_list))
 
         # Identify the inputs and outputs to the region (variables that
         # are read and written).
