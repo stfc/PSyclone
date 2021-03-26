@@ -44,7 +44,7 @@ from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock
 from psyclone.psyir.symbols import Symbol, TypeSymbol, StructureType, \
     RoutineSymbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
-    KernelLayerRef
+    KernelFunctor
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
@@ -218,7 +218,7 @@ class InvokeTrans(Transformation):
 
             for (type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)
-                kernel_calls.append(KernelLayerRef.create(
+                kernel_calls.append(KernelFunctor.create(
                     type_symbol, args))
 
         invoke_call = AlgorithmInvokeCall.create(

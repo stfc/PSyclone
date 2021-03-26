@@ -44,7 +44,7 @@ from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.domain.common.algorithm import \
-    AlgorithmInvokeCall, KernelLayerRef
+    AlgorithmInvokeCall, KernelFunctor
 from psyclone.domain.common.transformations import InvokeTrans, AlgTrans
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Literal, Reference, \
@@ -59,15 +59,15 @@ def check_reference(klr, name, arg_name):
     reference argument has the expected structure if its argument is a
     reference.
 
-    :param klr: the KernelLayerRef node being tested.
-    :type klr: :py:class:`psyclone.domain.common.algorithm.KernelLayerRef`
+    :param klr: the KernelFunctor node being tested.
+    :type klr: :py:class:`psyclone.domain.common.algorithm.KernelFunctor`
     :param str name: the name of the symbol within a reference that is \
         an argument to klr.
     :param str arg_name: the name of the argument passed to the ..
         an argument to klr.
 
     '''
-    assert type(klr) == KernelLayerRef
+    assert type(klr) == KernelFunctor
     assert klr.symbol.name == name
     assert len(klr.children) == 1
     arg = klr.children[0]
@@ -80,13 +80,13 @@ def check_literal(klr, name, arg_value):
     reference argument has the expected structure if its argument is a
     literal.
 
-    :param klr: the KernelLayerRef node being tested.
-    :type klr: :py:class:`psyclone.domain.common.algorithm.KernelLayerRef`
+    :param klr: the KernelFunctor node being tested.
+    :type klr: :py:class:`psyclone.domain.common.algorithm.KernelFunctor`
 
     :param str value: the value of the literal that is an argument to klr.
 
     '''
-    assert type(klr) == KernelLayerRef
+    assert type(klr) == KernelFunctor
     assert klr.symbol.name == name
     assert len(klr.children) == 1
     arg = klr.children[0]
@@ -186,10 +186,10 @@ def test_apply():
     alg_trans = AlgTrans()
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(KernelLayerRef)) == 0
+    assert len(psyir.walk(KernelFunctor)) == 0
 
     alg_trans.apply(psyir)
 
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(AlgorithmInvokeCall)) == 3
-    assert len(psyir.walk(KernelLayerRef)) == 3
+    assert len(psyir.walk(KernelFunctor)) == 3

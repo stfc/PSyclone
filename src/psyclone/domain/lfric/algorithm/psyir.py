@@ -37,7 +37,7 @@
 
 '''
 from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
-                                              KernelLayerRef)
+                                              KernelFunctor)
 
 
 class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
@@ -99,17 +99,17 @@ class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
                                                  self._description)
 
 
-class LfricBuiltinRef(KernelLayerRef):
-    '''A reference to a builtin's metadata from an invoke call in an LFRic
-    Algorithm layer.
+class LfricBuiltinFunctor(KernelFunctor):
+    '''Object containing an LFRic builtin call, a description of its
+    required interface and the arguments to be passed to it.
 
     '''
-    _text_name = "LfricBuiltinRef"
+    _text_name = "LfricBuiltinFunctor"
 
 
-class LfricCodedKernelRef(KernelLayerRef):
-    '''A reference to a coded kernel's metadata from an invoke call in an
-    LFRic Algorithm layer.
+class LfricKernelFunctor(KernelFunctor):
+    '''Object containing an LFRic kernel call, a description of its
+    required interface and the arguments to be passed to it.
 
     '''
-    _text_name = "LfricCodedKernelRef"
+    _text_name = "LfricKernelFunctor"

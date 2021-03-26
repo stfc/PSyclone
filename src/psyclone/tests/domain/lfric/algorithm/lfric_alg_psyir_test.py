@@ -44,8 +44,8 @@ from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType
 from psyclone.domain.lfric.algorithm import \
-    LfricAlgorithmInvokeCall, LfricCodedKernelRef, \
-    LfricBuiltinRef
+    LfricAlgorithmInvokeCall, LfricKernelFunctor, \
+    LfricBuiltinFunctor
 
 
 def test_lfricalgorithminvokecall():
@@ -89,7 +89,7 @@ def test_lfricalgorithminvokecall_create(cls):
 
     '''
     routine = RoutineSymbol("hello")
-    klc = LfricCodedKernelRef.create(TypeSymbol("arg", StructureType()), [])
+    klc = LfricKernelFunctor.create(TypeSymbol("arg", StructureType()), [])
     call = cls.create(routine, [klc], description="describing an invoke")
     assert call._description == "describing an invoke"
     assert call.routine is routine
@@ -121,20 +121,20 @@ def test_lfricalgorithminvokecall_node_str():
 
 
 def test_lfricbuiltinref():
-    '''test that an instance of LfricBuiltinRef class can be created.
+    '''test that an instance of LfricBuiltinFunctor class can be created.
 
     '''
     routine = TypeSymbol("hello", StructureType())
-    lbc = LfricBuiltinRef(routine)
-    assert type(lbc) == LfricBuiltinRef
-    assert lbc._text_name == "LfricBuiltinRef"
+    lbc = LfricBuiltinFunctor(routine)
+    assert type(lbc) == LfricBuiltinFunctor
+    assert lbc._text_name == "LfricBuiltinFunctor"
 
 
 def test_lfriccodedkernelref():
-    '''test that an instance of LfricCodedKernelRef class can be created.
+    '''test that an instance of LfricKernelFunctor class can be created.
 
     '''
     routine = TypeSymbol("hello", StructureType())
-    lbc = LfricCodedKernelRef(routine)
-    assert type(lbc) == LfricCodedKernelRef
-    assert lbc._text_name == "LfricCodedKernelRef"
+    lbc = LfricKernelFunctor(routine)
+    assert type(lbc) == LfricKernelFunctor
+    assert lbc._text_name == "LfricKernelFunctor"

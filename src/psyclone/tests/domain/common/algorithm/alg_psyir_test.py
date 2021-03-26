@@ -45,7 +45,7 @@ from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType, Symbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
-    KernelLayerRef
+    KernelFunctor
 from psyclone.errors import GenerationError
 
 
@@ -71,53 +71,53 @@ def test_algorithminvokecall_invalid_arg():
     with pytest.raises(GenerationError) as info:
         _ = AlgorithmInvokeCall.create(routine, ["hello"])
     assert("Item 'str' can't be child 0 of 'AlgorithmInvokeCall'. The valid "
-           "format is: '[KernelLayerRef]*'." in str(info.value))
+           "format is: '[KernelFunctor]*'." in str(info.value))
 
 
 def test_kernellayerref():
-    '''Check that an instance of KernelLayerRef class can be created. Also
+    '''Check that an instance of KernelFunctor class can be created. Also
     check that the symbol method works as expected.
 
     '''
     symbol = TypeSymbol("hello", StructureType())
-    klr = KernelLayerRef(symbol)
+    klr = KernelFunctor(symbol)
     assert klr._symbol == symbol
     assert klr.symbol == symbol
     assert klr._colour == "yellow"
-    assert klr._text_name == "KernelLayerRef"
+    assert klr._text_name == "KernelFunctor"
     assert klr.parent is None
 
 
 def test_kernellayerref_parent():
-    '''Check that the optional parent argument to a KernelLayerRef class
+    '''Check that the optional parent argument to a KernelFunctor class
     constructor is stored correctly.
 
     '''
     parent = Node()
     symbol = TypeSymbol("hello", StructureType())
-    klr = KernelLayerRef(symbol, parent=parent)
+    klr = KernelFunctor(symbol, parent=parent)
     assert klr.parent == parent
 
 
 def test_kernellayerref_invalid_symbol():
-    '''Check KernelLayerRef raises the expected exception if the type of
+    '''Check KernelFunctor raises the expected exception if the type of
     the symbol argument is invalid.
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = KernelLayerRef(Symbol("hello"))
-    assert ("KernelLayerRef symbol argument should be a TypeSymbol but "
+        _ = KernelFunctor(Symbol("hello"))
+    assert ("KernelFunctor symbol argument should be a TypeSymbol but "
             "found 'Symbol'." in str(info.value))
 
 
-class SubClass(KernelLayerRef):
-    '''Utility subclass of KernelLayerRef to test that the create method
-    in KernelLayerRef behaves as expected for subclasses.'''
+class SubClass(KernelFunctor):
+    '''Utility subclass of KernelFunctor to test that the create method
+    in KernelFunctor behaves as expected for subclasses.'''
 
 
-@pytest.mark.parametrize("cls", [KernelLayerRef, SubClass])
+@pytest.mark.parametrize("cls", [KernelFunctor, SubClass])
 def test_kernellayerref_create(cls):
-    '''Check that the create method of KernelLayerRef works as expected.
+    '''Check that the create method of KernelFunctor works as expected.
 
     '''
     symbol = TypeSymbol("hello", StructureType())
@@ -127,38 +127,38 @@ def test_kernellayerref_create(cls):
     assert len(klr.children) == 0
 
     arg = Reference(Symbol("dummy"))
-    klr = KernelLayerRef.create(symbol, [arg])
+    klr = KernelFunctor.create(symbol, [arg])
     assert len(klr.children) == 1
     assert klr.children[0] == arg
     assert arg.parent == klr
 
 
 def test_kernellayerref_create_invalid_symbol():
-    '''Check that the create method of KernelLayerRef raises the expected
+    '''Check that the create method of KernelFunctor raises the expected
     exception if the provided symbol argument is not the correct type.
 
     '''
     symbol = Symbol("hello")
     with pytest.raises(GenerationError) as info:
-        _ = KernelLayerRef.create(symbol, [])
+        _ = KernelFunctor.create(symbol, [])
     assert ("Call create symbol argument should be a TypeSymbol but found "
             "'Symbol'." in str(info.value))
 
 
 def test_kernellayerref_create_invalid_args1():
-    '''Check that the create method of KernelLayerRef raises the expected
+    '''Check that the create method of KernelFunctor raises the expected
     exception if the provided 'arguments' argument is not a list.
 
     '''
     symbol = TypeSymbol("hello", StructureType())
     with pytest.raises(GenerationError) as info:
-        _ = KernelLayerRef.create(symbol, "Not a list")
+        _ = KernelFunctor.create(symbol, "Not a list")
     assert ("Call create arguments argument should be a list but found "
             "'str'." in str(info.value))
 
 
 def test_kernellayerref_invalid_args2():
-    '''Check that the create method of KernelLayerRef raises the expected
+    '''Check that the create method of KernelFunctor raises the expected
     exception if its supplied list of children are not the expected
     type (tests _validate_child method and _children_valid_format
     variable)
@@ -166,25 +166,25 @@ def test_kernellayerref_invalid_args2():
     '''
     symbol = TypeSymbol("hello", StructureType())
     with pytest.raises(GenerationError) as info:
-        _ = KernelLayerRef.create(symbol, ["hello"])
-    assert("Item 'str' can't be child 0 of 'KernelLayerRef'. The valid "
+        _ = KernelFunctor.create(symbol, ["hello"])
+    assert("Item 'str' can't be child 0 of 'KernelFunctor'. The valid "
            "format is: '[DataNode]*'." in str(info.value))
 
 
 def test_kernellayerref_node_str():
-    '''Check the node_str method of the KernelLayerRef class.'''
+    '''Check the node_str method of the KernelFunctor class.'''
 
     symbol = TypeSymbol("hello", StructureType())
     arg = Reference(Symbol("dummy"))
-    klr = KernelLayerRef.create(symbol, [arg])
-    coloredtext = colored("KernelLayerRef", KernelLayerRef._colour)
+    klr = KernelFunctor.create(symbol, [arg])
+    coloredtext = colored("KernelFunctor", KernelFunctor._colour)
     assert klr.node_str() == coloredtext+"[name='hello']"
 
 
 def test_kernellayerref_str():
-    '''Check the str method of the KernelLayerRef class.'''
+    '''Check the str method of the KernelFunctor class.'''
 
     symbol = TypeSymbol("hello", StructureType())
     arg = Reference(Symbol("dummy"))
-    klr = KernelLayerRef.create(symbol, [arg])
-    assert klr.__str__() == "KernelLayerRef[name='hello']"
+    klr = KernelFunctor.create(symbol, [arg])
+    assert klr.__str__() == "KernelFunctor[name='hello']"

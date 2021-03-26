@@ -44,7 +44,7 @@ from psyclone.errors import GenerationError
 class AlgorithmInvokeCall(Call):
     '''An invoke call in a PSyclone Algorithm layer.'''
 
-    _children_valid_format = "[KernelLayerRef]*"
+    _children_valid_format = "[KernelFunctor]*"
     _text_name = "AlgorithmInvokeCall"
     _colour = "green"
 
@@ -59,25 +59,24 @@ class AlgorithmInvokeCall(Call):
         :rtype: bool
 
         '''
-        return isinstance(child, KernelLayerRef)
+        return isinstance(child, KernelFunctor)
 
 
-class KernelLayerRef(Reference):
-    '''Reference to a kernel's metadata from an invoke call in a PSyclone
-    Algorithm layer and provides the arguments that will be passed
-    into the PSy layer.
+class KernelFunctor(Reference):
+    '''Object containing a kernel call, a description of its required
+    interface and the arguments to be passed to it.
 
     '''
     _children_valid_format = "[DataNode]*"
-    _text_name = "KernelLayerRef"
+    _text_name = "KernelFunctor"
 
     def __init__(self, symbol, parent=None):
         # pylint: disable=super-with-arguments
-        super(KernelLayerRef, self).__init__(symbol, parent=parent)
+        super(KernelFunctor, self).__init__(symbol, parent=parent)
 
         if not isinstance(symbol, TypeSymbol):
             raise TypeError(
-                "KernelLayerRef symbol argument should be a TypeSymbol but "
+                "KernelFunctor symbol argument should be a TypeSymbol but "
                 "found '{0}'.".format(type(symbol).__name__))
 
     @classmethod
@@ -142,4 +141,4 @@ class KernelLayerRef(Reference):
 
 __all__ = [
     'AlgorithmInvokeCall',
-    'KernelLayerRef']
+    'KernelFunctor']

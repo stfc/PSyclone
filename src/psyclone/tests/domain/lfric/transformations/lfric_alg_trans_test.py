@@ -46,7 +46,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Call
 
 from psyclone.domain.lfric.algorithm import \
-    LfricAlgorithmInvokeCall, LfricCodedKernelRef, LfricBuiltinRef
+    LfricAlgorithmInvokeCall, LfricKernelFunctor, LfricBuiltinFunctor
 from psyclone.domain.lfric.transformations import LFRicAlgTrans, \
     LFRicInvokeTrans
 
@@ -108,12 +108,12 @@ def test_apply():
     alg_trans = LFRicAlgTrans()
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(LfricAlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(LfricCodedKernelRef)) == 0
-    assert len(psyir.walk(LfricBuiltinRef)) == 0
+    assert len(psyir.walk(LfricKernelFunctor)) == 0
+    assert len(psyir.walk(LfricBuiltinFunctor)) == 0
 
     alg_trans.apply(psyir)
 
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(LfricAlgorithmInvokeCall)) == 3
-    assert len(psyir.walk(LfricCodedKernelRef)) == 2
-    assert len(psyir.walk(LfricBuiltinRef)) == 1
+    assert len(psyir.walk(LfricKernelFunctor)) == 2
+    assert len(psyir.walk(LfricBuiltinFunctor)) == 1
