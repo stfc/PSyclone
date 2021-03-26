@@ -449,6 +449,10 @@
 	145) PR #1162 for #1160. Add Fortran backend support for unresolved
 	interfaces when there is wildcard imports.
 
+        146) PR #1157 for #478. Updates the LoopFusion transformation so
+        that the 'same space' option is now provided with the options
+        dict, in line with the way other transformations work.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
