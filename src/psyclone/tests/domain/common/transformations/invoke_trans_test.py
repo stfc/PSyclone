@@ -42,16 +42,18 @@ import pytest
 
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
+
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.domain.common.algorithm import \
-    AlgorithmInvokeCall, KernelFunctor
-from psyclone.domain.common.transformations import InvokeTrans
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import Call, CodeBlock, Literal, Reference, \
+from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
     ArrayReference, Literal, BinaryOperation
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, Symbol, \
     StructureType
 from psyclone.psyir.nodes.node import ChildrenList
+
+from psyclone.domain.common.algorithm import \
+    AlgorithmInvokeCall, KernelFunctor
+from psyclone.domain.common.transformations import InvokeTrans
 
 
 def check_reference(klr, name, arg_name):
@@ -96,7 +98,7 @@ def check_literal(klr, name, arg_value):
 
 def create_psyir(code):
     ''' Utility to create a PSyIR tree from Fortran code.
-    
+
     :param str code: Fortran code encoded as a string
 
     :returns: psyir tree representing the Fortran code
@@ -161,7 +163,7 @@ def test_parse_args_get_symbol():
     symbol3 = InvokeTrans._get_symbol(code_block, code_block._fp2_nodes[0])
     assert symbol3 is symbol
 
-    
+
 def test_specialise_symbol():
     '''Test that the specialise_symbol method work as expected.
 
@@ -423,5 +425,5 @@ def test_apply_expr():
     assert type(klr) == KernelFunctor
     assert klr.symbol.name == "kern"
     assert len(klr.children) == 2
-    arg0 = klr.children[0]
+    arg = klr.children[0]
     assert isinstance(arg, BinaryOperation)

@@ -45,7 +45,6 @@ from psyclone.psyir.symbols import Symbol, TypeSymbol, StructureType, \
     RoutineSymbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
-from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -199,7 +198,7 @@ class InvokeTrans(Transformation):
 
         '''
         self.validate(call, options=options)
-        
+
         kernel_calls = []
         for call_arg in call.children:
             arg_info = []

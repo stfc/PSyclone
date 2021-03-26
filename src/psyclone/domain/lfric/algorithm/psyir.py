@@ -40,7 +40,7 @@ from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
                                               KernelFunctor)
 
 
-class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
+class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
     '''An invoke call in an LFRic Algorithm layer.
 
     :param routine: the routine that this call calls.
@@ -50,11 +50,11 @@ class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
     :param str description: xxx
 
     '''
-    _text_name = "LfricAlgorithmInvokeCall"
+    _text_name = "LFRicAlgorithmInvokeCall"
 
     def __init__(self, routine, parent=None, description=None):
         self._description = description
-        super(LfricAlgorithmInvokeCall, self).__init__(routine, parent=parent)
+        super(LFRicAlgorithmInvokeCall, self).__init__(routine, parent=parent)
 
     @classmethod
     def create(cls, routine, arguments, description=None):
@@ -75,11 +75,11 @@ class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
 
         :returns: an instance of cls.
         :rtype: \
-            :py:class:`psyclone.psyir.nodes.LfricAlgorithmInvokeCall` or a \
+            :py:class:`psyclone.psyir.nodes.LFRicAlgorithmInvokeCall` or a \
             subclass thereof.
 
         '''
-        instance = super(LfricAlgorithmInvokeCall, cls).create(
+        instance = super(LFRicAlgorithmInvokeCall, cls).create(
             routine, arguments)
         instance._description = description
         return instance
@@ -99,17 +99,17 @@ class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
                                                  self._description)
 
 
-class LfricBuiltinFunctor(KernelFunctor):
+class LFRicBuiltinFunctor(KernelFunctor):
     '''Object containing an LFRic builtin call, a description of its
     required interface and the arguments to be passed to it.
 
     '''
-    _text_name = "LfricBuiltinFunctor"
+    _text_name = "LFRicBuiltinFunctor"
 
 
-class LfricKernelFunctor(KernelFunctor):
+class LFRicKernelFunctor(KernelFunctor):
     '''Object containing an LFRic kernel call, a description of its
     required interface and the arguments to be passed to it.
 
     '''
-    _text_name = "LfricKernelFunctor"
+    _text_name = "LFRicKernelFunctor"

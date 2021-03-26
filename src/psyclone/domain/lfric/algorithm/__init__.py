@@ -39,13 +39,12 @@ on LFRic-specific PSyIR.
 
 '''
 from psyclone.domain.lfric.algorithm.psyir import \
-    LfricAlgorithmInvokeCall, LfricKernelFunctor, LfricBuiltinFunctor
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor
 
 # The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.algorithm import psyir_to_alg_psyir
+# this package
 
 __all__ = [
-    'LfricAlgorithmInvokeCall',
-    'LfricKernelFunctor',
-    'LfricBuiltinFunctor']
+    'LFRicAlgorithmInvokeCall',
+    'LFRicKernelFunctor',
+    'LFRicBuiltinFunctor']

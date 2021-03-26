@@ -44,52 +44,52 @@ from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType
 from psyclone.domain.lfric.algorithm import \
-    LfricAlgorithmInvokeCall, LfricKernelFunctor, \
-    LfricBuiltinFunctor
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, \
+    LFRicBuiltinFunctor
 
 
 def test_lfricalgorithminvokecall():
-    '''Check that an instance of LfricAlgorithmInvokeCall can be
+    '''Check that an instance of LFRicAlgorithmInvokeCall can be
     created.
 
     '''
     routine = RoutineSymbol("hello")
-    call = LfricAlgorithmInvokeCall(routine)
+    call = LFRicAlgorithmInvokeCall(routine)
     assert call._description is None
     assert call.parent is None
     assert call.routine is routine
-    assert call._text_name == "LfricAlgorithmInvokeCall"
+    assert call._text_name == "LFRicAlgorithmInvokeCall"
 
 
 def test_lfricalgorithminvokecall_options():
-    '''Check that an instance of LfricAlgorithmInvokeCall can be created
+    '''Check that an instance of LFRicAlgorithmInvokeCall can be created
     with optional arguments and that these optional arguments are
     stored as expected.
 
     '''
     node = Node()
     routine = RoutineSymbol("hello")
-    call = LfricAlgorithmInvokeCall(
+    call = LFRicAlgorithmInvokeCall(
         routine, description="describing an invoke", parent=node)
     assert call._description == "describing an invoke"
     assert call.parent is node
 
 
-class DummySubClass(LfricAlgorithmInvokeCall):
-    '''A dummy subclass of LfricAlgorithmInvokeCall used for testing the
-    behaviour of the create method in LfricAlgorithmInvokeCall.
+class DummySubClass(LFRicAlgorithmInvokeCall):
+    '''A dummy subclass of LFRicAlgorithmInvokeCall used for testing the
+    behaviour of the create method in LFRicAlgorithmInvokeCall.
 
     '''
 
 
-@pytest.mark.parametrize("cls", [LfricAlgorithmInvokeCall, DummySubClass])
+@pytest.mark.parametrize("cls", [LFRicAlgorithmInvokeCall, DummySubClass])
 def test_lfricalgorithminvokecall_create(cls):
-    '''Check that the LfricAlgorithmInvokeCall create method creates the
+    '''Check that the LFRicAlgorithmInvokeCall create method creates the
     expected object.
 
     '''
     routine = RoutineSymbol("hello")
-    klc = LfricKernelFunctor.create(TypeSymbol("arg", StructureType()), [])
+    klc = LFRicKernelFunctor.create(TypeSymbol("arg", StructureType()), [])
     call = cls.create(routine, [klc], description="describing an invoke")
     assert call._description == "describing an invoke"
     assert call.routine is routine
@@ -99,42 +99,42 @@ def test_lfricalgorithminvokecall_create(cls):
 
 
 def test_lfricalgorithminvokecall_create_nodescription():
-    '''Check that the LfricAlgorithmInvokeCall create method sets
+    '''Check that the LFRicAlgorithmInvokeCall create method sets
     description to None if it is not provided.
 
     '''
     routine = RoutineSymbol("hello")
-    call = LfricAlgorithmInvokeCall.create(routine, [])
+    call = LFRicAlgorithmInvokeCall.create(routine, [])
     assert call._description is None
 
 
 def test_lfricalgorithminvokecall_node_str():
-    '''Check that the LfricAlgorithmInvokeCall node_str  method creates the
+    '''Check that the LFRicAlgorithmInvokeCall node_str  method creates the
     expected object.
 
     '''
     routine = RoutineSymbol("hello")
-    call = LfricAlgorithmInvokeCall.create(
+    call = LFRicAlgorithmInvokeCall.create(
         routine, [], description="describing an invoke")
-    assert ("LfricAlgorithmInvokeCall[description=\"describing an invoke\"]"
+    assert ("LFRicAlgorithmInvokeCall[description=\"describing an invoke\"]"
             in call.node_str(colour=False))
 
 
 def test_lfricbuiltinref():
-    '''test that an instance of LfricBuiltinFunctor class can be created.
+    '''test that an instance of LFRicBuiltinFunctor class can be created.
 
     '''
     routine = TypeSymbol("hello", StructureType())
-    lbc = LfricBuiltinFunctor(routine)
-    assert type(lbc) == LfricBuiltinFunctor
-    assert lbc._text_name == "LfricBuiltinFunctor"
+    lbc = LFRicBuiltinFunctor(routine)
+    assert type(lbc) == LFRicBuiltinFunctor
+    assert lbc._text_name == "LFRicBuiltinFunctor"
 
 
 def test_lfriccodedkernelref():
-    '''test that an instance of LfricKernelFunctor class can be created.
+    '''test that an instance of LFRicKernelFunctor class can be created.
 
     '''
     routine = TypeSymbol("hello", StructureType())
-    lbc = LfricKernelFunctor(routine)
-    assert type(lbc) == LfricKernelFunctor
-    assert lbc._text_name == "LfricKernelFunctor"
+    lbc = LFRicKernelFunctor(routine)
+    assert type(lbc) == LFRicKernelFunctor
+    assert lbc._text_name == "LFRicKernelFunctor"

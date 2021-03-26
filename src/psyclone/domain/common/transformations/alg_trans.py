@@ -42,6 +42,7 @@ from psyclone.psyir.nodes import Call, Routine, Container
 from psyclone.domain.common.transformations import InvokeTrans
 from psyclone.psyir.transformations import TransformationError
 
+
 class AlgTrans(Transformation):
     '''Transform a generic PSyIR representation of the Algorithm layer to
     a PSyclone version with specialised domain-specific nodes.
@@ -56,7 +57,7 @@ class AlgTrans(Transformation):
 
     def validate(self, node, options=None):
         '''Validate the supplied PSyIR tree.
-        
+
         :param node: A PSyIR node that is the root of a PSyIR tree.
         :type node: :py:class:`psyclone.psyir.node.Routine` or \
             :py:class:`psyclone.psyir.node.Container`
@@ -98,4 +99,4 @@ class AlgTrans(Transformation):
         return "AlgTrans"
 
 
-__all__ = [AlgTrans]
+__all__ = ['AlgTrans']

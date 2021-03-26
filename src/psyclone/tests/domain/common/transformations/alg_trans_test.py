@@ -42,16 +42,14 @@ import pytest
 
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
+
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.domain.common.algorithm import \
-    AlgorithmInvokeCall, KernelFunctor
-from psyclone.domain.common.transformations import InvokeTrans, AlgTrans
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import Call, CodeBlock, Literal, Reference, \
-    ArrayReference, Literal, BinaryOperation, Routine, Container
-from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, Symbol, \
-    StructureType
-from psyclone.psyir.nodes.node import ChildrenList
+from psyclone.psyir.nodes import Call, Literal, Reference
+
+from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
+    KernelFunctor
+from psyclone.domain.common.transformations import InvokeTrans, AlgTrans
 
 
 def check_reference(klr, name, arg_name):
@@ -96,7 +94,7 @@ def check_literal(klr, name, arg_value):
 
 def create_psyir(code):
     ''' Utility to create a PSyIR tree from Fortran code.
-    
+
     :param str code: Fortran code encoded as a string
 
     :returns: psyir tree representing the Fortran code

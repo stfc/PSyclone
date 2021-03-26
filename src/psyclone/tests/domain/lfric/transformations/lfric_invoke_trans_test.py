@@ -48,8 +48,8 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import CodeBlock, Literal, Reference
 
 from psyclone.domain.lfric.transformations import LFRicInvokeTrans
-from psyclone.domain.lfric.algorithm import LfricAlgorithmInvokeCall, \
-    LfricKernelFunctor, LfricBuiltinFunctor
+from psyclone.domain.lfric.algorithm import LFRicAlgorithmInvokeCall, \
+    LFRicKernelFunctor, LFRicBuiltinFunctor
 
 
 def check_invoke(call, kern_info, description=None):
@@ -57,9 +57,9 @@ def check_invoke(call, kern_info, description=None):
     type, the optional description argument has the expected value and
     contains children of the expected type and name.
 
-    :param call: the LfricAlgorithmInvokeCall to be checked.
+    :param call: the LFRicAlgorithmInvokeCall to be checked.
     :type call: :py:class:`psyclone.domain.lfric.algorithm.psyir.` \
-        `LfricAlgorithmInvokeCall`
+        `LFRicAlgorithmInvokeCall`
     :param kern_info: a list of tuples containing information about \
         the expected structure of the call argument's children.
     :type kern_info: list of (class of :py:class:`psyclone.psyir.nodes.Node`, \
@@ -68,7 +68,7 @@ def check_invoke(call, kern_info, description=None):
         contents. Defaults to None.
 
     '''
-    assert isinstance(call, LfricAlgorithmInvokeCall)
+    assert isinstance(call, LFRicAlgorithmInvokeCall)
     if call._description:
         assert call._description == "'{0}'".format(description)
     else:
@@ -238,7 +238,7 @@ def test_codeblock_invalid(monkeypatch):
 def test_apply_codedkern_arrayref():
     '''Test that a kernel call within an invoke that is mistakenly encoded
     as an ArrayRef in the PSyIR is translated into an
-    LfricKernelFunctor and expected children. This test also checks
+    LFRicKernelFunctor and expected children. This test also checks
     that an optional name is captured correctly.
 
     '''
@@ -255,7 +255,7 @@ def test_apply_codedkern_arrayref():
 
     lfric_invoke_trans.apply(psyir[0])
 
-    check_invoke(psyir[0], [(LfricKernelFunctor, "kern")],
+    check_invoke(psyir[0], [(LFRicKernelFunctor, "kern")],
                  description="hello")
     args = psyir[0].children[0].children
     check_args(args, [(Reference, "field1")])
@@ -264,7 +264,7 @@ def test_apply_codedkern_arrayref():
 def test_apply_codedkern_structconstruct():
     '''Test that a kernel call within an invoke that is encoded within a
     PSyIR code block as an fparser2 Structure Constructor is
-    translated into an LfricKernelFunctor and expected children.
+    translated into an LFRicKernelFunctor and expected children.
 
     '''
     code = (
@@ -280,7 +280,7 @@ def test_apply_codedkern_structconstruct():
 
     lfric_invoke_trans.apply(psyir[0])
 
-    check_invoke(psyir[0], [(LfricKernelFunctor, "kern")])
+    check_invoke(psyir[0], [(LFRicKernelFunctor, "kern")])
     args = psyir[0].children[0].children
     check_args(args, [(Literal, "1.0")])
 
@@ -288,7 +288,7 @@ def test_apply_codedkern_structconstruct():
 def test_apply_builtin_arrayref():
     '''Test that a builtin call within an invoke that is mistakenly encoded
     as an ArrayRef in the PSyIR is translated into an
-    LfricBuiltinFunctor and expected children.
+    LFRicBuiltinFunctor and expected children.
 
     '''
     code = (
@@ -304,7 +304,7 @@ def test_apply_builtin_arrayref():
 
     lfric_invoke_trans.apply(psyir[0])
 
-    check_invoke(psyir[0], [(LfricBuiltinFunctor, "setval_c")])
+    check_invoke(psyir[0], [(LFRicBuiltinFunctor, "setval_c")])
     args = psyir[0].children[0].children
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
 
@@ -312,7 +312,7 @@ def test_apply_builtin_arrayref():
 def test_apply_builtin_structconstruct():
     '''Test that a builtin call within an invoke that is encoded within a
     PSyIR code block as an fparser2 Structure Constructor is
-    translated into an LfricBuiltinFunctor and expected children. This
+    translated into an LFRicBuiltinFunctor and expected children. This
     test also checks that an optional name is captured correctly.
 
     '''
@@ -330,7 +330,8 @@ def test_apply_builtin_structconstruct():
 
     lfric_invoke_trans.apply(psyir[0])
 
-    check_invoke(psyir[0], [(LfricBuiltinFunctor, "setval_c")], description="test")
+    check_invoke(psyir[0], [(LFRicBuiltinFunctor, "setval_c")],
+                 description="test")
     args = psyir[0].children[0].children
     check_args(args, [(Reference, "field1"), (Reference, "value")])
 
@@ -338,7 +339,7 @@ def test_apply_builtin_structconstruct():
 def test_apply_mixed():
     '''Test that an invoke with a mixture of kernels and builtins, with a
     number of the kernels and an optional name being within a single
-    codeblock, are translated into an LfricBuiltinFunctor and expected
+    codeblock, are translated into an LFRicBuiltinFunctor and expected
     children.
 
     '''
@@ -359,8 +360,8 @@ def test_apply_mixed():
 
     check_invoke(
         psyir[0],
-        [(LfricKernelFunctor, "kern"), (LfricBuiltinFunctor, "setval_c"),
-         (LfricBuiltinFunctor, "setval_c"), (LfricBuiltinFunctor, "setval_c")],
+        [(LFRicKernelFunctor, "kern"), (LFRicBuiltinFunctor, "setval_c"),
+         (LFRicBuiltinFunctor, "setval_c"), (LFRicBuiltinFunctor, "setval_c")],
         description="test")
     args = psyir[0].children[0].children
     check_args(args, [(Reference, "field1")])

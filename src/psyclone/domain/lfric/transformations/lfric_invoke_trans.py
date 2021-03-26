@@ -45,8 +45,8 @@ from psyclone.psyir.nodes import ArrayReference
 from psyclone.psyir.transformations import TransformationError
 
 from psyclone.domain.common.transformations import InvokeTrans
-from psyclone.domain.lfric.algorithm import LfricBuiltinFunctor, \
-    LfricKernelFunctor, LfricAlgorithmInvokeCall
+from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
+    LFRicKernelFunctor, LFRicAlgorithmInvokeCall
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 
 
@@ -140,10 +140,10 @@ class LFRicInvokeTrans(InvokeTrans):
                 args = call_arg.children
                 name = call_arg.name
                 if name in builtins:
-                    node_type = LfricBuiltinFunctor
+                    node_type = LFRicBuiltinFunctor
                     type_symbol = call.scope.symbol_table.lookup(name)
                 else:
-                    node_type = LfricKernelFunctor
+                    node_type = LFRicKernelFunctor
                     type_symbol = call_arg.symbol
                 arg_info.append((node_type, type_symbol, args))
             else:
@@ -155,9 +155,9 @@ class LFRicInvokeTrans(InvokeTrans):
                         # This child is a kernel or builtin
                         name = fp2_node.children[0].string
                         if name in builtins:
-                            node_type = LfricBuiltinFunctor
+                            node_type = LFRicBuiltinFunctor
                         else:
-                            node_type = LfricKernelFunctor
+                            node_type = LFRicKernelFunctor
                         type_symbol = InvokeTrans._get_symbol(call, fp2_node)
                         args = InvokeTrans._parse_args(call_arg, fp2_node)
                         arg_info.append((node_type, type_symbol, args))
@@ -166,7 +166,7 @@ class LFRicInvokeTrans(InvokeTrans):
                 InvokeTrans._specialise_symbol(type_symbol)
                 calls.append(node_type.create(type_symbol, args))
 
-        invoke_call = LfricAlgorithmInvokeCall.create(
+        invoke_call = LFRicAlgorithmInvokeCall.create(
             call.routine, calls, description=call_description)
         call.replace_with(invoke_call)
 

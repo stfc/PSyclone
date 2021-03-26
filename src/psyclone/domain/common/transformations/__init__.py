@@ -35,4 +35,3 @@ from psyclone.domain.common.transformations.invoke_trans import InvokeTrans
 from psyclone.domain.common.transformations.alg_trans import AlgTrans
 
 __all__ = [InvokeTrans, AlgTrans]
-
