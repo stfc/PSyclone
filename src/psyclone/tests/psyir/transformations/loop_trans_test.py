@@ -80,7 +80,6 @@ def test_loop_trans_validate(monkeypatch):
     monkeypatch.undo()
     # Break the contents of the loop
     loop.children = loop.pop_all_children()[0:1]
-    # Break the contents of the loop
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
     assert ("Error in OMPParallelLoopTrans transformation. The target loop "

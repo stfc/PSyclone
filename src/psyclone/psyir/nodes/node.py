@@ -172,7 +172,7 @@ class ChildrenList(list):
 
     def _set_parent_link(self, node):
         '''
-        Set parent connection of the given item to this ChildrenList's node.
+        Set parent connection of the given node to this ChildrenList's node.
 
         :param node: node for which the parent connection need to be updated.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -183,19 +183,19 @@ class ChildrenList(list):
         node._has_constructor_parent = False
 
     @staticmethod
-    def _del_parent_link(item):
+    def _del_parent_link(node):
         '''
-        Delete parent connection of the given item.
+        Delete parent connection of the given node.
 
-        :param item: item which the parent connection need to be updated.
-        :type item: :py:class:`psyclone.psyir.nodes.Node`
+        :param node: node for which the parent connection need to be updated.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         # This is done from here with protected access because it's the parent
         # which is in charge of maintaining its children connections.
         # pylint: disable=protected-access
-        item._parent = None
-        item._has_constructor_parent = False
+        node._parent = None
+        node._has_constructor_parent = False
 
     def append(self, item):
         ''' Extends list append method with children node validation.
