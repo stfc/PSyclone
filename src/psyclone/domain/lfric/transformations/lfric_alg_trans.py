@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,21 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Author R. W. Ford STFC Daresbury Lab
 
-'''Transformation module for LFRic.
+'''Specialise generic PSyIR representing an algorithm layer to an
+LFRic algorithm-layer-specific PSyIR which uses specialised classes.
+
 '''
+from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.lfric.transformations import LFRicInvokeTrans
 
-from psyclone.domain.lfric.transformations.lfric_extract_trans \
-    import LFRicExtractTrans
-from psyclone.domain.lfric.transformations.lfric_invoke_trans import \
-    LFRicInvokeTrans
-from psyclone.domain.lfric.transformations.lfric_alg_trans import \
-    LFRicAlgTrans
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.lfric.transformations import LFRicExtractTrans
+class LFRicAlgTrans(AlgTrans):
+    '''Transform a generic PSyIR representation of the Algorithm layer to
+    an LFRic version with specialised domain-specific nodes.
 
-__all__ = ['LFRicExtractTrans', 'LFRicInvokeTrans', 'LFRicAlgTrans']
+    :param str invoke_name: the name used to specify an invoke \
+        call. This is an optional argument that defaults to 'invoke'.
+
+    '''
+    def __init__(self, invoke_name="invoke"):
+        super(LFRicAlgTrans, self).__init__(invoke_name=invoke_name)
+        self._invoke_trans = LFRicInvokeTrans()
+
+    @property
+    def name(self):
+        '''
+        :returns: a name identifying this transformation.
+        :rtype: str
+
+        '''
+        return "LFRicAlgTrans"
