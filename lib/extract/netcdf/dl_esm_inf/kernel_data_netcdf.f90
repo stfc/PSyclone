@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a simple netcdf writer using the PSyData 
 !! interface. It is specific to the dl_esm_inf library used with
@@ -68,7 +69,7 @@ module extract_psy_data_mod
 
     end type extract_PSyDataType
 
-Contains
+contains
 
     ! -------------------------------------------------------------------------
     !> Checks if the return value from a netcdf call indicates an error.
@@ -106,7 +107,7 @@ Contains
     !> This subroutine declares a double precision field as defined in
     !! dl_esm_info (r2d_field). A corresponding variable definition is added
     !! to the NetCDF file, and the variable id is stored in the var_id field.
-    !! @param[inout] this The instance of the extract_PsyDataType.
+    !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldDouble(this, name, value)
@@ -128,7 +129,7 @@ Contains
     !> This subroutine writes the value of a dl_esm_field (r2d_field)
     !! to the NetCDF file. It takes the variable id from the corresponding
     !! declaration.
-    !! @param[inout] this The instance of the extract_PsyDataType.
+    !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteFieldDouble(this, name, value)

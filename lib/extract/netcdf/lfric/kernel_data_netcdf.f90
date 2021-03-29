@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a simple netcdf writer using the PSyData 
 !! interface. It is specific to the LFRic infrastructure library.
@@ -73,14 +74,14 @@ module extract_psy_data_mod
 
     end type extract_PSyDataType
 
-Contains
+contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares an LFRic field.
     !! It calls the PreDeclareVariable function provided by the base class
     !! (depending on the type of the argument, e.g. it might call
     !! DeclareArray1dDouble).
-    !! @param[inout] this The instance of the extract_PsyDataType.
+    !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareField(this, name, value)
@@ -101,7 +102,7 @@ Contains
     !> This subroutine writes the value of an LFRic field
     !! to the NetCDF file. It uses the corresponding function
     !! provided by the base class.
-    !! @param[inout] this The instance of the extract_PsyDataType.
+    !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteField(this, name, value)
@@ -122,7 +123,7 @@ Contains
     !> This subroutine declares an LFric field vector. Each component of the
     !! vector is stored as a separate variable, using the corresponding
     !! array function of the base class.
-    !! @param[inout] this The instance of the extract_PSyDataType.
+    !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVector(this, name, value)
@@ -155,7 +156,7 @@ Contains
     !> This subroutine writes an LFRic field vector to the netcdf file. Each
     !! component is stored as an individual variable using the corresponding
     !! array function of the base class.
-    !! @param[inout] this The instance of the extract_PSyDataType.
+    !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteFieldVector(this, name, value)

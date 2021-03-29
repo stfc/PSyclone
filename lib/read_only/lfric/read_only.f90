@@ -31,13 +31,15 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a verification that read-only fields are
 !! not overwritten (due to memory overwrites etc)
 !! 
 
 module read_only_verify_psy_data_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
                                               stderr=>Error_Unit
@@ -72,15 +74,15 @@ module read_only_verify_psy_data_mod
                                               
     end type read_only_verify_PSyDataType
 
-Contains
+contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares a double precision field based on the LFRIc
     !! infrastructure type field_type.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     subroutine DeclareFieldDouble(this, name, value)
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
@@ -94,7 +96,7 @@ Contains
     !! LFRic infrastructure type field_type. Depending on state
     !! (this%verify_checksum) it either stores the checksum, or compares it
     !! with a previously computed checksum.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideFieldDouble(this, name, value)
@@ -133,10 +135,10 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine declares a vector of double precision fields based on
     !! the LFRIc infrastructure type field_type.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     subroutine DeclareFieldVectorDouble(this, name, value)
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
@@ -151,7 +153,7 @@ Contains
     !! to handle each individual field of the vector (i.e. storing or 
     !! comparing the checksum). This way the read-only verification is done
     !! separately for each field member of the vector.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
     subroutine ProvideFieldVectorDouble(this, name, value)

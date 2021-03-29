@@ -44,7 +44,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -74,13 +74,15 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a verification that read-only fields are
 !! not overwritten (due to memory overwrites etc)
 !! 
 
 module read_only_base_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
                                               stderr=>Error_Unit
@@ -154,13 +156,13 @@ module read_only_base_mod
 
     public ComputeChecksum
 
-Contains
+contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine is the first function called when an instrumented region
     !! is entered. It initialises this object, and stores module and regin
     !! names. 
-    !! @param[inout] this The instance of the ReadOnlyBaseType.
+    !! @param[in,out] this The instance of the ReadOnlyBaseType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] kernel_name The name of the instrumented region.
@@ -196,7 +198,7 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine is called once all variables are declared. It makes
     !! sure that the next variable index is starting at 1 again.
-    !! @param[inout] this The instance of the ReadOnlyBaseType.
+    !! @param[in,out] this The instance of the ReadOnlyBaseType.
     subroutine PreEndDeclaration(this)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
@@ -226,7 +228,7 @@ Contains
     !! flag to true, causing all further checksum calls to verify that the
     !! checksum has not changed. It also resets the next variable index to 1
     !! again.
-    !! @param[inout] this The instance of the ReadOnlyBaseType.
+    !! @param[in,out] this The instance of the ReadOnlyBaseType.
     subroutine PostStart(this)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
@@ -257,7 +259,7 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
     !! (depending on this%verify_checksums) for a single {{name}}.
-    !! @param[inout] this The instance of the ReadOnlyBaseType.
+    !! @param[in,out] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideScalar{{name}}(this, name, value)
@@ -322,7 +324,7 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
     !! (depending on this%verify_checksums) for a {{dim}}d-array of integer
-    !! @param[inout] this The instance of the ReadOnlyBaseType.
+    !! @param[in,out] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
@@ -398,4 +400,3 @@ Contains
     ! -------------------------------------------------------------------------
     
 end module read_only_base_mod
-
