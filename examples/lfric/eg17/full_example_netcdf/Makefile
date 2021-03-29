@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,33 +30,66 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory,
+#                I.Kavcic, Met Office
 
-F90?=gfortran
-F90FLAGS?=-g
+# The compiler to use may be specified via the F90 environment
+#
+# export F90=gfortran
+# export F90FLAGS="-Wall -g -fcheck=bound"
 
-# We don't build dl_timer, drhook and nvidia since they require
-# external libraries to be available.
-ALL_LIBS=template simple_timing lfric
+PSYROOT=../../../..
 
-.PHONY: default all $(ALL_LIBS) clean allclean
+include $(PSYROOT)/examples/common.mk
 
-default: all
+GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
 
-all: $(ALL_LIBS)
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g -fcheck=bound
 
-# Invoke make in the corresponding subdirectory
-$(ALL_LIBS):
-		$(MAKE) -C $@
+OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
-clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
+EXEC = example
+
+LFRIC_PATH = $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric_netcdf
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+
+F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
+
+run: compile
+	./example
+
+compile: transform $(EXEC)
+
+transform: main_psy.f90
+
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs)
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH) netcdf
+
+# Dependencies
+main_psy.o:	testkern_w0_kernel_mod.o
+main_alg.o:	main_psy.o
+testkern_w0_kernel_mod.o: $(LFRIC_LIB)
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+# Keep the generated psy and alg files
+.precious: main_psy.f90 main_alg.f90
+
+main_alg.f90: main_psy.f90
+
+%_psy.f90:	%.x90
+	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
-	# These libs are not cleaned by 'clean' (since they
-	# depend on external libraries)
-	$(MAKE) -C nvidia clean
-	$(MAKE) -C drhook clean
-	$(MAKE) -C dl_timer clean
+	make -C $(LFRIC_PATH) allclean
