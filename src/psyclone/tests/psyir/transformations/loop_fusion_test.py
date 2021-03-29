@@ -49,8 +49,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import LoopFuseTrans
+from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 
 
 # ----------------------------------------------------------------------------
@@ -121,6 +120,7 @@ def test_fusetrans_error_not_same_parent():
         fuse.validate(loop1, loop2)
     assert ("Error in LoopFuseTrans transformation. Loops do not have the "
             "same parent" in str(err.value))
+
 
 # ----------------------------------------------------------------------------
 def fuse_loops(parser=None, fortran_code=None):
@@ -225,10 +225,12 @@ enddo"""
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_incorrect_bounds(parser):
+def test_fuse_incorrect_bounds_step(parser):
     '''
-    Test that loop boundaries must be identical.
+    Test that loop boundaries and step size must be identical.
     '''
+
+    # Lower loop boundary
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -247,6 +249,7 @@ def test_fuse_incorrect_bounds(parser):
         fuse_loops(parser, code)
     assert "Lower loop bounds must be identical, but are" in str(err.value)
 
+    # Upper loop boundary
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -264,6 +267,42 @@ def test_fuse_incorrect_bounds(parser):
     with pytest.raises(TransformationError) as err:
         fuse_loops(parser, code)
     assert "Upper loop bounds must be identical, but are" in str(err.value)
+
+    # Test step size
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n, 2
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Step size in loops must be identical, but are" in str(err.value)
+
+    # Test step size - make sure it defaults to 1
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n, 1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n, 1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    fuse_loops(parser, code)
 
 
 # ----------------------------------------------------------------------------
@@ -387,3 +426,34 @@ def test_fuse_dimension_change(parser):
         fuse_loops(parser, code)
     assert "Variable 's' is using loop variable jj in index 0 and 1." \
         in str(err.value)
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_independent_array(parser):
+    '''Test that using arrays which are not dependent on the loop variable
+    are handled correctly. Example:
+    do j  ... a(1) = b(j) * c(j)
+    do j ...  d(j) = a(1)
+    '''
+
+    # The first example can be merged, since 't' is read-only,
+    # so it doesn't matter that it is accessed differently
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(1, 1)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    t(ji, jj) = s(1, 1) + t(ji, jj)
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Variable 's' does not depend on loop variable 'jj', but is " \
+           "read and written" in str(err.value)

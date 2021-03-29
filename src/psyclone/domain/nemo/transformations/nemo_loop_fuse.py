@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors I. Kavcic, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
+# Authors J. Henrichs, Bureau of Meteorology
 
-'''This module contains the GOcean-specific extract transformation.
+'''This module contains the NEMO-specific loop fusion transformation.
 '''
 
 from psyclone.core.access_info import VariablesAccessInfo
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import LoopFuseTrans
+from psyclone.psyir.transformations import LoopFuseTrans
 
 
 class NemoLoopFuseTrans(LoopFuseTrans):
@@ -58,8 +56,10 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises TransformationError: if transformation is applied to an \
-            inner Loop without its parent outer Loop.
+        :raises TransformationError: if the lower or upper loop boundaries \
+            are not the same.
+        :raises TransformationError: if the loop step size is not the same.
+        :raises TransformationError: if the loop variables are not the same.
         '''
 
         # First check constraints on Nodes in the node_list inherited from
@@ -76,6 +76,11 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                                       "but are '{0}'' and '{1}'"
                                       .format(node1.stop_expr,
                                               node2.stop_expr))
+        if not node1.step_expr.math_equal(node2.step_expr):
+            raise TransformationError("Step size in loops must be identical, "
+                                      "but are '{0}'' and '{1}'"
+                                      .format(node1.step_expr,
+                                              node2.step_expr))
         loop_var1 = node1.variable.name
         loop_var2 = node2.variable.name
 
@@ -122,15 +127,15 @@ class NemoLoopFuseTrans(LoopFuseTrans):
     # -------------------------------------------------------------------------
     def validate_scalar(self, var_info1, var_info2):
         '''Validates if the accesses to the scalar ``var_name`` can be fused.
+
         :param var_info1: access information for variable in the first loop.
         :type var_info1: :py:class:`psyclone.core.var_info.VariableInfo`
         :param var_info2: access information for variable in the second loop.
         :type var_info2: :py:class:`psyclone.core.var_info.VariableInfo`
 
-        :raises:
         '''
 
-        # TODO: write this subroutine :)
+        # TODO #1075: Handle scalar variables
 
     # -------------------------------------------------------------------------
     def validate_array(self, var_info1, var_info2, loop_variable):
@@ -142,7 +147,8 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         :param str loop_variable: name of the loop variable that will \
             be fused.
 
-        :raises:
+        :raises TransformationError: an array that is written to uses \
+            inconsistent indices, e.g. a(i,j) and a(j,i).
         '''
 
         # First check if all accesses to the array have the same dimension
@@ -174,9 +180,9 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 if loop_variable not in accesses:
                     continue
 
-                # if a previously identified index location does not match
+                # If a previously identified index location does not match
                 # the current index location (e.g. a(i,j), and a(j,i) ), then
-                # the loop can not be parallelised
+                # the loop in general cannot be fused.
                 if found_dimension_index > -1 and \
                         found_dimension_index != dimension_index:
                     raise TransformationError(
@@ -189,42 +195,22 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 all_indices.append(index_expression)
 
         if not all_indices:
-            # An array is used that is not actually dependent on the parallel
+            # An array is used that is not actually dependent on the
             # loop variable. This means the variable can not always be safely
-            # parallelised. Example 1:
+            # fused.
             # do j=1, n
             #    a(1) = b(j)+1
+            # enddo
+            # do j=1, n
             #    c(j) = a(1) * 2
             # enddo
-            # In this case a(1) should be a thread-private scalar.
-            # Example2:
-            # do j=1, n
-            #    if(some_cond)
-            #       a(1) = b(j)
-            #    endif
-            #  enddo
-            # In this case it is not clear if the loop can be parallelised.
-            # So in any case we add the information for the user to decide.
-            #self._add_warning("Variable '{0}' is written to, and "
-            #                  "does not depend on the loop "
-            #                  "variable '{1}'."
-            #                  .format(var_info1.var_name,
-            #                          loop_variable))
-            return
-
-        # Now we have confirmed that all parallel accesses to the variable
-        # are using the same dimension. If there is a case of stencil
-        # access with write operations (read-only has already been tested)
-        # the loop can not be parallelised. E.g. in one j loop:
-        # b(j) = a(j-1) + a(j+1)
-        # a(j) = c(j)
-
-        first_index = all_indices[0]
-        for index in all_indices[1:]:
-            if not first_index.math_equal(index):
-                visitor = FortranWriter()
-                raise TransformationError(
-                    "Variable {0} is written and is accessed using indices "
-                    "{1} and {2} and can therefore not be parallelised."
-                    .format(var_info1.var_name, visitor(first_index),
-                            visitor(index)))
+            # More tests could be done here, e.g. to see if it can be shown
+            # that each access in the first loop is different from the
+            # accesses in the second loop: a(1) in first, a(2) in second.
+            # Other special cases: reductions (a(1) = a(1) + x),
+            # array expressions : a(:) = b(j) * x(:)
+            # Potentially this could use the scalar handling code!
+            raise TransformationError(
+                "Variable '{0}' does not depend on loop variable '{1}', "
+                "but is read and written.".format(var_info1.var_name,
+                                                  loop_variable))
