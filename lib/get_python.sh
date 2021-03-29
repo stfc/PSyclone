@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
 # This script finds an executable python command. On
