@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2020, Science and Technology Facilities Council.
+! Copyright (c) 2018-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 
 !> An implemention of the PSyData API for profiling, which wraps the use
@@ -66,7 +67,7 @@ contains
   !> Starts a profiling area. The module and region name can be used to create
   !! a unique name for each region.
   !! Parameters:
-  !! @param[inout] this This PSyData instance.
+  !! @param[in,out] this This PSyData instance.
   !! @param[in] module_name Name of the module in which the region is
   !! @param[in] region_name Name of the region (could be name of an invoke, or
   !!            subroutine name).
@@ -97,7 +98,7 @@ contains
   ! ---------------------------------------------------------------------------
   !> Ends a profiling area. It takes a PSyDataType type that corresponds to
   !! to the PreStart call.
-  !! @param[inout] this This PSyData instance.
+  !! @param[in,out] this This PSyData instance.
   ! 
   subroutine PostEnd(this)
     use dl_timer, only : timer_stop

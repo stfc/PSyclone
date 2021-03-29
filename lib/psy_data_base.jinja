@@ -27,7 +27,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -57,9 +57,11 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 module psy_data_base_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
                                               stderr=>Error_Unit
@@ -142,7 +144,7 @@ contains
     !> This subroutine is the first function called when an instrumented region
     !! is entered. It initialises this object, and stores module and regin
     !! names. 
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] region_name The name of the instrumented region.
@@ -190,7 +192,7 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine is called once all variables are declared. It makes
     !! sure that the next variable index is starting at 1 again.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PreEndDeclaration(this)
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
@@ -201,7 +203,7 @@ contains
     !> This subroutine is called after the value of all variables has been
     !! provided (and declared). After this call the instrumented region will
     !! be executed. Nothing is done here.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PreEnd(this)
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
@@ -211,7 +213,7 @@ contains
     !> This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
     !! region will be provided. Nothing is done here.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PostStart(this)
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
@@ -221,7 +223,7 @@ contains
     !> This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
     !! region have been provided. No special functionality required here.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PostEnd(this)
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
@@ -282,7 +284,7 @@ contains
     !> This subroutine declares a scalar {{type}} value. This
     !! implementation only increases the next index, and prints
     !! the name of the variable if verbose output is requested.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareScalar{{name}}(this, name, value)
@@ -304,7 +306,7 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine provides a scalar {{type}} value. This
     !! implementation only increases the next index.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideScalar{{name}}(this, name, value)
@@ -326,7 +328,7 @@ contains
     !! {{type}} values. This base implementation only increases
     !! next_var_index and prints the name of the variable if
     !! verbose output is requested.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareArray{{dim}}d{{name}}(this, name, value)
@@ -347,7 +349,7 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine handles a provide call for a {{dim}}d {{type}} array.
     !! This base implementation only increases next_var_index.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)

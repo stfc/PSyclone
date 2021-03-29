@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2020, Science and Technology Facilities Council.
+! Copyright (c) 2019-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module profile_psy_data_mod
   use iso_c_binding, only: C_CHAR, C_INT, C_INT16_T, C_INT64_T, C_PTR, &
@@ -151,7 +152,7 @@ contains
   !> Starts a profiling area. The module and region name can be used to create
   !! a unique name for each region.
   !! Parameters:
-  !! @param[inout] this This PSyData instance.
+  !! @param[in,out] this This PSyData instance.
   !! @param[in] module_name Name of the module in which the region is
   !! @param[in] region_name Name of the region (could be name of an invoke, or
   !!            subroutine name).
@@ -196,7 +197,7 @@ contains
   end subroutine PreStart
 
   !> Ends a profiling area.
-  !! @param[inout] this: Persistent data, not used in this case.
+  !! @param[in,out] this: Persistent data, not used in this case.
   subroutine PostEnd(this)
     implicit none
     class(profile_PSyDataType), target :: this
