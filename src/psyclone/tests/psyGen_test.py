@@ -639,7 +639,6 @@ def test_inlinedkern_children_validation():
 def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
-    my_arguments = Arguments(None)
 
     class KernType(object):
         ''' temporary dummy class '''
@@ -653,8 +652,13 @@ def test_call_abstract_methods():
             self.module_name = "dummy_module"
             self.ktype = ktype
 
+    class DummyArguments(Arguments):
+        ''' temporary dummy class '''
+        def __init__(self, call, parent_call):
+            Arguments.__init__(self, parent_call)
+
     dummy_call = DummyClass(my_ktype)
-    my_call = Kern(None, dummy_call, "dummy", my_arguments)
+    my_call = Kern(None, dummy_call, "dummy", DummyArguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
@@ -723,10 +727,10 @@ def test_kern_is_coloured1():
     assert not kern.is_coloured()
     # Colour the loop around the kernel
     ctrans = Dynamo0p3ColourTrans()
-    cschedule, _ = ctrans.apply(schedule[0])
+    ctrans.apply(schedule[0])
     assert kern.is_coloured()
     # Test when the Kernel appears to have no parent loop
-    kern.parent = schedule
+    schedule.addchild(kern.detach())
     assert not kern.is_coloured()
 
 
@@ -1541,9 +1545,9 @@ def test_call_forward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   {"same_space": True})
     read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
@@ -1570,9 +1574,9 @@ def test_call_backward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   {"same_space": True})
     # 1: loop no backwards dependence
     call3 = schedule.children[0].loop_body[2]
     assert not call3.backward_dependence()

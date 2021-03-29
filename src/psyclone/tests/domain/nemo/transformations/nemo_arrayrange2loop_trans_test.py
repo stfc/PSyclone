@@ -342,7 +342,7 @@ def test_within_array_reference():
     trans = NemoArrayRange2LoopTrans()
     my_range = array_ref.children[2]
     for parent, result in [(assignment, "Assignment"), (None, "NoneType")]:
-        my_range.parent = parent
+        my_range._parent = parent
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
         assert("Error in NemoArrayRange2LoopTrans transformation. The "
@@ -365,7 +365,7 @@ def test_within_assignment():
     my_range = array_ref.children[2]
     for parent, result in [(schedule, "NemoInvokeSchedule"),
                            (None, "NoneType")]:
-        array_ref.parent = parent
+        array_ref._parent = parent
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
         assert("Error in NemoArrayRange2LoopTrans transformation. The "

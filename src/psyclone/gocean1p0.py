@@ -1021,9 +1021,7 @@ class GOLoop(Loop):
         '''
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
-        self.start_expr.parent = self
         self.stop_expr = self.upper_bound()
-        self.stop_expr.parent = self
 
         return super(GOLoop, self).lower_to_language_level()
 
@@ -1038,9 +1036,7 @@ class GOLoop(Loop):
         '''
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
-        self.start_expr.parent = self
         self.stop_expr = self.upper_bound()
-        self.stop_expr.parent = self
 
         return super(GOLoop, self).node_str(colour)
 
@@ -1049,9 +1045,7 @@ class GOLoop(Loop):
 
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
-        self.start_expr.parent = self
         self.stop_expr = self.upper_bound()
-        self.stop_expr.parent = self
 
         return super(GOLoop, self).__str__()
 
@@ -1104,9 +1098,7 @@ class GOLoop(Loop):
 
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
-        self.start_expr.parent = self
         self.stop_expr = self.upper_bound()
-        self.stop_expr.parent = self
 
         Loop.gen_code(self, parent)
 
@@ -1303,7 +1295,7 @@ class GOKern(CodedKern):
 
         '''
 
-        if self.root.opencl:
+        if self.ancestor(InvokeSchedule).opencl:
             # OpenCL is completely different so has its own gen method and
             # has to call the rename_and_write to generate to OpenCL files.
             self.rename_and_write()

@@ -92,8 +92,6 @@ class Call(Statement):
 
         call = cls(routine)
         call.children = arguments
-        for child in call.children:
-            child.parent = call
         return call
 
     @staticmethod

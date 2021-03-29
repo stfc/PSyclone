@@ -252,7 +252,6 @@ def test_node_args():
         assert arg == loop2_args[idx]
     # 4) Loop fuse
     ftrans = LFRicLoopFuseTrans()
-    ftrans.same_space = True
     schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]
     kern1 = loop.loop_body[0]
@@ -800,10 +799,6 @@ def test_children_is_orphan_validation():
     schedule2.addchild(statement.detach())
 
 
-@pytest.mark.xfail(reason="Adding non-orphan nodes to the same parent where "
-                          "it already belongs to doesn't make it fail at the "
-                          "moment. #294. Could solve this issue by making the"
-                          " parent-child set atomic.")
 def test_children_is_orphan_same_parent():
     ''' Test children addition operations with a node that is not an orphan
     and already belongs to the parent to which it is being added.'''
@@ -820,7 +815,7 @@ def test_children_is_orphan_same_parent():
 
 
 def test_children_setter():
-    ''' Test that the children setter sets-up accepts lists or None or raises
+    ''' Test that the children setter sets-up accepts lists or raises
     the appropriate issue. '''
     testnode = Schedule()
 
@@ -828,18 +823,24 @@ def test_children_setter():
     assert isinstance(testnode.children, ChildrenList)
 
     # When is set up with a list, this becomes a ChildrenList
-    testnode.children = [Statement(), Statement()]
+    statement1 = Statement()
+    statement2 = Statement()
+    testnode.children = [statement1, statement2]
     assert isinstance(testnode.children, ChildrenList)
-
-    # It also accepts None
-    testnode.children = None
-    assert testnode.children is None
+    assert statement1.parent is testnode
+    assert statement2.parent is testnode
 
     # Other types are not accepted
     with pytest.raises(TypeError) as error:
         testnode.children = Node()
     assert "The 'my_children' parameter of the node.children setter must be" \
-           " a list or None." in str(error.value)
+           " a list." in str(error.value)
+
+    # If a children list is overwritten, it properly disconnects the previous
+    # children
+    testnode.children = []
+    assert statement1.parent is None
+    assert statement2.parent is None
 
 
 def test_lower_to_language_level(monkeypatch):
@@ -871,11 +872,8 @@ def test_replace_with():
 
     parent_node = Schedule()
     node1 = Statement()
-    node1.parent = parent_node
     node2 = Statement()
-    node2.parent = parent_node
     node3 = Statement()
-    node3.parent = parent_node
     parent_node.children = [node1, node2, node3]
     new_node = Assignment()
 
@@ -926,8 +924,6 @@ def test_replace_with_error2():
     assert("This node should have a parent if its replace_with method "
            "is called." in str(info.value))
 
-    node1.parent = parent
-    node2.parent = parent
     parent.children = [node1, node2]
     with pytest.raises(GenerationError) as info:
         node1.replace_with(node2)
@@ -959,9 +955,9 @@ def test_pop_all_children():
 
     # Create a PSyIR tree
     parent = Schedule()
-    node1 = Statement(parent=parent)
+    node1 = Statement()
     parent.addchild(node1)
-    node2 = Statement(parent=parent)
+    node2 = Statement()
     parent.addchild(node2)
 
     # Execute pop_all_children method
@@ -980,9 +976,9 @@ def test_detach():
 
     # Create a PSyIR tree
     parent = Schedule()
-    node1 = Statement(parent=parent)
+    node1 = Statement()
     parent.addchild(node1)
-    node2 = Statement(parent=parent)
+    node2 = Statement()
     parent.addchild(node2)
 
     # Execute the detach method on node 1, it should return itself
@@ -995,3 +991,80 @@ def test_detach():
 
     # Executing it again still succeeds
     assert node1.detach() is node1
+
+
+def test_parent_references_coherency():
+    ''' Check that the parent references keep updated with the children
+    node operations. '''
+    parent = Schedule()
+
+    # Children addition methods
+    node1 = Statement()
+    parent.addchild(node1)
+    assert node1.parent is parent
+
+    node2 = Statement()
+    parent.children.append(node2)
+    assert node2.parent is parent
+
+    node3 = Statement()
+    parent.children.extend([node3])
+    assert node3.parent is parent
+
+    node4 = Statement()
+    parent.children.insert(0, node4)
+    assert node4.parent is parent
+
+    # Node deletion
+    node = parent.children.pop()
+    assert node.parent is None
+    assert node is node3
+
+    del parent.children[0]
+    assert node4.parent is None
+
+    parent.children = []
+    assert node2.parent is None
+
+    # The insertion has deletions and additions
+    parent.addchild(node1)
+    parent.children[0] = node2
+    assert node1.parent is None
+    assert node2.parent is parent
+
+    # The assignment also deletes and adds nodes
+    parent.addchild(node1)
+    parent.children = parent.children + [node3]
+    assert node1.parent is parent
+    assert node2.parent is parent
+    assert node3.parent is parent
+
+
+def test_node_constructor_with_parent():
+    ''' Check that the node constructor parent parameter works as expected. '''
+    parent = Schedule()
+    wrong_parent = Schedule()
+
+    # By default no parent reference is given
+    node = Statement()
+    assert node.parent is None
+    assert node.has_constructor_parent is False
+
+    # The parent argument can predefine the parent reference
+    node = Return(parent=parent)
+    assert node.parent is parent
+    assert node.has_constructor_parent is True
+
+    # Then only an addition to this predefined parent is accepted
+    with pytest.raises(GenerationError) as err:
+        wrong_parent.addchild(node)
+    assert ("'Schedule' cannot be set as parent of 'Return' because its "
+            "constructor predefined the parent reference to a different "
+            "'Schedule' node." in str(err.value))
+
+    # Once given the proper parent, it can act as a regular node
+    parent.addchild(node)
+    assert node.parent is parent
+    assert node.has_constructor_parent is False
+    wrong_parent.addchild(node.detach())
+    assert node.parent is wrong_parent
