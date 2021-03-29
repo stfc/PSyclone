@@ -37,8 +37,8 @@
 #         J. Henrichs, Bureau of Meteorology.
 
 '''
-Module containing pytest tests for PSy-layer code generation of the
-LFRic fields.
+Module containing pytest tests for PSy-layer code generation for the
+LFRic field arguments.
 '''
 
 # Imports
@@ -57,34 +57,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-# General field checks (argument type, data type, etc)
-
-FIELD_CODE = '''
-module testkern_field_mod
-  type, extends(kernel_type) :: testkern_field_type
-     type(arg_type), meta_args(6) =                             &
-          (/ arg_type(gh_scalar, gh_real,    gh_read),          &
-             arg_type(gh_field,  gh_real,    gh_inc,   w1),     &
-             arg_type(gh_field,  gh_real,    gh_read,  w2),     &
-             arg_type(gh_field,  gh_integer, gh_write, wtheta), &
-             arg_type(gh_field,  gh_integer, gh_read,  w3),     &
-             arg_type(gh_scalar, gh_integer, gh_read)           &
-           /)
-     type(func_type), dimension(2) :: meta_funcs =  &
-          (/ func_type(w1, gh_basis),               &
-             func_type(w3, gh_basis, gh_diff_basis) &
-           /)
-     integer :: operates_on = cell_column
-     integer :: gh_shape = gh_quadrature_XYoZ
-   contains
-     procedure, nopass :: code => testkern_field_code
-  end type testkern_field_type
-contains
-  subroutine testkern_field_code()
-  end subroutine testkern_field_code
-end module testkern_field_mod
-'''
 
 
 # Tests for PSy-layer code generation for field arguments

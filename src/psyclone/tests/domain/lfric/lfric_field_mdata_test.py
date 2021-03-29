@@ -37,8 +37,8 @@
 #         J. Henrichs, Bureau of Meteorology.
 
 '''
-Module containing pytest tests for the general LFRic fields functionality
-(e.g. metadata, parsing, invoke calls).
+Module containing pytest tests for the general LFRic field arguments
+functionality (e.g. metadata, parsing, invoke calls).
 '''
 
 # Imports
