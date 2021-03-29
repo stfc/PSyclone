@@ -217,6 +217,7 @@ class InvokeTrans(Transformation):
 
             for (type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)
+                args = [arg.copy() for arg in args]
                 kernel_calls.append(KernelFunctor.create(
                     type_symbol, args))
 

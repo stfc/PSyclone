@@ -285,10 +285,11 @@ def test_apply_codedkern_structconstruct():
     check_args(args, [(Literal, "1.0")])
 
 
-def test_apply_builtin_arrayref():
-    '''Test that a builtin call within an invoke that is mistakenly encoded
-    as an ArrayRef in the PSyIR is translated into an
-    LFRicBuiltinFunctor and expected children.
+def test_apply_builtin_structconstruct():
+    '''Test that a builtin call within an invoke that is encoded within a
+    PSyIR code block as an fparser2 Structure Constructor is
+    translated into an LFRicBuiltinFunctor and expected children. This
+    test also checks that an optional name is captured correctly.
 
     '''
     code = (
@@ -309,11 +310,11 @@ def test_apply_builtin_arrayref():
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
 
 
-def test_apply_builtin_structconstruct():
-    '''Test that a builtin call within an invoke that is encoded within a
-    PSyIR code block as an fparser2 Structure Constructor is
-    translated into an LFRicBuiltinFunctor and expected children. This
-    test also checks that an optional name is captured correctly.
+def test_apply_builtin_arrayref():
+    '''Test that a builtin call within an invoke that is mistakenly
+    encoded as an ArrayRef in the PSyIR is translated into an
+    LFRicBuiltinFunctor and expected children. This test also checks
+    that an optional name is captured correctly.
 
     '''
     code = (

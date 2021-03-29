@@ -164,6 +164,7 @@ class LFRicInvokeTrans(InvokeTrans):
 
             for (node_type, type_symbol, args) in arg_info:
                 InvokeTrans._specialise_symbol(type_symbol)
+                args = [arg.copy() for arg in args]
                 calls.append(node_type.create(type_symbol, args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
