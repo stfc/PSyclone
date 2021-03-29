@@ -1496,7 +1496,8 @@ class ACCParallelDirective(ACCDirective):
         ACCEnterDataDirective.
 
         :raises GenerationError: if this ACCParallel node is not preceeded by \
-            an ACCEnterDataDirective or the child of an ACCDataDirective.
+            an ACCEnterDataDirective and is not the child of an \
+            ACCDataDirective.
 
         '''
         # We can't use Node.ancestor() because the enter data directive does
