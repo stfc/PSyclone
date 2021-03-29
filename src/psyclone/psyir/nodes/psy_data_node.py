@@ -431,19 +431,6 @@ class PSyDataNode(Statement):
         self._add_call("PostEnd", parent)
 
     # -------------------------------------------------------------------------
-    def gen_c_code(self, indent=0):
-        '''
-        Generates a string representation of this Node using C language
-        (currently not supported).
-
-        :param int indent: Depth of indent for the output string.
-        :raises NotImplementedError: Not yet supported for PSyData nodes.
-        '''
-        raise NotImplementedError("Generation of C code is not supported "
-                                  "for PSyDataNode.")
-
-    # -------------------------------------------------------------------------
-
     def update(self):
         # pylint: disable=too-many-branches, too-many-statements
         # pylint: disable=too-many-locals

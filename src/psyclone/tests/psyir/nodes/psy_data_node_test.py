@@ -176,19 +176,6 @@ def test_psy_data_node_incorrect_container():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_node_c_code_creation():
-    '''Tests the handling when trying to create C code, which is not supported
-    at this stage.
-    '''
-
-    data_node = PSyDataNode()
-    with pytest.raises(NotImplementedError) as excinfo:
-        data_node.gen_c_code()
-    assert "Generation of C code is not supported for PSyDataNode" \
-        in str(excinfo.value)
-
-
-# -----------------------------------------------------------------------------
 def test_psy_data_node_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''

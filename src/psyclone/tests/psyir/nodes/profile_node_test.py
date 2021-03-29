@@ -68,18 +68,6 @@ def test_profile_node_construction():
     assert pnode2._region_name == "first"
 
 
-def test_c_code_creation():
-    '''Tests the handling when trying to create C code, which is not supported
-    at this stage.
-    '''
-
-    profile_node = ProfileNode()
-    with pytest.raises(NotImplementedError) as excinfo:
-        profile_node.gen_c_code()
-    assert "Generation of C code is not supported for profiling" \
-        in str(excinfo.value)
-
-
 def test_malformed_profile_node(monkeypatch):
     ''' Check that we raise the expected error if a ProfileNode does not have
     a single Schedule node as its child. '''
@@ -186,7 +174,7 @@ def test_lower_named_profile_node():
             str(cblocks[0].get_ast_nodes[0]))
 
 
-def test_lower_to_lang_level_multi_node(parser):
+def test_lower_to_lang_level_multi_node():
     ''' Test the lower_to_language_level() method when a Schedule contains
     multiple ProfileNodes.
 

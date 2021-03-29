@@ -130,25 +130,15 @@ class ProfileNode(PSyDataNode):
         super(ProfileNode, self).gen_code(parent, options)
 
     # -------------------------------------------------------------------------
-    def gen_c_code(self, indent=0):
-        '''
-        Generates a string representation of this Node using C language
-        (currently not supported).
-
-        :param int indent: Depth of indent for the output string.
-        :raises NotImplementedError: Not yet supported for profiling.
-        '''
-        raise NotImplementedError("Generation of C code is not supported "
-                                  "for profiling")
-
-    # -------------------------------------------------------------------------
     def lower_to_language_level(self):
         '''
         Lowers this node (and all children) to language-level PSyIR. The
-        PSyIR tree is modified in-place. This ProfileNode is replaced by
-        a pair of CodeBlocks (representing the calls to the start and stop
-        procedures) with the body (children) of the ProfileNode inserted
-        between them.
+        PSyIR tree is modified in-place. This ProfileNode is replaced by a
+        pair of Fortran-specific CodeBlocks (representing the calls to the
+        start and stop procedures) with the body (children) of the ProfileNode
+        inserted between them. This use of CodeBlocks means that currently only
+        the Fortran backend is capable of producing code representing the
+        ProfileNode.
 
         '''
         for child in self.children:
