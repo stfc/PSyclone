@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,54 +32,45 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter, STFC Daresbury Laboratory,
+#                I. Kavcic, Met Office
 
 # The compiler to use may be specified via the F90 environment
 #
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
 
-PSYROOT=../../../..
+include ../../common.mk
 
-include $(PSYROOT)/examples/common.mk
-
-GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90 main-update.nc
+GENERATED_FILES = main_psy.f90 main_alg.f90 *.o *.mod $(EXEC)
 
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g
+F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
+OBJ = main_psy.o main_alg.o testkern_w0_mod.o
 
-EXEC = extract
-EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
-EXTRACT_NAME =_kernel_data_netcdf
-EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+EXEC = example
+LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-F90FLAGS += -I$(LFRIC_DIR) -I$(EXTRACT_DIR)
+F90FLAGS += -I$(LFRIC_PATH)
 
-transform: main_psy.f90 main_alg.f90
+run: compile
+	./example
 
 compile: transform $(EXEC)
 
-run: compile
-	./extract
-
-$(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
-	      -L$(LFRIC_DIR) -l$(LFRIC_NAME) $$(nf-config --flibs)
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_DIR)
-
-$(EXTRACT_LIB): $(LFRIC_LIB)
-	$(MAKE) -C $(EXTRACT_DIR)
+	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-main_psy.o:	testkern_w0_kernel_mod.o
+main_psy.o:	testkern_w0_mod.o
 main_alg.o:	main_psy.o
+testkern_w0_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -92,10 +83,10 @@ main_alg.o:	main_psy.o
 
 main_alg.f90: main_psy.f90
 
+transform: main_psy.f90
+
 %_psy.f90:	%.x90
-	${PSYCLONE} -s ./extract_transform.py \
-	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<
+	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
-	$(MAKE) -C $(LFRIC_DIR) allclean
-	$(MAKE) -C $(EXTRACT_DIR) allclean
+	make -C $(LFRIC_PATH) allclean

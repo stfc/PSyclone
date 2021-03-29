@@ -20,7 +20,7 @@ makefile variables are used and can be overwritten on the command line
  Variable   |  Default         | Description
  ---------- | ---------------- | ----------------------------- 
 F90         |  gfortran        | Name of the compiler.
-F90FLAGS    |  -g              | Flags to use when compiling.
+FFLAGS      |  -g              | Flags to use when compiling.
 
 Using `make clean` will clean all compiled library interfaces. You can
 also compile each library interface by changing into the corresponding

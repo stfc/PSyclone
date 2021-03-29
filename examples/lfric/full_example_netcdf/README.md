@@ -1,13 +1,18 @@
 # Standalone LFRic Example with NetCDF
 
+This directory contains a stand-alone LFRic code example.
+It is just a proof-of-concept to evaluate the feasibility and
+required effort for a stand-alone LFRic example. This
+examples adds support for reading in the global mesh from a
+NetCDF file.
+
 This example contains the minimum infrastructure required to create
-a field, and call a simple kernel on this field. The grid is read
-from the NetCDF file ``mesh_BiP128x16-400x100.nc``. The following
+a field, and call a simple kernel on this field. The following 
 steps are required for this (using simplified code examples):
 
 1) A global mesh is created from a NetCDF file:
     ```fortran
-    global_mesh = global_mesh_type("mesh_BiP128x16-400x100.nc", "dynamics")
+    global_mesh = global_mesh_type("mesh_BiP128x16-400x400.nc", "dynamics")
     ```
    
 2) A 1x1 planar partition for one process is created:
@@ -59,8 +64,37 @@ steps are required for this (using simplified code examples):
     call invoke( name = 'testkern_w0', testkern_w0_type(field1, field2) )
     ```
 
-## Compilation
+Significant refactoring was required in order to achieve that. This
+proof-of-concept implementation did not try a proper refactoring of
+code to reduce dependencies; in many case unnecessary dependencies
+were just removed from the source. Some examples:
+- XIOS was just removed (i.e. code that used it simply removed).
+- YAXT/MPI was completely removed (code that used it simply removed).
+- some dependencies were removed (for example the global_mesh module
+  also provides functionality for managing collections/maps of 
+  global meshes. This needlessly increase the number of files required).
+- Other support was just removed (e.g. NetCDF/UGRID, ...).
 
+A better designed stand-alone mini-example should
+- Refactor existing LFRic code to reduce dependencies
+  (e.g. instead of an object adding itself to a global data structure,
+  which makes the global handling a dependency for the object,
+  the global data structure can create a new object. This way
+  it is possible to create the object without dependencies).
+- For XIOS/YAXT NULL wrapper should be produced - i.e. they allow
+  compilation and linking, but offer no functionality. This removes
+  the need to remove significant amount of XIOS/YAXT code.
+- Other classes might be split into two classes/files. For example
+  there is no need that the unit-test functionality of a global
+  mesh is in the same file as the code that reads a mesh, allowing
+  the creation of a simple mesh by unit-testing code without
+  dependency to UGRID.
+
+Still, it is expected that there will be a porting effort involved
+when updating the stand-alone LFRic example from LFRic, but the goal
+is to minimise it, and automate it if possible.
+
+## Compilation
 A simple makefile is provided to compile the example. It needs 
 a full installation of NetCDF, since it is using ``nf-config`` to
 query the required compiler and linker flags, and the
@@ -74,14 +108,5 @@ you want to use:
 export F90=gfortran
 export F90FLAGS="-Wall -g -fcheck=bound $(nf-config --fflags)"
 
-make compile
-```
-
-## Running
-
-The binary ``example`` can be executed without any parameters:
-```shell
-./example
- Mesh has           5 layers.
-20210318131551.091+1100:INFO : Min/max minmax of field1 =   0.10000000E+01  0.80000000E+01
+make
 ```

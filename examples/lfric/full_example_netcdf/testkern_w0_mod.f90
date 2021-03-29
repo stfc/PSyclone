@@ -32,7 +32,7 @@
 ! Modified by J. Henrichs, Bureau of Meteorology
 ! Modified by I. Kavcic, Met Office
 
-module testkern_w0_kernel_mod
+module testkern_w0_mod
 
   use argument_mod
   use kernel_mod
@@ -44,7 +44,7 @@ module testkern_w0_kernel_mod
 
   private
 
-  type, public, extends(kernel_type) :: testkern_w0_kernel_type
+  type, public, extends(kernel_type) :: testkern_w0_type
      private
      type(arg_type), dimension(2) :: meta_args =       &
           (/ arg_type(gh_field, gh_real, gh_inc,  w0), &
@@ -53,7 +53,7 @@ module testkern_w0_kernel_mod
      integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_w0_code
-  end type testkern_w0_kernel_type
+  end type testkern_w0_type
 
   public :: testkern_w0_code
 
@@ -79,4 +79,4 @@ contains
 
   end subroutine testkern_w0_code
 
-end module testkern_w0_kernel_mod
+end module testkern_w0_mod

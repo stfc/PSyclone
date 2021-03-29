@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,6 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
-.. Modified by J. Henrichs, Bureau of Meteorology
 
 .. _examples:
 
@@ -42,15 +41,14 @@ Examples
 
 Various examples of the use of PSyclone are provided under the
 ``examples`` directory in the git repository. If you have installed
-PSyclone using ``pip`` then the examples may be found in
+PSyclone using pip then the examples may be found in
 ``share/psyclone/examples`` under your Python installation
 (e.g. ``~/.local`` for a user-local installation).
 
 Running any of these examples requires that PSyclone be installed on
 the host system, see :ref:`getting-going`. This section is intended
 to provide an overview of the various examples so that a user can find
-one that is appropriate to them. For details of what each example does
-and how to run each
+one that is appropriate to them. For details of how to run each
 example please see the ``README.md`` files in the associated directories.
 
 Alternatively, some of the examples have associated Jupyter notebooks
@@ -66,111 +64,17 @@ example. For those examples that support it, the ``compile`` target
 also requests that the generated code be compiled. The ``notebook``
 target checks the various Jupyter notebooks using ``nbconvert``.
 
-.. note:: If you have copied the ``examples`` directory to some other
-          location but still wish to use ``make`` then you will also
-          have to set the ``PSYCLONE_CONFIG`` environment variable to
-          the full path to the PSyclone configuration file, e.g.
-          ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
+.. note:: if you have copied the examples directory to some other
+	  location but still wish to use ``make`` then you will also
+	  have to set the ``PSYCLONE_CONFIG`` environment variable to
+	  the full path to the PSyclone configuration file, e.g.
+	  ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
 
-
-Compilation
------------
-
-Some of the examples support compilation (and some even execution of
-a compiled binary). Please consult the ``README.md`` to check which ones
-can be compiled and executed.
-
-As mentioned above, by default each example will execute the
-``transform`` target, which performs the PSyclone code transformation
-steps. In order to compile the sources, use the target ``compile``:
-
-.. code-block:: bash
-
-    make compile
-
-which will first perform the transformation steps before compiling
-any created Fortan source files. If the example also supports running
-a compiled and linked binary, use the target:
-
-.. code-block:: bash
-
-    make run
-
-This will first trigger compilation using the ``compile`` target, and
-then execute the program with any parameters that might be required
-(check the corresponding ``README.md`` document for details).
-
-All makefiles support the variables ``F90`` and ``F90FLAGS`` to specify
-the compiler and compilation flags to use. By default, the Gnu Fortran
-compiler (``gfortran``) is used, and the compilation flags will be set
-to debugging. If you want to change the compiler or flags, just define
-these as environment variables:
-
-.. code-block:: bash
-
-    F90=ifort F90FLAGS="-g -check bounds" make compile
-
-To clean all compiled files (and potential output files from a run),
-use:
-
-.. code-block:: bash
-
-    make clean
-
-This will clean up in the ``examples`` directory. If you want to change compilers
-or compiler flags, you should run ``make allclean``, see the section
-about :ref:`examples_dependencies` for details.
-
-Supported Compilers
-^^^^^^^^^^^^^^^^^^^
-
-All examples have been tested with the following compilers.
-Please let the developers know if you have problems using a compiler
-that has been tested or if you are working with a different compiler
-so it can be recorded in this table.
-
-.. tabularcolumns:: |l|L|
-
-======================= =======================================================
-Compiler                Version
-======================= =======================================================
-Gnu Fortran compiler    9.3
-Intel Fortran compiler  17, 21
-======================= =======================================================
-
-.. _examples_dependencies:
-
-Dependencies
-^^^^^^^^^^^^
-
-Any required library that is included in PSyclone (typically
-the infrastructure libraries for the APIs, or :ref:`PSyData wrapper
-libraries <psy_data>`) will automatically be compiled with the same compiler
-and compilation flags as the examples.
-
-.. note:: Once a dependent library is compiled, changing the
-          compilation flags will not trigger a recompilation
-          of this library. For example, if an example is first compiled
-          with debug options, and later the same or a different
-          example is compiled with optimisations, the dependent library
-          will not automatically be recompiled!
-
-All makefiles support an ``allclean`` target, which will not only
-clean the current directory, but also all libraries the current
-example depends on.
-
-.. important:: Using ``make allclean`` is especially important if
-               the compiler is changed. Typically, one compiler cannot
-               read module information from a different compiler, and
-               then compilation will fail.
-
-NetCDF
-~~~~~~
-
-Some examples require NetCDF for compilation. Installation of NetCDF
-is described in details in
-`the hands-on practicals documentation
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_.
+Each of the Makefiles also provides the ``clean`` and ``allclean``
+targets.  The former simply removes all generated files while the
+latter also cleans each of the infrastructure libraries used when
+compiling the examples (``dl_timer``, ``dl_esm_inf`` and the various
+PSyData wrapper libraries).
 
 GOcean
 ------
@@ -251,7 +155,8 @@ It will also create two stand-alone driver programs (one for
 each invoke), that will read the corresponding NetCDF file,
 and then executes the original code.
 
-.. note:: At this stage the driver program will not compile
+.. note::
+    At this stage the driver program will not compile
     (see issue #644).
 
 
@@ -281,7 +186,9 @@ with the PSyData-based read-only-verification code.
 It uses the dl_esm_inf-specific read-only-verification library
 (``lib/read_only/dl_esm_inf/``).
 
-.. note:: The ``update_field_mod`` subroutine contains some very
+.. note::
+
+    The ``update_field_mod`` subroutine contains some very
     buggy and non-standard code to change the value of some
     read-only variables and fields, even though the variables
     are all declared with
@@ -490,55 +397,19 @@ code that is output is the same as the original (but looks different
 as it has been translated to PSyIR and then output by the PSyIR
 fortran back-end).
 
-Example 17: Runnable Simplified Examples
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 16: Kernel Extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This directory contains three simplified LFRic examples that can be
-compiled and executed - of course, a suitable Fortran compiler is
-required. The examples are using a subset of the LFRic infrastructure
-library, which is contained in PSyclone and which has been slightly
-modified to make it easier to create stand-alone, non-MPI LFRic codes.
-
-Example 17.1: A Simple Runnable Example
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The subdirectory ``full_example`` contains a very simple example code
-that uses PSyclone to process two invokes. It uses unit-testing
-code from various classes to create the required data structures like
-initial grid etc. The code can be compiled with ``make compile``, and
-the binary executed with either ``make run`` or ``./example``.
-
-Example 17.2: A Simple Runnable Example With NetCDF
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The subdirectory ``full_example_netcdf`` contains code very similar
-to the previous example, but uses NetCDF to read the initial grid
-from the NetCDF file ``mesh_BiP128x16-400x100.nc``.
-Installation of NetCDF is described in
-`the hands-on practicals documentation
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_.
-The code can be compiled with ``make compile``, and
-the binary executed with either ``make run`` or ``./example``.
-
-Example 17.3: Kernel Data Extraction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The example in the subdirectory ``full_example_extract`` shows the
-use of :ref:`kernel extraction <psyke>`. It requires the
-installation of a NetCDF development environment (see
-`here
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_
-for installing NetCDF).
-The code can be compiled with ``make compile``, and
-the binary executed with either ``make run`` or ``./extract``
-Running the compiled binary will create one NetCDF file ``main-update.nc``
-containing the input and output parameters for the ``testkern_w0``
-kernel call. For example:
+The subdirectory ``full_example_extract`` contains a runnable example
+of LFRic code that creates a NetCDF file with the input and output
+parameters of a simple kernel. This example requires the installation
+of a Fortran compiler and NetCDF development environment. After compilation
+of the code, you can run the example. which will produce a NetCDF file:
 
 .. code-block:: bash
 
     cd full_example_extraction
-    make compile
+    make
     ./extract
     ncdump ./main-update.nc | less
 
