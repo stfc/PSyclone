@@ -211,8 +211,13 @@ class GOInvokes(Invokes):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
         for invoke in self.invoke_list:
-            # Set container parent reference
-            invoke.schedule.parent = self.psy.container
+
+            if invoke.schedule.opencl:
+                super(GOInvokes, self).gen_code(parent)
+                return
+
+            # TODO #1170: Remove the manual Container-InvokeSchedule connection
+            self.psy.container.addchild(invoke.schedule)
 
             # If the const_loop_bounds flag is True, we need to declare
             # and initialize the loop bounds variables.
@@ -236,7 +241,6 @@ class GOInvokes(Invokes):
                     "! Look-up loop bounds\n", ignore_comments=False))
                 codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
                 invoke.schedule.children.insert(0, codeblock)
-                codeblock.parent = invoke.schedule
                 # Get a field argument from the argument list
                 for arg in invoke.schedule.symbol_table.argument_list:
                     if isinstance(arg.datatype, TypeSymbol):
@@ -253,8 +257,6 @@ class GOInvokes(Invokes):
                                 field, ystop.split('%')[1:]))
                 invoke.schedule.children.insert(1, assign1)
                 invoke.schedule.children.insert(2, assign2)
-                assign1.parent = invoke.schedule
-                assign2.parent = invoke.schedule
 
             invoke.schedule.lower_to_language_level()
             parent.add(PSyIRGen(parent, invoke.schedule))
@@ -2778,7 +2780,7 @@ class GOHaloExchange(HaloExchange):
         call_node = Call(rsymbol)
 
         self.replace_with(call_node)
-        call_node.parent = self.parent
+
         # Set depth argument to 1
         call_node.addchild(Literal("1", INTEGER_TYPE, parent=call_node))
 

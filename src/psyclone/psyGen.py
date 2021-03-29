@@ -2929,8 +2929,11 @@ class CodedKern(Kern):
             symtab.add(rsymbol)
             if not self.module_inline:
                 # Import subroutine symbol
-                csymbol = ContainerSymbol(self._module_name)
-                symtab.add(csymbol)
+                try:
+                    csymbol = symtab.lookup(self._module_name)
+                except KeyError:
+                    csymbol = ContainerSymbol(self._module_name)
+                    symtab.add(csymbol)
                 rsymbol.interface = GlobalInterface(csymbol)
 
         call_node = Call(rsymbol)

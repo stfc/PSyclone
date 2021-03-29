@@ -363,26 +363,30 @@ def test_valid_config_files():
     invoke.schedule._const_loop_bounds = True
 
     gen = str(psy.gen)
-    new_loop1 = '''      DO j=1,2
-        DO i=3,4
+    new_loop1 = '''\
+      DO j = 1, 2, 1
+        DO i = 3, 4, 1
           CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
     assert new_loop1 in gen
 
-    new_loop2 = '''      DO j=2,jstop
-        DO i=1,istop+1
-          CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+    new_loop2 = '''\
+      DO j = 2, jstop, 1
+        DO i_1 = 1, istop+1, 1
+          CALL compute_kern2_code(i_1, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
     assert new_loop2 in gen
 
     # The third kernel tests {start} and {stop}
-    new_loop3 = '''      DO j=2-2,1
-        DO i=istop,istop+1
-          CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+    new_loop3 = '''\
+      DO j = 2-2, 1, 1
+        DO i_2 = istop, istop+1, 1
+          CALL compute_kern3_code(i_2, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
+    print(gen)
     assert new_loop3 in gen
 
     # Note that this file can not be compiled, since the new iteration space
