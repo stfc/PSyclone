@@ -25,7 +25,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #------------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 
 # This Makefile picks up the compiler to use plus any flags from
@@ -40,10 +41,11 @@
 F90 ?= gfortran
 F90FLAGS ?=
 
-DL_DIR = ../../../../external/dl_esm_inf/finite_difference/src
-INF_LIB = $(DL_DIR)/src/lib_fd.a
+SHARED_DIR ?= ../../../external
+INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference/src
+INF_LIB = $(INF_DIR)/src/lib_fd.a
 
-F90FLAGS += $$(nf-config --fflags) -I$(DL_DIR)
+F90FLAGS += $$(nf-config --fflags) -I$(INF_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
@@ -67,12 +69,10 @@ extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(DL_DIR) F90=$(F90)
-
+	$(MAKE) -C $(INF_DIR) F90=$(F90)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90 extract_netcdf_base.f90
-
