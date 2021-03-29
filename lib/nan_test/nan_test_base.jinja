@@ -41,7 +41,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -71,13 +71,15 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a PSyData-based verification that floating point
 !! input and output parameters are not NAN and not infinite.
 !! 
 
 module nan_test_base_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
                                               stderr=>Error_Unit
@@ -116,8 +118,7 @@ module nan_test_base_mod
     end type NANTestBaseType
 
 
-
-Contains
+contains
 
 
     ! =========================================================================
@@ -132,7 +133,7 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine checks if a floating point value is NAN or infinite
     !! using the IEEE_IS_FINIT function (and does nothing for integer types).
-    !! @param[inout] this The instance of the NANTestBaseType.
+    !! @param[in,out] this The instance of the NANTestBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideScalar{{name}}(this, name, value)
@@ -175,7 +176,7 @@ Contains
     ! -------------------------------------------------------------------------
     !> This method checks if an array contains NAN or infinite IEEE values (it
     !! does nothing in case that the array is an integer type).
-    !! @param[inout] this The instance of the NANTestBaseType.
+    !! @param[in,out] this The instance of the NANTestBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
@@ -220,4 +221,3 @@ Contains
     ! -------------------------------------------------------------------------
     
 end module nan_test_base_mod
-

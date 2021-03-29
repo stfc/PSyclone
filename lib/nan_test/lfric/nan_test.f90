@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a NAN verification for the LFRic API
 !! 
@@ -65,15 +66,15 @@ module nan_test_psy_data_mod
                                               
     end type nan_test_PSyDataType
 
-Contains
+contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine does not do anything (as declaration is not needed
-    !!for NAN checking).
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! for NAN checking).
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     subroutine DeclareField(this, name, value)
         implicit none
         class(nan_test_PSyDataType), intent(inout), target :: this
@@ -85,7 +86,7 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine checks whether an LFRic field has NAN or infinite
     !! floating point values.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideField(this, name, value)
@@ -110,7 +111,7 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine declares LFRic vector fields. No functionality is
     !! needed here, so it is just an empty function.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVector(this, name, value)
@@ -125,7 +126,7 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine checks whether an LFRic vector field has NAN or
     !! infinite floating point values.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
     subroutine ProvideFieldVector(this, name, value)

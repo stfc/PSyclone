@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a PSyData-based verification that floating point
 !! input and output parameters are not NAN and not infinite for the
@@ -70,15 +71,15 @@ module nan_test_psy_data_mod
 
     end type nan_test_PSyDataType
 
-Contains
+contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares a field as defined in
     !! dl_esm_inf (r2d_field). It does nothing in the NAN checking library.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     subroutine DeclareField(this, name, value)
         use field_mod, only : r2d_field
         implicit none
@@ -90,7 +91,7 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine checks that a dl_esm_inf field does not contain
     !! a NAN or infinite floating point value.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideField(this, name, value)
