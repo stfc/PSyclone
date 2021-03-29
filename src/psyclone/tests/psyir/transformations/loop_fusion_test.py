@@ -457,3 +457,129 @@ def test_fuse_independent_array(parser):
         fuse_loops(parser, code)
     assert "Variable 's' does not depend on loop variable 'jj', but is " \
            "read and written" in str(err.value)
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_scalars(parser):
+    '''Test that using arrays which are not dependent on the loop variable
+    are handled correctly. Example:
+    do j  ... a(1) = b(j) * c(j)
+    do j ...  d(j) = a(1)
+    '''
+
+    # First test: read/read of scalar variable
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              real, dimension(10,10) :: s, t
+              real                   :: a
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj) = t(ji, jj) + a
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    t(ji, jj) = t(ji, jj) - a
+                 enddo
+              enddo
+              end subroutine sub'''
+    fuse_loops(parser, code)
+
+    # Second test: read/write of scalar variable
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              real, dimension(10,10) :: s, t
+              real                   :: a
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+a
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    a = t(ji, jj) - 2
+                    s(ji, jj)=t(ji, jj)+a
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Scalar variable 'a' is written in one loop, but only read in " \
+           "other loop." in str(err.value)
+
+    # Third test: write/read of scalar variable
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              real, dimension(10,10) :: s, t
+              real                   :: b
+              do jj=1, n
+                 do ji=1, 10
+                    b = t(ji, jj) - 2
+                    s(ji, jj )=t(ji, jj)+b
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+b
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Scalar variable 'b' is written in one loop, but only read in " \
+           "other loop." in str(err.value)
+
+    # Fourth test: write/write of scalar variable - this is ok
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              real, dimension(10,10) :: s, t
+              real                   :: b
+              do jj=1, n
+                 do ji=1, 10
+                    b = t(ji, jj) - 2
+                    s(ji, jj )=t(ji, jj)+b
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    b = sqrt(t(ji, jj))
+                    s(ji, jj)=t(ji, jj)+b
+                 enddo
+              enddo
+              end subroutine sub'''
+    fuse_loops(parser, code)
+
+
+@pytest.mark.xfail(reason="Variable usage does not handle conditional - #641")
+def test_fuse_scalars_incorrect(parser):
+    '''This example incorrectly allows loop fusion due to known
+    restrictions of the variable access detection. If t(1,1)
+    would be < 0, the second loop would use ``t(10,10)-2`` as value
+    for b (last value assigned to ``b`` in first loop). But after
+    fusing the loop, b would be ``t(1,1)-2``
+    '''
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              real, dimension(10,10) :: s, t
+              real                   :: b
+              do jj=1, 10
+                 do ji=1, 10
+                    b = t(ji, jj) - 2
+                    s(ji, jj )=t(ji, jj)+b
+                 enddo
+              enddo
+              do jj=1, 10
+                 do ji=1, 10
+                    if (t(ji,jj) > 0) then
+                        b = sqrt(t(ji, jj))
+                    endif
+                    s(ji, jj)=t(ji, jj)+b
+                 enddo
+              enddo
+              end subroutine sub'''
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Scalar variable 'b' might not be written in one loop" \
+        in str(err.value)

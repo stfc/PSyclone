@@ -37,6 +37,7 @@
 '''
 
 from psyclone.core.access_info import VariablesAccessInfo
+from psyclone.core.access_type import AccessType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import LoopFuseTrans
 
@@ -102,6 +103,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 continue
             var_info1 = vars1[var_name]
             var_info2 = vars2[var_name]
+
             # Variables that are only read in both loops can always be fused
             if var_info1.is_read_only() and var_info2.is_read_only():
                 continue
@@ -120,12 +122,14 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 is_array = var_info1[0].indices is not None
 
             if not is_array:
-                self.validate_scalar(var_info1, var_info2)
+                NemoLoopFuseTrans.validate_scalar(var_info1, var_info2)
             else:
-                self.validate_array(var_info1, var_info2, loop_var1)
+                NemoLoopFuseTrans.validate_array(var_info1, var_info2,
+                                                 loop_var1)
 
     # -------------------------------------------------------------------------
-    def validate_scalar(self, var_info1, var_info2):
+    @staticmethod
+    def validate_scalar(var_info1, var_info2):
         '''Validates if the accesses to the scalar ``var_name`` can be fused.
 
         :param var_info1: access information for variable in the first loop.
@@ -133,12 +137,29 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         :param var_info2: access information for variable in the second loop.
         :type var_info2: :py:class:`psyclone.core.var_info.VariableInfo`
 
+        :raises TransformationError: a scalar variable is written in one \
+            loop, but only read in the other.
         '''
 
-        # TODO #1075: Handle scalar variables
+        # If a scalar variable is first written in both loops, that pattern
+        # is typically ok. Example:
+        # - inner loops (loop variable is written then read,
+        # - a=sqrt(j); b(j)=sin(a)*cos(a) - a scalar variable as 'constant'
+        # TODO #641: atm the variable access information has no details
+        # about a conditional access, so the test below could result in
+        # incorrectly allowing fusion. But the test is essential for many
+        # much more typical use cases (especially inner loops).
+        if var_info1[0].access_type == AccessType.WRITE and \
+                var_info2[0].access_type == AccessType.WRITE:
+            return
+
+        raise TransformationError(
+            "Scalar variable '{0}' is written in one loop, but only read "
+            "in other loop.".format(var_info1.var_name))
 
     # -------------------------------------------------------------------------
-    def validate_array(self, var_info1, var_info2, loop_variable):
+    @staticmethod
+    def validate_array(var_info1, var_info2, loop_variable):
         '''Validates if the accesses to the array ``var_name`` can be fused.
         :param var_info1: access information for variable in the first loop.
         :type var_info1: :py:class:`psyclone.core.var_info.VariableAccessInfo`
