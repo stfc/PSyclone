@@ -67,10 +67,10 @@ also requests that the generated code be compiled. The ``notebook``
 target checks the various Jupyter notebooks using ``nbconvert``.
 
 .. note:: If you have copied the ``examples`` directory to some other
-	  location but still wish to use ``make`` then you will also
-	  have to set the ``PSYCLONE_CONFIG`` environment variable to
-	  the full path to the PSyclone configuration file, e.g.
-	  ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
+          location but still wish to use ``make`` then you will also
+          have to set the ``PSYCLONE_CONFIG`` environment variable to
+          the full path to the PSyclone configuration file, e.g.
+          ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
 
 
 Compilation
@@ -149,20 +149,20 @@ libraries <psy_data>`) will automatically be compiled with the same compiler
 and compilation flags as the examples.
 
 .. note:: Once a dependent library is compiled, changing the
-    compilation flag will not trigger a recompilation
-    of this library. For example, if an example is first compiled with
-    debug options, and later the same or a different
-    example is compiled with optimisations, the dependent library will not
-    automatically be recompiled!
+          compilation flags will not trigger a recompilation
+          of this library. For example, if an example is first compiled
+          with debug options, and later the same or a different
+          example is compiled with optimisations, the dependent library
+          will not automatically be recompiled!
 
 All makefiles support an ``allclean`` target, which will not only
 clean the current directory, but also all libraries the current
 example depends on.
 
 .. important:: Using ``make allclean`` is especially important if
-    the compiler is changed. Typically, one compiler cannot read
-    module information from a different compiler, and then
-    compilation will fail.
+               the compiler is changed. Typically, one compiler cannot
+               read module information from a different compiler, and
+               then compilation will fail.
 
 NetCDF
 ~~~~~~
@@ -526,12 +526,12 @@ Example 17.3: Kernel Data Extraction
 The example in the subdirectory ``full_example_extract`` shows the
 use of :ref:`kernel extraction <psyke>`. It requires the
 installation of a NetCDF development environment (see
-``tutorial/practicals/README.md#netcdf-library-lfric-examples``
+`here
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_
 for installing NetCDF).
 The code can be compiled with ``make compile``, and
 the binary executed with either ``make run`` or ``./extract``
-Running the
-compiled binary will create one NetCDF file ``main-update.nc``
+Running the compiled binary will create one NetCDF file ``main-update.nc``
 containing the input and output parameters for the ``testkern_w0``
 kernel call. For example:
 

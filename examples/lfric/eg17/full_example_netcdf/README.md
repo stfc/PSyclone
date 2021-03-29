@@ -76,6 +76,7 @@ export F90FLAGS="-Wall -g -fcheck=bound $(nf-config --fflags)"
 
 make compile
 ```
+
 ## Running
 
 The binary ``example`` can be executed without any parameters:
