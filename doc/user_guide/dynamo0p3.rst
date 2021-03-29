@@ -1957,12 +1957,14 @@ arguments to inter-grid kernels are as follows:
    is an integer of type ``i_def`` and has intent ``in``.
 
 2) Include the ``cell_map`` for the current cell (column). This is
-   an integer array of rank one, type ``i_def`` and intent ``in``
+   an integer array of rank two, type ``i_def`` and intent ``in``
    which provides the mapping from the coarse to the fine mesh. It
-   has extent `ncell_f_per_c`.
+   has extent ``ncell_f_per_c_x, ncell_f_per_c_y``.
 
-3) Include ``ncell_f_per_c``, the number of fine cells per coarse cell.
-   This is an integer of type ``i_def`` and has intent ``in``.
+3) Include ``ncell_f_per_c_x``, and ``ncell_f_per_c_y``, the numbers of
+   fine cells per coarse cell in the ``x`` and ``y`` directions,
+   respectively. These are integers of kind ``i_def`` and have intent
+   ``in``.
 
 4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
    This is an integer of type ``i_def`` and has intent ``in``.
