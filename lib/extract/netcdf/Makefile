@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # This Makefile just creates the Fortran base class for all extraction
 # libraries from the jinja template. The compile functionality it offers is
@@ -40,7 +41,8 @@
 # jinja settings).
 
 F90 ?= gfortran
-F90FLAGS ?= 
+F90FLAGS ?=
+ROOT_LIB_DIR ?= ../..
 
 F90FLAGS += $$(nf-config --fflags)
 
@@ -48,7 +50,7 @@ F90FLAGS += $$(nf-config --fflags)
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
 		       -dims=2
-PROCESS=$$(../../get_python.sh) ../../process.py
+PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 default: extract_netcdf_base.o psy_data_base.o
 process: extract_netcdf_base.f90
@@ -67,7 +69,7 @@ extract_netcdf_base.o: psy_data_base.o
 # Jinja rules for creating the base class, and the
 # netcdf extraction class
 # ------------------------------------------------
-psy_data_base.f90:	../../psy_data_base.jinja Makefile
+psy_data_base.f90:	$(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 extract_netcdf_base.f90:	extract_netcdf_base.jinja Makefile

@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,6 @@
 # Author: J. Henrichs, Australian Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
 
-
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
 # 
@@ -40,9 +39,10 @@
 
 F90 ?= gfortran
 F90FLAGS ?=
+JINJA_TMPLT_DIR ?= ..
+ROOT_LIB_DIR ?= $(JINJA_TMPLT_DIR)/../..
+INF_DIR ?= $(ROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference/src
 
-SHARED_DIR ?= ../../../external
-INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_DIR)
@@ -50,7 +50,7 @@ LIB_NAME = lib_kernel_data_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2
-PROCESS=$$(../../../get_python.sh) ../../../process.py
+PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 default: $(LIB_NAME)
 
@@ -60,11 +60,11 @@ $(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 kernel_data_netcdf.o:	extract_netcdf_base.o $(INF_LIB)
 extract_netcdf_base.o:	psy_data_base.o
 
-psy_data_base.f90: ../../../psy_data_base.jinja Makefile
+psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 
-extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
+extract_netcdf_base.f90: $(JINJA_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
 
 # The dl_esm_inf library

@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -25,8 +25,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #------------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
-
+# Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
@@ -39,16 +39,17 @@
 
 F90 ?= gfortran
 F90FLAGS ?=
+JINJA_TMPLT_DIR ?= ..
+ROOT_LIB_DIR ?= $(JINJA_TMPLT_DIR)/../..
 # This defaults to the infrastructure library included in PSyclone
-LFRIC_DIR ?= ../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 
-F90FLAGS ?= 
-F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_DIR)
+F90FLAGS += $$(nf-config --fflags) -I$(INF_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=1,2,3,4
-PROCESS=$$(../../../get_python.sh) ../../../process.py
+PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 $(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
@@ -58,11 +59,11 @@ default: $(LIB_NAME)
 kernel_data_netcdf.o:	extract_netcdf_base.o
 extract_netcdf_base.o:	psy_data_base.o
 
-psy_data_base.f90: ../../../psy_data_base.jinja Makefile
+psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 
-extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
+extract_netcdf_base.f90: $(JINJA_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
 
 %.o: %.f90
@@ -72,4 +73,4 @@ clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90 extract_netcdf_base.f90
 
 allclean: clean
-	$(MAKE) -C $(LFRIC_DIR) allclean
+	$(MAKE) -C $(INF_DIR) allclean
