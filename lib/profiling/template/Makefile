@@ -32,31 +32,39 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?= -g
+# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
+ROOT_LIB_DIR ?= ./../..
+# -----------------------------------------------------------------------------
 
-F90?=gfortran
-F90FLAGS?=-g
+LIB_NAME = libdummy.a
 
 OBJS = dummy_lib.o psy_data_base.o
+
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS=$$(../../get_python.sh) ../../process.py
+PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
-.PHONY: clean allclean
+.PHONY: default clean allclean
 
-default: libdummy.a
+default: $(LIB_NAME)
 
-libdummy.a: $(OBJS)
-	ar rs libdummy.a $(OBJS)
+$(LIB_NAME): $(OBJS)
+	ar rs $(LIB_NAME) $(OBJS)
 
 dummy_lib.o:	psy_data_base.o
 
-psy_data_base.f90: ../../psy_data_base.jinja
+psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f libdummy.a $(OBJS) *.mod psy_data_base.f90
+	rm -f $(LIB_NAME) $(OBJS) *.mod psy_data_base.f90
 
 allclean: clean

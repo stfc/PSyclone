@@ -40,22 +40,22 @@ F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
 ROOT_LIB_DIR ?= ./../..
-# This variable defaults to the assumed location of the apeg-dl_timer library
+# This variable defaults to the assumed location of the apeg/dl_timer library
 # next to PSyclone installation (can be overwritten to use a different version)
-DL_TIMER_ROOT ?= $(ROOT_LIB_DIR)/../../apeg-dl_timer
+DL_TIMER_ROOT ?= $(ROOT_LIB_DIR)/../../dl_timer
 # Location of apeg-dl_timer "include" files
 DL_TIMER_INCLUDE ?= $(DL_TIMER_ROOT)/src
 # -----------------------------------------------------------------------------
 
 F90FLAGS += -I$(DL_TIMER_INCLUDE)
 
+NAME = dl_timer_psy
+LIB_NAME = lib$(NAME).a
+
 OBJS = dl_timer.o psy_data_base.o
 
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
 PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
-
-NAME = dl_timer_psy
-LIB_NAME = lib$(NAME).a
 
 default: $(LIB_NAME)
 

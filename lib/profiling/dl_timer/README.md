@@ -23,7 +23,7 @@ A makefile is provided for compilation. The environment variables
 ``$F90`` and ``$F90FLAGS`` can be set to point to the Fortran compiler
 and flags to use. They default to ``gfortran`` and the empty string.
 You need to provide the location of the dl_timer library using the
-variable ``$DL_TIMER_ROOT``, which defaults to ``../../../../apeg-dl_timer``
+variable ``$DL_TIMER_ROOT``, which defaults to ``../../../../dl_timer``
 (i.e. it assumes dl_timer is installed next to PSyclone):
 
 ```sh
