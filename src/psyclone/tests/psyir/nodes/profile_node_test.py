@@ -59,13 +59,34 @@ def teardown_function():
 
 def test_profile_node_construction():
     ''' Basic checks for the construction of a ProfileNode. '''
-    pnode = ProfileNode()
+    sched = KernelSchedule.create("test", SymbolTable(), [])
+    pnode = ProfileNode(parent=sched)
     assert pnode._class_string == "profile_"
     assert str(pnode) == ("ProfileStart[var=profile_psy_data]\n"
                           "ProfileEnd")
     pnode2 = ProfileNode(options={"region_name": ("my_mod", "first")})
     assert pnode2._module_name == "my_mod"
     assert pnode2._region_name == "first"
+    # TODO #1185 the initialisation that the remainder of this test checks
+    # for should not be done in the Constructor.
+    # Check that the symbol table contains the appropriate symbols:
+    # A Container for the profile_psy_data_mod module
+    table = sched.symbol_table
+    csym = table.lookup("profile_psy_data_mod")
+    assert isinstance(csym, ContainerSymbol)
+    # A type symbol for the derived type used to capture profiling data
+    type_sym = table.lookup("profile_PSyDataType")
+    assert isinstance(type_sym, TypeSymbol)
+    assert isinstance(type_sym.interface, GlobalInterface)
+    assert type_sym.interface.container_symbol is csym
+    # A symbol of derived type to contain the profiling data. As it must
+    # have the (unsupported) 'save' and 'target' attributes, it has to be of
+    # UnknownFortranType.
+    dsym = table.lookup("profile_psy_data")
+    assert isinstance(dsym, DataSymbol)
+    assert isinstance(dsym.datatype, UnknownFortranType)
+    assert (dsym.datatype.declaration ==
+            "type(profile_PSyDataType), save, target ::")
 
 
 def test_malformed_profile_node(monkeypatch):
@@ -95,7 +116,8 @@ def test_profile_node_invalid_name(value):
             "two non-empty strings." in str(excinfo.value))
 
 
-def test_lower_to_lang_level_single_node(parser):
+@pytest.mark.usefixtures("parser")
+def test_lower_to_lang_level_single_node():
     ''' Test the lower_to_language_level() method when a Schedule contains
     a single ProfileNode.
 
@@ -131,24 +153,6 @@ def test_lower_to_lang_level_single_node(parser):
     assert len(ptree) == 1
     assert isinstance(ptree[0], Fortran2003.Call_Stmt)
     assert isinstance(kschedule[-1], Return)
-    # Check that the symbol table contains the appropriate symbols:
-    # A Container for the profile_psy_data_mod module
-    table = kschedule.symbol_table
-    csym = table.lookup("profile_psy_data_mod")
-    assert isinstance(csym, ContainerSymbol)
-    # A type symbol for the derived type used to capture profiling data
-    type_sym = table.lookup("profile_PSyDataType")
-    assert isinstance(type_sym, TypeSymbol)
-    assert isinstance(type_sym.interface, GlobalInterface)
-    assert type_sym.interface.container_symbol is csym
-    # A symbol of derived type to contain the profiling data. As it must
-    # have the (unsupported) 'save' and 'target' attributes, it has to be of
-    # UnknownFortranType.
-    dsym = table.lookup("profile_psy_data")
-    assert isinstance(dsym, DataSymbol)
-    assert isinstance(dsym.datatype, UnknownFortranType)
-    assert (dsym.datatype.declaration ==
-            "type(profile_PSyDataType), save, target ::")
 
 
 def test_lower_named_profile_node():
