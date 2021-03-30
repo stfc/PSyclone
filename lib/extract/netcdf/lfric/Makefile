@@ -42,8 +42,8 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-JINJA_TMPLT_DIR ?= ..
-ROOT_LIB_DIR ?= ../../..
+JINJA_TMPLT_DIR ?= ./..
+ROOT_LIB_DIR ?= ./../../..
 # This variable defaults to the cut-down version of the LFRic infrastructure
 # distributed with PSyclone (can be overwritten to use a different version)
 INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
@@ -68,7 +68,7 @@ default: $(LIB_NAME)
 $(LIB_NAME): $(INF_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
-# Create LFRic infrastructure library if required
+# Create LFRic infrastructure library
 $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)" netcdf
 

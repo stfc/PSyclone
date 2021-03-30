@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,10 +39,14 @@
 # offers is only meant for testing, each library should compile its own version
 # of the base class (with therefore consistent compiler settings).
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
 F90 ?= gfortran
-F90FLAGS ?= 
+F90FLAGS ?=
+# -----------------------------------------------------------------------------
 
 default: psy_data_base.o
+
 process: psy_data_base.f90
 
 .PHONY: default process clean all

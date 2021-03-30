@@ -45,7 +45,7 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-ROOT_LIB_DIR ?= ../..
+ROOT_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
 F90FLAGS += $$(nf-config --fflags)

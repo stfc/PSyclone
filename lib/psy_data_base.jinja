@@ -64,7 +64,7 @@ module psy_data_base_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
     implicit none
 
     !> Maximum string length for module- and region-names
@@ -98,6 +98,7 @@ module psy_data_base_mod
         character(MAX_STRING_LENGTH) :: module_name, region_name
 
         contains
+
             procedure :: PreStart, PreEndDeclaration, PreEnd
             procedure :: PostStart, PostEnd, Abort
 
@@ -136,6 +137,7 @@ module psy_data_base_mod
             generic, public :: ProvideVariable => &
                 {{all_provides|join(", &\n"+indent) }}
             {% endif %}
+
     end type PSyDataBaseType
 
 contains
@@ -155,7 +157,9 @@ contains
     !!            this region (unused atm).
     subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                         num_post_vars)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: module_name, region_name
         integer, intent(in)      :: num_pre_vars, num_post_vars
@@ -166,7 +170,7 @@ contains
         call get_environment_variable("PSYDATA_VERBOSE", verbose, status=status)
         this%verbosity=0
         if (status==0) then
-            if(verbose=="0") then
+            if (verbose=="0") then
                 this%verbosity = 0
             else if (verbose=="1") then
                 this%verbosity = 1
@@ -185,8 +189,9 @@ contains
 
         if (.not. is_enabled) return
 
-        if(this%verbosity>0) &
+        if (this%verbosity>0) &
             write(stderr,*) "PSyData: PreStart ", module_name, " ", region_name
+
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
@@ -194,9 +199,13 @@ contains
     !! sure that the next variable index is starting at 1 again.
     !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PreEndDeclaration(this)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
+
         this%next_var_index = 1
+
     end subroutine PreEndDeclaration
 
     ! -------------------------------------------------------------------------
@@ -205,8 +214,11 @@ contains
     !! be executed. Nothing is done here.
     !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PreEnd(this)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
+
     end subroutine PreEnd
 
     ! -------------------------------------------------------------------------
@@ -215,8 +227,11 @@ contains
     !! region will be provided. Nothing is done here.
     !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PostStart(this)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
+
     end subroutine PostStart
 
     ! -------------------------------------------------------------------------
@@ -225,14 +240,17 @@ contains
     !! region have been provided. No special functionality required here.
     !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PostEnd(this)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
 
         if (.not. is_enabled) return
 
-        if(this%verbosity>0) &
+        if (this%verbosity>0) &
             write(stderr, *) "PSyData: PostEnd ", trim(this%module_name), &
                     " ", trim(this%region_name)
+
     end subroutine PostEnd
 
     ! -------------------------------------------------------------------------
@@ -240,40 +258,55 @@ contains
     !! just uses `stop`.
     !! @param[in] message Error message to be displayed (string).
     subroutine Abort(this, message)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*) :: message
 
         write(stderr, *) "PSyData Error:", message
         stop "PSyData: Aborting"
+
     end subroutine Abort
 
     ! -------------------------------------------------------------------------
     !> An optional initialisation subroutine.
     subroutine {{PREFIX}}PSyDataInit()
+
       implicit none
+
       return
+
     end subroutine {{PREFIX}}PSyDataInit
 
     ! -------------------------------------------------------------------------
     !> An optional initialisation subroutine.
     subroutine {{PREFIX}}PSyDataShutdown()
+
       implicit none
+
       return
+
     end subroutine {{PREFIX}}PSyDataShutdown
 
     ! -------------------------------------------------------------------------
     !> Enables PSyData handling (if it is not already enabled).
     subroutine {{PREFIX}}PSyDataStart()
+
       implicit none
+
       is_enabled = .true.
+
     end subroutine {{PREFIX}}PSyDataStart
 
     ! -------------------------------------------------------------------------
     !> Disables PSyData handling.
     subroutine {{PREFIX}}PSyDataStop()
+
       implicit none
+
       is_enabled = .false.
+
     end subroutine {{PREFIX}}PSyDataStop
 
     ! =========================================================================
@@ -288,7 +321,9 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareScalar{{name}}(this, name, value)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, intent(in) :: value
@@ -299,8 +334,9 @@ contains
 
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareScalar{{name}}: ", &
-                            trim(this%module_name), " ",                &
+                            trim(this%module_name), " ",        &
                             trim(this%region_name), ": ", name
+
     end subroutine DeclareScalar{{name}}
 
     ! -------------------------------------------------------------------------
@@ -310,12 +346,15 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideScalar{{name}}(this, name, value)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, intent(in) :: value
 
         this%next_var_index = this%next_var_index+1
+
     end subroutine ProvideScalar{{name}}
 
     {# Now create the declarations of all array implementations #}
@@ -332,7 +371,9 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareArray{{dim}}d{{name}}(this, name, value)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
@@ -344,6 +385,7 @@ contains
             write(stderr,*) "PSyData: DeclareArray{{dim}}d{{name}}: ", &
                             trim(this%module_name), " ",               &
                             trim(this%region_name), ": ", name
+
     end subroutine DeclareArray{{dim}}d{{name}}
 
     ! -------------------------------------------------------------------------
@@ -353,11 +395,15 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
+
         this%next_var_index = this%next_var_index + 1
+
     end subroutine ProvideArray{{dim}}d{{name}}
 
         {% endfor %}  {# for dim #}
