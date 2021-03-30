@@ -26,7 +26,7 @@ https://devblogs.nvidia.com/customize-cuda-fortran-profiling-nvtx/.
 ## Compilation
 
 A Makefile is provided and just executing `make` should build the wrapper
-library. By default the gfortran compiler is used but you will probably
+library. By default the `gfortran` compiler is used but you will probably
 want to use PGI if working with OpenACC, i.e. `make F90=pgf90`. This will
 produce `libnvtx_prof.a` and `profile_mod.mod`.
 

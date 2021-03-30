@@ -33,7 +33,7 @@
 ! Modified I. Kavcic, Met Office
 
 module profile_psy_data_mod
-  use iso_c_binding, only: C_CHAR, C_INT, C_INT16_T, C_INT64_T, C_PTR, &
+  use iso_c_binding, only : C_CHAR, C_INT, C_INT16_T, C_INT64_T, C_PTR, &
        C_NULL_CHAR, C_LOC
   implicit none
 
@@ -163,14 +163,16 @@ contains
   !!            this region.
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                       num_post_vars)
+
     implicit none
+
     class(profile_PSyDataType), target, intent(inout) :: this
     character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
     ! Locals
     type(nvtxEventAttributes) :: event
 
-    if(.not. this%initialised)then
+    if (.not. this%initialised) then
        ! This is the first time we've seen this region. Construct and
        ! save its name to save on future string operations.
        this%initialised = .true.
@@ -188,8 +190,7 @@ contains
     end if
     
     event%color = col(this%colour_index)
-    ! TODO: #698 This requires target attribute in the PSyData instances
-    ! in the calling program.
+
     event%message = c_loc(this%name)
     
     call nvtxRangePushEx(event)
@@ -199,7 +200,9 @@ contains
   !> Ends a profiling area.
   !! @param[in,out] this: Persistent data, not used in this case.
   subroutine PostEnd(this)
+
     implicit none
+
     class(profile_PSyDataType), target :: this
     
     call nvtxRangePop()

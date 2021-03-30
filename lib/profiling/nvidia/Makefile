@@ -33,24 +33,28 @@
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology,
 #          A. R. Porter, STFC Daresbury Laboratory.
+# Modified I. Kavcic, Met Office
 
 # Makefile for the PSyclone wrapper to the NVTX profiling library.
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?= -g
+# -----------------------------------------------------------------------------
+
+NAME = nvtx_prof
+LIB_NAME = lib$(NAME).a
+
+default: $(LIB_NAME)
+
 .PHONY: default clean allclean
 
-F90?=gfortran
-F90FLAGS?=-g
-
-name=nvtx_prof
-libname=lib$(name).a
-
-default: $(libname)
-
-$(libname): $(name).f90
+$(LIB_NAME): $(NAME).f90
 	$(F90) -c $(F90FLAGS) $<
-	ar rs $(libname) $(name).o
+	ar rs $(LIB_NAME) $(NAME).o
 
 clean:
-	rm -f $(libname) $(name).o profile_mod.mod
+	rm -f $(LIB_NAME) $(NAME).o profile_mod.mod
 
 allclean: clean
