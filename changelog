@@ -184,7 +184,7 @@
 	the dl_esm_inf netcdf PSyData wrapper library.
 
 	59) #954 for #745. Update PSyclone copy of the LFRic infrastructure
-	to create compilable and runnable LFRIc examples.
+	to create compilable and runnable LFRic examples.
 
 	60) #943 for #923. Adds generation of an in-kernel boundary mask
 	when generating OpenCL kernels for GOcean. (Fixes failures seen
@@ -417,22 +417,22 @@
 	135) PR #1126 for #1098. Add kernel stub generation support for the
 	'2D cross' stencils in the LFRic API.
 
-        136) PR #1145 for #1107. Adds new LFRic builtins (type-conversion,
-        SIGN, plus others).
+	136) PR #1145 for #1107. Adds new LFRic builtins (type-conversion,
+	SIGN, plus others).
 
-        137) PR #1133 for #1130. Uses GOcean stencil metadata to correctly
-        populate the field access information (dependency analysis) for a
-        GOcean kernel.
+	137) PR #1133 for #1130. Uses GOcean stencil metadata to correctly
+	populate the field access information (dependency analysis) for a
+	GOcean kernel.
 
-        138) PR #1154 for #1153. Work towards improving usability of
-        loop fusion transformation. Moves transformations into separate
-        files in the appropriate directories.
+	138) PR #1154 for #1153. Work towards improving usability of
+	loop fusion transformation. Moves transformations into separate
+	files in the appropriate directories.
 
 	139) PR #1155 for #529. Adds PSyIR support for REAL and INT
-        BinaryOperations.
+	BinaryOperations.
 
-        140) PR #1144 for #1136. Add checks that PSyIR nodes are only children
-        of one parent.
+	140) PR #1144 for #1136. Add checks that PSyIR nodes are only children
+	of one parent.
 
 	141) PR #1150 for #1146. Fixed bug in PSyIR, making the name
 	matching in the Node swap method case insensitive.
@@ -449,12 +449,16 @@
 	145) PR #1162 for #1160. Add Fortran backend support for unresolved
 	interfaces when there is wildcard imports.
 
-        146) PR #1157 for #478. Updates the LoopFusion transformation so
-        that the 'same space' option is now provided with the options
-        dict, in line with the way other transformations work.
+	146) PR #1157 for #478. Updates the LoopFusion transformation so
+	that the 'same space' option is now provided with the options
+	dict, in line with the way other transformations work.
 
 	147) PR #1165 for #1164. Update PSyIR Assignment node
 	is_array_range test to work with structures.
+
+	148) PR #1072 for #1067. Re-structures the LFRic runnable examples.
+
+	149) PR #1177 for #1168. Adds lowering method for the ProfileNode node.
 
 release 1.9.0 20th May 2020
 
