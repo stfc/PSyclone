@@ -127,10 +127,8 @@ def test_init():
 
     '''
     invoke_trans = LFRicInvokeTrans()
-    assert invoke_trans._invoke_name == "invoke"
     assert invoke_trans.name == "LFRicInvokeTrans"
-    invoke_trans = LFRicInvokeTrans(invoke_name="test")
-    assert invoke_trans._invoke_name == "test"
+    assert isinstance(invoke_trans, LFRicInvokeTrans)
 
 
 def test_structure_contructor():

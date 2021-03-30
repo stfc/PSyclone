@@ -122,10 +122,8 @@ def test_init():
 
     '''
     invoke_trans = InvokeTrans()
-    assert invoke_trans._invoke_name == "invoke"
     assert invoke_trans.name == "InvokeTrans"
-    invoke_trans = InvokeTrans(invoke_name="test")
-    assert invoke_trans._invoke_name == "test"
+    assert isinstance(invoke_trans, InvokeTrans)
 
 
 def test_parse_args_get_symbol():
@@ -145,7 +143,7 @@ def test_parse_args_get_symbol():
 
     # Check expected output from parse_args
     nodes = InvokeTrans._parse_args(code_block, code_block._fp2_nodes[0])
-    assert isinstance(nodes, ChildrenList)
+    assert isinstance(nodes, list)
     assert len(nodes) == 1
     assert isinstance(nodes[0], Literal)
     assert nodes[0].value == "1.0"

@@ -55,13 +55,10 @@ class LFRicInvokeTrans(InvokeTrans):
     invoke call to an LFRic version with specialised domain-specific
     nodes.
 
-     :param str invoke_name: the name used to specify an invoke \
-        call. This is an optional argument that defaults to 'invoke'.
-
     '''
-    def __init__(self, invoke_name="invoke"):
+    def __init__(self):
+        super(LFRicInvokeTrans, self).__init__()
         self._call_description = None
-        super(LFRicInvokeTrans, self).__init__(invoke_name=invoke_name)
 
     def validate(self, call, options=None):
         ''' Check that the call argument has the expected structure.

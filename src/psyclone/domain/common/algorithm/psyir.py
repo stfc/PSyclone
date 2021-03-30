@@ -66,6 +66,11 @@ class KernelFunctor(Reference):
     '''Object containing a kernel call, a description of its required
     interface and the arguments to be passed to it.
 
+    :param symbol: the functor symbol.
+    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+    :param parent: the parent node of this functor instance.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+
     '''
     _children_valid_format = "[DataNode]*"
     _text_name = "KernelFunctor"

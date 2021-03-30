@@ -55,13 +55,7 @@ class InvokeTrans(Transformation):
     invoke call to a PSyclone version with specialised domain-specific
     nodes.
 
-    :param str invoke_name: the name used to specify an invoke \
-        call. This is an optional argument that defaults to 'invoke'.
-
     '''
-    def __init__(self, invoke_name="invoke"):
-        self._invoke_name = invoke_name
-
     @staticmethod
     def _parse_args(code_block, fp2_node):
         '''Return the arguments from a Structure Constructor stored as a
@@ -75,7 +69,7 @@ class InvokeTrans(Transformation):
 
         :returns: a list of PSyIR nodes containing the \
             StructureConstructor arguments.
-        :rtype: :py:class:`psyclone.psyir.nodes.node.ChildrenList`
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         dummy_call = Call(RoutineSymbol("dummy"),
@@ -83,9 +77,7 @@ class InvokeTrans(Transformation):
         fparser2 = Fparser2Reader()
         for arg in fp2_node.children[1].children:
             fparser2.process_nodes(dummy_call, [arg])
-        dummy_call.parent = None
-        args = dummy_call.children
-        return args
+        return dummy_call.pop_all_children()
 
     @staticmethod
     def _get_symbol(call, fp2_node):
@@ -169,11 +161,11 @@ class InvokeTrans(Transformation):
                 "Error in {0} transformation. The supplied call argument "
                 "should be a `Call` node but found '{1}'."
                 "".format(self.name, type(call).__name__))
-        if not call.routine.name.lower() == self._invoke_name:
+        if not call.routine.name.lower() == "invoke":
             raise TransformationError(
                 "Error in {0} transformation. The supplied call argument "
-                "should be a `Call` node with name '{1}' but found '{2}'."
-                "".format(self.name, self._invoke_name, call.routine.name))
+                "should be a `Call` node with name 'invoke' but found '{1}'."
+                "".format(self.name, call.routine.name))
         for arg in call.children:
             if isinstance(arg, ArrayReference):
                 pass

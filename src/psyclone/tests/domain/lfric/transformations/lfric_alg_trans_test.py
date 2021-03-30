@@ -77,10 +77,8 @@ def test_init():
 
     '''
     alg_trans = LFRicAlgTrans()
-    assert alg_trans._invoke_name == "invoke"
     assert alg_trans.name == "LFRicAlgTrans"
-    alg_trans = LFRicAlgTrans(invoke_name="test")
-    assert alg_trans._invoke_name == "test"
+    assert isinstance(alg_trans, LFRicAlgTrans)
     assert isinstance(alg_trans._invoke_trans, LFRicInvokeTrans)
 
 

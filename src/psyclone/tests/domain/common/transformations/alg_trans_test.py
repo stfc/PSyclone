@@ -118,10 +118,8 @@ def test_init():
 
     '''
     alg_trans = AlgTrans()
-    assert alg_trans._invoke_name == "invoke"
     assert alg_trans.name == "AlgTrans"
-    alg_trans = AlgTrans(invoke_name="test")
-    assert alg_trans._invoke_name == "test"
+    assert isinstance(alg_trans, AlgTrans)
     assert isinstance(alg_trans._invoke_trans, InvokeTrans)
 
 

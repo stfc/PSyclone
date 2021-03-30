@@ -47,13 +47,9 @@ class AlgTrans(Transformation):
     '''Transform a generic PSyIR representation of the Algorithm layer to
     a PSyclone version with specialised domain-specific nodes.
 
-    :param str invoke_name: the name used to specify an invoke \
-        call. This is an optional argument that defaults to 'invoke'.
-
     '''
-    def __init__(self, invoke_name="invoke"):
+    def __init__(self):
         self._invoke_trans = InvokeTrans()
-        self._invoke_name = invoke_name
 
     def validate(self, node, options=None):
         '''Validate the supplied PSyIR tree.
@@ -86,7 +82,7 @@ class AlgTrans(Transformation):
 
         self.validate(psyir, options=options)
         for call in psyir.walk(Call):
-            if call.routine.name.lower() == self._invoke_name:
+            if call.routine.name.lower() == "invoke":
                 self._invoke_trans.apply(call, options=options)
 
     @property

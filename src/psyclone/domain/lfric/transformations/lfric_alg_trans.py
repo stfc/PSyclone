@@ -45,12 +45,8 @@ class LFRicAlgTrans(AlgTrans):
     '''Transform a generic PSyIR representation of the Algorithm layer to
     an LFRic version with specialised domain-specific nodes.
 
-    :param str invoke_name: the name used to specify an invoke \
-        call. This is an optional argument that defaults to 'invoke'.
-
     '''
-    def __init__(self, invoke_name="invoke"):
-        super(LFRicAlgTrans, self).__init__(invoke_name=invoke_name)
+    def __init__(self):
         self._invoke_trans = LFRicInvokeTrans()
 
     @property
