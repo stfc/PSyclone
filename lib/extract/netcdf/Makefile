@@ -57,6 +57,7 @@ PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
 PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 default: extract_netcdf_base.o psy_data_base.o
+
 process: extract_netcdf_base.f90
 
 .PHONY: default process clean all

@@ -59,7 +59,7 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastruc
 
 F90FLAGS += -I$(INF_DIR)
 LIB_NAME = lib_read_only.a
-LFRIC_LIB=$(INF_DIR)/liblfric.a
+LFRIC_LIB = $(INF_DIR)/liblfric.a
 
 # The LFRic ReadOnly library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,

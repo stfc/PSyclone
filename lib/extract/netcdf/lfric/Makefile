@@ -51,15 +51,25 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastruc
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
+LFRIC_LIB = $(INF_DIR)/liblfric_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=1,2,3,4
 PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
-$(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
-	${AR} ${ARFLAGS} ${LIB_NAME} $^
+OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 
 default: $(LIB_NAME)
+
+.PHONY: default clean allclean
+
+$(LIB_NAME): $(LFRIC_LIB) $(OBJS)
+	${AR} ${ARFLAGS} ${LIB_NAME} $^
+
+# Create LFRic infrastructure library if required
+$(LFRIC_LIB):
+	$(MAKE) F90="$(F90)" F90FLAGS="$(F90FLAGS)" -C $(INF_DIR) netcdf
+
 
 kernel_data_netcdf.o:	extract_netcdf_base.o
 extract_netcdf_base.o:	psy_data_base.o

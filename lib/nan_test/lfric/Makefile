@@ -56,6 +56,7 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastruc
 
 F90FLAGS += -I$(INF_DIR)
 LIB_NAME = lib_nan_test.a
+LFRIC_LIB = $(INF_DIR)/liblfric.a
 
 # The LFRic NAN checking library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -69,13 +70,15 @@ PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 OBJS = nan_test.o psy_data_base.o nan_test_base.o
 
 default: $(LIB_NAME)
-.PHONY: default clean
+
+.PHONY: default clean allclean
 
 
-$(LIB_NAME): $(INF_DIR)/liblfric.a $(OBJS)
+$(LIB_NAME): $(LFRIC_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
-$(INF_DIR)/liblfric.a:
+# Create LFRic infrastructure library if required
+$(LFRIC_LIB):
 	$(MAKE) F90="$(F90)" F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
 
 

@@ -72,7 +72,7 @@ PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 default: $(LIB_NAME)
 
-.PHONY: default clean
+.PHONY: default clean allclean
 
 
 $(LIB_NAME):	$(OBJS)
@@ -108,3 +108,6 @@ $(INF_LIB):
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.*
+
+allclean: clean
+	$(MAKE) -C $(INF_DIR) clean

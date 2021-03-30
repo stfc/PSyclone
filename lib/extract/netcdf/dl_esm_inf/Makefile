@@ -58,9 +58,13 @@ PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2
 PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
+OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
+
 default: $(LIB_NAME)
 
-$(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
+.PHONY: default clean allclean
+
+$(LIB_NAME): $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
 kernel_data_netcdf.o:	extract_netcdf_base.o $(INF_LIB)
@@ -82,3 +86,6 @@ $(INF_LIB):
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90 extract_netcdf_base.f90
+
+allclean: clean
+	$(MAKE) -C $(INF_DIR) clean

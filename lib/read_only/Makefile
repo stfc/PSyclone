@@ -54,6 +54,7 @@ PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 default: read_only_base.o psy_data_base.o
+
 process: read_only_base.f90
 
 .PHONY: default process clean all
