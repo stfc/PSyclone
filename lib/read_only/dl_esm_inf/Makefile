@@ -76,7 +76,7 @@ default: $(LIB_NAME)
 
 
 $(LIB_NAME): $(OBJS)
-	${AR} ${ARFLAGS} ${LIB_NAME} $(OBJS)
+	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
 
 # Dependencies:

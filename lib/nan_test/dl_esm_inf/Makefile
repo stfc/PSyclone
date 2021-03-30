@@ -75,8 +75,8 @@ default: $(LIB_NAME)
 .PHONY: default clean allclean
 
 
-$(LIB_NAME):	$(OBJS)
-	${AR} ${ARFLAGS} ${LIB_NAME} $(OBJS)
+$(LIB_NAME): $(OBJS)
+	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
 
 # Dependencies:

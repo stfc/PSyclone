@@ -56,7 +56,8 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastruc
 
 F90FLAGS += -I$(INF_DIR)
 LIB_NAME = lib_nan_test.a
-LFRIC_LIB = $(INF_DIR)/liblfric.a
+
+INF_LIB = $(INF_DIR)/liblfric.a
 
 # The LFRic NAN checking library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -74,19 +75,18 @@ default: $(LIB_NAME)
 .PHONY: default clean allclean
 
 
-$(LIB_NAME): $(LFRIC_LIB) $(OBJS)
+$(LIB_NAME): $(INF_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
 # Create LFRic infrastructure library if required
-$(LFRIC_LIB):
+$(INF_LIB):
 	$(MAKE) F90="$(F90)" F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
 
 
-# Add all dependencies. The LFRic NAN checkin library extends the
+# Add all dependencies. The LFRic NAN checking library extends the
 # NanTestBase type, which in turn extends the PSyDataBase type.
 # ---------------------------------------------------------------
-nan_test.o: 	  $(INF_DIR)/field_mod.mod nan_test.f90 \
-			 	  nan_test_base.o
+nan_test.o: 	  $(INF_LIB) nan_test.f90 nan_test_base.o
 
 nan_test_base.o: psy_data_base.o
 

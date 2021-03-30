@@ -59,7 +59,7 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastruc
 
 F90FLAGS += -I$(INF_DIR)
 LIB_NAME = lib_read_only.a
-LFRIC_LIB = $(INF_DIR)/liblfric.a
+INF_LIB = $(INF_DIR)/liblfric.a
 
 # The LFRic ReadOnly library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -76,13 +76,13 @@ default: $(LIB_NAME)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(OBJS)
+$(LIB_NAME): $(INF_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
 # Add all dependencies. The LFRic ReadOnly library extends the
 # ReadOnlyBase type, which in turn extends the PSyDataBase type.
 # --------------------------------------------------------------
-read_only.o: 	  $(LFRIC_LIB) read_only.f90 read_only_base.o
+read_only.o: 	  $(INF_LIB) read_only.f90 read_only_base.o
 
 read_only_base.o: psy_data_base.o
 
@@ -102,7 +102,7 @@ read_only_base.f90: $(JINJA_TMPLT_DIR)/read_only_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_only_base.f90
 
 # Create LFRic infrastructure library if required
-$(LFRIC_LIB):
+$(INF_LIB):
 	$(MAKE) -C $(INF_DIR)
 
 clean:
