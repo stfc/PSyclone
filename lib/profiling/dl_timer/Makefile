@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,40 +32,48 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
-.PHONY: default clean allclean
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?=
+# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
+ROOT_LIB_DIR ?= ./../..
+# This variable defaults to the assumed location of the apeg-dl_timer library
+# next to PSyclone installation (can be overwritten to use a different version)
+DL_TIMER_ROOT ?= $(ROOT_LIB_DIR)/../../apeg-dl_timer
+# Location of apeg-dl_timer "include" files
+DL_TIMER_INCLUDE ?= $(DL_TIMER_ROOT)/src
+# -----------------------------------------------------------------------------
 
-# Assume that apeg-dl_timer is 'next' to psyclone
-DL_TIMER_ROOT?=../../../../apeg-dl_timer
-
-DL_TIMER_INCLUDE?=$(DL_TIMER_ROOT)/src
-
-F90?=gfortran
-F90FLAGS?=
 F90FLAGS += -I$(DL_TIMER_INCLUDE)
 
 OBJS = dl_timer.o psy_data_base.o
+
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS=$$(../../get_python.sh) ../../process.py
+PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
-name=dl_timer_psy
-libname=lib$(name).a
+NAME = dl_timer_psy
+LIB_NAME = lib$(NAME).a
 
-default: $(libname)
+default: $(LIB_NAME)
 
-$(libname): $(OBJS)
-	ar rs $(libname) $(OBJS)
+.PHONY: default clean allclean
+
+$(LIB_NAME): $(OBJS)
+	ar rs $(LIB_NAME) $(OBJS)
 
 dl_timer.o:	psy_data_base.o
 
-psy_data_base.f90: ../../psy_data_base.jinja
+psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod \
+	rm -f $(LIB_NAME) $(OBJS) profile_psy_data_mod.mod \
 		psy_data_base_mod.mod psy_data_base.f90
 
 allclean: clean
