@@ -458,6 +458,8 @@
 
 	148) PR #1072 for #1067. Re-structures the LFRic runnable examples.
 
+	149) PR #1177 for #1168. Adds lowering method for the ProfileNode node.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

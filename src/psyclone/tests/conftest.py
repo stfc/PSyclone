@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.configuration import Config
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
 # fixtures defined here are available to all tests
@@ -156,3 +157,9 @@ def kernel_outputdir(tmpdir, monkeypatch):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
     return tmpdir
+
+
+@pytest.fixture(scope="function", name="fort_writer")
+def fixture_fort_writer():
+    '''Create and return a FortranWriter object with default settings.'''
+    return FortranWriter()
