@@ -39,9 +39,12 @@
 ''' This module contains the Assignment node implementation.'''
 
 import re
+from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.nodes.operation import Operation, REDUCTION_OPERATORS
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
@@ -186,16 +189,37 @@ class Assignment(Statement):
     @property
     def is_array_range(self):
         '''
-        returns: True if the lhs of the assignment is an array with at \
-            least one of its dimensions being a range and False \
-            otherwise.
+        returns: True if the lhs of the assignment is an array access with at \
+            least one of its dimensions being a range and False otherwise.
         rtype: bool
 
         '''
-        from psyclone.psyir.nodes import ArrayReference, Range
-        if not isinstance(self.lhs, ArrayReference):
-            return False
-        return any(dim for dim in self.lhs.children if isinstance(dim, Range))
+        # It's not sufficient simply to check for a Range node as that may be
+        # part of an argument to an Operator or function that performs a
+        # reduction and thus returns a scalar result, e.g. a(SUM(b(:))) = 1.0
+        # TODO #658 this check for reductions needs extending to also support
+        # user-implemented functions.
+        if isinstance(self.lhs, (ArrayReference, StructureReference)):
+            ranges = self.lhs.walk(Range)
+            for array_range in ranges:
+                opn = array_range.ancestor(Operation)
+                while opn:
+                    if opn.operator in REDUCTION_OPERATORS:
+                        # The current array range is in an argument to a
+                        # reduction operation so we assume that the result
+                        # is a scalar.
+                        # TODO 658 this could still be a reduction into an
+                        # array (e.g. SUM(a(:,:), 1)) but we need to be able
+                        # to interrogate the type of a PSyIR expression in
+                        # order to be sure. e.g. SUM(a(:,:), mask(:,:)) will
+                        # return a scalar.
+                        break
+                    opn = opn.ancestor(Operation)
+                else:
+                    # We didn't find a reduction operation so there is an
+                    # array range on the LHS
+                    return True
+        return False
 
     def gen_code(self, parent):
         '''F2pygen code generation of an Assignment.
