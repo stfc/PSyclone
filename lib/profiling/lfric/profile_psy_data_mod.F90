@@ -37,26 +37,32 @@
 !> of the LFRic timer code.
 
 module profile_psy_data_mod
+
   type :: profile_PSyDataType
+
      character(:), allocatable :: name
      logical                   :: initialised = .false.
 
   contains
+
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
+
   end type profile_PSyDataType
 
-
 contains
+
   ! ---------------------------------------------------------------------------
   !> The initialisation subroutine. It is not called directly from
   !! any PSyclone created code, so a call to profile_PSyDataInit must be
   !! inserted manually by the developer.
   !!
   subroutine profile_PSyDataInit()
-    use timer_mod, only: init_timer
+
+    use timer_mod, only : init_timer
 
     implicit none
+
     call init_timer()
 
   end subroutine profile_PSyDataInit
@@ -78,7 +84,9 @@ contains
   !!            not used.
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                       num_post_vars)
-    use timer_mod, only: timer
+
+    use timer_mod, only : timer
+
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
@@ -91,6 +99,7 @@ contains
     endif
 
     call timer(this%name)
+
   end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
@@ -99,11 +108,15 @@ contains
   !! @param[in,out] this This PSyData instance.
   ! 
   subroutine PostEnd(this)
-    use timer_mod, only: timer
+
+    use timer_mod, only : timer
+
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
+
     call timer(this%name)
+
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
@@ -111,7 +124,9 @@ contains
   !! all output for the profiling library. Calls ``output_timer`` in the
   !! LFRic timer code.
   subroutine profile_PSyDataShutdown()
+
     use timer_mod, only : output_timer
+
     implicit none
 
     call output_timer()

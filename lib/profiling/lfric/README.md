@@ -17,7 +17,7 @@ the library itself can be used independent of LFRic for any code. The
   included in the LFRic build. In order to compile this library using
   already compiled LFRic code, you can use the following command:
   ```
-  LFRIC_DIR=$SOME_PATH/lfric/trunk/miniapps/gravity_wave/working/utilities/ make libpsy_lfric_timer.a
+  INF_DIR=$SOME_PATH/lfric/trunk/miniapps/gravity_wave/working/utilities/ make libpsy_lfric_timer.a
 
   ```
   This will pick up the module file for the LFRic timer from the

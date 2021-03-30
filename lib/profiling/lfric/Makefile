@@ -32,46 +32,58 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 # This makefile compiles a PSyData profiling wrapper library using the LFRic
 # timer code. It can be used with any code, not only with LFRic.
 
-# This defaults to the infrastructure library included in PSyclone
-LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?= -g
+# This variable defaults to the cut-down version of the LFRic infrastructure
+# distributed with PSyclone (can be overwritten to use a different version)
+INF_DIR ?= ./../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+# -----------------------------------------------------------------------------
 
-F90?=gfortran
-F90FLAGS?=-g
-F90FLAGS += -I$(LFRIC_DIR)
+INF_INC = $(INF_DIR)
+INF_LIB = $(INF_DIR)/liblfric.a
+
+F90FLAGS += -I$(INF_INC)
+LIB_NAME = libpsy_lfric_timer.a
+LIB_NAME_STANDALONE = libpsy_lfric_timer_standalone.a
 
 PSY_OBJS = profile_psy_data_mod.o
-LFRIC_OBJS = timer_mod.o log_mod.o scalar_mod.o mpi_mod.o io_utility_mod.o
-LFRIC_OBJS_FULL_PATH = $(patsubst %,$(LFRIC_DIR)/%,$(LFRIC_OBJS))
+INF_OBJS = timer_mod.o log_mod.o scalar_mod.o mpi_mod.o io_utility_mod.o
+INF_OBJS_FULL_PATH = $(patsubst %,$(INF_DIR)/%,$(INF_OBJS))
 
-.phony: default clean
+.phony: default clean allclean
 
-default: libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a
+default: $(LIB_NAME) $(LIB_NAME_STANDALONE)
 
 # First target: this needs to be linked with the LFRic
 # infrastructure library.
-libpsy_lfric_timer.a: $(PSY_OBJS)
+$(LIB_NAME): $(INF_LIB) $(PSY_OBJS)
 	ar rs $@ $<
 
 # Second target: this library contains the required files
 # from the infrastructure library, and can be used by any
 # application, not only LFRic.
-libpsy_lfric_timer_standalone.a: $(LFRIC_LIB) $(PSY_OBJS)
-	ar rs $@ $(LFRIC_OBJS_FULL_PATH) $(PSY_OBJS)
+$(LIB_NAME_STANDALONE): $(INF_LIB) $(PSY_OBJS)
+	ar rs $@ $(INF_OBJS_FULL_PATH) $(PSY_OBJS)
 
 # Trigger recompilation if the infrastructure lib is changed
-$(OBJS): $(LFRIC_LIB)
+$(OBJS): $(INF_LIB)
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_DIR)
+# Create infrastructure library
+$(INF_LIB):
+	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a *.mod *.o
+	rm -f $(LIB_NAME) $(LIB_NAME_STANDALONE) *.mod *.o
 
+allclean: clean
+	$(MAKE) -C $(INF_DIR) allclean
