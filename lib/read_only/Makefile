@@ -44,7 +44,7 @@
 F90 ?= gfortran
 F90FLAGS ?= 
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-ROOT_LIB_DIR ?= ..
+ROOT_LIB_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
 # The read-only verification library is implemented for int, real and
@@ -60,13 +60,13 @@ process: read_only_base.f90
 .PHONY: default process clean all
 
 all:
-	$(MAKE) -C dl_esm_inf
-	$(MAKE) -C lfric
+	$(MAKE) -C dl_esm_inf F90="$(F90)" F90FLAGS="$(F90FLAGS)"
+	$(MAKE) -C lfric F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
 %.f90:	%.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > $*.f90
 
-psy_data_base.f90:	../psy_data_base.jinja
+psy_data_base.f90:	$(ROOT_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 read_only_base.o: psy_data_base.o
