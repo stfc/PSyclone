@@ -37,12 +37,17 @@
 #
 # It also uses nf-config to query for flags required for NetCDF compilation.
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
+# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
 JINJA_TMPLT_DIR ?= ..
 ROOT_LIB_DIR ?= $(JINJA_TMPLT_DIR)/../..
-# This defaults to the infrastructure library included in PSyclone
+# This variable defaults to the cut-down version of the LFRic infrastructure
+# distributed with PSyclone (can be overwritten to use a different version)
 INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+# -----------------------------------------------------------------------------
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a

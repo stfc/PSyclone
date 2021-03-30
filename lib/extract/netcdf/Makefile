@@ -40,9 +40,13 @@
 # version of the base class (with therefore consistent compiler and
 # jinja settings).
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
+# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
 ROOT_LIB_DIR ?= ../..
+# -----------------------------------------------------------------------------
 
 F90FLAGS += $$(nf-config --fflags)
 

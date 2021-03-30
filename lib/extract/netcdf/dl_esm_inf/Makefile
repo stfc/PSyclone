@@ -37,16 +37,22 @@
 #
 # It also uses nf-config to query for flags required for NetCDF compilation.
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
+# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
 JINJA_TMPLT_DIR ?= ..
 ROOT_LIB_DIR ?= $(JINJA_TMPLT_DIR)/../..
+# This variable defaults to the dl_esm_inf infrastructure library
+# distributed with PSyclone (can be overwritten to use a different version)
 INF_DIR ?= $(ROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference/src
-
-INF_LIB = $(INF_DIR)/src/lib_fd.a
+# -----------------------------------------------------------------------------
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
+
+INF_LIB = $(INF_DIR)/src/lib_fd.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2

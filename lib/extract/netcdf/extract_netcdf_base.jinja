@@ -94,7 +94,7 @@ module extract_netcdf_base_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
 
     implicit none
 
@@ -174,7 +174,7 @@ contains
     !! Returns the return value.
     function CheckError(retval)
 
-        use netcdf, only: nf90_noerr, nf90_strerror
+        use netcdf, only : nf90_noerr, nf90_strerror
 
         implicit none
 
@@ -217,7 +217,7 @@ contains
     subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                         num_post_vars)
 
-        use netcdf, only: nf90_create, NF90_CLOBBER
+        use netcdf, only : nf90_create, NF90_CLOBBER
 
         implicit none
 
