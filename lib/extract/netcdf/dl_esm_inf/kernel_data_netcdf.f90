@@ -34,7 +34,7 @@
 ! Author J. Henrichs, Bureau of Meteorology
 ! Modified I. Kavcic, Met Office
 
-!> This module implements a simple netcdf writer using the PSyData 
+!> This module implements a simple NetCDF writer using the PSyData
 !! interface. It is specific to the dl_esm_inf library used with
 !! the GOcean API.
 !! A Fortran code instrumented with corresponding calls
@@ -45,7 +45,7 @@
 
 module extract_psy_data_mod
 
-    use extract_netcdf_base_mod, only: ExtractNetcdfBaseType
+    use extract_netcdf_base_mod, only : ExtractNetcdfBaseType
 
     implicit none
 
@@ -54,9 +54,10 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractNetcdfBaseType), public:: extract_PsyDataType
+    type, extends(ExtractNetcdfBaseType), public :: extract_PsyDataType
 
     contains
+
         ! The various procedures used
         procedure :: DeclareFieldDouble, WriteFieldDouble
 
@@ -72,23 +73,29 @@ module extract_psy_data_mod
 contains
 
     ! -------------------------------------------------------------------------
-    !> Checks if the return value from a netcdf call indicates an error.
+    !> Checks if the return value from a NetCDF call indicates an error.
     !! If so, print the corresponding error message and aborts the program.
     !! It is typically used as a wrapper around NetCDF calls:
     !! retval = CheckError(nf90_close(ncid))
     !! @param[in] retval The return value from a NetCDF operation.
     !! Returns the return value.
     function CheckError(retval) 
-        use netcdf, only: nf90_noerr, nf90_strerror
+
+        use netcdf, only : nf90_noerr, nf90_strerror
+
         implicit none
+
         integer :: CheckError
         integer, intent(in) :: retval
+
         if (retval /= nf90_noerr) then
             print *,"NetCDF Error:"
             print *,trim(nf90_strerror(retval))
             stop
         endif
+
         CheckError = retval
+
     end function CheckError
 
     ! -------------------------------------------------------------------------
@@ -111,9 +118,12 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldDouble(this, name, value)
+
         use netcdf
         use field_mod, only : r2d_field
+
         implicit none
+
         class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
@@ -133,9 +143,12 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteFieldDouble(this, name, value)
+
         use netcdf
         use field_mod, only : r2d_field
+
         implicit none
+
         class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
@@ -143,6 +156,7 @@ contains
 
         ! Map the field to a simple 2d-array
         call this%WriteArray2dDouble(name, value%data)
+
     end subroutine WriteFieldDouble
 
 end module extract_psy_data_mod

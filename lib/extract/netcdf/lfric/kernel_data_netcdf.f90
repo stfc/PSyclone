@@ -34,7 +34,7 @@
 ! Author J. Henrichs, Bureau of Meteorology
 ! Modified I. Kavcic, Met Office
 
-!> This module implements a simple netcdf writer using the PSyData 
+!> This module implements a simple NetCDF writer using the PSyData
 !! interface. It is specific to the LFRic infrastructure library.
 !! A Fortran code instrumented with corresponding calls
 !! to the PSyData API and linked in with this library will write
@@ -44,7 +44,7 @@
 module extract_psy_data_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32
-    use extract_netcdf_base_mod, only: ExtractNetcdfBaseType, CheckError
+    use extract_netcdf_base_mod,       only : ExtractNetcdfBaseType, CheckError
 
     implicit none
 
@@ -56,21 +56,22 @@ module extract_psy_data_mod
     type, extends(ExtractNetcdfBaseType), public:: extract_PsyDataType
  
     contains
+
         ! The various procedures defined here
         procedure :: DeclareField,       WriteField
         procedure :: DeclareFieldVector, WriteFieldVector
 
         !> Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &
-            DeclareField,       &
-            DeclareFieldVector
+                           DeclareField,         &
+                           DeclareFieldVector
 
         !> The generic interface for providing the value of variables,
         !! which in case of the kernel extraction writes the data to
         !! the NetCDF file.
         generic, public :: ProvideVariable => &
-            WriteField,       &
-            WriteFieldVector
+                           WriteField,        &
+                           WriteFieldVector
 
     end type extract_PSyDataType
 
@@ -85,7 +86,9 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareField(this, name, value)
+
         use field_mod, only : field_type, field_proxy_type
+
         implicit none
 
         class(extract_PsyDataType), intent(inout), target :: this
@@ -96,6 +99,7 @@ contains
 
         value_proxy = value%get_proxy()
         call this%PreDeclareVariable(name, value_proxy%data)
+
     end subroutine DeclareField
 
     ! -------------------------------------------------------------------------
@@ -106,7 +110,9 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteField(this, name, value)
-        use field_mod, only: field_type, field_proxy_type
+
+        use field_mod, only : field_type, field_proxy_type
+
         implicit none
 
         class(extract_PsyDataType), intent(inout), target :: this
@@ -117,6 +123,7 @@ contains
 
         value_proxy = value%get_proxy()
         call this%ProvideVariable(name, value_proxy%data)
+
     end subroutine WriteField
 
     ! -------------------------------------------------------------------------
@@ -127,8 +134,10 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVector(this, name, value)
-        use netcdf, only: nf90_def_dim, nf90_def_var, NF90_REAL8
+
+        use netcdf,    only : nf90_def_dim, nf90_def_var, NF90_REAL8
         use field_mod, only : field_type, field_proxy_type
+
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
@@ -153,15 +162,17 @@ contains
     end subroutine DeclareFieldVector
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes an LFRic field vector to the netcdf file. Each
+    !> This subroutine writes an LFRic field vector to the NetCDF file. Each
     !! component is stored as an individual variable using the corresponding
     !! array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteFieldVector(this, name, value)
-        use netcdf,    only: nf90_put_var
-        use field_mod, only: field_type, field_proxy_type
+
+        use netcdf,    only : nf90_put_var
+        use field_mod, only : field_type, field_proxy_type
+
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
