@@ -43,6 +43,7 @@ module nan_test_psy_data_mod
                                               real32, real64, &
                                               stderr => Error_Unit
     use field_mod, only : field_type
+    use integer_field_mod, only : integer_field_type
     use nan_test_base_mod, only : NANTestBaseType, is_enabled
 
     implicit none
@@ -52,27 +53,33 @@ module nan_test_psy_data_mod
     contains
 
         ! The LFRic-specific procedures defined here
-        procedure :: DeclareField,  ProvideField
-        procedure :: DeclareFieldVector,  ProvideFieldVector
+        procedure :: DeclareField, ProvideField
+        procedure :: DeclareFieldVector, ProvideFieldVector
+        procedure :: DeclareIntField, ProvideIntField
+        procedure :: DeclareIntFieldVector, ProvideIntFieldVector
 
         ! Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &
-            DeclareField,                        &
-            DeclareFieldVector
+                           DeclareField,         &
+                           DeclareFieldVector,   &
+                           DeclareIntField,      &
+                           DeclareIntFieldVector
 
         !> The generic interface for providing the value of variables
         !! (which checks for non normal IEEE numbers)
-        generic, public :: ProvideVariable => &
-            ProvideField,                     &
-            ProvideFieldVector
-                                              
+        generic, public :: ProvideVariable =>  &
+                           ProvideField,       &
+                           ProvideFieldVector, &
+                           ProvideIntField,    &
+                           ProvideIntFieldVector
+
     end type nan_test_PSyDataType
 
 contains
 
     ! -------------------------------------------------------------------------
-    !> This subroutine does not do anything (as declaration is not needed
-    !! for NAN checking).
+    !> This subroutine declares LFRic real-valued fields. No functionality is
+    !! needed for NAN checking, so it is just an empty function.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -87,8 +94,24 @@ contains
     end subroutine DeclareField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine checks whether an LFRic field has NAN or infinite
-    !! floating point values.
+    !> This subroutine declares LFRic integer-valued fields. No functionality
+    !! is needed for NAN checking, so it is just an empty function.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareIntField(this, name, value)
+
+        implicit none
+
+        class(nan_test_PSyDataType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        type(integer_field_type), intent(in) :: value
+
+    end subroutine DeclareIntField
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine checks whether a real-valued LFRic field has NAN or
+    !! infinite floating-point values.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -103,7 +126,7 @@ contains
         type(field_type), intent(in)                       :: value
 
         type(field_proxy_type) :: value_proxy
-        
+
         if (.not. is_enabled) return
 
         if (this%verbosity>1) then
@@ -115,8 +138,37 @@ contains
     end subroutine ProvideField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares LFRic vector fields. No functionality is
-    !! needed here, so it is just an empty function.
+    !> This subroutine checks whether an integer-valued LFRic field has NAN or
+    !! infinite values.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideIntField(this, name, value)
+
+        use integer_field_mod, only : integer_field_type, &
+                                      integer_field_proxy_type
+
+        implicit none
+
+        class(nan_test_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)                           :: name
+        type(integer_field_type), intent(in)               :: value
+
+        type(integer_field_proxy_type) :: value_proxy
+
+        if (.not. is_enabled) return
+
+        if (this%verbosity>1) then
+            write(stderr, *) "PSyData - testing ", name
+        endif
+        value_proxy = value%get_proxy()
+        call this%ProvideVariable(name, value_proxy%data)
+
+    end subroutine ProvideIntField
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine declares LFRic real-valued field vectors. No
+    !! functionality is needed here, so it is just an empty function.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -133,8 +185,26 @@ contains
     end subroutine DeclareFieldVector
 
     ! -------------------------------------------------------------------------
-    !> This subroutine checks whether an LFRic vector field has NAN or
-    !! infinite floating point values.
+    !> This subroutine declares LFRic integer-valued field vectors. No
+    !! functionality is needed here, so it is just an empty function.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareIntFieldVector(this, name, value)
+
+        use integer_field_mod, only : integer_field_type
+
+        implicit none
+
+        class(nan_test_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)                           :: name
+        type(integer_field_type), dimension(:), intent(in) :: value
+
+    end subroutine DeclareIntFieldVector
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine checks whether a real-valued LFRic vector field has NAN
+    !! or infinite floating-point values.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
@@ -161,6 +231,36 @@ contains
         enddo
 
     end subroutine ProvideFieldVector
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine checks whether an integer-valued LFRic vector field has
+    !! NAN or infinite values.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The vector of fields.
+    subroutine ProvideIntFieldVector(this, name, value)
+
+        use integer_field_mod, only : integer_field_type
+
+        implicit none
+
+        class(nan_test_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)                           :: name
+        type(integer_field_type), dimension(:), intent(in) :: value
+
+        integer      :: i
+        character(8) :: index_string   ! Enough for a 6 digit number plus '()'
+
+        if (.not. is_enabled) return
+
+        ! Provide each member of the vector as a normal field. This way
+        ! the NAN/infinite testing will be done for each member individually.
+        do i = 1, size(value, 1)
+            write(index_string, '("(",i0,")")') i
+            call this%ProvideVariable(name//trim(index_string), value(i))
+        enddo
+
+    end subroutine ProvideIntFieldVector
 
     ! -------------------------------------------------------------------------
     
