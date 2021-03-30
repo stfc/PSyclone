@@ -90,9 +90,10 @@ module nan_test_base_mod
 
     implicit none
 
-    type, extends(PSyDataBaseType), public:: NANTestBaseType
+    type, extends(PSyDataBaseType), public :: NANTestBaseType
 
     contains
+
         ! The various procedures used
 
         {# Collect and declare the various procedures for the same generic interface -#}
@@ -117,9 +118,7 @@ module nan_test_base_mod
 
     end type NANTestBaseType
 
-
 contains
-
 
     ! =========================================================================
     ! Jinja created code.
@@ -137,7 +136,9 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideScalar{{name}}(this, name, value)
+
         use, intrinsic :: ieee_arithmetic
+
         implicit none
 
         class(NANTestBaseType), intent(inout), target :: this
@@ -160,6 +161,7 @@ contains
         {% endif %}
 
         call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
+
     end subroutine ProvideScalar{{name}}
 
   {# Now provide the array implementations #}
@@ -180,9 +182,11 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
+
         use, intrinsic :: ieee_arithmetic
 
         implicit none
+
         class(NANTestBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
@@ -212,6 +216,7 @@ contains
         {% endif %}
 
         call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
+
     end subroutine ProvideArray{{dim}}d{{name}}
 
 

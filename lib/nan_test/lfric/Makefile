@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 
 # This Makefile picks up the compiler to use plus any flags from
@@ -41,10 +42,20 @@
 # export F90FLAGS="-O3"
 # export AR=ar
 
-# This variable points to the cut-down version of the LFRic
-# infrastructure distributed with PSyclone. It can be overwritten
-# by the user in order to use a different version.
-LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?=
+# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
+ROOT_LIB_DIR ?= ../..
+JINJA_TMPLT_DIR ?= ..
+# This variable defaults to the cut-down version of the LFRic infrastructure
+# distributed with PSyclone (can be overwritten to use a different version)
+INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+# -----------------------------------------------------------------------------
+
+F90FLAGS += -I$(INF_DIR)
+LIB_NAME = lib_nan_test.a
 
 # The LFRic NAN checking library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -53,12 +64,7 @@ LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # consistent code creation.
 PROCESS_ARGS = -prefix=nan_test_ -types=real,int,double \
 		       -dims=1,2,3,4
-PROCESS=$$(../../get_python.sh) ../../process.py
-
-F90 ?= gfortran
-F90FLAGS ?=
-F90FLAGS += -I$(LFRIC_DIR)
-LIB_NAME = lib_nan_test.a
+PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 OBJS = nan_test.o psy_data_base.o nan_test_base.o
 
@@ -66,17 +72,17 @@ default: $(LIB_NAME)
 .PHONY: default clean
 
 
-$(LIB_NAME): $(LFRIC_DIR)/liblfric.a $(OBJS)
+$(LIB_NAME): $(INF_DIR)/liblfric.a $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
-$(LFRIC_DIR)/liblfric.a:
-	$(MAKE) F90="$(F90)" F90FLAGS="$(F90FLAGS)" -C $(LFRIC_DIR)
+$(INF_DIR)/liblfric.a:
+	$(MAKE) F90="$(F90)" F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
 
 
 # Add all dependencies. The LFRic NAN checkin library extends the
 # NanTestBase type, which in turn extends the PSyDataBase type.
 # ---------------------------------------------------------------
-nan_test.o: 	  $(LFRIC_DIR)/field_mod.mod nan_test.f90 \
+nan_test.o: 	  $(INF_DIR)/field_mod.mod nan_test.f90 \
 			 	  nan_test_base.o
 
 nan_test_base.o: psy_data_base.o
@@ -90,11 +96,14 @@ nan_test_base.o: psy_data_base.o
 # The LFRic NAN checking library is built on the psy-data base library
 # and the NAN-checking base library. So add the rules to process
 # these files to get the plain Fortran files:
-psy_data_base.f90: ../../psy_data_base.jinja Makefile
+psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-nan_test_base.f90: ../nan_test_base.jinja Makefile
+nan_test_base.f90: $(JINJA_TMPLT_DIR)/nan_test_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > nan_test_base.f90
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.*
+
+allclean: clean
+	$(MAKE) -C $(INF_DIR) allclean

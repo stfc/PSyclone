@@ -38,17 +38,19 @@
 !! 
 
 module nan_test_psy_data_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
     use field_mod, only : field_type
     use nan_test_base_mod, only : NANTestBaseType, is_enabled
 
     implicit none
 
-    type, extends(NANTestBaseType), public:: nan_test_PSyDataType
+    type, extends(NANTestBaseType), public :: nan_test_PSyDataType
 
     contains
+
         ! The LFRic-specific procedures defined here
         procedure :: DeclareField,  ProvideField
         procedure :: DeclareFieldVector,  ProvideFieldVector
@@ -74,9 +76,10 @@ contains
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     subroutine DeclareField(this, name, value)
+
         implicit none
+
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(field_type), intent(in) :: value
@@ -90,7 +93,9 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideField(this, name, value)
+
         use field_mod, only : field_type, field_proxy_type
+
         implicit none
 
         class(nan_test_PSyDataType), intent(inout), target :: this
@@ -106,6 +111,7 @@ contains
         endif
         value_proxy = value%get_proxy()
         call this%ProvideVariable(name, value_proxy%data)
+
     end subroutine ProvideField
 
     ! -------------------------------------------------------------------------
@@ -115,12 +121,15 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVector(this, name, value)
+
         use field_mod, only : field_type
+
         implicit none
 
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
         type(field_type), dimension(:), intent(in)         :: value
+
     end subroutine DeclareFieldVector
 
     ! -------------------------------------------------------------------------
@@ -130,7 +139,9 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
     subroutine ProvideFieldVector(this, name, value)
+
         use field_mod, only : field_type
+
         implicit none
 
         class(nan_test_PSyDataType), intent(inout), target :: this
@@ -144,13 +155,13 @@ contains
 
         ! Provide each member of the vector as a normal field. This way
         ! the NAN/infinite testing will be done for each member individually.
-        do i=1, size(value, 1)
+        do i = 1, size(value, 1)
             write(index_string, '("(",i0,")")') i
             call this%ProvideVariable(name//trim(index_string), value(i))
         enddo
+
     end subroutine ProvideFieldVector
 
     ! -------------------------------------------------------------------------
     
 end module nan_test_psy_data_mod
-

@@ -42,18 +42,21 @@
 !! dl_esm_inf-specific field type.
 
 module nan_test_psy_data_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
 
     use nan_test_base_mod, only : NANTestBaseType, nan_test_PSyDataInit, &
                  nan_test_PSyDataShutdown, is_enabled, &
                  nan_test_PSyDataStart, nan_test_PSyDataStop
+
     implicit none
 
     type, extends(NANTestBaseType), public:: nan_test_PSyDataType
 
     contains
+
         ! The various procedures used from this class
         procedure :: DeclareField, ProvideField
 
@@ -79,13 +82,16 @@ contains
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     subroutine DeclareField(this, name, value)
+
         use field_mod, only : r2d_field
+
         implicit none
+
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
+
     end subroutine DeclareField
 
     ! -------------------------------------------------------------------------
@@ -95,14 +101,18 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideField(this, name, value)
+
         use field_mod, only : r2d_field
         use nan_test_base_mod, only : NANTestBaseType
+
         implicit none
+
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
 
         call this%ProvideArray2dDouble(name, value%data)
+
     end subroutine ProvideField
     
 end module nan_test_psy_data_mod
