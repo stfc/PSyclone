@@ -122,6 +122,10 @@ class PSyDataNode(Statement):
             ", ".join(self.add_psydata_class_prefix(symbol) for symbol in
                       PSyDataNode.symbols)
 
+        # TODO #1185. Much of what is done in this constructor should either
+        # be done in a create() method or in the transformation that adds
+        # this node.
+
         # A PSyData node always contains a Schedule
         sched = self._insert_schedule(children)
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
