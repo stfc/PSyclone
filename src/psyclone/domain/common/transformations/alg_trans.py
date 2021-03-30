@@ -54,7 +54,7 @@ class AlgTrans(Transformation):
     def validate(self, node, options=None):
         '''Validate the supplied PSyIR tree.
 
-        :param node: A PSyIR node that is the root of a PSyIR tree.
+        :param node: a PSyIR node that is the root of a PSyIR tree.
         :type node: :py:class:`psyclone.psyir.node.Routine` or \
             :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
@@ -78,8 +78,15 @@ class AlgTrans(Transformation):
                 "".format(self.name))
 
     def apply(self, psyir, options=None):
-        ''' apply transformation to the supplied psyir node '''
+        ''' Apply transformation to the supplied psyir node.
 
+        :param node: a PSyIR node that is the root of a PSyIR tree.
+        :type node: :py:class:`psyclone.psyir.node.Routine` or \
+            :py:class:`psyclone.psyir.node.Container`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        '''
         self.validate(psyir, options=options)
         for call in psyir.walk(Call):
             if call.routine.name.lower() == "invoke":

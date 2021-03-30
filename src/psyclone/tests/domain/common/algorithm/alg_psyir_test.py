@@ -74,7 +74,7 @@ def test_algorithminvokecall_invalid_arg():
            "format is: '[KernelFunctor]*'." in str(info.value))
 
 
-def test_kernellayerref():
+def test_kernelfunctor():
     '''Check that an instance of KernelFunctor class can be created. Also
     check that the symbol method works as expected.
 
@@ -88,7 +88,7 @@ def test_kernellayerref():
     assert klr.parent is None
 
 
-def test_kernellayerref_parent():
+def test_kernelfunctor_parent():
     '''Check that the optional parent argument to a KernelFunctor class
     constructor is stored correctly.
 
@@ -99,7 +99,7 @@ def test_kernellayerref_parent():
     assert klr.parent == parent
 
 
-def test_kernellayerref_invalid_symbol():
+def test_kernelfunctor_invalid_symbol():
     '''Check KernelFunctor raises the expected exception if the type of
     the symbol argument is invalid.
 
@@ -116,12 +116,13 @@ class SubClass(KernelFunctor):
 
 
 @pytest.mark.parametrize("cls", [KernelFunctor, SubClass])
-def test_kernellayerref_create(cls):
+def test_kernelfunctor_create(cls):
     '''Check that the create method of KernelFunctor works as expected.
 
     '''
     symbol = TypeSymbol("hello", StructureType())
     klr = cls.create(symbol, [])
+    # pylint: disable=unidiomatic-typecheck
     assert type(klr) is cls
     assert klr._symbol == symbol
     assert len(klr.children) == 0
@@ -133,7 +134,7 @@ def test_kernellayerref_create(cls):
     assert arg.parent == klr
 
 
-def test_kernellayerref_create_invalid_symbol():
+def test_kernelfunctor_create_invalid_symbol():
     '''Check that the create method of KernelFunctor raises the expected
     exception if the provided symbol argument is not the correct type.
 
@@ -145,7 +146,7 @@ def test_kernellayerref_create_invalid_symbol():
             "but found 'Symbol'." in str(info.value))
 
 
-def test_kernellayerref_create_invalid_args1():
+def test_kernelfunctor_create_invalid_args1():
     '''Check that the create method of KernelFunctor raises the expected
     exception if the provided 'arguments' argument is not a list.
 
@@ -157,7 +158,7 @@ def test_kernellayerref_create_invalid_args1():
             "but found 'str'." in str(info.value))
 
 
-def test_kernellayerref_invalid_args2():
+def test_kernelfunctor_invalid_args2():
     '''Check that the create method of KernelFunctor raises the expected
     exception if its supplied list of children are not the expected
     type (tests _validate_child method and _children_valid_format
@@ -171,7 +172,7 @@ def test_kernellayerref_invalid_args2():
            "format is: '[DataNode]*'." in str(info.value))
 
 
-def test_kernellayerref_node_str():
+def test_kernelfunctor_node_str():
     '''Check the node_str method of the KernelFunctor class.'''
 
     symbol = TypeSymbol("hello", StructureType())
@@ -181,7 +182,7 @@ def test_kernellayerref_node_str():
     assert klr.node_str() == coloredtext+"[name='hello']"
 
 
-def test_kernellayerref_str():
+def test_kernelfunctor_str():
     '''Check the str method of the KernelFunctor class.'''
 
     symbol = TypeSymbol("hello", StructureType())

@@ -40,75 +40,15 @@ Algorithm PSyIR.
 from __future__ import absolute_import
 import pytest
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
-
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import Call, Literal, Reference
+from psyclone.psyir.nodes import Call
 
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.domain.common.transformations import InvokeTrans, AlgTrans
 
-
-def check_reference(klr, name, arg_name):
-    '''Utility routine that checks that the kernel layer metadata
-    reference argument has the expected structure if its argument is a
-    reference.
-
-    :param klr: the KernelFunctor node being tested.
-    :type klr: :py:class:`psyclone.domain.common.algorithm.KernelFunctor`
-    :param str name: the name of the symbol within a reference that is \
-        an argument to klr.
-    :param str arg_name: the name of the argument passed to the ..
-        an argument to klr.
-
-    '''
-    assert type(klr) == KernelFunctor
-    assert klr.symbol.name == name
-    assert len(klr.children) == 1
-    arg = klr.children[0]
-    assert type(arg) == Reference
-    assert arg.symbol.name == arg_name
-
-
-def check_literal(klr, name, arg_value):
-    '''Utility routine that checks that the kernel layer metadata
-    reference argument has the expected structure if its argument is a
-    literal.
-
-    :param klr: the KernelFunctor node being tested.
-    :type klr: :py:class:`psyclone.domain.common.algorithm.KernelFunctor`
-
-    :param str value: the value of the literal that is an argument to klr.
-
-    '''
-    assert type(klr) == KernelFunctor
-    assert klr.symbol.name == name
-    assert len(klr.children) == 1
-    arg = klr.children[0]
-    assert type(arg) == Literal
-    assert arg.value == arg_value
-
-
-def create_psyir(code):
-    ''' Utility to create a PSyIR tree from Fortran code.
-
-    :param str code: Fortran code encoded as a string
-
-    :returns: psyir tree representing the Fortran code
-    :rtype: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
-
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
-
-    return psyir
+from psyclone.tests.domain.common.transformations.invoke_trans_test import \
+    create_psyir
 
 
 def test_init():
@@ -159,7 +99,6 @@ def test_validate_node_error():
     alg_trans.validate(psyir)
 
 
-# applied to all invoke calls, not anything else
 def test_apply():
     '''Test that the apply method behaves as expected.
 

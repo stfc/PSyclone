@@ -55,8 +55,8 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
     _text_name = "LFRicAlgorithmInvokeCall"
 
     def __init__(self, routine, parent=None, description=None):
-        self._description = description
         super(LFRicAlgorithmInvokeCall, self).__init__(routine, parent=parent)
+        self._description = description
 
     @classmethod
     def create(cls, routine, arguments, description=None):

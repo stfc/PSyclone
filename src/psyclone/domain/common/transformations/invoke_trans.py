@@ -198,7 +198,7 @@ class InvokeTrans(Transformation):
                 # Structure constructor mis-parsed as an array
                 # reference.
                 type_symbol = call_arg.symbol
-                args = call_arg.children
+                args = call_arg.pop_all_children()
                 arg_info.append((type_symbol, args))
             else:
                 # CodeBlock containing a structure constructor
@@ -209,7 +209,6 @@ class InvokeTrans(Transformation):
 
             for (type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)
-                args = [arg.copy() for arg in args]
                 kernel_calls.append(KernelFunctor.create(
                     type_symbol, args))
 

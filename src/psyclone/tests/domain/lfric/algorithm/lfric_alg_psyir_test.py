@@ -120,7 +120,7 @@ def test_lfricalgorithminvokecall_node_str():
             in call.node_str(colour=False))
 
 
-def test_lfricbuiltinref():
+def test_lfricbuiltinfunctor():
     '''test that an instance of LFRicBuiltinFunctor class can be created.
 
     '''
@@ -130,7 +130,7 @@ def test_lfricbuiltinref():
     assert lbc._text_name == "LFRicBuiltinFunctor"
 
 
-def test_lfriccodedkernelref():
+def test_lfrickernelfunctor():
     '''test that an instance of LFRicKernelFunctor class can be created.
 
     '''

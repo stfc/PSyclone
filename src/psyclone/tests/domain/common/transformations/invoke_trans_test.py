@@ -49,7 +49,6 @@ from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
     ArrayReference, Literal, BinaryOperation
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, Symbol, \
     StructureType
-from psyclone.psyir.nodes.node import ChildrenList
 
 from psyclone.domain.common.algorithm import \
     AlgorithmInvokeCall, KernelFunctor
@@ -69,11 +68,11 @@ def check_reference(klr, name, arg_name):
         an argument to klr.
 
     '''
-    assert type(klr) == KernelFunctor
+    assert isinstance(klr, KernelFunctor)
     assert klr.symbol.name == name
     assert len(klr.children) == 1
     arg = klr.children[0]
-    assert type(arg) == Reference
+    assert isinstance(arg, Reference)
     assert arg.symbol.name == arg_name
 
 
@@ -88,11 +87,11 @@ def check_literal(klr, name, arg_value):
     :param str value: the value of the literal that is an argument to klr.
 
     '''
-    assert type(klr) == KernelFunctor
+    assert isinstance(klr, KernelFunctor)
     assert klr.symbol.name == name
     assert len(klr.children) == 1
     arg = klr.children[0]
-    assert type(arg) == Literal
+    assert isinstance(arg, Literal)
     assert arg.value == arg_value
 
 
@@ -171,6 +170,7 @@ def test_specialise_symbol():
     # Check that a Symbol is specialised
     InvokeTrans._specialise_symbol(symbol)
     assert isinstance(symbol, TypeSymbol)
+    # pylint: disable=no-member
     assert isinstance(symbol.datatype, StructureType)
 
     # Check that something that is not a symbol is ignored
@@ -298,7 +298,7 @@ def test_apply_arrayref():
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
-    assert type(invoke) == AlgorithmInvokeCall
+    assert isinstance(invoke, AlgorithmInvokeCall)
     assert len(invoke.children) == 1
     check_reference(invoke.children[0], "kern", "field")
 
@@ -323,7 +323,7 @@ def test_apply_codeblock():
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
-    assert type(invoke) == AlgorithmInvokeCall
+    assert isinstance(invoke, AlgorithmInvokeCall)
     assert len(invoke.children) == 1
     check_literal(invoke.children[0], "kern", "0.0")
 
@@ -348,7 +348,7 @@ def test_apply_codeblocks():
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
-    assert type(invoke) == AlgorithmInvokeCall
+    assert isinstance(invoke, AlgorithmInvokeCall)
     assert len(invoke.children) == 2
     check_literal(invoke.children[0], "kern", "0.0")
     check_literal(invoke.children[1], "kern", "1.0")
@@ -378,7 +378,7 @@ def test_apply_mixed():
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
-    assert type(invoke) == AlgorithmInvokeCall
+    assert isinstance(invoke, AlgorithmInvokeCall)
     assert len(invoke.children) == 4
     check_literal(invoke.children[0], "kern", "0.0")
     check_literal(invoke.children[1], "kern", "1.0")
@@ -409,18 +409,18 @@ def test_apply_expr():
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
-    assert type(invoke) == AlgorithmInvokeCall
+    assert isinstance(invoke, AlgorithmInvokeCall)
     assert len(invoke.children) == 2
 
     klr = invoke.children[0]
-    assert type(klr) == KernelFunctor
+    assert isinstance(klr, KernelFunctor)
     assert klr.symbol.name == "kern"
     assert len(klr.children) == 1
     arg = klr.children[0]
     assert isinstance(arg, BinaryOperation)
 
     klr = invoke.children[1]
-    assert type(klr) == KernelFunctor
+    assert isinstance(klr, KernelFunctor)
     assert klr.symbol.name == "kern"
     assert len(klr.children) == 2
     arg = klr.children[0]

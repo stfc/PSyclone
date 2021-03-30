@@ -134,7 +134,7 @@ class LFRicInvokeTrans(InvokeTrans):
             arg_info = []
             if isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference
-                args = call_arg.children
+                args = call_arg.pop_all_children()
                 name = call_arg.name
                 if name in builtins:
                     node_type = LFRicBuiltinFunctor
@@ -160,8 +160,7 @@ class LFRicInvokeTrans(InvokeTrans):
                         arg_info.append((node_type, type_symbol, args))
 
             for (node_type, type_symbol, args) in arg_info:
-                InvokeTrans._specialise_symbol(type_symbol)
-                args = [arg.copy() for arg in args]
+                self._specialise_symbol(type_symbol)
                 calls.append(node_type.create(type_symbol, args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
