@@ -47,17 +47,18 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-ROOT_LIB_DIR ?= ../..
-JINJA_TMPLT_DIR ?= ..
+ROOT_LIB_DIR ?= ./../..
+JINJA_TMPLT_DIR ?= ./..
 # This variable defaults to the cut-down version of the LFRic infrastructure
 # distributed with PSyclone (can be overwritten to use a different version)
 INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # -----------------------------------------------------------------------------
 
-F90FLAGS += -I$(INF_DIR)
-LIB_NAME = lib_nan_test.a
-
+INF_INC = $(INF_DIR)
 INF_LIB = $(INF_DIR)/liblfric.a
+
+F90FLAGS += -I$(INF_INC)
+LIB_NAME = lib_nan_test.a
 
 # The LFRic NAN checking library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -74,14 +75,12 @@ default: $(LIB_NAME)
 
 .PHONY: default clean allclean
 
-
 $(LIB_NAME): $(INF_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
-# Create LFRic infrastructure library if required
+# Create LFRic infrastructure library
 $(INF_LIB):
-	$(MAKE) F90="$(F90)" F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
-
+	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
 # Add all dependencies. The LFRic NAN checking library extends the
 # NanTestBase type, which in turn extends the PSyDataBase type.
@@ -89,7 +88,6 @@ $(INF_LIB):
 nan_test.o: 	  $(INF_LIB) nan_test.f90 nan_test_base.o
 
 nan_test_base.o: psy_data_base.o
-
 
 # Rules for file creation:
 # ------------------------

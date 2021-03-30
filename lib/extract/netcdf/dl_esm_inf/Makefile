@@ -74,7 +74,6 @@ extract_netcdf_base.o:	psy_data_base.o
 psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
-
 extract_netcdf_base.f90: $(JINJA_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
 

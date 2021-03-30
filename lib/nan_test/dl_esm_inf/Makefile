@@ -49,8 +49,8 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-ROOT_LIB_DIR ?= ../..
-JINJA_TMPLT_DIR ?= ..
+ROOT_LIB_DIR ?= ./../..
+JINJA_TMPLT_DIR ?= ./..
 # This variable defaults to the dl_esm_inf infrastructure library
 # distributed with PSyclone (can be overwritten to use a different version)
 INF_DIR ?= $(ROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference
@@ -74,10 +74,8 @@ default: $(LIB_NAME)
 
 .PHONY: default clean allclean
 
-
-$(LIB_NAME): $(OBJS)
+$(LIB_NAME): $(INF_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
-
 
 # Dependencies:
 # -------------
@@ -86,7 +84,6 @@ $(LIB_NAME): $(OBJS)
 nan_test.o: $(INF_LIB) nan_test.f90 nan_test_base.o
 
 nan_test_base.o: psy_data_base.o
-
 
 # Rules for file creation
 # -----------------------
@@ -104,7 +101,7 @@ nan_test_base.f90: $(JINJA_TMPLT_DIR)/nan_test_base.jinja Makefile
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90=$(F90)
+	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.*
