@@ -3842,14 +3842,15 @@ class DynMeshes(object):
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
                         kind=api_config.default_kind["integer"],
-                        entity_decls=[kern.cell_map + "(:,:) => null()"]))
+                        entity_decls=[kern.cell_map + "(:,:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=[kern.ncell_fine,
-                                             kern.ncellpercell]))
+                                             kern.ncellpercellx,
+                                             kern.ncellpercelly]))
             # Declare variables to hold the colourmap information if required
             if kern.colourmap:
                 parent.add(
@@ -3991,13 +3992,21 @@ class DynMeshes(object):
                                                 dig.fine.ref_name(),
                                                 "get_ncell()"])))
 
-            # Number of fine cells per coarse cell.
-            if dig.ncellpercell not in initialised:
-                initialised.append(dig.ncellpercell)
+            # Number of fine cells per coarse cell in x.
+            if dig.ncellpercellx not in initialised:
+                initialised.append(dig.ncellpercellx)
                 parent.add(
-                    AssignGen(parent, lhs=dig.ncellpercell,
+                    AssignGen(parent, lhs=dig.ncellpercellx,
                               rhs=dig.mmap +
-                              "%get_ntarget_cells_per_source_cell()"))
+                              "%get_ntarget_cells_per_source_x()"))
+
+            # Number of fine cells per coarse cell in y.
+            if dig.ncellpercelly not in initialised:
+                initialised.append(dig.ncellpercelly)
+                parent.add(
+                    AssignGen(parent, lhs=dig.ncellpercelly,
+                              rhs=dig.mmap +
+                              "%get_ntarget_cells_per_source_y()"))
 
             # Colour map for the coarse mesh (if required)
             if dig.colourmap:
@@ -4045,9 +4054,12 @@ class DynInterGrid(object):
         # Generate name for ncell variables
         self.ncell_fine = symtab.symbol_from_tag(
             "ncell_{0}".format(fine_arg.name)).name
-        # No. of fine cells per coarse cell
-        self.ncellpercell = symtab.symbol_from_tag(
-            "ncpc_{0}_{1}".format(fine_arg.name, coarse_arg.name)).name
+        # No. of fine cells per coarse cell in x
+        self.ncellpercellx = symtab.symbol_from_tag(
+            "ncpc_{0}_{1}_x".format(fine_arg.name, coarse_arg.name)).name
+        # No. of fine cells per coarse cell in y
+        self.ncellpercelly = symtab.symbol_from_tag(
+            "ncpc_{0}_{1}_y".format(fine_arg.name, coarse_arg.name)).name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
         self.cell_map = symtab.symbol_from_tag(base_name).name
