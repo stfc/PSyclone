@@ -90,7 +90,9 @@ contains
   !> call to this subroutine. But the simple timing library will
   !> actually call this function itself if it has not been called previously.
   subroutine profile_PSyDataInit()
+
     use psy_data_base_mod, only : base_PSyDataInit => profile_PsyDataInit
+
     implicit none
 
     call base_PSyDataInit()
@@ -128,7 +130,7 @@ contains
 
     if (.not. is_enabled) return
 
-    call this%PSyDataBaseType%PreStart(module_name, region_name,  &
+    call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                        num_pre_vars, num_post_vars)
     ! Note that the actual initialisation of "this"
     ! happens in PostEnd, which is when min, sum and
@@ -143,6 +145,7 @@ contains
   !> to the PreStart call.
   !> @param[in,out] this: This PSyData instance.
   subroutine PostEnd(this)
+
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
@@ -176,14 +179,18 @@ contains
     endif
 
     call this%PSyDataBaseType%PostEnd()
+
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
   !> The finalise function prints the results. This subroutine must be called,
   !> otherwise no results will be printed.
   subroutine profile_PSyDataShutdown()
+
     use psy_data_base_mod, only : base_PSyDataShutdown => profile_PsyDataShutdown
+
     implicit none
+
     integer                    :: i
     integer                    :: max_len, this_len
     type(profile_PSyDataType), pointer :: p
@@ -212,8 +219,8 @@ contains
 
     print *
     print *,"==========================================="
-    print *, heading, spaces(1:max_len - len(heading)),                       &
-             tab, tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab,   &
+    print *, heading, spaces(1:max_len - len(heading)),                          &
+             tab, tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab, &
              "average", tab, tab, tab, "max"
     do i=1, used_entries
        p => all_data(i)%p    ! to abbreviate code a bit
@@ -224,6 +231,7 @@ contains
                 p%min, tab, p%sum/p%count, tab, p%max
     end do
     print *,"==========================================="
+
   end subroutine profile_PSyDataShutdown
 
 end module profile_psy_data_mod
