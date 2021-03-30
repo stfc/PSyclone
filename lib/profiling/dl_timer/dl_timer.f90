@@ -42,8 +42,8 @@ module profile_psy_data_mod
                                 profile_PSyDataStop, is_enabled
 
   type, extends(PSyDataBaseType) :: profile_PSyDataType
-      integer                    :: timer_index
-      logical                    :: registered = .false.
+      integer                   :: timer_index
+      logical                   :: registered = .false.
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
