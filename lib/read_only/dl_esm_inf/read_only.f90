@@ -44,19 +44,21 @@ module read_only_verify_psy_data_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
 
     use read_only_base_mod, only : ReadOnlyBaseType, read_only_verify_PSyDataInit, &
                  read_only_verify_PSyDataShutdown, is_enabled, &
                  read_only_verify_PSyDataStart, read_only_verify_PSyDataStop
+
     implicit none
 
     !> This is the data type that stores a checksum for each read-only
     !! variable. A static instance of this type is created for each
     !! instrumented region with PSyclone.
-    type, extends(ReadOnlyBaseType), public:: read_only_verify_PSyDataType
+    type, extends(ReadOnlyBaseType), public :: read_only_verify_PSyDataType
 
     contains
+
         ! The various procedures used from this class
         procedure :: DeclareFieldDouble, ProvideFieldDouble
         procedure :: Abort
@@ -80,12 +82,16 @@ contains
     !! `abort` function.
     !! @param[in] message Error message to be displayed (string).
     subroutine Abort(this, message)
-        use gocean_mod, only: gocean_stop
+
+        use gocean_mod, only : gocean_stop
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*) :: message
 
         call gocean_stop(message)
+
     end subroutine Abort
 
     ! -------------------------------------------------------------------------
@@ -96,12 +102,17 @@ contains
     !! @param[in] value The value of the variable.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     subroutine DeclareFieldDouble(this, name, value)
+
         use field_mod, only : r2d_field
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
+
         this%next_var_index = this%next_var_index + 1
+
     end subroutine DeclareFieldDouble
 
     ! -------------------------------------------------------------------------
@@ -111,13 +122,16 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideFieldDouble(this, name, value)
+
         use field_mod, only : r2d_field
-        use read_onlY_base_mod, only: ComputeChecksum
+        use read_onlY_base_mod, only : ComputeChecksum
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
-        integer(kind=int64):: cksum
+        integer(kind=int64) :: cksum
 
         this%next_var_index = this%next_var_index + 1
 
@@ -138,7 +152,9 @@ contains
         else
             this%checksums(this%next_var_index) = cksum
         endif
+
         this%next_var_index = this%next_var_index + 1
+
     end subroutine ProvideFieldDouble
     
 end module read_only_verify_psy_data_mod

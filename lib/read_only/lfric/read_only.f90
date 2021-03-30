@@ -42,7 +42,7 @@ module read_only_verify_psy_data_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
     use field_mod, only : field_type
     use read_only_base_mod, only : ReadOnlyBaseType, is_enabled
 
@@ -52,9 +52,10 @@ module read_only_verify_psy_data_mod
     !! variable. A static instance of this type is created for each
     !! instrumented region with PSyclone.
 
-    type, extends(ReadOnlyBaseType), public:: read_only_verify_PSyDataType
+    type, extends(ReadOnlyBaseType), public :: read_only_verify_PSyDataType
 
     contains
+
         ! The LFRic-specific procedures defined here
         procedure :: DeclareFieldDouble,  ProvideFieldDouble
         procedure :: DeclareFieldVectorDouble,  ProvideFieldVectorDouble
@@ -69,7 +70,7 @@ module read_only_verify_psy_data_mod
         !! the checksum (before a kernel), or compares a checksum (after
         !! a kernel call).
         generic, public :: ProvideVariable => &
-            ProvideFieldDouble,       &
+            ProvideFieldDouble, &
             ProvideFieldVectorDouble
                                               
     end type read_only_verify_PSyDataType
@@ -84,11 +85,15 @@ contains
     !! @param[in] value The value of the variable.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     subroutine DeclareFieldDouble(this, name, value)
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(field_type), intent(in) :: value
+
         this%next_var_index = this%next_var_index + 1
+
     end subroutine DeclareFieldDouble
 
     ! -------------------------------------------------------------------------
@@ -100,9 +105,12 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideFieldDouble(this, name, value)
+
         use field_mod, only : field_type, field_proxy_type
-        use read_only_base_mod, only: ComputeChecksum
+        use read_only_base_mod, only : ComputeChecksum
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(field_type), intent(in) :: value
@@ -129,7 +137,9 @@ contains
         else
             this%checksums(this%next_var_index) = cksum
         endif
+
         this%next_var_index = this%next_var_index + 1
+
     end subroutine ProvideFieldDouble
 
     ! -------------------------------------------------------------------------
@@ -140,11 +150,15 @@ contains
     !! @param[in] value The value of the variable.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     subroutine DeclareFieldVectorDouble(this, name, value)
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(field_type), dimension(:), intent(in) :: value
+
         this%next_var_index = this%next_var_index + size(value, 1)
+
     end subroutine DeclareFieldVectorDouble
 
     ! -------------------------------------------------------------------------
@@ -157,13 +171,16 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
     subroutine ProvideFieldVectorDouble(this, name, value)
+
         use field_mod, only : field_type, field_proxy_type
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(field_type), dimension(:), intent(in) :: value
         type(field_proxy_type) :: value_proxy
-        integer(kind=int64):: cksum
+        integer(kind=int64) :: cksum
         integer :: i
         ! Enough for a 6 digit number plus '()'
         character(8) :: index_string
@@ -177,9 +194,9 @@ contains
             write(index_string, '("(",i0,")")') i
             call this%ProvideFieldDouble(name//trim(index_string), value(i))
         enddo
+
     end subroutine ProvideFieldVectorDouble
 
     ! -------------------------------------------------------------------------
     
 end module read_only_verify_psy_data_mod
-

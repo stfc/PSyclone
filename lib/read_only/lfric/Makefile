@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 
 # This Makefile picks up the compiler to use plus any flags from
@@ -41,14 +42,24 @@
 # export F90FLAGS="-O3"
 # export AR=ar
 
-#TODO: #813 keeps track of adding enough files from LFRic to PSyclone to be
-#      able to compile this library without the need of external
-#      files (or #745, which will try to create a stand-alone example).
+# TODO: #813 keeps track of adding enough files from LFRic to PSyclone to be
+#       able to compile this library without the need of external files.
 
-# This directory points to an external, compiled version of the LFRic,
-# which is required to find the module files when compiling this library:
-LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure/
-LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?=
+# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
+ROOT_LIB_DIR ?= ../..
+JINJA_TMPLT_DIR ?= ..
+# This variable defaults to the cut-down version of the LFRic infrastructure
+# distributed with PSyclone (can be overwritten to use a different version)
+INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+# -----------------------------------------------------------------------------
+
+F90FLAGS += -I$(INF_DIR)
+LIB_NAME = lib_read_only.a
+LFRIC_LIB=$(INF_DIR)/liblfric.a
 
 # The LFRic ReadOnly library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -57,18 +68,13 @@ LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
 # consistent code creation.
 PROCESS_ARGS = -prefix=read_only_verify_ -types=real,int,double \
 		       -dims=1,2,3,4
-PROCESS=$$(../../get_python.sh) ../../process.py
-
-F90 ?= gfortran
-F90FLAGS ?=
-F90FLAGS += -I$(LFRIC_DIR)
-LIB_NAME = lib_read_only.a
+PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 OBJS = read_only.o psy_data_base.o read_only_base.o
 
 default: $(LIB_NAME)
-.PHONY: default clean
 
+.PHONY: default clean allclean
 
 $(LIB_NAME): $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
@@ -89,15 +95,18 @@ read_only_base.o: psy_data_base.o
 # `-generic-declare`. It also uses the `provideXXX` functions
 # implemented in `read_only_base`, which are added with the
 # `-generic-provide` parameter.
-psy_data_base.f90: ../../psy_data_base.jinja Makefile
+psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-read_only_base.f90: ../read_only_base.jinja Makefile
+read_only_base.f90: $(JINJA_TMPLT_DIR)/read_only_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_only_base.f90
 
 # Create LFRic infrastructure library if required
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_DIR)
+	$(MAKE) -C $(INF_DIR)
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*
+
+allclean: clean
+	$(MAKE) -C $(INF_DIR) allclean

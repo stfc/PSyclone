@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,21 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # This Makefile just creates the Fortran base class for all read-only
 # wrappers from the jinja template. The compile functionality it offers is
 # only meant for testing, each library should compile its own version
 # of the base class (with therefore consistent compiler settings).
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?= 
+# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
+ROOT_LIB_DIR ?= ..
+# -----------------------------------------------------------------------------
 
 # The read-only verification library is implemented for int, real and
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 		       -dims=2
-PROCESS=$$(../get_python.sh) ../process.py
+PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 default: read_only_base.o psy_data_base.o
 process: read_only_base.f90

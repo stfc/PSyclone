@@ -85,7 +85,7 @@ module read_only_base_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
     use psy_data_base_mod, only : PSyDataBaseType, &
         read_only_verify_PSyDataShutdown, &
         read_only_verify_PSyDataInit, is_enabled, &
@@ -97,7 +97,8 @@ module read_only_base_mod
     !! variable. A static instance of this type is created for each
     !! instrumented region with PSyclone.
 
-    type, extends(PSyDataBaseType), public:: ReadOnlyBaseType
+    type, extends(PSyDataBaseType), public :: ReadOnlyBaseType
+
         !> This field stores a 64-bit integer checksum for each
         !! variable.
         integer(kind=int64), dimension(:), allocatable :: checksums
@@ -107,6 +108,7 @@ module read_only_base_mod
         logical :: verify_checksums
 
     contains
+
         ! The various procedures used
         procedure :: PreStart, PreEndDeclaration
         procedure :: PostStart
@@ -136,6 +138,7 @@ module read_only_base_mod
         generic, public :: ProvideVariable => &
             {{all_provides|join(", &\n"+indent) }}
         {% endif %}
+
     end type ReadOnlyBaseType
 
     {# Create a generic interface for all ComputeChecksum functions #}
@@ -173,13 +176,16 @@ contains
     !!            after this region.
     subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                         num_post_vars)
+
         implicit none
+
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: module_name, region_name
         integer, intent(in)      :: num_pre_vars, num_post_vars
 
         character(1) :: verbose
         integer :: status
+
         call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                            num_pre_vars, num_post_vars)
         this%verify_checksums = .false.
@@ -200,7 +206,9 @@ contains
     !! sure that the next variable index is starting at 1 again.
     !! @param[in,out] this The instance of the ReadOnlyBaseType.
     subroutine PreEndDeclaration(this)
+
         implicit none
+
         class(ReadOnlyBaseType), intent(inout), target :: this
         integer :: err
 
@@ -218,7 +226,9 @@ contains
                 call this%Abort("Out of memory")
             endif
         endif
+
         call this%PSyDataBaseType%PreEndDeclaration()
+
     end subroutine PreEndDeclaration
 
     ! -------------------------------------------------------------------------
@@ -230,7 +240,9 @@ contains
     !! again.
     !! @param[in,out] this The instance of the ReadOnlyBaseType.
     subroutine PostStart(this)
+
         implicit none
+
         class(ReadOnlyBaseType), intent(inout), target :: this
 
         call this%PSyDataBaseType%PostStart()
@@ -238,6 +250,7 @@ contains
         ! with the previously computed checksums
         this%next_var_index = 1
         this%verify_checksums = .true.
+
     end subroutine PostStart
 
 
@@ -263,7 +276,9 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideScalar{{name}}(this, name, value)
+
         implicit none
+
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, intent(in)     :: value
@@ -312,7 +327,9 @@ contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
+
         call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
+
     end subroutine ProvideScalar{{name}}
 
   {# Now provide the array implementations #}
@@ -328,7 +345,9 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
+
         implicit none
+
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
@@ -352,7 +371,9 @@ contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
+
         call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
+
     end subroutine ProvideArray{{dim}}d{{name}}
 
     {# Now declare the checksum computing helper functions. #}
@@ -364,7 +385,9 @@ contains
     !> This function computes a 64-bit integer checksum for a {{dim}}d
     !! {{type}} Fortran array.
     function ComputeChecksum{{dim}}d{{name}}(field) result(checksum)
+
         implicit none
+
         {{type}}, dimension({{DIMENSION}}) :: field
 
         integer :: {{vars}}
@@ -392,6 +415,7 @@ contains
         {% for j in range(dim, 0, -1) %}
         {{" "*3*(j-1)}}enddo
         {% endfor %}
+
     end function ComputeChecksum{{dim}}d{{name}}
 
   {% endfor %}   {# for dim #}
