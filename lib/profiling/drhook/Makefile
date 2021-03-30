@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,32 +32,38 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
-.PHONY: clean allclean
-
-# Assume that drhook is 'next' to psyclone
-DRHOOK_ROOT?=../../../../drhook
-
-DRHOOK_INCLUDE?=$(DRHOOK_ROOT)/drhook/include
-DRHOOK_MODULES?=$(DRHOOK_ROOT)/build/module
-
-F90?=gfortran
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
 F90FLAGS ?=
+# This variable defaults to the assumed location of the DrHook directory
+# next to PSyclone installation (can be overwritten to use a different version)
+DRHOOK_ROOT ?= ./../../../../drhook
+# Location of DrHook "include" files
+DRHOOK_INCLUDE ?= $(DRHOOK_ROOT)/drhook/include
+DRHOOK_MODULES ?= $(DRHOOK_ROOT)/build/module
+# -----------------------------------------------------------------------------
+
 F90FLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
+
 OBJS = drhook_psy.o
 
-name = drhook_psy
-libname=lib$(name).a
+NAME = drhook_psy
+LIB_NAME = lib$(NAME).a
 
-default: $(libname)
+default: $(LIB_NAME)
 
-$(libname): $(OBJS)
-	ar rs $(libname) $(OBJS)
+.PHONY: default clean allclean
+
+$(LIB_NAME): $(OBJS)
+	ar rs $(LIB_NAME) $(OBJS)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod
+	rm -f $(LIB_NAME) $(OBJS) profile_psy_data_mod.mod
 
 allclean: clean

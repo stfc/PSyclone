@@ -54,8 +54,8 @@ module profile_psy_data_mod
       procedure :: PreStart, PostEnd
   end type profile_PSyDataType
 
-
 contains
+
   ! ---------------------------------------------------------------------------
   !> The initialisation subroutine. It is not called directly from
   !! any PSyclone created code, so a call to profile_PSyDataInit must be
@@ -81,7 +81,9 @@ contains
 
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                       num_post_vars)
+
     use yomhook, only : lhook, dr_hook
+
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
@@ -94,7 +96,8 @@ contains
       this%name = module_name//":"//region_name
       this%initialised = .true.
     endif
-    if(lhook) call dr_hook(this%name, 0, this%zhook_handle)
+    if (lhook) call dr_hook(this%name, 0, this%zhook_handle)
+
   end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
@@ -103,12 +106,15 @@ contains
   !! this: This PSyData instance.
   ! 
   subroutine PostEnd(this)
+
     use yomhook, only : lhook, dr_hook
+
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
     
-    if(lhook) call dr_hook(this%name, 1, this%zhook_handle)
+    if (lhook) call dr_hook(this%name, 1, this%zhook_handle)
+
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
@@ -120,15 +126,21 @@ contains
   ! ---------------------------------------------------------------------------
   !> Enable DrHook by setting the lhook variable in DrHook
   subroutine profile_PSyDataStart()
+
     use yomhook, only : lhook
+
     lhook = .true.
+
   end subroutine profile_PSyDataStart
 
   ! ---------------------------------------------------------------------------
   !> Disable DrHook by setting the lhook variable in DrHook
   subroutine profile_PSyDataStop()
+
     use yomhook, only : lhook
+
     lhook = .false.
+
   end subroutine profile_PSyDataStop
 
 end module profile_psy_data_mod
