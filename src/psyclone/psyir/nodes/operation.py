@@ -393,3 +393,14 @@ class NaryOperation(Operation):
         nary_op = NaryOperation(oper)
         nary_op.children = children
         return nary_op
+
+
+# TODO #658 this can be removed once we have support for determining the
+# type of a PSyIR expression.
+#: Those operators that perform a reduction on an array.
+REDUCTION_OPERATORS = [UnaryOperation.Operator.SUM,
+                       BinaryOperation.Operator.SUM,
+                       NaryOperation.Operator.SUM]
+
+# For automatic API documentation generation
+__all__ = ["Operation", "UnaryOperation", "BinaryOperation", "NaryOperation"]
