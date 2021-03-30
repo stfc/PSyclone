@@ -43,16 +43,17 @@ F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
 JINJA_TMPLT_DIR ?= ..
-ROOT_LIB_DIR ?= $(JINJA_TMPLT_DIR)/../..
+ROOT_LIB_DIR ?= ../../..
 # This variable defaults to the dl_esm_inf infrastructure library
 # distributed with PSyclone (can be overwritten to use a different version)
-INF_DIR ?= $(ROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference/src
+INF_DIR ?= $(ROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference
 # -----------------------------------------------------------------------------
 
-F90FLAGS += $$(nf-config --fflags) -I$(INF_DIR)
-LIB_NAME = lib_kernel_data_netcdf.a
-
+INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
+
+F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
+LIB_NAME = lib_kernel_data_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2
@@ -64,7 +65,7 @@ default: $(LIB_NAME)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(OBJS)
+$(LIB_NAME): $(INF_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
 kernel_data_netcdf.o:	extract_netcdf_base.o $(INF_LIB)
@@ -79,7 +80,7 @@ extract_netcdf_base.f90: $(JINJA_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90=$(F90)
+	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<

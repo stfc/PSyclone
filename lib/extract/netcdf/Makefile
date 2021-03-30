@@ -63,8 +63,8 @@ process: extract_netcdf_base.f90
 .PHONY: default process clean all
 
 all:
-	$(MAKE) -C dl_esm_inf
-	$(MAKE) -C lfric
+	$(MAKE) -C dl_esm_inf F90="$(F90)" F90FLAGS="$(F90FLAGS)"
+	$(MAKE) -C lfric F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
 
 # The dependencies

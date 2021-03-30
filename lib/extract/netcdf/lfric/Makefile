@@ -43,15 +43,17 @@ F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
 JINJA_TMPLT_DIR ?= ..
-ROOT_LIB_DIR ?= $(JINJA_TMPLT_DIR)/../..
+ROOT_LIB_DIR ?= ../../..
 # This variable defaults to the cut-down version of the LFRic infrastructure
 # distributed with PSyclone (can be overwritten to use a different version)
 INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # -----------------------------------------------------------------------------
 
-F90FLAGS += $$(nf-config --fflags) -I$(INF_DIR)
+INF_INC = $(INF_DIR)
+INF_LIB = $(INF_DIR)/liblfric_netcdf.a
+
+F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
 LIB_NAME = lib_kernel_data_netcdf.a
-LFRIC_LIB = $(INF_DIR)/liblfric_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=1,2,3,4
@@ -63,12 +65,12 @@ default: $(LIB_NAME)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(LFRIC_LIB) $(OBJS)
+$(LIB_NAME): $(INF_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
 # Create LFRic infrastructure library if required
-$(LFRIC_LIB):
-	$(MAKE) F90="$(F90)" F90FLAGS="$(F90FLAGS)" -C $(INF_DIR) netcdf
+$(INF_LIB):
+	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)" netcdf
 
 
 kernel_data_netcdf.o:	extract_netcdf_base.o
