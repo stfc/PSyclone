@@ -37,6 +37,8 @@
 !> profiling API.
 module profile_psy_data_mod
 
+  implicit none
+
   use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
                                 profile_PSyDataStop, is_enabled
 
@@ -57,7 +59,8 @@ module profile_psy_data_mod
      logical                   :: initialised = .false.
   contains
       ! The profiling API uses only the two following calls:
-      procedure :: PreStart, PostEnd
+      procedure :: PreStart
+      procedure :: PostEnd
   end type profile_PSyDataType
 
   ! --------------------------------------------------------
@@ -152,7 +155,7 @@ contains
 
     integer :: count, count_rate
     real *4 :: now, duration
-    
+
     if (.not. is_enabled) return
     call system_clock(count, count_rate)
     now = real(count) / count_rate

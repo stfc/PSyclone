@@ -38,6 +38,8 @@
 
 module profile_psy_data_mod
 
+  implicit none
+
   use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
                                 profile_PSyDataStop, is_enabled
 
@@ -46,7 +48,8 @@ module profile_psy_data_mod
       logical                   :: registered = .false.
   contains
       ! The profiling API uses only the two following calls:
-      procedure :: PreStart, PostEnd
+      procedure :: PreStart
+      procedure :: PostEnd
   end type profile_PSyDataType
 
 contains
@@ -92,7 +95,7 @@ contains
 
     if ( .not. this%registered) then
        call this%PSyDataBaseType%PreStart(module_name, region_name, &
-                                          num_pre_vars, num_post_vars) 
+                                          num_pre_vars, num_post_vars)
        call timer_register(this%timer_index, &
                            label=module_name//":"//region_name)
        this%registered = .true.
@@ -105,7 +108,7 @@ contains
   !> Ends a profiling area. It takes a PSyDataType type that corresponds to
   !! to the PreStart call.
   !! @param[in,out] this This PSyData instance.
-  ! 
+  !
   subroutine PostEnd(this)
 
     use dl_timer, only : timer_stop
@@ -113,7 +116,7 @@ contains
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
-    
+
     if (is_enabled) call timer_stop(this%timer_index)
 
   end subroutine PostEnd

@@ -35,6 +35,7 @@
 module profile_psy_data_mod
   use iso_c_binding, only : C_CHAR, C_INT, C_INT16_T, C_INT64_T, C_PTR, &
        C_NULL_CHAR, C_LOC
+
   implicit none
 
   private
@@ -52,7 +53,8 @@ module profile_psy_data_mod
      character(kind=C_CHAR, len=256) :: name = ""
   contains
       ! The profiling API uses only the two following calls:
-      procedure :: PreStart, PostEnd
+      procedure :: PreStart
+      procedure :: PostEnd
   end type profile_PSyDataType
 
   ! The colour index of the last region created.
@@ -79,7 +81,7 @@ module profile_psy_data_mod
      integer(C_INT):: payloadType=0 !> NVTX_PAYLOAD_UNKNOWN = 0
      integer(C_INT):: reserved0
      integer(C_INT64_T):: payload   !> union uint,int,double
-     integer(C_INT):: messageType=1 !> NVTX_MESSAGE_TYPE_ASCII     = 1 
+     integer(C_INT):: messageType=1 !> NVTX_MESSAGE_TYPE_ASCII = 1
      type(C_PTR):: message          !> ASCII char
   end type nvtxEventAttributes
 
@@ -188,11 +190,11 @@ contains
        this%name = trim(module_name)//":"//trim(region_name) &
                            &   //C_NULL_CHAR
     end if
-    
+
     event%color = col(this%colour_index)
 
     event%message = c_loc(this%name)
-    
+
     call nvtxRangePushEx(event)
 
   end subroutine PreStart
@@ -204,9 +206,9 @@ contains
     implicit none
 
     class(profile_PSyDataType), target :: this
-    
+
     call nvtxRangePop()
-    
+
   end subroutine PostEnd
 
   !> The finalise function would normally print the results. However, this

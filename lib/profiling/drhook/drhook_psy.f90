@@ -37,6 +37,8 @@
 
 module profile_psy_data_mod
 
+  implicit none
+
   ! The DrHook  handle type
   use parkind1, only : jprb
 
@@ -51,7 +53,8 @@ module profile_psy_data_mod
      logical                   :: initialised = .false.
   contains
       ! The profiling API uses only the two following calls:
-      procedure :: PreStart, PostEnd
+      procedure :: PreStart
+      procedure :: PostEnd
   end type profile_PSyDataType
 
 contains
@@ -63,6 +66,7 @@ contains
   !! is not necessary.
 
   subroutine profile_PSyDataInit()
+    implicit none
   end subroutine profile_PSyDataInit
 
   ! ---------------------------------------------------------------------------
@@ -104,7 +108,7 @@ contains
   !! Ends a profiling area. It takes a PSyDataType type that corresponds to
   !! to the PreStart call.
   !! this: This PSyData instance.
-  ! 
+  !
   subroutine PostEnd(this)
 
     use yomhook, only : lhook, dr_hook
@@ -112,7 +116,7 @@ contains
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
-    
+
     if (lhook) call dr_hook(this%name, 1, this%zhook_handle)
 
   end subroutine PostEnd
@@ -121,11 +125,14 @@ contains
   !> Called at the end of the execution of a program, usually to generate
   !! all output for the profiling library. Not required in the case of Dr Hook.
   subroutine profile_PSyDataShutdown()
+    implicit none
   end subroutine profile_PSyDataShutdown
 
   ! ---------------------------------------------------------------------------
   !> Enable DrHook by setting the lhook variable in DrHook
   subroutine profile_PSyDataStart()
+
+    implicit none
 
     use yomhook, only : lhook
 
@@ -136,6 +143,8 @@ contains
   ! ---------------------------------------------------------------------------
   !> Disable DrHook by setting the lhook variable in DrHook
   subroutine profile_PSyDataStop()
+
+    implicit none
 
     use yomhook, only : lhook
 
