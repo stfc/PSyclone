@@ -1,9 +1,9 @@
 {# Added this as jinja code so that it is understood that the
    comment does not apply to THIS file. #}
-{{ "! ==================================================" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE " }}
-{{ "! DO NOT MODIFY DIRECTLY                            " }}
-{{ "! ==================================================" }}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE  !" }}
+{{ "! DO NOT MODIFY DIRECTLY                             !" }}
+{{ "! ================================================== !" }}
 
 {% if ALL_DIMS is not defined %}
    {# Support 1 to 4 dimensional arrays if not specified #}
@@ -57,8 +57,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author J. Henrichs, Bureau of Meteorology
-! Modified I. Kavcic, Met Office
+! Author: J. Henrichs, Bureau of Meteorology
+! Modified: I. Kavcic, Met Office
 
 module psy_data_base_mod
 
@@ -145,7 +145,7 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine is the first function called when an instrumented region
     !! is entered. It initialises this object, and stores module and regin
-    !! names. 
+    !! names.
     !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
@@ -168,13 +168,13 @@ contains
         integer      :: status
 
         call get_environment_variable("PSYDATA_VERBOSE", verbose, status=status)
-        this%verbosity=0
-        if (status==0) then
-            if (verbose=="0") then
+        this%verbosity = 0
+        if (status == 0) then
+            if (verbose == "0") then
                 this%verbosity = 0
-            else if (verbose=="1") then
+            else if (verbose == "1") then
                 this%verbosity = 1
-            else if (verbose=="2") then
+            else if (verbose == "2") then
                 this%verbosity = 2
             else
                 write(stderr,*) "PSyData: invalid setting of PSYDATA_VERBOSE."
@@ -189,7 +189,7 @@ contains
 
         if (.not. is_enabled) return
 
-        if (this%verbosity>0) &
+        if (this%verbosity > 0) &
             write(stderr,*) "PSyData: PreStart ", module_name, " ", region_name
 
     end subroutine PreStart
@@ -247,7 +247,7 @@ contains
 
         if (.not. is_enabled) return
 
-        if (this%verbosity>0) &
+        if (this%verbosity > 0) &
             write(stderr, *) "PSyData: PostEnd ", trim(this%module_name), &
                     " ", trim(this%region_name)
 
@@ -332,9 +332,9 @@ contains
 
         if (.not. is_enabled) return
 
-        if (this%verbosity>1) &
+        if (this%verbosity > 1) &
             write(stderr,*) "PSyData: DeclareScalar{{name}}: ", &
-                            trim(this%module_name), " ",        &
+                            trim(this%module_name), " ", &
                             trim(this%region_name), ": ", name
 
     end subroutine DeclareScalar{{name}}
@@ -381,9 +381,9 @@ contains
 
         if (.not. is_enabled) return
 
-        if (this%verbosity>1) &
+        if (this%verbosity > 1) &
             write(stderr,*) "PSyData: DeclareArray{{dim}}d{{name}}: ", &
-                            trim(this%module_name), " ",               &
+                            trim(this%module_name), " ", &
                             trim(this%region_name), ": ", name
 
     end subroutine DeclareArray{{dim}}d{{name}}
@@ -407,6 +407,6 @@ contains
     end subroutine ProvideArray{{dim}}d{{name}}
 
         {% endfor %}  {# for dim #}
-    {% endfor %}   {# for type in ... #}
+    {% endfor %}  {# for type in ... #}
 
 end module psy_data_base_mod

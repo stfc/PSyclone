@@ -1,9 +1,9 @@
 {# Added this as jinja code so that it is understood that the
    comment does not apply to THIS file. #}
-{{ "! ==================================================" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE " }}
-{{ "! DO NOT MODIFY DIRECTLY                            " }}
-{{ "! ==================================================" }}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE  !" }}
+{{ "! DO NOT MODIFY DIRECTLY                             !" }}
+{{ "! ================================================== !" }}
 
 {# This jinja template file creates a base class for kernel
    extraction libraries. It produces the required ProvideVariable()
@@ -75,8 +75,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author J. Henrichs, Bureau of Meteorology
-! Modified I. Kavcic, Met Office
+! Author: J. Henrichs, Bureau of Meteorology
+! Modified: I. Kavcic, Met Office
 
 !> This module implements a simple NetCDF writer using the PSyData
 !! interface. A Fortran code instrumented with corresponding calls
@@ -116,7 +116,8 @@ module extract_netcdf_base_mod
     contains
 
         ! The various procedures used
-        procedure :: PreStart, PreEndDeclaration
+        procedure :: PreStart
+        procedure :: PreEndDeclaration
         procedure :: PostEnd
         procedure :: OpenRead
 
@@ -129,16 +130,16 @@ module extract_netcdf_base_mod
         procedure :: DeclareScalar{{name}}
         procedure :: WriteScalar{{name}}
         procedure :: ReadScalar{{name}}
-          {{- all_declares.append("DeclareScalar"~name) or "" -}}
-          {{- all_provides.append("WriteScalar"~name) or "" }}
+          {{ all_declares.append("DeclareScalar"~name) or "" }}
+          {{- all_provides.append("WriteScalar"~name) or "" -}}
           {{- all_reads.append("ReadScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: DeclareArray{{dim}}d{{name}}
         procedure :: WriteArray{{dim}}d{{name}}
         procedure :: ReadArray{{dim}}d{{name}}
-            {{- all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
-            {{ all_provides.append("WriteArray"~dim~"d"~name) or "" }}
-            {{ all_reads.append("ReadArray"~dim~"d"~name) or "" }}
+            {{ all_declares.append("DeclareArray"~dim~"d"~name) or "" }}
+            {{- all_provides.append("WriteArray"~dim~"d"~name) or "" -}}
+            {{- all_reads.append("ReadArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
 
@@ -413,8 +414,8 @@ contains
        We repeat the list [":"] DIM-times, which is then joined #}
     {% set DIMENSION=([":"]*dim)|join(",") %}
 
-    {# Create list of variables: "dimid1,dimid2,dimid3,dimid4" #}
-    {% set vars = "dimid"~range(1,dim+1)|join(",dimid") %}
+    {# Create list of variables: "dimid1, dimid2, dimid3, dimid4" #}
+    {% set vars = "dimid"~range(1,dim+1)|join(", dimid") %}
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares a {{dim}}d-array of {{type}}.
@@ -526,7 +527,7 @@ contains
         allocate(value({{dim_sizes}}), Stat=ierr)
         if (ierr /= 0) then
             write(stderr,*) "Cannot allocate array for ", name, &
-                            " of size ", {{dim_sizes}},         &
+                            " of size ", {{dim_sizes}}, &
                             " in ReadArray{{dim}}d{{name}}."
             stop
         endif
@@ -541,8 +542,8 @@ contains
 
     end subroutine ReadArray{{dim}}d{{name}}
 
-    {% endfor %}    {# fot dim in ALL_DIMS #}
+    {% endfor -%}  {# for dim in ALL_DIMS #}
 
-{% endfor %}   {# for name,type, bits in ALL_TYPES #}
+{%- endfor -%}  {# for name, type, bits in ALL_TYPES #}
 
 end module extract_netcdf_base_mod

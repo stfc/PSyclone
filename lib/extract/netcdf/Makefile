@@ -66,13 +66,12 @@ all:
 	$(MAKE) -C dl_esm_inf F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 	$(MAKE) -C lfric F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
-
 # The dependencies
 # ----------------
 extract_netcdf_base.o: psy_data_base.o
 
 # Jinja rules for creating the base class, and the
-# netcdf extraction class
+# NetCDF extraction class
 # ------------------------------------------------
 psy_data_base.f90:	$(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
