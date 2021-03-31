@@ -47,8 +47,8 @@ from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.domain.common.transformations import InvokeCallTrans, AlgTrans
 
-from psyclone.tests.domain.common.transformations.invoke_trans_test import \
-    create_psyir
+from psyclone.tests.domain.common.transformations.invokecall_trans_test \
+    import create_psyir
 
 
 def test_init():

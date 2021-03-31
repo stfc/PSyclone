@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-from psyclone.domain.common.transformations.invoke_trans import InvokeCallTrans
+from psyclone.domain.common.transformations.invokecall_trans import \
+    InvokeCallTrans
 from psyclone.domain.common.transformations.alg_trans import AlgTrans
 
 __all__ = ["InvokeCallTrans", "AlgTrans"]

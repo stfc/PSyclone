@@ -71,7 +71,7 @@ def create_psyir(code):
 
 
 def test_init():
-    '''Check that an InvokeTrans instance can be created correctly, has
+    '''Check that an LFRicAlgTrans instance can be created correctly, has
     the expected defaults, deals with any __init__ arguments and its
     name method returns the expected value.
 
