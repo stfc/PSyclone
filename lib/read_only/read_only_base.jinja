@@ -1,9 +1,9 @@
 {# Added this as jinja code so that it is understood that the
    comment does not apply to THIS file. #}
-{{ "! ==================================================" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE " }}
-{{ "! DO NOT MODIFY DIRECTLY                            " }}
-{{ "! ==================================================" }}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE  !" }}
+{{ "! DO NOT MODIFY DIRECTLY                             !" }}
+{{ "! ================================================== !" }}
 
 {# This jinja template file creates a base class for a ReadOnly
    verification library. It produces the required ProvideVariable()
@@ -79,7 +79,7 @@
 
 !> This module implements a verification that read-only fields are
 !! not overwritten (due to memory overwrites etc)
-!! 
+!!
 
 module read_only_base_mod
 
@@ -143,10 +143,10 @@ module read_only_base_mod
 
     {# Create a generic interface for all ComputeChecksum functions #}
     {# ------------------------------------------------------------ #}
-    {% set all_compute = [] %}
+    {% set all_compute = [] -%}
     {% for name, type, bits in ALL_TYPES %}
       {% for dim in ALL_DIMS %}
-        {{ all_compute.append("ComputeChecksum"~dim~"d"~name) or "" -}}
+        {{- all_compute.append("ComputeChecksum"~dim~"d"~name) or "" -}}
       {% endfor %}
     {% endfor %}
     {% set indent="        " %}
@@ -164,7 +164,7 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine is the first function called when an instrumented region
     !! is entered. It initialises this object, and stores module and regin
-    !! names. 
+    !! names.
     !! @param[in,out] this The instance of the ReadOnlyBaseType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
@@ -418,9 +418,8 @@ contains
 
     end function ComputeChecksum{{dim}}d{{name}}
 
-  {% endfor %}   {# for dim #}
-{% endfor %}   {# for #}
-
+  {% endfor -%}   {# for dim #}
+{%- endfor -%}   {# for #}
     ! -------------------------------------------------------------------------
-    
+
 end module read_only_base_mod

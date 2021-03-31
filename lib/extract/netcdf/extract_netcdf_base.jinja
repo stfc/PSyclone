@@ -13,7 +13,7 @@
    (see ALL_DIMS) that need to be supported when processing this
    template. This template will also provide functions to read
    the written data - this way a driver can link with this
-   PSyData librarym and will work independent of the file format
+   PSyData library and will work independent of the file format
    chosen.
 
    This Extraction base class depends on the PSyData base
@@ -130,20 +130,20 @@ module extract_netcdf_base_mod
         procedure :: DeclareScalar{{name}}
         procedure :: WriteScalar{{name}}
         procedure :: ReadScalar{{name}}
-          {{ all_declares.append("DeclareScalar"~name) or "" }}
-          {{- all_provides.append("WriteScalar"~name) or "" -}}
+          {{- all_declares.append("DeclareScalar"~name) or "" -}}
+          {{- all_provides.append("WriteScalar"~name) or "" }}
           {{- all_reads.append("ReadScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: DeclareArray{{dim}}d{{name}}
         procedure :: WriteArray{{dim}}d{{name}}
         procedure :: ReadArray{{dim}}d{{name}}
-            {{ all_declares.append("DeclareArray"~dim~"d"~name) or "" }}
-            {{- all_provides.append("WriteArray"~dim~"d"~name) or "" -}}
+            {{- all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
+            {{- all_provides.append("WriteArray"~dim~"d"~name) or "" }}
             {{- all_reads.append("ReadArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
 
-        {%- set indent="            " -%}
+        {% set indent="            " %}
         {% if GENERIC_DECLARE %}
         ! Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &
@@ -157,7 +157,7 @@ module extract_netcdf_base_mod
         {% endif %}
 
         !> The generic interface for reading the value of variables.
-        !! This is not part of the official PSyData API, but used in
+        !! This is not part of the official PSyData API, but is used in
         !! the drivers created by PSyclone.
         generic, public :: ReadVariable => &
             {{all_reads|join(", &\n"+indent) }}
@@ -195,12 +195,14 @@ contains
     !> This is a one-time init function. It is not required for the kernel
     !! extraction and is therefore empty.
     subroutine extract_PSyDataInit()
+        implicit none
     end subroutine extract_PSyDataInit
 
     ! -------------------------------------------------------------------------
     !> This is a one-time shutdown function. It is not required for the kernel
     !! extraction and is therefore empty.
     subroutine extract_PSyDataShutdown()
+        implicit none
     end subroutine extract_PSyDataShutdown
 
     ! -------------------------------------------------------------------------

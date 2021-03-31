@@ -1,9 +1,9 @@
 {# Added this as jinja code so that it is understood that the
    comment does not apply to THIS file. #}
-{{ "! ==================================================" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE " }}
-{{ "! DO NOT MODIFY DIRECTLY                            " }}
-{{ "! ==================================================" }}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE  !" }}
+{{ "! DO NOT MODIFY DIRECTLY                             !" }}
+{{ "! ================================================== !" }}
 
 {# This jinja template file creates a base class for a not-NAN
    verification library. It produces the required ProvideVariable()
@@ -76,13 +76,13 @@
 
 !> This module implements a PSyData-based verification that floating point
 !! input and output parameters are not NAN and not infinite.
-!! 
+!!
 
 module nan_test_base_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
     use psy_data_base_mod, only : PSyDataBaseType, &
         nan_test_PSyDataShutdown, &
         nan_test_PSyDataInit, is_enabled, &
@@ -105,7 +105,7 @@ module nan_test_base_mod
           {{- all_provides.append("ProvideScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: ProvideArray{{dim}}d{{name}}
-            {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
+            {{- all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
 
@@ -171,8 +171,8 @@ contains
        We repeat the list [":"] DIM-times, which is then joined #}
     {% set DIMENSION=([":"]*dim)|join(",") %}
 
-    {# Create list of variables: "i1,i2,i3,i4" #}
-    {% set vars = "i"~range(1,dim+1)|join(",i") %}
+    {# Create list of variables: "i1, i2, i3, i4" #}
+    {% set vars = "i"~range(1,dim+1)|join(", i") %}
     {% set indent = " "*3*dim %}
 
     ! -------------------------------------------------------------------------
@@ -219,10 +219,9 @@ contains
 
     end subroutine ProvideArray{{dim}}d{{name}}
 
-
-  {% endfor %}   {# for dim #}
-{% endfor %}   {# for #}
+  {% endfor -%}   {# for dim #}
+{%- endfor -%}   {# for #}
 
     ! -------------------------------------------------------------------------
-    
+
 end module nan_test_base_mod

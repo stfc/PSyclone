@@ -99,21 +99,25 @@ module psy_data_base_mod
 
         contains
 
-            procedure :: PreStart, PreEndDeclaration, PreEnd
-            procedure :: PostStart, PostEnd, Abort
+            procedure :: PreStart
+            procedure :: PreEndDeclaration
+            procedure :: PreEnd
+            procedure :: PostStart
+            procedure :: PostEnd
+            procedure :: Abort
 
             {# Collect the various procedures for the same generic interface -#}
             {# ------------------------------------------------------------- -#}
             {% set all_declares=[] -%}
             {% set all_provides=[] -%}
             {% for name, type, bits in ALL_TYPES %}
-            procedure :: ProvideScalar{{name}}
             procedure :: DeclareScalar{{name}}
+            procedure :: ProvideScalar{{name}}
               {{- all_declares.append("DeclareScalar"~name) or "" -}}
               {{- all_provides.append("ProvideScalar"~name) or "" }}
               {% for dim in ALL_DIMS %}
-            procedure :: ProvideArray{{dim}}d{{name}}
             procedure :: DeclareArray{{dim}}d{{name}}
+            procedure :: ProvideArray{{dim}}d{{name}}
                 {{- all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
                 {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
               {% endfor %}
@@ -406,7 +410,7 @@ contains
 
     end subroutine ProvideArray{{dim}}d{{name}}
 
-        {% endfor %}  {# for dim #}
-    {% endfor %}  {# for type in ... #}
+        {% endfor -%}  {# for dim #}
+    {%- endfor -%}  {# for type in ... #}
 
 end module psy_data_base_mod

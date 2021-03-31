@@ -38,8 +38,8 @@
 !! interface. It is specific to the LFRic infrastructure library.
 !! A Fortran code instrumented with corresponding calls
 !! to the PSyData API and linked in with this library will write
-!! the requested input- and output-parameters to a NetCDF file.
-!! 
+!! the requested input and output parameters to a NetCDF file.
+!!
 
 module extract_psy_data_mod
 
@@ -53,14 +53,14 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractNetcdfBaseType), public:: extract_PsyDataType
- 
+    type, extends(ExtractNetcdfBaseType), public :: extract_PsyDataType
+
     contains
 
         ! The various procedures defined here
-        procedure :: DeclareField,       WriteField
+        procedure :: DeclareField, WriteField
         procedure :: DeclareFieldVector, WriteFieldVector
-        procedure :: DeclareIntField,       WriteIntField
+        procedure :: DeclareIntField, WriteIntField
         procedure :: DeclareIntFieldVector, WriteIntFieldVector
 
         !> Declare generic interface for PreDeclareVariable:

@@ -41,7 +41,7 @@
 !! to the PSyData API and linked in with this library will nf90_create
 !! a NetCDF file that contains the dimensions for each
 !! field.
-!! 
+!!
 
 module extract_psy_data_mod
 
@@ -65,7 +65,7 @@ module extract_psy_data_mod
         generic, public :: PreDeclareVariable => DeclareFieldDouble
 
         !> The generic interface for providing the value of variables,
-        !! which in case of the NetCDF interface is written:                                               
+        !! which in case of the NetCDF interface is written:
         generic, public :: ProvideVariable => WriteFieldDouble
 
     end type extract_PSyDataType
@@ -79,7 +79,7 @@ contains
     !! retval = CheckError(nf90_close(ncid))
     !! @param[in] retval The return value from a NetCDF operation.
     !! Returns the return value.
-    function CheckError(retval) 
+    function CheckError(retval)
 
         use netcdf, only : nf90_noerr, nf90_strerror
 
@@ -102,12 +102,14 @@ contains
     !> This is a one-time init function. It is not required for the kernel
     !! extraction and is therefore empty.
     subroutine extract_PSyDataInit()
+        implicit none
     end subroutine extract_PSyDataInit
 
     ! -------------------------------------------------------------------------
     !> This is a one-time shutdown function. It is not required for the kernel
     !! extraction and is therefore empty.
     subroutine extract_PSyDataShutdown()
+        implicit none
     end subroutine extract_PSyDataShutdown
 
     ! -------------------------------------------------------------------------

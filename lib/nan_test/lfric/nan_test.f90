@@ -35,7 +35,7 @@
 ! Modified I. Kavcic, Met Office
 
 !> This module implements a NAN verification for the LFRic API
-!! 
+!!
 
 module nan_test_psy_data_mod
 
@@ -263,5 +263,5 @@ contains
     end subroutine ProvideIntFieldVector
 
     ! -------------------------------------------------------------------------
-    
+
 end module nan_test_psy_data_mod

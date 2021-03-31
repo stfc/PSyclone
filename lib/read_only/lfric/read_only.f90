@@ -36,7 +36,7 @@
 
 !> This module implements a verification that read-only fields are
 !! not overwritten (due to memory overwrites etc)
-!! 
+!!
 
 module read_only_verify_psy_data_mod
 
@@ -323,5 +323,5 @@ contains
     end subroutine ProvideIntFieldVector
 
     ! -------------------------------------------------------------------------
-    
+
 end module read_only_verify_psy_data_mod
