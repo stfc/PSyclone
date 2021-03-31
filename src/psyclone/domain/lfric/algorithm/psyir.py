@@ -60,8 +60,8 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
 
     @classmethod
     def create(cls, routine, arguments, description=None):
-        '''Create an instance of class cls given valid instances of a routine
-        symbol, a list of child nodes for its arguments and an
+        '''Create an instance of the calling class given valid instances of a
+        routine symbol, a list of child nodes for its arguments and an
         optional description.
 
         :param routine: the routine that class cls calls.
@@ -75,7 +75,7 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
             invoke. Defaults to None.
         :type name: str or NoneType
 
-        :returns: an instance of cls.
+        :returns: an instance of the calling class.
         :rtype: \
             :py:class:`psyclone.psyir.nodes.LFRicAlgorithmInvokeCall` or a \
             subclass thereof.

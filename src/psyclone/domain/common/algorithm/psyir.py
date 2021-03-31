@@ -86,7 +86,7 @@ class KernelFunctor(Reference):
 
     @classmethod
     def create(cls, symbol, arguments):
-        '''Create an instance of class cls given valid instances of a
+        '''Create an instance of the calling class given valid instances of a
         TypeSymbol, and a list of child nodes for its arguments.
 
         :param symbol: the name of the kernel type that this object \
@@ -96,7 +96,7 @@ class KernelFunctor(Reference):
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
-        :returns: an instance of cls.
+        :returns: an instance of the calling class.
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or subclass thereof.
 
         '''
