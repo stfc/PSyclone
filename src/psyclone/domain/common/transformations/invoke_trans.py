@@ -50,7 +50,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
-class InvokeTrans(Transformation):
+class InvokeCallTrans(Transformation):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to a PSyclone version with specialised domain-specific
     nodes.
@@ -223,7 +223,7 @@ class InvokeTrans(Transformation):
         :rtype: str
 
         '''
-        return "InvokeTrans"
+        return "InvokeCallTrans"
 
 
-__all__ = ['InvokeTrans']
+__all__ = ['InvokeCallTrans']

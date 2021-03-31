@@ -44,20 +44,20 @@ from fparser.two.Fortran2003 import Actual_Arg_Spec, Name, \
 from psyclone.psyir.nodes import ArrayReference
 from psyclone.psyir.transformations import TransformationError
 
-from psyclone.domain.common.transformations import InvokeTrans
+from psyclone.domain.common.transformations import InvokeCallTrans
 from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
     LFRicKernelFunctor, LFRicAlgorithmInvokeCall
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 
 
-class LFRicInvokeTrans(InvokeTrans):
+class LFRicInvokeCallTrans(InvokeCallTrans):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to an LFRic version with specialised domain-specific
     nodes.
 
     '''
     def __init__(self):
-        super(LFRicInvokeTrans, self).__init__()
+        super(LFRicInvokeCallTrans, self).__init__()
         self._call_description = None
 
     def validate(self, call, options=None):
@@ -70,7 +70,7 @@ class LFRicInvokeTrans(InvokeTrans):
 
         '''
         self._call_description = None
-        super(LFRicInvokeTrans, self).validate(call, options=options)
+        super(LFRicInvokeCallTrans, self).validate(call, options=options)
 
     def _validate_fp2_node(self, fp2_node):
         '''Specialisation of the fparser2 node validation routine to
@@ -155,8 +155,9 @@ class LFRicInvokeTrans(InvokeTrans):
                             node_type = LFRicBuiltinFunctor
                         else:
                             node_type = LFRicKernelFunctor
-                        type_symbol = InvokeTrans._get_symbol(call, fp2_node)
-                        args = InvokeTrans._parse_args(call_arg, fp2_node)
+                        type_symbol = InvokeCallTrans._get_symbol(
+                            call, fp2_node)
+                        args = InvokeCallTrans._parse_args(call_arg, fp2_node)
                         arg_info.append((node_type, type_symbol, args))
 
             for (node_type, type_symbol, args) in arg_info:
@@ -174,7 +175,7 @@ class LFRicInvokeTrans(InvokeTrans):
         :rtype: str
 
         '''
-        return "LFRicInvokeTrans"
+        return "LFRicInvokeCallTrans"
 
 
-__all__ = ['LFRicInvokeTrans']
+__all__ = ['LFRicInvokeCallTrans']

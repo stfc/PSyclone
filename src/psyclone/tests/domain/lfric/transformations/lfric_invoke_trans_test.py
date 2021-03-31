@@ -47,7 +47,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import CodeBlock, Literal, Reference
 
-from psyclone.domain.lfric.transformations import LFRicInvokeTrans
+from psyclone.domain.lfric.transformations import LFRicInvokeCallTrans
 from psyclone.domain.lfric.algorithm import LFRicAlgorithmInvokeCall, \
     LFRicKernelFunctor, LFRicBuiltinFunctor
 
@@ -121,14 +121,14 @@ def create_psyir(code):
 
 
 def test_init():
-    '''Check that an LFRicInvokeTrans instance can be created correctly, has
-    the expected defaults, deals with any __init__ arguments and its
-    name method returns the expected value.
+    '''Check that an LFRicInvokeCallTrans instance can be created
+    correctly, has the expected defaults, deals with any __init__
+    arguments and its name method returns the expected value.
 
     '''
-    invoke_trans = LFRicInvokeTrans()
-    assert invoke_trans.name == "LFRicInvokeTrans"
-    assert isinstance(invoke_trans, LFRicInvokeTrans)
+    invoke_trans = LFRicInvokeCallTrans()
+    assert invoke_trans.name == "LFRicInvokeCallTrans"
+    assert isinstance(invoke_trans, LFRicInvokeCallTrans)
 
 
 def test_structure_contructor():
@@ -143,7 +143,7 @@ def test_structure_contructor():
         "end subroutine alg\n")
 
     psyir = create_psyir(code)
-    lfric_invoke_trans = LFRicInvokeTrans()
+    lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.validate(psyir[0])
     lfric_invoke_trans._validate_fp2_node(
@@ -163,20 +163,20 @@ def test_named_arg_error(string):
         "end subroutine alg\n".format(string))
 
     psyir = create_psyir(code)
-    lfric_invoke_trans = LFRicInvokeTrans()
+    lfric_invoke_trans = LFRicInvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(psyir[0])
-    assert ("Error in LFRicInvokeTrans transformation. If there is a named "
-            "argument, it must take the form name='str', but found '{0}'."
-            "".format(string) in str(info.value))
+    assert ("Error in LFRicInvokeCallTrans transformation. If there is a "
+            "named argument, it must take the form name='str', but found "
+            "'{0}'.".format(string) in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans._validate_fp2_node(
             psyir[0].children[0]._fp2_nodes[0])
-    assert ("Error in LFRicInvokeTrans transformation. If there is a named "
-            "argument, it must take the form name='str', but found '{0}'."
-            "".format(string) in str(info.value))
+    assert ("Error in LFRicInvokeCallTrans transformation. If there is a "
+            "named argument, it must take the form name='str', but found "
+            "'{0}'.".format(string) in str(info.value))
 
 
 def test_multi_named_arg_error():
@@ -192,17 +192,17 @@ def test_multi_named_arg_error():
         "end subroutine alg\n")
 
     psyir = create_psyir(code)
-    lfric_invoke_trans = LFRicInvokeTrans()
+    lfric_invoke_trans = LFRicInvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(psyir[0])
-    assert ("Error in LFRicInvokeTrans transformation. There should be at "
+    assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.apply(psyir[0])
-    assert ("Error in LFRicInvokeTrans transformation. There should be at "
+    assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
 
@@ -224,7 +224,7 @@ def test_codeblock_invalid(monkeypatch):
     assert isinstance(code_block, CodeBlock)
     monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
-    lfric_invoke_trans = LFRicInvokeTrans()
+    lfric_invoke_trans = LFRicInvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(psyir[0])
@@ -249,7 +249,7 @@ def test_apply_codedkern_arrayref():
         "end subroutine alg\n")
 
     psyir = create_psyir(code)
-    lfric_invoke_trans = LFRicInvokeTrans()
+    lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0])
 
@@ -274,7 +274,7 @@ def test_apply_codedkern_structconstruct():
         "end subroutine alg\n")
 
     psyir = create_psyir(code)
-    lfric_invoke_trans = LFRicInvokeTrans()
+    lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0])
 
@@ -299,7 +299,7 @@ def test_apply_builtin_structconstruct():
         "end subroutine alg\n")
 
     psyir = create_psyir(code)
-    lfric_invoke_trans = LFRicInvokeTrans()
+    lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0])
 
@@ -325,7 +325,7 @@ def test_apply_builtin_arrayref():
         "end subroutine alg\n")
 
     psyir = create_psyir(code)
-    lfric_invoke_trans = LFRicInvokeTrans()
+    lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0])
 
@@ -353,7 +353,7 @@ def test_apply_mixed():
         "end subroutine alg\n")
 
     psyir = create_psyir(code)
-    lfric_invoke_trans = LFRicInvokeTrans()
+    lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0])
 

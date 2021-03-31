@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Call
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import LFRicAlgTrans, \
-    LFRicInvokeTrans
+    LFRicInvokeCallTrans
 
 
 def create_psyir(code):
@@ -79,7 +79,7 @@ def test_init():
     alg_trans = LFRicAlgTrans()
     assert alg_trans.name == "LFRicAlgTrans"
     assert isinstance(alg_trans, LFRicAlgTrans)
-    assert isinstance(alg_trans._invoke_trans, LFRicInvokeTrans)
+    assert isinstance(alg_trans._invoke_trans, LFRicInvokeCallTrans)
 
 
 def test_apply():

@@ -45,22 +45,22 @@ from psyclone.psyir.nodes import Call
 
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
-from psyclone.domain.common.transformations import InvokeTrans, AlgTrans
+from psyclone.domain.common.transformations import InvokeCallTrans, AlgTrans
 
 from psyclone.tests.domain.common.transformations.invoke_trans_test import \
     create_psyir
 
 
 def test_init():
-    '''Check that an InvokeTrans instance can be created correctly, has
-    the expected defaults, deals with any __init__ arguments and its
-    name method returns the expected value.
+    '''Check that an InvokeCallTrans instance can be created correctly,
+    has the expected defaults, deals with any __init__ arguments and
+    its name method returns the expected value.
 
     '''
     alg_trans = AlgTrans()
     assert alg_trans.name == "AlgTrans"
     assert isinstance(alg_trans, AlgTrans)
-    assert isinstance(alg_trans._invoke_trans, InvokeTrans)
+    assert isinstance(alg_trans._invoke_trans, InvokeCallTrans)
 
 
 def test_validate_node_error():

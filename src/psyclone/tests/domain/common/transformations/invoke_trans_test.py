@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, Symbol, \
 
 from psyclone.domain.common.algorithm import \
     AlgorithmInvokeCall, KernelFunctor
-from psyclone.domain.common.transformations import InvokeTrans
+from psyclone.domain.common.transformations import InvokeCallTrans
 
 
 def check_reference(klr, name, arg_name):
@@ -115,14 +115,14 @@ def create_psyir(code):
 
 
 def test_init():
-    '''Check that an InvokeTrans instance can be created correctly, has
-    the expected defaults, deals with any __init__ arguments and its
-    name method returns the expected value.
+    '''Check that an InvokeCallTrans instance can be created correctly,
+    has the expected defaults, deals with any __init__ arguments and
+    its name method returns the expected value.
 
     '''
-    invoke_trans = InvokeTrans()
-    assert invoke_trans.name == "InvokeTrans"
-    assert isinstance(invoke_trans, InvokeTrans)
+    invoke_trans = InvokeCallTrans()
+    assert invoke_trans.name == "InvokeCallTrans"
+    assert isinstance(invoke_trans, InvokeCallTrans)
 
 
 def test_parse_args_get_symbol():
@@ -141,7 +141,7 @@ def test_parse_args_get_symbol():
     assert isinstance(code_block, CodeBlock)
 
     # Check expected output from parse_args
-    nodes = InvokeTrans._parse_args(code_block, code_block._fp2_nodes[0])
+    nodes = InvokeCallTrans._parse_args(code_block, code_block._fp2_nodes[0])
     assert isinstance(nodes, list)
     assert len(nodes) == 1
     assert isinstance(nodes[0], Literal)
@@ -150,14 +150,14 @@ def test_parse_args_get_symbol():
     # Check expected output from get_symbol when no symbol exists
     with pytest.raises(KeyError):
         _ = code_block.scope.symbol_table.lookup("kern")
-    symbol = InvokeTrans._get_symbol(code_block, code_block._fp2_nodes[0])
+    symbol = InvokeCallTrans._get_symbol(code_block, code_block._fp2_nodes[0])
     assert isinstance(symbol, TypeSymbol)
     assert symbol.name == "kern"
     symbol2 = code_block.scope.symbol_table.lookup("kern")
     assert symbol2 is symbol
 
     # Check expected output from get_symbol when symbol already exists
-    symbol3 = InvokeTrans._get_symbol(code_block, code_block._fp2_nodes[0])
+    symbol3 = InvokeCallTrans._get_symbol(code_block, code_block._fp2_nodes[0])
     assert symbol3 is symbol
 
 
@@ -168,14 +168,14 @@ def test_specialise_symbol():
     symbol = Symbol("hello")
 
     # Check that a Symbol is specialised
-    InvokeTrans._specialise_symbol(symbol)
+    InvokeCallTrans._specialise_symbol(symbol)
     assert isinstance(symbol, TypeSymbol)
     # pylint: disable=no-member
     assert isinstance(symbol.datatype, StructureType)
 
     # Check that something that is not a symbol is ignored
     test = "hello"
-    InvokeTrans._specialise_symbol(test)
+    InvokeCallTrans._specialise_symbol(test)
     assert isinstance(test, str)
     assert test == "hello"
 
@@ -186,17 +186,19 @@ def test_call_error():
     validate method from within the apply method.
 
     '''
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate("hello")
-    assert ("Error in InvokeTrans transformation. The supplied call argument "
-            "should be a `Call` node but found 'str'." in str(info.value))
+    assert ("Error in InvokeCallTrans transformation. The supplied call "
+            "argument should be a `Call` node but found 'str'."
+            in str(info.value))
 
     # Check that validate is called via the apply method
     with pytest.raises(TransformationError) as info:
         invoke_trans.apply("hello")
-    assert ("Error in InvokeTrans transformation. The supplied call argument "
-            "should be a `Call` node but found 'str'." in str(info.value))
+    assert ("Error in InvokeCallTrans transformation. The supplied call "
+            "argument should be a `Call` node but found 'str'."
+            in str(info.value))
 
 
 def test_invoke_error():
@@ -205,12 +207,12 @@ def test_invoke_error():
     'invoke' name.
 
     '''
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(Call(RoutineSymbol("hello")))
-    assert ("Error in InvokeTrans transformation. The supplied call argument "
-            "should be a `Call` node with name 'invoke' but found 'hello'."
-            in str(info.value))
+    assert ("Error in InvokeCallTrans transformation. The supplied call "
+            "argument should be a `Call` node with name 'invoke' but "
+            "found 'hello'." in str(info.value))
 
 
 def test_array_reference():
@@ -228,7 +230,7 @@ def test_array_reference():
 
     psyir = create_psyir(code)
     assert isinstance(psyir[0].children[0], ArrayReference)
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     invoke_trans.validate(psyir[0])
 
 
@@ -246,7 +248,7 @@ def test_code_block_error():
         "end subroutine alg\n")
 
     psyir = create_psyir(code)
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir[0])
     assert ("The supplied call argument contains a CodeBlock with content "
@@ -268,7 +270,7 @@ def test_arg_error():
         "end subroutine alg\n")
 
     psyir = create_psyir(code)
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir[0])
     assert ("The arguments to this invoke call are expected to be a "
@@ -294,7 +296,7 @@ def test_apply_arrayref():
     assert len(psyir[0].children) == 1
     assert isinstance(psyir[0].children[0], ArrayReference)
 
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
@@ -319,7 +321,7 @@ def test_apply_codeblock():
     assert len(psyir[0].children) == 1
     assert isinstance(psyir[0].children[0], CodeBlock)
 
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
@@ -344,7 +346,7 @@ def test_apply_codeblocks():
     assert len(psyir[0].children) == 1
     assert isinstance(psyir[0].children[0], CodeBlock)
 
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
@@ -374,7 +376,7 @@ def test_apply_mixed():
     assert isinstance(psyir[0].children[1], ArrayReference)
     assert isinstance(psyir[0].children[2], CodeBlock)
 
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
@@ -405,7 +407,7 @@ def test_apply_expr():
     assert isinstance(psyir[0].children[0], ArrayReference)
     assert isinstance(psyir[0].children[1], CodeBlock)
 
-    invoke_trans = InvokeTrans()
+    invoke_trans = InvokeCallTrans()
     invoke_trans.apply(psyir[0])
 
     invoke = psyir.children[0]
