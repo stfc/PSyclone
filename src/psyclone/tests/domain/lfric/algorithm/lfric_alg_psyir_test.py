@@ -93,6 +93,7 @@ def test_lfricalgorithminvokecall_create(cls):
     call = cls.create(routine, [klc], description="describing an invoke")
     assert call._description == "describing an invoke"
     assert call.routine is routine
+    # pylint: disable=unidiomatic-typecheck
     assert type(call) is cls
     assert len(call.children) == 1
     assert call.children[0] == klc
@@ -126,7 +127,7 @@ def test_lfricbuiltinfunctor():
     '''
     routine = TypeSymbol("hello", StructureType())
     lbc = LFRicBuiltinFunctor(routine)
-    assert type(lbc) == LFRicBuiltinFunctor
+    assert isinstance(lbc, LFRicBuiltinFunctor)
     assert lbc._text_name == "LFRicBuiltinFunctor"
 
 
@@ -136,5 +137,5 @@ def test_lfrickernelfunctor():
     '''
     routine = TypeSymbol("hello", StructureType())
     lbc = LFRicKernelFunctor(routine)
-    assert type(lbc) == LFRicKernelFunctor
+    assert isinstance(lbc, LFRicKernelFunctor)
     assert lbc._text_name == "LFRicKernelFunctor"

@@ -78,7 +78,7 @@ class AlgTrans(Transformation):
                 "".format(self.name))
 
     def apply(self, psyir, options=None):
-        ''' Apply transformation to the supplied psyir node.
+        ''' Apply transformation to the supplied PSyIR node.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
         :type node: :py:class:`psyclone.psyir.node.Routine` or \

@@ -64,7 +64,8 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         routine symbol, a list of child nodes for its arguments and an
         optional description.
 
-        :param routine: the routine that class cls calls.
+        :param routine: the routine that the instance being created \
+            calls.
         :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
         :param arguments: the arguments to this routine. These are \
             added as child nodes.

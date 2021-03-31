@@ -390,7 +390,7 @@ def test_apply_mixed():
 
 def test_apply_expr():
     '''Test that an invoke with a mixture of code block and array
-    reference arguments as expresssions is transformed into PSyclone-specific
+    reference arguments as expressions is transformed into PSyclone-specific
     AlgorithmInvokeCall and KernelFunctor classes.
 
     '''

@@ -91,7 +91,7 @@ class KernelFunctor(Reference):
 
         :param symbol: the name of the kernel type that this object \
             references.
-        :type routine: py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :type symbol: py:class:`psyclone.psyir.symbols.TypeSymbol`
         :param arguments: the arguments to this routine. These are \
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
