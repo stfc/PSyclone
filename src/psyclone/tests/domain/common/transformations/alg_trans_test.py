@@ -47,8 +47,24 @@ from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.domain.common.transformations import InvokeCallTrans, AlgTrans
 
-from psyclone.tests.domain.common.transformations.invokecall_trans_test \
-    import create_psyir
+
+def create_psyir(code):
+    ''' Utility to create a PSyIR tree from Fortran code.
+
+    :param str code: Fortran code encoded as a string
+
+    :returns: psyir tree representing the Fortran code
+    :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    fortran_reader = FortranStringReader(code)
+    f2008_parser = ParserFactory().create(std="f2008")
+    parse_tree = f2008_parser(fortran_reader)
+
+    psyir_reader = Fparser2Reader()
+    psyir = psyir_reader.generate_psyir(parse_tree)
+
+    return psyir
 
 
 def test_init():
