@@ -166,32 +166,43 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
     assert expected in generated_code
 
     # Test that a conditional 'first_time' code is generated with the
-    # expected initialisation statements
+    # expected initialisation statements:
+    # - call to psy_init
+    # - num_cmd_queues and cmd_queues pointer setters
+    # - OpenCL kernel setter
+    # - Initialization of all field buffers
+    # - Initial write into the first buffer
     expected = '''\
       if (first_time) then
-        first_time = .false.
         ! ensure opencl run-time is initialised for this psy-layer module
         call psy_init
         num_cmd_queues = get_num_cmd_queues()
         cmd_queues => get_cmd_queues()
         kernel_compute_cu_code = get_kernel_by_name("compute_cu_code")
         call initialise_device_buffer(cu_fld)
-        call cu_fld%write_to_device()
         call initialise_device_buffer(p_fld)
-        call p_fld%write_to_device()
         call initialise_device_buffer(u_fld)
+      end if'''
+
+    # FIXME: Initialize gird buffers if needed
+    # FIXME: Move writes after set_args initial invocation
+
+    expected += '''\
+      if (first_time) then
+        first_time = .false.
+        call cu_fld%write_to_device()
+        call p_fld%write_to_device()
         call u_fld%write_to_device()
       end if'''
+    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-@pytest.mark.parametrize("debug_mode", [True, False])
-def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
-    ''' Check that the Invoke OpenCL produce the expected kernel enqueue
-    statement to launch OpenCL kernels. '''
-    api_config = Config.get().api_conf("gocean1.0")
-    monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
+def test_opencl_routines_initialisation(kernel_outputdir):
+    # pylint: disable=unused-argument
+    ''' Test that with an OpenCL invoke file has the necessary routines
+    to initialise, read and write from buffers. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
@@ -202,143 +213,127 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
 
     otrans = OCLTrans()
     otrans.apply(sched)
-    generated_code = str(psy.gen)
+    generated_code = str(psy.gen).lower()
 
-    # Cast dl_esm_inf pointers to cl_mem handlers
+    # Check that the read_from_device routine has been generated
     expected = '''\
-      cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
-      p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
-      u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)'''
+    subroutine read_from_device(from, to, startx, starty, nx, ny, blocking)
+      use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof
+      use ocl_utils_mod, only: check_status
+      use kind_params_mod, only: go_wp
+      use clfortran
+      use fortcl, only: get_cmd_queues
+      type(c_ptr), intent(in) :: from
+      real(kind=go_wp), intent(inout), dimension(:, :), target :: to
+      integer, intent(in) :: startx
+      integer, intent(in) :: starty
+      integer, intent(in) :: nx
+      integer, intent(in) :: ny
+      logical, intent(in) :: blocking
+      integer(kind=c_size_t) size_in_bytes
+      integer(kind=c_size_t) offset_in_bytes
+      integer(kind=c_intptr_t) cl_mem
+      integer(kind=c_intptr_t), pointer :: cmd_queues(:)
+      integer ierr
+      integer i
 
-    # Set up globalsize and localsize values
-    expected += '''
-      globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
-      localsize = (/64, 1/)'''
+      cl_mem = transfer(from, cl_mem)
+      cmd_queues => get_cmd_queues()
+      if (nx < size(to, 1) / 2) then
+        do i = starty, starty + ny, 1
+          size_in_bytes = int(nx, 8) * c_sizeof(to(1,1))
+          offset_in_bytes = int(size(to, 1) * (i - 1) + \
+(startx - 1)) * c_sizeof(to(1,1))
+          ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_false,\
+offset_in_bytes,size_in_bytes,c_loc(to(startx,i)),0,c_null_ptr,c_null_ptr)
+          call check_status('"clenqueuereadbuffer"', ierr)
+        end do
+        if (blocking) then
+          call check_status('"clfinish on read"', clfinish(cmd_queues(1)))
+        end if
+      else
+        size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
+        offset_in_bytes = int(size(to, 1) * (starty - 1), 8) * \
+c_sizeof(to(1,1))
+        ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_true,\
+offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
+        call check_status('"clenqueuereadbuffer"', ierr)
+      end if
 
-    if debug_mode:
-        # Check that the globalsize first dimension is a multiple of
-        # the localsize first dimension
-        expected += '''
-      IF (mod(p_fld%grid%nx, 64) .ne. 0) THEN
-        CALL check_status("Global size is not a multiple of local size \
-(mandatory in OpenCL < 2.0).", -1)
-      END IF'''
-
-    # Call the set_args subroutine with the boundaries corrected for the
-    # OpenCL 0-indexing
-    expected += '''
-      CALL compute_cu_code_set_args(kernel_compute_cu_code, \
-cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
-xstart - 1, xstop - 1, \
-ystart - 1, ystop - 1)'''
-
-    expected += '''
-      ! Launch the kernel'''
-
-    if debug_mode:
-        # Check that there is no pending error in the queue before launching
-        # the kernel
-        expected += '''
-      ierr = clFinish(cmd_queues(1))
-      CALL check_status('Errors before compute_cu_code launch', ierr)'''
-
-    expected += '''
-      ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
-2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
-C_NULL_PTR)
-      !'''
-
-    if debug_mode:
-        # Check that there are no errors during the kernel launch or during
-        # the execution of the kernel.
-        expected += '''
-      CALL check_status('compute_cu_code clEnqueueNDRangeKernel', ierr)
-      ierr = clFinish(cmd_queues(1))
-      CALL check_status('Errors during compute_cu_code', ierr)'''
-
-    assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
-
-
-def test_grid_proprty(kernel_outputdir):
-    # pylint: disable=unused-argument
-    ''' Test that using nx and ny from the gocean property dictionary
-    works.'''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
-    sched = psy.invokes.invoke_list[0].schedule
-    # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for the GOcean gen_ocl() code generation.
-    trans = GOMoveIterationBoundariesInsideKernelTrans()
-    for kernel in sched.coded_kernels():
-        trans.apply(kernel)
-
-    otrans = OCLTrans()
-    otrans.apply(sched)
-    generated_code = str(psy.gen).lower()
-    assert "globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)" in generated_code
-    expected = "size_in_bytes = int(p_fld%grid%nx*p_fld%grid%ny, 8)*" \
-               "c_sizeof(p_fld%data(1,1))"
+    end subroutine read_from_device'''
     assert expected in generated_code
 
+    # Check that the write_to_device routine has been generated
+    expected = '''\
+    subroutine write_to_device(from, to, startx, starty, nx, ny, blocking)
+      use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof
+      use ocl_utils_mod, only: check_status
+      use kind_params_mod, only: go_wp
+      use clfortran
+      use fortcl, only: get_cmd_queues
+      real(kind=go_wp), intent(in), dimension(:, :), target :: from
+      type(c_ptr), intent(in) :: to
+      integer, intent(in) :: startx
+      integer, intent(in) :: starty
+      integer, intent(in) :: nx
+      integer, intent(in) :: ny
+      logical, intent(in) :: blocking
+      integer(kind=c_intptr_t) cl_mem
+      integer(kind=c_size_t) size_in_bytes
+      integer(kind=c_size_t) offset_in_bytes
+      integer(kind=c_intptr_t), pointer :: cmd_queues(:)
+      integer ierr
+      integer i
 
-def test_field_arguments(kernel_outputdir):
-    # pylint: disable=unused-argument
-    ''' Test that with an invoke transformed to OpenCL that has fields,
-    all the fields are initialized into OpenCL buffers, the data is copied
-    in, and a function to get the data back from the device is also
-    generated.'''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
-    sched = psy.invokes.invoke_list[0].schedule
-    # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for the GOcean gen_ocl() code generation.
-    trans = GOMoveIterationBoundariesInsideKernelTrans()
-    for kernel in sched.coded_kernels():
-        trans.apply(kernel)
+      cl_mem = transfer(to, cl_mem)
+      cmd_queues => get_cmd_queues()
+      if (nx < size(from, 1) / 2) then
+        do i = starty, starty + ny, 1
+          size_in_bytes = int(nx, 8) * c_sizeof(from(1,1))
+          offset_in_bytes = int(size(from, 1) * (i - 1) + (startx - 1)) * \
+c_sizeof(from(1,1))
+          ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_false,\
+offset_in_bytes,size_in_bytes,c_loc(from(startx,i)),0,c_null_ptr,c_null_ptr)
+          call check_status('"clenqueuewritebuffer"', ierr)
+        end do
+        if (blocking) then
+          call check_status('"clfinish on write"', clfinish(cmd_queues(1)))
+        end if
+      else
+        size_in_bytes = int(size(from, 1) * ny, 8) * c_sizeof(from(1,1))
+        offset_in_bytes = int(size(from, 1) * (starty - 1)) * \
+c_sizeof(from(1,1))
+        ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,\
+offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
+        call check_status('"clenqueuewritebuffer"', ierr)
+      end if
 
-    otrans = OCLTrans()
-    otrans.apply(sched)
-    generated_code = str(psy.gen).lower()
-
-    # The array size expression always uses the same field, in this case p_fld
-    size_expression = "int(p_fld%grid%nx*p_fld%grid%ny, 8)"
-
-    # For each of the invoke fields, add a conditional block that:
-    # - Creates a OpenCL rw buffer.
-    # - Writes the field data into the buffer.
-    # - Marks data_on_device flag as true.
-    # - Points the read_from_device_f attribute to the read_from_device
-    # local function.
-    # - Blocks OpenCL Queue until the data copy has finished.
-    single_invoke_fields = ["cu_fld", "p_fld", "u_fld"]
-    for field in single_invoke_fields:
-        expected = (
-            "      if (.not. {0}%data_on_device) then\n"
-            "        size_in_bytes = " + size_expression +
-            "*c_sizeof({0}%data(1,1))\n"
-            "        ! create buffer on device\n"
-            "        {0}%device_ptr = create_rw_buffer(size_in_bytes)\n"
-            "        ierr = clenqueuewritebuffer(cmd_queues(1), "
-            "{0}%device_ptr, cl_true, 0_8, size_in_bytes, "
-            "c_loc({0}%data), 0, c_null_ptr, "
-            "c_loc(write_event))\n"
-            "        {0}%data_on_device = .true.\n"
-            "        {0}%read_from_device_f => read_from_device\n"
-            "        ! block until data copies have finished\n"
-            "        ierr = clfinish(cmd_queues(1))\n"
-            "      end if\n").format(field)
-        assert expected in generated_code
-
-    # Check that the read_from_device routine has also been generated.
-    expected = (
-        "    subroutine read_from_device(from, to, nx, ny, width)\n"
-        "      use iso_c_binding, only: c_intptr_t\n"
-        "      use fortcl, only: read_buffer\n"
-        "      integer(kind=c_intptr_t), intent(in) :: from\n"
-        "      real(kind=go_wp), intent(inout), dimension(:,:) :: to\n"
-        "      integer, intent(in) :: nx, ny, width\n"
-        "      call read_buffer(from, to, int(width*ny, kind=8))\n"
-        "    end subroutine read_from_device\n")
+    end subroutine write_to_device'''
     assert expected in generated_code
+
+    # Check that the device buffer initialisation routine has been generated
+    expected = '''\
+    subroutine initialise_device_buffer(field)
+      use fortcl, only: create_rw_buffer
+      use field_mod
+      type(r2d_field), intent(inout), target :: field
+      integer(kind=c_size_t) size_in_bytes
+
+      if (.not.field%data_on_device) then
+        size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+c_sizeof(field%data(1,1))
+        field%device_ptr = transfer(create_rw_buffer(size_in_bytes), \
+field%device_ptr)
+        field%data_on_device = .true.
+        field%read_from_device_f => read_from_device
+        field%write_to_device_f => write_to_device
+      end if
+
+    end subroutine initialise_device_buffer'''
+    print(generated_code)
+    assert expected in generated_code
+    # We don't need a Compilation test because it is the same than
+    # the test_invoke_opencl_initialisation test
 
 
 def test_psy_init(kernel_outputdir, monkeypatch):
@@ -450,6 +445,98 @@ def test_psy_init_with_options(kernel_outputdir):
     assert "CALL ocl_env_init(1, ocl_device_num, .True., .True.)\n" \
         in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
+@pytest.mark.parametrize("debug_mode", [True, False])
+def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
+    ''' Check that the Invoke OpenCL produce the expected kernel enqueue
+    statement to launch OpenCL kernels. '''
+    api_config = Config.get().api_conf("gocean1.0")
+    monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen)
+
+    # Cast dl_esm_inf pointers to cl_mem handlers
+    expected = '''\
+      cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)'''
+
+    # Set up globalsize and localsize values
+    expected += '''
+      globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
+      localsize = (/64, 1/)'''
+
+    if debug_mode:
+        # Check that the globalsize first dimension is a multiple of
+        # the localsize first dimension
+        expected += '''
+      IF (mod(p_fld%grid%nx, 64) .ne. 0) THEN
+        CALL check_status("Global size is not a multiple of local size \
+(mandatory in OpenCL < 2.0).", -1)
+      END IF'''
+
+    # Call the set_args subroutine with the boundaries corrected for the
+    # OpenCL 0-indexing
+    expected += '''
+      CALL compute_cu_code_set_args(kernel_compute_cu_code, \
+cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
+xstart - 1, xstop - 1, \
+ystart - 1, ystop - 1)'''
+
+    expected += '''
+      ! Launch the kernel'''
+
+    if debug_mode:
+        # Check that there is no pending error in the queue before launching
+        # the kernel
+        expected += '''
+      ierr = clFinish(cmd_queues(1))
+      CALL check_status('Errors before compute_cu_code launch', ierr)'''
+
+    expected += '''
+      ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
+2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
+C_NULL_PTR)
+      !'''
+
+    if debug_mode:
+        # Check that there are no errors during the kernel launch or during
+        # the execution of the kernel.
+        expected += '''
+      CALL check_status('compute_cu_code clEnqueueNDRangeKernel', ierr)
+      ierr = clFinish(cmd_queues(1))
+      CALL check_status('Errors during compute_cu_code', ierr)'''
+
+    assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
+def test_grid_proprty(kernel_outputdir):
+    # pylint: disable=unused-argument
+    ''' Test that using nx and ny from the gocean property dictionary
+    works.'''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen).lower()
+    assert "globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)" in generated_code
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -638,7 +725,7 @@ def test_set_kern_args(kernel_outputdir):
     # The call to the set_args matches the expected kernel signature with
     # the boundary values converted to 0-indexing
     assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
-            "cu_fld%device_ptr, p_fld%device_ptr, u_fld%device_ptr, "
+            "cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, "
             "xstart - 1, xstop - 1, "
             "ystart - 1, ystop - 1)" in generated_code)
 

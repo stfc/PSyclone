@@ -1269,7 +1269,10 @@ class GOKern(CodedKern):
                               funcnames=["check_status"]))
 
         # Generate code to ensure data is on device
-        self.gen_data_on_ocl_device(parent)
+        ft_block = self.root._first_time_block
+        self.gen_ocl_buffers_initialisation(ft_block)
+        self.gen_ocl_set_args_call(ft_block)
+        self.gen_ocl_buffers_initial_write(ft_block)
 
         # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
@@ -1312,46 +1315,10 @@ class GOKern(CodedKern):
         # Retrieve kernel name
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
 
-        # Find the symbol that defines each boundary for this kernel.
-        # In OpenCL the iteration boundaries are passed as arguments to the
-        # kernel because the global work size may exceed the dimensions and
-        # therefore the updates outside the boundaries should be masked.
-        # If any of the boundaries is not found, it can not proceed.
-        boundaries = []
-        try:
-            for boundary in ["xstart", "xstop", "ystart", "ystop"]:
-                tag = boundary + "_" + self.name
-                symbol = symtab.lookup_with_tag(tag)
-                boundaries.append(symbol.name)
-        except KeyError as err:
-            six.raise_from(GenerationError(
-                "Boundary symbol tag '{0}' not found while generating the "
-                "OpenCL code for kernel '{1}'. Make sure to apply the "
-                "GOMoveIterationBoundariesInsideKernelTrans before attempting"
-                " the OpenCL code generation.".format(tag, self.name)), err)
-
-        # Then we set the kernel arguments
-        arguments = [kernel]
-        for arg in self._arguments.args:
-            if arg.argument_type == "scalar":
-                if arg.name in boundaries:
-                    # Boundary values are 0-indexed in OpenCL
-                    arguments.append(arg.name + " - 1")
-                else:
-                    arguments.append(arg.name)
-            elif arg.argument_type == "field":
-                arguments.append(arg.name + "_cl_mem")
-            elif arg.argument_type == "grid_property":
-                # TODO (dl_esm_inf/#18) the dl_esm_inf library stores
-                # the pointers to device memory for grid properties in
-                # "<grid-prop-name>_device" which is a bit hacky but
-                # works for now.
-                if arg.is_scalar:
-                    arguments.append(arg.dereference(garg.name))
-                else:
-                    arguments.append(garg.name+"%grid%"+arg.name+"_device")
-        sub_name = symtab.lookup_with_tag(self.name + "_set_args").name
-        parent.add(CallGen(parent, sub_name, arguments))
+        # Set the arguments again in case some value has changed since it was
+        # previously set. This doesn't seem to have any performance hit, but
+        # some of these could be removed for nicer code generation.
+        self.gen_ocl_set_args_call(parent)
 
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
@@ -1551,7 +1518,7 @@ class GOKern(CodedKern):
         # Finally we can provide the updated argument list without name clashes
         sub.args = [kobj] + argument_names
 
-    def gen_data_on_ocl_device(self, parent):
+    def gen_ocl_buffers_initialisation(self, parent):
         # pylint: disable=too-many-locals
         '''
         Generate code to create data buffers on OpenCL device.
@@ -1560,7 +1527,6 @@ class GOKern(CodedKern):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         symtab = self.root.symbol_table
-        ft_block = self.root._first_time_block
         for arg in self._arguments.args:
             if arg.argument_type == "field":
                 # We need the buffer initialisation routine in the Invoke
@@ -1569,18 +1535,16 @@ class GOKern(CodedKern):
                 except KeyError:
                     # If the subroutines doe not exist, it needs to be
                     # generated first.
-                    self.gen_ocl_initialise_buffer(parent.parent)
+                    module = parent
+                    while module.parent:
+                        module = module.parent
+                    self.gen_ocl_initialise_buffer(module)
                     init_buf = symtab.lookup_with_tag("ocl_init_buffer_func")
 
                 # Insert call to init_buffer routine
                 field = symtab.lookup(arg.name)
                 call = Call.create(init_buf, [Reference(field)])
-                ft_block.add(PSyIRGen(ft_block, call))
-
-                # Insert call to write_to_device method
-                call = Call.create(
-                    RoutineSymbol(arg.name+"%write_to_device()"), [])
-                ft_block.add(PSyIRGen(ft_block, call))
+                parent.add(PSyIRGen(parent, call))
 
                 # Lookup for the OpenCL memory object for this field
                 name = arg.name + "_cl_mem"
@@ -1594,14 +1558,6 @@ class GOKern(CodedKern):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind="c_intptr_t", entity_decls=[name]))
 
-                # Cast buffer to cl_mem type expected by OpenCL
-                source = StructureReference.create(field, ['device_ptr'])
-                dest = Reference(symbol)
-                bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
-                                             source, dest)
-                assig = Assignment.create(dest.copy(), bop)
-                parent.add(PSyIRGen(parent, assig))
-
             elif arg.argument_type == "grid_property" and not arg.is_scalar:
                 # We need the grid buffers initialisation routine in the Invoke
                 try:
@@ -1609,27 +1565,112 @@ class GOKern(CodedKern):
                 except KeyError:
                     # If the subroutines does not exist, it needs to be
                     # generated first.
-                    self.gen_ocl_initialise_grid_buffers(parent.parent)
+                    module = parent
+                    while module.parent:
+                        module = module.parent
+                    self.gen_ocl_initialise_grid_buffers(module)
                     init_buf = symtab.lookup_with_tag("ocl_init_grid_buffers")
 
                 # Insert grid initialisation call
                 field = symtab.lookup(self._arguments.find_grid_access().name)
                 call = Call.create(init_buf, [Reference(field)])
-                ft_block.add(PSyIRGen(ft_block, call))
+                parent.add(PSyIRGen(parent, call))
 
-                # We need the grid buffers writing routine in the Invoke
-                try:
-                    init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
-                except KeyError:
-                    # If the subroutines does not exist, it needs to be
-                    # generated first.
-                    self.gen_ocl_write_grid_buffers(parent.parent)
-                    init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
+    def gen_ocl_buffers_initial_write(self, parent):
+        # pylint: disable=too-many-locals
+        '''
+        Generate code to write the initial data into the device
 
-                # Insert grid writing call
-                field = symtab.lookup(self._arguments.find_grid_access().name)
-                call = Call.create(init_buf, [Reference(field)])
-                ft_block.add(PSyIRGen(ft_block, call))
+        :param parent: parent subroutine in f2pygen AST of generated code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        symtab = self.root.symbol_table
+        there_is_a_grid_buffer = False
+        for arg in self._arguments.args:
+            if arg.argument_type == "field":
+                # Insert call to write_to_device method
+                call = Call.create(
+                    RoutineSymbol(arg.name+"%write_to_device()"), [])
+                parent.add(PSyIRGen(parent, call))
+            elif arg.argument_type == "grid_property" and not arg.is_scalar:
+                there_is_a_grid_buffer = True
+
+        if there_is_a_grid_buffer:
+            # We need the grid buffers writing routine in the Invoke
+            try:
+                init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
+            except KeyError:
+                # If the subroutines does not exist, it needs to be
+                # generated first.
+                module = parent
+                while module.parent:
+                    module = module.parent
+                self.gen_ocl_write_grid_buffers(module)
+                init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
+
+            # Insert grid writing call
+            field = symtab.lookup(self._arguments.find_grid_access().name)
+            call = Call.create(init_buf, [Reference(field)])
+            parent.add(PSyIRGen(parent, call))
+
+    def gen_ocl_set_args_call(self, parent):
+
+        symtab = self.root.symbol_table
+        # Retrieve kernel name
+        kernel = symtab.lookup_with_tag("kernel_" + self.name).name
+
+        # Find the symbol that defines each boundary for this kernel.
+        # In OpenCL the iteration boundaries are passed as arguments to the
+        # kernel because the global work size may exceed the dimensions and
+        # therefore the updates outside the boundaries should be masked.
+        # If any of the boundaries is not found, it can not proceed.
+        boundaries = []
+        try:
+            for boundary in ["xstart", "xstop", "ystart", "ystop"]:
+                tag = boundary + "_" + self.name
+                symbol = symtab.lookup_with_tag(tag)
+                boundaries.append(symbol.name)
+        except KeyError as err:
+            six.raise_from(GenerationError(
+                "Boundary symbol tag '{0}' not found while generating the "
+                "OpenCL code for kernel '{1}'. Make sure to apply the "
+                "GOMoveIterationBoundariesInsideKernelTrans before attempting"
+                " the OpenCL code generation.".format(tag, self.name)), err)
+
+        # Then we set the kernel arguments
+        arguments = [kernel]
+        for arg in self._arguments.args:
+            if arg.argument_type == "scalar":
+                if arg.name in boundaries:
+                    # Boundary values are 0-indexed in OpenCL
+                    arguments.append(arg.name + " - 1")
+                else:
+                    arguments.append(arg.name)
+            elif arg.argument_type == "field":
+                # Cast buffer to cl_mem type expected by OpenCL
+                field = symtab.lookup(arg.name)
+                symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                source = StructureReference.create(field, ['device_ptr'])
+                dest = Reference(symbol)
+                bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
+                                             source, dest)
+                assig = Assignment.create(dest.copy(), bop)
+                parent.add(PSyIRGen(parent, assig))
+
+                arguments.append(arg.name + "_cl_mem")
+            elif arg.argument_type == "grid_property":
+                garg = self._arguments.find_grid_access()
+                if arg.is_scalar:
+                    arguments.append(arg.dereference(garg.name))
+                else:
+                    # TODO (dl_esm_inf/#18) the dl_esm_inf library stores
+                    # the pointers to device memory for grid properties in
+                    # "<grid-prop-name>_device" which is a bit hacky but
+                    # works for now.
+                    arguments.append(garg.name+"%grid%"+arg.name+"_device")
+
+        sub_name = symtab.lookup_with_tag(self.name + "_set_args").name
+        parent.add(CallGen(parent, sub_name, arguments))
 
     def gen_ocl_write_grid_buffers(self, f2pygen_module):
         '''
