@@ -40,6 +40,10 @@ Algorithm PSyIR.
 from __future__ import absolute_import
 import pytest
 
+from fparser.two.parser import ParserFactory
+from fparser.common.readfortran import FortranStringReader
+
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call
 
