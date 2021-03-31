@@ -58,26 +58,30 @@ module read_only_verify_psy_data_mod
     contains
 
         ! The LFRic-specific procedures defined here
-        procedure :: DeclareFieldDouble, ProvideFieldDouble
-        procedure :: DeclareFieldVectorDouble, ProvideFieldVectorDouble
-        procedure :: DeclareIntField, ProvideIntField
-        procedure :: DeclareIntFieldVector, ProvideIntFieldVector
+        procedure :: DeclareField
+        procedure :: ProvideField
+        procedure :: DeclareFieldVector
+        procedure :: ProvideFieldVector
+        procedure :: DeclareIntField
+        procedure :: ProvideIntField
+        procedure :: DeclareIntFieldVector
+        procedure :: ProvideIntFieldVector
 
         ! Declare generic interface for PreDeclareVariable:
-        generic, public :: PreDeclareVariable =>     &
-                           DeclareFieldDouble,       &
-                           DeclareFieldVectorDouble, &
-                           DeclareIntField,          &
+        generic, public :: PreDeclareVariable => &
+                           DeclareField,         &
+                           DeclareFieldVector,   &
+                           DeclareIntField,      &
                            DeclareIntFieldVector
 
         !> The generic interface for providing the value of variables,
         !! which in case of the read-only verification either computes
         !! the checksum (before a kernel), or compares a checksum (after
         !! a kernel call).
-        generic, public :: ProvideVariable =>        &
-                           ProvideFieldDouble,       &
-                           ProvideFieldVectorDouble, &
-                           ProvideIntField,          &
+        generic, public :: ProvideVariable =>  &
+                           ProvideField,       &
+                           ProvideFieldVector, &
+                           ProvideIntField,    &
                            ProvideIntFieldVector
 
     end type read_only_verify_PSyDataType
@@ -85,12 +89,12 @@ module read_only_verify_psy_data_mod
 contains
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a double precision field based on the LFRIc
-    !! infrastructure type field_type.
+    !> This subroutine declares a real-valued (double precision) field based on
+    !! the LFRic infrastructure type field_type.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine DeclareFieldDouble(this, name, value)
+    subroutine DeclareField(this, name, value)
 
         implicit none
 
@@ -100,10 +104,10 @@ contains
 
         this%next_var_index = this%next_var_index + 1
 
-    end subroutine DeclareFieldDouble
+    end subroutine DeclareField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares an integer field based on the LFRIc
+    !> This subroutine declares an integer field based on the LFRic
     !! infrastructure type integer_field_type.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -128,7 +132,7 @@ contains
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideFieldDouble(this, name, value)
+    subroutine ProvideField(this, name, value)
 
         use field_mod, only : field_type, field_proxy_type
         use read_only_base_mod, only : ComputeChecksum
@@ -164,7 +168,7 @@ contains
 
         this%next_var_index = this%next_var_index + 1
 
-    end subroutine ProvideFieldDouble
+    end subroutine ProvideField
 
     ! -------------------------------------------------------------------------
     !> This subroutine computes the checksum for an integer-valued field based
@@ -214,12 +218,12 @@ contains
     end subroutine ProvideIntField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a vector of double precision fields based on
-    !! the LFRIc infrastructure type field_type.
+    !> This subroutine declares a vector of real-valued (double precision)
+    !! fields based on the LFRic infrastructure type field_type.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine DeclareFieldVectorDouble(this, name, value)
+    subroutine DeclareFieldVector(this, name, value)
 
         implicit none
 
@@ -229,11 +233,11 @@ contains
 
         this%next_var_index = this%next_var_index + size(value, 1)
 
-    end subroutine DeclareFieldVectorDouble
+    end subroutine DeclareFieldVector
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares a vector of integer fields based on
-    !! the LFRIc infrastructure type integer_field_type.
+    !! the LFRic infrastructure type integer_field_type.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -252,13 +256,13 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine computes the checksums for a vector of real-valued
     !! fields based on the LFRic infrastructure type field_type. It uses
-    !! ProvideFieldDouble to handle each individual field of the vector (i.e.
+    !! ProvideField to handle each individual field of the vector (i.e.
     !! storing or comparing the checksum). This way the read-only verification
     !! is done separately for each field member of the vector.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
-    subroutine ProvideFieldVectorDouble(this, name, value)
+    subroutine ProvideFieldVector(this, name, value)
 
         use field_mod, only : field_type, field_proxy_type
 
@@ -280,15 +284,15 @@ contains
         do i = 1, size(value, 1)
             value_proxy = value(i)%get_proxy()
             write(index_string, '("(",i0,")")') i
-            call this%ProvideFieldDouble(name//trim(index_string), value(i))
+            call this%ProvideField(name//trim(index_string), value(i))
         enddo
 
-    end subroutine ProvideFieldVectorDouble
+    end subroutine ProvideFieldVector
 
     ! -------------------------------------------------------------------------
     !> This subroutine computes the checksums for a vector of integer-valued
     !! fields based on the LFRic infrastructure type integer_field_type. It
-    !! uses ProvideFieldDouble to handle each individual field of the vector
+    !! uses ProvideField to handle each individual field of the vector
     !! (i.e. storing or comparing the checksum). This way the read-only
     !! verification is done separately for each field member of the vector.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.

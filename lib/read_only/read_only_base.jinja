@@ -110,7 +110,8 @@ module read_only_base_mod
     contains
 
         ! The various procedures used
-        procedure :: PreStart, PreEndDeclaration
+        procedure :: PreStart
+        procedure :: PreEndDeclaration
         procedure :: PostStart
 
         {# Collect the various procedures for the same generic interface -#}

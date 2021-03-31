@@ -59,7 +59,8 @@ module extract_psy_data_mod
     contains
 
         ! The various procedures used
-        procedure :: DeclareFieldDouble, WriteFieldDouble
+        procedure :: DeclareFieldDouble
+        procedure :: WriteFieldDouble
 
         !> The generic interface for declaring a variable:
         generic, public :: PreDeclareVariable => DeclareFieldDouble

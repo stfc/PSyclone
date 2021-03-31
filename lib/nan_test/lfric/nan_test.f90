@@ -53,10 +53,14 @@ module nan_test_psy_data_mod
     contains
 
         ! The LFRic-specific procedures defined here
-        procedure :: DeclareField, ProvideField
-        procedure :: DeclareFieldVector, ProvideFieldVector
-        procedure :: DeclareIntField, ProvideIntField
-        procedure :: DeclareIntFieldVector, ProvideIntFieldVector
+        procedure :: DeclareField
+        procedure :: ProvideField
+        procedure :: DeclareFieldVector
+        procedure :: ProvideFieldVector
+        procedure :: DeclareIntField
+        procedure :: ProvideIntField
+        procedure :: DeclareIntFieldVector
+        procedure :: ProvideIntFieldVector
 
         ! Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &

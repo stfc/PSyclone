@@ -60,7 +60,8 @@ module read_only_verify_psy_data_mod
     contains
 
         ! The various procedures used from this class
-        procedure :: DeclareFieldDouble, ProvideFieldDouble
+        procedure :: DeclareFieldDouble
+        procedure :: ProvideFieldDouble
         procedure :: Abort
 
         !> Add the `DeclareFieldDouble` subroutine to the generic

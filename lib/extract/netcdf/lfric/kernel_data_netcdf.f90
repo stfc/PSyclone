@@ -58,10 +58,14 @@ module extract_psy_data_mod
     contains
 
         ! The various procedures defined here
-        procedure :: DeclareField, WriteField
-        procedure :: DeclareFieldVector, WriteFieldVector
-        procedure :: DeclareIntField, WriteIntField
-        procedure :: DeclareIntFieldVector, WriteIntFieldVector
+        procedure :: DeclareField
+        procedure :: WriteField
+        procedure :: DeclareFieldVector
+        procedure :: WriteFieldVector
+        procedure :: DeclareIntField
+        procedure :: WriteIntField
+        procedure :: DeclareIntFieldVector
+        procedure :: WriteIntFieldVector
 
         !> Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &

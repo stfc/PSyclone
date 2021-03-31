@@ -58,7 +58,8 @@ module nan_test_psy_data_mod
     contains
 
         ! The various procedures used from this class
-        procedure :: DeclareField, ProvideField
+        procedure :: DeclareField
+        procedure :: ProvideField
 
         !> The generic interface for declaring a variable. The 'Declare'
         !! functions are actually not used at all, but they must be provided
