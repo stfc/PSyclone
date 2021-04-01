@@ -62,7 +62,7 @@ DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
-VALID_PSY_DATA_PREFIXES = profile extract
+VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
 [dynamo0.3]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
@@ -575,20 +575,24 @@ def test_incl_path_errors(tmpdir):
 
 def test_mappings():
     '''Test the definition of a mapping in the config file.'''
-    mapping = APISpecificConfig.create_dict_from_string("k1:v1, k2:v2")
+    mapping = APISpecificConfig.create_dict_from_list(["k1:v1", "k2:v2"])
     assert mapping == {"k1": "v1", "k2": "v2"}
 
-    mapping = APISpecificConfig.create_dict_from_string("")
+    mapping = APISpecificConfig.create_dict_from_list([])
+    assert mapping == {}
+
+    mapping = APISpecificConfig.create_dict_from_list(None)
     assert mapping == {}
 
     # The function only uses the first ":" :
     mapping = \
-        APISpecificConfig.create_dict_from_string("k1:v1, k2:v2:something")
-    assert mapping == {"k1": "v1", "k2": "v2:something"}
+        APISpecificConfig.create_dict_from_list(
+            ["k1 : v1", "k2 : v2 :something"])
+    assert mapping == {"k1": "v1", "k2": "v2 :something"}
 
     # Tests errors: check that '=' instead of ":" is detected as invalid:
     with pytest.raises(ConfigurationError) as err:
-        mapping = APISpecificConfig.create_dict_from_string("k1:v1, k2=v2")
+        mapping = APISpecificConfig.create_dict_from_list(["k1:v1", "k2=v2"])
     assert "Invalid format for mapping: k2=v2" in str(err.value)
 
 
