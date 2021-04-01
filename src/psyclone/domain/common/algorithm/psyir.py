@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,67 +31,85 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# Author R. W. Ford STFC Daresbury Lab
 
-''' This module contains the Call node implementation.'''
+'''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
-from __future__ import absolute_import
-from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import RoutineSymbol
+'''
+from psyclone.psyir.nodes import Call, Reference, DataNode
+from psyclone.psyir.symbols import TypeSymbol
 from psyclone.errors import GenerationError
 
 
-class Call(Statement):
-    '''Node representing a Call.
+class AlgorithmInvokeCall(Call):
+    '''An invoke call in a PSyclone Algorithm layer.'''
 
-    :param routine: the routine that this call calls.
-    :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
-    :param parent: parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+    _children_valid_format = "[KernelFunctor]*"
+    _text_name = "AlgorithmInvokeCall"
+    _colour = "green"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, KernelFunctor)
+
+
+class KernelFunctor(Reference):
+    '''Object containing a kernel call, a description of its required
+    interface and the arguments to be passed to it.
+
+    :param symbol: the functor symbol.
+    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+    :param parent: the parent node of this functor instance.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
     '''
-    # Textual description of the node.
     _children_valid_format = "[DataNode]*"
-    _text_name = "Call"
-    _colour = "cyan"
+    _text_name = "KernelFunctor"
 
-    def __init__(self, routine, parent=None):
-        super(Call, self).__init__(parent=parent)
+    def __init__(self, symbol, parent=None):
+        # pylint: disable=super-with-arguments
+        super(KernelFunctor, self).__init__(symbol, parent=parent)
 
-        if not isinstance(routine, RoutineSymbol):
+        if not isinstance(symbol, TypeSymbol):
             raise TypeError(
-                "Call routine argument should be a RoutineSymbol but found "
-                "'{0}'.".format(type(routine).__name__))
-
-        self._routine = routine
+                "KernelFunctor symbol argument should be a TypeSymbol but "
+                "found '{0}'.".format(type(symbol).__name__))
 
     @classmethod
-    def create(cls, routine, arguments):
-        '''Create an instance of class cls given valid instances of a routine
-        symbol, and a list of child nodes for its arguments.
+    def create(cls, symbol, arguments):
+        '''Create an instance of the calling class given valid instances of a
+        TypeSymbol, and a list of child nodes for its arguments.
 
-        :param routine: the routine that class cls calls.
-        :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param symbol: the name of the kernel type that this object \
+            references.
+        :type symbol: py:class:`psyclone.psyir.symbols.TypeSymbol`
         :param arguments: the arguments to this routine. These are \
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
-        :returns: an instance of cls.
-        :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
+        :returns: an instance of the calling class.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call` or subclass thereof.
 
         '''
-        if not isinstance(routine, RoutineSymbol):
+        if not isinstance(symbol, TypeSymbol):
             raise GenerationError(
-                "Call create routine argument should be a RoutineSymbol but "
-                "found '{0}'.".format(type(routine).__name__))
+                "KernelFunctor create() symbol argument should be a "
+                "TypeSymbol but found '{0}'.".format(type(symbol).__name__))
         if not isinstance(arguments, list):
             raise GenerationError(
-                "Call create arguments argument should be a list but found "
-                "'{0}'.".format(type(arguments).__name__))
+                "KernelFunctor create() arguments argument should be a list "
+                "but found '{0}'.".format(type(arguments).__name__))
 
-        call = cls(routine)
+        call = cls(symbol)
         call.children = arguments
         for child in call.children:
             child.parent = call
@@ -110,14 +128,6 @@ class Call(Statement):
         '''
         return isinstance(child, DataNode)
 
-    @property
-    def routine(self):
-        '''
-        :returns: the routine symbol that this call calls.
-        :rtype: py:class:`psyclone.psyir.symbols.RoutineSymbol`
-        '''
-        return self._routine
-
     def node_str(self, colour=True):
         '''
         Construct a text representation of this node, optionally containing
@@ -130,7 +140,9 @@ class Call(Statement):
 
         '''
         return "{0}[name='{1}']".format(
-            self.coloured_name(colour), self.routine.name)
+            self.coloured_name(colour), self.symbol.name)
 
-    def __str__(self):
-        return self.node_str(False)
+
+__all__ = [
+    'AlgorithmInvokeCall',
+    'KernelFunctor']

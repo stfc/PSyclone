@@ -63,12 +63,6 @@ from psyclone.psyGen import PSyFactory
 from psyclone.nemo import NemoInvokeSchedule, NemoKern
 
 
-@pytest.fixture(scope="function", name="fort_writer")
-def fixture_fort_writer():
-    '''Create and return a FortranWriter object with default settings.'''
-    return FortranWriter()
-
-
 def test_gen_intent():
     '''Check the gen_intent function produces the expected intent
     strings.

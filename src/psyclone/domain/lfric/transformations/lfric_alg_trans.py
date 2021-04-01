@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,32 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Author R. W. Ford STFC Daresbury Lab
 
-F90?=gfortran
-F90FLAGS?=-g
+'''Specialise generic PSyIR representing an algorithm layer to an
+LFRic algorithm-layer-specific PSyIR which uses specialised classes.
 
-# We don't build dl_timer, drhook and nvidia since they require
-# external libraries to be available.
-ALL_LIBS=template simple_timing lfric
+'''
+from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.lfric.transformations import LFRicInvokeCallTrans
 
-.PHONY: default all $(ALL_LIBS) clean allclean
 
-default: all
+class LFRicAlgTrans(AlgTrans):
+    '''Transform a generic PSyIR representation of the Algorithm layer to
+    an LFRic version with specialised domain-specific nodes.
 
-all: $(ALL_LIBS)
+    '''
+    def __init__(self):
+        super(LFRicAlgTrans, self).__init__()
+        self._invoke_trans = LFRicInvokeCallTrans()
 
-# Invoke make in the corresponding subdirectory
-$(ALL_LIBS):
-		$(MAKE) -C $@
+    @property
+    def name(self):
+        '''
+        :returns: a name identifying this transformation.
+        :rtype: str
 
-clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
-
-allclean: clean
-	# These libs are not cleaned by 'clean' (since they
-	# depend on external libraries)
-	$(MAKE) -C nvidia clean
-	$(MAKE) -C drhook clean
-	$(MAKE) -C dl_timer clean
+        '''
+        return "LFRicAlgTrans"
