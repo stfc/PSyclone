@@ -434,9 +434,25 @@ different Kernel types; general purpose, CMA, inter-grid, domain and
 :ref:`lfric-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
 other four, user-supplied kernel types and then goes on to describe
-their metadata and subroutine arguments. Domain kernels are distinct
-from the other three user-supplied kernel types in that they must be
-passed data for the whole domain rather than a single cell-column.
+their metadata and subroutine arguments.
+
+Domain kernels are distinct from the other three, user-supplied kernel
+types in that they must be passed data for the whole domain rather
+than a single cell-column. This permits the use of kernels that have
+not been written to conform to the single-column approach which
+simplifies the integration with existing code. Obviously, any
+parallelisation in the 'domain' kernel must be consistent with that
+in the rest of the application. The motivation for such kernels in
+LFRic is that they allow existing, "i-first" physics code to be called from
+the PSy layer. Since those routines currently contain their own,
+i-first looping structure (and associated OpenMP parallelisation), the
+most efficient way to use them is to avoid enclosing them within a
+loop in the PSy layer. This is a temporary measure and these
+kernels will ultimately be replaced once the LFRic infrastructure has
+support for i-first kernels
+(https://code.metoffice.gov.uk/trac/lfric/ticket/2154). At that
+point the looping (and associated parallelisation) will be put
+back into the PSy layer.
 
 .. _dynamo0.3-user-kernel-rules:
 
@@ -1985,11 +2001,15 @@ arguments to inter-grid kernels are as follows:
 Rules for Domain Kernels
 ########################
 
-The rules for kernels that have ``operates_on = DOMAIN`` are identical
-to those for general-purpose kernels (described :ref:`above
+The rules for kernels that have ``operates_on = DOMAIN`` are almost
+identical to those for general-purpose kernels (described :ref:`above
 <dynamo0.3-stub-generation-rules>`), allowing for the fact that they
 are not permitted any type of operator argument or any argument with a
-stencil access.
+stencil access. The only difference is that, since the kernel operates
+on the whole domain, the number of columns in the mesh (``ncell_2d``)
+must be passed in. This is provided as the second argument to the
+kernel (after ``nlayers``). ``ncell_2d`` is an integer of kind
+``i_def`` with intent ``in``.
 
 .. _dynamo0.3-kernel-arg-intents:
 
@@ -2013,6 +2033,28 @@ logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
 * ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
   are updated (albeit in a different way due to different access to DoFs, see
   :ref:`dynamo0.3-api-meta-args` for more details).
+
+
+Kernel Naming Conventions
++++++++++++++++++++++++++
+
+LFRic development uses strict naming conventions related to kernels.
+While they are not a requirement for PSyclone itself, any LFRic
+development should follow these conventions (see e.g.
+:ref:`LFRic examples <examples_lfric>` in PSyclone):
+
+Module name:
+    ``<base_name>_kernel_mod``
+Kernel type name:
+    ``<base_name>_kernel_type``
+Subroutine name:
+    ``<base_name>_code``
+
+The latest version of the LFRic coding style guidelines are availabe in this
+`LFRic wiki page
+<https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
+(requires login access to MOSRS, see the above :ref:`introduction <dynamo0.3-api>`
+to the LFRic API).
 
 .. _lfric-built-ins:
 
@@ -3248,13 +3290,15 @@ checks then call the generic ones internally.
 The use of the Dynamo0.3-API-specific transformations is exactly the
 same as the equivalent generic ones in all cases excepting
 **LFRicLoopFuseTrans**. In this case an additional optional argument
-**same_space** can be set after creating an instance of the transformation.
+**same_space** can be set when applying the transformation.
 The reason for this is to allow loop fusion when one or more of the
 iteration spaces is determined by a function space that is unknown by
 PSyclone at compile time. This is the case when the ``ANY_SPACE_<n>``
-function space is specified in the Kernel metadata. Setting
-``ftrans.same_space = True`` allows the user to specify that the spaces are
-the same. This option should therefore be used with caution. PSyclone will
+function space is specified in the Kernel metadata. Adding
+``{"same_space": True}`` as option when applying the transformation allows
+the user to specify that the spaces are the same (see
+:ref:`sec_transformations_available` for using options in transformations).
+This option should therefore be used with caution. PSyclone will
 raise an error if **same_space** is used when at least one of the function
 spaces is not ``ANY_SPACE_<n>`` or both spaces are not the same. In general,
 PSyclone will not allow loop fusion if it does not know the spaces

@@ -72,7 +72,8 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
     Literal, Node, Schedule, KernelSchedule, Call, Loop, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    GlobalInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType
+    GlobalInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
+    SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
@@ -80,7 +81,8 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans, \
     Dynamo0p3RedundantComputationTrans, Dynamo0p3KernelConstTrans, \
     ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans, \
-    Dynamo0p3OMPLoopTrans, OMPParallelTrans, DynamoOMPParallelLoopTrans
+    Dynamo0p3OMPLoopTrans, OMPParallelTrans, DynamoOMPParallelLoopTrans, \
+    Dynamo0p3ColourTrans
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -709,6 +711,56 @@ def test_incremented_arg():
         CodedKern.incremented_arg(my_kern)
     assert ("does not have an argument with gh_inc access"
             in str(excinfo.value))
+
+
+def test_kern_is_coloured1():
+    ''' Check that the is_coloured method behaves as expected. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.walk(Kern)[0]
+    assert not kern.is_coloured()
+    # Colour the loop around the kernel
+    ctrans = Dynamo0p3ColourTrans()
+    cschedule, _ = ctrans.apply(schedule[0])
+    assert kern.is_coloured()
+    # Test when the Kernel appears to have no parent loop
+    kern.parent = schedule
+    assert not kern.is_coloured()
+
+
+def test_kern_is_coloured2():
+    ''' Check that the is_coloured() works, independent of which loop in a
+    loop nest is of type "colour". '''
+    table = SymbolTable()
+    # Create the loop variables
+    for idx in range(3):
+        table.new_symbol("cell{0}".format(idx), symbol_type=DataSymbol,
+                         datatype=INTEGER_TYPE)
+    # Create a loop nest of depth 3 containing the kernel, innermost first
+    my_kern = DynKern()
+    loops = [Loop.create(table.lookup("cell0"), Literal("1", INTEGER_TYPE),
+                         Literal("10", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE), [my_kern])]
+    loops.append(Loop.create(table.lookup("cell1"), Literal("1", INTEGER_TYPE),
+                             Literal("10", INTEGER_TYPE),
+                             Literal("1", INTEGER_TYPE), [loops[-1]]))
+    loops.append(Loop.create(table.lookup("cell2"), Literal("1", INTEGER_TYPE),
+                             Literal("10", INTEGER_TYPE),
+                             Literal("1", INTEGER_TYPE), [loops[-1]]))
+    # As we're using the generic Loop class, we have to manually set the list
+    # of valid Loop types
+    for loop in loops:
+        loop._valid_loop_types = ["colour", ""]
+    # We have no coloured loops at this point
+    assert not my_kern.is_coloured()
+    # Test that things work as expected, independent of which loop is coloured
+    for loop in loops:
+        loop.loop_type = "colour"
+        assert my_kern.is_coloured()
+        loop.loop_type = ""
+    assert not my_kern.is_coloured()
 
 
 def test_ompdo_constructor():
@@ -1489,9 +1541,9 @@ def test_call_forward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   {"same_space": True})
     read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
@@ -1518,9 +1570,9 @@ def test_call_backward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   {"same_space": True})
     # 1: loop no backwards dependence
     call3 = schedule.children[0].loop_body[2]
     assert not call3.backward_dependence()

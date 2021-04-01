@@ -54,7 +54,6 @@ def trans(psy):
     '''
     total_fused = 0
     lf_trans = LFRicLoopFuseTrans()
-    lf_trans.same_space = True
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -68,7 +67,8 @@ def trans(psy):
             node = schedule.children[idx]
             prev_node = schedule.children[idx-1]
             try:
-                schedule, _ = lf_trans.apply(prev_node, node)
+                schedule, _ = lf_trans.apply(prev_node, node,
+                                             {"same_space": True})
                 local_fused += 1
             except TransformationError:
                 pass
