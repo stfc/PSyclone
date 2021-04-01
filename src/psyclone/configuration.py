@@ -883,16 +883,16 @@ class DynConfig(APISpecificConfig):
                     .format(section.name, config.filename, str(err)),
                     config=self._config), err)
 
-            # Parse setting for the supported Fortran datatypes
+            # Parse setting for the supported Fortran datatypes. No
+            # need to check whether the keyword is found as it is
+            # mandatory (and therefore already checked).
             self._supported_fortran_datatypes = section.getlist(
                 "supported_fortran_datatypes")
-            if self._supported_fortran_datatypes is None:
-                self._supported_fortran_datatypes = []
 
-            # Parse setting for default kinds (precisions)
+            # Parse setting for default kinds (precisions). No need to
+            # check whether the keyword is found as it is mandatory
+            # (and therefore already checked).
             kind_list = section.getlist("default_kind")
-            if kind_list is None:
-                kind_list = []
             all_kinds = self.create_dict_from_list(kind_list)
             # Set default kinds (precisions) from config file
             # Check for valid datatypes (filter to remove empty values)
@@ -1078,10 +1078,7 @@ class GOceanConfig(APISpecificConfig):
                 # First the name, then the Fortran code to access the property,
                 # followed by the type ("array" or "scalar") and then the
                 # intrinsic type ("integer" or "real")
-                key_list = section.getlist(key)
-                if key_list is None:
-                    key_list = []
-                all_props = self.create_dict_from_list(key_list)
+                all_props = self.create_dict_from_list(section.getlist(key))
                 for grid_property in all_props:
                     try:
                         fortran, variable_type, intrinsic_type = \
@@ -1217,10 +1214,7 @@ class NemoConfig(APISpecificConfig):
             # Handle the definition of variables
             if key[:8] == "mapping-":
                 loop_type = key[8:]
-                key_list = section.getlist(key)
-                if key_list is None:
-                    key_list = []
-                data = self.create_dict_from_list(key_list)
+                data = self.create_dict_from_list(section.getlist(key))
                 # Make sure the required keys exist:
                 for subkey in ["var", "start", "stop"]:
                     if subkey not in data:
@@ -1246,8 +1240,6 @@ class NemoConfig(APISpecificConfig):
 
             elif key == "index-order":
                 self._index_order = section.getlist(key)
-                if self._index_order is None:
-                    self._index_order = []
 
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
