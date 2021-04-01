@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+from psyclone.domain.common.transformations.invokecall_trans import \
+    InvokeCallTrans
+from psyclone.domain.common.transformations.alg_trans import AlgTrans
 
-'''Transformation module for LFRic.
-'''
-
-from psyclone.domain.lfric.transformations.lfric_extract_trans \
-    import LFRicExtractTrans
-from psyclone.domain.lfric.transformations.lfric_loop_fuse_trans \
-    import LFRicLoopFuseTrans
-from psyclone.domain.lfric.transformations.lfric_invokecall_trans \
-    import LFRicInvokeCallTrans
-from psyclone.domain.lfric.transformations.lfric_alg_trans \
-    import LFRicAlgTrans
-
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.lfric.transformations import LFRicExtractTrans
-
-__all__ = ['LFRicExtractTrans',
-           'LFRicLoopFuseTrans',
-           'LFRicInvokeCallTrans',
-           'LFRicAlgTrans']
+__all__ = ["InvokeCallTrans", "AlgTrans"]
