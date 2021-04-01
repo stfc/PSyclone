@@ -1268,11 +1268,24 @@ class GOKern(CodedKern):
             parent.add(UseGen(parent, name="ocl_utils_mod", only=True,
                               funcnames=["check_status"]))
 
-        # Generate code to ensure data is on device
-        ft_block = self.root._first_time_block
+        # Generate code inside the first_time block to ensure the device
+        # buffers are initialised and the data is on the device. A set_args
+        # call is also inserted because in some platforms (e.g. Xiling FPGA)
+        # knowing which arguments each kernel is going to use allows the write
+        # operation to place the data into the appropriate memory bank.
+        # This dispatches duplicated writes operation, but the performance
+        # penalty is small because it just happens during the first iteration.
+        # TODO #1134: Explore removing duplicated write operations.
+        ft_block = self.ancestor(InvokeSchedule)._first_time_block
         self.gen_ocl_buffers_initialisation(ft_block)
         self.gen_ocl_set_args_call(ft_block)
         self.gen_ocl_buffers_initial_write(ft_block)
+
+        # Call the set_args again in case some value has changed. This doesn't
+        # seem to have any performance penalty, but some of these could be
+        # removed for nicer code generation.
+        # TODO #1134: Explore removing unnecessary set_args calls.
+        self.gen_ocl_set_args_call(parent)
 
         # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
@@ -1314,11 +1327,6 @@ class GOKern(CodedKern):
 
         # Retrieve kernel name
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
-
-        # Set the arguments again in case some value has changed since it was
-        # previously set. This doesn't seem to have any performance hit, but
-        # some of these could be removed for nicer code generation.
-        self.gen_ocl_set_args_call(parent)
 
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
@@ -1615,8 +1623,8 @@ class GOKern(CodedKern):
 
     def gen_ocl_set_args_call(self, parent):
 
+        # Retrieve symbol table and kernel name
         symtab = self.root.symbol_table
-        # Retrieve kernel name
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
 
         # Find the symbol that defines each boundary for this kernel.
@@ -1637,7 +1645,17 @@ class GOKern(CodedKern):
                 "GOMoveIterationBoundariesInsideKernelTrans before attempting"
                 " the OpenCL code generation.".format(tag, self.name)), err)
 
-        # Then we set the kernel arguments
+        # If this is an IfBlock, make a copy of boundary assignments statements
+        # to make sure they are initialised before calling the set_args routine
+        # that have them as a parameter.
+        # TODO #1134: Probably this can be made more generic when we are just
+        # dealing with PSyIR.
+        if isinstance(parent, IfThenGen):
+            for node in self.ancestor(InvokeSchedule).walk(Assignment):
+                if node.lhs.symbol.name in boundaries:
+                    parent.add(PSyIRGen(parent, node.copy()))
+
+        # Prepare the argument list for the set_args routine
         arguments = [kernel]
         for arg in self._arguments.args:
             if arg.argument_type == "scalar":

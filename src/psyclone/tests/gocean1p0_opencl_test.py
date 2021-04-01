@@ -167,13 +167,16 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
 
     # Test that a conditional 'first_time' code is generated with the
     # expected initialisation statements:
-    # - call to psy_init
-    # - num_cmd_queues and cmd_queues pointer setters
-    # - OpenCL kernel setter
-    # - Initialization of all field buffers
-    # - Initial write into the first buffer
+    # - Call psy_init
+    # - Set num_cmd_queues and cmd_queues pointers
+    # - OpenCL kernel setters
+    # - Initialization of all OpenCL field buffers
+    # - Call set_arg of the kernels (with necessary boundary and cl_mem
+    #   buffers initialisation)
+    # - Write data into the OpenCL buffers
     expected = '''\
       if (first_time) then
+        first_time = .false.
         ! ensure opencl run-time is initialised for this psy-layer module
         call psy_init
         num_cmd_queues = get_num_cmd_queues()
@@ -182,19 +185,20 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
         call initialise_device_buffer(cu_fld)
         call initialise_device_buffer(p_fld)
         call initialise_device_buffer(u_fld)
-      end if'''
-
-    # FIXME: Initialize gird buffers if needed
-    # FIXME: Move writes after set_args initial invocation
-
-    expected += '''\
-      if (first_time) then
-        first_time = .false.
+        xstart = cu_fld%internal%xstart
+        xstop = cu_fld%internal%xstop
+        ystart = cu_fld%internal%ystart
+        ystop = cu_fld%internal%ystop
+      cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
+        call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
+p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
         call cu_fld%write_to_device()
         call p_fld%write_to_device()
         call u_fld%write_to_device()
       end if'''
-    print(generated_code)
+
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -465,11 +469,26 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
+    # Set the boundaries for this kernel
+    expected = '''
+        xstart = cu_fld%internal%xstart
+        xstop = cu_fld%internal%xstop
+        ystart = cu_fld%internal%ystart
+        ystop = cu_fld%internal%ystop'''
+
     # Cast dl_esm_inf pointers to cl_mem handlers
-    expected = '''\
+    expected += '''
       cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
       p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
       u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)'''
+
+    # Call the set_args subroutine with the boundaries corrected for the
+    # OpenCL 0-indexing
+    expected += '''
+      CALL compute_cu_code_set_args(kernel_compute_cu_code, \
+cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
+xstart - 1, xstop - 1, \
+ystart - 1, ystop - 1)'''
 
     # Set up globalsize and localsize values
     expected += '''
@@ -484,14 +503,6 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         CALL check_status("Global size is not a multiple of local size \
 (mandatory in OpenCL < 2.0).", -1)
       END IF'''
-
-    # Call the set_args subroutine with the boundaries corrected for the
-    # OpenCL 0-indexing
-    expected += '''
-      CALL compute_cu_code_set_args(kernel_compute_cu_code, \
-cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
-xstart - 1, xstop - 1, \
-ystart - 1, ystop - 1)'''
 
     expected += '''
       ! Launch the kernel'''
