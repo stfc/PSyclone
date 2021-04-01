@@ -760,7 +760,8 @@ class APISpecificConfig(object):
                 # Raised when split does not return two elements:
                 raise ConfigurationError("Invalid format for mapping: {0}".
                                          format(entry.strip()))
-            return_dict[key.strip()] = value.strip()
+            # Remove spaces and convert unicode to normal strings in Python2
+            return_dict[str(key.strip())] = str(value.strip())
         return return_dict
 
     def get_access_mapping(self):
