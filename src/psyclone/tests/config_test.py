@@ -581,9 +581,6 @@ def test_mappings():
     mapping = APISpecificConfig.create_dict_from_list([])
     assert mapping == {}
 
-    mapping = APISpecificConfig.create_dict_from_list(None)
-    assert mapping == {}
-
     # The function only uses the first ":" :
     mapping = \
         APISpecificConfig.create_dict_from_list(

@@ -331,9 +331,8 @@ class Config(object):
         # not exist then return an empty list.
         self._valid_psy_data_prefixes = \
             self._config["DEFAULT"].getlist("VALID_PSY_DATA_PREFIXES")
-        if not self._valid_psy_data_prefixes:
+        if self._valid_psy_data_prefixes is None:
             self._valid_psy_data_prefixes = []
-
         try:
             self._ocl_devices_per_node = self._config['DEFAULT'].getint(
                 'OCL_DEVICES_PER_NODE')
@@ -710,11 +709,13 @@ class APISpecificConfig(object):
         self._access_mapping = {"read": "read", "write": "write",
                                 "readwrite": "readwrite", "inc": "inc",
                                 "sum": "sum"}
-        # Get the mapping and convert it into a dictionary. The input is in
-        # the format: key1:value1, key2=value2, ...
+        # Get the mapping if one exists and convert it into a
+        # dictionary. The input is in the format: key1:value1,
+        # key2=value2, ...
         mapping_list = section.getlist("ACCESS_MAPPING")
-        self._access_mapping = \
-            APISpecificConfig.create_dict_from_list(mapping_list)
+        if mapping_list is not None:
+            self._access_mapping = \
+                APISpecificConfig.create_dict_from_list(mapping_list)
         # Now convert the string type ("read" etc) to AccessType
         # TODO (issue #710): Add checks for duplicate or missing access
         # key-value pairs
@@ -740,9 +741,8 @@ class APISpecificConfig(object):
         a dictionary with the key,value pairs. Any leading or trailing
         white space is removed.
 
-        :param input_list: the input list. If it is None, an empty \
-            dictionary is returned.
-        :type input_list: list of str or NoneType
+        :param input_list: the input list.
+        :type input_list: list of str
 
         :returns: a dictionary with the key,value pairs from the input \
             string.
@@ -752,8 +752,6 @@ class APISpecificConfig(object):
                 does not contain a ":".
 
         '''
-        if not input_list:
-            return {}
         return_dict = {}
         for entry in input_list:
             try:
@@ -887,11 +885,14 @@ class DynConfig(APISpecificConfig):
             # Parse setting for the supported Fortran datatypes
             self._supported_fortran_datatypes = section.getlist(
                 "supported_fortran_datatypes")
-            if not self._supported_fortran_datatypes:
+            if self._supported_fortran_datatypes is None:
                 self._supported_fortran_datatypes = []
 
             # Parse setting for default kinds (precisions)
-            all_kinds = self.create_dict_from_list(section.getlist("default_kind"))
+            kind_list = section.getlist("default_kind")
+            if kind_list is None:
+                kind_list = []
+            all_kinds = self.create_dict_from_list(kind_list)
             # Set default kinds (precisions) from config file
             # Check for valid datatypes (filter to remove empty values)
             datatypes = set(filter(None, all_kinds.keys()))
@@ -1076,7 +1077,10 @@ class GOceanConfig(APISpecificConfig):
                 # First the name, then the Fortran code to access the property,
                 # followed by the type ("array" or "scalar") and then the
                 # intrinsic type ("integer" or "real")
-                all_props = self.create_dict_from_list(section.getlist(key))
+                key_list = section.getlist(key)
+                if key_list is None:
+                    key_list = []
+                all_props = self.create_dict_from_list(key_list)
                 for grid_property in all_props:
                     try:
                         fortran, variable_type, intrinsic_type = \
@@ -1212,7 +1216,10 @@ class NemoConfig(APISpecificConfig):
             # Handle the definition of variables
             if key[:8] == "mapping-":
                 loop_type = key[8:]
-                data = self.create_dict_from_list(section.getlist(key))
+                key_list = section.getlist(key)
+                if key_list is None:
+                    key_list = []
+                data = self.create_dict_from_list(key_list)
                 # Make sure the required keys exist:
                 for subkey in ["var", "start", "stop"]:
                     if subkey not in data:
@@ -1238,7 +1245,7 @@ class NemoConfig(APISpecificConfig):
 
             elif key == "index-order":
                 self._index_order = section.getlist(key)
-                if not self._index_order:
+                if self._index_order is None:
                     self._index_order = []
 
             else:
