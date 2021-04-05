@@ -34,5 +34,7 @@
 from psyclone.domain.common.transformations.invokecall_trans import \
     InvokeCallTrans
 from psyclone.domain.common.transformations.alg_trans import AlgTrans
+from psyclone.domain.common.transformations.process_alg_trans import \
+    ProcessAlgTrans
 
-__all__ = ["InvokeCallTrans", "AlgTrans"]
+__all__ = ["InvokeCallTrans", "AlgTrans", "ProcessAlgTrans"]
