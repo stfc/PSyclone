@@ -203,6 +203,147 @@ p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_invoke_opencl_initialisation_grid():
+    ''' Test that generating OpenCL generation code when there are grid
+    property accesses generated the proper grid on device initialisation
+    code '''
+    psy, _ = get_invoke("driver_test.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen).lower()
+
+    # Check that device grid initialisation routine is generated
+    expected = '''
+    subroutine initialise_grid_device_buffers(field)
+      use fortcl, only: create_rw_buffer
+      use field_mod
+      type(r2d_field), intent(inout), target :: field
+      integer(kind=c_size_t) size_in_bytes
+
+      if (field%grid%tmask_device == 0) then
+        size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+c_sizeof(field%grid%tmask(1,1))
+        field%grid%tmask_device = create_rw_buffer(size_in_bytes)
+        size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+c_sizeof(field%grid%area_t(1,1))
+        field%grid%area_t_device = create_rw_buffer(size_in_bytes)
+        field%grid%area_u_device = create_rw_buffer(size_in_bytes)
+        field%grid%area_v_device = create_rw_buffer(size_in_bytes)
+        field%grid%dx_u_device = create_rw_buffer(size_in_bytes)
+        field%grid%dx_v_device = create_rw_buffer(size_in_bytes)
+        field%grid%dx_t_device = create_rw_buffer(size_in_bytes)
+        field%grid%dy_u_device = create_rw_buffer(size_in_bytes)
+        field%grid%dy_v_device = create_rw_buffer(size_in_bytes)
+        field%grid%dy_t_device = create_rw_buffer(size_in_bytes)
+        field%grid%gphiu_device = create_rw_buffer(size_in_bytes)
+        field%grid%gphiv_device = create_rw_buffer(size_in_bytes)
+      end if
+
+    end subroutine initialise_grid_device_buffers'''
+    assert expected in generated_code
+
+    # Check that device grid write routine is generated
+    expected = '''
+    subroutine write_grid_buffers(field)
+      use fortcl, only: get_cmd_queues
+      use iso_c_binding, only: c_intptr_t, c_size_t, c_sizeof
+      use clfortran
+      use ocl_utils_mod, only: check_status
+      type(r2d_field), intent(inout), target :: field
+      integer(kind=c_size_t) size_in_bytes
+      integer(kind=c_intptr_t), pointer :: cmd_queues(:)
+      integer ierr
+
+      cmd_queues => get_cmd_queues()
+      size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+c_sizeof(field%grid%tmask(1,1))
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%tmask_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%tmask),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer tmask"', ierr)
+      size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+c_sizeof(field%grid%area_t(1,1))
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%area_t_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%area_t),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer area_t_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%area_u_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%area_u),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer area_u_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%area_v_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%area_v),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer area_v_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dx_u_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%dx_u),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer dx_u_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dx_v_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%dx_v),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer dx_v_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dx_t_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%dx_t),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer dx_t_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dy_u_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%dy_u),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer dy_u_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dy_v_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%dy_v),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer dy_v_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dy_t_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%dy_t),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer dy_t_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%gphiu_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%gphiu),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer gphiu_device"', ierr)
+      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%gphiv_device,\
+cl_true,0_8,size_in_bytes,c_loc(field%grid%gphiv),0,c_null_ptr,c_null_ptr)
+      call check_status('"clenqueuewritebuffer gphiv_device"', ierr)
+
+    end subroutine write_grid_buffers'''
+    assert expected in generated_code
+
+    # Check that during the first time set-up the previous routines are called
+    # for a kernel which contains a grid property access.
+    expected = '''
+      if (first_time) then
+        first_time = .false.
+        ! ensure opencl run-time is initialised for this psy-layer module
+        call psy_init
+        num_cmd_queues = get_num_cmd_queues()
+        cmd_queues => get_cmd_queues()
+        kernel_compute_kernel_code = get_kernel_by_name("compute_kernel_code")
+        call initialise_device_buffer(out_fld)
+        call initialise_device_buffer(in_out_fld)
+        call initialise_device_buffer(in_fld)
+        call initialise_device_buffer(dx)
+        call initialise_grid_device_buffers(in_fld)
+        xstart = out_fld%internal%xstart
+        xstop = out_fld%internal%xstop
+        ystart = out_fld%internal%ystart
+        ystop = out_fld%internal%ystop
+      out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
+      in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
+      in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
+      dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
+        call compute_kernel_code_set_args(kernel_compute_kernel_code, \
+out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, in_fld%grid%dx, \
+in_fld%grid%gphiu_device, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
+        call out_fld%write_to_device()
+        call in_out_fld%write_to_device()
+        call in_fld%write_to_device()
+        call dx%write_to_device()
+        call write_grid_buffers(in_fld)
+      end if'''
+    assert expected in generated_code
+    # TODO 284: Currently this example cannot be compiled because it needs to
+    # import a module which won't be found on kernel_outputdir
+
+
 def test_opencl_routines_initialisation(kernel_outputdir):
     # pylint: disable=unused-argument
     ''' Test that with an OpenCL invoke file has the necessary routines
