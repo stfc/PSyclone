@@ -1,8 +1,50 @@
+<!--
+## Licence
+
+-------------------------------------------------------------------------------
+
+BSD 3-Clause License
+
+Copyright (c) 2020-2021, Science and Technology Facilities Council.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+-------------------------------------------------------------------------------
+Authors: J. Henrichs, Bureau of Meteorology,
+         I. Kavcic, Met Office
+-->
+
 # Libraries for use with PSyclone
 
 This directory contains a base class as a Jinja template that can be used to simplify
 the creation of [PSyData-based](
-https://psyclone.readthedocs.io/en/latest/psy_data.html) wrapper libraries.
+https://psyclone.readthedocs.io/en/stable/psy_data.html) wrapper libraries.
 
 ## Installation
 
@@ -65,10 +107,10 @@ flags can be set to a different compiler. For instance,
 make F90=ifort F90FLAGS="-g -check bounds"
 ```
 
-Similar to the [examples](
+Similar to compilation of the [examples](
 https://psyclone.readthedocs.io/en/latest/examples.html#compilation), the
-compiled code can be removed by running ``make clean``. There is also the
-``allclean`` target that removes the compiled wrapper library as well
+compiled library can be removed by running ``make clean``. There is also
+the ``allclean`` target that removes the compiled wrapper library as well
 as the compiled infrastructure library that the wrapper may
 [depend on](#dependencies).
 
@@ -82,10 +124,10 @@ by default set to the relative path to the top-level `lib` directory.
 Compilation of ``extract``, ``nan_test``, ``read_only`` and some of the
 profiling wrapper libraries depends on infrastructure libraries relevant
 to the API they are used for. [GOcean API](
-https://psyclone.readthedocs.io/en/latest/gocean1p0.html) uses the
-[```dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf) and
+https://psyclone.readthedocs.io/en/stable/gocean1p0.html) uses the
+[``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf) and
 [LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/latest/dynamo0p3.html)
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
 uses the LFRic infrastructure (see the linked documentation on how to
 access and use the LFRic code). The location of the respective
 infrastructure libraries can be configured with the variable ``INF_DIR``
