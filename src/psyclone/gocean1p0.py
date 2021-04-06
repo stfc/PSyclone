@@ -1273,17 +1273,19 @@ class GOKern(CodedKern):
         # call is also inserted because in some platforms (e.g. Xiling FPGA)
         # knowing which arguments each kernel is going to use allows the write
         # operation to place the data into the appropriate memory bank.
-        # This dispatches duplicated writes operation, but the performance
-        # penalty is small because it just happens during the first iteration.
+        # This will create duplicate write operation for fields that are
+        # repeated in multiple kernels, but the performance penalty is small
+        # because it just happens during the first iteration.
         # TODO #1134: Explore removing duplicated write operations.
         ft_block = self.ancestor(InvokeSchedule)._first_time_block
         self.gen_ocl_buffers_initialisation(ft_block)
         self.gen_ocl_set_args_call(ft_block)
         self.gen_ocl_buffers_initial_write(ft_block)
 
-        # Call the set_args again in case some value has changed. This doesn't
-        # seem to have any performance penalty, but some of these could be
-        # removed for nicer code generation.
+        # Call the set_args again outside the first_time block in case some
+        # value has changed between iterations. This doesn't seem to have any
+        # performance penalty, but some of these could be removed for nicer
+        # code generation.
         # TODO #1134: Explore removing unnecessary set_args calls.
         self.gen_ocl_set_args_call(parent)
 
@@ -1554,17 +1556,18 @@ class GOKern(CodedKern):
                 call = Call.create(init_buf, [Reference(field)])
                 parent.add(PSyIRGen(parent, call))
 
-                # Lookup for the OpenCL memory object for this field
+                # Lookup for the OpenCL memory object for this field and make
+                # sure it is declared in the Invoke.
                 name = arg.name + "_cl_mem"
                 try:
-                    symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                    symtab.lookup_with_tag(name)
                 except KeyError:
-                    symbol = symtab.new_symbol(
+                    symtab.new_symbol(
                         name, tag=name, symbol_type=DataSymbol,
                         datatype=UnknownFortranType("INTEGER(KIND=c_intptr_t)"
                                                     " :: " + name))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind="c_intptr_t", entity_decls=[name]))
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       kind="c_intptr_t", entity_decls=[name]))
 
             elif arg.argument_type == "grid_property" and not arg.is_scalar:
                 # We need the grid buffers initialisation routine in the Invoke
@@ -1622,6 +1625,12 @@ class GOKern(CodedKern):
             parent.add(PSyIRGen(parent, call))
 
     def gen_ocl_set_args_call(self, parent):
+        '''
+        Generate code to call the set_args subroutine for this kernel.
+
+        :param parent: parent subroutine in f2pygen AST of generated code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
 
         # Retrieve symbol table and kernel name
         symtab = self.root.symbol_table
@@ -1648,8 +1657,8 @@ class GOKern(CodedKern):
         # If this is an IfBlock, make a copy of boundary assignments statements
         # to make sure they are initialised before calling the set_args routine
         # that have them as a parameter.
-        # TODO #1134: Probably this can be made more generic when we are just
-        # dealing with PSyIR.
+        # TODO #1134: If everything was PSyIR we could probably move this
+        # assignment before the IfBlock instead of duplicating it inside.
         if isinstance(parent, IfThenGen):
             for node in self.ancestor(InvokeSchedule).walk(Assignment):
                 if node.lhs.symbol.name in boundaries:
@@ -1863,24 +1872,9 @@ class GOKern(CodedKern):
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean1.0")
-        host_buff = \
-            api_config.grid_properties["go_grid_data"].fortran.format("field")
         props = api_config.grid_properties
         num_x = props["go_grid_nx"].fortran.format("field")
         num_y = props["go_grid_ny"].fortran.format("field")
-
-        # Fields need to provide a function pointer to how the device data is
-        # going to be read and written from the host, if these doesn't exist
-        # they have to be generated.
-        try:
-            read_fp = symtab.lookup_with_tag("ocl_read_func").name
-        except KeyError:
-            read_fp = self.gen_ocl_read_from_device_function(f2pygen_module)
-
-        try:
-            write_fp = symtab.lookup_with_tag("ocl_write_func").name
-        except KeyError:
-            write_fp = self.gen_ocl_write_to_device_function(f2pygen_module)
 
         # Code of the subroutine in Fortran
         code = '''
@@ -1910,7 +1904,7 @@ class GOKern(CodedKern):
                 field%grid%gphiv_device = create_rw_buffer(size_in_bytes)
             END IF
         end subroutine initialise_device_grid
-        '''.format(num_x, num_y, host_buff, read_fp, write_fp)
+        '''.format(num_x, num_y)
 
         # Obtain the PSyIR representation of the code above
         processor = Fparser2Reader()
@@ -2011,6 +2005,18 @@ class GOKern(CodedKern):
         return subroutine_name
 
     def gen_ocl_write_to_device_function(self, f2pygen_module):
+        '''
+        Insert a f2pygen subroutine to write data to an OpenCL device using
+        FortCL in the given f2pygen module and return its name.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the name of the generated subroutine.
+        :rtype: str
+
+        '''
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = self.root.symbol_table.new_symbol(
             "write_to_device", symbol_type=RoutineSymbol,
