@@ -40,12 +40,12 @@ Authors: J. Henrichs, Bureau of Meteorology,
          I. Kavcic, Met Office
 -->
 
-# Read-only Verification Library for LFRic
+# ``NaN``-Test Verification Library for LFRic
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-lfric)
-to verify that variables declared read-only are not modified (overwritten) in
-a kernel call for an application using the LFRic infrastructure library.
+https://psyclone.readthedocs.io/en/latest/psy_data.html#nan-test)
+to verify that input and output parameters of an LFRic kernel are not ``NaN``
+or infinite, using the LFRic infrastructure library.
 
 ## Dependencies
 
@@ -61,13 +61,13 @@ the application. The following dependencies must be available:
   https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) documentation
   for information on how to obtain access to the LFRic code.
 
-- The ``ReadOnly`` (``read_only_base.jinja``) and ``PSyData``
+- The ``NANTest`` (``nan_test_base.jinja``) and ``PSyData``
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
-  read-only verification code for integer, 32- and 64-bit reals, and
+  ``NaN``-test verification code for integer, 32- and 64-bit reals, and
   1, 2, 3, and 4-dimensional arrays. The generated Fortran code,
-  ``read_only_base.f90`` and ``psy_data_base.f90``, is then used by the
-  supplied ``read_only.f90`` module to create the wrapper library.
+  ``nan_test_base.f90`` and ``psy_data_base.f90``, is then used by the
+  supplied ``nan_test.f90`` module to create the wrapper library.
 
 ## Compilation
 
@@ -76,10 +76,10 @@ A ``Makefile`` is provided for compilation. The environment variables
 ../../README.md#compilation) and flags to use. They default to ``gfortran``
 and the empty string.
 
-The location of the ``ReadOnly`` and ``PSyData`` base classes is specified
+The location of the ``NANTest`` and ``PSyData`` base classes is specified
 using the environment variables ``$JINJA_TMPLT_DIR`` and ``$ROOT_LIB_DIR``,
 respectively. They default to the relative paths of the
-[``lib/read_only``](../) and top-level [``lib``](../../) directories.
+[``lib/nan_test``](../) and top-level [``lib``](../../) directories.
 
 The location of the LFRic infrastructure library is specified using
 the environment variable ``$INF_DIR``. It defaults to the relative
@@ -91,7 +91,7 @@ exact path **must be specified** during the compilation process, e.g.
 make F90=ifort F90FLAGS="-g -check bounds" INF_DIR=<path/to/LFRic/code>
 ```
 
-This process will create the wrapper library ``lib_read_only.a``. The
+This process will create the wrapper library ``lib_nan_test.a``. The
 ``Makefile`` will compile the infrastructure library if required, with the
 previously selected compiler flags.
 

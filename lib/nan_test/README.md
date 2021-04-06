@@ -40,21 +40,23 @@ Authors: J. Henrichs, Bureau of Meteorology,
          I. Kavcic, Met Office
 -->
 
-# Read-Only Verification Libraries
+# ``NaN``-Test Verification Libraries
 
-This directory contains files related to [read-only verification](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification),
+This directory contains files related to testing all input and output
+parameters of a kernel to make sure they are not [``NaN`` or infinite](
+https://psyclone.readthedocs.io/en/latest/psy_data.html#nan-test),
 i.e. checks at runtime that a read-only parameter of a subroutine is indeed
-not changed in a kernel. There is a [read-only verification base class](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-read-only-verification-base-class)
-as a Jinja template that can be used to simplify the creation of API-specific wrapper libraries.
+not changed in a kernel. There is a [base class](
+https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class)
+as a Jinja template that can be used to simplify the creation of API-specific
+wrapper libraries.
 
-## ``ReadOnly`` base class
+## ``NANTest`` base class
 
-The file ``read_only_base.jinja`` contains a Jinja template that is used
+The file ``nan_test_base.jinja`` contains a Jinja template that is used
 by the [GOcean ``dl_esm_inf``-](dl_esm_inf/README.md) and [LFRic-specific](
 lfric/README.md) wrapper libraries. It implements the required [PSyData API](
-https://psyclone-dev.readthedocs.io/en/stable/psy_data.html) calls for
+https://psyclone.readthedocs.io/en/stable/psy_data.html) calls for
 Fortran base types (scalar and arrays).
 Full documentation to the Jinja implementation of a ``PSyData`` base class is
 in the [developer's guide](
@@ -68,11 +70,11 @@ they do not link with a compiled version from this directory.
 
 ## [``dl_esm_inf``](dl_esm_inf) directory
 
-Contains the read-only PSyData wrapper library for the ``dl_esm_inf``
+Contains the ``NaN``-test PSyData wrapper library for the ``dl_esm_inf``
 [GOcean API](https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
 
 ## [``lfric``](lfric) directory
 
-Contains the read-only PSyData wrapper library for the
+Contains the ``NaN``-test PSyData wrapper library for the
 [LFRic (Dynamo 0.3) API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).

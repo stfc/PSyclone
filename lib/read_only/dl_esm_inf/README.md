@@ -43,7 +43,7 @@ Authors: J. Henrichs, Bureau of Meteorology,
 # Read-only Verification Library for GOcean
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification)
+https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-gocean)
 to verify that variables declared read-only are not modified (overwritten) in
 a kernel call for an application using the [``dl_esm_inf`` library](
 https://github.com/stfc/dl_esm_inf) library.
@@ -51,7 +51,7 @@ https://github.com/stfc/dl_esm_inf) library.
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone-dev.readthedocs.io/en/stable/psy_data.html) to interface
+https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface
 with the application. The following dependencies must be available:
 
 - The [GOcean](https://psyclone.readthedocs.io/en/latest/gocean1p0.html)
@@ -66,7 +66,9 @@ with the application. The following dependencies must be available:
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create
   the read-only verification code for integer, 32- and 64-bit
-  reals, and 2-dimensional arrays.
+  reals, and 2-dimensional arrays. The generated Fortran code,
+  ``read_only_base.f90`` and ``psy_data_base.f90``, is then used by the
+  supplied ``read_only.f90`` module to create the wrapper library.
 
 ## Compilation
 
@@ -91,8 +93,9 @@ compilation process, e.g.
 make INF_DIR=<path/to/dl_esm_inf/finite_difference>
 ```
 
-The ``Makefile`` will compile the library if required, with the selected
-compiler flags used for the infrastructure library compilation as well.
+This process will create the wrapper library ``lib_read_only.a``. The
+``Makefile`` will compile the infrastructure library if required, with the
+previously selected compiler flags.
 
 Similar to compilation of the [examples](
 https://psyclone.readthedocs.io/en/latest/examples.html#compilation), the
