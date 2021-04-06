@@ -95,7 +95,7 @@ section e.g.:
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
     PSYIR_ROOT_NAME = psyir_tmp
-    VALID_PSY_DATA_PREFIXES = profile extract
+    VALID_PSY_DATA_PREFIXES = profile, extract
 
 and an optional API specific section, for example for the
 ``dynamo0.3`` section:
