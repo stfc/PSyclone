@@ -62,8 +62,9 @@ with the application. The following dependencies must be available:
   However, it is not included in the PSyclone installation and has to
   be cloned separately.
 
-- The ``ReadOnly`` and ``PSyData`` base classes, which are included in
-  PSyclone installation. These Jinja templates are processed to create
+- The ``ReadOnly`` (``read_only_base.jinja``) and ``PSyData``
+  (``psy_data_base.jinja``) base classes, which are included in PSyclone
+  installation. These Jinja templates are processed to create
   the read-only verification code for integer, 32- and 64-bit
   reals, and 2-dimensional arrays.
 

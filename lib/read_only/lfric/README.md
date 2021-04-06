@@ -61,8 +61,9 @@ the application. The following dependencies must be available:
   https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) documentation
   for information on how to obtain access to the LFRic code.
 
-- The ``ReadOnly`` and ``PSyData`` base classes, which are included in
-  PSyclone installation. These Jinja templates are processed to create
+- The ``ReadOnly`` (``read_only_base.jinja``) and ``PSyData``
+  (``psy_data_base.jinja``) base classes, which are included in PSyclone
+  installation. These Jinja templates are processed to create
   the read-only verification code for integer, 32- and 64-bit
   reals, and 1, 2, 3, and 4-dimensional arrays.
 
