@@ -745,7 +745,7 @@ class APISpecificConfig(object):
         :type input_list: list of str
 
         :returns: a dictionary with the key,value pairs from the input \
-            string.
+            list.
         :rtype: dict.
 
         :raises ConfigurationError: if any entry in the input list \
