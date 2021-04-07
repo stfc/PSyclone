@@ -34,10 +34,10 @@
 
 module profile_psy_data_mod
 
-  implicit none
-
   use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
                                 profile_PSyDataStop, is_enabled
+
+  implicit none
 
   type, extends(PSyDataBaseType) :: profile_PSyDataType
   contains
@@ -60,9 +60,9 @@ contains
     implicit none
 
     if (is_enabled) then
-        print *,"profile_PSyDataInit called"
+       write(*,*) "profile_PSyDataInit called"
     else
-        print *,"profile_PSyDataInit called, but profiling is disabled"
+       write(*,*) "profile_PSyDataInit called, but profiling is disabled"
     endif
     has_been_initialised = .true.
 
@@ -96,11 +96,11 @@ contains
 
     call this%PSyDataBaseType%PreStart(module_name, region_name, 0, 0)
     if (is_enabled) then
-        print *, "PreStart called for module '", module_name,  &
-                 "' region '", region_name, "'"
+       write(*,*) "PreStart called for module '", module_name,  &
+                  "' region '", region_name, "'"
     else
-        print *, "PreStart called for module '", module_name,  &
-                 "' region '", region_name, "', but profiling is disabled"
+       write(*,*) "PreStart called for module '", module_name,  &
+                  "' region '", region_name, "', but profiling is disabled"
     endif
 
   end subroutine PreStart
@@ -117,11 +117,11 @@ contains
     class(profile_PSyDataType), intent(inout), target :: this
 
     if (is_enabled) then
-        print *,"PostEnd called for module '", trim(this%module_name), &
-                "' region '", trim(this%region_name), "'"
+       write(*,*) "PostEnd called for module '", trim(this%module_name), &
+                  "' region '", trim(this%region_name), "'"
     else
-        print *,"PostEnd called for module '", trim(this%module_name), &
-                "' region '", trim(this%region_name), "', but profiling is disabled"
+       write(*,*) "PostEnd called for module '", trim(this%module_name), &
+                  "' region '", trim(this%region_name), "', but profiling is disabled"
     endif
 
   end subroutine PostEnd
@@ -135,7 +135,7 @@ contains
 
     implicit none
 
-    print *,"profile_PSyDataShutdown called"
+    write(*,*) "profile_PSyDataShutdown called"
 
   end subroutine profile_PSyDataShutdown
 

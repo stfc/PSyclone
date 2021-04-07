@@ -44,7 +44,7 @@ Authors: J. Henrichs, Bureau of Meteorology,
 
 This library is a simple stand-alone timer library (see the ["Profiling"](
 https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) section
-in the PSyclone [user guide](https://psyclone.readthedocs.io/en/stable/) for
+in the PSyclone [User Guide](https://psyclone.readthedocs.io/en/stable/) for
 more details). It counts the number of calls for each region, and reports
 minumum, maximum and average times. This library is **not thread-safe**, and
 **not MPI-aware** (e.g. maximum reported is per process, not across all
@@ -57,7 +57,10 @@ https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
 the application. The library is based on the [``PSyData`` base class](
 https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
-The script [``process.py``](./../../README.md#psydata-base-class) is used to
+Full documentation on using this template is provided in the PSyclone
+[Developer Guide](
+https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja). The
+script [``process.py``](./../../README.md#psydata-base-class) is used to
 process this template.
 
 Since the profiling API does not need access to any fields or variables,
@@ -75,7 +78,7 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../README.md#compilation) and flags to use, e.g.
 
 ```shell
-F90=gfortran F90FLAGS=-g make
+make F90=gfortran F90FLAGS=-g
 ```
 
 The compiler flags default to ``gfortran`` and the empty string.

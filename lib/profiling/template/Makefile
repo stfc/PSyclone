@@ -42,19 +42,20 @@ F90FLAGS ?= -g
 ROOT_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
-LIB_NAME = libdummy.a
+PSYDATA_LIB_NAME = dummy
+PSYDATA_LIB := lib$(PSYDATA_LIB_NAME).a
 
 OBJS = dummy_lib.o psy_data_base.o
 
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 .PHONY: default clean allclean
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
-$(LIB_NAME): $(OBJS)
-	ar rs $(LIB_NAME) $(OBJS)
+$(PSYDATA_LIB): $(OBJS)
+	ar rs $(PSYDATA_LIB) $(OBJS)
 
 dummy_lib.o:	psy_data_base.o
 
@@ -65,6 +66,6 @@ psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(LIB_NAME) $(OBJS) *.mod psy_data_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.*
 
 allclean: clean
