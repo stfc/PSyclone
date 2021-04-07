@@ -72,6 +72,7 @@ Detailed building and linking instructions are in
 
 Example output:
 
+```
     ===========================================
      module::region                                         count           sum                     min             average                 max
      psy_inputoutput::eliminate_one_node_islands_code           1     0.128906250             0.128906250             0.128906250             0.128906250    
@@ -82,6 +83,7 @@ Example output:
      psy_time_step_mod::swlat_code                             11      4.87890625             0.437500000             0.443536937             0.445312500    
      psy_time_step_mod::swlat_update_code                      11      1.87500000             0.167968750             0.170454547             0.179687500    
      ===========================================
+```
 
 ### [``dl_timer``](./dl_timer)
 
@@ -148,8 +150,12 @@ two options to specify the path to the Dr Hook installation:
 It is not known whether a proper Dr Hook installation will install
 ``include`` and ``*.mod`` files in a separate directory.
 
+Detailed building and linking instructions are in [``drhook/README.md``](
+./drhook/README.md).
+
 Example profiling output (some spaces removed to shorten the lines):
 
+```
     No. of instrumented routines called : 9
     Instrumentation started : 20190124 191207
     Instrumentation   ended : 20190124 191319
@@ -171,6 +177,7 @@ Example profiling output (some spaces removed to shorten the lines):
     7   0.28   29.165   0.082    0.082     1    82.32     82.32   eliminate_one_node_islands_mod:eliminate_one_node_islands_code_1@1
     8   0.00   29.165   0.000   29.083    11     0.01   2643.90   swlon_adjust_mod:swlon_adjust_code@1
     9   0.00   29.165   0.000    0.082     1     0.01     82.33   eliminate_one_node_islands_mod:eliminate_one_node_islands_code@1
+```
 
 ### [NVIDIA](./nvidia)
 
@@ -182,7 +189,7 @@ identifying regions of an application that are not running on the GPU.
 Detailed building and linking instructions are in
 [``nvidia/README.md``](./nvidia/README.md).
 
-Example output (from nvprof):
+Example output (from ``nvprof``):
 
 ```
     ==1678== NVTX result:
@@ -199,15 +206,14 @@ Example output (from nvprof):
                         6.17%  12.729us      3  4.2430us  2.3700us  7.7330us  cuMemsetD32Async
 ```
 
-### [LFRic Timer](./lfric_timer)
+### [LFRic timer](./lfric_timer)
 
 This wrapper library uses the LFRic timer object. It can not only be
 used with LFRic, but also with any other program - detailed linking
 instructions are in [``lfric_timer/README.md``](./lfric_timer/README.md).
-The output is written to the file ``timer.txt``, which will be overwritten if
-it should already exist.
 
-Example output:
+The output is written to the file ``timer.txt``, which will be overwritten if
+it should already exist. For example:
 
 ```
     ||=           Routine            =||=   min time(s)     =||=   mean time(s)    =||=   max time(s)     =||=     No. calls     =||=       %time       =||= time per call(s)  =||

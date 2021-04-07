@@ -109,9 +109,9 @@ found), and link first with the wrapper library, ``dl_timer_psy``, and then
 the ``dl_timer`` library:
 
 ```shell
-gfortran -c ... -I $(ROOT_LIB_DIR)/profiling/dl_timer somefile.f90
-gfortran -o a.out ... -L $(ROOT_LIB_DIR)/profiling/dl_timer -ldl_timer_psy
-         -L PATH-TO-DLTIMER -ldltimer
+$(F90) -c ... -I $(ROOT_LIB_DIR)/profiling/dl_timer somefile.f90
+$(F90) -o a.out ... -L $(ROOT_LIB_DIR)/profiling/dl_timer -ldl_timer_psy
+       -L PATH-TO-DLTIMER -ldltimer
 ```
 The name of the ``dl_timer`` library will depend on the way it was compiled
 (shared-memory or distributed-memory parallel).
