@@ -51,7 +51,8 @@ A stand-alone driver can then be used to rerun this specific code region and
 verify the results (or compare performance).
 
 A full, stand-alone and runnable example can be found in
-``examples/gocean/eg6``.
+[``examples/gocean/eg6``](
+https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg6).
 
 ## Dependencies
 

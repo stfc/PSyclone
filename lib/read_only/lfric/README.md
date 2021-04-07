@@ -77,11 +77,13 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
-The location of the LFRic infrastructure library is specified using
-the environment variable ``$INF_DIR``. It defaults to the relative path to
-location of the pared-down infrastructure located in a clone of PSyclone
-repository. This is not available in the PSyclone installation so the
-exact path **must be specified** during the compilation process, e.g.
+The location of the LFRic infrastructure library is specified using the
+environment variable ``$INF_DIR``. It defaults to the relative path to
+location of the pared-down LFRic infrastructure located in a clone of
+PSyclone repository,
+``$PSYCLONEHOME/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+This is not available in the PSyclone installation so the exact path
+**must be specified** during the compilation process, e.g.
 
 ```shell
 make F90=ifort F90FLAGS="-g -check bounds" INF_DIR=<path/to/LFRic/code>

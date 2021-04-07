@@ -48,7 +48,8 @@ to verify that variables declared read-only are not modified (overwritten) in
 a kernel call for an application using the [``dl_esm_inf`` library](
 https://github.com/stfc/dl_esm_inf).
 
-A full runnable example can be found in ``examples/gocean/eg7``.
+A full runnable example can be found in [``examples/gocean/eg7``](
+https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg7).
 
 ## Dependencies
 
