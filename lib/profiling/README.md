@@ -45,7 +45,8 @@ Authors: J. Henrichs, Bureau of Meteorology,
 This directory contains wrapper libraries that can be used with PSyclone's
 profiling interface. The profiling-library interfaces included in PSyclone
 are: ``template``, ``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``
-and ``lfric_timer``.
+and ``lfric_timer``. The overview is given below (for more information
+please refer to the linked individual ``README.md`` documents).
 
 ## Profiling Wrappers
 
@@ -127,7 +128,7 @@ Example output:
     =============================================================================
 ```
 
-### [Dr Hook](drhook)
+### [Dr Hook](./drhook)
 
 This wrapper library interfaces with ECMWF's Dr Hook library. This
 library appears not to be available as open source on a public
@@ -182,11 +183,14 @@ Example profiling output (some spaces removed to shorten the lines):
 This wrapper library uses the NVIDIA Tools Extension (NVTX) to mark-up
 profiling regions so that they appear in the NVIDIA profiling tools
 (``nvprof`` or the visual profiler, ``nvvp``).  This is then very useful for
-identifying regions of an application that are not running on the
-GPU.
+identifying regions of an application that are not running on the GPU.
+
+Detailed building and linking instructions are in
+[``nvidia/README.md``](./nvidia/README.md).
 
 Example output (from nvprof):
 
+```
     ==1678== NVTX result:
     ==1678==   Thread "<unnamed>" (id = 66653056)
     ==1678==     Domain "<unnamed>"
@@ -199,6 +203,7 @@ Example output (from nvprof):
           API calls:   59.10%  122.02us     34  3.5880us  2.4540us  14.057us  cuMemcpyHtoDAsync
                        34.73%  71.711us     10  7.1710us  4.6830us  25.625us  cuLaunchKernel
                         6.17%  12.729us      3  4.2430us  2.3700us  7.7330us  cuMemsetD32Async
+```
 
 ### [LFRic Timer](./lfric_timer)
 

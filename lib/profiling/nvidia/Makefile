@@ -43,18 +43,18 @@ F90 ?= gfortran
 F90FLAGS ?= -g
 # -----------------------------------------------------------------------------
 
-NAME = nvtx_prof
-LIB_NAME = lib$(NAME).a
+PSYDATA_LIB_NAME = nvtx_prof
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(NAME).f90
+$(PSYDATA_LIB): $(PSYDATA_LIB_NAME).f90
 	$(F90) -c $(F90FLAGS) $<
-	ar rs $(LIB_NAME) $(NAME).o
+	ar rs $(PSYDATA_LIB) $(PSYDATA_LIB_NAME).o
 
 clean:
-	rm -f $(LIB_NAME) $(NAME).o profile_mod.mod
+	rm -f *.o *.mod $(PSYDATA_LIB)
 
 allclean: clean
