@@ -64,10 +64,11 @@ the application. The following dependencies must be available:
 - The ``NANTest`` (``nan_test_base.jinja``) and ``PSyData``
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
-  ``NaN``-test verification code for integer, 32- and 64-bit reals, and
-  1, 2, 3, and 4-dimensional arrays. The generated Fortran code,
-  ``nan_test_base.f90`` and ``psy_data_base.f90``, is then used by the
-  supplied ``nan_test.f90`` module to create the wrapper library.
+  ``NaN``-test verification code for ``integer``, 32- and 64-bit ``real``
+  scalars, and 1, 2, 3, and 4-dimensional ``real`` and ``integer`` arrays.
+  The generated Fortran modules, ``nan_test_base.f90`` and
+  ``psy_data_base.f90``, are then used by the supplied ``nan_test.f90``
+  module to create the wrapper library.
 
 ## Compilation
 
@@ -76,13 +77,8 @@ A ``Makefile`` is provided for compilation. The environment variables
 ../../README.md#compilation) and flags to use. They default to ``gfortran``
 and the empty string.
 
-The location of the ``NANTest`` and ``PSyData`` base classes is specified
-using the environment variables ``$JINJA_TMPLT_DIR`` and ``$ROOT_LIB_DIR``,
-respectively. They default to the relative paths of the
-[``lib/nan_test``](../) and top-level [``lib``](../../) directories.
-
 The location of the LFRic infrastructure library is specified using
-the environment variable ``$INF_DIR``. It defaults to the relative
+the environment variable ``$INF_DIR``. It defaults to the relative path to
 location of the pared-down infrastructure located in a clone of PSyclone
 repository. This is not available in the PSyclone installation so the
 exact path **must be specified** during the compilation process, e.g.
@@ -91,9 +87,18 @@ exact path **must be specified** during the compilation process, e.g.
 make F90=ifort F90FLAGS="-g -check bounds" INF_DIR=<path/to/LFRic/code>
 ```
 
-This process will create the wrapper library ``lib_nan_test.a``. The
-``Makefile`` will compile the infrastructure library if required, with the
-previously selected compiler flags.
+It is the responsibility of the user to make sure that the module files
+used when compiling the LFRic ``NaN``-test library are identical to the
+ones used when running an LFRic application.
+
+The location of the ``NANTest`` and ``PSyData`` base classes is specified
+using the environment variables ``$JINJA_TMPLT_DIR`` and ``$ROOT_LIB_DIR``,
+respectively. They default to the relative paths of the
+[``lib/nan_test``](../) and top-level [``lib``](../../) directories.
+
+The compilation process will create the wrapper library ``lib_nan_test.a``.
+The ``Makefile`` will compile the LFRic infrastructure library,
+``liblfric.a``, if required, with the previously selected compiler flags.
 
 Similar to compilation of the [examples](
 https://psyclone.readthedocs.io/en/latest/examples.html#compilation), the
@@ -101,3 +106,13 @@ compiled wrapper library can be removed by running ``make clean``. To also
 remove the compiled infrastructure library it is necessary to run
 ``make allclean`` (this is especially important if changing compilers
 or compiler flags).
+
+### Linking the wrapper library
+
+The application needs to provide the parameters to link in this
+``NaN``-test library and the LFRic infrastructure library. For instance:
+
+```shell
+$(F90)  ... -L$(ROOT_LIB_DIR)/nan_test/lfric -l_nan_test \
+        -L$(INF_DIR) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
+```

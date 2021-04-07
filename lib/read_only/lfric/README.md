@@ -114,5 +114,5 @@ read-only library and the LFRic infrastructure library. For instance:
 
 ```shell
 $(F90)  ... -L$(ROOT_LIB_DIR)/read_only/lfric -l_read_only \
-        -L$(INF_DIR) -llfric_netcdf $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
+        -L$(INF_DIR) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
 ```

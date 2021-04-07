@@ -82,8 +82,8 @@ and the empty string.
 The location of the ``dl_esm_inf`` library is specified using the
 environment variable ``$INF_DIR``. It defaults to the relative
 path to location of the version included in PSyclone repository
-(``$PSYCLONEHOME/external/dl_esm_inf/finite_difference``). This is not
-available in the PSyclone installation so the exact path
+(``$PSYCLONEHOME/external/dl_esm_inf/finite_difference``). This is
+not available in the PSyclone installation so the exact path
 **must be specified** during the compilation process, e.g.
 
 ```shell

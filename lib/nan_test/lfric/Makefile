@@ -55,10 +55,12 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastruc
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)
-INF_LIB = $(INF_DIR)/liblfric.a
+INF_LIB_NAME = lfric
+INF_LIB = $(INF_DIR)/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
-LIB_NAME = lib_nan_test.a
+PSYDATA_LIB_NAME = _nan_test.a
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 # The LFRic NAN checking library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -67,16 +69,16 @@ LIB_NAME = lib_nan_test.a
 # consistent code creation.
 PROCESS_ARGS = -prefix=nan_test_ -types=real,int,double \
 		       -dims=1,2,3,4
-PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 OBJS = nan_test.o psy_data_base.o nan_test_base.o
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(INF_LIB) $(OBJS)
-	${AR} ${ARFLAGS} ${LIB_NAME} $^
+$(PSYDATA_LIB): $(INF_LIB) $(OBJS)
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
 # Create LFRic infrastructure library
 $(INF_LIB):
@@ -104,7 +106,7 @@ nan_test_base.f90: $(JINJA_TMPLT_DIR)/nan_test_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > nan_test_base.f90
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.*
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* nan_test_base.*
 
 allclean: clean
 	$(MAKE) -C $(INF_DIR) allclean
