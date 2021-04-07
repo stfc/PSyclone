@@ -118,7 +118,7 @@ In order to link this timer library with your application, the location of
 this library must be provided as an ``include`` path (so that the module
 file is found). Also, the library name must be specified at link time.
 
-For instance, linking the standalone library looks something like:
+For instance, linking the standalone library may look something like:
 
 ```shell
 $(F90) -c  -I $(ROOT_LIB_DIR)/profiling/lfric_timer some_file.f90
@@ -128,7 +128,7 @@ $(F90) some_file.o -L $(ROOT_LIB_DIR)/profiling/lfric_timer -lpsy_lfric_timer_st
 The application of the ``libpsy_lfric_timer.a`` needs to provide the path to the
 LFRic compiled code as well, e.g. by adding ``-L$(INF_DIR) -llfric``.
 
-### Output
+## Output
 
 The output is written to the file ``timer.txt``, which will be overwritten
 if it already exists. An example output is below:

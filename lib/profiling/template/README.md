@@ -99,7 +99,7 @@ $(F90) -c  -I $(ROOT_LIB_DIR)/profiling/template some_file.f90
 $(F90) some_file.o -L $(ROOT_LIB_DIR)/profiling/template -ldummy
 ```
 
-### Output
+## Output
 
 The output is written to the command line. A sample output is below:
 

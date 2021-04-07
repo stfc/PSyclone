@@ -102,7 +102,7 @@ $(F90) -c  -I $(ROOT_LIB_DIR)/profiling/simple_timing some_file.f90
 $(F90) some_file.o -L $(ROOT_LIB_DIR)/profiling/simple_timing -lsimple_timing
 ```
 
-### Output
+## Output
 
 The output is written to the command line. A sample output is below:
 

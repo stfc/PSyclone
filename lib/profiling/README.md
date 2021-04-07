@@ -85,23 +85,17 @@ Example output:
 
 ### [``dl_timer``](./dl_timer)
 
-This is a wrapper library that maps the PSyclone profiling API
-to the ``dl_timer`` API. A copy of dl_timer can be downloaded from
-https://bitbucket.org/apeg/dl_timer
-
-To compile the PSyclone wrapper library for ``dl_timer``, one of the following
-two ``Makefile`` variables must be set:
-
-- ``DL_TIMER_ROOT``, the path to the ``apeg-dl_timer`` directory in which
-  ``dl_timer`` was compiled. It defaults to ``../../../../apeg-dl_timer``, which
-  means if ``apeg-dl_timer`` is next to the PSyclone root dir ???PSYCLONEHOME???, it will be found
-  by default.
-- ``DL_TIMER_INCLUDE``, the path to the ``dl_timer`` ``include`` directory
-  (or ``src`` directory). This defaults to ``$DL_TIMER_ROOT/src``.
+This is a wrapper library that maps the [PSyclone profiling API](
+https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) to the
+``dl_timer`` API. A copy of ``dl_timer`` can be downloaded from
+https://bitbucket.org/apeg/dl_timer.
 
 The PSyclone ``dl_timer`` wrapper library uses the ``ProfileData`` type and
 ``dl_timer``'s ``timer_register`` function to store the module/region name and
 the index used by ``dl_timer``. This library is **thread-safe**.
+
+Detailed building and linking instructions are in [``dl_timer/README.md``](
+./dl_timer/README.md).
 
 Example output:
 
