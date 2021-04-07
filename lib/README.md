@@ -99,7 +99,8 @@ TBD....
 
 As said above, every PSyData-API-based wrapper library in the relevant
 subdirectories can be compiled individually. Compilation requires a Fortran
-compiler and Gnu Make.
+compiler and Gnu Make. Individual libraries have other dependencies that
+are specified in the relevant ``README.md`` documents.
 
 All ``Makefile``s support the variables ``F90`` and ``F90FLAGS`` to specify
 the compiler and compilation flags to use. ``F90`` defaults to the Gnu

@@ -105,7 +105,7 @@ make INF_DIR=<path/to/dl_esm_inf/finite_difference>
 
 The locations of the ``ExtractNetcdf`` and ``PSyData`` base classes are
 specified using the environment variables ``$JINJA_TMPLT_DIR`` and
-``$ROOT_LIB_DIR``, respectively. They default to the relative paths of
+``$ROOT_LIB_DIR``, respectively. They default to the relative paths to
 the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
 directories.
 

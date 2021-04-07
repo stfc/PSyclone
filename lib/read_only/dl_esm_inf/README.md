@@ -58,11 +58,12 @@ with the application. The following dependencies must be available:
 
 - The [GOcean](https://psyclone.readthedocs.io/en/latest/gocean1p0.html)
   infrastructure library ``dl_esm_inf``. A stable version of this is included
-  in the PSyclone repository as a Git submodule (see [Installation](
+  in the PSyclone repository as a Git submodule (see ["Installation"](
   https://psyclone-dev.readthedocs.io/en/stable/working_practises.html#dev-installation)
-  in the Developers' Guide for details on working with submodules).
-  However, it is not included in the PSyclone installation and has to
-  be cloned separately.
+  in the PSyclone [Developer Guide](
+  https://psyclone-dev.readthedocs.io/en/stable) for details on working with
+  submodules). However, it is not included in the PSyclone installation and
+  has to be cloned separately.
 
 - The ``ReadOnly`` (``read_only_base.jinja``) and ``PSyData``
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
@@ -74,10 +75,10 @@ with the application. The following dependencies must be available:
 
 ## Compilation
 
-A ``Makefile`` is provided for compilation. The environment variables
-``$F90`` and ``$F90FLAGS`` can be set to point to the [Fortran compiler](
-../../README.md#compilation) and flags to use. They default to ``gfortran``
-and the empty string.
+The library is compiled with ``make`` using the provided ``Makefile``. The
+environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
+[Fortran compiler](./../../README.md#compilation) and flags to use. They
+default to ``gfortran`` and the empty string.
 
 The location of the ``dl_esm_inf`` library is specified using the
 environment variable ``$INF_DIR``. It defaults to the relative
@@ -90,10 +91,10 @@ not available in the PSyclone installation so the exact path
 make INF_DIR=<path/to/dl_esm_inf/finite_difference>
 ```
 
-The location of the ``ReadOnly`` and ``PSyData`` base classes is specified
+The locations of the ``ReadOnly`` and ``PSyData`` base classes are specified
 using the environment variables ``$JINJA_TMPLT_DIR`` and ``$ROOT_LIB_DIR``,
-respectively. They default to the relative paths of the
-[``lib/read_only``](../) and top-level [``lib``](../../) directories.
+respectively. They default to the relative paths to the
+[``lib/read_only``](./../) and top-level [``lib``](./../../) directories.
 
 The compilation process will create the wrapper library ``lib_read_only.a``.
 The ``Makefile`` will compile the ``dl_esm_inf`` infrastructure library,
@@ -109,7 +110,8 @@ or compiler flags).
 ### Linking the wrapper library
 
 The application needs to provide the parameters to link in this read-only
-library and the ``dl_esm_inf`` infrastructure library. For instance:
+library, ``_read_only``, and the ``dl_esm_inf`` infrastructure library, ``_fd``.
+For instance:
 
 ```shell
 $(F90)  ... -L$(ROOT_LIB_DIR)/read_only/dl_esm_inf -l_read_only \

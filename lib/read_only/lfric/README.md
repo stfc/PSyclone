@@ -72,10 +72,10 @@ the application. The following dependencies must be available:
 
 ## Compilation
 
-A ``Makefile`` is provided for compilation. The environment variables
-``$F90`` and ``$F90FLAGS`` can be set to point to the [Fortran compiler](
-../../README.md#compilation) and flags to use. They default to ``gfortran``
-and the empty string.
+The library is compiled with ``make`` using the provided ``Makefile``. The
+environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
+[Fortran compiler](./../../README.md#compilation) and flags to use. They
+default to ``gfortran`` and the empty string.
 
 The location of the LFRic infrastructure library is specified using
 the environment variable ``$INF_DIR``. It defaults to the relative path to
@@ -91,10 +91,10 @@ It is the responsibility of the user to make sure that the module files
 used when compiling the LFRic read-only library are identical to the ones
 used when running an LFRic application.
 
-The location of the ``ReadOnly`` and ``PSyData`` base classes is specified
+The locations of the ``ReadOnly`` and ``PSyData`` base classes are specified
 using the environment variables ``$JINJA_TMPLT_DIR`` and ``$ROOT_LIB_DIR``,
-respectively. They default to the relative paths of the
-[``lib/read_only``](../) and top-level [``lib``](../../) directories.
+respectively. They default to the relative paths to the
+[``lib/read_only``](./../) and top-level [``lib``](./../../) directories.
 
 The compilation process will create the wrapper library ``lib_read_only.a``.
 The ``Makefile`` will compile the LFRic infrastructure library,
@@ -109,8 +109,9 @@ or compiler flags).
 
 ### Linking the wrapper library
 
-The application needs to provide the parameters to link in this
-read-only library and the LFRic infrastructure library. For instance:
+The application needs to provide the parameters to link in this read-only
+library, ``_read_only``,  and the LFRic infrastructure library, ``lfric``.
+For instance:
 
 ```shell
 $(F90)  ... -L$(ROOT_LIB_DIR)/read_only/lfric -l_read_only \

@@ -72,10 +72,10 @@ the application. The following dependencies must be available:
 
 ## Compilation
 
-A ``Makefile`` is provided for compilation. The environment variables
-``$F90`` and ``$F90FLAGS`` can be set to point to the [Fortran compiler](
-../../README.md#compilation) and flags to use. They default to ``gfortran``
-and the empty string.
+The library is compiled with ``make`` using the provided ``Makefile``. The
+environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
+[Fortran compiler](./../../README.md#compilation) and flags to use. They
+default to ``gfortran`` and the empty string.
 
 The location of the LFRic infrastructure library is specified using
 the environment variable ``$INF_DIR``. It defaults to the relative path to
@@ -91,10 +91,10 @@ It is the responsibility of the user to make sure that the module files
 used when compiling the LFRic ``NaN``-test library are identical to the
 ones used when running an LFRic application.
 
-The location of the ``NANTest`` and ``PSyData`` base classes is specified
+The locations of the ``NANTest`` and ``PSyData`` base classes are specified
 using the environment variables ``$JINJA_TMPLT_DIR`` and ``$ROOT_LIB_DIR``,
-respectively. They default to the relative paths of the
-[``lib/nan_test``](../) and top-level [``lib``](../../) directories.
+respectively. They default to the relative paths to the
+[``lib/nan_test``](./../) and top-level [``lib``](./../../) directories.
 
 The compilation process will create the wrapper library ``lib_nan_test.a``.
 The ``Makefile`` will compile the LFRic infrastructure library,
@@ -110,7 +110,8 @@ or compiler flags).
 ### Linking the wrapper library
 
 The application needs to provide the parameters to link in this
-``NaN``-test library and the LFRic infrastructure library. For instance:
+``NaN``-test library, ``_nan_test``, and the LFRic infrastructure library,
+``lfric``. For instance:
 
 ```shell
 $(F90)  ... -L$(ROOT_LIB_DIR)/nan_test/lfric -l_nan_test \
