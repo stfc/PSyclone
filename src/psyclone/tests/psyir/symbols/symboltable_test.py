@@ -116,7 +116,8 @@ def test_parent_symbol_table():
     # Provide a wrong scope_limit parameter
     with pytest.raises(TypeError) as err:
         _ = inner_symbol_table.parent_symbol_table(scope_limit=2)
-    assert "The scope_limit argument '2', is not of type `Node`." in str(err)
+    assert ("The scope_limit argument '2', is not of type `Node`." in
+            str(err.value))
 
 
 def test_next_available_name_1():
@@ -1348,7 +1349,7 @@ def test_new_symbol():
         sym1 = symtab.new_symbol("wrong", symbol_type=str,
                                  visibility=Symbol.Visibility.PRIVATE)
     assert ("The symbol_type parameter should be a type class of Symbol or"
-            " one of its sub-classes but found" in str(err))
+            " one of its sub-classes but found" in str(err.value))
 
 
 def test_symbol_from_tag():
@@ -1400,7 +1401,7 @@ def test_symbol_from_tag():
     with pytest.raises(SymbolError) as err:
         symtab.symbol_from_tag("tag3", symbol_type=RoutineSymbol)
     assert ("Expected symbol with tag 'tag3' to be of type 'RoutineSymbol' "
-            "but found type 'DataSymbol'." in str(err))
+            "but found type 'DataSymbol'." in str(err.value))
 
     # TODO #1057: It should also fail the symbol is found but the properties
     # are different than the requested ones.

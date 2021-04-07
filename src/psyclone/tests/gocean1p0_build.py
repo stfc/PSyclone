@@ -123,9 +123,9 @@ class GOcean1p0Build(Compile):
             import sys
             print("Failed to run: {0}: ".format(" ".join(arg_list)),
                   file=sys.stderr)
-            print("Error was: {0}".format(str(err)), file=sys.stderr)
+            print("Error was: {0}".format(str(err.value)), file=sys.stderr)
             GOcean1p0Build._infrastructure_built = False
-            raise CompileError(str(err))
+            raise CompileError(str(err.value))
         finally:
             old_pwd.chdir()
 

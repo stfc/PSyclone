@@ -271,8 +271,8 @@ class Compile(object):
             import sys
             print("Failed to run: {0}: ".format(" ".join(arg_list)),
                   file=sys.stderr)
-            print("Error was: ", str(err), file=sys.stderr)
-            raise CompileError(str(err))
+            print("Error was: ", str(err.value), file=sys.stderr)
+            raise CompileError(str(err.value))
 
         # Check the return code
         stat = build.returncode
