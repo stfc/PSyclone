@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 .. Written by J. Henrichs, Bureau of Meteorology
 .. Modified by A. R. Porter, STFC Daresbury Lab
 .. Modified by R. W. Ford, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
 
 .. _profiling:
 
@@ -52,7 +53,8 @@ transformation within a transformation script.
 PSyclone can be used with a variety of existing profiling tools.
 It currently supports dl_timer, Dr Hook, the nvidia GPU profiling toos
 and it comes with a simple
-stand-alone timer library. The PSyData API (:ref:`dev_guide:psy_data`)
+stand-alone timer library. The :ref:`PSyData API <psy_data>` (see
+also the :ref:`Developer Guide <dev_guide:psy_data>`)
 is utilised to implement wrapper libraries that connect the PSyclone
 application to the profiling libraries. Certain adjustments to
 the application's build environment are required:
@@ -118,7 +120,7 @@ libraries that come with PSyclone:
     to the NVIDIA Tools Extension library (NVTX). This library is
     available from ``https://developer.nvidia.com/cuda-toolkit``.
 
-``lib/profiling/lfric``
+``lib/profiling/lfric_timer``
     This profile wrapper uses the timer functionality provided by
     LFRic, and it comes in two different versions:
 
@@ -129,13 +131,12 @@ libraries that come with PSyclone:
     - ``libpsy_lfric_timer_standalone.a``
       This library contains the LFRic timer object and its dependencies.
       It can be used standalone (i.e. without LFRic) with any program.
-      A runnable example using a gocean code is included in
+      A runnable example using a GOcean code is included in
       ``examples/gocean/eg5``.
 
     The LFRic timer writes its output to a file called ``timer.txt``
     in the current directory, and will overwrite this file if it
     should already exist.
-
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
@@ -191,7 +192,7 @@ used (e.g. before or after a call to ``MPI_Finalize()``).
 
 
 
-Profiling Command Line Options
+Profiling Command-Line Options
 ------------------------------
 PSyclone offers two command line options to automatically instrument
 code with profiling regions. It can create profile regions around
@@ -212,10 +213,10 @@ created by PSyclone with start and end profiling calls.
           (expensive calls like HaloExchange are excluded).
 
 .. note:: If the ``kernels`` option is used in combination with an
-	  optimisation script that introduces OpenACC then profiling
-	  calls are automatically excluded from within OpenACC
-	  regions (since the PSyData wrappers are not compiled for
-	  GPU execution).
+          optimisation script that introduces OpenACC then profiling
+          calls are automatically excluded from within OpenACC
+          regions (since the PSyData wrappers are not compiled for
+          GPU execution).
 
 .. note:: It is still the responsibility of the user to manually
     add the calls to ``profile_PSyDataInit`` and 
@@ -415,7 +416,7 @@ when adding profiling via a transformation script, see
 The automatic name generation depends on the API according
 to the following rules:
 
-For the `nemo` api,
+For the :ref:`NEMO API <nemo-api>`,
 
 * the `module_name` string is set to the name of the parent
   function/subroutine/program. This name is unique as Fortran requires
@@ -426,7 +427,8 @@ For the `nemo` api,
   function/subroutine/program (based on the profile node's position in
   the PSyIR representation relative to any other profile nodes).
 
-For the `dynamo` and `gocean` api's,
+For the :ref:`LFRic (Dynamo 0.3) <dynamo0.3-api>` and
+:ref:`GOcean 1.0 <gocean1.0-api>` APIs,
 
 * the `module_name` string is set to the module name of the generated
   PSy-layer. This name should be unique by design (otherwise module
@@ -525,4 +527,3 @@ This is the code created for this example::
         ...
       END SUBROUTINE invoke_0
     END MODULE container
-
