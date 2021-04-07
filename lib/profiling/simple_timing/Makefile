@@ -42,22 +42,22 @@ F90FLAGS ?=
 ROOT_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
-NAME = simple_timing
-LIB_NAME := lib$(NAME).a
+PSYDATA_LIB_NAME = simple_timing
+PSYDATA_LIB := lib$(PSYDATA_LIB_NAME).a
 
-OBJS = $(NAME).o psy_data_base.o
+OBJS = $(PSYDATA_LIB_NAME).o psy_data_base.o
 
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 .PHONY: default clean allclean
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
-$(LIB_NAME): $(OBJS)
+$(PSYDATA_LIB): $(OBJS)
 	ar rs $@ $(OBJS)
 
-$(NAME).o:	psy_data_base.o
+$(PSYDATA_LIB_NAME).o:	psy_data_base.o
 
 psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
@@ -66,6 +66,6 @@ psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(LIB_NAME) $(OBJS) profile_psy_data_mod.mod psy_data_base.f90 psy_data_base_mod.mod
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.*
 
 allclean: clean

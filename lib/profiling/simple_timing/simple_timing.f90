@@ -37,24 +37,24 @@
 !> profiling API.
 module profile_psy_data_mod
 
-  implicit none
-
   use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
                                 profile_PSyDataStop, is_enabled
+
+  implicit none
 
   !> The datatype to store information about a region.
   type, extends(PSyDataBaseType) :: profile_PSyDataType
      !> Counts how often this region was executed.
      integer                   :: count
      !> Time at whith PreStart was called.
-     real*4                    :: start
+     real(kind=4)              :: start
      !> Overall time spent in this subroutine, i.e. sum
-     !> of each individual call..
-     real*4                    :: sum
+     !> of each individual call.
+     real(kind=4)              :: sum_time
      !> Shortest measured time of this region.
-     real*4                    :: min
+     real(kind=4)              :: min_time
      !> Sum Longest measured time of this region.
-     real*4                    ::  max
+     real(kind=4)              :: max_time
      !> Inidicates if this structure has been initialised.
      logical                   :: initialised = .false.
   contains
@@ -124,8 +124,8 @@ contains
 
     class(profile_PSyDataType), intent(inout), target :: this
     character(len=*), intent(in) :: module_name, region_name
-    integer                   :: count, count_rate
-    integer, intent(in)       :: num_pre_vars, num_post_vars
+    integer                      :: count, count_rate
+    integer, intent(in)          :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then
        call profile_PSyDataInit()
@@ -136,8 +136,8 @@ contains
     call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                        num_pre_vars, num_post_vars)
     ! Note that the actual initialisation of "this"
-    ! happens in PostEnd, which is when min, sum and
-    ! max are properly initialised
+    ! happens in PostEnd, which is when min_time, sum_time and
+    ! max_time are properly initialised
     call system_clock(count, count_rate)
     this%start  = real(count) / count_rate
 
@@ -154,7 +154,7 @@ contains
     class(profile_PSyDataType), intent(inout), target :: this
 
     integer :: count, count_rate
-    real *4 :: now, duration
+    real(kind=4) :: now, duration
 
     if (.not. is_enabled) return
     call system_clock(count, count_rate)
@@ -163,9 +163,9 @@ contains
 
     ! Now initialise the data
     if (.not. this%initialised) then
-       this%sum         = duration
-       this%min         = this%sum
-       this%max         = this%sum
+       this%sum_time    = duration
+       this%min_time    = this%sum_time
+       this%max_time    = this%sum_time
        this%count       = 1
        this%initialised = .true.
 
@@ -175,9 +175,9 @@ contains
           all_data(used_entries)%p => this
        endif
     else
-       this%sum = this%sum + duration
-       if (duration < this%min ) this%min = duration
-       if (duration > this%max ) this%max = duration
+       this%sum_time = this%sum_time + duration
+       if (duration < this%min_time ) this%min_time = duration
+       if (duration > this%max_time ) this%max_time = duration
        this%count = this%count + 1
     endif
 
@@ -206,7 +206,7 @@ contains
     ! Determine maximum header length to get proper alignment
     max_len = len(heading)
     do i=1, used_entries
-       p => all_data(i)%p    ! to abbreviate code a bit
+       p => all_data(i)%p    ! To abbreviate code a bit
        if (len(trim(p%module_name)) + len(trim(p%region_name)) > max_len) then
           max_len = len(trim(p%module_name)) + len(trim(p%region_name))
        endif
@@ -220,20 +220,20 @@ contains
        spaces(i:i) = " "
     enddo
 
-    print *
-    print *,"==========================================="
-    print *, heading, spaces(1:max_len - len(heading)),                          &
-             tab, tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab, &
-             "average", tab, tab, tab, "max"
-    do i=1, used_entries
-       p => all_data(i)%p    ! to abbreviate code a bit
+    write(*,*)
+    write(*,*) "==========================================="
+    write(*,*) heading, spaces(1:max_len - len(heading)),                          &
+               tab, tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab, &
+               "average", tab, tab, tab, "max"
+    do i = 1, used_entries
+       p => all_data(i)%p    ! To abbreviate code a bit
        this_len = len(trim(p%module_name)) + len(trim(p%region_name))+3
-       print *, trim(p%module_name),"::",trim(p%region_name),   &
-                spaces(1:max_len-this_len),                     &
-                p%count, tab, p%sum, tab,                       &
-                p%min, tab, p%sum/p%count, tab, p%max
+       write(*,*) trim(p%module_name),"::",trim(p%region_name), &
+                  spaces(1:max_len-this_len),                   &
+                  p%count, tab, p%sum_time, tab,                &
+                  p%min_time, tab, p%sum_time/p%count, tab, p%max_time
     end do
-    print *,"==========================================="
+    write(*,*) "==========================================="
 
   end subroutine profile_PSyDataShutdown
 
