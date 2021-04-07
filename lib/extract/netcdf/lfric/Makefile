@@ -50,23 +50,25 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastruc
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)
-INF_LIB = $(INF_DIR)/liblfric_netcdf.a
+INF_LIB_NAME = lfric_netcdf
+INF_LIB = $(INF_DIR)/lib$(INF_LIB_NAME).a
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
-LIB_NAME = lib_kernel_data_netcdf.a
+PSYDATA_LIB_NAME = _kernel_data_netcdf
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=1,2,3,4
-PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(INF_LIB) $(OBJS)
-	${AR} ${ARFLAGS} ${LIB_NAME} $^
+$(PSYDATA_LIB): $(INF_LIB) $(OBJS)
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
 # Create LFRic infrastructure library
 $(INF_LIB):
@@ -85,7 +87,7 @@ extract_netcdf_base.f90: $(JINJA_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90 extract_netcdf_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90
 
 allclean: clean
 	$(MAKE) -C $(INF_DIR) allclean

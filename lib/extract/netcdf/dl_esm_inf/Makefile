@@ -50,23 +50,25 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)/src
-INF_LIB = $(INF_DIR)/src/lib_fd.a
+INF_LIB_NAME = _fd
+INF_LIB = $(INF_DIR)/src/lib$(INF_LIB_NAME).a
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
-LIB_NAME = lib_kernel_data_netcdf.a
+PSYDATA_LIB_NAME = _kernel_data_netcdf
+PSYDATA_LIB = $(INF_DIR)/src/lib$(PSYDATA_LIB_NAME).a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2
-PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(INF_LIB) $(OBJS)
-	${AR} ${ARFLAGS} ${LIB_NAME} $^
+$(PSYDATA_LIB): $(INF_LIB) $(OBJS)
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
 kernel_data_netcdf.o:	extract_netcdf_base.o $(INF_LIB)
 extract_netcdf_base.o:	psy_data_base.o
@@ -85,7 +87,7 @@ $(INF_LIB):
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90 extract_netcdf_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90
 
 allclean: clean
 	$(MAKE) -C $(INF_DIR) clean
