@@ -38,10 +38,10 @@
 
 module profile_psy_data_mod
 
-  implicit none
-
   use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
                                 profile_PSyDataStop, is_enabled
+
+  implicit none
 
   type, extends(PSyDataBaseType) :: profile_PSyDataType
       integer                   :: timer_index

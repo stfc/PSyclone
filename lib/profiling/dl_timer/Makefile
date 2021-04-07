@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
@@ -43,26 +43,26 @@ ROOT_LIB_DIR ?= ./../..
 # This variable defaults to the assumed location of the apeg/dl_timer library
 # next to PSyclone installation (can be overwritten to use a different version)
 DL_TIMER_ROOT ?= $(ROOT_LIB_DIR)/../../dl_timer
-# Location of apeg-dl_timer "include" files
+# Location of apeg/dl_timer "include" files
 DL_TIMER_INCLUDE ?= $(DL_TIMER_ROOT)/src
 # -----------------------------------------------------------------------------
 
 F90FLAGS += -I$(DL_TIMER_INCLUDE)
 
-NAME = dl_timer_psy
-LIB_NAME = lib$(NAME).a
+PSYDATA_LIB_NAME = dl_timer_psy
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 OBJS = dl_timer.o psy_data_base.o
 
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(OBJS)
-	ar rs $(LIB_NAME) $(OBJS)
+$(PSYDATA_LIB): $(OBJS)
+	ar rs $(PSYDATA_LIB) $(OBJS)
 
 dl_timer.o:	psy_data_base.o
 
@@ -73,7 +73,6 @@ psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(LIB_NAME) $(OBJS) profile_psy_data_mod.mod \
-		psy_data_base_mod.mod psy_data_base.f90
+	rm -f *.o *.mod  $(PSYDATA_LIB) psy_data_base.*
 
 allclean: clean
