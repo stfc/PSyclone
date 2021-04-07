@@ -133,7 +133,7 @@ class Reference(DataNode):
             # array elements, they determine the array
             # bounds. Therefore there is no data dependence.
             return
-        var_accesses.add_access(self.name, AccessType.READ, self)
+        var_accesses.add_access(self, AccessType.READ, self)
 
 
 # For AutoAPI documentation generation

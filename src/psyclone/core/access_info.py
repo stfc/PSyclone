@@ -137,6 +137,60 @@ class AccessInfo(object):
 
 
 # =============================================================================
+class Signature:
+    '''Given a variable access of the form ``a(i,j)%b(k,l)%c``, the signature
+    of this access is the tuple ``(a,b,c)``. For a simple scalar variable
+    ``a`` the signature would just be ``(a,)``.
+    The signature is the key used in VariablesAccessInfo. In order to make
+    sure two different signature objects containing the same variable
+    can be used as a key, this class implements __hash__ and other special
+    functions.
+
+    :param variable: the variable that is accessed.
+    :type variable: can be a :py:class:`psyclone.psyir.nodes.Reference`, \
+        a str or another signature.
+
+    '''
+    def __init__(self, variable):
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference
+        if isinstance(variable, Reference):
+            self._signature = (variable.name,)
+        elif isinstance(variable, str):
+            self._signature = (variable,)
+        elif isinstance(variable, Signature):
+            self._signature = variable._signature
+        else:
+            print("OOps, what is variable now", type(variable))
+
+    def __str__(self):
+        return "%".join(self._signature)
+
+    def __repr__(self):
+        return "Signature({0})".format("%".join(self._signature))
+
+    def __hash__(self):
+        '''This returns a hash value that is independent of the instance.
+        I.e. two instances with the same signature will have the same
+        hash key.
+        '''
+        return hash(self._signature)
+
+    def __eq__(self, other):
+        '''Required in order to use a Signature instance as a key.
+        Compares two objects (one of which might '''
+        if not hasattr(other, "_signature"):
+            return False
+        return hasattr(other, "_signature") and \
+            self._signature == other._signature
+
+    def __lt__(self, other):
+        '''Required to sort signatures. It just compares the tuples.'''
+        return self._signature < other._signature
+
+
+# =============================================================================
 class VariableAccessInfo(object):
     '''This class stores a list with all accesses to one variable.
 
@@ -144,7 +198,7 @@ class VariableAccessInfo(object):
 
     '''
     def __init__(self, var_name):
-        self._var_name = var_name
+        self._signature = Signature(var_name)
         # This is the list of AccessInfo instances for this variable.
 
         self._accesses = []
@@ -152,7 +206,7 @@ class VariableAccessInfo(object):
     def __str__(self):
         '''Returns a string representation of this object with the format:
         var_name:WRITE(2),WRITE(3),READ(5).'''
-        return "{0}:{1}".format(self._var_name,
+        return "{0}:{1}".format(str(self._signature),
                                 ",".join([str(access)
                                           for access in self._accesses]))
 
@@ -161,7 +215,7 @@ class VariableAccessInfo(object):
         ''':returns: the name of the variable whose access info is managed.
         :rtype: str
         '''
-        return self._var_name
+        return str(self._signature)
 
     def is_written(self):
         ''':returns: True if this variable is written (at least once).
@@ -236,17 +290,17 @@ class VariableAccessInfo(object):
         on the LHS to from READ to WRITE. Since the LHS is stored in a separate
         VariableAccessInfo class, it is guaranteed that there is only
         one entry for the variable.
-         '''
+        '''
         if len(self._accesses) != 1:
             raise InternalError("Variable '{0}' had {1} accesses listed, "
                                 "not one in change_read_to_write.".
-                                format(self._var_name,
+                                format(self._signature,
                                        len(self._accesses)))
 
         if self._accesses[0].access_type != AccessType.READ:
             raise InternalError("Trying to change variable '{0}' to 'WRITE' "
                                 "which does not have 'READ' access."
-                                .format(self.var_name))
+                                .format(self._signature))
 
         self._accesses[0].change_read_to_write()
 
@@ -273,6 +327,7 @@ class VariablesAccessInfo(dict):
         self._location = 0
         if nodes:
             # Import here to avoid circular dependency
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import Node
             if isinstance(nodes, list):
                 for node in nodes:
@@ -310,7 +365,7 @@ class VariablesAccessInfo(dict):
         this kernel indicates a READWRITE access, this is marked as READWRITE
         in the string output.'''
 
-        all_vars = list(self.keys())
+        all_vars = self.all_vars
         all_vars.sort()
         output_list = []
         for var_name in all_vars:
@@ -328,6 +383,27 @@ class VariablesAccessInfo(dict):
             output_list.append("{0}: {1}".format(var_name, mode))
         return ", ".join(output_list)
 
+    def __getitem__(self, key):
+        '''Dictionary-like access. But 'key' can be of
+        different types and will be mapped to be a Signature
+        instance.
+        :param key: the key to look up.
+        :type key: can be a :py:class:`psyclone.psyir.nodes.Reference`, \
+            a :py:class:`psyclone.core.access_info.Signature`, or str.
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference
+
+        if isinstance(key, Reference):
+            return dict.__getitem__(self, Signature(key.name))
+        if isinstance(key, (tuple, Signature)):
+            return dict.__getitem__(self, key)
+        if isinstance(key, str):
+            return dict.__getitem__(self, Signature(key))
+
+        return dict.__getitem__(self, key)
+
     @property
     def location(self):
         '''Returns the current location of this instance, which is
@@ -342,11 +418,12 @@ class VariablesAccessInfo(dict):
         '''Increases the location number.'''
         self._location = self._location + 1
 
-    def add_access(self, var_name, access_type, node, indices=None):
+    def add_access(self, variable, access_type, node, indices=None):
         '''Adds access information for the specified variable.
 
-        :param str var_name: Name of the variable for which an access is\
-            added.
+        :param variable: PSyIR node that represents the variable.
+        :type variable: either a string (name of the variable), or \
+            a PSyIR Reference instance.
         :param access_type: The type of access (READ, WRITE, ...)
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
@@ -356,13 +433,16 @@ class VariablesAccessInfo(dict):
         :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances.
 
         '''
-        if var_name in self:
-            self[var_name].add_access(access_type, self._location,
-                                      node, indices)
+
+        sig = Signature(variable)
+
+        if sig in self:
+            self[sig].add_access(access_type, self._location,
+                                 node, indices)
         else:
-            var_info = VariableAccessInfo(var_name)
+            var_info = VariableAccessInfo(sig)
             var_info.add_access(access_type, self._location, node, indices)
-            self[var_name] = var_info
+            self[sig] = var_info
 
     @property
     def all_vars(self):
@@ -387,19 +467,19 @@ class VariablesAccessInfo(dict):
         # we need to increase the location so that all further added data
         # will have a location number that is larger.
         max_new_location = 0
-        for var_name in other_access_info.all_vars:
-            var_info = other_access_info[var_name]
+        for signature in other_access_info.all_vars:
+            var_info = other_access_info[signature]
             for access_info in var_info.all_accesses:
                 # Keep track of how much we need to update the next location
                 # in this object:
                 if access_info.location > max_new_location:
                     max_new_location = access_info.location
                 new_location = access_info.location + self._location
-                if var_name in self:
-                    var_info = self[var_name]
+                if signature in self:
+                    var_info = self[signature]
                 else:
-                    var_info = VariableAccessInfo(var_name)
-                    self[var_name] = var_info
+                    var_info = VariableAccessInfo(signature)
+                    self[signature] = var_info
 
                 var_info.add_access(access_info.access_type, new_location,
                                     access_info.node, access_info.indices)
