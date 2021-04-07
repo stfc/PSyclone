@@ -45,7 +45,8 @@ Authors: J. Henrichs, Bureau of Meteorology,
 This directory contains files related to [read-only verification](
 https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification),
 i.e. checks at runtime that a read-only parameter of a subroutine is indeed
-not changed in a kernel. There is a [read-only verification base class](
+not changed in a kernel. There is a ``PSyData``
+[read-only verification base class](
 https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-read-only-verification-base-class)
 as a Jinja template that can be used to simplify the creation of API-specific wrapper libraries.
 
@@ -61,18 +62,19 @@ in the [developer's guide](
 https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
 The script [``process.py``](../README.md#psydata-base-class) is used by the
 derived classes to process this template. There is a simple ``Makefile``
-contained here for compilation tests, but any API-specific implementation (in
+contained here for compilation tests, but each API-specific implementation (in
 any of the subdirectories here) will process this template and compile it in
-their own directory (to allow for the required data types to be supported),
-they do not link with a compiled version from this directory.
+their own directory (to allow for the required data types to be supported).
+The API-specific implementations do not link with the compiled version from
+this directory.
 
 ## [``dl_esm_inf``](dl_esm_inf) directory
 
-Contains the read-only PSyData wrapper library for the ``dl_esm_inf``
+Contains the read-only ``PSyData`` wrapper library for the ``dl_esm_inf``
 [GOcean API](https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
 
 ## [``lfric``](lfric) directory
 
-Contains the read-only PSyData wrapper library for the
+Contains the read-only ``PSyData`` wrapper library for the
 [LFRic (Dynamo 0.3) API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).

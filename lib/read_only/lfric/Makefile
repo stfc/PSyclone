@@ -58,10 +58,12 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastruc
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)
-INF_LIB = $(INF_DIR)/liblfric.a
+INF_LIB_NAME = lfric
+INF_LIB = $(INF_DIR)/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
-LIB_NAME = lib_read_only.a
+PSYDATA_LIB_NAME = _read_only
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 # The LFRic ReadOnly library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -70,16 +72,16 @@ LIB_NAME = lib_read_only.a
 # consistent code creation.
 PROCESS_ARGS = -prefix=read_only_verify_ -types=real,int,double \
 		       -dims=1,2,3,4
-PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
 OBJS = read_only.o psy_data_base.o read_only_base.o
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(INF_LIB) $(OBJS)
-	${AR} ${ARFLAGS} ${LIB_NAME} $^
+$(PSYDATA_LIB): $(INF_LIB) $(OBJS)
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
 # Add all dependencies. The LFRic ReadOnly library extends the
 # ReadOnlyBase type, which in turn extends the PSyDataBase type.
@@ -108,7 +110,7 @@ $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* read_only_base.*
 
 allclean: clean
 	$(MAKE) -C $(INF_DIR) allclean

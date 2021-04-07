@@ -126,7 +126,7 @@ NetCDF-kernel-extraction library, the ``dl_esm_inf`` infrastructure library
 and the required NetCDF parameters when compiling and linking. For instance:
 
 ```shell
-$(F90)  ... -L$(ROOT_LIB_DIR)/extract/netcdf/lfric -l_kernel_data_netcdf \
+$(F90)  ... -L$(ROOT_LIB_DIR)/extract/netcdf/dl_esm_inf -l_kernel_data_netcdf \
         -L$(INF_DIR) -l_fd $(nf-config --flibs)
 ```
 

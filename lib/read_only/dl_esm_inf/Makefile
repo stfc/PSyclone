@@ -57,10 +57,12 @@ INF_DIR ?= $(ROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)/src
-INF_LIB = $(INF_DIR)/src/lib_fd.a
+INF_LIB_NAME = _fd
+INF_LIB = $(INF_DIR)/src/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
-LIB_NAME = lib_read_only.a
+PSYDATA_LIB_NAME = _read_only
+PSYDATA_LIB = $(INF_DIR)/src/lib$(PSYDATA_LIB_NAME).a
 
 OBJS = read_only.o psy_data_base.o read_only_base.o
 
@@ -68,14 +70,14 @@ OBJS = read_only.o psy_data_base.o read_only_base.o
 # 2-dimensional arrays, and int, real- and double basic Fortran types
 PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 		       -dims=2
-PROCESS=$$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(INF_LIB) $(OBJS)
-	${AR} ${ARFLAGS} ${LIB_NAME} $^
+$(PSYDATA_LIB): $(INF_LIB) $(OBJS)
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
 # Dependencies:
 # -------------
@@ -106,7 +108,7 @@ $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* read_only_base.*
 
 allclean: clean
 	$(MAKE) -C $(INF_DIR) clean
