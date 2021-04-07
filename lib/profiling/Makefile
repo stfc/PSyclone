@@ -34,9 +34,8 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
 
-F90=gfortran
-FFLAGS=-g
-LDFLAGS=
+F90?=gfortran
+F90FLAGS?=-g
 
 # We don't build dl_timer, drhook and nvidia since they require
 # external libraries to be available.
