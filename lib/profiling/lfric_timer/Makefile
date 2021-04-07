@@ -34,7 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
-# This makefile compiles a PSyData profiling wrapper library using the LFRic
+# This Makefile compiles a PSyData profiling wrapper library using the LFRic
 # timer code. It can be used with any code, not only with LFRic.
 
 # ----------- Default "make" values, can be overwritten by the user -----------
@@ -47,11 +47,14 @@ INF_DIR ?= ./../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)
-INF_LIB = $(INF_DIR)/liblfric.a
+INF_LIB_NAME = lfric
+INF_LIB = $(INF_DIR)/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
-LIB_NAME = libpsy_lfric_timer.a
-LIB_NAME_STANDALONE = libpsy_lfric_timer_standalone.a
+PSYDATA_LIB_NAME = psy_lfric_timer
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
+PSYDATA_STANDALONE_LIB_NAME = psy_lfric_timer_standalone
+PSYDATA_STANDALONE_LIB = lib$(PSYDATA_STANDALONE_LIB_NAME).a
 
 PSY_OBJS = profile_psy_data_mod.o
 INF_OBJS = timer_mod.o log_mod.o scalar_mod.o mpi_mod.o io_utility_mod.o
@@ -59,17 +62,17 @@ INF_OBJS_FULL_PATH = $(patsubst %,$(INF_DIR)/%,$(INF_OBJS))
 
 .phony: default clean allclean
 
-default: $(LIB_NAME) $(LIB_NAME_STANDALONE)
+default: $(PSYDATA_LIB) $(PSYDATA_STANDALONE_LIB)
 
 # First target: this needs to be linked with the LFRic
 # infrastructure library.
-$(LIB_NAME): $(INF_LIB) $(PSY_OBJS)
+$(PSYDATA_LIB): $(INF_LIB) $(PSY_OBJS)
 	ar rs $@ $<
 
 # Second target: this library contains the required files
 # from the infrastructure library, and can be used by any
 # application, not only LFRic.
-$(LIB_NAME_STANDALONE): $(INF_LIB) $(PSY_OBJS)
+$(PSYDATA_STANDALONE_LIB): $(INF_LIB) $(PSY_OBJS)
 	ar rs $@ $(INF_OBJS_FULL_PATH) $(PSY_OBJS)
 
 # Trigger recompilation if the infrastructure lib is changed
@@ -83,7 +86,7 @@ $(INF_LIB):
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(LIB_NAME) $(LIB_NAME_STANDALONE) *.mod *.o
+	rm -f $(PSYDATA_LIB) $(PSYDATA_STANDALONE_LIB) *.mod *.o
 
 allclean: clean
 	$(MAKE) -C $(INF_DIR) allclean

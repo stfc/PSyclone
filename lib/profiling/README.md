@@ -203,36 +203,39 @@ Example output (from nvprof):
 ### [LFRic Timer](./lfric_timer)
 
 This wrapper library uses the LFRic timer object. It can not only be
-used with LFRic, but also with any other program - detailed linking instructions
-are in [``lfric_timer/README.md``](./lfric_timer/README.md). The output is written to the
-file ``timer.txt``, which will be overwritten if it should already exist.
+used with LFRic, but also with any other program - detailed linking
+instructions are in [``lfric_timer/README.md``](./lfric_timer/README.md).
+The output is written to the file ``timer.txt``, which will be overwritten if
+it should already exist.
 
 Example output:
 
+```
     ||=           Routine            =||=   min time(s)     =||=   mean time(s)    =||=   max time(s)     =||=     No. calls     =||=       %time       =||= time per call(s)  =||
     ||            psy_test:invoke_0:r0||                 0.00||                 0.00||                 0.00||                    1||               100.00||                 0.00||
     ||psy_test:invoke_1_update_field:u||                 0.00||                 0.00||                 0.00||                    1||                44.47||                 0.00||
+```
 
 ## Compilation
 
-The top level ``Makefile`` can be used to compile some profiling-library
-interfaces. will compile all .
+The top level ``Makefile`` can be used to compile the profiling-library
+interfaces included in PSyclone. The command ``make TARGET`` where ``TARGET``
+is one of ``template``, ``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``
+or ``lfric_timer`` will only compile the corresponding library interface.
+
+**Note** that compilation currently does not include ``dl_timer``, ``drhook``
+and ``nvidia`` profiling-library interfaces since they require external
+libraries to be available. For the same reason, the ``all`` target
 
 ```shell
 make all
 ```
 
-will compile all profiling-library interfaces included in PSyclone. The
-command ``make TARGET`` where ``TARGET`` is one of ``template``,
-``simple_timing``, ``drhook``, ``lfric``, ``nvidia`` or ``dl_timer`` will
-only compile the corresponding library interface. The following
-``Makefile`` variables are used and can be overwritten on the command line
-(e.g. ``make F90=mpif90``):
+will only compile ``template``, ``simple_timing`` and ``lfric_timer``
+libraries.
 
-
-# We don't build dl_timer, drhook and nvidia since they require
-# external libraries to be available.
-ALL_LIBS = template simple_timing lfric
+The following ``Makefile`` variables are used and can be overwritten on the
+command line (e.g. ``make F90=mpif90``):
 
  Variable   |  Default         | Description
  ---------- | ---------------- | -----------------------------
@@ -242,9 +245,9 @@ F90FLAGS    |  -g              | Flags to use when compiling.
 Using ``make clean`` will clean all compiled library interfaces. Each
 profiling library interface can be compiled individually by changing into
 the corresponding directory and invoking ``make`` with the library-specific
-flags (see the individual ``README`` documents for reference).
+flags (see the individual ``README.md`` documents for reference).
 
-Since any source code instrumented for profiling will now contain `use
-profile_mod` statements, the location of the `profile_mod.mod` file
-must be provided as an include path when compiling the application
+Since any source code instrumented for profiling will now contain ``use
+profile_mod`` statements, the location of the ``profile_mod.mod`` file
+must be provided as an ``include`` path when compiling the application
 source.

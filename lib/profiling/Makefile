@@ -43,7 +43,7 @@ F90FLAGS ?= -g
 
 # We don't build dl_timer, drhook and nvidia since they require
 # external libraries to be available.
-ALL_LIBS = template simple_timing lfric
+ALL_LIBS = template simple_timing lfric_timer
 
 .PHONY: default all $(ALL_LIBS) clean allclean
 
