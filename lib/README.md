@@ -40,59 +40,66 @@ Authors: J. Henrichs, Bureau of Meteorology,
          I. Kavcic, Met Office
 -->
 
-# Libraries for use with PSyclone
+# Wrapper Libraries for Use with PSyclone
 
-This directory contains a base class as a Jinja template that can be used to simplify
-the creation of [PSyData-based](
+This directory contains [PSyData-API-based](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) wrapper libraries.
+They enable PSyclone to provide transformations that will insert callbacks
+to an external library at runtime. These callbacks allow third-party libraries
+to access data structures at specified locations in the code for different
+purposes, such as profiling, verification and extraction of argument values.
+The wrapper libraries for the supported use cases are listed below.
+
+## Structure
+
+### ``PSyData`` base class
+
+The file ``psy_data_base.jinja`` contains a Jinja template that can be used
+by the [PSyData-API-based](
+https://psyclone.readthedocs.io/en/stable/psy_data.html) wrapper libraries.
+Full documentation on using this template is provided in the PSyclone
+[Developer Guide](
+https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja). The
+script ``process.py`` is used by the derived classes to process this
+template. This script is processed with the help of the Shell script
+``get_python.sh`` that finds an executable Python command.
+
+There is a simple ``Makefile`` for compilation tests, but any
+PSyData-API-based wrapper library (in any of the subdirectories here) will
+process this template and compile it in its own directory. This allows each
+library to exactly specify which data types are required. No library should
+rely on a file compiled in this directory.
+
+### [``extract``](./extract) directory
+
+Contains code for extracting kernel data - i.e. all input and output
+parameters of a kernel invocation.
+
+### [``nan_test``](./nan_test) directory
+
+Contains PSyData-API-based libraries for checking that input and output
+parameters of kernels are valid numbers (i.e. not ``NaN`` or infinity).
+
+### [``profiling``](./profiling) directory
+
+Contains PSyData-API-based wrapper libraries for various profiling libraries
+and stand-alone timing libraries.
+
+### [``read_only``](./read_only) directory
+
+Contains PSyData-API-based libraries for verifying at run time that
+parameters declared as read-only in the PSyclone metadata are indeed not
+changed in a subroutine.
 
 ## Installation
 
 TBD....
 
-## Structure
-
-### PSyData base class
-
-The file ``psy_data_base.jinja`` contains a Jinja template that can be used
-by PSyData-based wrapper libraries. Full documentation on using this template
-is provided in the
-[developer's guide](https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
-The script ``process.py`` is used by the derived classes to process this
-template. This script is processed with the help of the Shell script
-``get_python.sh`` that finds an executable Python command.
-
-There is a simple ``Makefile`` for compilation tests, but any
-PSyData wrapper library (in any of the subdirectories here) will process
-this template and compile it in its own directory. This allows each library
-to exactly specify which data types are required. No library should
-rely on a file compiled in this directory.
-
-### [``extract``](extract) directory
-
-Contains code for extracting kernel data - i.e. all input and output parameters
-of a kernel invocation.
-
-### [``nan_test``](nan_test) directory
-
-Contains PSyData libraries for checking that input and output parameters of
-kernels are valid numbers (i.e. not ``NaN`` or infinity).
-
-### [``profiling``](profiling) directory
-
-Contains PSyData wrapper libraries for various profiling libraries and
-stand-alone timing libraries.
-
-### [``read_only``](read_only) directory
-
-Contains PSyData wrapper libraries for verifying at run time that parameters
-declared as read-only in the PSyclone metadata are indeed not changed in a
-subroutine.
-
 ## Compilation
 
-As said above, every PSyData wrapper library in the relevant subdirectories
-can be compiled individually.
+As said above, every PSyData-API-based wrapper library in the relevant
+subdirectories can be compiled individually. Compilation requires a Fortran
+compiler and Gnu Make.
 
 All ``Makefile``s support the variables ``F90`` and ``F90FLAGS`` to specify
 the compiler and compilation flags to use. ``F90`` defaults to the Gnu
@@ -114,9 +121,16 @@ the ``allclean`` target that removes the compiled wrapper library as well
 as the compiled infrastructure library that the wrapper may
 [depend on](#dependencies).
 
+The compilation of wrapper libraries was tested with the Gnu and Intel
+Fortran compilers, see [here](
+https://psyclone.readthedocs.io/en/latest/examples.html#supported-compilers)
+for the full list. Please let the PSyclone developers know if you have
+problems using a compiler that has been tested or if you are working
+with a different compiler.
+
 ### Dependencies
 
-The majority of wrapper libraries use the [PSyData base class](
+The majority of wrapper libraries use the [``PSyData`` base class](
 #psydata-base-class) Jinja template and Python processing scripts. Their
 location is set by the configurable variable ``ROOT_LIB_DIR``, which is
 by default set to the relative path to the top-level `lib` directory.
@@ -138,5 +152,5 @@ path to the respective library directory but can also be configured with
 the variable ``JINJA_TMPLT_DIR``.
 
 Profiling wrapper libraries that depend on external tools (for instance,
-[``dl_timer``](profiling/dl_timer/README.md) have specific variables that
+[``dl_timer``](./profiling/dl_timer/README.md) have specific variables that
 configure paths to where these libraries are located in a user environment.

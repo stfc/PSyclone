@@ -83,10 +83,10 @@ the application. The following dependencies must be available:
 
 ## Compilation
 
-A ``Makefile`` is provided for compilation. The environment variables
-``$F90`` and ``$F90FLAGS`` can be set to point to the [Fortran compiler](
-../../../README.md#compilation) and flags to use. They default to
-``gfortran`` and the empty string.
+The library is compiled with ``make`` using the provided ``Makefile``. The
+environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
+[Fortran compiler](./../../../README.md#compilation) and flags to use. They
+default to ``gfortran`` and the empty string.
 
 The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
 include paths. By default it is set to the relative path to the pared-down
@@ -102,10 +102,11 @@ It is the responsibility of the user to make sure that the module files
 used when compiling the LFRic extraction library are identical to the ones
 used when running an LFRic application.
 
-The location of the ``ExtractNetcdf`` and ``PSyData`` base classes is
+The locations of the ``ExtractNetcdf`` and ``PSyData`` base classes are
 specified using the environment variables ``$JINJA_TMPLT_DIR`` and
-``$ROOT_LIB_DIR``, respectively. They default to the relative paths of the
-[``lib/extract/netcdf``](../) and top-level [``lib``](../../../) directories.
+``$ROOT_LIB_DIR``, respectively. They default to the relative paths to
+the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
+directories.
 
 The compilation process will create the wrapper library
 ``lib_kernel_data_netcdf.a``. The ``Makefile`` will compile the LFRic
@@ -122,8 +123,9 @@ or compiler flags).
 ### Linking the wrapper library
 
 The application needs to provide the parameters to link in this
-NetCDF-kernel-extraction library, the LFRic infrastructure library and
-the required NetCDF parameters when compiling and linking. For instance:
+NetCDF-kernel-extraction library, ``_kernel_data_netcdf``, the LFRic
+infrastructure library, ``lfric_netcdf``, and the required NetCDF
+parameters when compiling and linking. For instance:
 
 ```shell
 $(F90)  ... -L$(ROOT_LIB_DIR)/extract/netcdf/lfric -l_kernel_data_netcdf \

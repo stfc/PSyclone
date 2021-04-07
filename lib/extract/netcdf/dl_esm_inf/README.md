@@ -61,19 +61,20 @@ the application. The following dependencies must be available:
 
 - The [GOcean](https://psyclone.readthedocs.io/en/latest/gocean1p0.html)
   infrastructure library ``dl_esm_inf``. A stable version of this is included
-  in the PSyclone repository as a Git submodule (see [Installation](
+  in the PSyclone repository as a Git submodule (see ["Installation"](
   https://psyclone-dev.readthedocs.io/en/stable/working_practises.html#dev-installation)
-  in the Developers' Guide for details on working with submodules).
-  However, it is not included in the PSyclone installation and has to
-  be cloned separately.
+  in the PSyclone [Developer Guide](
+  https://psyclone-dev.readthedocs.io/en/stable) for details on working with
+  submodules). However, it is not included in the PSyclone installation and
+  has to be cloned separately.
 
-- The [GOcean](https://psyclone.readthedocs.io/en/latest/gocean1p0.html)
-  infrastructure library ``dl_esm_inf``. A stable version of this is included
-  in the PSyclone repository as a Git submodule (see [Installation](
-  https://psyclone-dev.readthedocs.io/en/stable/working_practises.html#dev-installation)
-  in the Developers' Guide for details on working with submodules).
-  However, it is not included in the PSyclone installation and has to
-  be cloned separately.
+- This library uses NetCDF to store the data, so NetCDF must
+  be available on the system. NetCDF development packages are available via
+  the Linux package manager. Otherwise they can be built from source that
+  can be downloaded from the [UCAR NetCDF website](
+  https://www.unidata.ucar.edu/software/netcdf). For more information please
+  refer to the [hands-on practicals documentation](
+  https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples).
 
 - The ``ExtractNetcdf`` (``extract_netcdf_base.jinja``) and ``PSyData``
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
@@ -86,10 +87,10 @@ the application. The following dependencies must be available:
 
 ## Compilation
 
-A ``Makefile`` is provided for compilation. The environment variables
-``$F90`` and ``$F90FLAGS`` can be set to point to the [Fortran compiler](
-../../../README.md#compilation) and flags to use. They default to
-``gfortran`` and the empty string.
+The library is compiled with ``make`` using the provided ``Makefile``. The
+environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
+[Fortran compiler](./../../../README.md#compilation) and flags to use. They
+default to ``gfortran`` and the empty string.
 
 The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
 include paths. By default it is set to the relative path to location of
@@ -102,10 +103,11 @@ available in the PSyclone installation so the exact path
 make INF_DIR=<path/to/dl_esm_inf/finite_difference>
 ```
 
-The location of the ``ExtractNetcdf`` and ``PSyData`` base classes is
+The locations of the ``ExtractNetcdf`` and ``PSyData`` base classes are
 specified using the environment variables ``$JINJA_TMPLT_DIR`` and
-``$ROOT_LIB_DIR``, respectively. They default to the relative paths of the
-[``lib/extract/netcdf``](../) and top-level [``lib``](../../../) directories.
+``$ROOT_LIB_DIR``, respectively. They default to the relative paths of
+the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
+directories.
 
 The compilation process will create the wrapper library
 ``lib_kernel_data_netcdf.a``. The ``Makefile`` will compile the
@@ -122,8 +124,9 @@ or compiler flags).
 ### Linking the wrapper library
 
 The application needs to provide the parameters to link in this
-NetCDF-kernel-extraction library, the ``dl_esm_inf`` infrastructure library
-and the required NetCDF parameters when compiling and linking. For instance:
+NetCDF-kernel-extraction library, ``_kernel_data_netcdf``, the ``dl_esm_inf``
+infrastructure library, ``_fd``,  and the required NetCDF parameters when
+compiling and linking. For instance:
 
 ```shell
 $(F90)  ... -L$(ROOT_LIB_DIR)/extract/netcdf/dl_esm_inf -l_kernel_data_netcdf \
