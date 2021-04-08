@@ -47,11 +47,11 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-ROOT_LIB_DIR ?= ./../..
+PSYROOT_LIB_DIR ?= ./../..
 JINJA_TMPLT_DIR ?= ./..
 # This variable defaults to the cut-down version of the LFRic infrastructure
 # distributed with PSyclone (can be overwritten to use a different version)
-INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+INF_DIR ?= $(PSYROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)
@@ -69,7 +69,7 @@ PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 # consistent code creation.
 PROCESS_ARGS = -prefix=nan_test_ -types=real,int,double \
 		       -dims=1,2,3,4
-PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
 
 OBJS = nan_test.o psy_data_base.o nan_test_base.o
 
@@ -99,7 +99,7 @@ nan_test_base.o: psy_data_base.o
 # The LFRic NAN checking library is built on the psy-data base library
 # and the NAN-checking base library. So add the rules to process
 # these files to get the plain Fortran files:
-psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
+psy_data_base.f90: $(PSYROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 nan_test_base.f90: $(JINJA_TMPLT_DIR)/nan_test_base.jinja Makefile

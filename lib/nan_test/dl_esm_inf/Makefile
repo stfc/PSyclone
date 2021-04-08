@@ -49,11 +49,11 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-ROOT_LIB_DIR ?= ./../..
+PSYROOT_LIB_DIR ?= ./../..
 JINJA_TMPLT_DIR ?= ./..
 # This variable defaults to the dl_esm_inf infrastructure library
 # distributed with PSyclone (can be overwritten to use a different version)
-INF_DIR ?= $(ROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference
+INF_DIR ?= $(PSYROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)/src
@@ -70,7 +70,7 @@ OBJS = nan_test.o psy_data_base.o nan_test_base.o
 # 2-dimensional arrays, and int, real- and double basic Fortran types
 PROCESS_ARGS = -prefix=nan_test_ -types=int,real,double \
 		       -dims=2
-PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
 
 default: $(PSYDATA_LIB)
 
@@ -95,7 +95,7 @@ nan_test_base.o: psy_data_base.o
 # The dl_esm_inf NAN-test library is built on the psy-data base library
 # and the NAN-test base library. So add the rules to process
 # these files to get the plain Fortran files:
-psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
+psy_data_base.f90: $(PSYROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 nan_test_base.f90: $(JINJA_TMPLT_DIR)/nan_test_base.jinja Makefile
