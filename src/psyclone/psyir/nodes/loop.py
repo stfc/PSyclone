@@ -43,8 +43,9 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.psyir.symbols import ScalarType, DataSymbol
-from psyclone.core.access_info import AccessType
+from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
+from psyclone.f2pygen import DoGen, DeclGen
 
 
 class Loop(Statement):
@@ -445,8 +446,10 @@ class Loop(Statement):
         # the dependency analysis for declaring openmp private variables
         # will automatically declare the loop variables to be private
         # (write access before read)
-        var_accesses.add_access(self.variable.name, AccessType.WRITE, self)
-        var_accesses.add_access(self.variable.name, AccessType.READ, self)
+        var_accesses.add_access(Signature(self.variable.name),
+                                AccessType.WRITE, self)
+        var_accesses.add_access(Signature(self.variable.name),
+                                AccessType.READ, self)
 
         # Accesses of the start/stop/step expressions
         self.start_expr.reference_accesses(var_accesses)
@@ -512,6 +515,8 @@ class Loop(Statement):
         '''Return all arguments of type arg_types and arg_accesses. If these
         are not set then return all arguments. If unique is set to
         True then only return uniquely named arguments'''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import args_filter
         all_args = []
         all_arg_names = []
@@ -535,6 +540,8 @@ class Loop(Statement):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
 
         def is_unit_literal(expr):
@@ -557,8 +564,9 @@ class Loop(Statement):
             for child in self.loop_body:
                 child.gen_code(parent)
         else:
+            # Avoid circular dependency
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.backend.fortran import FortranWriter
-            from psyclone.f2pygen import DoGen, DeclGen
             # start/stop/step_expr are generated with the FortranWriter
             # backend, the rest of the loop with f2pygen.
             fwriter = FortranWriter()

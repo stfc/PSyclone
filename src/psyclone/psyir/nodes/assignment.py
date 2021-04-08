@@ -39,15 +39,16 @@
 ''' This module contains the Assignment node implementation.'''
 
 import re
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.errors import InternalError
+from psyclone.f2pygen import PSyIRGen
+from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.operation import Operation, REDUCTION_OPERATORS
-from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.errors import InternalError
-from psyclone.f2pygen import PSyIRGen
 
 
 class Assignment(Statement):
@@ -162,19 +163,19 @@ class Assignment(Statement):
                 # Remove the index part of the name
                 name = name.replace(ind.group(0), "")
                 # The index must be added as a list
-                accesses_left.add_access(name, AccessType.WRITE, self,
-                                         [ind.group(0)])
+                accesses_left.add_access(Signature(name), AccessType.WRITE,
+                                         self, [ind.group(0)])
             else:
-                accesses_left.add_access(name, AccessType.WRITE, self)
+                accesses_left.add_access(Signature(name), AccessType.WRITE,
+                                         self)
         else:
-            var_info = accesses_left[self.lhs.name]
+            var_info = accesses_left[Signature(self.lhs.name)]
             try:
                 var_info.change_read_to_write()
             except InternalError:
                 # An internal error typically indicates that the same variable
                 # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
                 # supported in PSyclone.
-                from psyclone.parse.utils import ParseError
                 raise ParseError("The variable '{0}' appears more than once "
                                  "on the left-hand side of an assignment."
                                  .format(self.lhs.name))

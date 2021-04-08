@@ -162,17 +162,17 @@ def test_variables_access_info():
     '''
     var_accesses = VariablesAccessInfo()
     node1 = Node()
-    var_accesses.add_access("read", AccessType.READ, node1)
+    var_accesses.add_access(Signature("read"), AccessType.READ, node1)
     node2 = Node()
-    var_accesses.add_access("written", AccessType.WRITE, node2)
+    var_accesses.add_access(Signature("written"), AccessType.WRITE, node2)
     assert str(var_accesses) == "read: READ, written: WRITE"
 
     var_accesses.next_location()
     node = Node()
-    var_accesses.add_access("written", AccessType.WRITE, node)
+    var_accesses.add_access(Signature("written"), AccessType.WRITE, node)
     var_accesses.next_location()
-    var_accesses.add_access("read_written", AccessType.WRITE, node)
-    var_accesses.add_access("read_written", AccessType.READ, node)
+    var_accesses.add_access(Signature("read_written"), AccessType.WRITE, node)
+    var_accesses.add_access(Signature("read_written"), AccessType.READ, node)
     assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
                                 "written: WRITE"
     assert set(var_accesses.all_vars) == set([Signature("read"),
@@ -188,8 +188,8 @@ def test_variables_access_info():
 
     # Create a new instance
     var_accesses2 = VariablesAccessInfo()
-    var_accesses2.add_access("new_var", AccessType.READ, node)
-    var_accesses2.add_access("written", AccessType.READ, node)
+    var_accesses2.add_access(Signature("new_var"), AccessType.READ, node)
+    var_accesses2.add_access(Signature("written"), AccessType.READ, node)
 
     # Now merge the new instance with the previous instance:
     var_accesses.merge(var_accesses2)
@@ -197,14 +197,14 @@ def test_variables_access_info():
                                 "read_written: READ+WRITE, written: READ+WRITE"
 
     with pytest.raises(KeyError):
-        _ = var_accesses["does_not_exist"]
+        _ = var_accesses[Signature("does_not_exist")]
     with pytest.raises(KeyError):
-        var_accesses.is_read("does_not_exist")
+        var_accesses.is_read(Signature("does_not_exist"))
     with pytest.raises(KeyError):
-        var_accesses.is_written("does_not_exist")
+        var_accesses.is_written(Signature("does_not_exist"))
 
     assert "READWRITE" not in str(var_accesses)
-    var_accesses.add_access("readwrite", AccessType.READWRITE, node)
+    var_accesses.add_access(Signature("readwrite"), AccessType.READWRITE, node)
     assert "READWRITE" in str(var_accesses)
 
 
@@ -216,23 +216,23 @@ def test_variables_access_info_merge():
     # a=b; c=d
     var_accesses1 = VariablesAccessInfo()
     node = Node()
-    var_accesses1.add_access("b", AccessType.READ, node)
-    var_accesses1.add_access("a", AccessType.WRITE, node)
+    var_accesses1.add_access(Signature("b"), AccessType.READ, node)
+    var_accesses1.add_access(Signature("a"), AccessType.WRITE, node)
     var_accesses1.next_location()
-    var_accesses1.add_access("d", AccessType.READ, node)
-    var_accesses1.add_access("c", AccessType.WRITE, node)
-    c_accesses = var_accesses1["c"]
+    var_accesses1.add_access(Signature("d"), AccessType.READ, node)
+    var_accesses1.add_access(Signature("c"), AccessType.WRITE, node)
+    c_accesses = var_accesses1[Signature("c")]
     assert len(c_accesses.all_accesses) == 1
     assert c_accesses[0].access_type == AccessType.WRITE
 
     # First create one instance representing for example:
     # e=f; g=h
     var_accesses2 = VariablesAccessInfo()
-    var_accesses2.add_access("f", AccessType.READ, node)
-    var_accesses2.add_access("e", AccessType.WRITE, node)
+    var_accesses2.add_access(Signature("f"), AccessType.READ, node)
+    var_accesses2.add_access(Signature("e"), AccessType.WRITE, node)
     var_accesses2.next_location()
-    var_accesses2.add_access("h", AccessType.READ, node)
-    var_accesses2.add_access("g", AccessType.WRITE, node)
+    var_accesses2.add_access(Signature("h"), AccessType.READ, node)
+    var_accesses2.add_access(Signature("g"), AccessType.WRITE, node)
 
     # Now merge the second instance into the first one
     var_accesses1.merge(var_accesses2)
@@ -240,8 +240,8 @@ def test_variables_access_info_merge():
     # The e=f access pattern should have the same location
     # as the c=d (since there is no next_location after
     # adding the b=a access):
-    c_accesses = var_accesses1["c"]
-    e_accesses = var_accesses1["e"]
+    c_accesses = var_accesses1[Signature("c")]
+    e_accesses = var_accesses1[Signature("e")]
     assert c_accesses[0].access_type == AccessType.WRITE
     assert e_accesses[0].access_type == AccessType.WRITE
     assert c_accesses[0].location == e_accesses[0].location
@@ -249,9 +249,9 @@ def test_variables_access_info_merge():
     # Test that the g=h part has a higher location than the
     # c=d data. This makes sure that merge() increases the
     # location number of accesses when merging.
-    c_accesses = var_accesses1["c"]
-    g_accesses = var_accesses1["g"]
-    h_accesses = var_accesses1["h"]
+    c_accesses = var_accesses1[Signature("c")]
+    g_accesses = var_accesses1[Signature("g")]
+    h_accesses = var_accesses1[Signature("h")]
     assert c_accesses[0].location < g_accesses[0].location
     assert g_accesses[0].location == h_accesses[0].location
 

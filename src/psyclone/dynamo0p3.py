@@ -54,7 +54,7 @@ from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import (
     BUILTIN_ITERATION_SPACES, LFRicBuiltInCallFactory,
     LFRicBuiltIn, BUILTIN_MAP)
@@ -1934,14 +1934,14 @@ class LFRicMeshProperties(DynCollection):
                         "nfaces_re_h").name
                     arg_list.append(name)
                     if var_accesses is not None:
-                        var_accesses.add_access(name, AccessType.READ,
-                                                self._kernel)
+                        var_accesses.add_access(Signature(name),
+                                                AccessType.READ, self._kernel)
 
                 adj_face = self._symbol_table.symbol_from_tag(
                     "adjacent_face").name
                 if var_accesses is not None:
-                    var_accesses.add_access(adj_face, AccessType.READ,
-                                            self._kernel, [1])
+                    var_accesses.add_access(Signature(adj_face),
+                                            AccessType.READ, self._kernel, [1])
                 if not stub:
                     # This is a kernel call from within an invoke
                     cell_name = "cell"

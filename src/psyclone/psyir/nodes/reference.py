@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
-from psyclone.core.access_info import AccessType
+from psyclone.core import AccessType, Signature
 from psyclone.psyir.symbols import Symbol
 
 
@@ -133,7 +133,8 @@ class Reference(DataNode):
             # array elements, they determine the array
             # bounds. Therefore there is no data dependence.
             return
-        var_accesses.add_access(self, AccessType.READ, self)
+        sig = Signature(self.name)
+        var_accesses.add_access(sig, AccessType.READ, self)
 
 
 # For AutoAPI documentation generation

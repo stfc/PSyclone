@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
 from __future__ import print_function, absolute_import
 
 from psyclone.core.access_type import AccessType
+from psyclone.core.signature import Signature
 from psyclone.errors import InternalError
 
 
@@ -137,68 +138,15 @@ class AccessInfo(object):
 
 
 # =============================================================================
-class Signature:
-    '''Given a variable access of the form ``a(i,j)%b(k,l)%c``, the signature
-    of this access is the tuple ``(a,b,c)``. For a simple scalar variable
-    ``a`` the signature would just be ``(a,)``.
-    The signature is the key used in VariablesAccessInfo. In order to make
-    sure two different signature objects containing the same variable
-    can be used as a key, this class implements __hash__ and other special
-    functions.
-
-    :param variable: the variable that is accessed.
-    :type variable: can be a :py:class:`psyclone.psyir.nodes.Reference`, \
-        a str or another signature.
-
-    '''
-    def __init__(self, variable):
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Reference
-        if isinstance(variable, Reference):
-            self._signature = (variable.name,)
-        elif isinstance(variable, str):
-            self._signature = (variable,)
-        elif isinstance(variable, Signature):
-            self._signature = variable._signature
-        else:
-            print("OOps, what is variable now", type(variable))
-
-    def __str__(self):
-        return "%".join(self._signature)
-
-    def __repr__(self):
-        return "Signature({0})".format("%".join(self._signature))
-
-    def __hash__(self):
-        '''This returns a hash value that is independent of the instance.
-        I.e. two instances with the same signature will have the same
-        hash key.
-        '''
-        return hash(self._signature)
-
-    def __eq__(self, other):
-        '''Required in order to use a Signature instance as a key.
-        Compares two objects (one of which might '''
-        if not hasattr(other, "_signature"):
-            return False
-        return hasattr(other, "_signature") and \
-            self._signature == other._signature
-
-    def __lt__(self, other):
-        '''Required to sort signatures. It just compares the tuples.'''
-        return self._signature < other._signature
-
-
-# =============================================================================
 class VariableAccessInfo(object):
     '''This class stores a list with all accesses to one variable.
 
-    :param str var_name: Name of the variable.
+    :param signature: signature instance of the variable.
+    :type signature: :py:class:`psyclone.core.signature`
 
     '''
-    def __init__(self, var_name):
-        self._signature = Signature(var_name)
+    def __init__(self, signature):
+        self._signature = signature
         # This is the list of AccessInfo instances for this variable.
 
         self._accesses = []
@@ -391,12 +339,7 @@ class VariablesAccessInfo(dict):
         :type key: can be a :py:class:`psyclone.psyir.nodes.Reference`, \
             a :py:class:`psyclone.core.access_info.Signature`, or str.
         '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Reference
 
-        if isinstance(key, Reference):
-            return dict.__getitem__(self, Signature(key.name))
         if isinstance(key, (tuple, Signature)):
             return dict.__getitem__(self, key)
         if isinstance(key, str):
@@ -433,8 +376,9 @@ class VariablesAccessInfo(dict):
         :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances.
 
         '''
-
-        sig = Signature(variable)
+        if not isinstance(variable, Signature):
+            raise InternalError("Got {0} {1}".format(variable, type(variable)))
+        sig = variable
 
         if sig in self:
             self[sig].add_access(access_type, self._location,

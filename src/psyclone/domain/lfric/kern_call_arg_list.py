@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 from collections import namedtuple
 
 from psyclone import psyGen
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import (ArgOrdering, LFRicArgDescriptor)
 from psyclone.errors import GenerationError, InternalError
 
@@ -164,6 +164,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         components = ["matrix"]
+        # Avoid circular import:
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynCMAOperators
         if arg.function_space_to.orig_name != (arg.function_space_from.
                                                orig_name):
@@ -201,7 +203,7 @@ class KernCallArgList(ArgOrdering):
             self.append(text)
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
-            var_accesses.add_access(argvect.name, argvect.access,
+            var_accesses.add_access(Signature(argvect.name), argvect.access,
                                     self._kern)
 
     def field(self, arg, var_accesses=None):
@@ -577,6 +579,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         if self._kern.mesh.properties:
+            # Avoid circular import:
+            # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import LFRicMeshProperties
             self.extend(LFRicMeshProperties(self._kern).
                         kern_args(stub=False, var_accesses=var_accesses))
@@ -691,14 +695,18 @@ class KernCallArgList(ArgOrdering):
         '''
         if self._kern.is_coloured():
             if var_accesses is not None:
-                var_accesses.add_access("colour", AccessType.READ, self._kern)
-                var_accesses.add_access("cell", AccessType.READ, self._kern)
-                var_accesses.add_access(self._kern.colourmap, AccessType.READ,
+                var_accesses.add_access(Signature("colour"), AccessType.READ,
+                                        self._kern)
+                var_accesses.add_access(Signature("cell"), AccessType.READ,
+                                        self._kern)
+                var_accesses.add_access(Signature(self._kern.colourmap),
+                                        AccessType.READ,
                                         self._kern, ["colour", "cell"])
             return self._kern.colourmap + "(colour, cell)"
 
         if var_accesses is not None:
-            var_accesses.add_access("cell", AccessType.READ, self._kern)
+            var_accesses.add_access(Signature("cell"), AccessType.READ,
+                                    self._kern)
 
         return "cell"
 
