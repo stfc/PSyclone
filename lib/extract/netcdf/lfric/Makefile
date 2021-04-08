@@ -43,10 +43,10 @@ F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
 JINJA_TMPLT_DIR ?= ./..
-ROOT_LIB_DIR ?= ./../../..
+PSYROOT_LIB_DIR ?= ./../../..
 # This variable defaults to the cut-down version of the LFRic infrastructure
 # distributed with PSyclone (can be overwritten to use a different version)
-INF_DIR ?= $(ROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+INF_DIR ?= $(PSYROOT_LIB_DIR)/../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)
@@ -59,7 +59,7 @@ PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=1,2,3,4
-PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
 
 OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 
@@ -77,7 +77,7 @@ $(INF_LIB):
 kernel_data_netcdf.o:	extract_netcdf_base.o
 extract_netcdf_base.o:	psy_data_base.o
 
-psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja Makefile
+psy_data_base.f90: $(PSYROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 extract_netcdf_base.f90: $(JINJA_TMPLT_DIR)/extract_netcdf_base.jinja Makefile

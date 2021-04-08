@@ -107,7 +107,7 @@ used when running an LFRic application.
 
 The locations of the ``ExtractNetcdf`` and ``PSyData`` base classes are
 specified using the environment variables ``$JINJA_TMPLT_DIR`` and
-``$ROOT_LIB_DIR``, respectively. They default to the relative paths to
+``$PSYROOT_LIB_DIR``, respectively. They default to the relative paths to
 the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
 directories.
 
@@ -131,7 +131,7 @@ infrastructure library, ``lfric_netcdf``, and the required NetCDF
 parameters when compiling and linking. For instance:
 
 ```shell
-$(F90)  ... -L$(ROOT_LIB_DIR)/extract/netcdf/lfric -l_kernel_data_netcdf \
+$(F90)  ... -L$(PSYROOT_LIB_DIR)/extract/netcdf/lfric -l_kernel_data_netcdf \
         -L$(INF_DIR) -llfric_netcdf $(LFRIC_SPECIFIC_LINKING_PARAMETERS) \
         $(nf-config --flibs)
 ```
