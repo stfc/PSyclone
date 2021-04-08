@@ -96,7 +96,7 @@ default to ``gfortran`` and the empty string.
 The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
 include paths. By default it is set to the relative path to location of
 the version included in PSyclone repository
-(``$PSYCLONEHOME/external/dl_esm_inf/finite_difference``). This is not
+(``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``). This is not
 available in the PSyclone [installation](./../../../README.md#installation)
 so the exact path **must be specified** using the environment variable
 ``$INF_DIR``, e.g.

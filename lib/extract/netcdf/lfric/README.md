@@ -92,7 +92,7 @@ default to ``gfortran`` and the empty string.
 The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
 include paths. By default it is set to the relative path to the pared-down
 LFRic infrastructure located in a clone of PSyclone repository,
-``$PSYCLONEHOME/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../../README.md#installation) so the exact path
 **must be specified** using the environment variable ``$INF_DIR``, e.g.

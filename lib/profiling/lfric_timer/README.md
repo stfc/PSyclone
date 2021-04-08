@@ -90,7 +90,7 @@ infrastructure code is specified using the environment variable
 ``$INF_DIR``. For demonstration purposes, it defaults to the relative path
 to location of the pared-down LFRic infrastructure located in a clone of
 PSyclone repository,
-``$PSYCLONEHOME/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../README.md#installation) so the exact path
 **must be specified** during the compilation process.
@@ -107,7 +107,7 @@ repository and specify the exact path during the compilation process.
 For instance,
 
 ```shell
-make INF_DIR=$PSYCLONEHOME/src/psyclone/tests/test_files/dynamo0p3/infrastructure \
+make INF_DIR=<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure \
 	libpsy_lfric_timer_standalone.a
 ```
 
