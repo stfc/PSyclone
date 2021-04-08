@@ -93,7 +93,7 @@ make INF_DIR=<path/to/dl_esm_inf/finite_difference>
 ```
 
 The locations of the ``ReadOnly`` and ``PSyData`` base classes are specified
-using the environment variables ``$JINJA_TMPLT_DIR`` and ``$ROOT_LIB_DIR``,
+using the environment variables ``$JINJA_TMPLT_DIR`` and ``$PSYROOT_LIB_DIR``,
 respectively. They default to the relative paths to the
 [``lib/read_only``](./../) and top-level [``lib``](./../../) directories.
 
@@ -115,6 +115,6 @@ library, ``_read_only``, and the ``dl_esm_inf`` infrastructure library, ``_fd``.
 For instance:
 
 ```shell
-$(F90)  ... -L$(ROOT_LIB_DIR)/read_only/dl_esm_inf -l_read_only \
+$(F90)  ... -L$(PSYROOT_LIB_DIR)/read_only/dl_esm_inf -l_read_only \
         -L$(INF_DIR) -l_fd
 ```
