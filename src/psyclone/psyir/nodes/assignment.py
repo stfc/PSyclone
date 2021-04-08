@@ -122,8 +122,6 @@ class Assignment(Statement):
         '''
         new_assignment = Assignment()
         new_assignment.children = [lhs, rhs]
-        lhs.parent = new_assignment
-        rhs.parent = new_assignment
         return new_assignment
 
     def __str__(self):
