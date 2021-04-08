@@ -42,7 +42,7 @@ from __future__ import absolute_import
 
 from collections import OrderedDict
 from fparser.two import pattern_tools
-from fparser.two.utils import walk
+from fparser.two.utils import walk, get_child
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
     Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
@@ -50,7 +50,9 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Section_Subscript_List, Name, Real_Literal_Constant, \
     Int_Literal_Constant, Function_Reference, Level_2_Unary_Expr, \
     Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List, \
-    Proc_Component_Ref
+    Proc_Component_Ref, Entity_Decl_List, Name, Kind_Selector, \
+    Type_Declaration_Stmt, Type_Declaration_StmtBase, Type_Guard_Stmt, Type_Name,\
+    Type_Param_Name, Declaration_Type_Spec, Entity_Decl, Intrinsic_Type_Spec
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
@@ -147,6 +149,7 @@ class Parser(object):
         self._api = api
 
         self._arg_name_to_module_name = {}
+        self._arg_type_defns = {}
         self._unique_invoke_labels = []
 
         # Use the get_builtin_defs helper function to access
@@ -206,9 +209,27 @@ class Parser(object):
 
         self._unique_invoke_labels = []
         self._arg_name_to_module_name = OrderedDict()
+        self._arg_type_defns = dict()
         invoke_calls = []
 
         for statement in walk(alg_parse_tree.content):
+            if isinstance(statement, Type_Declaration_Stmt):
+                #Here we find the field declarations
+                tname = None
+                for child in statement.children:
+                    if isinstance(child,Declaration_Type_Spec):
+                        tname=('TYPE',str(get_child(child,Type_Name) or ''))
+                    if isinstance(child,Intrinsic_Type_Spec):
+                        intrinsic_type = str(get_child(child,str) or '')
+                        kind = ''
+                        for entity in walk(child):
+                            if isinstance(entity,Kind_Selector):
+                                 kind = str(get_child(entity,Name) or '')
+                        tname=(intrinsic_type,kind)
+                    if isinstance(child,Entity_Decl_List):
+                        for entity in child.children:
+                            self._arg_type_defns[str(entity)] = tname
+                            print(str(entity)+" = " + str(tname or ''))
 
             if isinstance(statement, Use_Stmt):
                 # found a Fortran use statement
@@ -292,7 +313,9 @@ class Parser(object):
 
         '''
         kernel_name, args = get_kernel(argument, self._alg_filename)
-
+        # This is where the kernel call is created, so what fields are used?
+        for miarg in args:
+            print("ArgsVAR~"+str(miarg.varname or ''))
         if kernel_name.lower() in self._builtin_name_map.keys():
             # This is a builtin kernel
             kernel_call = self.create_builtin_kernel_call(
