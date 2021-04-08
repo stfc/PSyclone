@@ -82,7 +82,7 @@ The compiler flags default to ``gfortran`` and the empty string.
 
 The location of the ``PSyData`` base class Jinja template,
 ``psy_data_base.jinja`` is specified using the environment variable
-``$PSYROOT_LIB_DIR``. It defaults to the relative path to the
+``$PSYCLONE_LIB_DIR``. It defaults to the relative path to the
 top-level [``lib``](./../../) directory.
 
 The compilation process will create the wrapper library ``libdummy.a``.
@@ -95,8 +95,8 @@ file is found). Also, the library name, ``dummy``, must be specified
 at link time:
 
 ```shell
-$(F90) -c  -I $(PSYROOT_LIB_DIR)/profiling/template some_file.f90
-$(F90) some_file.o -L $(PSYROOT_LIB_DIR)/profiling/template -ldummy
+$(F90) -c  -I $(PSYCLONE_LIB_DIR)/profiling/template some_file.f90
+$(F90) some_file.o -L $(PSYCLONE_LIB_DIR)/profiling/template -ldummy
 ```
 
 ## Output

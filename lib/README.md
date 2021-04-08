@@ -133,10 +133,10 @@ with a different compiler.
 
 The majority of wrapper libraries use the [``PSyData`` base class](
 #psydata-base-class) Jinja template and Python processing scripts. Their
-location is set by the configurable variable ``PSYROOT_LIB_DIR``, which is
-by default set to the relative path to the top-level `lib` directory.
+location is set by the configurable variable ``PSYCLONE_LIB_DIR``, which
+is by default set to the relative path to the top-level `lib` directory.
 
-**Note**, ``PSYROOT_LIB_DIR`` differs depending on whether the wrapper
+**Note**, ``PSYCLONE_LIB_DIR`` differs depending on whether the wrapper
 libraries are compiled in a clone of PSyclone repository or in a PSyclone
 [installation](#installation).
 
