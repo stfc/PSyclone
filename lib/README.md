@@ -136,6 +136,10 @@ The majority of wrapper libraries use the [``PSyData`` base class](
 location is set by the configurable variable ``ROOT_LIB_DIR``, which is
 by default set to the relative path to the top-level `lib` directory.
 
+**Note**, ``ROOT_LIB_DIR`` differs depending on whether the wrapper
+libraries are compiled in a clone of PSyclone repository or in a PSyclone
+[installation](#installation).
+
 Compilation of ``extract``, ``nan_test``, ``read_only`` and some of the
 profiling wrapper libraries depends on infrastructure libraries relevant
 to the API they are used for. [GOcean API](

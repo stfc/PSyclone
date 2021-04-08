@@ -83,11 +83,15 @@ Finally, at the link stage the location of the wrapper *and* NVTX
 libraries must be provided, e.g.:
 
 ```shell
-pgf90 <my object files> -Mcuda -L/path/to/psyclone/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvToolsExt
+pgf90 <my object files> -Mcuda -L<PATH-TO-PSYCLONE>/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvToolsExt
 ```
 
 where ``<CUDA_LIB_DIR>`` will depend upon your system but is likely to be
 something like ``/apps/packages/cuda/10.0/lib64``.
+
+**Note**, The ``<PATH-TO-PSYCLONE>`` differs depending on whether the
+wrapper library is compiled in a clone of PSyclone repository or in a
+PSyclone [installation](./../../README.md#installation).
 
 Once the application has been built, it may be profiled using ``nvvp``,
 [NVIDIA's Visual Profiler](

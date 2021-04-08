@@ -81,7 +81,7 @@ two ``Makefile`` variables must be set to specify the path to the Dr Hook
 installation:
 
 - ``DRHOOK_ROOT``, the path to the Dr Hook root directory in which
-  Dr Hook was compiled. It defaults to ``./../../../../drhook`` in the
+  Dr Hook is compiled. It defaults to ``./../../../../drhook`` in the
   ``Makefile`` (i.e., it assumes Dr Hook is installed next to a PSyclone
   repository clone). This will set ``DRHOOK_INCLUDE`` to
   ``.../drhook/include`` and ``DRHOOK_MODULES`` to
@@ -123,10 +123,10 @@ $(F90) -o a.out ... -L <PATH-TO-PSYCLONE>/lib/profiling/drhook -ldrhook_psy \
 
 **Note:**
 
-- The name of the Dr Hook library might depend on the way it was compiled.
+- The name of the Dr Hook library might depend on the way it is compiled.
 
-- The ``<PATH-TO-PSYCLONE>`` depends on where the wrapper library was
-  compiled, either in a clone of PSyclone repository or in a PSyclone
+- The ``<PATH-TO-PSYCLONE>`` differs depending on whether the wrapper
+  library is compiled in a clone of PSyclone repository or in a PSyclone
   [installation](./../../README.md#installation).
 
 ## Output

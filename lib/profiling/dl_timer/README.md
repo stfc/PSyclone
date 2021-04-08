@@ -80,7 +80,7 @@ following two ``Makefile`` variables must be set to specify the path to
 the ``dl_timer`` installation:
 
 - ``DL_TIMER_ROOT``, the path to the ``apeg/dl_timer`` directory in which
-  ``dl_timer`` was compiled. It defaults to ``./../../../../dl_timer`` in
+  ``dl_timer`` is compiled. It defaults to ``./../../../../dl_timer`` in
   the ``Makefile`` (i.e., it assumes ``dl_timer`` is installed next to a
   PSyclone clone).
 
@@ -113,7 +113,7 @@ $(F90) -c ... -I $(ROOT_LIB_DIR)/profiling/dl_timer somefile.f90
 $(F90) -o a.out ... -L $(ROOT_LIB_DIR)/profiling/dl_timer -ldl_timer_psy \
        -L PATH-TO-DLTIMER -ldltimer
 ```
-The name of the ``dl_timer`` library will depend on the way it was compiled
+The name of the ``dl_timer`` library will depend on the way it is compiled
 (shared-memory or distributed-memory parallel).
 
 ## Output

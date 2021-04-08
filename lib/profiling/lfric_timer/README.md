@@ -123,12 +123,15 @@ file is found). Also, the library name must be specified at link time.
 For instance, linking the standalone library may look something like:
 
 ```shell
-$(F90) -c  -I $(ROOT_LIB_DIR)/profiling/lfric_timer some_file.f90
-$(F90) some_file.o -L $(ROOT_LIB_DIR)/profiling/lfric_timer -lpsy_lfric_timer_standalone
+$(F90) -c  -I <PATH-TO-PSYCLONE>/lib/profiling/lfric_timer some_file.f90
+$(F90) some_file.o -L <PATH-TO-PSYCLONE>/lib/profiling/lfric_timer -lpsy_lfric_timer_standalone
 ```
+The application of the ``libpsy_lfric_timer.a`` needs to provide the path
+to the LFRic compiled code as well, e.g. by adding ``-L$(INF_DIR) -llfric``.
 
-The application of the ``libpsy_lfric_timer.a`` needs to provide the path to the
-LFRic compiled code as well, e.g. by adding ``-L$(INF_DIR) -llfric``.
+**Note**, The ``<PATH-TO-PSYCLONE>`` differs depending on whether the
+wrapper library is compiled in a clone of PSyclone repository or in a
+PSyclone [installation](./../../README.md#installation).
 
 ## Output
 
