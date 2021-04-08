@@ -41,7 +41,7 @@ F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
 ROOT_LIB_DIR ?= ./../..
 # This variable defaults to the assumed location of the apeg/dl_timer library
-# next to PSyclone installation (can be overwritten to use a different version)
+# next to a PSyclone clone (can be overwritten to use a different version)
 DL_TIMER_ROOT ?= $(ROOT_LIB_DIR)/../../dl_timer
 # Location of apeg/dl_timer "include" files
 DL_TIMER_INCLUDE ?= $(DL_TIMER_ROOT)/src
@@ -73,6 +73,6 @@ psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod  $(PSYDATA_LIB) psy_data_base.*
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.*
 
 allclean: clean

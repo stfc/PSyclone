@@ -42,11 +42,15 @@ Authors: J. Henrichs, Bureau of Meteorology,
 
 # Libraries for Use with PSyclone Profiling
 
-This directory contains wrapper libraries that can be used with PSyclone's
-profiling interface. The profiling-library interfaces included in PSyclone
-are: ``template``, ``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``
-and ``lfric_timer``. The overview is given below (for more information
-please refer to the linked individual ``README.md`` documents).
+This directory contains wrapper libraries that can be used with [PSyclone
+profiling API](
+https://psyclone.readthedocs.io/en/stable/profiling.html#profiling). All
+profiling-library interfaces use the the [PSyData API](
+https://psyclone.readthedocs.io/en/stable/psy_data.html). The profiling
+wrappers included in PSyclone are: ``template``,
+``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia`` and
+``lfric_timer``. the overview is given below (for more information please
+refer to the linked individual ``README.md`` documents).
 
 ## Profiling Wrappers
 
@@ -126,29 +130,10 @@ Example output:
 
 ### [Dr Hook](./drhook)
 
-This wrapper library interfaces with ECMWF's Dr Hook library. This
+This wrapper library interfaces with the ECMWF Dr Hook library. This
 library appears not to be available as open source on a public
 server. It provides more functionality than just profiling, see the Dr
-Hook documentation for details. In the version tested (1.0.0) it
-appears that the installation target in the Dr Hook distribution is
-broken, so the following instructions and the default values assume
-that Dr Hook is compiled in a ``drhook`` subdirectory called ``build`` and
-not installed.
-
-To compile the PSyclone wrapper library for Dr Hook, chose one of the following
-two options to specify the path to the Dr Hook installation:
-
-- ``DRHOOK_ROOT``, the path to the Dr Hook root directory in which
-  Dr Hook was compiled. It defaults to ``../../../../drhook``, which
-  means if Dr Hook is compiled next to the PSyclone root dir, it will be
-  found by default. This will set ``DRHOOK_INCLUDE`` to ``.../drhook/include``
-  and ``DRHOOK_MODULES`` to ``.../drhook/build/module``, so that the ``*.mod`` files
-  created in the build processes are found.
-- ``DRHOOK_INCLUDE`` and ``DRHOOK_MODULES``: Setting these environment variables
-  explicitly will allow you to flexibly point to an existing Dr Hook installation.
-  
-It is not known whether a proper Dr Hook installation will install
-``include`` and ``*.mod`` files in a separate directory.
+Hook documentation for details. The version tested here is 1.0.0.
 
 Detailed building and linking instructions are in [``drhook/README.md``](
 ./drhook/README.md).

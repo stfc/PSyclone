@@ -39,31 +39,31 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # This variable defaults to the assumed location of the DrHook directory
-# next to PSyclone installation (can be overwritten to use a different version)
+# next to a PSyclone clone (can be overwritten to use a different version)
 DRHOOK_ROOT ?= ./../../../../drhook
 # Location of DrHook "include" files
-DRHOOK_INCLUDE ?= $(DRHOOK_ROOT)/drhook/include
+DRHOOK_INCLUDE ?= $(DRHOOK_ROOT)/include
 DRHOOK_MODULES ?= $(DRHOOK_ROOT)/build/module
 # -----------------------------------------------------------------------------
 
 F90FLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
 
+PSYDATA_LIB_NAME = drhook_psy
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
+
 OBJS = drhook_psy.o
 
-NAME = drhook_psy
-LIB_NAME = lib$(NAME).a
-
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-$(LIB_NAME): $(OBJS)
-	ar rs $(LIB_NAME) $(OBJS)
+$(PSYDATA_LIB): $(OBJS)
+	ar rs $(PSYDATA_LIB) $(OBJS)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(LIB_NAME) $(OBJS) profile_psy_data_mod.mod
+	rm -f *.o *.mod $(PSYDATA_LIB)
 
 allclean: clean

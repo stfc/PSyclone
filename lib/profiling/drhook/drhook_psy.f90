@@ -37,10 +37,10 @@
 
 module profile_psy_data_mod
 
-  implicit none
-
   ! The DrHook  handle type
   use parkind1, only : jprb
+
+  implicit none
 
   type :: profile_PSyDataType
      ! The opaque DrHook handle for a specific region
@@ -107,7 +107,7 @@ contains
   ! ---------------------------------------------------------------------------
   !! Ends a profiling area. It takes a PSyDataType type that corresponds to
   !! to the PreStart call.
-  !! this: This PSyData instance.
+  !! @param[in,out] this This PSyData instance.
   !
   subroutine PostEnd(this)
 

@@ -75,17 +75,17 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
-To compile the PSyclone wrapper library for ``dl_timer``, one of the following
-two ``Makefile`` variables must be set:
+To compile the PSyclone wrapper library for ``dl_timer``, one of the
+following two ``Makefile`` variables must be set to specify the path to
+the ``dl_timer`` installation:
 
 - ``DL_TIMER_ROOT``, the path to the ``apeg/dl_timer`` directory in which
   ``dl_timer`` was compiled. It defaults to ``./../../../../dl_timer`` in
   the ``Makefile`` (i.e., it assumes ``dl_timer`` is installed next to a
-  PSyclone working copy).
+  PSyclone clone).
 
 - ``DL_TIMER_INCLUDE``, the path to the ``dl_timer`` ``include`` directory
   (i.e. ``src`` directory). This defaults to ``$DL_TIMER_ROOT/src``.
-
 
 For instance, compiling the wrapper library with the default compiler
 flags may look something like:
@@ -104,13 +104,13 @@ The compilation process will create the wrapper library ``libdl_timer_psy.a``.
 ### Linking the wrapper library
 
 In order to use the wrapper with your application, the location of this
-library must be provided as an ``include`` (so that the module file is
-found), and link first with the wrapper library, ``dl_timer_psy``, and then
-the ``dl_timer`` library:
+library must be provided as an ``include`` path (so that the module file
+is found), and linked first with the wrapper library, ``dl_timer_psy``,
+and then with the ``dl_timer`` library:
 
 ```shell
 $(F90) -c ... -I $(ROOT_LIB_DIR)/profiling/dl_timer somefile.f90
-$(F90) -o a.out ... -L $(ROOT_LIB_DIR)/profiling/dl_timer -ldl_timer_psy
+$(F90) -o a.out ... -L $(ROOT_LIB_DIR)/profiling/dl_timer -ldl_timer_psy \
        -L PATH-TO-DLTIMER -ldltimer
 ```
 The name of the ``dl_timer`` library will depend on the way it was compiled
@@ -118,7 +118,7 @@ The name of the ``dl_timer`` library will depend on the way it was compiled
 
 ## Output
 
-An example output of the timing report is below:
+An example output of the profiling report is below:
 
 ```
 =============================== Timing report ===============================
