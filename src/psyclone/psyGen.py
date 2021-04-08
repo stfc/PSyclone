@@ -2916,9 +2916,13 @@ class CodedKern(Kern):
         routine with the appropriate arguments.
 
         '''
-        # If the kernel has been transformed then we rename it. If it
-        # is *not* being module inlined then we also write it to file.
-        self.rename_and_write()
+        # If the kernel has been transformed and it is not module inlined
+        # then we rename it.
+        if not self.module_inline:
+            self.rename_and_write()
+        else:
+            # Inline the kernel subroutine
+            self.insert_module_inlined_kernel()
 
         # Create the appropriate symbols
         symtab = self.ancestor(InvokeSchedule).symbol_table
@@ -2945,6 +2949,30 @@ class CodedKern(Kern):
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
 
+    def insert_module_inlined_kernel(self):
+
+        # Check for name clashes
+        try:
+            existing_symbol = self.scope.symbol_table.lookup(self._name)
+        except KeyError:
+            existing_symbol = None
+
+        if not existing_symbol:
+            # If it doesn't exist already, module-inline the subroutine by:
+            # 1) Registering the subroutine symbol in the Container
+            self.root.symbol_table.add(RoutineSymbol(self._name))
+            # 2) Converting the PSyIR kernel into a f2pygen node (of
+            # PSyIRGen kind) under the PSy-layer f2pygen module.
+            self.root.addchild(self.get_kernel_schedule().detach())
+        else:
+            # If the symbol already exists, make sure it refers
+            # to the exact same subroutine.
+            if not isinstance(existing_symbol, RoutineSymbol):
+                raise NotImplementedError(
+                    "Can not module-inline subroutine '{0}' because symbol"
+                    "'{1}' with the same name already exists and changing"
+                    " names of module-inlined subroutines is not "
+                    "implemented yet.".format(self._name, existing_symbol))
 
     def gen_code(self, parent):
         '''

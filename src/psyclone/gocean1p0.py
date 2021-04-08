@@ -217,7 +217,8 @@ class GOInvokes(Invokes):
                 return
 
             # TODO #1170: Remove the manual Container-InvokeSchedule connection
-            self.psy.container.addchild(invoke.schedule)
+            if not invoke.schedule.parent:
+                self.psy.container.addchild(invoke.schedule)
 
             # If the const_loop_bounds flag is True, we need to declare
             # and initialize the loop bounds variables.
@@ -232,10 +233,11 @@ class GOInvokes(Invokes):
                 # Look-up the loop bounds using the first field object in the
                 # list
                 api_config = Config.get().api_conf("gocean1.0")
+                arg = invoke.schedule.symbol_table.argument_list[0].name
                 xstop = api_config.grid_properties["go_grid_xstop"].fortran \
-                    .format(invoke.unique_args_arrays[0])
+                    .format(arg)
                 ystop = api_config.grid_properties["go_grid_ystop"].fortran \
-                    .format(invoke.unique_args_arrays[0])
+                    .format(arg)
 
                 block = Comment(FortranStringReader(
                     "! Look-up loop bounds\n", ignore_comments=False))
@@ -259,7 +261,8 @@ class GOInvokes(Invokes):
                 invoke.schedule.children.insert(2, assign2)
 
             invoke.schedule.lower_to_language_level()
-            parent.add(PSyIRGen(parent, invoke.schedule))
+            for child in invoke.schedule.root.children:
+                parent.add(PSyIRGen(parent, child))
 
 
 class GOInvoke(Invoke):
