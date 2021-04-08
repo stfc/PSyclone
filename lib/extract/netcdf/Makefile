@@ -45,7 +45,7 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-PSYROOT_LIB_DIR ?= ./../..
+PSYCLONE_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
 F90FLAGS += $$(nf-config --fflags)
@@ -54,7 +54,7 @@ F90FLAGS += $$(nf-config --fflags)
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
 		       -dims=2
-PROCESS = $$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
+PROCESS = $$($(PSYCLONE_LIB_DIR)/get_python.sh) $(PSYCLONE_LIB_DIR)/process.py
 
 default: extract_netcdf_base.o psy_data_base.o
 
@@ -73,7 +73,7 @@ extract_netcdf_base.o: psy_data_base.o
 # Jinja rules for creating the base class, and the
 # NetCDF extraction class
 # ------------------------------------------------
-psy_data_base.f90:	$(PSYROOT_LIB_DIR)/psy_data_base.jinja Makefile
+psy_data_base.f90:	$(PSYCLONE_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 extract_netcdf_base.f90:	extract_netcdf_base.jinja Makefile

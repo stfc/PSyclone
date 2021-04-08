@@ -49,11 +49,11 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-PSYROOT_LIB_DIR ?= ./../..
+PSYCLONE_LIB_DIR ?= ./../..
 JINJA_TMPLT_DIR ?= ./..
 # This variable defaults to the dl_esm_inf infrastructure library
 # distributed with PSyclone (can be overwritten to use a different version)
-INF_DIR ?= $(PSYROOT_LIB_DIR)/../external/dl_esm_inf/finite_difference
+INF_DIR ?= $(PSYCLONE_LIB_DIR)/../external/dl_esm_inf/finite_difference
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)/src
@@ -70,7 +70,7 @@ OBJS = read_only.o psy_data_base.o read_only_base.o
 # 2-dimensional arrays, and int, real- and double basic Fortran types
 PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 		       -dims=2
-PROCESS = $$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
+PROCESS = $$($(PSYCLONE_LIB_DIR)/get_python.sh) $(PSYCLONE_LIB_DIR)/process.py
 
 default: $(PSYDATA_LIB)
 
@@ -97,7 +97,7 @@ read_only_base.o: psy_data_base.o
 # functions implemented in `psy_data_base`, hence the parameter
 # `-generic-declare`. It also uses the `provideXXX` functions implemented
 # in `read_only_base`, which are added with the `-generic-provide` parameter.
-psy_data_base.f90: $(PSYROOT_LIB_DIR)/psy_data_base.jinja Makefile
+psy_data_base.f90: $(PSYCLONE_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 read_only_base.f90: $(JINJA_TMPLT_DIR)/read_only_base.jinja Makefile
