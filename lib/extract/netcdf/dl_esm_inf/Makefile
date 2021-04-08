@@ -55,7 +55,7 @@ INF_LIB = $(INF_DIR)/src/lib$(INF_LIB_NAME).a
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
 PSYDATA_LIB_NAME = _kernel_data_netcdf
-PSYDATA_LIB = $(INF_DIR)/src/lib$(PSYDATA_LIB_NAME).a
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2

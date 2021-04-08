@@ -54,7 +54,7 @@ F90FLAGS += $$(nf-config --fflags)
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
 		       -dims=2
-PROCESS=$$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
+PROCESS = $$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
 
 default: extract_netcdf_base.o psy_data_base.o
 

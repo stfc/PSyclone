@@ -59,10 +59,10 @@ INF_LIB_NAME = lfric
 INF_LIB = $(INF_DIR)/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
-PSYDATA_LIB_NAME = _nan_test.a
+PSYDATA_LIB_NAME = _nan_test
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-# The LFRic NAN checking library needs the PreDeclareVariable() and
+# The LFRic NaN checking library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
 # and double, and for 1-, 2-, 3-, and 4-dimensional arrays. These arguments
 # are used for both base classes: PSyDataBase and NANTestBase to ensure
@@ -84,8 +84,8 @@ $(PSYDATA_LIB): $(INF_LIB) $(OBJS)
 $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
 
-# Add all dependencies. The LFRic NAN checking library extends the
-# NanTestBase type, which in turn extends the PSyDataBase type.
+# Add all dependencies. The LFRic NaN checking library extends the
+# NANTestBase type, which in turn extends the PSyDataBase type.
 # ---------------------------------------------------------------
 nan_test.o: 	  $(INF_LIB) nan_test.f90 nan_test_base.o
 
@@ -96,7 +96,7 @@ nan_test_base.o: psy_data_base.o
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-# The LFRic NAN checking library is built on the psy-data base library
+# The LFRic NaN checking library is built on the PSyData base library
 # and the NAN-checking base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: $(PSYROOT_LIB_DIR)/psy_data_base.jinja Makefile

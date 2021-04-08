@@ -51,7 +51,7 @@ PSYROOT_LIB_DIR ?= ./..
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=nan_test_ -types=int,real,double \
 		       -dims=2
-PROCESS=$$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
+PROCESS = $$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
 
 
 default: nan_test_base.o psy_data_base.o

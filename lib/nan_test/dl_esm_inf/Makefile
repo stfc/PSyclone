@@ -62,7 +62,7 @@ INF_LIB = $(INF_DIR)/src/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
 PSYDATA_LIB_NAME = _nan_test
-PSYDATA_LIB = $(INF_DIR)/src/lib$(PSYDATA_LIB_NAME).a
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 OBJS = nan_test.o psy_data_base.o nan_test_base.o
 
@@ -92,8 +92,8 @@ nan_test_base.o: psy_data_base.o
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-# The dl_esm_inf NAN-test library is built on the psy-data base library
-# and the NAN-test base library. So add the rules to process
+# The dl_esm_inf NaN-test library is built on the PSyData base library
+# and the NaN-test base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: $(PSYROOT_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
