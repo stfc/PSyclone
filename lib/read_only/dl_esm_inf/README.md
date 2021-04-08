@@ -63,8 +63,8 @@ with the application. The following dependencies must be available:
   https://psyclone-dev.readthedocs.io/en/stable/working_practises.html#dev-installation)
   in the PSyclone [Developer Guide](
   https://psyclone-dev.readthedocs.io/en/stable) for details on working with
-  submodules). However, it is not included in the PSyclone installation and
-  has to be cloned separately.
+  submodules). However, it is not included in the PSyclone [installation](
+  ./../../README.md#installation) and has to be cloned separately.
 
 - The ``ReadOnly`` (``read_only_base.jinja``) and ``PSyData``
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
@@ -85,8 +85,8 @@ The location of the ``dl_esm_inf`` library is specified using the
 environment variable ``$INF_DIR``. It defaults to the relative
 path to location of the version included in PSyclone repository
 (``$PSYCLONEHOME/external/dl_esm_inf/finite_difference``). This is
-not available in the PSyclone installation so the exact path
-**must be specified** during the compilation process, e.g.
+not available in the PSyclone [installation](./../../README.md#installation)
+so the exact path **must be specified** during the compilation process, e.g.
 
 ```shell
 make INF_DIR=<path/to/dl_esm_inf/finite_difference>

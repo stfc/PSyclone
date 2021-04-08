@@ -66,8 +66,8 @@ the application. The following dependencies must be available:
   https://psyclone-dev.readthedocs.io/en/stable/working_practises.html#dev-installation)
   in the PSyclone [Developer Guide](
   https://psyclone-dev.readthedocs.io/en/stable) for details on working with
-  submodules). However, it is not included in the PSyclone installation and
-  has to be cloned separately.
+  submodules). However, it is not included in the PSyclone [installation](
+  ./../../../README.md#installation) and has to be cloned separately.
 
 - This library uses NetCDF to store the data, so NetCDF must
   be available on the system. NetCDF development packages are available via
@@ -97,8 +97,9 @@ The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
 include paths. By default it is set to the relative path to location of
 the version included in PSyclone repository
 (``$PSYCLONEHOME/external/dl_esm_inf/finite_difference``). This is not
-available in the PSyclone installation so the exact path
-**must be specified** using the environment variable ``$INF_DIR``, e.g.
+available in the PSyclone [installation](./../../../README.md#installation)
+so the exact path **must be specified** using the environment variable
+``$INF_DIR``, e.g.
 
 ```shell
 make INF_DIR=<path/to/dl_esm_inf/finite_difference>

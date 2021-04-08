@@ -91,7 +91,8 @@ infrastructure code is specified using the environment variable
 to location of the pared-down LFRic infrastructure located in a clone of
 PSyclone repository,
 ``$PSYCLONEHOME/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
-This is not available in the PSyclone installation so the exact path
+This is not available in the PSyclone [installation](
+./../../README.md#installation) so the exact path
 **must be specified** during the compilation process.
 
 For an LFRic application, it is the responsibility of the user to make sure
@@ -100,9 +101,10 @@ identical to the ones used when running an LFRic application.
 
 As mentioned [above](#dependencies), the ``libpsy_lfric_timer_standalone.a``
 library uses the pared-down LFRic infrastructure available in PSyclone.
-This is not available in the PSyclone installation so it is recommended to
-clone the PSyclone repository and specify the exact path during the
-compilation process. For instance,
+As this is not available in the PSyclone [installation](
+./../../README.md#installation), it is recommended to clone the PSyclone
+repository and specify the exact path during the compilation process.
+For instance,
 
 ```shell
 make INF_DIR=$PSYCLONEHOME/src/psyclone/tests/test_files/dynamo0p3/infrastructure \
