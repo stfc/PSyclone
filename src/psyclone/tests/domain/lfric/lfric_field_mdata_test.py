@@ -155,7 +155,7 @@ def test_field_gh_sum_invalid():
             "found 'gh_sum' for 'w2'" in str(excinfo.value))
 
 
-def test_ad_field_type_too_few_args():
+def test_ad_fld_type_too_few_args():
     ''' Tests that an error is raised when the field argument descriptor
     metadata for a field has fewer than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
