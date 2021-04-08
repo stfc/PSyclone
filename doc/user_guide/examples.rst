@@ -100,7 +100,7 @@ This will first trigger compilation using the ``compile`` target, and
 then execute the program with any parameters that might be required
 (check the corresponding ``README.md`` document for details).
 
-All ``Makefile``s support the variables ``F90`` and ``F90FLAGS`` to specify
+All ``Makefile``\s support the variables ``F90`` and ``F90FLAGS`` to specify
 the compiler and compilation flags to use. By default, the Gnu Fortran
 compiler (``gfortran``) is used, and the compilation flags will be set
 to debugging. If you want to change the compiler or flags, just define
@@ -155,7 +155,7 @@ and compilation flags as the examples.
           example is compiled with optimisations, the dependent library
           will not automatically be recompiled!
 
-All ``Makefile``s support an ``allclean`` target, which will not only
+All ``Makefile``\s support an ``allclean`` target, which will not only
 clean the current directory, but also all libraries the current
 example depends on.
 

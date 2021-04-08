@@ -92,7 +92,7 @@ Refer to :ref:`dev_guide:psy_data` for full details about the PSyData API.
 
 .. note:: All PSyData-API-based runtime libraries are provided as part
           of a :ref:`PSyclone installation <getting-going-env-loc>` and
-          their ``Makefile``s have configurable options for compiler
+          their ``Makefile``\s have configurable options for compiler
           flags and locations of dependencies. For more information
           please refer to the specific ``README.md`` documentation,
           also available `here

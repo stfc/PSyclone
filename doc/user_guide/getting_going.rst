@@ -157,11 +157,11 @@ installation options lead to different
 
 .. _getting-going-env-loc:
 
-Location of and structure of PSyclone installation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Location and structure of PSyclone installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Location of installed Pyclone scripts, modules and other accompanying
-materials is similar to other Python packages:
+resources is similar to other Python packages:
 
 * The ``psyclone`` :ref:`script <psyclone_command>` is located in
   ``<python-base-prefix>/bin`` directory (depending on your Linux
@@ -172,8 +172,8 @@ materials is similar to other Python packages:
   ``X.Y`` is the version of Python that you are using).
 
 * The :ref:`configuration file <getting-going-configuration>`,
-  :ref: `examples <examples>`, :ref:`tutorial <tutorial>` and
-  PSyData-API-based :ref:`libraries <psy_data>` are installed in
+  :ref:`examples <examples>`, :ref:`tutorial <tutorial>` and
+  :ref:`PSyData-API-based libraries <psy_data>` are installed in
   ``<python-base-prefix>/share/psyclone`` directory.
 
 For a system-wide installation on Linux, ``<python-base-prefix>`` will
@@ -182,7 +182,7 @@ it will be something like ``~/.local``.
 
 For an installation to a specific location, ``<python-base-prefix>``
 is simply the path given to the
-``--install-option="--prefix=/my/install/path"``. *Note* that if using
+``--install-option="--prefix=/my/install/path"``. Note that if using
 this method, it will be necessary to take further action to ensure
 PSyclone can find the :ref:`configuration file <getting-going-configuration>`
 installed as a part of this process.
@@ -192,13 +192,13 @@ installed as a part of this process.
 Windows environment
 ^^^^^^^^^^^^^^^^^^^
 
-PSyclone can also be installed in :ref:`Python Windows environment
+PSyclone can also be installed in `Python Windows environment
 <https://www.python.org/downloads/windows/>`_ using ``pip`` as described
 above. There are some differences in directory structure from Linux,
 for instance script directory is usually called ``Scripts`` instead
 of ``bin`` and modules ``Lib`` instead of ``lib``.
 
-Installation in an :ref:`Anaconda Python
+Installation in an `Anaconda Python
 <https://www.anaconda.com/products/individual>`_ environment on
 Windows also needs to be done using ``pip`` as ``conda install`` is
 currently not supported.
@@ -291,7 +291,7 @@ pyparsing
 
 PSyclone requires ``pyparsing``, a library designed to allow parsers to
 be built in Python. PSyclone uses ``pyparsing`` to parse Fortran regular
-expressions as ``fparser`` does not fully parse these, (see
+expressions as ``fparser`` does not fully parse these (see
 `here <https://github.com/pyparsing>`_ for more information).
 
 PSyclone has been tested with ``pyparsing`` versions 1.5.2, 2.0.1 and 2.2.0.
@@ -319,8 +319,8 @@ you can instruct ``pip`` to do a user-local install:
 
    > pip install --user pyparsing
 
-Alternatively, you could follow the instructions
-`here <https://github.com/pyparsing/pyparsing>`_.
+Alternatively, you could follow `these instructions
+<https://github.com/pyparsing/pyparsing>`_.
 
 graphviz
 ^^^^^^^^
@@ -450,7 +450,7 @@ repository - if you have cloned the repository then ``EGS_HOME`` in
 what follows is the root ``PSyclone`` directory. Alternatively, if you
 have installed PSyclone using ``pip`` then they may be found in the
 ``share/psyclone`` directory under your Python installation (see
-:ref:`above <getting-going-env-loc> for location of PSyclone installation.
+:ref:`above <getting-going-env-loc>` for location of PSyclone installation.
 In this case you should copy the whole ``examples`` directory to some
 convenient location (hereafter called ``EGS_HOME``) before attempting to
 carry out the following instructions. Depending on your precise setup, you

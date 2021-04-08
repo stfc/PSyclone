@@ -90,7 +90,7 @@ that can be set in order to find third party profiling tools.
 
 .. note:: All profiling libraries are provided as part of a
           :ref:`PSyclone installation <getting-going-env-loc>` and
-          their ``Makefile``s have configurable options for compiler
+          their ``Makefile``\s have configurable options for compiler
           flags and locations of dependencies. For more information
           please refer to the specific ``README.md`` documentation,
           also available `here
@@ -121,8 +121,8 @@ libraries that come with PSyclone:
     (e.g. enabling OpenMP, or linking with MPI).
 
 ``lib/profiling/drhook``
-    This wrapper uses the DrHook library. You need to contact
-    ECMWF to obtain a copy of DrHook.
+    This wrapper uses the Dr Hook library. You need to contact
+    ECMWF to obtain a copy of Dr Hook.
 
 ``lib/profiling/nvidia``
     This is a wrapper library that maps the PSyclone profiling API

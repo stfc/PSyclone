@@ -359,7 +359,7 @@ The generated code is now:
 
 .. note::
 
-    At this stage builtins are not fully supported, resulting in ``f2``
+    At this stage Built-Ins are not fully supported, resulting in ``f2``
     being incorrectly detected as an input parameter, and not as an
     output parameter. This issue is tracked in #637.
 
@@ -379,7 +379,7 @@ PSyclone comes with an example NetCDF-based extraction libraries in
 
 .. note:: These libraries are also provided as part of a
           :ref:`PSyclone installation <getting-going-env-loc>` and
-          their ``Makefile``s have configurable options for compiler
+          their ``Makefile``\s have configurable options for compiler
           flags and locations of dependencies. For more information
           please refer to their specific ``README.md`` documentation.
 
