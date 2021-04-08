@@ -49,7 +49,8 @@ from fparser.two.Fortran2003 import Subroutine_Subprogram, \
     Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
     Implicit_Part, Comment
 from psyclone import psyGen
-from psyclone.psyGen import Transformation, Kern, InvokeSchedule
+from psyclone.psyGen import Transformation, Kern, InvokeSchedule, \
+    ACCLoopDirective, OMPDoDirective
 from psyclone.errors import InternalError
 from psyclone.psyir import nodes
 from psyclone.configuration import Config
@@ -59,7 +60,7 @@ from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
-from psyclone.psyir.nodes import CodeBlock, Loop, Assignment
+from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.gocean1p0 import GOLoop
@@ -176,13 +177,11 @@ class ParallelLoopTrans(LoopTrans):
         return  # pragma: no cover
 
     @abc.abstractmethod
-    def _directive(self, parent, children, collapse=None):
+    def _directive(self, children, collapse=None):
         '''
         Returns the directive object to insert into the Schedule.
         Must be implemented by sub-class.
 
-        :param parent: the parent of this Directive in the Schedule.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param children: list of nodes that will be children of this Directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: the number of tightly-nested loops to which \
@@ -300,17 +299,10 @@ class ParallelLoopTrans(LoopTrans):
         # Add our orphan loop directive setting its parent to the node's
         # parent and its children to the node. This calls down to the sub-class
         # to get the type of directive we require.
-        node.parent = None
-        directive = self._directive(node_parent, [node], collapse)
+        directive = self._directive([node.detach()], collapse)
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
-
-        # Change the node's parent to be the loop directive's Schedule.
-        node.parent = directive.dir_body
-
-        # Remove the reference to the loop from the original parent.
-        node_parent.children.remove(node)
 
         return schedule, keep
 
@@ -412,13 +404,11 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         self._omp_schedule = value
 
-    def _directive(self, parent, children, collapse=None):
+    def _directive(self, children, collapse=None):
         '''
         Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param parent: the Node that will be the parent of the created \
-                       directive Node.
         :param children: list of Nodes that will be the children of \
                          the created directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
@@ -432,10 +422,7 @@ class OMPLoopTrans(ParallelLoopTrans):
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for '!$omp do' "
                 "directives.")
-
-        from psyclone.psyGen import OMPDoDirective
-        _directive = OMPDoDirective(parent=parent,
-                                    children=children,
+        _directive = OMPDoDirective(children=children,
                                     omp_schedule=self.omp_schedule,
                                     reprod=self._reprod)
         return _directive
@@ -555,21 +542,17 @@ class ACCLoopTrans(ParallelLoopTrans):
     def __str__(self):
         return "Adds an 'OpenACC loop' directive to a loop"
 
-    def _directive(self, parent, children, collapse=None):
+    def _directive(self, children, collapse=None):
         '''
         Creates the ACCLoopDirective needed by this sub-class of
         transformation.
 
-        :param parent: the parent Node of the new directive Node.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param children: list of child nodes of the new directive Node.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: number of nested loops to collapse or None if \
                              no collapse attribute is required.
         '''
-        from psyclone.psyGen import ACCLoopDirective
-        directive = ACCLoopDirective(parent=parent,
-                                     children=children,
+        directive = ACCLoopDirective(children=children,
                                      collapse=collapse,
                                      independent=self._independent,
                                      sequential=self._sequential)
@@ -698,19 +681,11 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         # add our OpenMP loop directive setting its parent to the node's
         # parent and its children to the node
         from psyclone.psyGen import OMPParallelDoDirective
-        node.parent = None
-        directive = OMPParallelDoDirective(parent=node_parent,
-                                           children=[node],
+        directive = OMPParallelDoDirective(children=[node.detach()],
                                            omp_schedule=self.omp_schedule)
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
-
-        # change the node's parent to be the Schedule of the loop directive
-        node.parent = directive.dir_body
-
-        # remove the original loop
-        node_parent.children.remove(node)
 
         return schedule, keep
 
@@ -981,10 +956,6 @@ class ColourTrans(LoopTrans):
         # add contents of node to colour loop
         colour_loop.loop_body.children.extend(
                 node.loop_body.pop_all_children())
-
-        # change the parent of the node's contents to the colour loop
-        for child in colour_loop.loop_body:
-            child.parent = colour_loop.loop_body
 
         # remove original loop
         node_parent.children.remove(node)
@@ -1268,12 +1239,7 @@ class ParallelRegionTrans(RegionTrans):
         # parent of the nodes being enclosed and with those nodes
         # as its children.
         directive = self._pdirective(
-            parent=node_parent, children=[node.detach() for node in node_list])
-
-        # Change all of the affected children so that they have
-        # the region directive's Schedule as their parent.
-        for child in node_list:
-            child.parent = directive.dir_body
+            children=[node.detach() for node in node_list])
 
         # Add the region directive as a child of the parent
         # of the nodes being enclosed and at the original location
@@ -1970,30 +1936,20 @@ class GOLoopSwapTrans(LoopTrans):
 
         schedule = outer.root
         inner = outer.loop_body[0]
-        parent = outer.parent
 
         # create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [inner, outer])
 
-        # Remove outer from parent
-        index = parent.children.index(outer)
-        del parent.children[index]
-        outer.parent = None
+        # Detach the inner code
+        inner_loop_body = inner.loop_body.detach()
 
-        # Move inner to parent
-        inner.parent = parent
-        parent.children.insert(index, inner)
-        outer.loop_body.children.remove(inner)
+        # Swap the loops
+        outer.replace_with(inner.detach())
+        inner.addchild(Schedule())
+        inner.loop_body.addchild(outer)
 
-        # Move inner's schedule to outer
-        outer.children[3] = inner.loop_body.detach()
-        outer.loop_body.parent = outer
-
-        # Move outer under inner (create new Schedule to remove old entries)
-        inner.children.append(nodes.Schedule())
-        inner.loop_body.parent = inner
-        inner.loop_body.children.append(outer)
-        outer.parent = inner.loop_body
+        # Insert again the inner code in the new inner loop
+        outer.loop_body.replace_with(inner_loop_body)
 
         return schedule, keep
 
@@ -2983,9 +2939,6 @@ class ACCDataTrans(RegionTrans):
         from psyclone.psyGen import ACCDataDirective
         directive = ACCDataDirective(
                 parent=parent, children=[node.detach() for node in node_list])
-
-        for child in directive.dir_body:
-            child.parent = directive.dir_body
 
         parent.children.insert(start_index, directive)
 

@@ -308,7 +308,7 @@ def test_validate11():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.children[0]
-    my_range = matrix.children[0]
+    my_range = matrix.children[0].copy()
     matrix.children[2] = my_range
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
@@ -344,7 +344,7 @@ def test_validate13():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     vector = matmul.children[1]
-    my_range = vector.children[0]
+    my_range = vector.children[0].copy()
     vector.children[1] = my_range
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
@@ -373,9 +373,10 @@ def test_apply1(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
+    root = matmul.root
     trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -405,11 +406,12 @@ def test_apply2(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
+    root = matmul.root
     matmul.children[0].children[2] = Literal("1", INTEGER_TYPE)
     matmul.children[1].children[1] = Literal("2", INTEGER_TYPE)
     trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -439,7 +441,9 @@ def test_apply3(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
+    root = matmul.root
     matrix = matmul.children[0]
+    lhs_vector = matrix.parent.parent.lhs
     matrix_symbol = matrix.symbol
     matmul.children[0] = Reference(matrix_symbol)
     matrix_symbol.datatype._shape = [Literal("10", INTEGER_TYPE),
@@ -448,13 +452,12 @@ def test_apply3(tmpdir):
     rhs_vector_symbol = rhs_vector.symbol
     rhs_vector_symbol.datatype._shape = [Literal("20", INTEGER_TYPE)]
     matmul.children[1] = Reference(rhs_vector_symbol)
-    lhs_vector = matrix.parent.parent.lhs
     lhs_vector_symbol = lhs_vector.symbol
     lhs_vector_symbol._shape = [Literal("10", INTEGER_TYPE)]
-    matrix.parent.parent.children[0] = Reference(lhs_vector_symbol)
+    lhs_vector.replace_with(Reference(lhs_vector_symbol))
     trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -486,6 +489,7 @@ def test_apply4(tmpdir):
     one = Literal("1", INTEGER_TYPE)
     five = Literal("5", INTEGER_TYPE)
     matmul = create_matmul()
+    root = matmul.root
     assignment = matmul.parent
     vector = assignment.scope.symbol_table.lookup("y")
     assignment.children[0] = ArrayReference.create(
@@ -493,7 +497,7 @@ def test_apply4(tmpdir):
                      one.copy()])
     trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
