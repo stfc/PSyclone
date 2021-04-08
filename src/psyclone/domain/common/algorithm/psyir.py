@@ -111,8 +111,6 @@ class KernelFunctor(Reference):
 
         call = cls(symbol)
         call.children = arguments
-        for child in call.children:
-            child.parent = call
         return call
 
     @staticmethod

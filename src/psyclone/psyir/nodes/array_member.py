@@ -54,7 +54,7 @@ class ArrayMember(ArrayMixin, Member):
     _text_name = "ArrayMember"
 
     @staticmethod
-    def create(member_name, indices, parent=None):
+    def create(member_name, indices):
         '''
         Construct an ArrayMember instance describing an array access to a
         member of a structure.
@@ -72,8 +72,6 @@ class ArrayMember(ArrayMixin, Member):
         :param indices: the array-index expressions.
         :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode` or
             :py:class:`psyclone.psyir.nodes.Range`
-        :param parent: the parent of this node in the PSyIR tree.
-        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :raises GenerationError: if the supplied `indices` argument is not \
                                  a list.
@@ -84,11 +82,10 @@ class ArrayMember(ArrayMixin, Member):
                 "should be a list but found '{0}'."
                 "".format(type(indices).__name__))
 
-        obj = ArrayMember(member_name, parent=parent)
+        obj = ArrayMember(member_name)
         # Add any array-index expressions as children
         for child in indices:
             obj.addchild(child)
-            child.parent = obj
         return obj
 
 
