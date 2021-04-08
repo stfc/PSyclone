@@ -96,8 +96,8 @@ make DL_TIMER_ROOT=<path_to_dl_timer>
 
 The location of the ``PSyData`` base class Jinja template,
 ``psy_data_base.jinja`` is specified using the environment variable
-``$ROOT_LIB_DIR``. It defaults to the relative path to the top-level
-[``lib``](./../../) directory.
+``$PSYROOT_LIB_DIR``. It defaults to the relative path to the
+top-level [``lib``](./../../) directory.
 
 The compilation process will create the wrapper library ``libdl_timer_psy.a``.
 
@@ -109,8 +109,8 @@ is found), and linked first with the wrapper library, ``dl_timer_psy``,
 and then with the ``dl_timer`` library:
 
 ```shell
-$(F90) -c ... -I $(ROOT_LIB_DIR)/profiling/dl_timer somefile.f90
-$(F90) -o a.out ... -L $(ROOT_LIB_DIR)/profiling/dl_timer -ldl_timer_psy \
+$(F90) -c ... -I $(PSYROOT_LIB_DIR)/profiling/dl_timer somefile.f90
+$(F90) -o a.out ... -L $(PSYROOT_LIB_DIR)/profiling/dl_timer -ldl_timer_psy \
        -L PATH-TO-DLTIMER -ldltimer
 ```
 The name of the ``dl_timer`` library will depend on the way it is compiled

@@ -39,7 +39,7 @@
 F90 ?= gfortran
 F90FLAGS ?= -g
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-ROOT_LIB_DIR ?= ./../..
+PSYROOT_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
 PSYDATA_LIB_NAME = dummy
@@ -48,7 +48,7 @@ PSYDATA_LIB := lib$(PSYDATA_LIB_NAME).a
 OBJS = dummy_lib.o psy_data_base.o
 
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS = $$($(ROOT_LIB_DIR)/get_python.sh) $(ROOT_LIB_DIR)/process.py
+PROCESS = $$($(PSYROOT_LIB_DIR)/get_python.sh) $(PSYROOT_LIB_DIR)/process.py
 
 .PHONY: default clean allclean
 
@@ -59,7 +59,7 @@ $(PSYDATA_LIB): $(OBJS)
 
 dummy_lib.o:	psy_data_base.o
 
-psy_data_base.f90: $(ROOT_LIB_DIR)/psy_data_base.jinja
+psy_data_base.f90: $(PSYROOT_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 %.o: %.f90
