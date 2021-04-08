@@ -88,11 +88,13 @@ into the corresponding directory and use ``make``. The
 corresponding ``README.md`` files contain additional parameters
 that can be set in order to find third party profiling tools.
 
-All profiling libraries are provided as part of a
-:ref:`PSyclone installation <getting-going-env-loc>` and their
-``Makefile``s have configurable options for compiler flags and
-locations of dependencies (please refer to their specific
-``README.md`` documentation).
+.. note:: All profiling libraries are provided as part of a
+          :ref:`PSyclone installation <getting-going-env-loc>` and
+          their ``Makefile``s have configurable options for compiler
+          flags and locations of dependencies. For more information
+          please refer to the specific ``README.md`` documentation,
+          also available `here
+          <https://github.com/stfc/PSyclone/tree/master/lib/profiling>`_.
 
 Below are short descriptions of each of the various wrapper
 libraries that come with PSyclone:

@@ -41,17 +41,17 @@ Examples
 ========
 
 Various examples of the use of PSyclone are provided under the
-``examples`` directory in the git repository. If you have installed
+``examples`` directory in the Git repository. If you have installed
 PSyclone using ``pip`` then the examples may be found in
 ``share/psyclone/examples`` under your Python installation
-(e.g. ``~/.local`` for a user-local installation).
+(see :ref:`here <getting-going-env-loc>` for possible locations).
 
 Running any of these examples requires that PSyclone be installed on
-the host system, see :ref:`getting-going`. This section is intended
-to provide an overview of the various examples so that a user can find
-one that is appropriate to them. For details of what each example does
-and how to run each
-example please see the ``README.md`` files in the associated directories.
+the host system, see Section :ref:`Getting Going <getting-going>`.
+This section is intended to provide an overview of the various examples
+so that a user can find one that is appropriate to them. For details of
+what each example does and how to run each example please see the
+``README.md`` files in the associated directories.
 
 Alternatively, some of the examples have associated Jupyter notebooks
 that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
@@ -100,7 +100,7 @@ This will first trigger compilation using the ``compile`` target, and
 then execute the program with any parameters that might be required
 (check the corresponding ``README.md`` document for details).
 
-All makefiles support the variables ``F90`` and ``F90FLAGS`` to specify
+All ``Makefile``s support the variables ``F90`` and ``F90FLAGS`` to specify
 the compiler and compilation flags to use. By default, the Gnu Fortran
 compiler (``gfortran``) is used, and the compilation flags will be set
 to debugging. If you want to change the compiler or flags, just define
@@ -155,7 +155,7 @@ and compilation flags as the examples.
           example is compiled with optimisations, the dependent library
           will not automatically be recompiled!
 
-All makefiles support an ``allclean`` target, which will not only
+All ``Makefile``s support an ``allclean`` target, which will not only
 clean the current directory, but also all libraries the current
 example depends on.
 
@@ -188,15 +188,15 @@ Example 2: OpenACC
 ^^^^^^^^^^^^^^^^^^
 
 This is a simple but complete example of using PSyclone to enable an
-application to run on a GPU by adding OpenACC directives. A Makefile
+application to run on a GPU by adding OpenACC directives. A ``Makefile``
 is included which will use PSyclone to generate the PSy code and
 transformed kernels and then compile the application. This compilation
-requires that the dl_esm_inf library (github.com/stfc/dl_esm_inf) be
-installed/available - it is provided as a git submodule of the PSyclone
+requires that the ``dl_esm_inf`` `library <github.com/stfc/dl_esm_inf>`_
+be installed/available - it is provided as a Git submodule of the PSyclone
 project (see :ref:`dev_guide:dev-installation` in the Developers' Guide
 for details on working with submodules).
 
-The supplied Makefile also provides a second, "profile" target which
+The supplied ``Makefile`` also provides a second, ``profile`` target which
 performs the same OpenACC transformations but then encloses the whole
 of the resulting PSy layer in a profiling region. By linking this with
 the PSyclone NVTX profiling wrapper (and the NVTX library itself), the
@@ -207,7 +207,7 @@ Example 3: OpenCL
 ^^^^^^^^^^^^^^^^^
 
 Example of the use of PSyclone to generate an OpenCL driver version of
-the PSy layer and OpenCL kernels. The Makefile in this example provides
+the PSy layer and OpenCL kernels. The ``Makefile`` in this example provides
 a target (`make compile-ocl`) to compile the generated OpenCL code. This
 requires an OpenCL implementation installed in the system. Read the README
 provided in the example folder for more details about how to compile and
@@ -225,6 +225,7 @@ nested ``use`` of modules (i.e. data accessed via a module that in turn
 imports that symbol from another module) and kernels that call other
 kernels (Issue #342).
 
+.. _gocean_example_psydata:
 
 Example 5: PSyData
 ^^^^^^^^^^^^^^^^^^
@@ -237,14 +238,14 @@ Example 5.1: Kernel data extraction
 This example shows the use of kernel data extraction in PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
-It uses the dl_esm_inf-specific extraction library 'netcdf'
+It uses the ``dl_esm_inf``-specific extraction library ``netcdf``
 (``lib/extract/netcdf/dl_esm_inf``), and needs NetCDF to be
 available (including ``nf-config`` to detect installation-specific
 paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
-The makefile in this example will link with the compiled NetCDF
+The ``Makefile`` in this example will link with the compiled NetCDF
 extraction library and NetCDF. You can execute the created
-binary and it will create two output netcdf files, one for
+binary and it will create two output ``netcdf`` files, one for
 each of the two invokes.
 
 It will also create two stand-alone driver programs (one for
@@ -278,7 +279,7 @@ Example 5.3: Read-only-verification
 This example shows the use of read-only-verification with PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based read-only-verification code.
-It uses the dl_esm_inf-specific read-only-verification library
+It uses the ``dl_esm_inf``-specific read-only-verification library
 (``lib/read_only/dl_esm_inf/``).
 
 .. note:: The ``update_field_mod`` subroutine contains some very
@@ -291,7 +292,7 @@ It uses the dl_esm_inf-specific read-only-verification library
     array bounds checking at runtime will be triggered by these
     out-of-bound writes.
 
-The makefile in this example will link with the compiled 
+The ``Makefile`` in this example will link with the compiled
 read-only-verification library. You can execute the created
 binary and it will print two warnings about modified
 read-only variables:
@@ -488,7 +489,7 @@ will print out the modified matvec kernel code. At the moment no
 transformations are included (as they are work-in-progress) so the
 code that is output is the same as the original (but looks different
 as it has been translated to PSyIR and then output by the PSyIR
-fortran back-end).
+Fortran back-end).
 
 Example 17: Runnable Simplified Examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -114,10 +114,10 @@ node then creates the actual code, as in the following LFRic example::
       !
       ! ExtractEnd
 
-The PSyData API relies on generic Fortran interfaces to provide the 
-field-type-specific implementations of the ``ProvideVariable`` for different
-types. This means that a different version of the external PSyData
-library that PSyKE uses must be supplied for each PSyclone API.
+The :ref:`PSyData API <psy_data>` relies on generic Fortran interfaces to
+provide the  field-type-specific implementations of the ``ProvideVariable``
+for different types. This means that a different version of the external
+``PSyData`` library that PSyKE uses must be supplied for each PSyclone API.
 
 .. _psyke-intro-restrictions:
 
@@ -153,10 +153,11 @@ Distributed memory
 ##################
 
 As noted in the :ref:`distributed_memory` section, support for distributed
-memory in PSyclone is currently limited to the Dynamo0.3 API. Since the
-implementation generates calls to LFRic infrastructure (e.g. runtime checks
-for status of field halos), code extraction is not allowed when distributed
-memory is enabled.
+memory in PSyclone is currently limited to the
+:ref:`LFRic (Dynamo0.3) API <dynamo0.3-api>`. Since the implementation
+generates calls to LFRic infrastructure (e.g. runtime checks for status
+of field halos), code extraction is not allowed when distributed memory
+is enabled.
 
 .. _psyke-intro-restrictions-shared:
 
@@ -171,7 +172,7 @@ The ``ExtractTrans`` transformation cannot be applied to:
   without its parent Directive (e.g. ACC or OMP Parallel Directive),
 
 * A Loop over cells in a colour without its parent Loop over colours in
-  the Dynamo0.3 API,
+  the LFRic API,
 
 * An inner Loop without its parent outer Loop in the GOcean1.0 API.
 
@@ -184,7 +185,7 @@ The code extraction is currently enabled by utilising a transformation
 script (see :ref:`sec_transformations_script` section for more details).
 
 For example, the transformation script which extracts the first Kernel call
-in Dynamo0.3 API test example ``15.1.2_builtin_and_normal_kernel_invoke.f90``
+in LFRic API test example ``15.1.2_builtin_and_normal_kernel_invoke.f90``
 would be written as:
 
 .. code-block:: python
@@ -298,7 +299,7 @@ This modifies the above Schedule as:
 
 As said above, extraction can be performed on optimised code. For example,
 the following example transformation script first adds ``!$OMP PARALLEL DO``
-directive and then extracts the optimised code in Dynamo0.3 API test
+directive and then extracts the optimised code in LFRic API test
 example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
 
 .. code-block:: python
@@ -369,13 +370,26 @@ apply code extraction by utilising PSyclone transformation scripts
 
 .. _psyke_netcdf:
 
-NetCDF Extraction Example
--------------------------
-PSyclone comes with an example NetCDF based extraction library in
-`lib/extract/netcdf/dl_esm_inf
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_.
-This library implements the full PSyData
-API for use with the GOcean 1.0 dl_esm_inf infrastructure library.
+NetCDF Extraction Examples
+--------------------------
+
+PSyclone comes with an example NetCDF-based extraction libraries in
+`lib/extract/netcdf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`_.
+
+.. note:: These libraries are also provided as part of a
+          :ref:`PSyclone installation <getting-going-env-loc>` and
+          their ``Makefile``s have configurable options for compiler
+          flags and locations of dependencies. For more information
+          please refer to their specific ``README.md`` documentation.
+
+NetCDF Extraction for GOcean
+++++++++++++++++++++++++++++
+
+The library in `lib/extract/netcdf/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
+implements the full PSyData API for use with the
+:ref:`GOcean 1.0 <gocean1.0-api>` ``dl_esm_inf`` infrastructure library.
 In order to compile this library, you must have NetCDF installed.
 When running the code, it will create a NetCDF file for the instrumented
 code region. It includes all variables that are read before the code
@@ -390,7 +404,7 @@ and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
 The output file contains the values of all variables used in the
 subroutine. The ``GOceanExtractTrans`` can automatically create a
-driver program which will read the netcdf file and then call the
+driver program which will read the NetCDF file and then call the
 instrumented region. In order to create this driver program, the
 options parameter ``create_driver`` must be set to true:
 
@@ -403,3 +417,21 @@ options parameter ``create_driver`` must be set to true:
 
 This will create a Fortran file called ``driver-main-init.f90``, which
 can then be compiled and executed.
+
+NetCDF Extraction for LFRic
+++++++++++++++++++++++++++++
+
+The library in `lib/extract/netcdf/lfric
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/lfric>`_
+implements the full PSyData API for use with the
+:ref:`LFRic <dynamo0.3-api>` infrastructure library. In order to compile
+this library, you must have NetCDF installed. When running the code, it will
+create a NetCDF file for the instrumented code region.
+
+As in the case of e.g. :ref:`read-only verification
+<psydata_read_verification>`, this library uses the pared-down LFRic
+infrastructure located in a clone of PSyclone repository,
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+However, this needs to be changed for any user (for instance with
+PSyclone installation). Please refer to the relevant ``README.md``
+documentation on how to build and link this library.
