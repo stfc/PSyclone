@@ -51,10 +51,10 @@ transformation within a transformation script.
 
 
 PSyclone can be used with a variety of existing profiling tools.
-It currently supports dl_timer, Dr Hook, the nvidia GPU profiling toos
-and it comes with a simple
-stand-alone timer library. The :ref:`PSyData API <psy_data>` (see
-also the :ref:`Developer Guide <dev_guide:psy_data>`)
+It currently supports ``dl_timer``, Dr Hook, the NVIDIA GPU profiling
+tools and it comes with a simple stand-alone timer library. The
+:ref:`PSyData API <psy_data>` (see also the
+:ref:`Developer Guide <dev_guide:psy_data>`)
 is utilised to implement wrapper libraries that connect the PSyclone
 application to the profiling libraries. Certain adjustments to
 the application's build environment are required:
@@ -75,18 +75,25 @@ the application that incorporates the PSyclone-generated code.
 
 Interface to Third Party Profiling Tools
 ----------------------------------------
+
 PSyclone comes with wrapper libraries to support usage of
-Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
-and a simple non-thread-safe timing
-library. Support for further profiling libraries will be
-added in the future. To compile the wrapper libraries,
-change into the directory ``lib/profiling`` of PSyclone
-and type ``make`` to compile all wrappers. If only some
-of the wrappers are required, you can either use
+Dr Hook, ``dl_timer``, NVTX (NVIDIA Tools Extension library),
+and a simple non-thread-safe timing library. Support for further
+profiling libraries will be added in the future. To compile the
+wrapper libraries, change into the directory ``lib/profiling``
+of PSyclone and type ``make`` to compile all wrappers. If only
+some of the wrappers are required, you can either use
 ``make wrapper-name`` (e.g. ``make drhook``), or change
 into the corresponding directory and use ``make``. The
-corresponding README files contain additional parameters
+corresponding ``README.md`` files contain additional parameters
 that can be set in order to find third party profiling tools.
+
+All profiling libraries are provided as part of a
+:ref:`PSyclone installation <getting-going-env-loc>` and their
+``Makefile``s have configurable options for compiler flags and
+locations of dependencies (please refer to their specific
+``README.md`` documentation).
+
 Below are short descriptions of each of the various wrapper
 libraries that come with PSyclone:
 
@@ -125,7 +132,7 @@ libraries that come with PSyclone:
     LFRic, and it comes in two different versions:
 
     - ``libpsy_lfric_timer.a``
-      This library just contains the PSyData wrapper, but not the
+      This library just contains the ``PSyData`` wrapper, but not the
       actual timer code. It must therefore be linked with the LFRic
       infrastructure library. It is meant to be used by LFRic only.
     - ``libpsy_lfric_timer_standalone.a``
@@ -145,10 +152,10 @@ the developer's guide (:ref:`dev_guide:psy_data`).
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool. The
-exception is the template- and simple_timing-library,
+exceptions are the ``template`` and ``simple_timing`` libraries,
 which are stand alone. The profiling example in
 ``examples/gocean/eg5`` can be used with any of the
-wrapper libraries (except nvidia) to see how they work.
+wrapper libraries (except ``nvidia``) to see how they work.
 
 .. _required_profiling_calls:
 
@@ -169,7 +176,7 @@ location in the application::
    ...
    call profile_PSyDataInit()
 
-The 'appropriate' location might depend on the profiling library used. 
+The "appropriate" location might depend on the profiling library used.
 For example, it might be necessary to invoke this before or after
 a call to ``MPI_Init()``.
 
@@ -207,15 +214,16 @@ this invoke subroutine will be included in the profiled region.
 The option ``--profile kernels`` will surround each outer loop
 created by PSyclone with start and end profiling calls.
 
-.. note:: In some APIs (for example dynamo when using distributed
-          memory) additional minor code might get included in a
-          profiled kernel section, for example setDirty() calls
-          (expensive calls like HaloExchange are excluded).
+.. note:: In some APIs (for example :ref:`LFRic <dynamo0.3-api>`
+          when using distributed memory) additional minor code might
+          get included in a profiled kernel section, for example
+          ``setDirty()`` calls (expensive calls like ``HaloExchange``
+          are excluded).
 
 .. note:: If the ``kernels`` option is used in combination with an
           optimisation script that introduces OpenACC then profiling
           calls are automatically excluded from within OpenACC
-          regions (since the PSyData wrappers are not compiled for
+          regions (since the ``PSyData`` wrappers are not compiled for
           GPU execution).
 
 .. note:: It is still the responsibility of the user to manually

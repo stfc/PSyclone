@@ -39,7 +39,7 @@
 Getting Going
 =============
 
-.. _getting_going_download:
+.. _getting-going-download:
 
 Download
 --------
@@ -83,7 +83,7 @@ PSyclone directly, e.g.
 Hereon the location where you download or clone PSyclone (including the
 PSyclone directory itself) will be referred to as ``<PSYCLONEHOME>``.
 
-.. _getting_going_env:
+.. _getting-going-env:
 
 Environment
 -----------
@@ -91,16 +91,16 @@ Environment
 In order to use PSyclone (including running the test suite and
 building documentation) you will need to install it. Before starting
 the installation process, please refer to the
-:ref:`Dependencies <getting_going_depend>` section below.
+:ref:`Dependencies <getting-going-depend>` section below.
 
-.. _getting_going_env_pypi:
+.. _getting-going-env-pypi:
 
 Installation from PyPI
 ^^^^^^^^^^^^^^^^^^^^^^
 
 The simplest, and recommended, installation process is from
 `PyPI <https://pypi.org/project/PSyclone/>`_ using ``pip`` as described
-:ref:`above <getting_going_download>`.
+:ref:`above <getting-going-download>`.
 
 By default, ``pip`` will attempt a system-wide install. If you wish
 to do a user-local install instead then supply the ``--user`` flag::
@@ -116,15 +116,15 @@ for more detailed information)::
 
 Depending on the installation option (e.g. system-wide, user), PSyclone
 will be installed in different locations - see
-:ref:`below <getting_going_env_loc>` for more information.
+:ref:`below <getting-going-env-loc>` for more information.
 
-.. _getting_going_env_src:
+.. _getting-going-env-src:
 
 Installation from source
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 PSyclone can also be installed from a
-:ref:`downloaded <getting_going_download>` release or repository clone. The
+:ref:`downloaded <getting-going-download>` release or repository clone. The
 simplest way to do this is to use ``pip`` with the supplied ``setup.py``::
 
    > cd <PSYCLONEHOME>
@@ -151,17 +151,17 @@ or::
 
    > python setup.py install --install-option="--prefix=/my/install/path"
 
-As for the :ref:`PyPI installation <getting_going_env_pypi>`, different
+As for the :ref:`PyPI installation <getting-going-env-pypi>`, different
 installation options lead to different
-:ref:`locations <getting_going_env_loc>` of PSyclone installation.
+:ref:`locations <getting-going-env-loc>` of PSyclone installation.
 
-.. _getting_going_env_loc:
+.. _getting-going-env-loc:
 
-Location of PSyclone
-^^^^^^^^^^^^^^^^^^^^
+Location of and structure of PSyclone installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Location of Pyclone scripts, modules and other accompanying materials
-is similar to other Python packages:
+Location of installed Pyclone scripts, modules and other accompanying
+materials is similar to other Python packages:
 
 * The ``psyclone`` :ref:`script <psyclone_command>` is located in
   ``<python-base-prefix>/bin`` directory (depending on your Linux
@@ -187,7 +187,7 @@ this method, it will be necessary to take further action to ensure
 PSyclone can find the :ref:`configuration file <getting-going-configuration>`
 installed as a part of this process.
 
-.. _getting_going_env_win:
+.. _getting-going-env-win:
 
 Windows environment
 ^^^^^^^^^^^^^^^^^^^
@@ -203,7 +203,7 @@ Installation in an :ref:`Anaconda Python
 Windows also needs to be done using ``pip`` as ``conda install`` is
 currently not supported.
 
-.. _getting_going_depend:
+.. _getting-going-depend:
 
 Dependencies
 ------------
@@ -380,7 +380,7 @@ Various aspects of PSyclone are configured through a configuration
 file, ``psyclone.cfg``. The default version of this file is installed
 to ``<python-base-prefix>/shared/psyclone/`` during the installation
 process. Similar to what is described :ref:`above
-<getting_going_env_loc>`, if a system-wide installation is being
+<getting-going-env-loc>`, if a system-wide installation is being
 performed then this  will be something like ``/usr/share/psyclone/``.
 If a user-local installation is performed (``--user`` flag to
 ``pip install``) then the location will be something like
@@ -413,7 +413,7 @@ Test
 PSyclone contains an extensive test suite, but this test suite is not
 part of a standard installation. If you want to run the full test 
 suite, you need to install PSyclone from source, see :ref:`above
-<getting_going_env_src>` or  :ref:`dev-installation` in the
+<getting-going-env-src>` or  :ref:`dev-installation` in the
 `Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
 
 .. _getting-going-run:
@@ -450,7 +450,7 @@ repository - if you have cloned the repository then ``EGS_HOME`` in
 what follows is the root ``PSyclone`` directory. Alternatively, if you
 have installed PSyclone using ``pip`` then they may be found in the
 ``share/psyclone`` directory under your Python installation (see
-:ref:`above <getting_going_env_loc> for location of PSyclone installation.
+:ref:`above <getting-going-env-loc> for location of PSyclone installation.
 In this case you should copy the whole ``examples`` directory to some
 convenient location (hereafter called ``EGS_HOME``) before attempting to
 carry out the following instructions. Depending on your precise setup, you
