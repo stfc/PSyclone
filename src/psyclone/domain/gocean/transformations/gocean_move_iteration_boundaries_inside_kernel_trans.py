@@ -240,7 +240,6 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         # Insert the conditional mask as the first statement of the kernel
         if_statement = IfBlock.create(condition, [Return()])
         kschedule.children.insert(0, if_statement)
-        if_statement.parent = kschedule
 
         return node.root, None
 
