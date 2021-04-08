@@ -255,7 +255,6 @@ and then executes the original code.
 .. note:: At this stage the driver program will not compile
     (see issue #644).
 
-
 Example 5.2: Profiling
 ~~~~~~~~~~~~~~~~~~~~~~
 This example shows how to use the profiling support in PSyclone.

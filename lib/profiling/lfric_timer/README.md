@@ -69,8 +69,8 @@ any code. The ``Makefile`` will create two different versions of the library:
   LFRic timer and can be used with any application. This library uses
   the timer available in the pared-down LFRic infrastructure available
   in PSyclone. A runnable example using a GOcean code is included in
-  [``examples/gocean/eg5``](
-  https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg5).
+  [``examples/gocean/eg5/profile``](
+  https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg5/profile).
 
 ## Compilation
 
