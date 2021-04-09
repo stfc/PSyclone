@@ -175,9 +175,9 @@ def test_variables_access_info():
     var_accesses.add_access(Signature("read_written"), AccessType.READ, node)
     assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
                                 "written: WRITE"
-    assert set(var_accesses.all_vars) == set([Signature("read"),
-                                              Signature("written"),
-                                              Signature("read_written")])
+    assert set(var_accesses.all_signatures) == set([Signature("read"),
+                                                    Signature("written"),
+                                                    Signature("read_written")])
     all_accesses = var_accesses["read"].all_accesses
     assert all_accesses[0].node == node1
     written_accesses = var_accesses["written"].all_accesses

@@ -1912,8 +1912,7 @@ class OMPParallelDirective(OMPDirective):
         # Now determine scalar variables that must be private:
         var_accesses = VariablesAccessInfo()
         self.reference_accesses(var_accesses)
-        for signature in var_accesses.all_vars:
-            var_name = str(signature)
+        for signature in var_accesses.all_signatures:
             accesses = var_accesses[signature].all_accesses
             # Ignore variables that have indices, we only look at scalar
             if accesses[0].indices is not None:
@@ -1948,7 +1947,7 @@ class OMPParallelDirective(OMPDirective):
                 if parent and isinstance(parent, Loop):
                     # The assignment to the variable is inside a loop, so
                     # declare it to be private
-                    result.add(var_name.lower())
+                    result.add(str(signature).lower())
 
         # Convert the set into a list and sort it, so that we get
         # reproducible results

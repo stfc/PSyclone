@@ -348,7 +348,7 @@ class DependencyTools(object):
 
         result = True
         # Now check all variables used in the loop
-        for signature in var_accesses.all_vars:
+        for signature in var_accesses.all_signatures:
             # Ignore all loop variables - they look like reductions because of
             # the write-read access in the loop:
             var_name = str(signature)
@@ -410,7 +410,7 @@ class DependencyTools(object):
             variables_info = VariablesAccessInfo(node_list)
 
         input_list = []
-        for signature in variables_info.all_vars:
+        for signature in variables_info.all_signatures:
             # Take the first access (index 0) of this variable. Note that
             # loop variables have a WRITE before a READ access, so they
             # will be ignored
@@ -443,7 +443,7 @@ class DependencyTools(object):
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list)
 
-        return [str(signature) for signature in variables_info.all_vars
+        return [str(signature) for signature in variables_info.all_signatures
                 if variables_info.is_written(signature)]
 
     # -------------------------------------------------------------------------

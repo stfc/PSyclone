@@ -315,10 +315,11 @@ class VariablesAccessInfo(dict):
         this kernel indicates a READWRITE access, this is marked as READWRITE
         in the string output.'''
 
-        all_vars = self.all_vars
-        all_vars.sort()
+        all_signatures = self.all_signatures
+        all_signatures.sort()
         output_list = []
-        for var_name in all_vars:
+        for signature in all_signatures:
+            var_name = str(signature)
             mode = ""
             if self.has_read_write(var_name):
                 mode = "READWRITE"
@@ -391,10 +392,10 @@ class VariablesAccessInfo(dict):
             self[sig] = var_info
 
     @property
-    def all_vars(self):
-        ''':returns: all variables contained in this instance, sorted (in \
+    def all_signatures(self):
+        ''':returns: all signatures contained in this instance, sorted (in \
                      order to make test results reproducible).
-        :rtype: list of str.
+        :rtype: list of :py:class:`psyclone.core.signature`.
         '''
         list_of_vars = list(self.keys())
         list_of_vars.sort()
@@ -413,7 +414,7 @@ class VariablesAccessInfo(dict):
         # we need to increase the location so that all further added data
         # will have a location number that is larger.
         max_new_location = 0
-        for signature in other_access_info.all_vars:
+        for signature in other_access_info.all_signatures:
             var_info = other_access_info[signature]
             for access_info in var_info.all_accesses:
                 # Keep track of how much we need to update the next location
