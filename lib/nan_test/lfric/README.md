@@ -96,7 +96,7 @@ used when compiling the LFRic ``NaN``-test library are identical to the
 ones used when running an LFRic application.
 
 The locations of the ``NANTest`` and ``PSyData`` base classes are specified
-using the environment variables ``$JINJA_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
+using the environment variables ``$LIB_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
 respectively. They default to the relative paths to the
 [``lib/nan_test``](./../) and top-level [``lib``](./../../) directories.
 

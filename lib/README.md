@@ -154,7 +154,7 @@ infrastructure libraries can be configured with the variable ``INF_DIR``
 necessary to run ``make allclean``). In addition, these wrapper libraries
 use specific Jinja templates whose default location is set to the relative
 path to the respective library directory but can also be configured with
-the variable ``JINJA_TMPLT_DIR``.
+the variable ``LIB_TMPLT_DIR``.
 
 Profiling wrapper libraries that depend on external tools (for instance,
 [``dl_timer``](./profiling/dl_timer/README.md) have specific variables that

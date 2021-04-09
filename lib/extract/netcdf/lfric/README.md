@@ -106,7 +106,7 @@ used when compiling the LFRic extraction library are identical to the ones
 used when running an LFRic application.
 
 The locations of the ``ExtractNetcdf`` and ``PSyData`` base classes are
-specified using the environment variables ``$JINJA_TMPLT_DIR`` and
+specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to
 the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
 directories.

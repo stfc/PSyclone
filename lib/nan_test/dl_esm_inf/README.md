@@ -90,7 +90,7 @@ make INF_DIR=<path/to/dl_esm_inf/finite_difference>
 ```
 
 The locations of the ``NANTest`` and ``PSyData`` base classes are specified
-using the environment variables ``$JINJA_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
+using the environment variables ``$LIB_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
 respectively. They default to the relative paths to the
 [``lib/nan_test``](./../) and top-level [``lib``](./../../) directories.
 
