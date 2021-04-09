@@ -50,7 +50,7 @@ F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
 PSYDATA_LIB_DIR ?= ./../..
-JINJA_TMPLT_DIR ?= ./..
+LIB_TMPLT_DIR ?= ./..
 # This variable defaults to the dl_esm_inf infrastructure library
 # distributed with PSyclone (can be overwritten to use a different version)
 INF_DIR ?= $(PSYDATA_LIB_DIR)/../external/dl_esm_inf/finite_difference
@@ -100,7 +100,7 @@ read_only_base.o: psy_data_base.o
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-read_only_base.f90: $(JINJA_TMPLT_DIR)/read_only_base.jinja Makefile
+read_only_base.f90: $(LIB_TMPLT_DIR)/read_only_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_only_base.f90
 
 # The dl_esm_inf library
