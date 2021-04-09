@@ -474,8 +474,9 @@ variables that must be declared as thread-private::
 
   var_accesses = VariablesAccessInfo()
   self.reference_accesses(var_accesses)
-  for var_name in var_accesses.all_vars:
-      accesses = var_accesses[var_name].all_accesses
+  for signature in var_accesses.all_signatures:
+      var_name = str(signature)
+      accesses = var_accesses[signature].all_accesses
       # Ignore variables that are arrays, we only look at scalar ones.
       # If we do have a symbol table, use the shape of the variable
       # to determine if the variable is scalar or not
