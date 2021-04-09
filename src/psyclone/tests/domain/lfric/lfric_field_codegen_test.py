@@ -41,7 +41,6 @@ Module containing pytest tests for PSy-layer code generation for the
 LFRic field arguments.
 '''
 
-# Imports
 from __future__ import absolute_import, print_function
 import os
 import pytest
@@ -57,9 +56,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-# Tests for PSy-layer code generation for field arguments
 
 
 def test_field(tmpdir):

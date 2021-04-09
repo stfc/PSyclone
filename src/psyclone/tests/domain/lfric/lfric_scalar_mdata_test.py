@@ -41,7 +41,6 @@ Module containing pytest tests for the general LFRic scalar arguments
 functionality (e.g. metadata, parsing, invoke calls).
 '''
 
-# Imports
 from __future__ import absolute_import, print_function
 import os
 import pytest
@@ -62,8 +61,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-# General scalar checks (argument type, data type, etc)
 
 
 CODE = '''

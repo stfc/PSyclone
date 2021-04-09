@@ -81,9 +81,6 @@ def setup():
     Config.get().api = "dynamo0.3"
 
 
-# Tests
-
-
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type

@@ -41,7 +41,6 @@ Module containing pytest tests for PSy-layer code generation for the
 LFRic scalar arguments.
 '''
 
-# Imports
 from __future__ import absolute_import, print_function
 import os
 from psyclone.parse.algorithm import parse
@@ -54,9 +53,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-# Tests for PSy-layer code generation for scalar arguments
 
 
 def test_real_scalar(tmpdir):
