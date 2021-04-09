@@ -163,8 +163,8 @@ Location and structure of PSyclone installation
 Location of installed Pyclone scripts, modules and other accompanying
 resources is similar to other Python packages:
 
-* The ``psyclone`` :ref:`script <psyclone_command>` is located in
-  ``<python-base-prefix>/bin`` directory (depending on your Linux
+* The ``psyclone`` script :ref:`script <psyclone_command>` is located
+  in ``<python-base-prefix>/bin`` directory (depending on your Linux
   distribution, you may need to add this location to your ``$PATH``).
 
 * The PSyclone Python modules are located in
@@ -195,13 +195,13 @@ Windows environment
 PSyclone can also be installed in `Python Windows environment
 <https://www.python.org/downloads/windows/>`_ using ``pip`` as described
 above. There are some differences in directory structure from Linux,
-for instance script directory is usually called ``Scripts`` instead
-of ``bin`` and modules ``Lib`` instead of ``lib``.
+for instance the script directory is usually called ``Scripts`` instead
+of ``bin`` and the modules directory ``Lib`` instead of ``lib``.
 
 Installation in an `Anaconda Python
 <https://www.anaconda.com/products/individual>`_ environment on
-Windows also needs to be done using ``pip`` as ``conda install`` is
-currently not supported.
+Windows also needs to be done using ``pip`` as ``conda install`` for
+PSyclone is currently not supported.
 
 .. _getting-going-depend:
 
@@ -436,7 +436,7 @@ is on your ``PATH``:
 
 As indicated above, the ``psyclone`` script takes the name of the
 Fortran source file containing the algorithm specification (in terms
-of calls to ``invoke())``. It parses this, finds the necessary kernel
+of calls to ``invoke()``). It parses this, finds the necessary kernel
 source files and produces two Fortran files. The first contains the
 :ref:`PSy, middle layer <PSy-layer>` and the second a re-write of the
 :ref:`algorithm code <algorithm-layer>` to use that layer. These files
