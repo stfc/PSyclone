@@ -39,7 +39,7 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-PSYCLONE_LIB_DIR ?= ./../..
+PSYDATA_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
 PSYDATA_LIB_NAME = simple_timing
@@ -48,7 +48,7 @@ PSYDATA_LIB := lib$(PSYDATA_LIB_NAME).a
 OBJS = $(PSYDATA_LIB_NAME).o psy_data_base.o
 
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS = $$($(PSYCLONE_LIB_DIR)/get_python.sh) $(PSYCLONE_LIB_DIR)/process.py
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 .PHONY: default clean allclean
 
@@ -59,7 +59,7 @@ $(PSYDATA_LIB): $(OBJS)
 
 $(PSYDATA_LIB_NAME).o:	psy_data_base.o
 
-psy_data_base.f90: $(PSYCLONE_LIB_DIR)/psy_data_base.jinja
+psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 %.o: %.f90

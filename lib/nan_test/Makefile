@@ -44,14 +44,14 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-PSYCLONE_LIB_DIR ?= ./..
+PSYDATA_LIB_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
 # The nan-test library is implemented for int, real and
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=nan_test_ -types=int,real,double \
 		       -dims=2
-PROCESS = $$($(PSYCLONE_LIB_DIR)/get_python.sh) $(PSYCLONE_LIB_DIR)/process.py
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 
 default: nan_test_base.o psy_data_base.o
@@ -63,7 +63,7 @@ process: nan_test_base.f90
 %.f90:	%.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > $*.f90
 
-psy_data_base.f90:	$(PSYCLONE_LIB_DIR)/psy_data_base.jinja Makefile
+psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 nan_test_base.o: psy_data_base.o

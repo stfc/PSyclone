@@ -44,7 +44,7 @@
 F90 ?= gfortran
 F90FLAGS ?=
 # Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-PSYCLONE_LIB_DIR ?= .
+PSYDATA_LIB_DIR ?= .
 # -----------------------------------------------------------------------------
 
 default: psy_data_base.o
@@ -61,7 +61,7 @@ all:
 	$(MAKE) -C read_only all
 
 %.f90:	%.jinja process.py
-	$$($(PSYCLONE_LIB_DIR)/get_python.sh) $(PSYCLONE_LIB_DIR)/process.py $< > $*.f90
+	$$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py $< > $*.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
