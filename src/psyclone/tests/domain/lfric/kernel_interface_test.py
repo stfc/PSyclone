@@ -50,7 +50,7 @@ from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
 from psyclone.errors import InternalError
-from psyclone.core.access_info import VariableAccessInfo, AccessType
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, os.pardir, "test_files", "dynamo0p3")
@@ -69,7 +69,7 @@ def test_init():
     assert kernel_interface._arglist == []
 
 
-@pytest.mark.parametrize("var_accesses", [None, VariableAccessInfo("test")])
+@pytest.mark.parametrize("var_accesses", [None, VariablesAccessInfo()])
 def test_generate(var_accesses):
     '''Test that the KernelInterface class generate method creates the
     expected symbols and adds them to the symbol table and its
@@ -129,20 +129,18 @@ def test_generate(var_accesses):
     if var_accesses:
         # Check that the names of variables and their intent has been
         # captured by the data dependence analysis
-        accesses = var_accesses.all_accesses
-        assert len(accesses) == 6
-        assert accesses[0].access_type == "nlayers"
-        assert accesses[0].location == AccessType.READ
-        assert accesses[1].access_type == "undf_w0"
-        assert accesses[1].location == AccessType.READ
-        assert accesses[2].access_type == "f1"
-        assert accesses[2].location == AccessType.READWRITE
-        assert accesses[3].access_type == "f2"
-        assert accesses[3].location == AccessType.READ
-        assert accesses[4].access_type == "ndf_w0"
-        assert accesses[4].location == AccessType.READ
-        assert accesses[5].access_type == "dofmap_w0"
-        assert accesses[5].location == AccessType.READ
+        assert len(var_accesses.all_vars) == 6
+
+        # Test all read-only variables
+        for var in ["nlayers", "undf_w0", "f2", "ndf_w0", "dofmap_w0"]:
+            accesses = var_accesses[Signature(var)]
+            assert len(accesses.all_accesses) == 1
+            assert accesses[0].access_type == AccessType.READ
+
+        # Test the read-write variable
+        accesses = var_accesses[Signature("f1")]
+        assert len(accesses.all_accesses) == 1
+        assert accesses[0].access_type == AccessType.READWRITE
 
 
 def test_cell_position():

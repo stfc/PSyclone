@@ -365,8 +365,7 @@ class VariablesAccessInfo(dict):
         '''Adds access information for the specified variable.
 
         :param variable: PSyIR node that represents the variable.
-        :type variable: either a string (name of the variable), or \
-            a PSyIR Reference instance.
+        :type variable: :py:class:`psyclone.core.Signature`instance.
         :param access_type: The type of access (READ, WRITE, ...)
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
