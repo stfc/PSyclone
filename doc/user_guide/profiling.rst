@@ -76,8 +76,8 @@ the application that incorporates the PSyclone-generated code.
 Interface to Third Party Profiling Tools
 ----------------------------------------
 
-PSyclone comes with wrapper libraries to support usage of
-Dr Hook, ``dl_timer``, NVTX (NVIDIA Tools Extension library),
+PSyclone comes with :ref:`wrapper libraries <libraries>` to support
+usage of Dr Hook, ``dl_timer``, NVTX (NVIDIA Tools Extension library),
 and a simple non-thread-safe timing library. Support for further
 profiling libraries will be added in the future. To compile the
 wrapper libraries, change into the directory ``lib/profiling``
@@ -87,14 +87,6 @@ some of the wrappers are required, you can either use
 into the corresponding directory and use ``make``. The
 corresponding ``README.md`` files contain additional parameters
 that can be set in order to find third party profiling tools.
-
-.. note:: All profiling libraries are provided as part of a
-          :ref:`PSyclone installation <getting-going-env-loc>` and
-          their ``Makefile``\s have configurable options for compiler
-          flags and locations of dependencies. For more information
-          please refer to the specific ``README.md`` documentation,
-          also available `here
-          <https://github.com/stfc/PSyclone/tree/master/lib/profiling>`_.
 
 Below are short descriptions of each of the various wrapper
 libraries that come with PSyclone:
@@ -113,8 +105,8 @@ libraries that come with PSyclone:
     for each MPI process), and not thread-safe.
 
 ``lib/profiling/dl_timer``
-    This wrapper uses the apeg-dl_timer library. In order to use
-    this wrapper, you must download and install the dl_timer library
+    This wrapper uses the ``apeg-dl_timer`` library. In order to use
+    this wrapper, you must download and install the ``dl_timer`` library
     from ``https://bitbucket.org/apeg/dl_timer``. This library has
     various compile-time options and may be built with MPI or OpenMP
     support. Additional link options might therefore be required
@@ -437,8 +429,8 @@ For the :ref:`NEMO API <nemo-api>`,
   function/subroutine/program (based on the profile node's position in
   the PSyIR representation relative to any other profile nodes).
 
-For the :ref:`LFRic (Dynamo 0.3) <dynamo0.3-api>` and
-:ref:`GOcean 1.0 <gocean1.0-api>` APIs,
+For the :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
+:ref:`GOcean1.0 <gocean1.0-api>` APIs,
 
 * the `module_name` string is set to the module name of the generated
   PSy-layer. This name should be unique by design (otherwise module

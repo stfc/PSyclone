@@ -72,6 +72,7 @@ target checks the various Jupyter notebooks using ``nbconvert``.
           the full path to the PSyclone configuration file, e.g.
           ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
 
+.. _examples-compilation:
 
 Compilation
 -----------
@@ -121,6 +122,8 @@ This will clean up in the ``examples`` directory. If you want to change compiler
 or compiler flags, you should run ``make allclean``, see the section
 about :ref:`examples_dependencies` for details.
 
+.. _supported-compilers:
+
 Supported Compilers
 ^^^^^^^^^^^^^^^^^^^
 
@@ -144,9 +147,9 @@ Dependencies
 ^^^^^^^^^^^^
 
 Any required library that is included in PSyclone (typically
-the infrastructure libraries for the APIs, or :ref:`PSyData wrapper
-libraries <psy_data>`) will automatically be compiled with the same compiler
-and compilation flags as the examples.
+the infrastructure libraries for the APIs, or ``PSyData`` :ref:`wrapper
+libraries <libraries>`) will automatically be compiled with the same
+compiler and compilation flags as the examples.
 
 .. note:: Once a dependent library is compiled, changing the
           compilation flags will not trigger a recompilation

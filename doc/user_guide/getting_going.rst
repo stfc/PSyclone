@@ -173,7 +173,7 @@ resources is similar to other Python packages:
 
 * The :ref:`configuration file <getting-going-configuration>`,
   :ref:`examples <examples>`, :ref:`tutorial <tutorial>` and
-  :ref:`PSyData-API-based libraries <psy_data>` are installed in
+  :ref:`libraries <libraries>` are installed in
   ``<python-base-prefix>/share/psyclone`` directory.
 
 For a system-wide installation on Linux, ``<python-base-prefix>`` will
@@ -292,7 +292,7 @@ pyparsing
 PSyclone requires ``pyparsing``, a library designed to allow parsers to
 be built in Python. PSyclone uses ``pyparsing`` to parse Fortran regular
 expressions as ``fparser`` does not fully parse these (see
-`here <https://github.com/pyparsing>`_ for more information).
+`here <https://github.com/pyparsing>`__ for more information).
 
 PSyclone has been tested with ``pyparsing`` versions 1.5.2, 2.0.1 and 2.2.0.
 
@@ -351,7 +351,7 @@ you can instruct ``pip`` to do a user-local install:
 If ``graphviz`` itself is not installed on your system and your system
 supports the ``apt`` package manager then see below, otherwise please
 refer to the download and install instructions which are available
-`here <https://graphviz.org/download/>`_.
+`here <https://graphviz.org/download/>`__.
 
 If your system supports the ``apt`` package manager then it can be
 installed and removed in the following way:

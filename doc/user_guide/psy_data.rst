@@ -44,7 +44,9 @@ PSyData API
 PSyclone provides transformations that will insert callbacks to
 an external library at runtime. These callbacks allow third-party
 libraries to access data structures at specified locations in the
-code. Some example use cases are:
+code. The PSyclone :ref:`wrappers <libraries>` to external libraries
+are provided with the :ref:`PSyclone installation <getting-going-env-loc>`.
+Some example use cases are:
 
 Profiling:
   By inserting callbacks before and after a region of code,
@@ -71,7 +73,7 @@ Access Verification:
 
 NAN Test:
   The callbacks can be used to make sure that all floating point input
-  and output parameters of a kernel are not a NAN (not-a-number) or
+  and output parameters of a kernel are not a ``NaN`` (not-a-number) or
   infinite. See :ref:`psydata_nan_test` for the full description.
 
 In-situ Visualisation:
@@ -89,14 +91,6 @@ the PSyData API, for example ``ProfileTrans``, ``GOceanExtractTrans``
 and ``LFRicExtractTrans``. A user can develop additional transformations
 and corresponding runtime libraries for additional functionality.
 Refer to :ref:`dev_guide:psy_data` for full details about the PSyData API.
-
-.. note:: All PSyData-API-based runtime libraries are provided as part
-          of a :ref:`PSyclone installation <getting-going-env-loc>` and
-          their ``Makefile``\s have configurable options for compiler
-          flags and locations of dependencies. For more information
-          please refer to the specific ``README.md`` documentation,
-          also available `here
-          <https://github.com/stfc/PSyclone/tree/master/lib>`_.
 
 .. _psydata_read_verification:
 
@@ -238,7 +232,7 @@ NAN Test
 
 This transformation can be used for both LFRic and GOcean APIs. It will
 test all input and output parameters of a kernel to make sure they are not
-NAN or infinite. If they are, an error message like the following
+``NaN`` or infinite. If they are, an error message like the following
 is printed, but the program is not aborted::
 
      PSYDATA: Variable perturbation has the invalid value
@@ -246,7 +240,7 @@ is printed, but the program is not aborted::
 
 Is uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
 for this test. Note that only floating point numbers will be tested.
-Integer numbers do not have a bit pattern for 'infinity' or NAN.
+Integer numbers do not have a bit pattern for 'infinity' or ``NaN``.
 
 The runtime libraries for GOcean and LFRic are based on a jinja-template
 contained in the directory ``<PSYCLONEHOME>/lib/nan_test``.
