@@ -41,8 +41,9 @@
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?= -g
-# This variable defaults to the cut-down version of the LFRic infrastructure
-# distributed with PSyclone (can be overwritten to use a different version)
+# Path to the LFRic infrastructure library. It defaults to the pared-down
+# version of the LFRic infrastructure distributed with PSyclone.
+# Overwrite for a different infrastructure version.
 INF_DIR ?= ./../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # -----------------------------------------------------------------------------
 

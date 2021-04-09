@@ -38,10 +38,11 @@
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
-# This variable defaults to the assumed location of the DrHook directory
-# next to a PSyclone clone (can be overwritten to use a different version)
+# Path to the Dr Hook installation. It defaults to the assumed location
+# of the Dr Hook directory next to a clone of PSyclone repository.
+# Overwrite for a custom location.
 DRHOOK_ROOT ?= ./../../../../drhook
-# Location of DrHook "include" files
+# Path to the DrHook "include" files. Overwrite for a custom location.
 DRHOOK_INCLUDE ?= $(DRHOOK_ROOT)/include
 DRHOOK_MODULES ?= $(DRHOOK_ROOT)/build/module
 # -----------------------------------------------------------------------------

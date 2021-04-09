@@ -38,13 +38,15 @@
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
-# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
-PSYDATA_LIB_DIR ?= ./../..
-# This variable defaults to the assumed location of the apeg/dl_timer library
-# next to a PSyclone clone (can be overwritten to use a different version)
+# Path to the 'apeg/dl_timer' installation. It defaults to the assumed
+# location of the apeg/dl_timer library next to a clone of PSyclone
+# repository. Overwrite for a custom location.
 DL_TIMER_ROOT ?= $(PSYDATA_LIB_DIR)/../../dl_timer
-# Location of apeg/dl_timer "include" files
+# Path to the 'apeg/dl_timer' "include" files. Overwrite for a custom location.
 DL_TIMER_INCLUDE ?= $(DL_TIMER_ROOT)/src
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
 F90FLAGS += -I$(DL_TIMER_INCLUDE)
