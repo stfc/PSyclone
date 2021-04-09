@@ -54,8 +54,6 @@ class Reference(DataNode):
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
-    :raises TypeError: if the symbol argument is not of type Symbol.
-
     '''
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
@@ -63,11 +61,8 @@ class Reference(DataNode):
     _colour = "yellow"
 
     def __init__(self, symbol, parent=None):
-        if not isinstance(symbol, Symbol):
-            raise TypeError("In Reference initialisation expecting a symbol "
-                            "but found '{0}'.".format(type(symbol).__name__))
         super(Reference, self).__init__(parent=parent)
-        self._symbol = symbol
+        self.symbol = symbol
 
     @property
     def symbol(self):
@@ -78,6 +73,20 @@ class Reference(DataNode):
 
         '''
         return self._symbol
+
+    @symbol.setter
+    def symbol(self, symbol):
+        '''
+        :param symbol: the new symbol being referenced.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises TypeError: if the symbol argument is not of type Symbol.
+
+        '''
+        if not isinstance(symbol, Symbol):
+            raise TypeError("In Reference initialisation expecting a symbol "
+                            "but found '{0}'.".format(type(symbol).__name__))
+        self._symbol = symbol
 
     @property
     def name(self):

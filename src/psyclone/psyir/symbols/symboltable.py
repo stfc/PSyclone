@@ -41,7 +41,7 @@
 from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import inspect
-from copy import copy
+import copy
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
@@ -199,11 +199,18 @@ class SymbolTable(object):
         '''
         # pylint: disable=protected-access
         new_st = SymbolTable()
-        new_st._symbols = copy(self._symbols)
-        new_st._argument_list = copy(self._argument_list)
-        new_st._tags = copy(self._tags)
+        new_st._symbols = copy.copy(self._symbols)
+        new_st._argument_list = copy.copy(self._argument_list)
+        new_st._tags = copy.copy(self._tags)
         new_st._node = self.node
         return new_st
+
+    def deep_copy(self, node=None):
+        # pylint: disable=protected-access
+        new_st = SymbolTable(node)
+        new_st._symbols = copy.deepcopy(self._symbols)
+        return new_st
+
 
     @staticmethod
     def _normalize(key):

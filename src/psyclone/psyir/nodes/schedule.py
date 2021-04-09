@@ -40,6 +40,7 @@
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import SymbolTable
 
 
@@ -94,8 +95,14 @@ class Schedule(Node):
 
         :raises NotImplementedError: Schedule copy is not supported yet.
         '''
-        raise NotImplementedError(
-            "Schedule copies are currently not supported.")
+        super(Schedule, self)._refine_copy(other)
+        self._symbol_table = other.symbol_table.deep_copy(node=self)
+
+        # Update of children references to point to the equally named
+        # symbol but from the new symbol table attached to self
+        for ref in self.walk(Reference):
+            if ref.symbol in other.symbol_table.symbols:
+                ref.symbol = self._symbol_table.lookup(ref.symbol.name)
 
     @property
     def dag_name(self):
