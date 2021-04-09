@@ -38,13 +38,11 @@
 
 ''' This module contains the Schedule node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import SymbolTable
 
 
-class Schedule(Node):
+class Schedule(ScopingNode):
     ''' Stores schedule information for a sequence of statements (supplied
     as a list of children).
 
@@ -62,9 +60,6 @@ class Schedule(Node):
     _text_name = "Schedule"
     _colour = "white"
 
-    # Polymorphic parameter to initialize the Symbol Table of the Schedule
-    _symbol_table_class = SymbolTable
-
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -79,33 +74,6 @@ class Schedule(Node):
         # pylint: disable=unused-argument
         return isinstance(child, Statement)
 
-    def __init__(self, children=None, parent=None, symbol_table=None):
-        super(Schedule, self).__init__(self, children=children, parent=parent)
-        if symbol_table:
-            self._symbol_table = symbol_table
-        else:
-            self._symbol_table = self._symbol_table_class(self)
-
-    def _refine_copy(self, other):
-        ''' Refine the object attributes when a shallow copy is not the most
-        appropriate operation during a call to the copy() method.
-
-        :param other: object we are copying from.
-        :type other: :py:class:`psyclone.psyir.node.Node`
-
-        :raises NotImplementedError: Schedule copy is not supported yet.
-        '''
-        super(Schedule, self)._refine_copy(other)
-        self._symbol_table = other.symbol_table.deep_copy()
-        # pylint: disable=protected-access
-        self._symbol_table._node = self  # Associate to self
-
-        # Update of children references to point to the equally named
-        # symbol but from the new symbol table attached to self
-        for ref in self.walk(Reference):
-            if ref.symbol in other.symbol_table.symbols:
-                ref.symbol = self._symbol_table.lookup(ref.symbol.name)
-
     @property
     def dag_name(self):
         '''
@@ -113,14 +81,6 @@ class Schedule(Node):
         :rtype: str
         '''
         return "schedule_" + str(self.abs_position)
-
-    @property
-    def symbol_table(self):
-        '''
-        :returns: table containing symbol information for the Schedule.
-        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
-        '''
-        return self._symbol_table
 
     def __getitem__(self, index):
         '''
