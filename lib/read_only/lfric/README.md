@@ -96,7 +96,7 @@ used when compiling the LFRic read-only library are identical to the ones
 used when running an LFRic application.
 
 The locations of the ``ReadOnly`` and ``PSyData`` base classes are specified
-using the environment variables ``$JINJA_TMPLT_DIR`` and ``$PSYCLONE_LIB_DIR``,
+using the environment variables ``$JINJA_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
 respectively. They default to the relative paths to the
 [``lib/read_only``](./../) and top-level [``lib``](./../../) directories.
 
@@ -118,6 +118,6 @@ library, ``_read_only``,  and the LFRic infrastructure library, ``lfric``.
 For instance:
 
 ```shell
-$(F90)  ... -L$(PSYCLONE_LIB_DIR)/read_only/lfric -l_read_only \
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/read_only/lfric -l_read_only \
         -L$(INF_DIR) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
 ```
