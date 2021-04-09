@@ -48,12 +48,14 @@
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
-# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
+# Path to the 'dl_esm_inf' infrastructure library. It defaults to the version
+# distributed with PSyclone. Overwrite for a different infrastructure version.
+INF_DIR ?= ./../../../external/dl_esm_inf/finite_difference
+# Paths to the PSyclone wrapper libraries and required templates. They default
+# to the relative paths to the top-level 'lib' and 'lib/read_only'
+# directories. Overwrite for a custom location.
 PSYDATA_LIB_DIR ?= ./../..
 LIB_TMPLT_DIR ?= ./..
-# This variable defaults to the dl_esm_inf infrastructure library
-# distributed with PSyclone (can be overwritten to use a different version)
-INF_DIR ?= $(PSYDATA_LIB_DIR)/../external/dl_esm_inf/finite_difference
 # -----------------------------------------------------------------------------
 
 INF_INC = $(INF_DIR)/src

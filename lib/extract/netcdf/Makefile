@@ -44,7 +44,8 @@
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
-# Path to PSyclone wrapper libraries (overwrite for custom location)
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
 PSYDATA_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
