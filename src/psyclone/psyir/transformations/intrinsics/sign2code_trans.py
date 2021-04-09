@@ -149,7 +149,6 @@ class Sign2CodeTrans(Operator2CodeTrans):
         lhs = Reference(res_var_symbol)
         rhs = UnaryOperation.create(UnaryOperation.Operator.ABS, op1)
         new_assignment = Assignment.create(lhs, rhs)
-        new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # Replace the ABS intrinsic with inline code.
@@ -159,7 +158,6 @@ class Sign2CodeTrans(Operator2CodeTrans):
         # tmp_var=B
         lhs = Reference(tmp_var_symbol)
         new_assignment = Assignment.create(lhs, op2)
-        new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # if_condition: tmp_var<0.0
@@ -178,5 +176,4 @@ class Sign2CodeTrans(Operator2CodeTrans):
 
         # if [if_condition] then [then_body]
         if_stmt = IfBlock.create(if_condition, then_body)
-        if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)

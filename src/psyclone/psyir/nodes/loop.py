@@ -201,11 +201,6 @@ class Loop(Statement):
         loop = Loop(variable=variable)
         schedule = Schedule(parent=loop, children=children)
         loop.children = [start, stop, step, schedule]
-        for child in children:
-            child.parent = schedule
-        start.parent = loop
-        stop.parent = loop
-        step.parent = loop
         return loop
 
     def _check_completeness(self):
@@ -542,7 +537,7 @@ class Loop(Statement):
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
+        from psyclone.psyGen import zero_reduction_variables, InvokeSchedule
 
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.
@@ -558,8 +553,9 @@ class Loop(Statement):
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self.root.opencl or (is_unit_literal(self.start_expr) and
-                                is_unit_literal(self.stop_expr)):
+        invoke = self.ancestor(InvokeSchedule)
+        if invoke.opencl or (is_unit_literal(self.start_expr) and
+                             is_unit_literal(self.stop_expr)):
             # no need for a loop
             for child in self.loop_body:
                 child.gen_code(parent)
