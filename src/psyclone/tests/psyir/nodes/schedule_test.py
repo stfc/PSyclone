@@ -41,15 +41,12 @@
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.psyir.nodes import Schedule, Assignment, Range, Statement, \
-    Reference, Container, Routine, ArrayReference
+from psyclone.psyir.nodes import Schedule, Assignment, Range, Statement
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
-    INTEGER_TYPE
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
 from psyclone.errors import GenerationError
-from psyclone.psyir.backend.fortran import FortranWriter
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -139,107 +136,3 @@ def test_sched_children_validation():
 
     # Valid children
     schedule.addchild(statement)
-
-
-def test_schedule_copy():
-    ''' Test that the schedule copy method creates a new symbol table
-    with copied symbols and updates the children references.'''
-    schedule = Schedule()
-    symbol_a = schedule.symbol_table.new_symbol("a")
-    symbol_b = schedule.symbol_table.new_symbol("b")
-
-    schedule.addchild(
-        Assignment.create(Reference(symbol_a), Reference(symbol_b)))
-
-    new_schedule = schedule.copy()
-
-    # Check that node generic copy() and _refine_copy() have been called
-    # (e.g. children are not shallow copies and tree has been copied down
-    # recursively)
-    assert len(new_schedule.children) == 1
-    assert new_schedule[0] is not schedule[0]
-    assert new_schedule[0].lhs is not schedule[0].lhs
-    assert new_schedule[0].rhs is not schedule[0].rhs
-
-    # Check that the symbol_table has been deep copied
-    assert new_schedule.symbol_table is not schedule.symbol_table
-    assert new_schedule.symbol_table.lookup("a") is not \
-        schedule.symbol_table.lookup("a")
-    assert new_schedule.symbol_table.lookup("b") is not \
-        schedule.symbol_table.lookup("b")
-
-    # Check that the children references of the copied schedule point to
-    # symbols in the new schedule's symbol table
-    assert new_schedule[0].lhs.symbol not in schedule.symbol_table.symbols
-    assert new_schedule[0].lhs.symbol in new_schedule.symbol_table.symbols
-    assert new_schedule[0].rhs.symbol not in schedule.symbol_table.symbols
-    assert new_schedule[0].rhs.symbol in new_schedule.symbol_table.symbols
-
-
-def test_schedule_copy_hierarchy():
-    ''' Test that the schedule copy method creates a new symbol table
-    with copied symbols and updates the children references.'''
-    parent_node = Container("module")
-    symbol_b = parent_node.symbol_table.new_symbol(
-        "b", symbol_type=DataSymbol, datatype=ArrayType(INTEGER_TYPE, [5]))
-    schedule = Routine("routine")
-    parent_node.addchild(schedule)
-    symbol_a = schedule.symbol_table.new_symbol(
-        "a", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    symbol_i = schedule.symbol_table.new_symbol(
-        "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-
-    schedule.addchild(
-        Assignment.create(Reference(symbol_a),
-                          ArrayReference.create(symbol_b,
-                                                [Reference(symbol_i)])))
-
-    new_schedule = schedule.copy()
-
-    # Check that the symbol_table has been deep copied
-    assert new_schedule.symbol_table is not schedule.symbol_table
-    assert new_schedule.symbol_table.lookup("i") is not \
-        schedule.symbol_table.lookup("i")
-    assert new_schedule.symbol_table.lookup("a") is not \
-        schedule.symbol_table.lookup("a")
-
-    # Check that 'a' and 'i' have been copies to the new symbol table.
-    assert new_schedule[0].lhs.symbol not in schedule.symbol_table.symbols
-    assert new_schedule[0].lhs.symbol in new_schedule.symbol_table.symbols
-    assert new_schedule[0].rhs.children[0].symbol not in \
-        schedule.symbol_table.symbols
-    assert new_schedule[0].rhs.children[0].symbol in \
-        new_schedule.symbol_table.symbols
-
-    # Add the "_new" suffix to all symbol in the copied schedule
-    for symbol in new_schedule.symbol_table.symbols:
-        new_schedule.symbol_table.rename_symbol(symbol, symbol.name+"_new")
-
-    # Insert the schedule back to the original container
-    parent_node.addchild(new_schedule)
-
-    # Check that the expected code is generated
-    expected = '''\
-module module
-  implicit none
-  integer, dimension(5) :: b
-
-  contains
-  subroutine routine()
-    integer :: a
-    integer :: i
-
-    a = b(i)
-
-  end subroutine routine
-  subroutine routine()
-    integer :: a_new
-    integer :: i_new
-
-    a_new = b(i_new)
-
-  end subroutine routine
-
-end module module'''
-    writer = FortranWriter()
-    assert expected in writer(parent_node)

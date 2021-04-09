@@ -1190,21 +1190,21 @@ class Node(object):
 
     @property
     def scope(self):
-        '''Schedule and Container nodes allow symbols to be scoped via an
-        attached symbol table. This property returns the closest
-        ancestor Schedule or Container node including self.
+        ''' Some nodes (e.g. Schedule and Container) allow symbols to be
+        scoped via an attached symbol table. This property returns the closest
+        ScopingNode node including self.
 
-        :returns: the closest ancestor Schedule or Container node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
+        :returns: the closest ancestor ScopingNode node.
+        :rtype: :py:class:`psyclone.psyir.node.ScopingNode`
 
-        :raises SymbolError: if there is no Schedule or Container ancestor.
+        :raises SymbolError: if there is no ScopingNode ancestor.
 
         '''
         # These imports have to be local to this method to avoid circular
         # dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Schedule, Container
-        node = self.ancestor((Container, Schedule), include_self=True)
+        from psyclone.psyir.nodes.scoping_node import ScopingNode
+        node = self.ancestor(ScopingNode, include_self=True)
         if node:
             return node
         raise SymbolError(
