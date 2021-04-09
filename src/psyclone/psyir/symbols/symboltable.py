@@ -193,7 +193,7 @@ class SymbolTable(object):
         are new (symbols added to the new symbol table will not be added in
         the original but the existing objects are still the same).
 
-        :returns: a copy of this symbol table.
+        :returns: a shallow copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
@@ -205,12 +205,35 @@ class SymbolTable(object):
         new_st._node = self.node
         return new_st
 
-    def deep_copy(self, node=None):
-        # pylint: disable=protected-access
-        new_st = SymbolTable(node)
-        new_st._symbols = copy.deepcopy(self._symbols)
-        return new_st
+    def deep_copy(self):
+        '''Create a copy of the symbol table where the top-level containers
+        are new and the contained symbols are also new copies. (e.g modifying
+        a symbol property will not affect the equivalent named symbol in
+        the original symbol table)
 
+        :returns: a deep copy of this symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # pylint: disable=protected-access
+        new_st = SymbolTable(self.node)
+
+        # Make a copy of each symbol in the symbol table
+        for symbol in self.symbols:
+            new_st.add(symbol.copy())
+
+        # Prepare the new argument list
+        new_arguments = []
+        arg_names = [arg.name for arg in self.argument_list]
+        for name in arg_names:
+            new_arguments.append(new_st.lookup(name))
+        new_st.specify_argument_list(new_arguments)
+
+        # Prepare the new tag dict
+        for tag, symbol in self._tags.items():
+            new_st._tags[tag] = new_st.lookup(symbol.name)
+
+        return new_st
 
     @staticmethod
     def _normalize(key):

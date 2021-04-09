@@ -96,7 +96,9 @@ class Schedule(Node):
         :raises NotImplementedError: Schedule copy is not supported yet.
         '''
         super(Schedule, self)._refine_copy(other)
-        self._symbol_table = other.symbol_table.deep_copy(node=self)
+        self._symbol_table = other.symbol_table.deep_copy()
+        # pylint: disable=protected-access
+        self._symbol_table._node = self  # Associate to self
 
         # Update of children references to point to the equally named
         # symbol but from the new symbol table attached to self
