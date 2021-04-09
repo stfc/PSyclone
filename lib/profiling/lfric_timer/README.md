@@ -87,7 +87,7 @@ make INF_DIR=$<path/to/LFRic/compiled/code> libpsy_lfric_timer.a
 This will pick up the module file for the LFRic timer from the specified
 directory. As can be seen from the above command, the location of the LFRic
 infrastructure code is specified using the environment variable
-``$INF_DIR``. For demonstration purposes, it defaults to the relative path
+``INF_DIR``. For demonstration purposes, it defaults to the relative path
 to location of the pared-down LFRic infrastructure located in a clone of
 PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.

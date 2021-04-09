@@ -48,7 +48,25 @@ They enable PSyclone to provide transformations that will insert callbacks
 to an external library at runtime. These callbacks allow third-party libraries
 to access data structures at specified locations in the code for different
 purposes, such as profiling, verification and extraction of argument values.
-The wrapper libraries for the supported use cases are listed below.
+The wrapper libraries for the supported use cases are listed
+[below](#structure).
+
+## Installation
+
+Wrapper libraries can be accessed from a clone of PSyclone repository
+or a PSyclone [installation](
+https://psyclone.readthedocs.io/en/stable/getting_going.html). In a
+PSyclone installation the libraries may be found in ``share/psyclone/lib``
+under your Python (or PSyclone, depending on the ``pip install`` options)
+installation, see ["Getting Going"](
+https://psyclone.readthedocs.io/en/stable/getting_going.html)
+for possible locations.
+
+If working with wrapper libraries from a PSyclone installation, it
+is advisable to copy the entire ``lib`` directory to some convenient
+location before building and using them. The provided ``Makefile``s
+support the options to specify paths to the libraries and their
+dependencies, see [below](#compilation) for more information.
 
 ## Structure
 
@@ -91,16 +109,12 @@ Contains PSyData-API-based libraries for verifying at run time that
 parameters declared as read-only in the PSyclone metadata are indeed not
 changed in a subroutine.
 
-## Installation
-
-TBD....
-
 ## Compilation
 
-As said above, every PSyData-API-based wrapper library in the relevant
-subdirectories can be compiled individually. Compilation requires a Fortran
-compiler and Gnu Make. Individual libraries have other dependencies that
-are specified in the relevant ``README.md`` documents.
+Every PSyData-API-based wrapper library in the relevant subdirectory can
+be compiled individually. Compilation requires a Fortran compiler and
+Gnu Make. Individual libraries have other dependencies that are specified
+in the relevant ``README.md`` documents.
 
 All ``Makefile``s support the variables ``F90`` and ``F90FLAGS`` to specify
 the compiler and compilation flags to use. ``F90`` defaults to the Gnu
@@ -132,7 +146,7 @@ with a different compiler.
 ### Dependencies
 
 The majority of wrapper libraries use the [``PSyData`` base class](
-#psydata-base-class) Jinja template and Python processing scripts. Their
+#psydata-base-class) Jinja templates and Python processing scripts. Their
 location is set by the configurable variable ``PSYDATA_LIB_DIR``, which
 is by default set to the relative path to the top-level `lib` directory.
 
@@ -155,6 +169,10 @@ necessary to run ``make allclean``). In addition, these wrapper libraries
 use specific Jinja templates whose default location is set to the relative
 path to the respective library directory but can also be configured with
 the variable ``LIB_TMPLT_DIR``.
+
+Some libraries require NetCDF for compilation. Installation of NetCDF is
+described in details in the [hands-on practicals documentation](
+https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples).
 
 Profiling wrapper libraries that depend on external tools (for instance,
 [``dl_timer``](./profiling/dl_timer/README.md) have specific variables that

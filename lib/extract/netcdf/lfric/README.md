@@ -95,7 +95,7 @@ LFRic infrastructure located in a clone of PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../../README.md#installation) so the exact path
-**must be specified** using the environment variable ``$INF_DIR``, e.g.
+**must be specified** using the environment variable ``INF_DIR``, e.g.
 
 ```shell
 make F90=ifort F90FLAGS="-g -check bounds" INF_DIR=<path/to/LFRic/code>

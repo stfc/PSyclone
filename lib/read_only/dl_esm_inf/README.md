@@ -82,7 +82,7 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 default to ``gfortran`` and the empty string.
 
 The location of the ``dl_esm_inf`` library is specified using the
-environment variable ``$INF_DIR``. It defaults to the relative
+environment variable ``INF_DIR``. It defaults to the relative
 path to location of the version included in PSyclone repository
 (``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``). This is
 not available in the PSyclone [installation](./../../README.md#installation)

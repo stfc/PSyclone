@@ -66,11 +66,14 @@ example. For those examples that support it, the ``compile`` target
 also requests that the generated code be compiled. The ``notebook``
 target checks the various Jupyter notebooks using ``nbconvert``.
 
-.. note:: If you have copied the ``examples`` directory to some other
-          location but still wish to use ``make`` then you will also
-          have to set the ``PSYCLONE_CONFIG`` environment variable to
-          the full path to the PSyclone configuration file, e.g.
-          ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
+.. note:: As outlined in the :ref:`Run <getting-going-run>` section, if
+          working with the examples from a PSyclone installation, it is
+          advisable to copy the whole ``examples`` directory to some
+          convenient location before running them. If you have copied the
+          ``examples`` directory but still wish to use ``make`` then you
+          will also have to set the ``PSYCLONE_CONFIG`` environment variable
+          to the full path to the PSyclone configuration file, e.g.
+          ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``.
 
 .. _examples-compilation:
 

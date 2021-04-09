@@ -79,7 +79,7 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 default to ``gfortran`` and the empty string.
 
 The location of the LFRic infrastructure library is specified using the
-environment variable ``$INF_DIR``. It defaults to the relative path to
+environment variable ``INF_DIR``. It defaults to the relative path to
 location of the pared-down LFRic infrastructure located in a clone of
 PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
