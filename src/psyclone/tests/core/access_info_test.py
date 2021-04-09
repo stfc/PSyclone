@@ -91,7 +91,7 @@ def test_variable_access_info():
     assert vai.is_read() is False
     assert vai.all_accesses == []
 
-    vai.add_access(AccessType.READ, 2, Node())
+    vai.add_access_with_location(AccessType.READ, 2, Node())
     assert str(vai) == "var_name:READ(2)"
     assert vai.is_read()
     assert vai.is_read_only()
@@ -113,14 +113,14 @@ def test_variable_access_info():
 
     # Add a READ access - now we should not be able to
     # change read to write anymore:
-    vai.add_access(AccessType.READ, 1, Node())
+    vai.add_access_with_location(AccessType.READ, 1, Node())
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
     assert "Variable 'var_name' had 2 accesses listed, "\
            "not one in change_read_to_write." in str(err.value)
 
     # And make sure the variable is not read_only if a write is added
-    vai.add_access(AccessType.WRITE, 3, Node())
+    vai.add_access_with_location(AccessType.WRITE, 3, Node())
     assert vai.is_read_only() is False
 
 
@@ -138,18 +138,18 @@ def test_variable_access_info_read_write():
     # Add a READ and WRITE access at the same location, and make sure it
     # is not reported as READWRITE access
     node = Node()
-    vai.add_access(AccessType.READ, 2, node)
+    vai.add_access_with_location(AccessType.READ, 2, node)
     assert vai[0].node == node
     assert vai[0].location == 2
-    vai.add_access(AccessType.WRITE, 2, Node())
+    vai.add_access_with_location(AccessType.WRITE, 2, Node())
     assert vai.has_read_write() is False
 
-    vai.add_access(AccessType.READWRITE, 2, Node())
+    vai.add_access_with_location(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
     vai = SingleVariableAccessInfo("var_name")
-    vai.add_access(AccessType.READWRITE, 2, Node())
+    vai.add_access_with_location(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
     assert vai.is_read()
     assert vai.is_written()

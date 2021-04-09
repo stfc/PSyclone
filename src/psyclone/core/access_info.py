@@ -112,7 +112,7 @@ class AccessInfo(object):
         '''Sets the indices for this AccessInfo instance.
 
         :param indices: List of indices used in the access.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances.
+        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances
         '''
         self._indices = indices[:]
 
@@ -215,7 +215,8 @@ class SingleVariableAccessInfo(object):
         '''
         return self._accesses
 
-    def add_access(self, access_type, location, node, indices=None):
+    def add_access_with_location(self, access_type, location, node,
+                                 indices=None):
         '''Adds access information to this variable.
 
         :param access_type: The type of access (READ, WRITE, ....)
@@ -225,9 +226,9 @@ class SingleVariableAccessInfo(object):
         :type location: int
         :param indicies: Indices used in the access (None if the variable \
             is not an array). Defaults to None
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances.
+        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances
         :param node: Node in PSyIR in which the access happens.
-        :type node: :py:class:`psyclone.psyir.nodes.Node` instance.
+        :type node: :py:class:`psyclone.psyir.nodes.Node` instance
         '''
         self._accesses.append(AccessInfo(access_type, location, node, indices))
 
@@ -366,7 +367,7 @@ class VariablesAccessInfo(dict):
         '''Adds access information for the specified variable.
 
         :param variable: PSyIR node that represents the variable.
-        :type variable: :py:class:`psyclone.core.Signature` instance.
+        :type variable: :py:class:`psyclone.core.Signature` instance
         :param access_type: The type of access (READ, WRITE, ...)
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
@@ -381,11 +382,12 @@ class VariablesAccessInfo(dict):
         sig = variable
 
         if sig in self:
-            self[sig].add_access(access_type, self._location,
-                                 node, indices)
+            self[sig].add_access_with_location(access_type, self._location,
+                                               node, indices)
         else:
             var_info = SingleVariableAccessInfo(sig)
-            var_info.add_access(access_type, self._location, node, indices)
+            var_info.add_access_with_location(access_type, self._location,
+                                              node, indices)
             self[sig] = var_info
 
     @property
@@ -425,8 +427,10 @@ class VariablesAccessInfo(dict):
                     var_info = SingleVariableAccessInfo(signature)
                     self[signature] = var_info
 
-                var_info.add_access(access_info.access_type, new_location,
-                                    access_info.node, access_info.indices)
+                var_info.add_access_with_location(access_info.access_type,
+                                                  new_location,
+                                                  access_info.node,
+                                                  access_info.indices)
         # Increase the current location of this instance by the amount of
         # locations just merged in
         self._location = self._location + max_new_location
