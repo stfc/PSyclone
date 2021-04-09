@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''Test that the expected kernel arguments, based on the kernel
 metadata, are created and declared within a symbol table using
@@ -129,7 +130,7 @@ def test_generate(var_accesses):
     if var_accesses:
         # Check that the names of variables and their intent has been
         # captured by the data dependence analysis
-        assert len(var_accesses.all_vars) == 6
+        assert len(var_accesses.all_signatures) == 6
 
         # Test all read-only variables
         for var in ["nlayers", "undf_w0", "f2", "ndf_w0", "dofmap_w0"]:
