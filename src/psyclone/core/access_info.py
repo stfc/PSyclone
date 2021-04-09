@@ -40,8 +40,6 @@
 
 from __future__ import print_function, absolute_import
 
-import six
-
 from psyclone.core.access_type import AccessType
 from psyclone.core.signature import Signature
 from psyclone.errors import InternalError
@@ -318,22 +316,20 @@ class VariablesAccessInfo(dict):
         in the string output.'''
 
         all_signatures = self.all_signatures
-        all_signatures.sort()
         output_list = []
         for signature in all_signatures:
-            var_name = str(signature)
             mode = ""
-            if self.has_read_write(var_name):
+            if self.has_read_write(signature):
                 mode = "READWRITE"
             else:
-                if self.is_read(var_name):
-                    if self.is_written(var_name):
+                if self.is_read(signature):
+                    if self.is_written(signature):
                         mode = "READ+WRITE"
                     else:
                         mode = "READ"
-                elif self.is_written(var_name):
+                elif self.is_written(signature):
                     mode = "WRITE"
-            output_list.append("{0}: {1}".format(var_name, mode))
+            output_list.append("{0}: {1}".format(str(signature), mode))
         return ", ".join(output_list)
 
     def __getitem__(self, key):
@@ -345,10 +341,8 @@ class VariablesAccessInfo(dict):
             a :py:class:`psyclone.core.access_info.Signature`, or str
         '''
 
-        if isinstance(key, (tuple, Signature)):
+        if isinstance(key, Signature):
             return dict.__getitem__(self, key)
-        if isinstance(key, six.text_type):
-            return dict.__getitem__(self, Signature(key))
 
         return dict.__getitem__(self, key)
 

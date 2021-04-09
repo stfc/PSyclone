@@ -178,9 +178,9 @@ def test_variables_access_info():
     assert set(var_accesses.all_signatures) == set([Signature("read"),
                                                     Signature("written"),
                                                     Signature("read_written")])
-    all_accesses = var_accesses["read"].all_accesses
+    all_accesses = var_accesses[Signature("read")].all_accesses
     assert all_accesses[0].node == node1
-    written_accesses = var_accesses["written"].all_accesses
+    written_accesses = var_accesses[Signature("written")].all_accesses
     assert written_accesses[0].location == 0
     assert written_accesses[1].location == 1
     # Check that the location pointer is pointing to the next statement:
