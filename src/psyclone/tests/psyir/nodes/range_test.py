@@ -40,8 +40,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import ScalarType, ArrayType, DataSymbol, \
     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE
-from psyclone.psyir.nodes import Range, Literal, Reference, Node, \
-    ArrayReference
+from psyclone.psyir.nodes import Range, Literal, Reference, ArrayReference
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.node import colored
 
@@ -70,11 +69,9 @@ def test_range_init(parser):
     assert erange.annotations == []
     assert erange.ast is None
     # When arguments are provided
-    parent = Node()
     reader = FortranStringReader("program hello\nend program hello\n")
     prog = parser(reader)
-    erange2 = Range(ast=prog, parent=parent)
-    assert erange2.parent is parent
+    erange2 = Range(ast=prog)
     assert erange2.ast is prog
     with pytest.raises(InternalError) as err:
         _ = Range(annotations=["was-where"])
@@ -83,23 +80,16 @@ def test_range_init(parser):
 
 def test_range_create():
     ''' Check that the Range.create() method behaves as intended. '''
-    parent = Node()
     start = Literal("1", INTEGER_SINGLE_TYPE)
     stop = Literal("10", INTEGER_SINGLE_TYPE)
-    # No parent and no step
+    # No step
     erange = Range.create(start, stop)
     assert erange.children[0] is start
     assert erange.children[1] is stop
-    assert erange.parent is None
-    # Parent but no step
-    erange2 = Range.create(start.copy(), stop.copy(), parent=parent)
-    assert erange2.parent is parent
-    assert erange2.children[2].value == "1"
-    # Parent and step supplied
+    assert erange.children[2].value == "1"
+    # Step supplied
     erange3 = Range.create(start.copy(), stop.copy(),
-                           Literal("5", INTEGER_SINGLE_TYPE),
-                           parent=parent)
-    assert erange3.parent is parent
+                           Literal("5", INTEGER_SINGLE_TYPE),)
     assert erange3.children[2].value == "5"
 
 
@@ -191,12 +181,12 @@ def test_range_out_of_order_setter():
             "provided." in str(excinfo.value))
     # Once start is added, setting it up again just replaces it
     erange.start = datanode1
-    erange.start = datanode1
+    erange.start = datanode1.copy()
     assert len(erange.children) == 1
     # Now Stop can be accepted
     erange.stop = datanode2
     # Once added, setting it up again just replaces it
-    erange.stop = datanode2
+    erange.stop = datanode2.copy()
     assert len(erange.children) == 2
 
     # Step before Step
@@ -209,7 +199,7 @@ def test_range_out_of_order_setter():
     erange.stop = datanode2
     erange.step = datanode3
     # Once added, setting it up again just replaces it
-    erange.step = datanode3
+    erange.step = datanode3.copy()
     assert len(erange.children) == 3
 
 

@@ -64,7 +64,7 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
         ''' Check that the call argument has the expected structure.
 
         :param call: the PSyIR invoke call to be validated.
-        :type call :py:class:`psyclone.psyir.nodes.Call`
+        :type call: :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 

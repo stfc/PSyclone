@@ -230,7 +230,10 @@ class Config(object):
             self._config_file = Config.find_file()
         from configparser import ConfigParser, MissingSectionHeaderError, \
             ParsingError
-        self._config = ConfigParser()
+        # Add a getlist method to the ConfigParser instance using the
+        # converters argument
+        self._config = ConfigParser(
+            converters={'list': lambda x: [i.strip() for i in x.split(',')]})
         try:
             self._config.read(self._config_file)
         # Check for missing section headers and general parsing errors
@@ -324,14 +327,12 @@ class Config(object):
         else:
             self._psyir_root_name = self._config['DEFAULT']['PSYIR_ROOT_NAME']
 
-        # Read the valid PSyData class prefixes:
-        try:
-            # Convert it to a list of strings:
-            self._valid_psy_data_prefixes = \
-                self._config["DEFAULT"]["VALID_PSY_DATA_PREFIXES"].split()
-        except KeyError:
+        # Read the valid PSyData class prefixes. If the keyword does
+        # not exist then return an empty list.
+        self._valid_psy_data_prefixes = \
+            self._config["DEFAULT"].getlist("VALID_PSY_DATA_PREFIXES")
+        if self._valid_psy_data_prefixes is None:
             self._valid_psy_data_prefixes = []
-
         try:
             self._ocl_devices_per_node = self._config['DEFAULT'].getint(
                 'OCL_DEVICES_PER_NODE')
@@ -708,12 +709,13 @@ class APISpecificConfig(object):
         self._access_mapping = {"read": "read", "write": "write",
                                 "readwrite": "readwrite", "inc": "inc",
                                 "sum": "sum"}
-        # Get the mapping and convert it into a dictionary. The input is in
-        # the format: key1:value1, key2=value2, ...
-        mapping = section.get("ACCESS_MAPPING")
-        if mapping:
+        # Get the mapping if one exists and convert it into a
+        # dictionary. The input is in the format: key1:value1,
+        # key2=value2, ...
+        mapping_list = section.getlist("ACCESS_MAPPING")
+        if mapping_list is not None:
             self._access_mapping = \
-                APISpecificConfig.create_dict_from_string(mapping)
+                APISpecificConfig.create_dict_from_list(mapping_list)
         # Now convert the string type ("read" etc) to AccessType
         # TODO (issue #710): Add checks for duplicate or missing access
         # key-value pairs
@@ -734,34 +736,32 @@ class APISpecificConfig(object):
                                         self._access_mapping.items()}
 
     @staticmethod
-    def create_dict_from_string(input_str):
-        '''Takes an input string in the format:
-        key1:value1, key2:value2, ...
-        and creates a dictionary with the key,value pairs.
-        Spaces are removed.
-        :param str input_str: The input string.
-        :returns: A dictionary with the key,value pairs from the input string.
-        :rtype: dict.
-        :raises ConfigurationError: if the input string contains an entry \
-                that does not have a ":".
-        '''
-        # Remove spaces and convert unicode to normal strings.
-        input_str = str(input_str.strip())
-        if not input_str:
-            # Split will otherwise return a list with '' as only element,
-            # which then raises an exception
-            return {}
+    def create_dict_from_list(input_list):
+        '''Takes a list of strings each with the format: key:value and creates
+        a dictionary with the key,value pairs. Any leading or trailing
+        white space is removed.
 
-        entries = input_str.split(",")
+        :param input_list: the input list.
+        :type input_list: list of str
+
+        :returns: a dictionary with the key,value pairs from the input \
+            list.
+        :rtype: dict.
+
+        :raises ConfigurationError: if any entry in the input list \
+                does not contain a ":".
+
+        '''
         return_dict = {}
-        for entry in entries:
+        for entry in input_list:
             try:
                 key, value = entry.split(":", 1)
             except ValueError:
                 # Raised when split does not return two elements:
                 raise ConfigurationError("Invalid format for mapping: {0}".
                                          format(entry.strip()))
-            return_dict[key.strip()] = value.strip()
+            # Remove spaces and convert unicode to normal strings in Python2
+            return_dict[str(key.strip())] = str(value.strip())
         return return_dict
 
     def get_access_mapping(self):
@@ -883,13 +883,17 @@ class DynConfig(APISpecificConfig):
                     .format(section.name, config.filename, str(err)),
                     config=self._config), err)
 
-            # Parse setting for the supported Fortran datatypes
-            self._supported_fortran_datatypes = \
-                [dtype.strip() for dtype in
-                 section["supported_fortran_datatypes"].split(",")]
+            # Parse setting for the supported Fortran datatypes. No
+            # need to check whether the keyword is found as it is
+            # mandatory (and therefore already checked).
+            self._supported_fortran_datatypes = section.getlist(
+                "supported_fortran_datatypes")
 
-            # Parse setting for default kinds (precisions)
-            all_kinds = self.create_dict_from_string(section["default_kind"])
+            # Parse setting for default kinds (precisions). No need to
+            # check whether the keyword is found as it is mandatory
+            # (and therefore already checked).
+            kind_list = section.getlist("default_kind")
+            all_kinds = self.create_dict_from_list(kind_list)
             # Set default kinds (precisions) from config file
             # Check for valid datatypes (filter to remove empty values)
             datatypes = set(filter(None, all_kinds.keys()))
@@ -1074,7 +1078,7 @@ class GOceanConfig(APISpecificConfig):
                 # First the name, then the Fortran code to access the property,
                 # followed by the type ("array" or "scalar") and then the
                 # intrinsic type ("integer" or "real")
-                all_props = self.create_dict_from_string(section[key])
+                all_props = self.create_dict_from_list(section.getlist(key))
                 for grid_property in all_props:
                     try:
                         fortran, variable_type, intrinsic_type = \
@@ -1210,7 +1214,7 @@ class NemoConfig(APISpecificConfig):
             # Handle the definition of variables
             if key[:8] == "mapping-":
                 loop_type = key[8:]
-                data = self.create_dict_from_string(section[key])
+                data = self.create_dict_from_list(section.getlist(key))
                 # Make sure the required keys exist:
                 for subkey in ["var", "start", "stop"]:
                     if subkey not in data:
@@ -1235,8 +1239,7 @@ class NemoConfig(APISpecificConfig):
                 self._loop_type_data[loop_type] = data
 
             elif key == "index-order":
-                self._index_order = [loop.strip() for
-                                     loop in section[key].split(",")]
+                self._index_order = section.getlist(key)
 
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
