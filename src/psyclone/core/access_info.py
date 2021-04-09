@@ -332,20 +332,6 @@ class VariablesAccessInfo(dict):
             output_list.append("{0}: {1}".format(str(signature), mode))
         return ", ".join(output_list)
 
-    def __getitem__(self, key):
-        '''Dictionary-like access. But 'key' can be of
-        different types and will be mapped to be a Signature
-        instance.
-        :param key: the key to look up.
-        :type key: can be a :py:class:`psyclone.psyir.nodes.Reference`, \
-            a :py:class:`psyclone.core.access_info.Signature`, or str
-        '''
-
-        if isinstance(key, Signature):
-            return dict.__getitem__(self, key)
-
-        return dict.__getitem__(self, key)
-
     @property
     def location(self):
         '''Returns the current location of this instance, which is
@@ -375,7 +361,8 @@ class VariablesAccessInfo(dict):
 
         '''
         if not isinstance(variable, Signature):
-            raise InternalError("Got {0} {1}".format(variable, type(variable)))
+            raise InternalError("Got '{0}' of type {1}, expected Signature."
+                                .format(variable, type(variable)))
         sig = variable
 
         if sig in self:
