@@ -276,10 +276,10 @@ class KernCallArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`pclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariableAccessInfo instance to store \
-            the information about variable accesses.
+        :param var_accesses: optional SingleSingleVariableAccessInfo instance \
+            to store the information about variable accesses.
         :type var_accesses: \
-            :py:class:1psyclone.core.access_info.VariableAccessInfo`
+            :py:class:1psyclone.core.access_info.SingleVariableAccessInfo`
 
         '''
         # The maximum branch extent is not specified in the metadata so pass

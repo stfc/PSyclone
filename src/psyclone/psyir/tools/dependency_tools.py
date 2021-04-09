@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -148,7 +148,7 @@ class DependencyTools(object):
         :param str loop_variable: name of the variable that is parallelised.
         :param var_info: access information for this variable.
         :type var_info: \
-            :py:class:`psyclone.core.access_info.VariableAccessInfo`
+            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
 
         :return: whether the variable can be used in parallel.
         :rtype: bool

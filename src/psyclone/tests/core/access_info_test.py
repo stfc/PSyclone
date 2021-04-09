@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,8 @@
 from __future__ import absolute_import
 import pytest
 
-from psyclone.core.access_info import AccessInfo, Signature, \
-    VariableAccessInfo, VariablesAccessInfo
+from psyclone.core import AccessInfo, Signature, SingleVariableAccessInfo, \
+    VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node
@@ -84,7 +84,7 @@ def test_variable_access_info():
     of VariableInfo instances for one variable
     '''
 
-    vai = VariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo("var_name")
     assert vai.var_name == "var_name"
     assert str(vai) == "var_name:"
     assert vai.is_written() is False
@@ -132,7 +132,7 @@ def test_variable_access_info_read_write():
     used in subroutine calls (depending on kernel metadata)
     '''
 
-    vai = VariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo("var_name")
     assert vai.has_read_write() is False
 
     # Add a READ and WRITE access at the same location, and make sure it
@@ -148,7 +148,7 @@ def test_variable_access_info_read_write():
     assert vai.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
-    vai = VariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo("var_name")
     vai.add_access(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
     assert vai.is_read()

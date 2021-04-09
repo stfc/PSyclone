@@ -408,11 +408,11 @@ keep track of which access information is stored in a `VariablesAccessInfo`
 instance.
 
 For each variable used an instance of
-`psyclone.core.access_info.VariableAccessInfo` is created, which collects
+`psyclone.core.access_info.SingleVariableAccessInfo` is created, which collects
 all accesses for that variable using `psyclone.config.access_info.AccessInfo`
 instances:
 
-.. autoclass:: psyclone.core.access_info.VariableAccessInfo
+.. autoclass:: psyclone.core.access_info.SingleVariableAccessInfo
     :members:
 
 .. autoclass:: psyclone.core.access_info.AccessInfo

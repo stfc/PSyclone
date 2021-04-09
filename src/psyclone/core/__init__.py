@@ -36,7 +36,7 @@
 '''Core package module.'''
 
 from psyclone.core.signature import Signature
-from psyclone.core.access_info import AccessInfo, VariableAccessInfo, \
+from psyclone.core.access_info import AccessInfo, SingleVariableAccessInfo, \
     VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 
@@ -44,8 +44,8 @@ from psyclone.core.access_type import AccessType
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
-        'Signature',
         'AccessInfo',
         'AccessType',
-        'VariableAccessInfo',
+        'Signature',
+        'SingleVariableAccessInfo',
         'VariablesAccessInfo']
