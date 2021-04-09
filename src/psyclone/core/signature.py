@@ -38,6 +38,8 @@
 
 from __future__ import print_function, absolute_import
 
+import six
+
 from psyclone.errors import InternalError
 
 
@@ -58,6 +60,9 @@ class Signature:
     def __init__(self, variable):
         if isinstance(variable, str):
             self._signature = (variable,)
+        elif isinstance(variable, six.text_type):
+            # for python2 unicode support
+            self._signature = (str(variable),)
         elif isinstance(variable, tuple):
             self._signature = variable
         else:

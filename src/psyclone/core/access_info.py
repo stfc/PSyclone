@@ -40,6 +40,8 @@
 
 from __future__ import print_function, absolute_import
 
+import six
+
 from psyclone.core.access_type import AccessType
 from psyclone.core.signature import Signature
 from psyclone.errors import InternalError
@@ -345,7 +347,7 @@ class VariablesAccessInfo(dict):
 
         if isinstance(key, (tuple, Signature)):
             return dict.__getitem__(self, key)
-        if isinstance(key, str):
+        if isinstance(key, six.text_type):
             return dict.__getitem__(self, Signature(key))
 
         return dict.__getitem__(self, key)
