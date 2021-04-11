@@ -51,6 +51,8 @@ class Call(Statement):
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
+    :raises TypeError: if the routine argument is not a RoutineSymbol.
+
     '''
     # Textual description of the node.
     _children_valid_format = "[DataNode]*"

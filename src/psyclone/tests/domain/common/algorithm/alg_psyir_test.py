@@ -40,13 +40,43 @@ Algorithm PSyIR.
 from __future__ import absolute_import
 import pytest
 
-from psyclone.psyir.nodes import Reference, Node
+from fparser.two.parser import ParserFactory
+from fparser.common.readfortran import FortranStringReader
+
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
+    BinaryOperation
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
-    StructureType, Symbol
+    StructureType, Symbol, ContainerSymbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.errors import GenerationError
+from psyclone.domain.common.transformations import AlgTrans
+
+
+def create_alg_psyir(code):
+    '''Utility to create a PSyclone Algorithm PSyIR tree from Fortran
+    code.
+
+    :param str code: Fortran algorithm code encoded as a string.
+
+    :returns: PSyclone Algorithm PSyIR tree representing the Fortran \
+        code.
+    :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    fortran_reader = FortranStringReader(code)
+    f2008_parser = ParserFactory().create(std="f2008")
+    parse_tree = f2008_parser(fortran_reader)
+
+    psyir_reader = Fparser2Reader()
+    psyir = psyir_reader.generate_psyir(parse_tree)
+
+    alg_trans = AlgTrans()
+    alg_trans.apply(psyir)
+
+    return psyir
 
 
 def test_algorithminvokecall():
@@ -58,20 +88,204 @@ def test_algorithminvokecall():
     call = AlgorithmInvokeCall(routine)
     assert call._text_name == "AlgorithmInvokeCall"
     assert call._colour == "green"
+    assert call._routine_symbol is None
+    assert call._container_symbol is None
 
 
-def test_algorithminvokecall_invalid_arg():
-    '''Check that the create method of an AlgorithmInvokeCall raises the
-    expected exception if its supplied children are not the expected
-    type (tests _validate_child method and _children_valid_format
-    variable).
+def test_createlanguagelevelsymbols_error():
+    '''Check that the create_language_level_symbols method in
+    AlgorithmInvokeCall raises the expected exceptions if the index
+    argument is invalid.
 
     '''
-    routine = RoutineSymbol("symbol")
+    routine = RoutineSymbol("hello")
+    invoke = AlgorithmInvokeCall(routine)
+    with pytest.raises(TypeError) as info:
+        invoke.create_language_level_symbols("error")
+    assert ("AlgorithmInvokeCall index argument should be an int but found "
+            "'str'." in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        invoke.create_language_level_symbols(-1)
+    assert ("AlgorithmInvokeCall index argument should be a non-negative "
+            "integer but found -1." in str(info.value))
+
+
+def test_createlanguagelevelsymbols():
+    '''Check that the create_language_level_symbols method behaves in the
+    expected way, i.e. creates a routine_symbol and a
+    container_symbol.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1\n"
+        "  call invoke(kern(field1))\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0]
+    assert isinstance(invoke, AlgorithmInvokeCall)
+    assert invoke._routine_symbol is None
+    assert invoke._container_symbol is None
+
+    invoke.create_language_level_symbols(0)
+
+    assert isinstance(invoke._routine_symbol, RoutineSymbol)
+    assert invoke._routine_symbol.name == "invoke_0_kern"
+    assert isinstance(invoke._container_symbol, ContainerSymbol)
+    assert invoke._container_symbol.name == "invoke_0_kern_mod"
+
+
+def test_lowertolanguagelevel_error():
+    '''Check that the lower_to_language_level method raises the expected
+    exception when the create_language_level_symbols method has not
+    been called and when an unexpected argument is found.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern(field*1.0))\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0]
+
     with pytest.raises(GenerationError) as info:
-        _ = AlgorithmInvokeCall.create(routine, ["hello"])
-    assert("Item 'str' can't be child 0 of 'AlgorithmInvokeCall'. The valid "
-           "format is: '[KernelFunctor]*'." in str(info.value))
+        invoke.lower_to_language_level()
+    assert ("The 'create_language_level_symbols()' method must be called "
+            "before calling 'lower_to_language_level()'." in str(info.value))
+
+    invoke.create_language_level_symbols(0)
+
+    with pytest.raises(GenerationError) as info:
+        invoke.lower_to_language_level()
+    assert ("Expected Algorithm-layer kernel arguments to be a literal, "
+            "reference or array reference, but found 'BinaryOperation'."
+            in str(info.value))
+
+
+@pytest.mark.xfail(reason="Issue #753: expression comparisons need improving")
+def test_lowertolanguagelevel_expr():
+    '''Check that the lower_to_language_level method deals correctly with
+    simple associative expresssions, i.e. i+1 is the same as 1+i.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field(10), field2(10)\n"
+        "  integer :: i\n"
+        "  call invoke(kern(field(i+1), field(1+i)))\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0]
+    invoke.create_language_level_symbols(0)
+    invoke.lower_to_language_level()
+    assert len(psyir.children[0].children) == 1
+
+
+def test_lowertolanguagelevel_single():
+    '''Check that the lower_to_language_level method works as expected
+    when it has a single kernel with multiple fields of the same name.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use precision_mod, only : r_def\n"
+        "  use field_mod, only : field_type\n"
+        "  integer :: i,j\n"
+        "  type(field_type) :: field1, field2(10), field3(10)\n"
+        "  call invoke(kern1(field1, field1, field1(i), field1( j )))\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0]
+
+    assert isinstance(invoke, AlgorithmInvokeCall)
+    assert len(psyir.walk(AlgorithmInvokeCall)) == 1
+    assert len(psyir.walk(KernelFunctor)) == 1
+
+    invoke.create_language_level_symbols(0)
+    invoke.lower_to_language_level()
+
+    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
+    assert len(psyir.walk(KernelFunctor)) == 0
+    call = psyir.children[0]
+    assert call.routine.name == "invoke_0_kern1"
+    assert call.routine.is_global
+    assert call.routine.interface.container_symbol.name == "invoke_0_kern1_mod"
+    args = call.children
+    assert len(args) == 3
+    assert isinstance(args[0], Reference)
+    assert args[0].symbol.name == "field1"
+    assert isinstance(args[1], ArrayReference)
+    assert args[1].symbol.name == "field1"
+    assert len(args[1].children) == 1
+    assert args[1].children[0].symbol.name == "i"
+    assert isinstance(args[2], ArrayReference)
+    assert args[2].symbol.name == "field1"
+    assert len(args[2].children) == 1
+    assert args[2].children[0].symbol.name == "j"
+
+
+def test_lowertolanguagelevel_multi():
+    '''Check that the lower_to_language_level method works as expected
+    when it has multiple kernels with fields of the same name.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use precision_mod, only : r_def\n"
+        "  use field_mod, only : field_type\n"
+        "  integer :: i,j\n"
+        "  type(field_type) :: field1, field2(10), field3(10)\n"
+        "  call invoke(kern1(field1), kern2(field1), kern3(field1(i)), &\n"
+        "              kern1(field1(I)), kern2(field1( j )), &\n"
+        "              kern3(field1(j+1)), kern1(1.0_r_def))\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0]
+
+    assert isinstance(invoke, AlgorithmInvokeCall)
+    assert len(psyir.walk(AlgorithmInvokeCall)) == 1
+    assert len(psyir.walk(KernelFunctor)) == 7
+
+    invoke.create_language_level_symbols(0)
+    invoke.lower_to_language_level()
+
+    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
+    assert len(psyir.walk(KernelFunctor)) == 0
+    call = psyir.children[0]
+    assert call.routine.name == "invoke_0"
+    assert call.routine.is_global
+    assert call.routine.interface.container_symbol.name == "invoke_0_mod"
+    args = call.children
+    assert len(args) == 4
+    assert isinstance(args[0], Reference)
+    assert args[0].symbol.name == "field1"
+    assert isinstance(args[1], ArrayReference)
+    assert args[1].symbol.name == "field1"
+    assert len(args[1].children) == 1
+    assert args[1].children[0].symbol.name == "i"
+    assert isinstance(args[2], ArrayReference)
+    assert args[2].symbol.name == "field1"
+    assert len(args[2].children) == 1
+    assert args[2].children[0].symbol.name == "j"
+    assert isinstance(args[3], ArrayReference)
+    assert args[3].symbol.name == "field1"
+    assert len(args[3].children) == 1
+    assert isinstance(args[3].children[0], BinaryOperation)
 
 
 def test_kernelfunctor():

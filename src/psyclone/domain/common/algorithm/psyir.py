@@ -36,17 +36,30 @@
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
-from psyclone.psyir.nodes import Call, Reference, DataNode
-from psyclone.psyir.symbols import TypeSymbol
+from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
+    ArrayReference
+from psyclone.psyir.symbols import TypeSymbol, ContainerSymbol, \
+    GlobalInterface, RoutineSymbol
 from psyclone.errors import GenerationError
 
 
 class AlgorithmInvokeCall(Call):
-    '''An invoke call in a PSyclone Algorithm layer.'''
+    '''An invoke call in a PSyclone Algorithm layer.
 
+    :param routine: the routine that this call calls.
+    :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+    :param parent: parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
     _children_valid_format = "[KernelFunctor]*"
     _text_name = "AlgorithmInvokeCall"
     _colour = "green"
+
+    def __init__(self, routine, parent=None):
+        super(AlgorithmInvokeCall, self).__init__(routine, parent=parent)
+        self._routine_symbol = None
+        self._container_symbol = None
 
     @staticmethod
     def _validate_child(position, child):
@@ -60,6 +73,81 @@ class AlgorithmInvokeCall(Call):
 
         '''
         return isinstance(child, KernelFunctor)
+
+    def create_language_level_symbols(self, index):
+        '''Creates subroutine and module symbols whose names are based on the
+        position of this node (compared to other nodes of the same
+        type) in the PSyIR tree.
+
+        :param int index: the position of this invoke call relative to \
+            other invokes in the algorithm layer.
+
+        :raises TypeError: if the index argument is not an integer.
+        :raises ValueError: if the index argument is negative.
+
+        '''
+        if not isinstance(index, int):
+            raise TypeError(
+                "AlgorithmInvokeCall index argument should be an int but "
+                "found '{0}'.".format(type(index).__name__))
+        if index < 0:
+            raise ValueError(
+                "AlgorithmInvokeCall index argument should be a non-negative "
+                "integer but found {0}.".format(index))
+
+        symbol_table = self.scope.symbol_table
+
+        subroutine_root_name = "invoke_{0}".format(index)
+        if len(self.children) == 1:
+            # Add the name of the kernel if there is only one call
+            subroutine_root_name += "_" + self.children[0].name
+        subroutine_name = symbol_table.next_available_name(
+            root_name=subroutine_root_name)
+
+        module_root_name = "{0}_mod".format(subroutine_name)
+        module_name = symbol_table.next_available_name(
+            root_name=module_root_name)
+
+        self._container_symbol = ContainerSymbol(module_name)
+        interface = GlobalInterface(self._container_symbol)
+        self._routine_symbol = RoutineSymbol(
+            subroutine_name, interface=interface)
+
+    def lower_to_language_level(self):
+        '''Transform this node and its children into an appropriate Call
+        node.
+
+        :raises GenerationError: if the create_language_level_symbols \
+            method has not been called.
+
+        '''
+        if not self._container_symbol or not self._routine_symbol:
+            raise GenerationError(
+                "The 'create_language_level_symbols()' method must be called "
+                "before calling 'lower_to_language_level()'.")
+        arguments = []
+        arguments_str = []
+        for kern in self.children:
+            for arg in kern.children:
+                if isinstance(arg, Literal):
+                    # Literals are not passed by argument.
+                    pass
+                elif isinstance(arg, (Reference, ArrayReference)):
+                    # TODO #753 use a better check for equivalence (math_equal)
+                    if str(arg).lower() not in arguments_str:
+                        arguments_str.append(str(arg).lower())
+                        arguments.append(arg.copy())
+                else:
+                    raise GenerationError(
+                        "Expected Algorithm-layer kernel arguments to be "
+                        "a literal, reference or array reference, but "
+                        "found '{0}'.".format(type(arg).__name__))
+
+        symbol_table = self.scope.symbol_table
+        symbol_table.add(self._container_symbol)
+        symbol_table.add(self._routine_symbol)
+        call = Call.create(self._routine_symbol, arguments)
+        self.replace_with(call)
 
 
 class KernelFunctor(Reference):
