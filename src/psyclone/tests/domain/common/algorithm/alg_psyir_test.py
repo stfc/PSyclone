@@ -180,7 +180,7 @@ def test_lowertolanguagelevel_expr():
         "subroutine alg1()\n"
         "  use kern_mod\n"
         "  use field_mod, only : field_type\n"
-        "  type(field_type) :: field(10), field2(10)\n"
+        "  type(field_type) :: field(10)\n"
         "  integer :: i\n"
         "  call invoke(kern(field(i+1), field(1+i)))\n"
         "end subroutine alg1\n")
@@ -200,11 +200,10 @@ def test_lowertolanguagelevel_single():
     code = (
         "subroutine alg1()\n"
         "  use kern_mod\n"
-        "  use precision_mod, only : r_def\n"
         "  use field_mod, only : field_type\n"
         "  integer :: i,j\n"
-        "  type(field_type) :: field1, field2(10), field3(10)\n"
-        "  call invoke(kern1(field1, field1, field1(i), field1( j )))\n"
+        "  type(field_type) :: field1, field2(10)\n"
+        "  call invoke(kern1(field1, field1, field2(i), field2( j )))\n"
         "end subroutine alg1\n")
 
     psyir = create_alg_psyir(code)
@@ -228,11 +227,11 @@ def test_lowertolanguagelevel_single():
     assert isinstance(args[0], Reference)
     assert args[0].symbol.name == "field1"
     assert isinstance(args[1], ArrayReference)
-    assert args[1].symbol.name == "field1"
+    assert args[1].symbol.name == "field2"
     assert len(args[1].children) == 1
     assert args[1].children[0].symbol.name == "i"
     assert isinstance(args[2], ArrayReference)
-    assert args[2].symbol.name == "field1"
+    assert args[2].symbol.name == "field2"
     assert len(args[2].children) == 1
     assert args[2].children[0].symbol.name == "j"
 
@@ -248,10 +247,10 @@ def test_lowertolanguagelevel_multi():
         "  use precision_mod, only : r_def\n"
         "  use field_mod, only : field_type\n"
         "  integer :: i,j\n"
-        "  type(field_type) :: field1, field2(10), field3(10)\n"
-        "  call invoke(kern1(field1), kern2(field1), kern3(field1(i)), &\n"
-        "              kern1(field1(I)), kern2(field1( j )), &\n"
-        "              kern3(field1(j+1)), kern1(1.0_r_def))\n"
+        "  type(field_type) :: field1, field2(10)\n"
+        "  call invoke(kern1(field1), kern2(field1), kern3(field2(i)), &\n"
+        "              kern1(field2(I)), kern2(field2( j )), &\n"
+        "              kern3(field2(j+1)), kern1(1.0_r_def))\n"
         "end subroutine alg1\n")
 
     psyir = create_alg_psyir(code)
@@ -275,15 +274,15 @@ def test_lowertolanguagelevel_multi():
     assert isinstance(args[0], Reference)
     assert args[0].symbol.name == "field1"
     assert isinstance(args[1], ArrayReference)
-    assert args[1].symbol.name == "field1"
+    assert args[1].symbol.name == "field2"
     assert len(args[1].children) == 1
     assert args[1].children[0].symbol.name == "i"
     assert isinstance(args[2], ArrayReference)
-    assert args[2].symbol.name == "field1"
+    assert args[2].symbol.name == "field2"
     assert len(args[2].children) == 1
     assert args[2].children[0].symbol.name == "j"
     assert isinstance(args[3], ArrayReference)
-    assert args[3].symbol.name == "field1"
+    assert args[3].symbol.name == "field2"
     assert len(args[3].children) == 1
     assert isinstance(args[3].children[0], BinaryOperation)
 
