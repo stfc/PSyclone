@@ -1543,17 +1543,21 @@ class GOKern(CodedKern):
                 try:
                     init_buf = symtab.lookup_with_tag("ocl_init_buffer_func")
                 except KeyError:
-                    # If the subroutines doe not exist, it needs to be
+                    # If the subroutines does not exist, it needs to be
                     # generated first.
                     module = parent
                     while module.parent:
                         module = module.parent
+                    # Create the f2pygen AST for the routine that initialises
+                    # an OpenCL buffer on the device.
                     self.gen_ocl_initialise_buffer(module)
                     init_buf = symtab.lookup_with_tag("ocl_init_buffer_func")
 
                 # Insert call to init_buffer routine
                 field = symtab.lookup(arg.name)
                 call = Call.create(init_buf, [Reference(field)])
+                # TODO #1134: Currently we convert back the PSyIR to f2pygen
+                # but when using the PSyIR backend this will be removed.
                 parent.add(PSyIRGen(parent, call))
 
                 # Lookup for the OpenCL memory object for this field and make
@@ -1564,6 +1568,8 @@ class GOKern(CodedKern):
                 except KeyError:
                     symtab.new_symbol(
                         name, tag=name, symbol_type=DataSymbol,
+                        # TODO #1134: We could import the kind symbols from a
+                        # iso_c_binding global container.
                         datatype=UnknownFortranType("INTEGER(KIND=c_intptr_t)"
                                                     " :: " + name))
                     parent.add(DeclGen(parent, datatype="integer",
@@ -1585,6 +1591,8 @@ class GOKern(CodedKern):
                 # Insert grid initialisation call
                 field = symtab.lookup(self._arguments.find_grid_access().name)
                 call = Call.create(init_buf, [Reference(field)])
+                # TODO #1134: Currently we convert back the PSyIR to f2pygen
+                # but when using the PSyIR backend this will be removed.
                 parent.add(PSyIRGen(parent, call))
 
     def gen_ocl_buffers_initial_write(self, parent):
@@ -1630,8 +1638,8 @@ class GOKern(CodedKern):
 
         :param parent: parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        '''
 
+        '''
         # Retrieve symbol table and kernel name
         symtab = self.root.symbol_table
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
@@ -1684,7 +1692,7 @@ class GOKern(CodedKern):
                 assig = Assignment.create(dest.copy(), bop)
                 parent.add(PSyIRGen(parent, assig))
 
-                arguments.append(arg.name + "_cl_mem")
+                arguments.append(symbol.name)
             elif arg.argument_type == "grid_property":
                 garg = self._arguments.find_grid_access()
                 if arg.is_scalar:
@@ -1701,9 +1709,9 @@ class GOKern(CodedKern):
 
     def gen_ocl_write_grid_buffers(self, f2pygen_module):
         '''
-        Insert a f2pygen subroutine to initialise the OpenCL buffer in a
-        OpenCL device using FortCL in the given f2pygen module and return
-        its name.
+        Insert an f2pygen subroutine in the supplied module to write the values
+        of dl_esm_inf grid property buffers into the OpenCL device using
+        FortCL. Returns the name of the inserted subroutine.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
@@ -1772,9 +1780,9 @@ class GOKern(CodedKern):
 
     def gen_ocl_initialise_buffer(self, f2pygen_module):
         '''
-        Insert a f2pygen subroutine to initialise the OpenCL buffer in a
-        OpenCL device using FortCL in the given f2pygen module and return
-        its name.
+        Insert an f2pygen subroutine in the supplied module to initialise the
+        OpenCL buffer in an OpenCL device using FortCL. The name of the
+        subroutine is returned.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
@@ -1824,7 +1832,8 @@ class GOKern(CodedKern):
             IF (.NOT. field%data_on_device) THEN
                 size_in_bytes = int({0}*{1}, 8) * &
                                     c_sizeof({2}(1,1))
-                ! Create buffer on device
+                ! Create buffer on device, we store it without type information
+                ! on the dl_esm_inf pointer (transfer/static_cast to void*)
                 field%device_ptr = transfer( &
                     create_rw_buffer(size_in_bytes), &
                     field%device_ptr)
@@ -1851,9 +1860,9 @@ class GOKern(CodedKern):
 
     def gen_ocl_initialise_grid_buffers(self, f2pygen_module):
         '''
-        Insert a f2pygen subroutine to initialise the OpenCL grid buffers in
-        the OpenCL device using FortCL in the given f2pygen module and return
-        its name.
+        Insert an f2pygen subroutine in the supplied module to initialise the
+        dl_esm_inf grid property buffers in the OpenCL device using FortCL.
+        Returns the name of the inserted subroutine.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
@@ -1922,9 +1931,9 @@ class GOKern(CodedKern):
 
     def gen_ocl_read_from_device_function(self, f2pygen_module):
         '''
-        Insert a f2pygen subroutine to retrieve the data back from an
-        OpenCL device using FortCL in the given f2pygen module and return
-        its name.
+        Insert an f2pygen subroutine in the given f2pygen module to retrieve
+        the data back from an OpenCL device using FortCL. Return the inserted
+        subroutine name.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
@@ -2006,8 +2015,8 @@ class GOKern(CodedKern):
 
     def gen_ocl_write_to_device_function(self, f2pygen_module):
         '''
-        Insert a f2pygen subroutine to write data to an OpenCL device using
-        FortCL in the given f2pygen module and return its name.
+        Insert an f2pygen subroutine in the given f2pygen module to write data
+        to an OpenCL device using FortCL. Return the inserted subroutine name.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
