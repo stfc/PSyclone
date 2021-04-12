@@ -1080,7 +1080,6 @@ class Fparser2Reader(object):
                     break
                 current = current.parent
         if container:
-            new_schedule.parent = container
             container.children.append(new_schedule)
 
         # Set pointer from schedule into fparser2 tree
@@ -2221,7 +2220,7 @@ class Fparser2Reader(object):
             # Default loop increment is 1. Use the type of the start
             # or step nodes once #685 is complete. For the moment use
             # the default precision.
-            default_step = Literal("1", default_integer_type(), parent=loop)
+            default_step = Literal("1", default_integer_type())
             loop.addchild(default_step)
 
         # Create Loop body Schedule
@@ -2415,10 +2414,20 @@ class Fparser2Reader(object):
             clause = node.content[start_idx]
             case = clause.items[0]
 
-            # We add currentparent temporally as the parent to aid in symbol
-            # table resolutions, but it may not be the right parent and it may
-            # have to be modified if it's added to a different parent node.
-            ifblock = IfBlock(parent=currentparent, annotations=['was_case'])
+            # If rootif is already initialised we chain the new case in the
+            # last else branch, otherwise we start a new IfBlock
+            if rootif:
+                elsebody = Schedule(parent=currentparent)
+                currentparent.addchild(elsebody)
+                ifblock = IfBlock(annotations=['was_case'])
+                elsebody.addchild(ifblock)
+                elsebody.ast = node.content[start_idx + 1]
+                elsebody.ast_end = node.content[end_idx - 1]
+            else:
+                ifblock = IfBlock(parent=currentparent,
+                                  annotations=['was_case'])
+                rootif = ifblock
+
             if idx == 0:
                 # If this is the first IfBlock then have it point to
                 # the original SELECT CASE in the parse tree
@@ -2442,21 +2451,6 @@ class Fparser2Reader(object):
             ifblock.addchild(ifbody)
             ifbody.ast = node.content[start_idx + 1]
             ifbody.ast_end = node.content[end_idx - 1]
-
-            if rootif:
-                # If rootif is already initialised we chain the new
-                # case in the last else branch.
-                elsebody = Schedule(parent=currentparent)
-                currentparent.addchild(elsebody)
-                # The parent=currentparent of the IfBlock constructor was
-                # wrong, but it's needed for symbol table resolutions.
-                ifblock.parent = None
-                elsebody.addchild(ifblock)
-                ifblock.parent = elsebody
-                elsebody.ast = node.content[start_idx + 1]
-                elsebody.ast_end = node.content[end_idx - 1]
-            else:
-                rootif = ifblock
 
             currentparent = ifblock
 
@@ -2674,7 +2668,7 @@ class Fparser2Reader(object):
                     symbol = _find_or_create_imported_symbol(
                         array, loop_vars[range_idx],
                         symbol_type=DataSymbol, datatype=DeferredType())
-                    array.children[idx] = Reference(symbol, parent=array)
+                    array.children[idx] = Reference(symbol)
                     range_idx += 1
 
     def _where_construct_handler(self, node, parent):
@@ -2785,7 +2779,7 @@ class Fparser2Reader(object):
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
             # Add loop lower bound
-            loop.addchild(Literal("1", integer_type, parent=loop))
+            loop.addchild(Literal("1", integer_type))
             # Add loop upper bound - we use the SIZE operator to query the
             # extent of the current array dimension
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
@@ -2795,11 +2789,11 @@ class Fparser2Reader(object):
                 size_node, arrays[0].name, symbol_type=DataSymbol,
                 datatype=DeferredType())
 
-            size_node.addchild(Reference(symbol, parent=size_node))
+            size_node.addchild(Reference(symbol))
             size_node.addchild(Literal(str(idx), integer_type,
                                        parent=size_node))
             # Add loop increment
-            loop.addchild(Literal("1", integer_type, parent=loop))
+            loop.addchild(Literal("1", integer_type))
             # Fourth child of a Loop must be a Schedule
             sched = Schedule(parent=loop)
             loop.addchild(sched)
@@ -2958,7 +2952,7 @@ class Fparser2Reader(object):
             self.process_nodes(parent=fake_parent,
                                nodes=part_ref.children[1].children)
             ref = ArrayOfStructuresReference.create(
-                sym, fake_parent.pop_all_children(), members, parent=parent)
+                sym, fake_parent.pop_all_children(), members)
             return ref
 
         # Not a Part_Ref or a Name so this will result in a CodeBlock.
@@ -3239,7 +3233,6 @@ class Fparser2Reader(object):
             lbound = BinaryOperation.create(
                 BinaryOperation.Operator.LBOUND, Reference(parent.symbol),
                 Literal(dimension, integer_type))
-            lbound.parent = my_range
             my_range.children.append(lbound)
         if node.children[1]:
             self.process_nodes(parent=my_range, nodes=[node.children[1]])
@@ -3251,7 +3244,6 @@ class Fparser2Reader(object):
             ubound = BinaryOperation.create(
                 BinaryOperation.Operator.UBOUND, Reference(parent.symbol),
                 Literal(dimension, integer_type))
-            ubound.parent = my_range
             my_range.children.append(ubound)
         if node.children[2]:
             self.process_nodes(parent=my_range, nodes=[node.children[2]])
@@ -3262,7 +3254,6 @@ class Fparser2Reader(object):
             # a(...:...:) becomes a(...:...:1)
             literal = Literal("1", integer_type)
             my_range.children.append(literal)
-            literal.parent = my_range
         return my_range
 
     def _number_handler(self, node, parent):
@@ -3284,7 +3275,7 @@ class Fparser2Reader(object):
         if isinstance(node, Fortran2003.Int_Literal_Constant):
             integer_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                                       get_literal_precision(node, parent))
-            return Literal(str(node.items[0]), integer_type, parent=parent)
+            return Literal(str(node.items[0]), integer_type)
         if isinstance(node, Fortran2003.Real_Literal_Constant):
             real_type = ScalarType(ScalarType.Intrinsic.REAL,
                                    get_literal_precision(node, parent))
@@ -3298,7 +3289,7 @@ class Fparser2Reader(object):
             # format. e.g. +.3 => +0.3
             if value[0] == "." or value[0:1] in ["+.", "-."]:
                 value = value.replace(".", "0.")
-            return Literal(value, real_type, parent=parent)
+            return Literal(value, real_type)
         # Unrecognised datatype - will result in a CodeBlock
         raise NotImplementedError()
 
@@ -3318,7 +3309,7 @@ class Fparser2Reader(object):
         # pylint: disable=no-self-use
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
-        return Literal(str(node.items[0]), character_type, parent=parent)
+        return Literal(str(node.items[0]), character_type)
 
     def _bool_literal_handler(self, node, parent):
         '''
@@ -3339,9 +3330,9 @@ class Fparser2Reader(object):
                                   get_literal_precision(node, parent))
         value = str(node.items[0]).lower()
         if value == ".true.":
-            return Literal("true", boolean_type, parent=parent)
+            return Literal("true", boolean_type)
         if value == ".false.":
-            return Literal("false", boolean_type, parent=parent)
+            return Literal("false", boolean_type)
         raise GenerationError(
             "Expected to find '.true.' or '.false.' as fparser2 logical "
             "literal, but found '{0}' instead.".format(value))

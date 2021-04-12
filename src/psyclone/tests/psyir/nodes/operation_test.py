@@ -75,8 +75,8 @@ def test_binaryoperation_operator():
 def test_binaryoperation_node_str():
     ''' Check the node_str method of the Binary Operation class.'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     coloredtext = colored("BinaryOperation", BinaryOperation._colour)
@@ -88,8 +88,8 @@ def test_binaryoperation_can_be_printed():
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     assert "BinaryOperation[operator:'ADD']" in str(binary_operation)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
-    op2 = Literal("2", INTEGER_SINGLE_TYPE, parent=binary_operation)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("2", INTEGER_SINGLE_TYPE)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
@@ -204,7 +204,7 @@ def test_unaryoperation_can_be_printed():
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert "UnaryOperation[operator:'MINUS']" in str(unary_operation)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=unary_operation)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
     unary_operation.addchild(op1)
     # Check the node children are also printed
     assert ("Literal[value:'1', Scalar<INTEGER, SINGLE>]"
@@ -266,12 +266,9 @@ def test_unaryoperation_children_validation():
 def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
 
     coloredtext = colored("NaryOperation", NaryOperation._colour)
     assert coloredtext+"[operator:'MAX']" in nary_operation.node_str()
@@ -282,12 +279,9 @@ def test_naryoperation_can_be_printed():
     initialised fully)'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     assert "NaryOperation[operator:'MAX']" in str(nary_operation)
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
-    nary_operation.addchild(Literal("2", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
-    nary_operation.addchild(Literal("3", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    nary_operation.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    nary_operation.addchild(Literal("3", INTEGER_SINGLE_TYPE))
     # Check the node children are also printed
     assert ("Literal[value:'1', Scalar<INTEGER, SINGLE>]\n"
             in str(nary_operation))

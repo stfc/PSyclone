@@ -76,7 +76,6 @@ class StructureMember(Member):
         '''
         smem = StructureMember(member_name)
         smem.addchild(inner_member)
-        inner_member.parent = smem
         return smem
 
     def __str__(self):
