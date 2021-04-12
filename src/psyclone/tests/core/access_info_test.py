@@ -43,7 +43,7 @@ from psyclone.core import AccessInfo, Signature, SingleVariableAccessInfo, \
     VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Assignment, Node
 from psyclone.tests.utilities import create_schedule
 
 
@@ -305,3 +305,24 @@ def test_constructor():
     # The error message is slightly different between python 2 and 3
     # so only test for the part that is the same in both:
     assert "'int'>" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_derived_type():
+    '''This function tests the handling of derived types.
+    '''
+
+    code = '''module test
+        contains
+        subroutine tmp()
+          use my_mod, only: something
+          type(something) :: a, b, c
+          a%b = b%c/c%d%e
+          !c(i)%e(j,k) = a(i)%b(j,k)%c
+        end subroutine tmp
+        end module test'''
+    schedule = create_schedule(code, "tmp")
+    node1 = schedule[0]
+    vai1 = VariablesAccessInfo(node1)
+    assert isinstance(node1, Assignment)
+    assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"

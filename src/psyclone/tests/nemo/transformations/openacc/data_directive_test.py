@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code using the OpenACC data directive.
@@ -39,11 +40,15 @@
 '''
 
 from __future__ import print_function, absolute_import
+
 import os
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo, ACCDataDirective
+from fparser.two import Fortran2003
 from psyclone.errors import InternalError
+from psyclone.gocean1p0 import GOACCEnterDataDirective
+from psyclone.psyGen import PSyFactory, TransInfo, ACCDataDirective
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
 
@@ -134,7 +139,6 @@ def test_add_region_invalid_data_move():
 
 def test_add_region(parser):
     ''' Check that add_region works as expected. '''
-    from fparser.two import Fortran2003
     reader = FortranStringReader(EXPLICIT_DO)
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
@@ -308,9 +312,8 @@ END subroutine data_ref
     assert "!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)" in gen_code
 
 
-def test_no_data_ref_read(parser):
-    ''' Check that we reject code that reads from a derived type. This
-    limitation will be addressed in #1028. '''
+def test_data_ref_read(parser):
+    ''' Check support for reading from derived types. '''
     reader = FortranStringReader("program dtype_read\n"
                                  "use field_mod, only: fld_type\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
@@ -326,10 +329,9 @@ def test_no_data_ref_read(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
-    with pytest.raises(NotImplementedError) as err:
-        _ = str(psy.gen)
-    assert ("derived-type references on the RHS of assignments are not yet "
-            "supported" in str(err.value))
+    gen_code = str(psy.gen)
+    print(gen_code)
+    assert "COPYIN(fld,fld%data)" in gen_code
 
 
 def test_array_section():
@@ -452,7 +454,6 @@ def test_no_enter_data(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # We don't yet support ACCEnterDataTrans for the NEMO API (Issue 310)
     # so manually insert a GOACCEnterDataDirective in the Schedule.
-    from psyclone.gocean1p0 import GOACCEnterDataDirective
     # pylint: disable=abstract-class-instantiated
     directive = GOACCEnterDataDirective(children=[])
     # pylint: enable=abstract-class-instantiated

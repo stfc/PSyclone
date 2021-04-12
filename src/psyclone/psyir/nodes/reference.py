@@ -114,6 +114,13 @@ class Reference(DataNode):
             return False
         return self.name == other.name
 
+    def get_signature(self):
+        ''':returns: the Signature of this structure reference.
+        :rtype: :py:class:`psyclone.core.Signature
+
+        '''
+        return Signature(self.name)
+
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.
         it sets this variable to be read.

@@ -286,7 +286,7 @@ class DependencyTools(object):
     def can_loop_be_parallelised(self, loop, loop_variable=None,
                                  only_nested_loops=True,
                                  test_all_variables=False,
-                                 variables_to_ignore=None,
+                                 signatures_to_ignore=None,
                                  var_accesses=None):
         # pylint: disable=too-many-arguments, too-many-branches
         # pylint: disable=too-many-locals
@@ -306,9 +306,9 @@ class DependencyTools(object):
                                         otherwise it will stop after the first\
                                         variable is found that can not be\
                                         parallelised.
-        :param variables_to_ignore: list of variables for which to skip the\
+        :param signatures_to_ignore: list of signatures for which to skip the\
                                     checks on how they are accessed.
-        :type variables_to_ignore: list of str
+        :type signatures_to_ignore: list of str
         :param var_accesses: optional argument containing the variable access\
                            pattern of the loop (default: None).
         :type var_accesses: \
@@ -340,8 +340,8 @@ class DependencyTools(object):
         if not var_accesses:
             var_accesses = VariablesAccessInfo()
             loop.reference_accesses(var_accesses)
-        if not variables_to_ignore:
-            variables_to_ignore = []
+        if not signatures_to_ignore:
+            signatures_to_ignore = []
 
         # Collect all variables used as loop variable:
         loop_vars = [loop.variable.name for loop in loop.walk(Loop)]
@@ -354,7 +354,7 @@ class DependencyTools(object):
             var_name = str(signature)
             if var_name in loop_vars:
                 continue
-            if var_name in variables_to_ignore:
+            if signature in signatures_to_ignore:
                 continue
 
             var_info = var_accesses[signature]

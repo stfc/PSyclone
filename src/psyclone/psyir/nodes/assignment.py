@@ -38,8 +38,7 @@
 
 ''' This module contains the Assignment node implementation.'''
 
-import re
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
 from psyclone.parse.utils import ParseError
@@ -146,37 +145,18 @@ class Assignment(Statement):
         # is only one access to the variable!
         accesses_left = VariablesAccessInfo()
         self.lhs.reference_accesses(accesses_left)
-
         # Now change the (one) access to the assigned variable to be WRITE:
-        if isinstance(self.lhs, StructureReference):
-            # TODO #1028: Assignment to user defined type, not supported yet.
-            # Here an absolute hack to get at least some information out
-            # from the AST - though indices are just strings, which will
-            # likely cause problems later as well.
-            name = str(self.lhs.ast)
-            # A regular expression that tries to find the last parenthesis
-            # pair in the name ("a(i,j)" --> "(i,j)")
-            ind = re.search(r"\([^\(]+\)$", name)
-            if ind:
-                # Remove the index part of the name
-                name = name.replace(ind.group(0), "")
-                # The index must be added as a list
-                accesses_left.add_access(Signature(name), AccessType.WRITE,
-                                         self, [ind.group(0)])
-            else:
-                accesses_left.add_access(Signature(name), AccessType.WRITE,
-                                         self)
-        else:
-            var_info = accesses_left[Signature(self.lhs.name)]
-            try:
-                var_info.change_read_to_write()
-            except InternalError:
-                # An internal error typically indicates that the same variable
-                # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-                # supported in PSyclone.
-                raise ParseError("The variable '{0}' appears more than once "
-                                 "on the left-hand side of an assignment."
-                                 .format(self.lhs.name))
+        sig = self.lhs.get_signature()
+        var_info = accesses_left[sig]
+        try:
+            var_info.change_read_to_write()
+        except InternalError:
+            # An internal error typically indicates that the same variable
+            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+            # supported in PSyclone.
+            raise ParseError("The variable '{0}' appears more than once "
+                             "on the left-hand side of an assignment."
+                             .format(self.lhs.name))
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the

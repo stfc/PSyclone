@@ -32,12 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureReference node. '''
 
 from __future__ import absolute_import
 import six
+
+from psyclone.core import AccessType, Signature
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
@@ -225,6 +228,23 @@ class StructureReference(Reference):
                     type(self).__name__, self.children))
         return self.children[0]
 
+    def get_signature(self):
+        ''':returns: the Signature of this structure reference.
+        :rtype: :py:class:`psyclone.core.Signature
+
+        '''
+        components = [self.name]
+        current = self
+        while current.children:
+            current = current.children[0]
+            # Array members have other references as children,
+            # which are not be part of this signature, so only
+            # add actual members
+            if isinstance(current, Member):
+                components.append(current.name)
+
+        return Signature(tuple(components))
+
     def reference_accesses(self, var_accesses):
         '''
         TODO #1028 dependency analysis for structures needs to be
@@ -238,6 +258,7 @@ class StructureReference(Reference):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        var_accesses.add_access(self.get_signature(), AccessType.READ, self)
 
 
 # For AutoAPI documentation generation

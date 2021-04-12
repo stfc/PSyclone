@@ -40,9 +40,10 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.tests.utilities import get_invoke
-from psyclone.psyir.tools.dependency_tools import DependencyTools
+from psyclone.core import Signature
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.tools.dependency_tools import DependencyTools
+from psyclone.tests.utilities import get_invoke
 
 
 # -----------------------------------------------------------------------------
@@ -247,8 +248,6 @@ def test_scalar_parallelise(parser):
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="#1028 dependency analysis for structures needs "
-                   "to be implemented")
 def test_derived_type(parser):
     ''' Tests assignment to derived type variables. '''
     reader = FortranStringReader('''program test
@@ -274,41 +273,40 @@ def test_derived_type(parser):
 
     parallel = dep_tools.can_loop_be_parallelised(loops[0], "jj")
     assert not parallel
-    assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet" \
-           in dep_tools.get_all_messages()[0]
+    # TODO #1028 - arrays not yet working
+    print(dep_tools.get_all_messages())
 
     # Test that testing is stopped with the first unparallelisable statement
     parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
     assert not parallel
+    # TODO #1028 arrays not yet working
     # Test that only one message is stored, i.e. no message for the
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
-    assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet" \
-           in dep_tools.get_all_messages()[0]
+    print(dep_tools.get_all_messages())
 
     parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj",
                                                   test_all_variables=True)
     assert not parallel
     # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
-    assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet" \
-           in dep_tools.get_all_messages()[0]
-    assert "Assignment to derived type 'b % b(ji, jj)' is not supported yet" \
-           in dep_tools.get_all_messages()[1]
+    print(dep_tools.get_all_messages())
 
     # Test that variables are ignored as expected.
     parallel = dep_tools.\
-        can_loop_be_parallelised(loops[1], "jj", variables_to_ignore=["a % b"])
+        can_loop_be_parallelised(loops[1], "jj",
+                                 signatures_to_ignore=[Signature(("a", "b"))])
     assert not parallel
     assert len(dep_tools.get_all_messages()) == 1
-    assert "Assignment to derived type 'b % b(ji, jj)' is not supported yet" \
-           in dep_tools.get_all_messages()[0]
+    print(dep_tools.get_all_messages())
 
     # If both derived types are ignored, the loop should be marked
     # to be parallelisable
     parallel = dep_tools.\
         can_loop_be_parallelised(loops[1], "jj",
-                                 variables_to_ignore=["a % b", "b % b"])
+                                 signatures_to_ignore=[Signature(("a", "b")),
+                                                       Signature(("b", "b"))])
+    assert len(dep_tools.get_all_messages()) == 0
     assert parallel
 
 
