@@ -69,14 +69,14 @@
 !!             describes the required quadrature and/or evaluator properties
 !!             information;
 !!
-!!          6) `operates_on` metadata that describes the kernel updates,
-!!             e.g.\ a vertical single-cell column);
+!!          6) `operates_on` metadata that describes what the kernel updates,
+!!              e.g.\ a vertical single-cell column;
 !!
 !!          7) `procedure` metadata that specifies the name of the kernel
 !!              subroutine that the metadata describes.
 !!
-!!          `type(arg_type) :: meta_args(...)`, `operates_on`
-!!          and the `procedure` metadata are mandatory for all kernels.
+!!          `type(arg_type) :: meta_args(...)`, `operates_on` and
+!!          the `procedure` metadata are mandatory for all kernels.
 module argument_mod
 
   implicit none
