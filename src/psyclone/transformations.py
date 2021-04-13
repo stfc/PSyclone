@@ -955,7 +955,7 @@ class ColourTrans(LoopTrans):
 
         # add contents of node to colour loop
         colour_loop.loop_body.children.extend(
-                node.loop_body.pop_all_children())
+            node.loop_body.pop_all_children())
 
         # remove original loop
         node_parent.children.remove(node)
@@ -2823,8 +2823,8 @@ class ACCKernelsTrans(RegionTrans):
         # Create a directive containing the nodes in node_list and insert it.
         from psyclone.psyGen import ACCKernelsDirective
         directive = ACCKernelsDirective(
-                parent=parent, children=[node.detach() for node in node_list],
-                default_present=default_present)
+            parent=parent, children=[node.detach() for node in node_list],
+            default_present=default_present)
 
         parent.children.insert(start_index, directive)
 
@@ -2938,7 +2938,7 @@ class ACCDataTrans(RegionTrans):
         # Create a directive containing the nodes in node_list and insert it.
         from psyclone.psyGen import ACCDataDirective
         directive = ACCDataDirective(
-                parent=parent, children=[node.detach() for node in node_list])
+            parent=parent, children=[node.detach() for node in node_list])
 
         parent.children.insert(start_index, directive)
 
