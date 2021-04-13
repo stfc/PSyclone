@@ -45,11 +45,10 @@ import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import (colored, Node, ProfileNode, Loop, Literal,
+from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
                                   Assignment, Return, Reference,
                                   KernelSchedule, Schedule)
 from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
@@ -61,36 +60,9 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 def teardown_function():
     '''This function is called at the end of any test function. It disables
     any automatic profiling set. This is necessary in case of a test failure
-    to make sure any further tests will not be ran with profiling enabled.
+    to make sure any further tests will not be run with profiling enabled.
     '''
     Profiler.set_options([])
-
-
-def test_malformed_profile_node(monkeypatch):
-    ''' Check that we raise the expected error if a ProfileNode does not have
-    a single Schedule node as its child. '''
-    pnode = ProfileNode()
-    monkeypatch.setattr(pnode, "_children", [])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-    monkeypatch.setattr(pnode, "_children", [Node(), Node()])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-
-
-@pytest.mark.parametrize("value", [["a", "b"], ("a"), ("a", "b", "c"),
-                                   ("a", []), ([], "a")])
-def test_profile_node_invalid_name(value):
-    '''Test that the expected exception is raised when an invalid profile
-    name is provided to a ProfileNode.
-
-    '''
-    with pytest.raises(InternalError) as excinfo:
-        _ = ProfileNode(options={"region_name": value})
-    assert ("Error in PSyDataNode. The name must be a tuple containing "
-            "two non-empty strings." in str(excinfo.value))
 
 
 # -----------------------------------------------------------------------------
@@ -182,19 +154,6 @@ def test_profile_errors2():
         Profiler.set_options(["invalid"])
     assert ("options must be one of 'invokes', 'kernels'"
             in str(gen_error.value))
-
-
-# -----------------------------------------------------------------------------
-def test_c_code_creation():
-    '''Tests the handling when trying to create C code, which is not supported
-    at this stage.
-    '''
-
-    profile_node = ProfileNode()
-    with pytest.raises(NotImplementedError) as excinfo:
-        profile_node.gen_c_code()
-    assert "Generation of C code is not supported for profiling" \
-        in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
@@ -865,7 +824,7 @@ def test_auto_invoke_no_return(capsys):
 
     # Create Schedule with Return in the middle.
     kschedule = KernelSchedule.create(
-        "work2", symbol_table, [assign1, Return(), assign2])
+        "work2", symbol_table, [assign1.copy(), Return(), assign2.copy()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
@@ -875,7 +834,8 @@ def test_auto_invoke_no_return(capsys):
 
     # Create Schedule with a Return at the end as well as in the middle.
     kschedule = KernelSchedule.create(
-        "work3", symbol_table, [assign1, Return(), assign2, Return()])
+        "work3", symbol_table, [assign1.copy(), Return(), assign2.copy(),
+                                Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)

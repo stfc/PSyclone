@@ -175,7 +175,6 @@ class UnaryOperation(Operation):
 
         unary_op = UnaryOperation(oper)
         unary_op.children = [child]
-        child.parent = unary_op
         return unary_op
 
 
@@ -330,8 +329,6 @@ class BinaryOperation(Operation):
 
         binary_op = BinaryOperation(oper)
         binary_op.children = [lhs, rhs]
-        lhs.parent = binary_op
-        rhs.parent = binary_op
         return binary_op
 
 
@@ -395,6 +392,15 @@ class NaryOperation(Operation):
 
         nary_op = NaryOperation(oper)
         nary_op.children = children
-        for child in children:
-            child.parent = nary_op
         return nary_op
+
+
+# TODO #658 this can be removed once we have support for determining the
+# type of a PSyIR expression.
+#: Those operators that perform a reduction on an array.
+REDUCTION_OPERATORS = [UnaryOperation.Operator.SUM,
+                       BinaryOperation.Operator.SUM,
+                       NaryOperation.Operator.SUM]
+
+# For automatic API documentation generation
+__all__ = ["Operation", "UnaryOperation", "BinaryOperation", "NaryOperation"]

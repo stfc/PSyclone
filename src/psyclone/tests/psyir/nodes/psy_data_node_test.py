@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -44,17 +44,18 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans
+from psyclone.psyir.symbols import ContainerSymbol, GlobalInterface
 from psyclone.tests.utilities import get_invoke
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_node_basics(monkeypatch):
+def test_psy_data_node_basics():
     '''Tests some elementary functions.'''
     psy_node = PSyDataNode()
     assert "PSyDataStart[var=psy_data]\n"\
         "PSyDataEnd[var=psy_data]" in str(psy_node)
 
-    monkeypatch.setattr(psy_node, "children", [])
+    psy_node.children = []
     with pytest.raises(InternalError) as error:
         _ = psy_node.psy_data_body
     assert "PSyData node malformed or incomplete" in str(error.value)
@@ -92,7 +93,7 @@ def test_psy_data_node_tree_correct():
     # 2. Parent, but no children:
     # ===========================
     parent = Schedule()
-    psy_node = PSyDataNode(parent=parent)
+    psy_node = PSyDataNode()
     parent.addchild(psy_node)
 
     # We must have a single node connected to the parent, and an
@@ -125,17 +126,17 @@ def test_psy_data_node_tree_correct():
     # =======================
     parent = Schedule()
     # The children must be added to the parent before creating the ExtractNode
-    parent.addchild(Statement(parent=parent))
-    parent.addchild(Statement(parent=parent))
+    parent.addchild(Statement())
+    parent.addchild(Statement())
     # Add another child that must stay with the parent node
-    third_child = Statement(parent=parent)
+    third_child = Statement()
     parent.addchild(third_child)
     assert parent.children[2] is third_child
     # Only move the first two children, leave the third where it is
     children = [parent.children[0], parent.children[1]]
     for child in children:
         child.detach()
-    psy_node = PSyDataNode(parent=parent, children=children)
+    psy_node = PSyDataNode(children=children)
     parent.addchild(psy_node, 0)
 
     # Check all connections
@@ -156,16 +157,22 @@ def test_psy_data_node_tree_correct():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_node_c_code_creation():
-    '''Tests the handling when trying to create C code, which is not supported
-    at this stage.
-    '''
-
-    data_node = PSyDataNode()
-    with pytest.raises(NotImplementedError) as excinfo:
-        data_node.gen_c_code()
-    assert "Generation of C code is not supported for PSyDataNode" \
-        in str(excinfo.value)
+def test_psy_data_node_incorrect_container():
+    ''' Check that the PSyDataNode constructor raises the expected error if
+    the symbol table already contains an entry for the PSyDataType that is
+    not associated with the PSyData container. '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    csym = schedule.symbol_table.new_symbol("some_mod",
+                                            symbol_type=ContainerSymbol)
+    schedule.symbol_table.new_symbol("PSyDataType",
+                                     interface=GlobalInterface(csym))
+    data_trans = PSyDataTrans()
+    with pytest.raises(InternalError) as err:
+        data_trans.apply(schedule[0].loop_body)
+    assert ("already contains a symbol named 'PSyDataType' but its interface "
+            "does not refer to the 'psy_data_mod' container" in str(err.value))
 
 
 # -----------------------------------------------------------------------------

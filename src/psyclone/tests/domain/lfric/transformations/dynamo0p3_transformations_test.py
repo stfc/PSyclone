@@ -5240,7 +5240,7 @@ def test_rc_wrong_parent(monkeypatch):
     schedule = invoke.schedule
 
     # Make the parent of the loop a halo exchange
-    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
+    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the loop
@@ -5279,7 +5279,7 @@ def test_rc_parent_loop_colour(monkeypatch):
 
     # Make the parent of the outermost loop something other than
     # InvokeSchedule (we use halo exchange in this case)
-    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
+    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the loop
@@ -6146,9 +6146,10 @@ def test_intergrid_colour(dist_mem):
     assert expected in gen
     expected = (
         "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
-        "(:,cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m, ncell_fld_f, "
-        "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
-        "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n")
+        "(:,:,cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m_x, "
+        "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_proxy%data, fld_m_proxy%data, "
+        "ndf_w1, undf_w1, map_w1, undf_w2, "
+        "map_w2(:,cmap_fld_m(colour, cell)))\n")
     assert expected in gen
 
 
@@ -6183,7 +6184,6 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     kern = loops[3].loop_body[0].detach()
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     loop.loop_body.children.append(kern)
-    kern.parent = loop.loop_body
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "
@@ -6255,7 +6255,8 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             "        DO cell=1,{0}\n"
             "          !\n"
             "          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, "
+            "(:,:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c_x, "
+            "ncpc_fld_m_fld_c_y, ncell_fld_m, "
             "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n"
             "        END DO\n"

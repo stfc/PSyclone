@@ -198,11 +198,9 @@ class StructureReference(Reference):
                     "found '{0}' while attempting to create reference to "
                     "symbol '{1}'".format(type(component).__name__,
                                           symbol.name))
-            child_member.parent = subref
             child_member = subref
         # Finally, add this chain to the top-level reference
         ref.addchild(child_member)
-        child_member.parent = ref
         return ref
 
     def __str__(self):

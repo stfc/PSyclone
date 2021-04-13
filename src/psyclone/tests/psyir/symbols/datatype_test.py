@@ -334,7 +334,6 @@ def test_arraytype_shape_dim_from_parent_scope():
                                            datatype=INTEGER_TYPE)
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     cont.addchild(kernel1)
-    kernel1.parent = cont
     asym = kernel1.symbol_table.new_symbol(
         "array1", symbol_type=DataSymbol,
         datatype=ArrayType(INTEGER_TYPE, [Reference(dim_sym)]))
