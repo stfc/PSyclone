@@ -95,12 +95,9 @@ class AlgorithmInvokeCall(Call):
                 "AlgorithmInvokeCall index argument should be a non-negative "
                 "integer but found {0}.".format(index))
 
-        symbol_table = self.scope.symbol_table
+        subroutine_root_name = self._def_sub_root_name(index)
 
-        subroutine_root_name = "invoke_{0}".format(index)
-        if len(self.children) == 1:
-            # Add the name of the kernel if there is only one call
-            subroutine_root_name += "_" + self.children[0].name
+        symbol_table = self.scope.symbol_table
         subroutine_name = symbol_table.next_available_name(
             root_name=subroutine_root_name)
 
@@ -112,6 +109,24 @@ class AlgorithmInvokeCall(Call):
         interface = GlobalInterface(self._container_symbol)
         self._routine_symbol = RoutineSymbol(
             subroutine_name, interface=interface)
+
+    def _def_sub_root_name(self, index):
+        '''Internal function that returns the proposed processed subroutine
+        name given the index of this invoke.
+
+        :param int index: the position of this invoke call relative to \
+            other invokes in the algorithm layer.
+
+        :returns: the proposed processed subroutine name for this \
+            invoke.
+        :rtype: str
+
+        '''
+        subroutine_root_name = "invoke_{0}".format(index)
+        if len(self.children) == 1:
+            # Add the name of the kernel if there is only one call
+            subroutine_root_name += "_" + self.children[0].name
+        return subroutine_root_name
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call

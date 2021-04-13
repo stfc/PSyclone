@@ -88,6 +88,31 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         instance._description = description
         return instance
 
+    def _def_sub_root_name(self, index):
+        '''Internal function that returns the proposed processed subroutine
+        name given the index of this invoke.
+
+        :param int index: the position of this invoke call relative to \
+            other invokes in the algorithm layer.
+
+        :returns: the proposed processed subroutine name for this \
+            invoke.
+        :rtype: str
+
+        '''
+        if self._description:
+            name = self._description.lower().strip()
+            if name[0] == '"' and name[-1] == '"' or \
+               name[0] == "'" and name[-1] == "'":
+                # fparser2 (issue #295) currently includes quotes as
+                # part of a string, so strip them out.
+                name = name[1:-1]
+            name = name.replace(" ", "_")
+        else:
+            name = super(LFRicAlgorithmInvokeCall,
+                         self)._def_sub_root_name(index)
+        return name
+
     def node_str(self, colour=True):
         '''Construct a text representation of this node, optionally
         containing colour control codes. Specialise as this node has
