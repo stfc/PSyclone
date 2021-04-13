@@ -7164,7 +7164,7 @@ class DynLoop(Loop):
                 parent.add(
                     CommentGen(parent, " Set halos dirty/clean for fields "
                                "modified in the above {0}".format(
-                                          prev_node_name)))
+                                   prev_node_name)))
                 parent.add(CommentGen(parent, ""))
                 from psyclone.psyGen import OMPParallelDoDirective
                 use_omp_master = False
