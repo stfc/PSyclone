@@ -147,8 +147,7 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", "", "null"]
 
 # Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
-# TODO #870 rm 'cells' from list below.
-USER_KERNEL_ITERATION_SPACES = ["cells", "cell_column", "domain"]
+USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
 VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
     BUILTIN_ITERATION_SPACES
 
@@ -455,14 +454,6 @@ class DynKernMetadata(KernelType):
     def __init__(self, ast, name=None):
 
         KernelType.__init__(self, ast, name=name)
-
-        # Currently we permit old-style 'iterates_over' kernel metadata
-        # so here we map from the old-style names to the new ones.
-        # TODO #870 remove this mapping from old values to new values
-        if self.iterates_over == "cells":
-            self._iterates_over = "cell_column"
-        if self.iterates_over == "dofs":
-            self._iterates_over = "dof"
 
         # The type of CMA operation this kernel performs (or None if
         # no CMA operators are involved)
