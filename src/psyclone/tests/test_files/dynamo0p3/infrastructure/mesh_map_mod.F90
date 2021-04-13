@@ -61,7 +61,7 @@ type, extends(linked_list_data_type), public :: mesh_map_type
 
   private
 
-  integer(i_def), allocatable :: mesh_map(:,:) ! In LIDs
+  integer(i_def), allocatable :: mesh_map(:,:,:) ! In LIDs
 
 contains
 
@@ -81,6 +81,16 @@ contains
   !> mesh map object.
   !> @return Number of target cells per source cell
   procedure, public :: get_ntarget_cells_per_source_cell
+  !>
+  !> Gets the number of target cells in the y-direction for each
+  !> source cell in this mesh map object.
+  !> @return Number of target cells per source cell in x-direction
+  procedure, public :: get_ntarget_cells_per_source_x
+  !>
+  !> Gets the number of target cells in the y-direction for each
+  !> source cell in this mesh map object.
+  !> @return Number of target cells per source cell in y-direction
+  procedure, public :: get_ntarget_cells_per_source_y
   !>
   !> Gets the target cells ids mapped to the requested source cell
   !> @param [in]  source_lid Local ID of requested source cell
@@ -128,13 +138,14 @@ implicit none
 
 integer(i_def), intent(in) :: source_mesh_id
 integer(i_def), intent(in) :: target_mesh_id
-integer(i_def), intent(in) :: map(:,:)
+integer(i_def), intent(in) :: map(:,:,:)
 
 type(mesh_map_type) :: instance
 
 integer(i_def) :: mesh_map_id
 integer(i_def) :: nsource_cells
-integer(i_def) :: ntarget_cells_per_source_cell
+integer(i_def) :: ntarget_cells_per_source_x
+integer(i_def) :: ntarget_cells_per_source_y
 
 mesh_map_id = generate_mesh_map_id(source_mesh_id, target_mesh_id)
 
@@ -142,11 +153,14 @@ mesh_map_id = generate_mesh_map_id(source_mesh_id, target_mesh_id)
 !-------------------------------------------------
 call instance%set_id( mesh_map_id )
 
-ntarget_cells_per_source_cell =  size(map,1)
-nsource_cells                 =  size(map,2)
-allocate( instance%mesh_map ( ntarget_cells_per_source_cell, nsource_cells) )
+ntarget_cells_per_source_x =  size(map,1)
+ntarget_cells_per_source_y =  size(map,2)
+nsource_cells              =  size(map,3)
+allocate( instance%mesh_map ( ntarget_cells_per_source_x, &
+                              ntarget_cells_per_source_y, &
+                              nsource_cells) )
 
-instance%mesh_map(:,:) = map(:,:)
+instance%mesh_map(:,:,:) = map(:,:,:)
 
 return
 end function mesh_map_constructor
@@ -188,7 +202,7 @@ implicit none
 class(mesh_map_type) :: self
 integer(i_def)       :: nsource_cells
 
-nsource_cells = size(self%mesh_map,2)
+nsource_cells = size(self%mesh_map,3)
 
 return
 end function get_nsource_cells
@@ -199,13 +213,36 @@ function get_ntarget_cells_per_source_cell(self) result(ratio)
 
 implicit none
 class(mesh_map_type) :: self
-integer(i_def)       :: ratio
+integer(i_def)       :: ratio_x, ratio_y, ratio
 
-ratio = size(self%mesh_map,1)
+ratio_x = size(self%mesh_map,1)
+ratio_y = size(self%mesh_map,2)
+ratio = ratio_x*ratio_y
 
 return
 end function get_ntarget_cells_per_source_cell
 
+function get_ntarget_cells_per_source_x(self) result(ratio_x)
+
+implicit none
+class(mesh_map_type) :: self
+integer(i_def)       :: ratio_x
+
+ratio_x = size(self%mesh_map,1)
+
+return
+end function get_ntarget_cells_per_source_x
+
+function get_ntarget_cells_per_source_y(self) result(ratio_y)
+
+implicit none
+class(mesh_map_type) :: self
+integer(i_def)       :: ratio_y
+
+ratio_y = size(self%mesh_map,2)
+
+return
+end function get_ntarget_cells_per_source_y
 
 function get_cell_map(self, cell) result(map)
 
@@ -214,10 +251,10 @@ function get_cell_map(self, cell) result(map)
   class(mesh_map_type), target, intent(in) :: self
 
   integer(i_def), intent(in) :: cell
-  integer(i_def), pointer  :: map(:)
+  integer(i_def), pointer  :: map(:,:)
 
   nullify(map)
-  map => self%mesh_map(:,cell)
+  map => self%mesh_map(:,:,cell)
 
   return
 end function get_cell_map
@@ -229,10 +266,10 @@ function get_whole_cell_map(self) result(map)
 
   class(mesh_map_type), target, intent(in) :: self
 
-  integer(i_def), pointer :: map(:,:)
+  integer(i_def), pointer :: map(:,:,:)
 
   nullify(map)
-  map => self%mesh_map(:,:)
+  map => self%mesh_map(:,:,:)
 
   return
 end function get_whole_cell_map
