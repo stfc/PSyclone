@@ -213,11 +213,7 @@ module argument_mod
 
   !> @defgroup operates_on Enumeration of kernel iterator property descriptors.
   !> @{
-  ! Note: `iterates_over = CELLS` changes to `operates_on = CELL_COLUMN` in
-  !       PSyclone 2.0.0. Currently both options are supported for uninterrupted
-  !       development, however the `CELLS` option will be removed in #870).
   integer, public, parameter :: CELL_COLUMN = 396
-  integer, public, parameter :: CELLS       = 712
   integer, public, parameter :: DOMAIN      = 945
   !> @}
 
