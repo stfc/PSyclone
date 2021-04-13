@@ -6146,9 +6146,10 @@ def test_intergrid_colour(dist_mem):
     assert expected in gen
     expected = (
         "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
-        "(:,cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m, ncell_fld_f, "
-        "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
-        "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n")
+        "(:,:,cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m_x, "
+        "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_proxy%data, fld_m_proxy%data, "
+        "ndf_w1, undf_w1, map_w1, undf_w2, "
+        "map_w2(:,cmap_fld_m(colour, cell)))\n")
     assert expected in gen
 
 
@@ -6254,7 +6255,8 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             "        DO cell=1,{0}\n"
             "          !\n"
             "          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, "
+            "(:,:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c_x, "
+            "ncpc_fld_m_fld_c_y, ncell_fld_m, "
             "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n"
             "        END DO\n"
