@@ -63,17 +63,17 @@
 !!             information;
 !!
 !!          4) `type(mesh_data_type) :: meta_mesh(...)` that describes the
-!!              required mesh properties information;
+!!             required mesh properties information;
 !!
 !!          5) `gh_shape = ...` (e.g.\ `gh_shape = gh_quadrature_XYoZ` that
 !!             describes the required quadrature and/or evaluator properties
 !!             information;
 !!
 !!          6) `operates_on` metadata that describes what the kernel updates,
-!!              e.g.\ a vertical single-cell column;
+!!             e.g.\ a vertical single-cell column;
 !!
 !!          7) `procedure` metadata that specifies the name of the kernel
-!!              subroutine that the metadata describes.
+!!             subroutine that the metadata describes.
 !!
 !!          `type(arg_type) :: meta_args(...)`, `operates_on` and
 !!          the `procedure` metadata are mandatory for all kernels.
