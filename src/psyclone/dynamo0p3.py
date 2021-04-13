@@ -6520,9 +6520,9 @@ class HaloReadAccess(HaloDepth):
 
 class DynLoop(Loop):
     '''
-    The Dynamo specific Loop class. This passes the Dynamo
-    specific loop information to the base class so it creates the one
-    we require.  Creates Dynamo specific loop bounds when the code is
+    The LFRic-specific Loop class. This passes the LFRic-specific
+    loop information to the base class so it creates the one
+    we require.  Creates LFRic-specific loop bounds when the code is
     being generated.
 
     :param parent: the parent of this Node in the PSyIR.
@@ -6556,9 +6556,9 @@ class DynLoop(Loop):
                 suggested_name = "cell"
             else:
                 raise InternalError(
-                    "Unsupported loop type '{0}' supplied. Supported values "
-                    "are 'colours', 'colour', 'dof' or '' (for cell-columns).".
-                    format(self.loop_type))
+                    "Unsupported loop type '{0}' found when creating loop "
+                    "variable. Supported values are 'colours', 'colour', "
+                    "'dof' or '' (for cell-columns).".format(self.loop_type))
 
             symtab = self.scope.symbol_table
             try:
