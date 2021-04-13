@@ -233,9 +233,8 @@ module argument_mod
   !! or, for inter-grid kernels, which mesh the field is on.
   type, public :: arg_type
      !> Type of a kernel argument (scalar, field, operator or a
-     !! column-wise operator). Currently one of {GH_REAL, GH_INTEGER,
-     !! GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR}. One of
-     !! {GH_SCALAR, GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR}.
+     !! column-wise operator). One of {GH_SCALAR, GH_FIELD, GH_OPERATOR,
+     !! GH_COLUMNWISE_OPERATOR}.
      integer :: argument_type
      !> Fortran primitive type of a kernel argument data.
      !! One of {GH_REAL, GH_INTEGER}.
