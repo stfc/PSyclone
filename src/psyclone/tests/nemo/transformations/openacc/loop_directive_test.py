@@ -99,24 +99,24 @@ def test_explicit_loop(parser):
                                   {"independent": False})
     data_trans.apply(schedule)
 
-    code = str(psy.gen)
-    assert ("PROGRAM do_loop\n"
-            "  INTEGER :: ji\n"
-            "  INTEGER, PARAMETER :: jpj = 13\n"
-            "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-            "  !$ACC DATA COPYOUT(sto_tmp,sto_tmp2)\n"
-            "  !$ACC PARALLEL DEFAULT(PRESENT)\n"
-            "  !$ACC LOOP INDEPENDENT\n"
-            "  DO ji = 1, jpj\n"
-            "    sto_tmp(ji) = 1.0D0\n"
-            "  END DO\n"
-            "  !$ACC LOOP\n"
-            "  DO ji = 1, jpj\n"
-            "    sto_tmp2(ji) = 1.0D0\n"
-            "  END DO\n"
-            "  !$ACC END PARALLEL\n"
-            "  !$ACC END DATA\n"
-            "END PROGRAM do_loop" in code)
+    code = str(psy.gen).lower()
+    assert ("program do_loop\n"
+            "  integer :: ji\n"
+            "  integer, parameter :: jpj = 13\n"
+            "  real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+            "  !$acc data copyout(sto_tmp,sto_tmp2)\n"
+            "  !$acc parallel default(present)\n"
+            "  !$acc loop independent\n"
+            "  do ji = 1, jpj\n"
+            "    sto_tmp(ji) = 1.0d0\n"
+            "  end do\n"
+            "  !$acc loop\n"
+            "  do ji = 1, jpj\n"
+            "    sto_tmp2(ji) = 1.0d0\n"
+            "  end do\n"
+            "  !$acc end parallel\n"
+            "  !$acc end data\n"
+            "end program do_loop" in code)
 
 
 SINGLE_LOOP = ("program do_loop\n"
@@ -153,11 +153,11 @@ def test_seq_loop(parser):
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     _ = acc_trans.apply(loops[0], {"sequential": True})
-    code = str(psy.gen)
-    assert ("  REAL(KIND = wp) :: sto_tmp(jpj)\n"
-            "  !$ACC KERNELS\n"
-            "  !$ACC LOOP SEQ\n"
-            "  DO ji = 1, jpj\n" in code)
+    code = str(psy.gen).lower()
+    assert ("  real(kind = wp) :: sto_tmp(jpj)\n"
+            "  !$acc kernels\n"
+            "  !$acc loop seq\n"
+            "  do ji = 1, jpj\n" in code)
 
 
 def test_collapse(parser):
@@ -173,12 +173,12 @@ def test_collapse(parser):
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     schedule, _ = acc_trans.apply(loops[0], {"collapse": 2})
-    code = str(psy.gen)
-    assert ("  REAL(KIND = wp) :: sto_tmp(jpi, jpj)\n"
-            "  !$ACC KERNELS\n"
-            "  !$ACC LOOP INDEPENDENT COLLAPSE(2)\n"
-            "  DO jj = 1, jpj\n"
-            "    DO ji = 1, jpi\n" in code)
+    code = str(psy.gen).lower()
+    assert ("  real(kind = wp) :: sto_tmp(jpi, jpj)\n"
+            "  !$acc kernels\n"
+            "  !$acc loop independent collapse(2)\n"
+            "  do jj = 1, jpj\n"
+            "    do ji = 1, jpi\n" in code)
 
 
 def test_collapse_err(parser):

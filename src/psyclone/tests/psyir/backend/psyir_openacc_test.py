@@ -273,7 +273,6 @@ def replace_child_with_assignment(node):
     lhs = Reference(DataSymbol('a', REAL_TYPE))
     rhs = Reference(DataSymbol('b', REAL_TYPE))
     assignment = Assignment.create(lhs, rhs)
-    assignment.parent = node
     node.children[0] = assignment
 
 

@@ -1622,7 +1622,7 @@ def test_acc_parallel_trans(tmpdir):
 
     with pytest.raises(GenerationError) as err:
         _ = str(psy.gen)
-    assert ("An ACC parallel region must either be preceeded by an ACC enter "
+    assert ("An ACC parallel region must either be preceded by an ACC enter "
             "data directive or enclosed within an ACC data region but in "
             "'invoke_0' this is not the case" in str(err.value))
 
@@ -1875,7 +1875,7 @@ def test_accloop(tmpdir):
     # directive and we need one for the parallel region to work
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("An ACC parallel region must either be preceeded by an ACC enter "
+    assert ("An ACC parallel region must either be preceded by an ACC enter "
             "data directive or enclosed within an ACC data region but in "
             "'invoke_0' this is not the case." in str(err.value))
 
@@ -1938,7 +1938,7 @@ def test_acc_collapse(tmpdir):
 
     gen = str(psy.gen)
     assert ("      !$acc parallel default(present)\n"
-            "      !$acc loop collapse(2) independent\n"
+            "      !$acc loop independent collapse(2)\n"
             "      DO j=2,jstop\n"
             "        DO i=2,istop+1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "

@@ -40,7 +40,7 @@
 
 from __future__ import print_function, absolute_import
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import PSyFactory, TransInfo, ACCParallelDirective
 
 
 # The PSyclone API under test
@@ -160,7 +160,6 @@ def test_parallel_if_block(parser):
 def test_parallel_repeat_update(parser):
     ''' Check that calling ACCParallelDirective.update() a 2nd time
     does not alter the fparser2 parse tree. '''
-    from psyclone.psyGen import ACCParallelDirective
     reader = FortranStringReader(SINGLE_LOOP)
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)

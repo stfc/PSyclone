@@ -1495,9 +1495,9 @@ class ACCParallelDirective(ACCDirective):
         Check that the PSyIR tree containing this node is valid. Since we
         use 'default(present)', this node must either be the child of an
         ACCDataDirective or the parent Schedule must contain an
-        ACCEnterDataDirective.
+        ACCEnterDataDirective before this one.
 
-        :raises GenerationError: if this ACCParallel node is not preceeded by \
+        :raises GenerationError: if this ACCParallel node is not preceded by \
             an ACCEnterDataDirective and is not the child of an \
             ACCDataDirective.
 
@@ -1511,13 +1511,13 @@ class ACCParallelDirective(ACCDirective):
         # directive
         if nodes and nodes[0].abs_position > self.abs_position:
             raise GenerationError(
-                "An ACC parallel region must be preceeded by an ACC enter-"
+                "An ACC parallel region must be preceded by an ACC enter-"
                 "data directive but in '{0}' this is not the case.".
                 format(routine.name))
 
         if not nodes and not self.ancestor(ACCDataDirective):
             raise GenerationError(
-                "An ACC parallel region must either be preceeded by an ACC "
+                "An ACC parallel region must either be preceded by an ACC "
                 "enter data directive or enclosed within an ACC data region "
                 "but in '{0}' this is not the case.".format(routine.name))
 
@@ -1548,7 +1548,7 @@ class ACCParallelDirective(ACCDirective):
     def begin_string(self):
         '''
         Returns the beginning statement of this directive, i.e.
-        "acc begin parallel" plus any qualifiers. The visitor is responsible
+        "acc begin parallel" plus any qualifiers. The backend is responsible
         for adding the correct characters to mark this as a directive (e.g.
         "!$").
 
@@ -1712,16 +1712,9 @@ class ACCLoopDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
-        # Add any clauses to the directive
-        options = []
-        if self._sequential:
-            options.append("seq")
-        else:
-            if self._collapse:
-                options.append("collapse({0})".format(self._collapse))
-            if self._independent:
-                options.append("independent")
-        options_str = " ".join(options)
+        # Add any clauses to the directive. We use self.begin_string() to avoid
+        # code duplication.
+        options_str = self.begin_string(leading_acc=False)
 
         parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
 
@@ -1736,38 +1729,47 @@ class ACCLoopDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
-        text = "LOOP"
-        if self._sequential:
-            text += " SEQ"
-        else:
-            if self._independent:
-                text += " INDEPENDENT"
-            if self._collapse:
-                text += " COLLAPSE({0})".format(self._collapse)
-        self._add_region(start_text=text)
+        # Use begin_string() to avoid code duplication although we have to
+        # put back the "loop" qualifier.
+        # TODO #435 remove this method altogether once the NEMO API is able to
+        # use the PSyIR backend.
+        self._add_region(
+            start_text="loop " + self.begin_string(leading_acc=False))
 
-    def begin_string(self):
-        ''' Returns the beginning statement of this directive, i.e.
-        "acc loop" plus any qualifiers. The visitor is responsible for
-        adding the correct characters to mark this as a directive (e.g. "!$").
+    def begin_string(self, leading_acc=True):
+        ''' Returns the opening statement of this directive, i.e.
+        "acc loop" plus any qualifiers. If `leading_acc` is False then
+        the leading "acc loop" text is not included.
+
+        :param bool leading_acc: whether or not to include the leading \
+                                 "acc loop" in the text that is returned.
 
         :returns: the opening statement of this directive.
         :rtype: str
 
         '''
-        result = "acc loop"
+        clauses = []
+        if leading_acc:
+            clauses = ["acc", "loop"]
+
         if self._sequential:
-            result += " seq"
+            clauses.append("seq")
         else:
             if self._independent:
-                result += " independent"
+                clauses.append("independent")
             if self._collapse:
-                result += " collapse({0})".format(self._collapse)
-        return result
+                clauses.append("collapse({0})".format(self._collapse))
+        return " ".join(clauses)
 
     def end_string(self):
-        ''' Would return the end string for this directive but "acc loop"
-        doesn't have a closing directive. '''
+        '''
+        Would return the end string for this directive but "acc loop"
+        doesn't have a closing directive.
+
+        :returns: empty string.
+        :rtype: str
+
+        '''
         return ""
 
 
@@ -4488,7 +4490,7 @@ class ACCKernelsDirective(ACCDirective):
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
-        "acc kernels ...". The visitor is responsible for adding the
+        "acc kernels ...". The backend is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
@@ -4501,12 +4503,24 @@ class ACCKernelsDirective(ACCDirective):
         return result
 
     def end_string(self):
+        '''
+        Returns the ending statement for this directive. The backend is
+        responsible for adding the language-specific syntax that marks this
+        as a directive.
+
+        :returns: the closing statement for this directive.
+        :rtype: str
+
+        '''
         return "acc end kernels"
 
     def update(self):
         '''
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
+
+        TODO #435 remove this routine once the NEMO API is able to use the
+        PSyIR backend.
 
         '''
         self._pre_gen_validate()
@@ -4565,7 +4579,7 @@ class ACCDataDirective(ACCDirective):
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
-        "acc data". The visitor is responsible for adding the
+        "acc data". The backend is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the opening statement of this directive.
@@ -4582,7 +4596,7 @@ class ACCDataDirective(ACCDirective):
             # TODO #1028. Dependence analysis does not yet work for structure
             # references.
             # Have to import here to avoid circular dependency
-            # pylint: ignore=import-outside-toplevel
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.backend.fortran import FortranWriter
             fwriter = FortranWriter()
             ref_list = [fwriter(ref) for ref in struct_accesses]
@@ -4592,13 +4606,14 @@ class ACCDataDirective(ACCDirective):
 
         # Identify the inputs and outputs to the region (variables that
         # are read and written).
-        from psyclone.core.access_info import VariablesAccessInfo
         var_accesses = VariablesAccessInfo(self)
+        table = self.scope.symbol_table
         readers = set()
         writers = set()
         for var in var_accesses.all_vars:
+            sym = table.lookup(var)
             accesses = var_accesses[var]
-            if not accesses.all_accesses[0].indices:
+            if not sym.is_array:
                 # We ignore scalars
                 continue
             if accesses.is_read():
