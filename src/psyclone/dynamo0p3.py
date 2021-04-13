@@ -141,10 +141,10 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
                            + HALO_ACCESS_LOOP_BOUNDS)
 
 
-# Valid LFRic loop types. The default is "" which is over cells (in the
+# Valid LFRic loop types. The default is "" which is over cell columns (in the
 # horizontal plane). A "null" loop doesn't iterate over anything but is
 # required for the halo-exchange logic.
-VALID_LOOP_TYPES = ["dofs", "colours", "colour", "", "null"]
+VALID_LOOP_TYPES = ["dof", "colours", "colour", "", "null"]
 
 # Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
 USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
@@ -6507,14 +6507,22 @@ class HaloReadAccess(HaloDepth):
 
 
 class DynLoop(Loop):
-    ''' The Dynamo specific Loop class. This passes the Dynamo
+    '''
+    The Dynamo specific Loop class. This passes the Dynamo
     specific loop information to the base class so it creates the one
     we require.  Creates Dynamo specific loop bounds when the code is
-    being generated. '''
+    being generated.
 
+    :param parent: the parent of this Node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param str loop_type: the type (iteration space) of this loop.
+
+    :raises InternalError: if an unrecognised loop_type is specified.
+
+    '''
     def __init__(self, parent=None, loop_type=""):
-        Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+        super(DynLoop, self).__init__(parent=parent,
+                                      valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
         # Set our variable at initialisation as it might be required
@@ -6528,12 +6536,17 @@ class DynLoop(Loop):
             elif self.loop_type == "colour":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
-            elif self.loop_type == "dofs":
+            elif self.loop_type == "dof":
                 tag = "dof_loop_idx"
                 suggested_name = "df"
-            else:
+            elif self.loop_type == "":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
+            else:
+                raise InternalError(
+                    "Unsupported loop type '{0}' supplied. Supported values "
+                    "are 'colours', 'colour', 'dof' or '' (for cell-columns).".
+                    format(self.loop_type))
 
             symtab = self.scope.symbol_table
             try:

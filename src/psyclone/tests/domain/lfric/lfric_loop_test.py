@@ -47,6 +47,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Schedule
 from psyclone.domain.lfric import FunctionSpace
+from psyclone import dynamo0p3
 from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
@@ -57,6 +58,23 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
+
+
+def test_constructor_invalid_loop_type(monkeypatch):
+    ''' Check that the constructor raises the expected errors when an invalid
+    loop type is specified. '''
+    # An invalid type should be caught by the setter in the base Loop class.
+    with pytest.raises(GenerationError) as err:
+        DynLoop(loop_type="wrong")
+    assert ("Error, loop_type value (wrong) is invalid. Must be one of "
+            "['dof', 'colours', 'colour', '', 'null']." in str(err.value))
+    # Monkeypatch the list of valid loop types so as to reach the code
+    # that attempts to set the loop variable.
+    monkeypatch.setattr(dynamo0p3, "VALID_LOOP_TYPES", ["wrong"])
+    with pytest.raises(InternalError) as err:
+        DynLoop(loop_type="wrong")
+    assert ("Unsupported loop type 'wrong' supplied. Supported values are "
+            "'colours'" in str(err.value))
 
 
 def test_set_lower_bound_functions():
