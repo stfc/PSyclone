@@ -122,8 +122,6 @@ class Container(Node):
         container._symbol_table = symbol_table
         symbol_table._node = container
         container.children = children
-        for child in children:
-            child.parent = container
         return container
 
     @property

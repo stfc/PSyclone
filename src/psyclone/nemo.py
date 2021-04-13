@@ -122,8 +122,6 @@ class NemoFparser2Reader(Fparser2Reader):
         else:
             # Otherwise just connect the new children into the tree.
             loop_body.children.extend(fakeparent.pop_all_children())
-            for child in loop_body.children:
-                child.parent = loop_body
 
 
 class NemoInvoke(Invoke):
@@ -371,9 +369,8 @@ class NemoKern(InlinedKern):
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, psyir_nodes, parse_tree, parent=None):
-        super(NemoKern, self).__init__(psyir_nodes)
+        super(NemoKern, self).__init__(psyir_nodes, parent=parent)
         self._name = ""
-        self._parent = parent
         # The corresponding set of nodes in the fparser2 parse tree
         self._ast = parse_tree
 
@@ -530,12 +527,6 @@ class NemoLoop(Loop):
         loop = NemoLoop(variable=variable)
         schedule = Schedule(children=children)
         loop.children = [start, stop, step, schedule]
-        for child in children:
-            child.parent = schedule
-        start.parent = loop
-        stop.parent = loop
-        step.parent = loop
-        schedule.parent = loop
 
         # Indicate the type of loop
         loop_type_mapping = Config.get().api_conf("nemo") \

@@ -5240,7 +5240,7 @@ def test_rc_wrong_parent(monkeypatch):
     schedule = invoke.schedule
 
     # Make the parent of the loop a halo exchange
-    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
+    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the loop
@@ -5279,7 +5279,7 @@ def test_rc_parent_loop_colour(monkeypatch):
 
     # Make the parent of the outermost loop something other than
     # InvokeSchedule (we use halo exchange in this case)
-    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
+    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the loop
@@ -6184,7 +6184,6 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     kern = loops[3].loop_body[0].detach()
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     loop.loop_body.children.append(kern)
-    kern.parent = loop.loop_body
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "

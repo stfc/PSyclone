@@ -121,9 +121,9 @@ def test_ifblock_properties():
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 1." in str(err.value))
 
-    sch = Schedule(parent=ifblock)
+    sch = Schedule()
     ifblock.addchild(sch)
-    ret = Return(parent=sch)
+    ret = Return()
     sch.addchild(ret)
 
     # Now we can retrieve the condition and the if_body, but else is empty
@@ -131,9 +131,9 @@ def test_ifblock_properties():
     assert ifblock.if_body[0] is ret
     assert not ifblock.else_body
 
-    sch2 = Schedule(parent=ifblock)
+    sch2 = Schedule()
     ifblock.addchild(sch2)
-    ret2 = Return(parent=sch2)
+    ret2 = Return()
     sch2.addchild(ret2)
 
     # Now we can retrieve else_body

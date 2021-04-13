@@ -130,7 +130,7 @@ class LFRicBuiltInCallFactory(object):
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
-        builtin.load(call, parent=dofloop)
+        builtin.load(call, parent=dofloop.loop_body)
 
         # Set-up its state
         dofloop.load(builtin)
@@ -138,7 +138,6 @@ class LFRicBuiltInCallFactory(object):
         # As it is the innermost loop it has the kernel as a loop_body
         # child.
         dofloop.loop_body.addchild(builtin)
-        builtin.parent = dofloop.loop_body
 
         # Return the outermost loop
         return dofloop
@@ -173,17 +172,12 @@ class LFRicBuiltIn(BuiltIn):
 
         '''
         from psyclone.dynamo0p3 import FSDescriptors, DynKernelArguments
-        self._parent = parent  # Needed on the DynKernelArguments() below
-        BuiltIn.load(self, call, DynKernelArguments(call, self), parent)
+        BuiltIn.load(self, call, DynKernelArguments, parent)
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
         self._idx_name = \
             self.root.symbol_table.symbol_from_tag("dof_loop_idx", "df").name
-        # parent was needed for DynKernelArguments but is never added as a
-        # children of another node during the load(), so the link must be
-        # reverted
-        self._parent = None
         # Check that this built-in kernel is valid
         self._validate()
 
