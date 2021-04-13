@@ -266,9 +266,6 @@ def test_ad_field_init_wrong_iteration_space():
     (other than ['cell_column', 'dof']) is passed to the
     LFRicArgDescriptor._init_field() method.
 
-    TODO #870 update this test with correct error msg once 'dofs' and
-    'cells' are no longer permitted.
-
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
@@ -280,7 +277,7 @@ def test_ad_field_init_wrong_iteration_space():
             field_arg, metadata.iterates_over)._init_field(
                 field_arg, "ncolours")
     assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
-            "one of ['cells', 'cell_column', 'domain', 'dofs', 'dof'])." in
+            "one of ['cell_column', 'domain', 'dof'])." in
             str(excinfo.value))
 
 

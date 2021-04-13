@@ -185,7 +185,7 @@ def test_ad_invalid_iteration_space():
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours")
     assert ("Expected operates_on in the kernel metadata to be one of "
-            "['cells', 'cell_column', 'domain', 'dofs', 'dof'] but got "
+            "['cell_column', 'domain', 'dof'] but got "
             "'colours'." in str(excinfo.value))
 
 
@@ -311,7 +311,7 @@ def test_kernel_call_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cells', 'cell_column', 'domain'], but "
+            "operate on one of ['cell_column', 'domain'], but "
             "kernel 'testkern_dofs_code' operates on 'dof'."
             in str(excinfo.value))
 
