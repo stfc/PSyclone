@@ -215,6 +215,7 @@ module argument_mod
   !> @{
   integer, public, parameter :: CELL_COLUMN = 396
   integer, public, parameter :: DOMAIN      = 945
+  integer, public, parameter :: DOF         = 712
   !> @}
 
   !> Metadata for the argument type description, stored in the `arg_type` type
@@ -232,7 +233,7 @@ module argument_mod
      !! column-wise operator). One of {GH_SCALAR, GH_FIELD, GH_OPERATOR,
      !! GH_COLUMNWISE_OPERATOR}.
      integer :: argument_type
-     !> Fortran primitive type of a kernel argument data.
+     !> Fortran primitive type of kernel argument data.
      !! One of {GH_REAL, GH_INTEGER}.
      integer :: data_type
      !> How the kernel argument data is accessed (e.g.\ read-only, update,
