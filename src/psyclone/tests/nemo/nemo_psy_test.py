@@ -187,7 +187,7 @@ def test_fn_call_no_kernel(parser):
     assert isinstance(loop.loop_body[0], Assignment)
 
 
-def test_codeblock_no_kernel(parser, monkeypatch):
+def test_codeblock_no_kernel(parser):
     ''' Check that we don't create a kernel if the loop body contains a
     CodeBlock. '''
     reader = FortranStringReader("program fake_kern\n"
@@ -207,7 +207,7 @@ def test_codeblock_no_kernel(parser, monkeypatch):
     # Create a fake CodeBlock
     cblock = CodeBlock([loop.loop_body[0].ast], CodeBlock.Structure.STATEMENT)
     # Monkeypatch the loop_body object so that it has a CodeBlock as a child
-    monkeypatch.setattr(loop.loop_body, "children", [cblock])
+    loop.loop_body.children = [cblock]
     # This should no longer match as a NemoKern
     assert not nemo.NemoKern.match(loop.loop_body)
 

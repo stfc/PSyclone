@@ -410,7 +410,7 @@ def test_no_enter_data(parser):
     # so manually insert a GOACCEnterDataDirective in the Schedule.
     from psyclone.gocean1p0 import GOACCEnterDataDirective
     # pylint: disable=abstract-class-instantiated
-    directive = GOACCEnterDataDirective(parent=schedule, children=[])
+    directive = GOACCEnterDataDirective(children=[])
     # pylint: enable=abstract-class-instantiated
     schedule.children.insert(0, directive)
     with pytest.raises(TransformationError) as err:

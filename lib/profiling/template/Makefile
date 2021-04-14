@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 
 
 F90?=gfortran
-FFLAGS?=
+F90FLAGS?=-g
 
 OBJS = dummy_lib.o psy_data_base.o
 PROCESS_ARGS = -prefix=profile_ -types= -dims=

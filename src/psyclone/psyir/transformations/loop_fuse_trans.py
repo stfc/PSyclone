@@ -128,10 +128,6 @@ class LoopFuseTrans(LoopTrans):
         # Add loop contents of node2 to node1
         node1.loop_body.children.extend(node2.loop_body.pop_all_children())
 
-        # Change the parent of the loop contents to node1
-        for child in node1.loop_body:
-            child.parent = node1.loop_body
-
         return schedule, keep
 
 

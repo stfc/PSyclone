@@ -561,8 +561,10 @@ class Invoke(object):
         # create the schedule
         self._schedule = schedule_class(self._name, alg_invocation.kcalls,
                                         reserved_names)
-        if self.invokes:
-            self.invokes.psy.container.addchild(self._schedule)
+
+        # TODO #1170: Must be fixed before uncommenting the code below
+        # if self.invokes:
+        #     self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -2484,9 +2486,10 @@ class Kern(Statement):
                  the Algorithm layer code.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param str name: the name of the routine being called.
-    :param arguments: object holding information on the kernel arguments, \
-                      as extracted from kernel meta-data.
-    :type arguments: :py:class:`psyclone.psyGen.Arguments`
+    :param ArgumentsClass: class to create the object that holds all \
+        information on the kernel arguments, as extracted from kernel \
+        meta-data (and accessible here via call.ktype).
+    :type ArgumentsClass: type of :py:class:`psyclone.psyGen.Arguments`
 
     :raises GenerationError: if any of the arguments to the call are \
                              duplicated.
@@ -2494,9 +2497,9 @@ class Kern(Statement):
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
 
-    def __init__(self, parent, call, name, arguments):
+    def __init__(self, parent, call, name, ArgumentsClass):
         super(Kern, self).__init__(self, parent=parent)
-        self._arguments = arguments
+        self._arguments = ArgumentsClass(call, self)
         self._name = name
         self._iterates_over = call.ktype.iterates_over
 
@@ -2517,7 +2520,7 @@ class Kern(Statement):
 
         # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
-        args = args_filter(arguments.args,
+        args = args_filter(self._arguments.args,
                            arg_types=VALID_SCALAR_NAMES,
                            arg_accesses=reduction_modes)
         if args:
@@ -2794,10 +2797,9 @@ class CodedKern(Kern):
     _colour = "magenta"
 
     def __init__(self, KernelArguments, call, parent=None, check=True):
-        self._parent = parent
         super(CodedKern, self).__init__(parent, call,
                                         call.ktype.procedure.name,
-                                        KernelArguments(call, self))
+                                        KernelArguments)
         self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
@@ -2943,13 +2945,12 @@ class CodedKern(Kern):
         symtab.add(rsymbol)
         call_node = Call(rsymbol)
 
-        # Swap itself with the appropriate Call node
-        self.parent.children[self.position] = call_node
-        call_node.parent = self.parent
-
+        # Create argument expressions as children of the new node
         for argument in self.arguments.psyir_expressions():
             call_node.addchild(argument)
-            argument.parent = call_node
+
+        # Swap itself with the appropriate Call node
+        self.replace_with(call_node)
 
         if not self.module_inline:
             # Import subroutine symbol
@@ -3121,7 +3122,7 @@ class CodedKern(Kern):
         from psyclone.line_length import FortLineLength
 
         # If this kernel has not been transformed we do nothing
-        if not self.modified and not self.root.opencl:
+        if not self.modified and not self.ancestor(InvokeSchedule).opencl:
             return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
@@ -3148,7 +3149,7 @@ class CodedKern(Kern):
             # TODO: Issue 499, this works as an OpenCL quickfix but it needs
             # to be generalized and be consistent with the '--kernel-renaming'
             # conventions.
-            if self.root.opencl:
+            if self.ancestor(InvokeSchedule).opencl:
                 if self.name.lower().endswith("_code"):
                     new_suffix += "_" + self.name[:-5]
                 else:
@@ -3157,7 +3158,7 @@ class CodedKern(Kern):
             new_suffix += "_{0}".format(name_idx)
 
             # Choose file extension
-            if self.root.opencl:
+            if self.ancestor(InvokeSchedule).opencl:
                 new_name = old_base_name + new_suffix + ".cl"
             else:
                 new_name = old_base_name + new_suffix + "_mod.f90"
@@ -3183,7 +3184,7 @@ class CodedKern(Kern):
         # have already been generated. The link to an specific kernel
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
         # the  FORTCL_KERNELS_FILE environment variable)
-        if not self.root.opencl:
+        if not self.ancestor(InvokeSchedule).opencl:
             if self._kern_schedule:
                 # A PSyIR kernel schedule has been created. This means
                 # that the PSyIR has been modified and will be used to
@@ -3210,7 +3211,7 @@ class CodedKern(Kern):
             os.close(fdesc)
             return
 
-        if self.root.opencl:
+        if self.ancestor(InvokeSchedule).opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter(
                 kernels_local_size=self._opencl_options['local_size'])
@@ -3405,20 +3406,19 @@ class InlinedKern(Kern):
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     '''
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "InlinedKern"
     _colour = "magenta"
 
-    def __init__(self, psyir_nodes):
+    def __init__(self, psyir_nodes, parent=None):
         # pylint: disable=non-parent-init-called, super-init-not-called
-        Node.__init__(self)
+        Node.__init__(self, parent=parent)
         schedule = Schedule(children=psyir_nodes, parent=self)
         self.children = [schedule]
-        # Update the parent info for each node we've moved
-        for node in schedule.children:
-            node.parent = schedule
 
     @staticmethod
     def _validate_child(position, child):

@@ -79,7 +79,7 @@ def test_loop_trans_validate(monkeypatch):
             "'null' loop" in str(err.value))
     monkeypatch.undo()
     # Break the contents of the loop
-    loop.children = loop.children[0:1]
+    loop.children = loop.pop_all_children()[0:1]
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
     assert ("Error in OMPParallelLoopTrans transformation. The target loop "

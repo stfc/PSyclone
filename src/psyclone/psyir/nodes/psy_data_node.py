@@ -45,7 +45,9 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import (SymbolTable, TypeSymbol, DataSymbol,
+                                    ContainerSymbol, DeferredType,
+                                    UnknownFortranType, GlobalInterface)
 
 
 # =============================================================================
@@ -120,6 +122,10 @@ class PSyDataNode(Statement):
             ", ".join(self.add_psydata_class_prefix(symbol) for symbol in
                       PSyDataNode.symbols)
 
+        # TODO #1185. Much of what is done in this constructor should either
+        # be done in a create() method or in the transformation that adds
+        # this node.
+
         # A PSyData node always contains a Schedule
         sched = self._insert_schedule(children)
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
@@ -133,12 +139,38 @@ class PSyDataNode(Statement):
             # FIXME: This may not be a good solution
             symtab = SymbolTable()
 
+        # Ensure that we have a container symbol for the API access
+        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
+        try:
+            csym = symtab.lookup(fortran_module)
+        except KeyError:
+            csym = ContainerSymbol(fortran_module)
+            symtab.add(csym)
+
+        # The type symbol for PSyData variables
+        var_name = self.add_psydata_class_prefix("PSyDataType")
+        try:
+            type_sym = symtab.lookup(var_name)
+            if (not isinstance(type_sym.interface, GlobalInterface) or
+                    type_sym.interface.container_symbol is not csym):
+                raise InternalError(
+                    "Symbol table already contains a symbol named '{0}' but "
+                    "its interface does not refer to the '{1}' container.".
+                    format(var_name, csym.name))
+        except KeyError:
+            type_sym = TypeSymbol(var_name, DeferredType(),
+                                  interface=GlobalInterface(csym))
+            symtab.add(type_sym)
+
         # Store the name of the PSyData variable that is used for this
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
+        psydata_type = UnknownFortranType(
+            "type({0}), save, target ::".format(type_sym.name))
         self._var_name = symtab.new_symbol(
-            self._psy_data_symbol_with_prefix).name
+            self._psy_data_symbol_with_prefix, symbol_type=DataSymbol,
+            datatype=psydata_type).name
 
         # Name of the region. In general at constructor time we might
         # not have a parent subroutine or any child nodes, so
@@ -153,7 +185,8 @@ class PSyDataNode(Statement):
         # query the actual name of region (e.g. during generation of a driver
         # for an extract node). If the user does not define a name, i.e.
         # module_name and region_name are empty, a unique name will be
-        # computed in gen_code(). If this name would then be stored in
+        # computed in gen_code() or lower_to_language_level(). If this name
+        # would then be stored in
         # module_name and region_name, and gen() is called again, the
         # names would not be computed again, since the code detects already
         # defined module and region names. This can then result in duplicated
@@ -299,21 +332,24 @@ class PSyDataNode(Statement):
             be added to each variable name in the post_var_list.
 
         '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import Kern, InvokeSchedule
         # TODO: #415 Support different classes of PSyData calls.
+        invoke = self.ancestor(InvokeSchedule).invoke
         module_name = self._module_name
         if module_name is None:
             # The user has not supplied a module (location) name so
             # return the psy-layer module name as this will be unique
             # for each PSyclone algorithm file.
-            module_name = self.root.invoke.invokes.psy.name
+            module_name = invoke.invokes.psy.name
 
         region_name = self._region_name
         if region_name is None:
             # The user has not supplied a region name (to identify
             # this particular invoke region). Use the invoke name as a
             # starting point.
-            region_name = self.root.invoke.name
-            from psyclone.psyGen import Kern
+            region_name = invoke.name
             kerns = self.walk(Kern)
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
@@ -402,19 +438,6 @@ class PSyDataNode(Statement):
         self._add_call("PostEnd", parent)
 
     # -------------------------------------------------------------------------
-    def gen_c_code(self, indent=0):
-        '''
-        Generates a string representation of this Node using C language
-        (currently not supported).
-
-        :param int indent: Depth of indent for the output string.
-        :raises NotImplementedError: Not yet supported for PSyData nodes.
-        '''
-        raise NotImplementedError("Generation of C code is not supported "
-                                  "for PSyDataNode.")
-
-    # -------------------------------------------------------------------------
-
     def update(self):
         # pylint: disable=too-many-branches, too-many-statements
         # pylint: disable=too-many-locals

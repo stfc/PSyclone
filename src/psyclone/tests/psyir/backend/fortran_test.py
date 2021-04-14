@@ -63,12 +63,6 @@ from psyclone.psyGen import PSyFactory
 from psyclone.nemo import NemoInvokeSchedule, NemoKern
 
 
-@pytest.fixture(scope="function", name="fort_writer")
-def fixture_fort_writer():
-    '''Create and return a FortranWriter object with default settings.'''
-    return FortranWriter()
-
-
 def test_gen_intent():
     '''Check the gen_intent function produces the expected intent
     strings.
@@ -861,7 +855,7 @@ def test_fw_container_2(fort_writer, tmpdir):
         "end module test\n" in result)
     assert Compile(tmpdir).string_compiles(result)
 
-    container.children.append(Container("child", parent=container))
+    container.children.append(Container("child"))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
     assert ("The Fortran back-end requires all children of a Container "

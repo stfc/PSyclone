@@ -115,7 +115,6 @@ def replace_child_with_assignment(node):
     lhs = Reference(DataSymbol('a', REAL_TYPE))
     rhs = Reference(DataSymbol('b', REAL_TYPE))
     assignment = Assignment.create(lhs, rhs)
-    assignment.parent = node
     node.children[0] = assignment
 
 
@@ -131,17 +130,17 @@ def test_gocean_omp_parallel():
                            idx=0, dist_mem=False)
 
     omp = OMPParallelTrans()
-    omp_sched, _ = omp.apply(invoke.schedule[0])
+    _, _ = omp.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment
     # TODO: #440 tracks this
-    replace_child_with_assignment(omp_sched[0].dir_body)
+    replace_child_with_assignment(invoke.schedule[0].dir_body)
 
     # omp_sched is a GOInvokeSchedule, which is not yet supported.
     # So only convert starting from the OMPParallelDirective
     fvisitor = FortranWriter()
-    result = fvisitor(omp_sched[0])
+    result = fvisitor(invoke.schedule[0])
     correct = '''!$omp parallel
 a = b
 !$omp end parallel'''
@@ -149,12 +148,12 @@ a = b
 
     cvisitor = CWriter()
     # Remove newlines for easier RE matching
-    result = cvisitor(omp_sched[0])
+    result = cvisitor(invoke.schedule[0])
     correct = '''#pragma omp parallel
 {
   a = b;
 }'''
-    result = cvisitor(omp_sched[0])
+    result = cvisitor(invoke.schedule[0])
     assert correct in result
 
 
@@ -216,7 +215,7 @@ def test_gocean_omp_do():
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     omp = OMPLoopTrans()
-    omp_sched, _ = omp.apply(invoke.schedule[0])
+    _, _ = omp.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment.
@@ -225,11 +224,11 @@ def test_gocean_omp_do():
     # are not supported yet, and it is sufficient to test that the
     # visitor pattern creates correct OMP DO directives.
     # TODO #440 fixes this.
-    replace_child_with_assignment(omp_sched[0].dir_body)
+    replace_child_with_assignment(invoke.schedule[0].dir_body)
     fvisitor = FortranWriter()
     # GOInvokeSchedule is not yet supported, so start with
     # the OMP node:
-    result = fvisitor(omp_sched[0])
+    result = fvisitor(invoke.schedule[0])
     correct = '''!$omp do schedule(static)
 a = b
 !$omp end do'''
@@ -237,7 +236,7 @@ a = b
 
     cvisitor = CWriter()
     # Remove newlines for easier RE matching
-    result = cvisitor(omp_sched[0])
+    result = cvisitor(invoke.schedule[0])
     correct = '''#pragma omp do schedule(static)
 {
   a = b;

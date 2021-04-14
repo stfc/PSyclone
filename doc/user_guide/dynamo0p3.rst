@@ -1957,12 +1957,14 @@ arguments to inter-grid kernels are as follows:
    is an integer of type ``i_def`` and has intent ``in``.
 
 2) Include the ``cell_map`` for the current cell (column). This is
-   an integer array of rank one, type ``i_def`` and intent ``in``
+   an integer array of rank two, type ``i_def`` and intent ``in``
    which provides the mapping from the coarse to the fine mesh. It
-   has extent `ncell_f_per_c`.
+   has extent ``(ncell_f_per_c_x, ncell_f_per_c_y)``.
 
-3) Include ``ncell_f_per_c``, the number of fine cells per coarse cell.
-   This is an integer of type ``i_def`` and has intent ``in``.
+3) Include ``ncell_f_per_c_x``, and ``ncell_f_per_c_y``, the numbers of
+   fine cells per coarse cell in the ``x`` and ``y`` directions,
+   respectively. These are integers of kind ``i_def`` and have intent
+   ``in``.
 
 4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
    This is an integer of type ``i_def`` and has intent ``in``.
@@ -2033,6 +2035,28 @@ logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
 * ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
   are updated (albeit in a different way due to different access to DoFs, see
   :ref:`dynamo0.3-api-meta-args` for more details).
+
+
+Kernel Naming Conventions
++++++++++++++++++++++++++
+
+LFRic development uses strict naming conventions related to kernels.
+While they are not a requirement for PSyclone itself, any LFRic
+development should follow these conventions (see e.g.
+:ref:`LFRic examples <examples_lfric>` in PSyclone):
+
+Module name:
+    ``<base_name>_kernel_mod``
+Kernel type name:
+    ``<base_name>_kernel_type``
+Subroutine name:
+    ``<base_name>_code``
+
+The latest version of the LFRic coding style guidelines are availabe in this
+`LFRic wiki page
+<https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
+(requires login access to MOSRS, see the above :ref:`introduction <dynamo0.3-api>`
+to the LFRic API).
 
 .. _lfric-built-ins:
 

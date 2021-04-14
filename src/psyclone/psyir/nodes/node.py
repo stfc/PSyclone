@@ -140,30 +140,62 @@ class ChildrenList(list):
 
     def _check_is_orphan(self, item):
         '''
-        Checks that the provided item is an orphan (has no parent).
+        Checks that the provided item is an orphan (has no parent or the parent
+        was predefined in the constructor but the other end of connection has
+        not finalised until now).
 
         :param item: object that needs to be validated.
         :type item: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises GenerationError: if the given item is not an orphan.
+        :raises GenerationError: if the item had been provided with a parent \
+            argument on its constructor and this operation is trying to \
+            make its parent a different node.
+
         '''
-        # The `item.parent is not self._node_reference` below should ideally be
-        # removed as this still allows a single node to be a child of another
-        # one multiple times.
-        # However expressions like:
-        #   > node = NodeClass(parent=node2)
-        #   > node2.addchild(node)
-        # are used extensively. So this condition is left for the moment to
-        # support these 2-step parent-child construction operations.
-        # TODO #294 could solve this issue by making the parent-child
-        # connection an atomic (and transparent) operation.
-        if item.parent and item.parent is not self._node_reference:
+        if item.parent and not item.has_constructor_parent:
             raise GenerationError(
                 "Item '{0}' can't be added as child of '{1}' because it is not"
                 " an orphan. It already has a '{2}' as a parent.".format(
                     item.coloured_name(False),
                     self._node_reference.coloured_name(False),
                     item.parent.coloured_name(False)))
+        if item.parent and item.has_constructor_parent:
+            if item.parent is not self._node_reference:
+                raise GenerationError(
+                    "'{0}' cannot be set as parent of '{1}' because its "
+                    "constructor predefined the parent reference to a "
+                    "different '{2}' node."
+                    .format(self._node_reference.coloured_name(False),
+                            item.coloured_name(False),
+                            item.parent.coloured_name(False)))
+
+    def _set_parent_link(self, node):
+        '''
+        Set parent connection of the given node to this ChildrenList's node.
+
+        :param node: node for which the parent connection need to be updated.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # pylint: disable=protected-access
+        node._parent = self._node_reference
+        node._has_constructor_parent = False
+
+    @staticmethod
+    def _del_parent_link(node):
+        '''
+        Delete parent connection of the given node.
+
+        :param node: node for which the parent connection need to be updated.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # This is done from here with protected access because it's the parent
+        # which is in charge of maintaining its children connections.
+        # pylint: disable=protected-access
+        node._parent = None
+        node._has_constructor_parent = False
 
     def append(self, item):
         ''' Extends list append method with children node validation.
@@ -175,6 +207,7 @@ class ChildrenList(list):
         self._validate_item(len(self), item)
         self._check_is_orphan(item)
         super(ChildrenList, self).append(item)
+        self._set_parent_link(item)
 
     def __setitem__(self, index, item):
         ''' Extends list __setitem__ method with children node validation.
@@ -186,7 +219,9 @@ class ChildrenList(list):
         '''
         self._validate_item(index, item)
         self._check_is_orphan(item)
+        self._del_parent_link(self[index])
         super(ChildrenList, self).__setitem__(index, item)
+        self._set_parent_link(item)
 
     def insert(self, index, item):
         ''' Extends list insert method with children node validation.
@@ -203,6 +238,7 @@ class ChildrenList(list):
         for position in range(positiveindex, len(self)):
             self._validate_item(position + 1, self[position])
         super(ChildrenList, self).insert(index, item)
+        self._set_parent_link(item)
 
     def extend(self, items):
         ''' Extends list extend method with children node validation.
@@ -215,6 +251,8 @@ class ChildrenList(list):
             self._validate_item(len(self) + index, item)
             self._check_is_orphan(item)
         super(ChildrenList, self).extend(items)
+        for item in items:
+            self._set_parent_link(item)
 
     # Methods below don't insert elements but have the potential to displace
     # or change the order of the items in-place.
@@ -227,6 +265,7 @@ class ChildrenList(list):
         positiveindex = index if index >= 0 else len(self) - index
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
+        self._del_parent_link(self[index])
         super(ChildrenList, self).__delitem__(index)
 
     def remove(self, item):
@@ -238,6 +277,7 @@ class ChildrenList(list):
         '''
         for position in range(self.index(item) + 1, len(self)):
             self._validate_item(position - 1, self[position])
+        self._del_parent_link(item)
         super(ChildrenList, self).remove(item)
 
     def pop(self, index=-1):
@@ -254,6 +294,7 @@ class ChildrenList(list):
         # Check if displaced items after 'positiveindex' will still be valid
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
+        self._del_parent_link(self[index])
         return super(ChildrenList, self).pop(index)
 
     def reverse(self):
@@ -304,6 +345,11 @@ class Node(object):
                                       self._children_valid_format)
         if children:
             self._children.extend(children)
+        # Keep a record of whether a parent node was supplied when constructing
+        # this object. In this case it still won't appear in the parent's
+        # children list. When both ends of the reference are connected this
+        # will become False.
+        self._has_constructor_parent = parent is not None
         self._parent = parent
         # Reference into fparser2 AST (if any)
         self._ast = ast
@@ -804,28 +850,35 @@ class Node(object):
         ''' Set a new children list.
 
         :param my_children: new list of children.
-        :type my_children: list or NoneType
+        :type my_children: list
 
-        :raises TypeError: if the given children parameter is not a list \
-            nor NoneType.
+        :raises TypeError: if the given children parameter is not a list.
         '''
-        if my_children is None:
-            self._children = None
-        elif isinstance(my_children, list):
+        if isinstance(my_children, list):
+            self.pop_all_children()  # First remove existing children if any
             self._children = ChildrenList(self, self._validate_child,
                                           self._children_valid_format)
             self._children.extend(my_children)
         else:
             raise TypeError("The 'my_children' parameter of the node.children"
-                            " setter must be a list or None.")
+                            " setter must be a list.")
 
     @property
     def parent(self):
+        '''
+        :returns: the parent node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+        '''
         return self._parent
 
-    @parent.setter
-    def parent(self, my_parent):
-        self._parent = my_parent
+    @property
+    def has_constructor_parent(self):
+        '''
+        :returns: whether the constructor has predefined a parent connection
+            but the parent's children list doesn't include this node yet.
+        :rtype: bool
+        '''
+        return self._has_constructor_parent
 
     @property
     def position(self):
@@ -1131,8 +1184,6 @@ class Node(object):
             # If we have children then set the Schedule's AST pointer to
             # point to the AST associated with them.
             sched.ast = children[0].ast
-            for child in children:
-                child.parent = sched
         else:
             sched.ast = ast
         return sched
@@ -1189,9 +1240,7 @@ class Node(object):
                 "Node class should be None but found '{0}'."
                 "".format(type(node.parent).__name__))
 
-        node.parent = self.parent
         self.parent.children[self.position] = node
-        self.parent = None
 
     def pop_all_children(self):
         ''' Remove all children of this node and return them as a list.
@@ -1202,9 +1251,7 @@ class Node(object):
         '''
         free_children = []
         while self.children:
-            child = self.children.pop()
-            child.parent = None
-            free_children.insert(0, child)
+            free_children.insert(0, self.children.pop())
         return free_children
 
     def detach(self):
@@ -1217,7 +1264,6 @@ class Node(object):
         '''
         if self.parent:
             self.parent.children.remove(self)
-            self.parent = None
         return self
 
     def _refine_copy(self, other):
@@ -1229,14 +1275,17 @@ class Node(object):
 
         '''
         self._parent = None
+        self._has_constructor_parent = False
         self._annotations = other.annotations[:]
-        self.children = [child.copy() for child in other.children]
-        for child in self.children:
-            child.parent = self
+        # Invalidate shallow copied children list
+        self._children = ChildrenList(self, self._validate_child,
+                                      self._children_valid_format)
+        # And make a recursive copy of each child instead
+        self.children.extend([child.copy() for child in other.children])
 
     def copy(self):
         ''' Return a copy of this node. This is a bespoke implementation for
-        PSyIR nodes that will deepcopy some of its recursive data-structure 
+        PSyIR nodes that will deepcopy some of its recursive data-structure
         (e.g. the children tree), while not copying other attributes (e.g.
         top-level parent reference).
 
