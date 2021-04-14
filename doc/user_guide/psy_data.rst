@@ -97,7 +97,7 @@ Refer to :ref:`dev_guide:psy_data` for full details about the PSyData API.
 Read-Only Verification
 ----------------------
 
-The ``PSyData`` interface is being used to verify that read-only variables
+The PSyData interface is being used to verify that read-only variables
 in a kernel are not overwritten. The ``ReadOnlyVerifyTrans`` (in 
 ``psyir.transformations.read_only_verify_trans``, or the
 `Transformation Reference Guide
@@ -123,7 +123,8 @@ can be applied for both the :ref:`LFRic <dynamo0.3-api>` and
 transformations are required. Below is an example that searches for each
 loop in an invoke (which will always surround kernel calls) and applies the
 transformation to each one. This code has been successfully used as a
-global transformation with the LFRic ``gravity_wave`` miniapp::
+global transformation with the LFRic Gravity Wave miniapp (the executable
+is named ``gravity_wave``)::
 
     def trans(psy):
         from psyclone.psyir.transformations import ReadOnlyVerifyTrans
@@ -189,7 +190,7 @@ This will create a library called ``lib_read_only.a``.
 Read-Only-Verification Library for GOcean
 +++++++++++++++++++++++++++++++++++++++++
 
-This library is contained in ``lib/read_only/dl_esm_inf`` directory and
+This library is contained in the ``lib/read_only/dl_esm_inf`` directory and
 it must be compiled before linking any GOcean-based application that uses
 read-only verification. Compiling this library requires access to the
 GOcean infrastructure library (since it must implement a generic interface

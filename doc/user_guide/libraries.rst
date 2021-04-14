@@ -45,7 +45,7 @@ The callbacks then allow third-party libraries to access data structures
 at specified locations in the code for different purposes, such as
 profiling and extraction of argument values.
 
-These wrapper libraries can be found under the `lib` directory in the Git
+These wrapper libraries can be found under the ``lib`` directory in the Git
 repository. If you have installed PSyclone using ``pip`` then the libraries
 may be found in ``share/psyclone/lib`` under your Python (or PSyclone,
 depending on the ``pip install`` options) installation (see
@@ -70,7 +70,7 @@ Profiling
 ^^^^^^^^^
 
 PSyclone provides wrapper libraries for some common performance profiling
-tools, such as ``dl_timer`` and Dr Hook. More information can be found in
+tools, such as dl_timer and Dr Hook. More information can be found in
 the :ref:`Profiling <profiling>` section.
 
 Profiling libraries are located in the ``lib/profiling`` `directory
@@ -133,7 +133,7 @@ Fortran compiler (e.g. Gnu Fortran compiler, ``gfortran``, is free and easily
 installed) and Gnu Make are also required.
 
 The majority of wrapper libraries use `Jinja
-<https://pypi.org/project/Jinja/>`_ templates to create ``PSyData``-derived
+<https://pypi.org/project/Jinja/>`_ templates to create PSyData-derived
 classes (please refer to :ref:`dev_guide:psy_data` and :ref:`dev_guide:jinja`
 for full details about the PSyData API).
 
@@ -147,7 +147,7 @@ Some libraries require NetCDF for compilation. Installation of NetCDF is
 described in details in the `hands-on practicals documentation
 <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_.
 
-Profiling wrapper libraries that depend on external tools (e.g. ``dl_timer``)
+Profiling wrapper libraries that depend on external tools (e.g. dl_timer)
 require these tools be installed and configured beforehand.
 
 .. _libraries-compilation:
@@ -162,7 +162,7 @@ As in case of :ref:`examples <examples-compilation>`, ``F90`` and
 ``F90FLAGS`` specify the compiler and compilation flags to use. The default
 value for ``F90`` is ``gfortran``.
 
-Locations of the top-level `lib` directory and the required Jinja templates
+Locations of the top-level ``lib`` directory and the required Jinja templates
 are specified with the ``PSYDATA_LIB_DIR`` and ``LIB_TMPLT_DIR`` variables.
 For testing purposes their default values are set to relative paths to the
 respective directories in the PSyclone repository.

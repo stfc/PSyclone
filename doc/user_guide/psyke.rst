@@ -117,7 +117,7 @@ node then creates the actual code, as in the following LFRic example::
 The :ref:`PSyData API <psy_data>` relies on generic Fortran interfaces to
 provide the  field-type-specific implementations of the ``ProvideVariable``
 for different types. This means that a different version of the external
-``PSyData`` library that PSyKE uses must be supplied for each PSyclone API.
+PSyData library that PSyKE uses must be supplied for each PSyclone API.
 
 .. _psyke-intro-restrictions:
 

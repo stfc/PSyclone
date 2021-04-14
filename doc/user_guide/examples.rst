@@ -150,7 +150,7 @@ Dependencies
 ^^^^^^^^^^^^
 
 Any required library that is included in PSyclone (typically
-the infrastructure libraries for the APIs, or ``PSyData`` :ref:`wrapper
+the infrastructure libraries for the APIs, or :ref:`PSyData wrapper
 libraries <libraries>`) will automatically be compiled with the same
 compiler and compilation flags as the examples.
 
@@ -197,7 +197,7 @@ This is a simple but complete example of using PSyclone to enable an
 application to run on a GPU by adding OpenACC directives. A ``Makefile``
 is included which will use PSyclone to generate the PSy code and
 transformed kernels and then compile the application. This compilation
-requires that the ``dl_esm_inf`` `library <github.com/stfc/dl_esm_inf>`_
+requires that the `dl_esm_inf library <https://github.com/stfc/dl_esm_inf>`_
 be installed/available - it is provided as a Git submodule of the PSyclone
 project (see :ref:`dev_guide:dev-installation` in the Developers' Guide
 for details on working with submodules).
@@ -251,7 +251,7 @@ paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
 The ``Makefile`` in this example will link with the compiled NetCDF
 extraction library and NetCDF. You can execute the created
-binary and it will create two output ``netcdf`` files, one for
+binary and it will create two output NetCDF files, one for
 each of the two invokes.
 
 It will also create two stand-alone driver programs (one for

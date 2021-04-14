@@ -51,7 +51,7 @@ transformation within a transformation script.
 
 
 PSyclone can be used with a variety of existing profiling tools.
-It currently supports ``dl_timer``, Dr Hook, the NVIDIA GPU profiling
+It currently supports dl_timer, Dr Hook, the NVIDIA GPU profiling
 tools and it comes with a simple stand-alone timer library. The
 :ref:`PSyData API <psy_data>` (see also the
 :ref:`Developer Guide <dev_guide:psy_data>`)
@@ -77,7 +77,7 @@ Interface to Third Party Profiling Tools
 ----------------------------------------
 
 PSyclone comes with :ref:`wrapper libraries <libraries>` to support
-usage of Dr Hook, ``dl_timer``, NVTX (NVIDIA Tools Extension library),
+usage of Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
 and a simple non-thread-safe timing library. Support for further
 profiling libraries will be added in the future. To compile the
 wrapper libraries, change into the directory ``lib/profiling``
@@ -105,8 +105,8 @@ libraries that come with PSyclone:
     for each MPI process), and not thread-safe.
 
 ``lib/profiling/dl_timer``
-    This wrapper uses the ``apeg-dl_timer`` library. In order to use
-    this wrapper, you must download and install the ``dl_timer`` library
+    This wrapper uses the apeg-dl_timer library. In order to use
+    this wrapper, you must download and install the dl_timer library
     from ``https://bitbucket.org/apeg/dl_timer``. This library has
     various compile-time options and may be built with MPI or OpenMP
     support. Additional link options might therefore be required
@@ -126,14 +126,14 @@ libraries that come with PSyclone:
     LFRic, and it comes in two different versions:
 
     - ``libpsy_lfric_timer.a``
-      This library just contains the ``PSyData`` wrapper, but not the
+      This library just contains the PSyData wrapper, but not the
       actual timer code. It must therefore be linked with the LFRic
       infrastructure library. It is meant to be used by LFRic only.
     - ``libpsy_lfric_timer_standalone.a``
       This library contains the LFRic timer object and its dependencies.
       It can be used standalone (i.e. without LFRic) with any program.
       A runnable example using a GOcean code is included in
-      ``examples/gocean/eg5``.
+      ``examples/gocean/eg5/profile``.
 
     The LFRic timer writes its output to a file called ``timer.txt``
     in the current directory, and will overwrite this file if it
@@ -146,9 +146,9 @@ the developer's guide (:ref:`dev_guide:psy_data`).
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool. The
-exceptions are the ``template`` and ``simple_timing`` libraries,
+exceptions are the template and simple_timing libraries,
 which are stand alone. The profiling example in
-``examples/gocean/eg5`` can be used with any of the
+``examples/gocean/eg5/profile`` can be used with any of the
 wrapper libraries (except ``nvidia``) to see how they work.
 
 .. _required_profiling_calls:
@@ -217,7 +217,7 @@ created by PSyclone with start and end profiling calls.
 .. note:: If the ``kernels`` option is used in combination with an
           optimisation script that introduces OpenACC then profiling
           calls are automatically excluded from within OpenACC
-          regions (since the ``PSyData`` wrappers are not compiled for
+          regions (since the PSyData wrappers are not compiled for
           GPU execution).
 
 .. note:: It is still the responsibility of the user to manually

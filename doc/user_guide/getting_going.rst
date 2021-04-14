@@ -58,19 +58,12 @@ PSyclone is available on the Python Package Index
 The latest release is |release| and the latest stable version is on
 the master branch.
 
-PSyclone can be installed using ``pip``::
-
-   pip install psyclone
-
-for the latest available release, or::
-
-   pip install psyclone==X.Y.Z
-
-where ``X.Y.Z`` is the specific PSyclone release version (e.g. |release|).
+There are two ways to install PSyclone. The first one is directly from
+PyPI using ``pip install``, see :ref:`below <getting-going-env-pypi>` for
+more detailed information.
 
 Alternatively, PSyclone can be downloaded from GitHub - either see |release|
-in the ``Releases``
-`tab <https://github.com/stfc/PSyclone/releases>`_
+in the ``Releases`` `tab <https://github.com/stfc/PSyclone/releases>`_
 on the PSyclone page or download and extract the latest release of
 PSyclone directly, e.g.
 
@@ -79,6 +72,11 @@ PSyclone directly, e.g.
    > tar zxf \ |release|\ .tar.gz
    > ls
    PSyclone-\ |release|\
+
+After the source package is downloaded and unpacked, it can also be
+installed using ``pip install``, albeit in a slightly different way to
+the PyPI installation, see :ref:`below <getting-going-env-src>` for
+more detailed information.
 
 Hereon the location where you download or clone PSyclone (including the
 PSyclone directory itself) will be referred to as ``<PSYCLONEHOME>``.
@@ -99,8 +97,15 @@ Installation from PyPI
 ^^^^^^^^^^^^^^^^^^^^^^
 
 The simplest, and recommended, installation process is from
-`PyPI <https://pypi.org/project/PSyclone/>`_ using ``pip`` as described
-:ref:`above <getting-going-download>`.
+`PyPI <https://pypi.org/project/PSyclone/>`_ using ``pip``::
+
+   > pip install psyclone
+
+for the latest available release, or::
+
+   > pip install psyclone==X.Y.Z
+
+where ``X.Y.Z`` is the specific PSyclone release version (e.g. |release|).
 
 By default, ``pip`` will attempt a system-wide install. If you wish
 to do a user-local install instead then supply the ``--user`` flag::
@@ -177,8 +182,8 @@ resources is similar to other Python packages:
   ``<python-base-prefix>/share/psyclone`` directory.
 
 For a system-wide installation on Linux, ``<python-base-prefix>`` will
-be something like ``/usr`` and if a user-local installation is performed
-it will be something like ``~/.local``.
+likely be ``/usr`` and if a user-local installation is performed
+it will likely be ``~/.local``.
 
 For an installation to a specific location, ``<python-base-prefix>``
 is simply the path given to the
@@ -214,13 +219,14 @@ and 3.8.
 
 PSyclone immediately relies on four external Python packages; ``six``,
 ``configparser``, ``fparser`` and ``pyparsing``. There is also dependency
-on ``enum34`` for Python 2 support, however this support will be dropped in
-future. The easiest way to satisfy the Python dependencies is to use the
-`PyPI installation <https://packaging.python.org/installing>`_ and ``pip``.
+on ``enum34`` for Python 2 support, however support for Python 2 will be
+dropped in future. The easiest way to satisfy the Python dependencies is
+to use the `PyPI installation
+<https://packaging.python.org/installing>`_ and ``pip``.
 
 If everything is working correctly then using ``pip`` to install PSyclone::
 
-   pip install psyclone
+   > pip install psyclone
 
 will automatically install the Python dependencies.
 
@@ -381,7 +387,7 @@ file, ``psyclone.cfg``. The default version of this file is installed
 to ``<python-base-prefix>/shared/psyclone/`` during the installation
 process. Similar to what is described :ref:`above
 <getting-going-env-loc>`, if a system-wide installation is being
-performed then this  will be something like ``/usr/share/psyclone/``.
+performed then this will likely be ``/usr/share/psyclone/``.
 If a user-local installation is performed (``--user`` flag to
 ``pip install``) then the location will be something like
 ``~/.local/share/psyclone/``.
