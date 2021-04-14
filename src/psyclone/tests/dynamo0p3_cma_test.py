@@ -202,8 +202,9 @@ def test_cma_mdata_multi_writes():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Replace the field arg with another CMA operator that is written to
     for access in OP_WRITE_ACCESSES:
-        cmaopstring = "arg_type(gh_columnwise_operator," + access + \
-                      ",any_space_1,any_space_2)"
+        cmaopstring = (
+            "arg_type(gh_columnwise_operator, gh_real, " + access +
+            ",any_space_1,any_space_2)")
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_field, gh_real, gh_read, any_space_1)",
             cmaopstring, 1)
@@ -255,8 +256,9 @@ def test_cma_mdata_writes_lma_op():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Add an additional LMA operator that has write or readwrite access
     for access in OP_WRITE_ACCESSES:
-        opstring = "             arg_type(gh_operator," + access + \
-                   ", any_space_1, any_space_2), &"
+        opstring = (
+            "             arg_type(gh_operator, gh_real, " + access +
+            ", any_space_1, any_space_2), &")
         code = CMA_ASSEMBLE.split("\n")
         code.insert(6, opstring)
         code = "\n".join(code).replace("meta_args(4)", "meta_args(5)", 1)
