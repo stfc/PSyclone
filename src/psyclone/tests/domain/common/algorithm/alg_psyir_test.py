@@ -34,7 +34,7 @@
 # Author R. W. Ford, STFC Daresbury Lab
 
 '''Module containing tests for the AlgorithmInvokeCall and
-KernelFunctor algorithm layer-specific nodes. The tests include
+KernelFunctor algorithm-layer-specific nodes. The tests include
 translation of PSyIR to PSyclone Algorithm PSyIR and PSyclone
 Algorithm PSyIR to processed PSyIR.
 

@@ -33,8 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the translation of PSyIR to LFRic
-Algorithm PSyIR and from LFRic Algorithm PSyIR to processed PSyIR.
+'''Module containing tests for the LFRicAlgorithmInvokeCall,
+LFRicBuiltinFunctor and LFRicKernelFunctor LFRic
+algorithm-layer-specific nodes. The tests include translation of PSyIR
+to LFRic Algorithm PSyIR and from LFRic Algorithm PSyIR to processed
+PSyIR.
 
 '''
 from __future__ import absolute_import
@@ -141,8 +144,8 @@ def test_lfricalgorithminvokecall_create_nodescription():
 def test_lfricalgorithminvoke_call_root_name():
     '''Check that an LFRicAlgorithmInvokeCall node is translated into the
     expected PSyIR call node when the lower_to_language_level() method
-    is called. This test exercises the _def_sub_root_name(). The rest
-    of the functionality is in the parent class.
+    is called. This test exercises the _def_routine_root_name(). The
+    rest of the functionality is in the parent class.
 
     '''
     code = (
