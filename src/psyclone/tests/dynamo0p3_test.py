@@ -1670,11 +1670,7 @@ def test_arg_descriptor_init_error(monkeypatch):
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # TODO in #874: Remove code replacement for the old-style field metadata
-    code = CODE.replace(
-        "arg_type(gh_field,    gh_real,    gh_inc,  w1)",
-        "arg_type(gh_field, gh_inc, w1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
     # Extract an arg_type object that we can use to create an
@@ -1689,8 +1685,8 @@ def test_arg_descriptor_init_error(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, metadata.iterates_over)
     assert ("Failed argument validation for the 'meta_arg' entry "
-            "'arg_type(GH_INVALID, gh_inc, w1)', should not get to "
-            "here." in str(excinfo.value))
+            "'arg_type(GH_INVALID, gh_real, gh_inc, w1)', should not "
+            "get to here." in str(excinfo.value))
 
 
 def test_func_descriptor_repr():
