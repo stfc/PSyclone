@@ -84,7 +84,7 @@ https://psyclone.readthedocs.io/en/latest/examples.html#compilation), these
 flags can be set to a different compiler. For instance,
 
 ```shell
-make F90=ifort F90FLAGS="-g -check bounds"
+F90=ifort F90FLAGS="-g -check bounds" make
 ```
 
 Similar to compilation of the [examples](

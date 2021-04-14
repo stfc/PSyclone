@@ -1,3 +1,44 @@
+# ``NaN``-Test Verification Libraries
+
+This directory contains files related to testing all input and output
+parameters of a kernel to make sure they are not [``NaN`` or infinite](
+https://psyclone.readthedocs.io/en/latest/psy_data.html#nan-test),
+i.e. checks at runtime that a read-only parameter of a subroutine is indeed
+not changed in a kernel. There is a [PSyData base class](
+https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class)
+as a Jinja template that can be used to simplify the creation of API-specific
+wrapper libraries.
+
+## NANTest base class
+
+The file ``nan_test_base.jinja`` contains a Jinja template that is used
+by the [GOcean ``dl_esm_inf``-](./dl_esm_inf/README.md) and [LFRic-specific](
+./lfric/README.md) wrapper libraries. It implements the required [PSyData API](
+https://psyclone.readthedocs.io/en/stable/psy_data.html) calls for
+Fortran base types (scalar and arrays).
+Full documentation to the Jinja implementation of a PSyData base class is
+in the PSyclone [Developer Guide](
+https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
+The script [``process.py``](./../README.md#psydata-base-class) is used by the
+derived classes to process this template. There is a simple ``Makefile``
+contained here for compilation tests, but each API-specific implementation (in
+any of the subdirectories here) will process this template and compile it in
+their own directory (to allow for the required data types to be supported).
+The API-specific implementations do not link with the compiled version from
+this directory.
+
+## [``dl_esm_inf``](./dl_esm_inf) directory
+
+Contains the ``NaN``-test, PSyData-API-based, wrapper library for the
+``dl_esm_inf`` [GOcean API](
+https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
+
+## [``lfric``](./lfric) directory
+
+Contains the ``NaN``-test, PSyData-API-based, wrapper library for the
+[LFRic (Dynamo 0.3) API](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+
 <!--
 ## Licence
 
@@ -39,44 +80,3 @@ POSSIBILITY OF SUCH DAMAGE.
 Authors: J. Henrichs, Bureau of Meteorology,
          I. Kavcic, Met Office
 -->
-
-# ``NaN``-Test Verification Libraries
-
-This directory contains files related to testing all input and output
-parameters of a kernel to make sure they are not [``NaN`` or infinite](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#nan-test),
-i.e. checks at runtime that a read-only parameter of a subroutine is indeed
-not changed in a kernel. There is a [``PSyData`` base class](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class)
-as a Jinja template that can be used to simplify the creation of API-specific
-wrapper libraries.
-
-## ``NANTest`` base class
-
-The file ``nan_test_base.jinja`` contains a Jinja template that is used
-by the [GOcean ``dl_esm_inf``-](./dl_esm_inf/README.md) and [LFRic-specific](
-./lfric/README.md) wrapper libraries. It implements the required [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) calls for
-Fortran base types (scalar and arrays).
-Full documentation to the Jinja implementation of a ``PSyData`` base class is
-in the PSyclone [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
-The script [``process.py``](./../README.md#psydata-base-class) is used by the
-derived classes to process this template. There is a simple ``Makefile``
-contained here for compilation tests, but each API-specific implementation (in
-any of the subdirectories here) will process this template and compile it in
-their own directory (to allow for the required data types to be supported).
-The API-specific implementations do not link with the compiled version from
-this directory.
-
-## [``dl_esm_inf``](./dl_esm_inf) directory
-
-Contains the ``NaN``-test, PSyData-API-based, wrapper library for the
-``dl_esm_inf`` [GOcean API](
-https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
-
-## [``lfric``](./lfric) directory
-
-Contains the ``NaN``-test, PSyData-API-based, wrapper library for the
-[LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
