@@ -43,7 +43,7 @@ the application. The following dependencies must be available:
 ## Compilation
 
 The library is compiled with ``make`` using the provided ``Makefile``. The
-``make`` variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
+environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
@@ -53,7 +53,7 @@ LFRic infrastructure located in a clone of PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../../README.md#installation) so the exact path
-**must be specified** using the ``make`` variable ``INF_DIR``, e.g.
+**must be specified** using the environment variable ``INF_DIR``, e.g.
 
 ```shell
 F90=ifort F90FLAGS="-g -check bounds" INF_DIR=<path/to/LFRic/code> make
@@ -64,7 +64,7 @@ used when compiling the LFRic extraction library are identical to the ones
 used when running an LFRic application.
 
 The locations of the ExtractNetcdf and PSyData base classes are
-specified using the ``make`` variables ``$LIB_TMPLT_DIR`` and
+specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to
 the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
 directories.

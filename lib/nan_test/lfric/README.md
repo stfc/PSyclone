@@ -32,12 +32,12 @@ the application. The following dependencies must be available:
 ## Compilation
 
 The library is compiled with ``make`` using the provided ``Makefile``. The
-``make`` variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
+environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
 The location of the LFRic infrastructure library is specified using the
-``make`` variable ``INF_DIR``. It defaults to the relative path to
+environment variable ``INF_DIR``. It defaults to the relative path to
 location of the pared-down LFRic infrastructure located in a clone of
 PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
@@ -54,7 +54,7 @@ used when compiling the LFRic ``NaN``-test library are identical to the
 ones used when running an LFRic application.
 
 The locations of the NANTest and PSyData base classes are specified
-using the ``make`` variables ``$LIB_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
+using the environment variables ``$LIB_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
 respectively. They default to the relative paths to the
 [``lib/nan_test``](./../) and top-level [``lib``](./../../) directories.
 
