@@ -619,9 +619,9 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
 
     # Cast dl_esm_inf pointers to cl_mem handlers
     expected += '''
-      cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
-      p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
-      u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)'''
+      cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
 
     # Call the set_args subroutine with the boundaries corrected for the
     # OpenCL 0-indexing
