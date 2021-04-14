@@ -96,22 +96,20 @@ def test_fusetrans_error_not_same_parent():
     ''' Check that we reject attempts to fuse loops which don't share the
     same parent '''
 
+    loop1 = Loop.create(DataSymbol("i", INTEGER_TYPE),
+                        Literal("1", INTEGER_TYPE),
+                        Literal("10", INTEGER_TYPE),
+                        Literal("1", INTEGER_TYPE), [Return()])
     sch1 = Schedule()
-    sch2 = Schedule()
-    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE), parent=sch1)
-    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE), parent=sch2)
     sch1.addchild(loop1)
+
+    sch2 = Schedule()
+    loop2 = Loop.create(DataSymbol("j", INTEGER_TYPE),
+                        Literal("1", INTEGER_TYPE),
+                        Literal("10", INTEGER_TYPE),
+                        Literal("1", INTEGER_TYPE), [Return()])
+
     sch2.addchild(loop2)
-
-    loop1.addchild(Literal("1", INTEGER_TYPE, parent=loop1))  # start
-    loop1.addchild(Literal("10", INTEGER_TYPE, parent=loop1))  # stop
-    loop1.addchild(Literal("1", INTEGER_TYPE, parent=loop1))  # step
-    loop1.addchild(Schedule(parent=loop1))  # loop body
-
-    loop2.addchild(Literal("1", INTEGER_TYPE, parent=loop2))  # start
-    loop2.addchild(Literal("10", INTEGER_TYPE, parent=loop2))  # stop
-    loop2.addchild(Literal("1", INTEGER_TYPE, parent=loop2))  # step
-    loop2.addchild(Schedule(parent=loop2))  # loop body
 
     fuse = LoopFuseTrans()
 
@@ -123,17 +121,21 @@ def test_fusetrans_error_not_same_parent():
 
 
 # ----------------------------------------------------------------------------
-def fuse_loops(parser=None, fortran_code=None):
+def fuse_loops(parser, fortran_code):
     '''Helper function that fuses the first two nodes in the given
     Fortran code, and returns the fused Fortran code as string.
+    If an error is detected by the used NemoLoopFuseTrans transformation,
+    it will raise a TransformationError.
 
-    :param string fortran_code: the Fortran code to loop fuse.
+    :param parser: an fparser2 program class.
+    :type parser: :py:class:`fparser.two.Fortran2003.Program`
 
-    :returns: String representation of fused code.
-    :rtype: str
+    :param str fortran_code: the Fortran code to loop fuse.
+    :param parser:
 
-    :raises TransformationError: if the loop fuse transformation cannot
-        be applied.
+    :returns: a 2-tuple of the fused Fortran code, and the schedule.
+    :rtype: 2-tuple of (str, :py:class:`psyclone.psyir.nodes.Schedule`)
+
     '''
     reader = FortranStringReader(fortran_code)
     ast = parser(reader)
@@ -150,10 +152,10 @@ def fuse_loops(parser=None, fortran_code=None):
 
 # ----------------------------------------------------------------------------
 def test_fuse_ok(parser):
-    '''This tests verifies that the valid loop fuse statements work
-    as expected.
-    '''
+    '''This tests verifies that loop fusion can be successfully applied to
+    conformant loops.
 
+    '''
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -268,7 +270,7 @@ def test_fuse_incorrect_bounds_step(parser):
         fuse_loops(parser, code)
     assert "Upper loop bounds must be identical, but are" in str(err.value)
 
-    # Test step size
+    # Test step size:
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -296,7 +298,7 @@ def test_fuse_incorrect_bounds_step(parser):
                     s(ji, jj)=t(ji, jj)+1
                  enddo
               enddo
-              do jj=1, n, 1
+              do jj=1, n
                  do ji=1, 10
                     s(ji, jj)=t(ji, jj)+1
                  enddo
@@ -308,7 +310,8 @@ def test_fuse_incorrect_bounds_step(parser):
 # ----------------------------------------------------------------------------
 def test_fuse_different_loop_vars(parser):
     '''
-    Test that loop variables are identicla
+    Test that loop variables are verified to be identical.
+
     '''
     code = '''subroutine sub()
               integer :: ji, jj, n
@@ -341,7 +344,7 @@ def test_fuse_correct_bounds(parser):
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
-              do jj=2-1, n
+              do jj=2, n
                  do ji=1, 10
                     s(ji, jj)=t(ji, jj)+1
                  enddo
@@ -380,7 +383,16 @@ def test_fuse_dimension_change(parser):
               enddo
               end subroutine sub'''
 
-    fuse_loops(parser, code)
+    out, _ = fuse_loops(parser, code)
+    correct = '''do jj = 1, n + 1, 1
+  do ji = 1, 10, 1
+    s(ji,jj) = t(ji,jj) + 1
+  enddo
+  do ji = 1, 10, 1
+    s(ji,jj) = s(ji,jj) + t(jj,jj) + t(ji,ji)
+  enddo
+enddo'''
+    assert correct in out
 
     # This cannot be fused, since 's' is written in the
     # first iteration and read in the second.
@@ -401,8 +413,9 @@ def test_fuse_dimension_change(parser):
 
     with pytest.raises(TransformationError) as err:
         fuse_loops(parser, code)
-    assert "Variable 's' is using loop variable jj in index 1 and 0." \
-        in str(err.value)
+    assert "Variable 's' is written to in one or both of the loops and the "\
+        "loop variable jj is used in different index locations (1 and 0) "\
+        "when accessing it." in str(err.value)
 
     # This cannot be fused, since 's' is read in the
     # first iteration and written in the second with
@@ -424,8 +437,9 @@ def test_fuse_dimension_change(parser):
 
     with pytest.raises(TransformationError) as err:
         fuse_loops(parser, code)
-    assert "Variable 's' is using loop variable jj in index 0 and 1." \
-        in str(err.value)
+    assert "Variable 's' is written to in one or both of the loops and the " \
+           "loop variable jj is used in different index locations (0 and 1) " \
+           "when accessing it." in str(err.value)
 
 
 # ----------------------------------------------------------------------------
@@ -436,8 +450,8 @@ def test_fuse_independent_array(parser):
     do j ...  d(j) = a(1)
     '''
 
-    # The first example can be merged, since 't' is read-only,
-    # so it doesn't matter that it is accessed differently
+    # The first example can be merged, since 's does not
+    # depend on the loop variable, and it is written and read.
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -461,10 +475,8 @@ def test_fuse_independent_array(parser):
 
 # ----------------------------------------------------------------------------
 def test_fuse_scalars(parser):
-    '''Test that using arrays which are not dependent on the loop variable
-    are handled correctly. Example:
-    do j  ... a(1) = b(j) * c(j)
-    do j ...  d(j) = a(1)
+    '''Test that using scalars work as expected in all combinations of
+    being read/written in both loops.
     '''
 
     # First test: read/read of scalar variable
@@ -506,7 +518,7 @@ def test_fuse_scalars(parser):
     with pytest.raises(TransformationError) as err:
         fuse_loops(parser, code)
     assert "Scalar variable 'a' is written in one loop, but only read in " \
-           "other loop." in str(err.value)
+           "the other loop." in str(err.value)
 
     # Third test: write/read of scalar variable
     code = '''subroutine sub()
@@ -529,7 +541,7 @@ def test_fuse_scalars(parser):
     with pytest.raises(TransformationError) as err:
         fuse_loops(parser, code)
     assert "Scalar variable 'b' is written in one loop, but only read in " \
-           "other loop." in str(err.value)
+           "the other loop." in str(err.value)
 
     # Fourth test: write/write of scalar variable - this is ok
     code = '''subroutine sub()

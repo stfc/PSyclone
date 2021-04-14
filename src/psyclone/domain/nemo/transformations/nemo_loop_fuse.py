@@ -54,17 +54,17 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         :type node1: :py:class:`psyclone.psyir.nodes.Node`
         :param node2: the second Node that is being checked.
         :type node2: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :param options: a dict with options for transformations.
+        :type options: dict of string:values or None
 
         :raises TransformationError: if the lower or upper loop boundaries \
             are not the same.
         :raises TransformationError: if the loop step size is not the same.
         :raises TransformationError: if the loop variables are not the same.
-        '''
 
-        # First check constraints on Nodes in the node_list inherited from
-        # the parent classes (ExtractTrans and RegionTrans)
+        '''
+        # First check constraints on the nodes inherited from the parent
+        # LoopFuseTrans:
         super(NemoLoopFuseTrans, self).validate(node1, node2, options)
 
         if not node1.start_expr.math_equal(node2.start_expr):
@@ -82,13 +82,13 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                                       "but are '{0}'' and '{1}'"
                                       .format(node1.step_expr,
                                               node2.step_expr))
-        loop_var1 = node1.variable.name
-        loop_var2 = node2.variable.name
+        loop_var1 = node1.variable
+        loop_var2 = node2.variable
 
         if loop_var1 != loop_var2:
             raise TransformationError("Loop variables must be the same, "
                                       "but are '{0}' and '{1}'".
-                                      format(loop_var1, loop_var2))
+                                      format(loop_var1.name, loop_var2.name))
         vars1 = VariablesAccessInfo(node1)
         vars2 = VariablesAccessInfo(node2)
 
@@ -108,12 +108,12 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             if var_info1.is_read_only() and var_info2.is_read_only():
                 continue
 
-            if var_name in symbol_table:
+            try:
                 # Find the symbol for this variable. We only need to check
                 # one symboltable.
                 symbol = symbol_table.lookup(var_name)
                 is_array = symbol.is_array
-            else:
+            except KeyError:
                 # TODO #845: Once we have symbol tables, any variable should
                 # be in a symbol table, so we have to raise an exception here.
                 # We need to fall-back to the old-style test, since we do not
@@ -122,15 +122,17 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 is_array = var_info1[0].indices is not None
 
             if not is_array:
-                NemoLoopFuseTrans.validate_scalar(var_info1, var_info2)
+                NemoLoopFuseTrans.validate_written_scalar(var_info1, var_info2)
             else:
-                NemoLoopFuseTrans.validate_array(var_info1, var_info2,
-                                                 loop_var1)
+                NemoLoopFuseTrans.validate_written_array(var_info1, var_info2,
+                                                         loop_var1)
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def validate_scalar(var_info1, var_info2):
-        '''Validates if the accesses to the scalar ``var_name`` can be fused.
+    def validate_written_scalar(var_info1, var_info2):
+        '''Validates if the accesses to a scalar that is at least written once
+        allows loop fusion. The accesses of the variable is contained in the
+        two parameters (which also include the name of the variable).
 
         :param var_info1: access information for variable in the first loop.
         :type var_info1: :py:class:`psyclone.core.var_info.VariableInfo`
@@ -139,8 +141,8 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
         :raises TransformationError: a scalar variable is written in one \
             loop, but only read in the other.
-        '''
 
+        '''
         # If a scalar variable is first written in both loops, that pattern
         # is typically ok. Example:
         # - inner loops (loop variable is written then read,
@@ -155,32 +157,36 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
         raise TransformationError(
             "Scalar variable '{0}' is written in one loop, but only read "
-            "in other loop.".format(var_info1.var_name))
+            "in the other loop.".format(var_info1.var_name))
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def validate_array(var_info1, var_info2, loop_variable):
-        '''Validates if the accesses to the array ``var_name`` can be fused.
+    def validate_written_array(var_info1, var_info2, loop_variable):
+        '''Validates if the accesses to an array, which is at least written
+        once, allows loop fusion. The access pattern to this array is
+        specified in the two parameters (which includes the name of the
+        variable).
         :param var_info1: access information for variable in the first loop.
         :type var_info1: :py:class:`psyclone.core.var_info.VariableAccessInfo`
         :param var_info2: access information for variable in the second loop.
         :type var_info2: :py:class:`psyclone.core.var_info.VariableAccessInfo`
-        :param str loop_variable: name of the loop variable that will \
-            be fused.
+        :param loop_variable: symbol of the variable associated with the \
+            loops being fused.
+        :type loop_variable: \
+            :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol
 
         :raises TransformationError: an array that is written to uses \
             inconsistent indices, e.g. a(i,j) and a(j,i).
-        '''
 
+        '''
         # First check if all accesses to the array have the same dimension
         # based on the loop variable
-        # Now detect which dimension(s) is/are parallelised, i.e.
-        # which dimension depends on the loop_variable.  For example
-        # if a "do j..." loop is parallelised, consider expressions like
-        # a(i,j) and a(j+2, i-1) in one loop:
+        # Now detect which dimension(s) is/are used in the loop. For example
+        # if a "do j..." loop is one of the fused loops, consider expressions
+        # like a(i,j) and a(j+2, i-1) in the two loops:
         # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
         # be accessed. Since the variable is written somewhere (read-only
-        # was tested above), the variable can not be used in parallel.
+        # was tested above), loop fusion will likely result in invalid code.
         # Additionally, collect all indices that are actually used, since
         # they are needed in a test further down.
         all_accesses = var_info1.all_accesses + var_info2.all_accesses
@@ -192,13 +198,13 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         for access in all_accesses:
             list_of_indices = access.indices
             # Now determine all dimensions that depend
-            # on the parallel variable:
+            # on the loop variable:
             for dimension_index, index_expression in \
                     enumerate(list_of_indices):
                 accesses = VariablesAccessInfo()
 
                 index_expression.reference_accesses(accesses)
-                if loop_variable not in accesses:
+                if loop_variable.name not in accesses:
                     continue
 
                 # If a previously identified index location does not match
@@ -207,11 +213,15 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 if found_dimension_index > -1 and \
                         found_dimension_index != dimension_index:
                     raise TransformationError(
-                        "Variable '{0}' is using loop variable {1} in index "
-                        "{2} and {3}.".format(var_info1.var_name,
-                                              loop_variable,
-                                              found_dimension_index,
-                                              dimension_index))
+                        "Variable '{0}' is written to in one or both of the "
+                        "loops and the loop variable {1} is used in "
+                        "different index locations ({2} and {3}) when "
+                        "accessing it."
+                        .format(var_info1.var_name,
+                                loop_variable.name,
+                                found_dimension_index,
+                                dimension_index))
+
                 found_dimension_index = dimension_index
                 all_indices.append(index_expression)
 
@@ -234,4 +244,4 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             raise TransformationError(
                 "Variable '{0}' does not depend on loop variable '{1}', "
                 "but is read and written.".format(var_info1.var_name,
-                                                  loop_variable))
+                                                  loop_variable.name))
