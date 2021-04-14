@@ -474,6 +474,13 @@
 
 	154) PR #1186 for #1173. Reshapes mesh maps for LFRic inter-grid kernels.
 
+	155) PR #1205 for #870. Removes support for the old-style 'iterates_over'
+	metadata in LFRic API.
+
+        156) PR #1156 for #874. Removes support for old-style LFRic arg_type
+        descriptor. Primitive type of all kernel arguments must now be
+        specified.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
