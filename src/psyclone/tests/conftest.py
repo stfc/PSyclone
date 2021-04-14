@@ -42,6 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fparser2 import FortranReader
 
 
 # fixtures defined here are available to all tests
@@ -149,6 +150,12 @@ def fixture_f2008_parser():
     ''' Initialise fparser2 with Fortran2008 standard. '''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
+
+
+@pytest.fixture(scope="session", name="freader")
+def fixture_freader():
+    ''' Initialise f2parser2 to PSyIR reader with Fortran2008 standard. '''
+    return FortranReader()
 
 
 @pytest.fixture(scope="function")

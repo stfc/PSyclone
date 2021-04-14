@@ -43,9 +43,8 @@ from collections import OrderedDict
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
-    gen_datatype, get_fortran_operator, _reverse_map, \
-    is_fortran_intrinsic, precedence
+from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
+    get_fortran_operator, _reverse_map, is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
@@ -1000,7 +999,7 @@ def test_fw_routine(fort_writer, monkeypatch, tmpdir):
     assert "Expected node name to have a value." in str(excinfo.value)
 
 
-def test_fw_routine_program(parser, fort_writer, tmpdir):
+def test_fw_routine_program(freader, fort_writer, tmpdir):
     '''Check the FortranWriter class outputs correct code when a routine node
     is found with is_program set to True i.e. it should be output as a program.
 
@@ -1011,10 +1010,7 @@ def test_fw_routine_program(parser, fort_writer, tmpdir):
         "  real :: a\n"
         "  a = 0.0\n"
         "end program test")
-    reader = FortranStringReader(code)
-    fp2_ast = parser(reader)
-    fp2_reader = Fparser2Reader()
-    psyir = fp2_reader.generate_psyir(fp2_ast)
+    psyir = freader.generate_psyir(code)
 
     # Generate Fortran from PSyIR
     result = fort_writer(psyir)
