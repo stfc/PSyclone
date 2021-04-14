@@ -72,7 +72,7 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
         :param description: a string describing the purpose of the \
             invoke or None if one is not provided. This is used to \
-            create the name of the subroutine that replaces the \
+            create the name of the routine that replaces the \
             invoke. Defaults to None.
         :type name: str or NoneType
 
@@ -88,15 +88,14 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         instance._description = description
         return instance
 
-    def _def_sub_root_name(self, index):
-        '''Internal function that returns the proposed processed subroutine
-        name given the index of this invoke.
+    def _def_routine_root_name(self, index):
+        '''Internal function that returns the proposed processed routine name
+        given the index of this invoke.
 
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
 
-        :returns: the proposed processed subroutine name for this \
-            invoke.
+        :returns: the proposed processed routine name for this invoke.
         :rtype: str
 
         '''
@@ -110,7 +109,7 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
             name = name.replace(" ", "_")
         else:
             name = super(LFRicAlgorithmInvokeCall,
-                         self)._def_sub_root_name(index)
+                         self)._def_routine_root_name(index)
         return name
 
     def node_str(self, colour=True):

@@ -33,8 +33,10 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the translation of PSyIR to PSyclone
-Algorithm PSyIR.
+'''Module containing tests for the AlgorithmInvokeCall and
+KernelFunctor algorithm layer-specific nodes. The tests include
+translation of PSyIR to PSyclone Algorithm PSyIR and PSyclone
+Algorithm PSyIR to processed PSyIR.
 
 '''
 from __future__ import absolute_import
@@ -48,7 +50,7 @@ from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
     BinaryOperation
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
-    StructureType, Symbol, ContainerSymbol
+    StructureType, Symbol, ContainerSymbol, REAL_TYPE
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.errors import GenerationError
@@ -79,6 +81,42 @@ def create_alg_psyir(code):
     return psyir
 
 
+def check_call(call, routine_name, args_info):
+    '''Utility function to check the contents of a processed invoke call.
+
+    :param invoke: the call node that is being checked.
+    :type invoke: :py:class:`psyclone.psyir.nodes.Call`
+    :param str routine_name: the name of the call node.
+    ;param args_info: information to check the call arguments.
+    :type args_info: list of \
+        (:py:class:`psyclone.psyir.nodes.Reference`, str) or \
+        (:py:class:`psyclone.psyir.nodes.ArrayReference`, str, [str or \
+        BinaryOperation])
+
+    '''
+    assert isinstance(call.routine, RoutineSymbol)
+    assert call.routine.name == routine_name
+    assert call.routine.is_global
+    assert (call.routine.interface.container_symbol.name ==
+            "{0}_mod".format(routine_name))
+    args = call.children
+    assert len(args) == len(args_info)
+    for idx, arg_info in enumerate(args_info):
+        arg_type = arg_info[0]
+        name = arg_info[1]
+        assert isinstance(args[idx], arg_type)
+        assert args[idx].symbol.name == name
+        if arg_type is ArrayReference:
+            indices_info = arg_info[2]
+            indices = args[idx].children
+            assert len(indices) == len(indices_info)
+            for idx2, index_info in enumerate(indices_info):
+                if isinstance(index_info, str):
+                    assert indices[idx2].symbol.name == index_info
+                else:  # BinaryOperation
+                    assert isinstance(indices[idx2], BinaryOperation)
+
+
 def test_algorithminvokecall():
     '''Check that an instance of AlgorithmInvokeCall can be
     created.
@@ -92,7 +130,37 @@ def test_algorithminvokecall():
     assert call._container_symbol is None
 
 
-def test_createlanguagelevelsymbols_error():
+def test_aic_validate_child():
+    '''Check that the _validate_child method behaves as expected.'''
+
+    kernel_functor = KernelFunctor(TypeSymbol("dummy", REAL_TYPE))
+    assert AlgorithmInvokeCall._validate_child(0, kernel_functor)
+    assert not AlgorithmInvokeCall._validate_child(0, "Invalid")
+
+    routine = RoutineSymbol("hello")
+    call = AlgorithmInvokeCall(routine)
+    with pytest.raises(GenerationError) as info:
+        call.children = ["invalid"]
+    assert ("Item 'str' can't be child 0 of 'AlgorithmInvokeCall'. The valid "
+            "format is: '[KernelFunctor]*'." in str(info.value))
+    call.children = [kernel_functor]
+
+
+def test_aic_defroutinerootname():
+    '''Check that the _def_routine_root_name() internal method behaves as
+    expected.
+
+    '''
+    kernel_functor = KernelFunctor(TypeSymbol("dummy", REAL_TYPE))
+    routine = RoutineSymbol("hello")
+    call = AlgorithmInvokeCall(routine)
+    call.children = [kernel_functor]
+    assert call._def_routine_root_name(0) == "invoke_0_dummy"
+    call.children.append(kernel_functor.copy())
+    assert call._def_routine_root_name(1) == "invoke_1"
+
+
+def test_aic_createlanguagelevelsymbols_error():
     '''Check that the create_language_level_symbols method in
     AlgorithmInvokeCall raises the expected exceptions if the index
     argument is invalid.
@@ -111,7 +179,7 @@ def test_createlanguagelevelsymbols_error():
             "integer but found -1." in str(info.value))
 
 
-def test_createlanguagelevelsymbols():
+def test_aic_createlanguagelevelsymbols():
     '''Check that the create_language_level_symbols method behaves in the
     expected way, i.e. creates a routine_symbol and a
     container_symbol.
@@ -133,13 +201,14 @@ def test_createlanguagelevelsymbols():
 
     invoke.create_language_level_symbols(0)
 
+    routine_name = "invoke_0_kern"
     assert isinstance(invoke._routine_symbol, RoutineSymbol)
-    assert invoke._routine_symbol.name == "invoke_0_kern"
+    assert invoke._routine_symbol.name == routine_name
     assert isinstance(invoke._container_symbol, ContainerSymbol)
-    assert invoke._container_symbol.name == "invoke_0_kern_mod"
+    assert invoke._container_symbol.name == "{0}_mod".format(routine_name)
 
 
-def test_lowertolanguagelevel_error():
+def test_aic_lowertolanguagelevel_error():
     '''Check that the lower_to_language_level method raises the expected
     exception when the create_language_level_symbols method has not
     been called and when an unexpected argument is found.
@@ -171,7 +240,7 @@ def test_lowertolanguagelevel_error():
 
 
 @pytest.mark.xfail(reason="Issue #753: expression comparisons need improving")
-def test_lowertolanguagelevel_expr():
+def test_aic_lowertolanguagelevel_expr():
     '''Check that the lower_to_language_level method deals correctly with
     simple associative expresssions, i.e. i+1 is the same as 1+i.
 
@@ -192,7 +261,7 @@ def test_lowertolanguagelevel_expr():
     assert len(psyir.children[0].children) == 1
 
 
-def test_lowertolanguagelevel_single():
+def test_aic_lowertolanguagelevel_single():
     '''Check that the lower_to_language_level method works as expected
     when it has a single kernel with multiple fields of the same name.
 
@@ -218,25 +287,15 @@ def test_lowertolanguagelevel_single():
 
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
     assert len(psyir.walk(KernelFunctor)) == 0
+
     call = psyir.children[0]
-    assert call.routine.name == "invoke_0_kern1"
-    assert call.routine.is_global
-    assert call.routine.interface.container_symbol.name == "invoke_0_kern1_mod"
-    args = call.children
-    assert len(args) == 3
-    assert isinstance(args[0], Reference)
-    assert args[0].symbol.name == "field1"
-    assert isinstance(args[1], ArrayReference)
-    assert args[1].symbol.name == "field2"
-    assert len(args[1].children) == 1
-    assert args[1].children[0].symbol.name == "i"
-    assert isinstance(args[2], ArrayReference)
-    assert args[2].symbol.name == "field2"
-    assert len(args[2].children) == 1
-    assert args[2].children[0].symbol.name == "j"
+    check_call(call, "invoke_0_kern1",
+               [(Reference, "field1"),
+                (ArrayReference, "field2", ["i"]),
+                (ArrayReference, "field2", ["j"])])
 
 
-def test_lowertolanguagelevel_multi():
+def test_aic_lowertolanguagelevel_multi():
     '''Check that the lower_to_language_level method works as expected
     when it has multiple kernels with fields of the same name.
 
@@ -265,26 +324,13 @@ def test_lowertolanguagelevel_multi():
 
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
     assert len(psyir.walk(KernelFunctor)) == 0
+
     call = psyir.children[0]
-    assert call.routine.name == "invoke_0"
-    assert call.routine.is_global
-    assert call.routine.interface.container_symbol.name == "invoke_0_mod"
-    args = call.children
-    assert len(args) == 4
-    assert isinstance(args[0], Reference)
-    assert args[0].symbol.name == "field1"
-    assert isinstance(args[1], ArrayReference)
-    assert args[1].symbol.name == "field2"
-    assert len(args[1].children) == 1
-    assert args[1].children[0].symbol.name == "i"
-    assert isinstance(args[2], ArrayReference)
-    assert args[2].symbol.name == "field2"
-    assert len(args[2].children) == 1
-    assert args[2].children[0].symbol.name == "j"
-    assert isinstance(args[3], ArrayReference)
-    assert args[3].symbol.name == "field2"
-    assert len(args[3].children) == 1
-    assert isinstance(args[3].children[0], BinaryOperation)
+    check_call(call, "invoke_0",
+               [(Reference, "field1"),
+                (ArrayReference, "field2", ["i"]),
+                (ArrayReference, "field2", ["j"]),
+                (ArrayReference, "field2", [BinaryOperation])])
 
 
 def test_kernelfunctor():
