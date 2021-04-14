@@ -298,8 +298,8 @@ python create.py
 ## Example 17: Runnable Examples
 
 This subdirectory contains three stand-alone and runnable examples of
-the LFRic code. For more details please refer to the relevant [README](
-eg17/README.md) document.
+the LFRic code. For more details please refer to the relevant
+[eg17/README.md](./eg17) document.
 
 ## Code
 
