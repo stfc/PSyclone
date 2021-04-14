@@ -110,7 +110,7 @@ read_only_base.f90: $(LIB_TMPLT_DIR)/read_only_base.jinja Makefile
 
 # Create LFRic infrastructure library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
+	$(MAKE) -C $(INF_DIR)
 
 clean:
 	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* read_only_base.*

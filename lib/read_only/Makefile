@@ -58,11 +58,11 @@ default: read_only_base.o psy_data_base.o
 
 process: read_only_base.f90
 
-.PHONY: default process clean all
+.PHONY: default process all clean allclean
 
 all:
-	$(MAKE) -C dl_esm_inf F90="$(F90)" F90FLAGS="$(F90FLAGS)"
-	$(MAKE) -C lfric F90="$(F90)" F90FLAGS="$(F90FLAGS)"
+	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
 
 %.f90:	%.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > $*.f90
@@ -77,3 +77,7 @@ read_only_base.o: psy_data_base.o
 
 clean:
 	rm -f read_only_base.f90 psy_data_base.f90 *.o *.mod
+
+allclean:
+	$(MAKE) -C dl_esm_inf allclean
+	$(MAKE) -C lfric allclean

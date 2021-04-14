@@ -85,7 +85,7 @@ $(PSYDATA_LIB): $(INF_LIB) $(OBJS)
 
 # Create LFRic infrastructure library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
+	$(MAKE) -C $(INF_DIR)
 
 # Add all dependencies. The LFRic NaN checking library extends the
 # NANTestBase type, which in turn extends the PSyDataBase type.

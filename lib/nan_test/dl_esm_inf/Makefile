@@ -105,7 +105,7 @@ nan_test_base.f90: $(LIB_TMPLT_DIR)/nan_test_base.jinja Makefile
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
+	$(MAKE) -C $(INF_DIR)
 
 clean:
 	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* nan_test_base.*
