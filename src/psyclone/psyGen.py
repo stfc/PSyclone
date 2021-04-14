@@ -1551,6 +1551,7 @@ class ACCParallelDirective(ACCDirective):
         :rtype: str
 
         '''
+        # pylint: disable=no-self-use
         # "default(present)" means that the compiler is to assume that
         # all data required by the parallel region is already present
         # on the device. If we've made a mistake and it isn't present
@@ -1562,6 +1563,7 @@ class ACCParallelDirective(ACCDirective):
         :returns: the closing statement for this directive.
         :rtype: str
         '''
+        # pylint: disable=no-self-use
         return "acc end parallel"
 
     @property
@@ -1769,6 +1771,7 @@ class ACCLoopDirective(ACCDirective):
         :rtype: str
 
         '''
+        # pylint: disable=no-self-use
         return ""
 
 
@@ -2190,6 +2193,7 @@ class OMPDoDirective(OMPDirective):
         :rtype: str
 
         '''
+        # pylint: disable=no-self-use
         return "omp end do"
 
     def update(self):
@@ -4514,6 +4518,7 @@ class ACCKernelsDirective(ACCDirective):
         :rtype: str
 
         '''
+        # pylint: disable=no-self-use
         return "acc end kernels"
 
     def update(self):
@@ -4652,8 +4657,8 @@ class ACCDataDirective(ACCDirective):
         :rtype: str
 
         '''
-        result = "acc end data"
-        return result
+        # pylint: disable=no-self-use
+        return "acc end data"
 
 
 # For Sphinx AutoAPI documentation generation
