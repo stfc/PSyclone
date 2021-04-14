@@ -83,7 +83,7 @@ extract_netcdf_base.f90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)"
+	$(MAKE) -C $(INF_DIR)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<

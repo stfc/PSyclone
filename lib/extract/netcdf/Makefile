@@ -61,11 +61,11 @@ default: extract_netcdf_base.o psy_data_base.o
 
 process: extract_netcdf_base.f90
 
-.PHONY: default process clean all
+.PHONY: default process all clean allclean
 
 all:
-	$(MAKE) -C dl_esm_inf F90="$(F90)" F90FLAGS="$(F90FLAGS)"
-	$(MAKE) -C lfric F90="$(F90)" F90FLAGS="$(F90FLAGS)"
+	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
 
 # The dependencies
 # ----------------
@@ -87,3 +87,7 @@ extract_netcdf_base.f90:	extract_netcdf_base.jinja Makefile
 
 clean:
 	rm -f extract_netcdf_base.f90 psy_data_base.f90 *.o *.mod
+
+allclean:
+	$(MAKE) -C dl_esm_inf allclean
+	$(MAKE) -C lfric allclean

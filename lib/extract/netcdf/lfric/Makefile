@@ -75,7 +75,7 @@ $(PSYDATA_LIB): $(INF_LIB) $(OBJS)
 
 # Create LFRic infrastructure library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90="$(F90)" F90FLAGS="$(F90FLAGS)" netcdf
+	$(MAKE) -C $(INF_DIR) netcdf
 
 kernel_data_netcdf.o:	extract_netcdf_base.o
 extract_netcdf_base.o:	psy_data_base.o
