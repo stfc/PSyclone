@@ -1,45 +1,3 @@
-<!--
-## Licence
-
--------------------------------------------------------------------------------
-
-BSD 3-Clause License
-
-Copyright (c) 2019-2021, Science and Technology Facilities Council.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
--------------------------------------------------------------------------------
-Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
--->
-
 # PSyclone Wrapper Library for Dr Hook
 
 This is a wrapper library that maps the [PSyclone profiling API](
@@ -54,7 +12,7 @@ to contact ECMWF to obtain a copy of Dr Hook.
 
 This profiling library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
-the application. The library is based on the [``PSyData`` base class](
+the application. The library is based on the [PSyData base class](
 https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
 Full documentation on using this template is provided in the PSyclone
@@ -99,7 +57,7 @@ For instance, compiling the wrapper library with the default compiler
 flags may look something like:
 
 ```shell
-make DRHOOK_ROOT=path_to_drhook
+DRHOOK_ROOT=<path_to_drhook> make
 ```
 
 The compilation process will create the wrapper library ``libdrhook_psy.a``.
@@ -107,7 +65,7 @@ The compilation process will create the wrapper library ``libdrhook_psy.a``.
 ### Linking the wrapper library
 
 In order to use the wrapper with your application, you must provide the
-location of the wrapper as ``an`` include path (so that the module file is found),
+location of the wrapper as an ``include`` path (so that the module file is found),
 and link first with the wrapper library, then the DrHook library:
 
 In order to use the wrapper with your application, the location of this
@@ -154,3 +112,45 @@ Profiling information for program='./profile_test.drhook', proc#1:
     2    21.62        0.000        0.000        0.000              1        0.00        0.00    psy_test:invoke_1_update_field:update_field_code:r0@1
 
 ```
+
+<!--
+## Licence
+
+-------------------------------------------------------------------------------
+
+BSD 3-Clause License
+
+Copyright (c) 2019-2021, Science and Technology Facilities Council.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+-------------------------------------------------------------------------------
+Authors: J. Henrichs, Bureau of Meteorology,
+         I. Kavcic, Met Office
+-->
