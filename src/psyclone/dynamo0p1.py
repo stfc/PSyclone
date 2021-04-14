@@ -307,11 +307,10 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop)
+        kern.load(call, cloop.loop_body)
 
         # Add the kernel as a child of the loop
         cloop.loop_body.addchild(kern)
-        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
@@ -339,10 +338,6 @@ class DynKern(CodedKern):
 
         '''
         super(DynKern, self).__init__(DynKernelArguments, call, parent)
-        # parent was needed for DynKernelArguments but is never added as a
-        # children of another node during the load(), so the link must be
-        # reverted
-        self._parent = None
 
     def local_vars(self):
         return ["cell", "map"]
