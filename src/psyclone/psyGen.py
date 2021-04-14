@@ -1538,7 +1538,7 @@ class ACCParallelDirective(ACCDirective):
         for child in self.children:
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, *self.end_string().split(), ""))
+        parent.add(DirectiveGen(parent, *self.end_string().split()))
 
     def begin_string(self):
         '''
@@ -4461,17 +4461,13 @@ class ACCKernelsDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
-        # We can't re-use the 'begin_string' method here because the
-        # data_movement argument may or may not be an empty string but must
-        # be present.
-        data_movement = ""
-        if self._default_present:
-            data_movement = "default(present)"
-        parent.add(DirectiveGen(parent, "acc", "begin", "kernels",
-                                data_movement))
+        # We re-use the 'begin_string' method but must skip the leading 'acc'
+        # that it includes.
+        parent.add(DirectiveGen(parent, "acc", "begin",
+                                *self.begin_string().split()[1:]))
         for child in self.children:
             child.gen_code(parent)
-        parent.add(DirectiveGen(parent, *self.end_string().split(), ""))
+        parent.add(DirectiveGen(parent, *self.end_string().split()))
 
     @property
     def ref_list(self):
