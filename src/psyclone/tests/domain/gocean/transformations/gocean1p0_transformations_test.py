@@ -54,9 +54,9 @@ from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
 from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
-    GOLoopSwapTrans, OMPParallelTrans, \
+    GOLoopSwapTrans, OMPParallelTrans, MoveTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
-    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, \
+    ACCParallelTrans, ACCEnterDataTrans, ACCDataTrans, ACCLoopTrans, \
     OCLTrans, OMPLoopTrans
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
@@ -1881,7 +1881,6 @@ def test_accloop(tmpdir):
 
     # Add a data region
     new_sched, _ = accdata.apply(new_sched)
-    invoke.schedule = new_sched
 
     gen = str(psy.gen)
 
@@ -1893,6 +1892,62 @@ def test_accloop(tmpdir):
             "      !$acc loop independent\n"
             "      DO j=2,jstop+1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+
+def test_acc_loop_not_within_data_region():
+    ''' Test the check that an OpenACC loop is within a data region works
+    when there is a data region, but not around the loop in question. '''
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accstaticdata = ACCDataTrans()
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    # Apply ACCLoopTrans to just the second loop
+    new_sched, _ = acclpt.apply(schedule[1])
+    # Add an enclosing parallel region
+    new_sched, _ = accpara.apply(new_sched[1])
+
+    # Add a static data region around the wrong loop
+    new_sched, _ = accstaticdata.apply(new_sched[2])
+    new_sched.view()
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An ACC parallel region must either be preceded by an ACC enter "
+            "data directive or enclosed within an ACC data region but in "
+            "'invoke_0' this is not the case." in str(err.value))
+
+
+def test_acc_loop_before_enter_data():
+    ''' Test that we refuse to generate code if the enter data directive
+    comes after the OpenACC region. '''
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+    mvtrans = MoveTrans()
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    # Apply ACCLoopTrans to just the second loop
+    new_sched, _ = acclpt.apply(schedule[1])
+    # Add an enclosing parallel region
+    new_sched, _ = accpara.apply(new_sched[1])
+
+    # Add a data region. By default, the enter data is always added at the
+    # beginning of the Schedule. We must therefore move it in order to trigger
+    # the error.
+    new_sched, _ = accdata.apply(new_sched)
+    mvtrans.apply(new_sched[0], new_sched[3])
+
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An ACC parallel region must be preceded by an ACC enter-data "
+            "directive but in 'invoke_0' this is not the case." in
+            str(err.value))
 
 
 def test_acc_collapse(tmpdir):

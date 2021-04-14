@@ -1533,17 +1533,12 @@ class ACCParallelDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
-        # "default(present)" means that the compiler is to assume that
-        # all data required by the parallel region is already present
-        # on the device. If we've made a mistake and it isn't present
-        # then we'll get a run-time error.
-        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
-                                "default(present)"))
+        parent.add(DirectiveGen(parent, *self.begin_string().split()))
 
         for child in self.children:
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, "acc", "end", "parallel", ""))
+        parent.add(DirectiveGen(parent, *self.end_string().split(), ""))
 
     def begin_string(self):
         '''
@@ -1556,6 +1551,10 @@ class ACCParallelDirective(ACCDirective):
         :rtype: str
 
         '''
+        # "default(present)" means that the compiler is to assume that
+        # all data required by the parallel region is already present
+        # on the device. If we've made a mistake and it isn't present
+        # then we'll get a run-time error.
         return "acc begin parallel default(present)"
 
     def end_string(self):
@@ -4458,6 +4457,9 @@ class ACCKernelsDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
+        # We can't re-use the 'begin_string' method here because the
+        # data_movement argument may or may not be an empty string but must
+        # be present.
         data_movement = ""
         if self._default_present:
             data_movement = "default(present)"
@@ -4465,7 +4467,7 @@ class ACCKernelsDirective(ACCDirective):
                                 data_movement))
         for child in self.children:
             child.gen_code(parent)
-        parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
+        parent.add(DirectiveGen(parent, *self.end_string().split(), ""))
 
     @property
     def ref_list(self):
@@ -4563,6 +4565,9 @@ class ACCDataDirective(ACCDirective):
                                supported for the NEMO API and that uses the \
                                update() method to alter the underlying \
                                fparser2 parse tree.
+
+        TODO #435 update above explanation when update() method is removed.
+
         '''
         raise InternalError(
             "ACCDataDirective.gen_code should not have been called.")
