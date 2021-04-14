@@ -54,6 +54,7 @@ from psyclone.errors import GenerationError
 API = "nemo"
 
 EXPLICIT_LOOP = ("program do_loop\n"
+                 "use kind_params_mod\n"
                  "integer :: ji\n"
                  "integer, parameter :: jpj=32\n"
                  "real(kind=wp) :: sto_tmp(jpj)\n"
@@ -145,6 +146,7 @@ def test_implicit_loop(parser):
     ''' Check that the transformation generates correct code when applied
     to an implicit loop. '''
     reader = FortranStringReader("program implicit_loop\n"
+                                 "use kind_params_mod\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "sto_tmp(:,:) = 0.0_wp\n"
                                  "end program implicit_loop\n")
@@ -164,6 +166,7 @@ def test_multikern_if(parser):
     ''' Check that we can include an if-block containing multiple
     loops within a kernels region. '''
     reader = FortranStringReader("program implicit_loop\n"
+                                 "use kind_params_mod\n"
                                  "logical :: do_this\n"
                                  "integer :: jk\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"

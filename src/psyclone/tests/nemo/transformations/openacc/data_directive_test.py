@@ -267,7 +267,7 @@ def test_no_data_ref_read(parser):
     ''' Check that we reject code that reads from a derived type. This
     limitation will be addressed in #1028. '''
     reader = FortranStringReader("program dtype_read\n"
-                                 "use field_mod, only: fld_type\n"
+                                 "use field_mod, only: fld_type, wp\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "integer :: ji\n"
                                  "integer, parameter :: jpj = 10\n"
@@ -303,6 +303,7 @@ def test_kind_parameter(parser):
     ''' Check that we don't attempt to put kind parameters into the list
     of variables to copyin/out. '''
     reader = FortranStringReader("program kind_param\n"
+                                 "use kind_params_mod\n"
                                  "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
@@ -327,6 +328,7 @@ def test_no_copyin_intrinsics(parser):
                       "mod(ji, 5)"]:
         reader = FortranStringReader(
             "program call_intrinsic\n"
+            "use kind_params_mod\n"
             "integer :: ji, jpj\n"
             "real(kind=wp) :: sto_tmp(5)\n"
             "do ji = 1,jpj\n"
@@ -373,6 +375,7 @@ def test_kernels_in_data_region(parser):
     ''' Check that directives end up in the correct locations when enclosing
     a kernels region inside a data region. '''
     reader = FortranStringReader("program one_loop\n"
+                                 "use kind_params_mod\n"
                                  "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
@@ -423,6 +426,7 @@ def test_array_access_in_ifblock(parser):
     ''' Check that we generate the necessary copyin clause when a data region
     contains an IF clause with an array access. '''
     code = ("program ifclause\n"
+            "  use kind_params_mod\n"
             "  real(kind=wp) :: zmask(8,8), zdta(8,8)\n"
             "  integer :: ji, jj\n"
             "  zmask(:,:) = 1.0\n"
@@ -449,6 +453,7 @@ def test_array_access_loop_bounds(parser):
     ''' Check that we raise the expected error if our code that identifies
     read and write accesses misses an array access. '''
     code = ("program do_bound\n"
+            "  use kind_params_mod\n"
             "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
             "  integer :: ji, jj, dom\n"
             "  do jj = 1, trim_width(dom)\n"
