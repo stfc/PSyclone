@@ -1912,7 +1912,6 @@ def test_acc_loop_not_within_data_region():
 
     # Add a static data region around the wrong loop
     new_sched, _ = accstaticdata.apply(new_sched[2])
-    new_sched.view()
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("An ACC parallel region must either be preceded by an ACC enter "
