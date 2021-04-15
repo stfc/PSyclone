@@ -435,7 +435,6 @@ class Node(object):
         '''
         return self.coloured_name(colour) + "[]"
 
-    @abc.abstractmethod
     def __str__(self):
         return self.node_str(False)
 
