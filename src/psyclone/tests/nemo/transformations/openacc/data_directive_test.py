@@ -283,8 +283,8 @@ def test_no_data_ref_read(parser):
     schedule, _ = acc_trans.apply(schedule.children)
     with pytest.raises(NotImplementedError) as err:
         _ = str(psy.gen)
-    assert ("Derived-type references are not yet "
-            "supported" in str(err.value))
+    assert ("Structure (derived-type) references are not yet "
+            "supported within OpenACC data regions" in str(err.value))
 
 
 def test_array_section():
