@@ -430,7 +430,8 @@ class FortranWriter(PSyIRVisitor):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                return symbol.datatype.declaration
+                return "{0}{1}".format(self._nindent,
+                                       symbol.datatype.declaration)
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
                 "The Fortran backend cannot handle the declaration of a "
