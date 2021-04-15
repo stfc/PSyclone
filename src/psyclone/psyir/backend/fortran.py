@@ -1271,7 +1271,7 @@ class FortranWriter(PSyIRVisitor):
         :param node: a Directive PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Directive`
 
-        :returns: the Fortran code as a string.
+        :returns: the Fortran code for this node.
         :rtype: str
 
         '''
