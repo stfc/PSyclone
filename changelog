@@ -460,6 +460,27 @@
 
 	149) PR #1177 for #1168. Adds lowering method for the ProfileNode node.
 
+	150) PR #1129 towards #753. Adds generic and LFRic Algorithm-Layer
+	PSyIR nodes and transformations.
+
+	151) PR #1191 for 1163. Rationalise config file list processing. This
+	PR breaks backward compatibility of config files.
+
+	152) PR #1169 for #294. Updates the various ChildrenList methods
+	so that the parent property of child nodes is automatically updated.
+
+	153) PR #1196 for #1106. Moves tests related to field and scalar
+	arguments to LFRic kernels into appropriate files.
+
+	154) PR #1186 for #1173. Reshapes mesh maps for LFRic inter-grid kernels.
+
+	155) PR #1205 for #870. Removes support for the old-style 'iterates_over'
+	metadata in LFRic API.
+
+        156) PR #1156 for #874. Removes support for old-style LFRic arg_type
+        descriptor. Primitive type of all kernel arguments must now be
+        specified.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

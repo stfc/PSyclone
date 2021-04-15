@@ -174,7 +174,6 @@ class ProfileNode(PSyDataNode):
         pecall = Fortran2003.Call_Stmt(reader)
         end_call = CodeBlock([pecall], CodeBlock.Structure.STATEMENT)
         self.parent.children.insert(self.position+1, end_call)
-        end_call.parent = self.parent
 
         # PSyData start call (replaces existing PSyDataNode). Again is a call
         # to a type-bound procedure so must be contained in a CodeBlock.
@@ -192,7 +191,6 @@ class ProfileNode(PSyDataNode):
         # end calls
         for child in reversed(self.profile_body.pop_all_children()):
             self.parent.children.insert(self.position+1, child)
-            child.parent = self.parent
 
         # Finally, replace this ProfileNode with the CodeBlock containing the
         # start call

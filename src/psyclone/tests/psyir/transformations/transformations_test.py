@@ -45,10 +45,10 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyGen import ACCLoopDirective
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Return, Schedule, Statement
+    Reference, Schedule, Statement
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.transformations import LoopFuseTrans, ProfileTrans, \
-    RegionTrans, TransformationError
+from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
+    TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans
@@ -60,9 +60,8 @@ def test_accloop():
     assert trans.name == "ACCLoopTrans"
     assert str(trans) == "Adds an 'OpenACC loop' directive to a loop"
 
-    pnode = Node()
     cnode = Statement()
-    tdir = trans._directive(pnode, [cnode])
+    tdir = trans._directive([cnode])
     assert isinstance(tdir, ACCLoopDirective)
 
 
@@ -95,10 +94,9 @@ def test_omploop_no_collapse():
     ''' Check that the OMPLoopTrans.directive() method rejects the
     collapse argument '''
     trans = OMPLoopTrans()
-    pnode = Node()
     cnode = Node()
     with pytest.raises(NotImplementedError) as err:
-        _ = trans._directive(pnode, cnode, collapse=2)
+        _ = trans._directive(cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err.value))
 
@@ -132,11 +130,11 @@ def test_regiontrans_wrong_children():
     # RegionTrans is abstract so use a concrete sub-class
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
-    parent = Loop(parent=None)
-    parent.addchild(Literal("1", INTEGER_TYPE, parent))
-    parent.addchild(Literal("10", INTEGER_TYPE, parent))
-    parent.addchild(Literal("1", INTEGER_TYPE, parent))
-    parent.addchild(Schedule(parent=parent))
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("10", INTEGER_TYPE))
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Schedule())
     with pytest.raises(TransformationError) as err:
         RegionTrans.validate(rtrans, parent.children)
     assert ("Cannot apply a transformation to multiple nodes when one or more "

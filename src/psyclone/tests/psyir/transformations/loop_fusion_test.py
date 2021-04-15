@@ -57,8 +57,8 @@ from psyclone.tests.utilities import Compile
 def test_fusetrans_error_incomplete():
     ''' Check that we reject attempts to fuse loops which are incomplete. '''
     sch = Schedule()
-    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE), parent=sch)
-    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE), parent=sch)
+    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE))
+    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE))
     sch.addchild(loop1)
     sch.addchild(loop2)
 
@@ -70,11 +70,11 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop1.addchild(Literal("start", INTEGER_TYPE, parent=loop1))
-    loop1.addchild(Literal("stop", INTEGER_TYPE, parent=loop1))
-    loop1.addchild(Literal("step", INTEGER_TYPE, parent=loop1))
-    loop1.addchild(Schedule(parent=loop1))
-    loop1.loop_body.addchild(Return(parent=loop1.loop_body))
+    loop1.addchild(Literal("start", INTEGER_TYPE))
+    loop1.addchild(Literal("stop", INTEGER_TYPE))
+    loop1.addchild(Literal("step", INTEGER_TYPE))
+    loop1.addchild(Schedule())
+    loop1.loop_body.addchild(Return())
 
     # Check second loop
     with pytest.raises(TransformationError) as err:
@@ -82,11 +82,11 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop2.addchild(Literal("start", INTEGER_TYPE, parent=loop2))
-    loop2.addchild(Literal("stop", INTEGER_TYPE, parent=loop2))
-    loop2.addchild(Literal("step", INTEGER_TYPE, parent=loop2))
-    loop2.addchild(Schedule(parent=loop2))
-    loop2.loop_body.addchild(Return(parent=loop2.loop_body))
+    loop2.addchild(Literal("start", INTEGER_TYPE))
+    loop2.addchild(Literal("stop", INTEGER_TYPE))
+    loop2.addchild(Literal("step", INTEGER_TYPE))
+    loop2.addchild(Schedule())
+    loop2.loop_body.addchild(Return())
 
     # Validation should now pass
     fuse.validate(loop1, loop2)

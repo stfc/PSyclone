@@ -271,7 +271,6 @@ class ArrayRange2LoopTrans(Transformation):
         start, stop, step = lhs_range.pop_all_children()
         loop = Loop.create(loop_variable, start, stop, step, [node.detach()])
         parent.children.insert(position, loop)
-        loop.parent = parent
 
     def __str__(self):
         return ("Convert a PSyIR assignment to an array Range into a "
