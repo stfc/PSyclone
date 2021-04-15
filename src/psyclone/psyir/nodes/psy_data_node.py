@@ -166,11 +166,13 @@ class PSyDataNode(Statement):
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
+        self._var_name = symtab.next_available_name(
+            self._psy_data_symbol_with_prefix)
         psydata_type = UnknownFortranType(
-            "type({0}), save, target ::".format(type_sym.name))
-        self._var_name = symtab.new_symbol(
-            self._psy_data_symbol_with_prefix, symbol_type=DataSymbol,
-            datatype=psydata_type).name
+            "type({0}), save, target :: {1}".format(type_sym.name,
+                                                    self._var_name))
+        symtab.new_symbol(self._var_name, symbol_type=DataSymbol,
+                          datatype=psydata_type)
 
         # Name of the region. In general at constructor time we might
         # not have a parent subroutine or any child nodes, so

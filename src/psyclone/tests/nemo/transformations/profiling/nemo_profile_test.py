@@ -83,8 +83,8 @@ def get_nemo_schedule(parser, code):
 
     '''
     reader = FortranStringReader(code)
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    ptree = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(ptree)
     schedule = psy.invokes.invoke_list[0].schedule
 
     return psy, schedule
@@ -519,13 +519,13 @@ def test_no_return_in_profiling(parser):
     a profiled region. '''
     _, schedule = get_nemo_schedule(
         parser,
-        "function my_test()\n"
+        "subroutine my_test()\n"
         "  integer :: my_test\n"
         "  real :: my_array(3,3)\n"
         "  my_array(:,:) = 0.0\n"
         "  my_test = 1\n"
         "  return\n"
-        "end function my_test\n")
+        "end subroutine my_test\n")
     with pytest.raises(TransformationError) as err:
         PTRANS.apply(schedule.children)
     assert ("Nodes of type 'Return' cannot be enclosed by a ProfileTrans "
@@ -554,9 +554,9 @@ def test_profile_nemo_auto_kernels(parser):
     assert len(pnodes) == 1
     code = str(psy.gen).lower()
     # Check that it's the first loop that's had profiling added
-    assert ("  type(profile_psydatatype), target, save :: profile_psy_data0\n"
-            "  call profile_psy_data0 % prestart('do_loop', 'r0', 0, 0)\n"
-            "  do ji = 1, jpj" in code)
+    assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
+            "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
+            "  do ji = 1, jpj, 1" in code)
 
 
 def test_profile_nemo_loop_nests(parser):
@@ -577,9 +577,9 @@ def test_profile_nemo_loop_nests(parser):
     Profiler.add_profile_nodes(schedule, Loop)
     code = str(psy.gen).lower()
     # Check that it's the outer loop that's had profiling added
-    assert ("  type(profile_psydatatype), target, save :: profile_psy_data0\n"
-            "  call profile_psy_data0 % prestart('do_loop', 'r0', 0, 0)\n"
-            "  do jj = 1, jpj" in code)
+    assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
+            "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
+            "  do jj = 1, jpj, 1" in code)
 
 
 def test_profile_nemo_openmp(parser):
@@ -601,11 +601,11 @@ def test_profile_nemo_openmp(parser):
     omptrans.apply(schedule[0])
     Profiler.add_profile_nodes(schedule, Loop)
     code = str(psy.gen).lower()
-    assert ("  type(profile_psydatatype), target, save :: profile_psy_data0\n"
-            "  call profile_psy_data0 % prestart('do_loop', 'r0', 0, 0)\n"
+    assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
+            "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
             "  !$omp parallel do default(shared), private(ji,jj), "
             "schedule(static)\n"
-            "  do jj = 1, jpj" in code)
+            "  do jj = 1, jpj, 1" in code)
 
 
 def test_profile_nemo_no_acc_kernels(parser):
@@ -666,8 +666,8 @@ def test_profile_nemo_loop_imperfect_nest(parser):
     assert isinstance(tloop.loop_body[0], ProfileNode)
     assert isinstance(tloop.loop_body[1], ProfileNode)
     code = str(psy.gen).lower()
-    assert ("        end do\n"
-            "      end do\n"
-            "      call profile_psy_data0 % postend\n"
-            "      call profile_psy_data1 % prestart('do_loop', 'r1', 0, 0)\n"
-            "      do ji = 1, jpi" in code)
+    assert ("        enddo\n"
+            "      enddo\n"
+            "      call profile_psy_data % postend\n"
+            "      call profile_psy_data_1 % prestart('do_loop', 'r1', 0, 0)\n"
+            "      do ji = 1, jpi, 1" in code)
