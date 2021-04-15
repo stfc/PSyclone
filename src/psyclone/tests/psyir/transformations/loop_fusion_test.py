@@ -45,11 +45,12 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 
 from psyclone.domain.nemo.transformations import NemoLoopFuseTrans
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
+from psyclone.tests.utilities import Compile
 
 
 # ----------------------------------------------------------------------------
@@ -133,25 +134,27 @@ def fuse_loops(parser, fortran_code):
     :param str fortran_code: the Fortran code to loop fuse.
     :param parser:
 
-    :returns: a 2-tuple of the fused Fortran code, and the schedule.
-    :rtype: 2-tuple of (str, :py:class:`psyclone.psyir.nodes.Schedule`)
+    :returns: a 2-tuple of the fused Fortran code, and the PSyIR \
+        representation of the supplied Fortran code.
+    :rtype: 2-tuple of (str, :py:class:`psyclone.psyir.nodes.Container` or \
+                             :py:class:`psyclone.psyir.nodes.Routine`)
 
     '''
     reader = FortranStringReader(fortran_code)
-    ast = parser(reader)
-    psy = PSyFactory("nemo").create(ast)
-    schedule = psy.invokes.get("sub").schedule
-
-    loop1 = schedule.children[0]
-    loop2 = schedule.children[1]
+    fp2_ast = parser(reader)
+    fp2_reader = Fparser2Reader()
+    psyir = fp2_reader.generate_psyir(fp2_ast)
+    loop1 = psyir.children[0]
+    loop2 = psyir.children[1]
     fuse = NemoLoopFuseTrans()
     fuse.apply(loop1, loop2)
+
     writer = FortranWriter()
-    return writer(schedule), schedule
+    return writer(psyir), psyir
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_ok(parser):
+def test_fuse_ok(parser, tmpdir):
     '''This tests verifies that loop fusion can be successfully applied to
     conformant loops.
 
@@ -170,32 +173,35 @@ def test_fuse_ok(parser):
                  enddo
               enddo
               end subroutine sub'''
-    out, schedule = fuse_loops(parser, code)
-    expected = """do jj = 1, n, 1
-  do ji = 1, 10, 1
-    s(ji,jj) = t(ji,jj) + 1
-  enddo
-  do ji = 1, 10, 1
-    s(ji,jj) = t(ji,jj) + 1
-  enddo
-enddo"""
+    out, psyir = fuse_loops(parser, code)
+
+    expected = """  do jj = 1, n, 1
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+    enddo
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+    enddo
+  enddo"""
     assert expected in out
+    assert Compile(tmpdir).string_compiles(out)
 
     # Then fuse the inner ji loops
     fuse = NemoLoopFuseTrans()
-    fuse.apply(schedule[0].loop_body[0],
-               schedule[0].loop_body[1])
+    fuse.apply(psyir[0].loop_body[0],
+               psyir[0].loop_body[1])
     writer = FortranWriter()
 
-    out = writer(schedule)
-
-    expected = """do jj = 1, n, 1
-  do ji = 1, 10, 1
-    s(ji,jj) = t(ji,jj) + 1
-    s(ji,jj) = t(ji,jj) + 1
-  enddo
-enddo"""
+    out = writer(psyir)
+    expected = """
+  do jj = 1, n, 1
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+      s(ji,jj) = t(ji,jj) + 1
+    enddo
+  enddo"""
     assert expected in out
+    assert Compile(tmpdir).string_compiles(out)
 
     # Test more complex loop boundaries. Note that
     # we might actually consider simplifying these
@@ -215,19 +221,20 @@ enddo"""
               enddo
               end subroutine sub'''
     out, _ = fuse_loops(parser, code)
-    expected = """do jj = 2 - 1, n + 1 - 1, 1
-  do ji = 1, 10, 1
-    s(ji,jj) = t(ji,jj) + 1
-  enddo
-  do ji = 1, 10, 1
-    s(ji,jj) = t(ji,jj) + 1
-  enddo
-enddo"""
+    expected = """  do jj = 2 - 1, n + 1 - 1, 1
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+    enddo
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+    enddo
+  enddo"""
     assert expected in out
+    assert Compile(tmpdir).string_compiles(out)
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_incorrect_bounds_step(parser):
+def test_fuse_incorrect_bounds_step(tmpdir, parser):
     '''
     Test that loop boundaries and step size must be identical.
     '''
@@ -304,7 +311,8 @@ def test_fuse_incorrect_bounds_step(parser):
                  enddo
               enddo
               end subroutine sub'''
-    fuse_loops(parser, code)
+    out, _ = fuse_loops(parser, code)
+    assert Compile(tmpdir).string_compiles(out)
 
 
 # ----------------------------------------------------------------------------
@@ -335,7 +343,7 @@ def test_fuse_different_loop_vars(parser):
 
 # ----------------------------------------------------------------------------
 @pytest.mark.xfail(reason="Needs evaluation of constant expressions")
-def test_fuse_correct_bounds(parser):
+def test_fuse_correct_bounds(parser, tmpdir):
     '''
     Test that loop boundaries must be identical.
     '''
@@ -355,11 +363,12 @@ def test_fuse_correct_bounds(parser):
                  enddo
               enddo
               end subroutine sub'''
-    fuse_loops(parser, code)
+    out, _ = fuse_loops(parser, code)
+    assert Compile(tmpdir).string_compiles(out)
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_dimension_change(parser):
+def test_fuse_dimension_change(parser, tmpdir):
     '''Test that inconsistent use of dimemsions are detected, e.g.:
     loop1:  a(i,j)
     loop2:  a(j,i)
@@ -384,15 +393,17 @@ def test_fuse_dimension_change(parser):
               end subroutine sub'''
 
     out, _ = fuse_loops(parser, code)
-    correct = '''do jj = 1, n + 1, 1
-  do ji = 1, 10, 1
-    s(ji,jj) = t(ji,jj) + 1
-  enddo
-  do ji = 1, 10, 1
-    s(ji,jj) = s(ji,jj) + t(jj,jj) + t(ji,ji)
-  enddo
-enddo'''
+    correct = """
+  do jj = 1, n + 1, 1
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+    enddo
+    do ji = 1, 10, 1
+      s(ji,jj) = s(ji,jj) + t(jj,jj) + t(ji,ji)
+    enddo
+  enddo"""
     assert correct in out
+    assert Compile(tmpdir).string_compiles(out)
 
     # This cannot be fused, since 's' is written in the
     # first iteration and read in the second.
@@ -474,7 +485,7 @@ def test_fuse_independent_array(parser):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_scalars(parser):
+def test_fuse_scalars(parser, tmpdir):
     '''Test that using scalars work as expected in all combinations of
     being read/written in both loops.
     '''
@@ -495,7 +506,8 @@ def test_fuse_scalars(parser):
                  enddo
               enddo
               end subroutine sub'''
-    fuse_loops(parser, code)
+    out, _ = fuse_loops(parser, code)
+    assert Compile(tmpdir).string_compiles(out)
 
     # Second test: read/write of scalar variable
     code = '''subroutine sub()
@@ -561,7 +573,8 @@ def test_fuse_scalars(parser):
                  enddo
               enddo
               end subroutine sub'''
-    fuse_loops(parser, code)
+    out, _ = fuse_loops(parser, code)
+    assert Compile(tmpdir).string_compiles(out)
 
 
 @pytest.mark.xfail(reason="Variable usage does not handle conditional - #641")
