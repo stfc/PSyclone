@@ -293,7 +293,8 @@ class NemoPSy(PSy):
         '''
         from psyclone.psyir.backend.fortran import FortranWriter
         fwriter = FortranWriter()
-        #import pdb; pdb.set_trace()
+        # Ensure any domain-specific concepts are lowered
+        self._invokes.container.lower_to_language_level()
         return fwriter(self._invokes.container)
 
 
