@@ -1550,6 +1550,7 @@ class GOKern(CodedKern):
                 call = Call.create(init_buf, [Reference(field)])
                 # TODO #1134: Currently we convert back the PSyIR to f2pygen
                 # but when using the PSyIR backend this will be removed.
+                # import pdb; pdb.set_trace()
                 parent.add(PSyIRGen(parent, call))
 
                 # Lookup for the OpenCL memory object for this field and make
@@ -1586,6 +1587,21 @@ class GOKern(CodedKern):
                 # TODO #1134: Currently we convert back the PSyIR to f2pygen
                 # but when using the PSyIR backend this will be removed.
                 parent.add(PSyIRGen(parent, call))
+
+                # Lookup for the OpenCL memory object for this field and make
+                # sure it is declared in the Invoke.
+                name = arg.name + "_cl_mem"
+                try:
+                    symtab.lookup_with_tag(name)
+                except KeyError:
+                    symtab.new_symbol(
+                        name, tag=name, symbol_type=DataSymbol,
+                        # TODO #1134: We could import the kind symbols from a
+                        # iso_c_binding global container.
+                        datatype=UnknownFortranType("INTEGER(KIND=c_intptr_t)"
+                                                    " :: " + name))
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       kind="c_intptr_t", entity_decls=[name]))
 
     def gen_ocl_buffers_initial_write(self, parent):
         # pylint: disable=too-many-locals
@@ -1683,18 +1699,23 @@ class GOKern(CodedKern):
                                              source, dest)
                 assig = Assignment.create(dest.copy(), bop)
                 parent.add(PSyIRGen(parent, assig))
-
                 arguments.append(symbol.name)
             elif arg.argument_type == "grid_property":
                 garg = self._arguments.find_grid_access()
                 if arg.is_scalar:
                     arguments.append(arg.dereference(garg.name))
                 else:
-                    # TODO (dl_esm_inf/#18) the dl_esm_inf library stores
-                    # the pointers to device memory for grid properties in
-                    # "<grid-prop-name>_device" which is a bit hacky but
-                    # works for now.
-                    arguments.append(garg.name+"%grid%"+arg.name+"_device")
+                    device_grid_property = arg.name + "_device"
+                    field = symtab.lookup(garg.name)
+                    source = StructureReference.create(
+                                field, ['grid', device_grid_property])
+                    symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                    dest = Reference(symbol)
+                    bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
+                                                 source, dest)
+                    assig = Assignment.create(dest.copy(), bop)
+                    parent.add(PSyIRGen(parent, assig))
+                    arguments.append(symbol.name)
 
         sub_name = symtab.lookup_with_tag(self.name + "_set_args").name
         parent.add(CallGen(parent, sub_name, arguments))

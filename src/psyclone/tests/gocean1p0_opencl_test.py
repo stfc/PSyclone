@@ -914,6 +914,8 @@ in_fld, dx, gphiu
       REAL(KIND=go_wp), intent(in), target :: dx_1
       INTEGER, intent(in), target :: xstart, xstop, ystart, ystop'''
     assert expected in generated_code
+    print(generated_code)
+    assert False
     # TODO 284: Currently this example cannot be compiled because it needs to
     # import a module which won't be found on kernel_outputdir
 
