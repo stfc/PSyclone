@@ -57,10 +57,10 @@ the version included in PSyclone repository
 (``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``). This is not
 available in the PSyclone [installation](./../../../README.md#installation)
 so the exact path **must be specified** using the environment variable
-``INF_DIR``, e.g.
+``GOCEAN_INF_DIR``, e.g.
 
 ```shell
-INF_DIR=<path/to/dl_esm_inf/finite_difference> make
+GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
 ```
 
 The locations of the ExtractNetcdf and PSyData base classes are
@@ -90,7 +90,7 @@ compiling and linking. For instance:
 
 ```shell
 $(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/netcdf/dl_esm_inf -l_kernel_data_netcdf \
-        -L$(INF_DIR) -l_fd $(nf-config --flibs)
+        -L$(GOCEAN_INF_DIR) -l_fd $(nf-config --flibs)
 ```
 
 ### Note

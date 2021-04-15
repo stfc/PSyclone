@@ -121,9 +121,10 @@ https://psyclone.readthedocs.io/en/stable/gocean1p0.html) uses the
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
 uses the LFRic infrastructure (see the linked documentation on how to
 access and use the LFRic code). The location of the respective
-infrastructure libraries can be configured with the variable ``INF_DIR``
-(as said above, to remove the compiled infrastructure library it is
-necessary to run ``make allclean``). In addition, these wrapper libraries
+infrastructure libraries can be configured with the variables
+``GOCEAN_INF_DIR`` and ``LFRIC_INF_DIR`` for the GOcean and LFRic APIs,
+respectively (as said above, to remove the compiled infrastructure library it
+is necessary to run ``make allclean``). In addition, these wrapper libraries
 use specific Jinja templates whose default location is set to the relative
 path to the respective library directory but can also be configured with
 the variable ``LIB_TMPLT_DIR``.

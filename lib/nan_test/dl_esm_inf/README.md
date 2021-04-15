@@ -37,14 +37,14 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 default to ``gfortran`` and the empty string.
 
 The location of the ``dl_esm_inf`` library is specified using the
-environment variable ``INF_DIR``. It defaults to the relative
+environment variable ``GOCEAN_INF_DIR``. It defaults to the relative
 path to location of the version included in PSyclone repository
 (``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``). This is
 not available in the PSyclone [installation](./../../README.md#installation)
 so the exact path **must be specified** during the compilation process, e.g.
 
 ```shell
-INF_DIR=<path/to/dl_esm_inf/finite_difference> make
+GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
 ```
 
 The locations of the NANTest and PSyData base classes are specified
@@ -71,7 +71,7 @@ For instance:
 
 ```shell
 $(F90)  ... -L$(PSYDATA_LIB_DIR)/nan_test/dl_esm_inf -l_nan_test \
-        -L$(INF_DIR) -l_fd
+        -L$(GOCEAN_INF_DIR) -l_fd
 ```
 
 <!--

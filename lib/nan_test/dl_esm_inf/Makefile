@@ -50,7 +50,7 @@ F90 ?= gfortran
 F90FLAGS ?=
 # Path to the 'dl_esm_inf' infrastructure library. It defaults to the version
 # distributed with PSyclone. Overwrite for a different infrastructure version.
-INF_DIR ?= ./../../../external/dl_esm_inf/finite_difference
+GOCEAN_INF_DIR ?= ./../../../external/dl_esm_inf/finite_difference
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/nan_test'
 # directories. Overwrite for a custom location.
@@ -58,9 +58,9 @@ PSYDATA_LIB_DIR ?= ./../..
 LIB_TMPLT_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-INF_INC = $(INF_DIR)/src
+INF_INC = $(GOCEAN_INF_DIR)/src
 INF_LIB_NAME = _fd
-INF_LIB = $(INF_DIR)/src/lib$(INF_LIB_NAME).a
+INF_LIB = $(GOCEAN_INF_DIR)/src/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
 PSYDATA_LIB_NAME = _nan_test
@@ -105,10 +105,10 @@ nan_test_base.f90: $(LIB_TMPLT_DIR)/nan_test_base.jinja Makefile
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR)
+	$(MAKE) -C $(GOCEAN_INF_DIR)
 
 clean:
 	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* nan_test_base.*
 
 allclean: clean
-	$(MAKE) -C $(INF_DIR) clean
+	$(MAKE) -C $(GOCEAN_INF_DIR) clean
