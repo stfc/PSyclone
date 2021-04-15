@@ -209,6 +209,8 @@ class PSyIRVisitor(object):
                     six.raise_from(AttributeError(excinfo), excinfo)
 
         if self._skip_nodes:
+            # We haven't found a handler for this node but '_skip_nodes' is
+            # set so we ignore it and continue on down to any children.
             results = []
             for child in node.children:
                 results.append(self._visit(child))

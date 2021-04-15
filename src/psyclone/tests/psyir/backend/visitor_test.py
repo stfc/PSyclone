@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,6 +54,7 @@ def test_psyirvisitor_defaults():
     assert not visitor._skip_nodes
     assert visitor._indent == "  "
     assert visitor._depth == 0
+    assert visitor._validate_nodes is True
 
 
 def test_psyirvisitor_init():
@@ -280,16 +281,14 @@ def test_psyirvisitor_validation():
 
         '''
         def node1_node(self, node):
-            '''Match with class Node1. The print is used to check that this
-            method is called. '''
+            ''' Match with class Node1. '''
             result = "node1\n"
             for child in node.children:
                 result += self._visit(child)
             return result
 
         def node2_node(self, _):
-            '''Match with class Node2. The print is used to check that this
-            method is called. '''
+            ''' Match with class Node2. '''
             return "node2\n"
 
     # Create a simple Node hierachy with an instance of class
