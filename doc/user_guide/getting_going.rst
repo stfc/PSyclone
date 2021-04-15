@@ -59,7 +59,7 @@ The latest release is |release| and the latest stable version is on
 the master branch.
 
 There are two ways to install PSyclone. The first one is directly from
-PyPI using ``pip install``, see :ref:`below <getting-going-env-pypi>` for
+PyPI using ``pip install``, see :ref:`getting-going-env-pypi` for
 more detailed information.
 
 Alternatively, PSyclone can be downloaded from GitHub - either see |release|
@@ -73,10 +73,10 @@ PSyclone directly, e.g.
    > ls
    PSyclone-\ |release|\
 
-After the source package is downloaded and unpacked, it can also be
-installed using ``pip install``, albeit in a slightly different way to
-the PyPI installation, see :ref:`below <getting-going-env-src>` for
-more detailed information.
+After the source package is downloaded and unpacked, it can be installed
+using ``pip install``, albeit in a slightly different way to the PyPI
+installation, see :ref:`getting-going-env-src` for more detailed
+information.
 
 Hereon the location where you download or clone PSyclone (including the
 PSyclone directory itself) will be referred to as ``<PSYCLONEHOME>``.
@@ -120,8 +120,7 @@ for more detailed information)::
    > pip install --install-option="--prefix=/my/install/path" psyclone==X.Y.Z
 
 Depending on the installation option (e.g. system-wide, user), PSyclone
-will be installed in different locations - see
-:ref:`below <getting-going-env-loc>` for more information.
+will be installed in different :ref:`locations <getting-going-env-loc>`.
 
 .. _getting-going-env-src:
 
@@ -168,7 +167,7 @@ Location and structure of PSyclone installation
 Location of installed Pyclone scripts, modules and other accompanying
 resources is similar to other Python packages:
 
-* The ``psyclone`` script :ref:`script <psyclone_command>` is located
+* The ``psyclone`` :ref:`script <psyclone_command>` is located
   in ``<python-base-prefix>/bin`` directory (depending on your Linux
   distribution, you may need to add this location to your ``$PATH``).
 

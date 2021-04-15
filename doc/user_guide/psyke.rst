@@ -383,7 +383,7 @@ NetCDF Extraction for GOcean
 The library in `lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
 implements the full PSyData API for use with the
-:ref:`GOcean1.0 <gocean1.0-api>` ``dl_esm_inf`` infrastructure library.
+:ref:`GOcean1.0 <gocean1.0-api>` dl_esm_inf infrastructure library.
 In order to compile this library, you must have NetCDF installed.
 When running the code, it will create a NetCDF file for the instrumented
 code region. It includes all variables that are read before the code

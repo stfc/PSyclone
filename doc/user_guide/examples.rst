@@ -244,7 +244,7 @@ Example 5.1: Kernel data extraction
 This example shows the use of kernel data extraction in PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
-It uses the ``dl_esm_inf``-specific extraction library ``netcdf``
+It uses the dl_esm_inf-specific extraction library ``netcdf``
 (``lib/extract/netcdf/dl_esm_inf``), and needs NetCDF to be
 available (including ``nf-config`` to detect installation-specific
 paths). You need to compile the NetCDF extraction library
@@ -284,7 +284,7 @@ Example 5.3: Read-only-verification
 This example shows the use of read-only-verification with PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based read-only-verification code.
-It uses the ``dl_esm_inf``-specific read-only-verification library
+It uses the dl_esm_inf-specific read-only-verification library
 (``lib/read_only/dl_esm_inf/``).
 
 .. note:: The ``update_field_mod`` subroutine contains some very

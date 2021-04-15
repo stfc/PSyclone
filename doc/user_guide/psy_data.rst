@@ -194,17 +194,17 @@ This library is contained in the ``lib/read_only/dl_esm_inf`` directory and
 it must be compiled before linking any GOcean-based application that uses
 read-only verification. Compiling this library requires access to the
 GOcean infrastructure library (since it must implement a generic interface
-for e.g. the ``dl_esm_inf`` ``r2d_field`` class).
+for e.g. the dl_esm_inf ``r2d_field`` class).
 
 The ``Makefile`` uses the variable ``GOCEAN_INF_DIR`` to point to the
-location where ``dl_esm_inf``'s ``field_mod`` has been compiled. It
-defaults to the relative path to location of the ``dl_esm_inf`` version
+location where dl_esm_inf's ``field_mod`` has been compiled. It
+defaults to the relative path to location of the dl_esm_inf version
 included in PSyclone repository as a Git submodule,
 ``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference/src``. It can be
 changed to a user-specified location if required (for instance with the
 PSyclone installation).
 
-The ``dl_esm_inf`` library is not used in linking the verification library.
+The dl_esm_inf library is not used in linking the verification library.
 The application which uses the read-only-verification library needs to
 link in the infrastructure library anyway.
 

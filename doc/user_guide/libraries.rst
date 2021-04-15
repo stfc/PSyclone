@@ -141,7 +141,14 @@ Compilation of ``extract``, ``nan_test``, ``read_only`` and some of the
 profiling wrapper libraries depends on infrastructure libraries relevant
 to the API they are used for. :ref:`LFRic API <dynamo0.3-api>` uses the
 LFRic infrastructure and :ref:`GOcean1.0 <gocean1.0-api>` uses the
-``dl_esm_inf`` `library <https://github.com/stfc/dl_esm_inf>`_.
+dl_esm_inf library. The LFRic infrastructure can be obtained from the
+LFRic `code repository <https://code.metoffice.gov.uk/trac/lfric/browser>`_,
+however this requires access to the `Met Office Science Repository Service
+(MOSRS) <https://code.metoffice.gov.uk/trac/home>`_. A useful contact for
+LFRic-related questions (including access to MOSRS) is the `"lfric" mailing
+list <mailto:lfric@cmpd1.metoffice.gov.uk>`_ which gathers the Met Office and
+external LFRic developers and users. The dl_esm_inf library is freely
+available and can be downloaded from `<https://github.com/stfc/dl_esm_inf>`_.
 
 Some libraries require NetCDF for compilation. Installation of NetCDF is
 described in details in the `hands-on practicals documentation
@@ -170,11 +177,21 @@ respective directories in the PSyclone repository.
 The locations of the infrastructure libraries for LFRic and GOcean1.0
 applications can be configured with the variables ``LFRIC_INF_DIR`` and
 ``GOCEAN_INF_DIR``, respectively. Their default values are set to relative
-paths to the locations of these libraries in the PSyclone repository.
-However, the infrastructure libraries are not available in a PSyclone
-installation so in this case ``LFRIC_INF_DIR`` and ``GOCEAN_INF_DIR``
-**must be set** to the exact paths to where the respective infrastructure
-source can be found.
+paths to the locations of these libraries in the PSyclone repository. The
+dl_esm_inf library is provided as a Git submodule of the PSyclone
+project (see :ref:`dev_guide:dev-installation` in the Developers' Guide
+for details on working with submodules) and a pared-down version of LFRic
+infrastructure is also available in the PSyclone repository (please refer
+to the ``README.md`` documentation of relevant wrapper libraries). However,
+the infrastructure libraries are not available in a PSyclone installation
+and they need to be downloaded separately, see :ref:`Dependencies
+<libraries-dependencies>` for more information. In this case
+``LFRIC_INF_DIR`` and ``GOCEAN_INF_DIR`` **must be set** to the exact paths
+to where the respective infrastructure source can be found. For instance,
+
+.. code-block:: shell
+
+    GOCEAN_INF_DIR=$HOME/dl_esm_inf/finite_difference make
 
 Profiling wrapper libraries that depend on external tools have specific
 variables that configure paths to where these libraries are located in a
