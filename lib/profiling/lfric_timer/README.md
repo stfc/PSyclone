@@ -40,14 +40,14 @@ In order to compile the ``libpsy_lfric_timer.a`` library using already
 compiled LFRic code, the following command can be used:
 
 ```shell
-INF_DIR=$<path/to/LFRic/compiled/code> make libpsy_lfric_timer.a
+LFRIC_INF_DIR=$<path/to/LFRic/compiled/code> make libpsy_lfric_timer.a
 ```
 This will pick up the module file for the LFRic timer from the specified
 directory. As can be seen from the above command, the location of the LFRic
 infrastructure code is specified using the environment variable
-``INF_DIR``. For demonstration purposes, it defaults to the relative path
-to location of the pared-down LFRic infrastructure located in a clone of
-PSyclone repository,
+``LFRIC_INF_DIR``. For demonstration purposes, it defaults to the relative
+path to location of the pared-down LFRic infrastructure located in a clone
+of PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../README.md#installation) so the exact path
@@ -65,7 +65,7 @@ repository and specify the exact path during the compilation process.
 For instance,
 
 ```shell
-INF_DIR=<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure make \
+LFRIC_INF_DIR=<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure make \
 	libpsy_lfric_timer_standalone.a
 ```
 
@@ -85,7 +85,7 @@ $(F90) -c  -I <PATH-TO-PSYCLONE>/lib/profiling/lfric_timer some_file.f90
 $(F90) some_file.o -L <PATH-TO-PSYCLONE>/lib/profiling/lfric_timer -lpsy_lfric_timer_standalone
 ```
 The application of the ``libpsy_lfric_timer.a`` needs to provide the path
-to the LFRic compiled code as well, e.g. by adding ``-L$(INF_DIR) -llfric``.
+to the LFRic compiled code as well, e.g. by adding ``-L$(LFRIC_INF_DIR) -llfric``.
 
 **Note**, The ``<PATH-TO-PSYCLONE>`` differs depending on whether the
 wrapper library is compiled in a clone of PSyclone repository or in a

@@ -44,12 +44,12 @@ F90FLAGS ?= -g
 # Path to the LFRic infrastructure library. It defaults to the pared-down
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-INF_DIR ?= ./../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_INF_DIR ?= ./../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # -----------------------------------------------------------------------------
 
-INF_INC = $(INF_DIR)
+INF_INC = $(LFRIC_INF_DIR)
 INF_LIB_NAME = lfric
-INF_LIB = $(INF_DIR)/lib$(INF_LIB_NAME).a
+INF_LIB = $(LFRIC_INF_DIR)/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
 PSYDATA_LIB_NAME = psy_lfric_timer
@@ -59,7 +59,7 @@ PSYDATA_STANDALONE_LIB = lib$(PSYDATA_STANDALONE_LIB_NAME).a
 
 PSY_OBJS = profile_psy_data_mod.o
 INF_OBJS = timer_mod.o log_mod.o scalar_mod.o mpi_mod.o io_utility_mod.o
-INF_OBJS_FULL_PATH = $(patsubst %,$(INF_DIR)/%,$(INF_OBJS))
+INF_OBJS_FULL_PATH = $(patsubst %,$(LFRIC_INF_DIR)/%,$(INF_OBJS))
 
 .phony: default clean allclean
 
@@ -81,7 +81,7 @@ $(OBJS): $(INF_LIB)
 
 # Create infrastructure library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR)
+	$(MAKE) -C $(LFRIC_INF_DIR)
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -90,4 +90,4 @@ clean:
 	rm -f $(PSYDATA_LIB) $(PSYDATA_STANDALONE_LIB) *.mod *.o
 
 allclean: clean
-	$(MAKE) -C $(INF_DIR) allclean
+	$(MAKE) -C $(LFRIC_INF_DIR) allclean

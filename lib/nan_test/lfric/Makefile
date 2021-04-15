@@ -49,7 +49,7 @@ F90FLAGS ?=
 # Path to the LFRic infrastructure library. It defaults to the pared-down
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-INF_DIR ?= ./../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_INF_DIR ?= ./../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/nan_test'
 # directories. Overwrite for a custom location.
@@ -57,9 +57,9 @@ PSYDATA_LIB_DIR ?= ./../..
 LIB_TMPLT_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-INF_INC = $(INF_DIR)
+INF_INC = $(LFRIC_INF_DIR)
 INF_LIB_NAME = lfric
-INF_LIB = $(INF_DIR)/lib$(INF_LIB_NAME).a
+INF_LIB = $(LFRIC_INF_DIR)/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
 PSYDATA_LIB_NAME = _nan_test
@@ -85,7 +85,7 @@ $(PSYDATA_LIB): $(INF_LIB) $(OBJS)
 
 # Create LFRic infrastructure library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR)
+	$(MAKE) -C $(LFRIC_INF_DIR)
 
 # Add all dependencies. The LFRic NaN checking library extends the
 # NANTestBase type, which in turn extends the PSyDataBase type.
@@ -112,4 +112,4 @@ clean:
 	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* nan_test_base.*
 
 allclean: clean
-	$(MAKE) -C $(INF_DIR) allclean
+	$(MAKE) -C $(LFRIC_INF_DIR) allclean

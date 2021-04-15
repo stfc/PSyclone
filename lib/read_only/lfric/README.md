@@ -37,8 +37,8 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 default to ``gfortran`` and the empty string.
 
 The location of the LFRic infrastructure library is specified using the
-environment variable ``INF_DIR``. It defaults to the relative path to
-location of the pared-down LFRic infrastructure located in a clone of
+environment variable ``LFRIC_INF_DIR``. It defaults to the relative path
+to location of the pared-down LFRic infrastructure located in a clone of
 PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
 This is not available in the PSyclone [installation](
@@ -46,7 +46,7 @@ This is not available in the PSyclone [installation](
 **must be specified** during the compilation process, e.g.
 
 ```shell
-F90=ifort F90FLAGS="-g -check bounds" INF_DIR=<path/to/LFRic/code> make
+F90=ifort F90FLAGS="-g -check bounds" LFRIC_INF_DIR=<path/to/LFRic/code> make
 ```
 
 It is the responsibility of the user to make sure that the module files
@@ -77,7 +77,7 @@ For instance:
 
 ```shell
 $(F90)  ... -L$(PSYDATA_LIB_DIR)/read_only/lfric -l_read_only \
-        -L$(INF_DIR) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
+        -L$(LFRIC_INF_DIR) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
 ```
 
 <!--
