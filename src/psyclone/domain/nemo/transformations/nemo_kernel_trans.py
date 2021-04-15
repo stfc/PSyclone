@@ -33,68 +33,72 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
-'''Module providing a transformation from a generic PSyIR representation of
-   a PSy layer into a NEMO-specific one.
-
+'''
+Module providing a transformation from a generic PSyIR Schedule into a
+NEMO Kernel.
 '''
 
 from psyclone.transformations import Transformation, TransformationError
-from psyclone.psyir.nodes import Routine, Loop
-from psyclone.nemo import NemoLoop
-from psyclone.domain.nemo.transformations import NemoInvokeTrans, \
-    NemoKernelTrans
+from psyclone.psyir.nodes import Schedule
+from psyclone.nemo import NemoKern
 
 
-class NemoPSyTrans(Transformation):
+class NemoKernelTrans(Transformation):
     '''
-    Transform a generic PSyIR representation of a PSy layer into a PSyclone
-    version with specialised, NEMO-specific nodes.
+    Transform a generic PSyIR Schedule into a NEMO Kernel.
 
     '''
-    def apply(self, psyir, options=None):
+    def validate(self, node, options=None):
         '''
-        Takes generic PSyIR and replaces recognised structures with
-        NEMO-specific PSyIR (in-place). Note that this may mean replacing
-        the top-level node itself and therefore this routine returns the
-        root of the modified tree.
+        Check that the supplied node is a valid target for this transformation.
 
-        :param psyir: the root node of the PSyIR tree to process.
-        :type psyir: :py:class:`psyclone.psyir.nodes.Node`
+        :param node: the target of the transformation.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for \
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
         :type options: dict of string:values or None
 
-        :returns: root of the modified PSyIR tree.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        :raises TransformationError: if the supplied node is not a Routine.
 
         '''
-        self.validate(psyir, options=options)
+        super(NemoKernelTrans, self).validate(node)
 
-        # Deal with Routines first. Have to take care of the case where the
-        # supplied top-level node is itself a Routine and must therefore be
-        # replaced.
-        root = psyir
-        invoke_trans = NemoInvokeTrans()
+        if not isinstance(node, Schedule):
+            raise TransformationError(
+                "Error in NemoKernelTrans transformation. The supplied node "
+                "should be a PSyIR Schedule but found '{0}'".format(
+                    type(node).__name__))
 
-        for routine in psyir.walk(Routine):
-            new_node = invoke_trans.apply(routine)
+        # TODO move match() functionality into this routine?
+        if not NemoKern.match(node):
+            raise TransformationError(
+                "Error in NemoKernelTrans transformation. The supplied "
+                "Schedule cannot be converted into a NEMO kernel because it "
+                "blah blah")
 
-        # Reverse the result of the walk() so that we process loops depth
-        # first. This permits the correct identification of NemoKern's.
-        for loop in reversed(root.walk(Loop)):
-            # Convert a generic loop into a NEMO Loop by creating a new
-            # NemoLoop object and inserting it into the PSyIR.
-            nodes = loop.pop_all_children()
-            new_loop = NemoLoop.create(loop.variable,
-                                       nodes[0], nodes[1], nodes[2],
-                                       nodes[3].pop_all_children())
-            loop.replace_with(new_loop)
+    def apply(self, sched, options=None):
+        '''
+        Takes a generic PSyIR Routine and replaces it with a NEMO Invoke.
+        NEMO-specific PSyIR (in-place). Note that this may mean replacing
+        the top-level node itself and therefore this routine returns the
+        root of the modified tree.
 
-            try:
-                NemoKernelTrans.apply(new_loop.loop_body)
-            except TransformationError:
-                pass
+        :param routine: the routine node to be transformed.
+        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
+        :param options: a dictionary with options for \
+            transformations. No options are used in this \
+            transformation. This is an optional argument that defaults \
+            to None.
+        :type options: dict of string:values or None
 
-        return root
+        :returns: the new PSyIR node that replaces the Routine.
+        :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
+
+        '''
+        self.validate(sched)
+
+        nemokern = NemoKern(sched.pop_all_children(),
+                            None, parent=sched)
+        sched.addchild(nemokern)
