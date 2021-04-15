@@ -1774,30 +1774,6 @@ class ACCLoopDirective(ACCDirective):
         # pylint: disable=no-self-use
         return ""
 
-    def begin_string(self):
-        ''' Returns the beginning statement of this directive, i.e.
-        "acc loop" plus any qualifiers. The visitor is responsible for
-        adding the correct characters to mark this as a directive (e.g. "!$").
-
-        :returns: the opening statement of this directive.
-        :rtype: str
-
-        '''
-        result = "acc loop"
-        if self._sequential:
-            result += " seq"
-        else:
-            if self._independent:
-                result += " independent"
-            if self._collapse:
-                result += " collapse({0})".format(self._collapse)
-        return result
-
-    def end_string(self):
-        ''' Would return the end string for this directive but "acc loop"
-        doesn't have a closing directive. '''
-        return ""
-
 
 class OMPDirective(Directive):
     '''
@@ -2279,11 +2255,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-        private_str = ",".join(self._get_private_list())
+
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                "default(shared), private({0}), "
-                                "schedule({1})".
-                                format(private_str, self._omp_schedule) +
+                                "".join(self.begin_string().split()[3:]) +
                                 self._reduction_string()))
         for child in self.children:
             child.gen_code(parent)
@@ -2310,11 +2284,33 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                 "but this Node has {0} children: {1}".
                 format(len(self.dir_body.children), self.dir_body.children))
 
-        self._add_region(
-            start_text="parallel do default(shared), private({0}), "
-            "schedule({1})".format(",".join(self._get_private_list()),
-                                   self._omp_schedule),
-            end_text="end parallel do")
+        self._add_region(start_text=self.begin_string(),
+                         end_text=self.end_string())
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp parallel do ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        return ("omp parallel do default(shared), private({0}), "
+                "schedule({1})".format(",".join(self._get_private_list()),
+                                       self._omp_schedule))
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end parallel do". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end parallel do"
 
 
 class GlobalSum(Statement):
@@ -4652,7 +4648,6 @@ class ACCDataDirective(ACCDirective):
                 writers.add(var)
         readwrites = readers.intersection(writers)
         # Are any of the read-writes written before they are read?
-        #import pdb; pdb.set_trace()
         for var in list(readwrites)[:]:
             accesses = var_accesses[var]
             if accesses[0].access_type == AccessType.WRITE:
