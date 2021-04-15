@@ -78,11 +78,11 @@ def test_nemo_omp_parallel():
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
     correct = '''!$omp parallel private(a,i)
-    do i = 1, 20, 2
-      a = 2 * i
-      b(i) = b(i) + a
-    enddo
-!$omp end parallel'''
+  do i = 1, 20, 2
+    a = 2 * i
+    b(i) = b(i) + a
+  enddo
+  !$omp end parallel'''
     assert correct in result
 
     cvisitor = CWriter()
@@ -143,7 +143,7 @@ def test_gocean_omp_parallel():
     fvisitor = FortranWriter()
     result = fvisitor(invoke.schedule[0])
     correct = '''!$omp parallel
-  a = b
+a = b
 !$omp end parallel'''
     assert correct in result
 
@@ -179,35 +179,27 @@ def test_nemo_omp_do():
 
     # Now apply a parallel transform
     omp_loop = OMPLoopTrans()
-    omp_par = OMPParallelTrans()
     omp_loop.apply(schedule[0])
-    # Enclose it in a parallel region
-    omp_par.apply(schedule[0])
-
-    fvisitor = FortranWriter()
+    # Disable node validation to remove need for parallel region
+    fvisitor = FortranWriter(validate_nodes=False)
     result = fvisitor(schedule)
-    correct = '''!$omp parallel private(a,i)
-!$omp do schedule(static)
-      do i = 1, 20, 2
-        a = 2 * i
-        b(i) = b(i) + a
-      enddo
-!$omp end do
-!$omp end parallel'''
+    correct = '''  !$omp do schedule(static)
+  do i = 1, 20, 2
+    a = 2 * i
+    b(i) = b(i) + a
+  enddo
+  !$omp end do'''
     assert correct in result
 
-    cvisitor = CWriter()
+    cvisitor = CWriter(validate_nodes=False)
     result = cvisitor(schedule[0])
-    correct = '''#pragma omp parallel private(a,i)
+    correct = '''#pragma omp do schedule(static)
 {
-#pragma omp do schedule(static)
-{
-    for(i=1; i<=20; i+=2)
-    {
-      a = (2 * i);
-      b[i] = (b[i] + a);
-    }
-}
+  for(i=1; i<=20; i+=2)
+  {
+    a = (2 * i);
+    b[i] = (b[i] + a);
+  }
 }'''
     assert correct in result
 
@@ -221,9 +213,7 @@ def test_gocean_omp_do():
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     omp = OMPLoopTrans()
-    omppar = OMPParallelTrans()
     _, _ = omp.apply(invoke.schedule[0])
-    _ = omppar.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment.
@@ -232,25 +222,21 @@ def test_gocean_omp_do():
     # are not supported yet, and it is sufficient to test that the
     # visitor pattern creates correct OMP DO directives.
     # TODO #440 fixes this.
-    replace_child_with_assignment(invoke.schedule[0].dir_body[0].dir_body)
-    fvisitor = FortranWriter()
+    replace_child_with_assignment(invoke.schedule[0].dir_body)
+    # Disable validation checks to avoid having to add a parallel region
+    fvisitor = FortranWriter(validate_nodes=False)
     # GOInvokeSchedule is not yet supported, so start with
     # the OMP node:
     result = fvisitor(invoke.schedule[0])
     correct = '''!$omp do schedule(static)
-    a = b
-!$omp end do
-!$omp end parallel'''
+a = b
+!$omp end do'''
     assert correct in result
 
-    cvisitor = CWriter()
-    # Remove newlines for easier RE matching
+    cvisitor = CWriter(validate_nodes=False)
     result = cvisitor(invoke.schedule[0])
-    correct = '''#pragma omp parallel
+    correct = '''#pragma omp do schedule(static)
 {
-#pragma omp do schedule(static)
-{
-    a = b;
-}
+  a = b;
 }'''
     assert correct in result
