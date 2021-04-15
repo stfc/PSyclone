@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020 and Technology Facilities Council
+# Copyright (c) 2017-2021 and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -638,7 +638,7 @@ class DirectiveGen(BaseGen):
 
     :raises RuntimeError: if an unrecognised directive language is specified.
     '''
-    def __init__(self, parent, language, position, directive_type, content):
+    def __init__(self, parent, language, position, directive_type, content=""):
         self._supported_languages = ["omp", "acc"]
         self._language = language
         self._directive_type = directive_type
