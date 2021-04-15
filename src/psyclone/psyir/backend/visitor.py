@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified: J. Henrichs, Bureau of Meteorology
+#           A. R. Porter, STFC Daresbury Lab
 
 
 '''Generic PSyIR visitor code that can be specialised by different
@@ -40,6 +41,8 @@ back ends.
 
 '''
 
+import six
+import inspect
 from psyclone.psyir.nodes import Node
 
 
@@ -155,9 +158,9 @@ class PSyIRVisitor(object):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises VisitorError: if a node is found that does not have \
-        associated call back methods (and skip_nodes is not set).
+            associated call back methods (and skip_nodes is not set).
         :raises AttributeError: if a call back method is found but it \
-        raises an AttributeError.
+            raises an AttributeError.
 
         '''
         if not isinstance(node, Node):
@@ -165,10 +168,13 @@ class PSyIRVisitor(object):
                 "Expected argument to be of type 'Node' but found '{0}'."
                 "".format(type(node).__name__))
 
+        # If this node has a validation routine then call it now.
+        if hasattr(node, "_pre_gen_validate"):
+            node._pre_gen_validate()
+
         # Make a list of the node's ancestor classes (including
         # itself) in method resolution order (mro), apart from the
         # base "object" class.
-        import inspect
         possible_method_names = [curr_class.__name__.lower()+"_node"
                                  for curr_class in inspect.getmro(type(node))]
         possible_method_names.remove("object_node")
@@ -187,7 +193,7 @@ class PSyIRVisitor(object):
                 else:
                     # The method does exist but it has raised an
                     # attribute error so re-raise it here.
-                    raise AttributeError(excinfo)
+                    six.raise_from(AttributeError(excinfo), excinfo)
 
         if self._skip_nodes:
             for child in node.children:

@@ -43,6 +43,7 @@ from psyclone.psyir.nodes import Assignment, Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 from psyclone.tests.utilities import create_schedule, get_invoke
 
 
@@ -175,31 +176,38 @@ def test_nemo_omp_do():
         end subroutine tmp
         end module test'''
     schedule = create_schedule(code, "tmp")
-    from psyclone.transformations import OMPLoopTrans
 
     # Now apply a parallel transform
     omp_loop = OMPLoopTrans()
+    omp_par = OMPParallelTrans()
     omp_loop.apply(schedule[0])
+    # Enclose it in a parallel region
+    omp_par.apply(schedule[0])
 
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    correct = '''!$omp do schedule(static)
-    do i = 1, 20, 2
-      a = 2 * i
-      b(i) = b(i) + a
-    enddo
-!$omp end do'''
+    correct = '''!$omp parallel private(a,i)
+!$omp do schedule(static)
+      do i = 1, 20, 2
+        a = 2 * i
+        b(i) = b(i) + a
+      enddo
+!$omp end do
+!$omp end parallel'''
     assert correct in result
 
     cvisitor = CWriter()
     result = cvisitor(schedule[0])
-    correct = '''#pragma omp do schedule(static)
+    correct = '''#pragma omp parallel private(a,i)
 {
-  for(i=1; i<=20; i+=2)
-  {
-    a = (2 * i);
-    b[i] = (b[i] + a);
-  }
+#pragma omp do schedule(static)
+{
+    for(i=1; i<=20; i+=2)
+    {
+      a = (2 * i);
+      b[i] = (b[i] + a);
+    }
+}
 }'''
     assert correct in result
 
@@ -208,14 +216,14 @@ def test_nemo_omp_do():
 def test_gocean_omp_do():
     '''Test that an OMP DO directive in a 'classical' API (gocean here)
     is created correctly.
+
     '''
-
-    from psyclone.transformations import OMPLoopTrans
-
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     omp = OMPLoopTrans()
+    omppar = OMPParallelTrans()
     _, _ = omp.apply(invoke.schedule[0])
+    _ = omppar.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment.
@@ -224,21 +232,25 @@ def test_gocean_omp_do():
     # are not supported yet, and it is sufficient to test that the
     # visitor pattern creates correct OMP DO directives.
     # TODO #440 fixes this.
-    replace_child_with_assignment(invoke.schedule[0].dir_body)
+    replace_child_with_assignment(invoke.schedule[0].dir_body[0].dir_body)
     fvisitor = FortranWriter()
     # GOInvokeSchedule is not yet supported, so start with
     # the OMP node:
     result = fvisitor(invoke.schedule[0])
     correct = '''!$omp do schedule(static)
-  a = b
-!$omp end do'''
+    a = b
+!$omp end do
+!$omp end parallel'''
     assert correct in result
 
     cvisitor = CWriter()
     # Remove newlines for easier RE matching
     result = cvisitor(invoke.schedule[0])
-    correct = '''#pragma omp do schedule(static)
+    correct = '''#pragma omp parallel
 {
-  a = b;
+#pragma omp do schedule(static)
+{
+    a = b;
+}
 }'''
     assert correct in result
