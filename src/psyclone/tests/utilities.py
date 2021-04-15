@@ -404,8 +404,10 @@ class Compile(object):
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
         old_pwd = self._tmpdir.chdir()
-
-        filename = "generated.f90"
+        # Add a object-specific hash-code to the file name so that all files
+        # created in the same test have different names and can easily be
+        # inspected in case of errors.
+        filename = "generated-{0}.f90".format(str(hash(self)))
         with open(filename, 'w') as test_file:
             test_file.write(code)
 
