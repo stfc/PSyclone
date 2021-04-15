@@ -161,10 +161,10 @@ Compiling this library requires access to the LFRic infrastructure library
 (since it must implement a generic interface for e.g. the LFRic
 :ref:`field <lfric-field>` class).
 
-The ``Makefile`` uses the variable ``INF_DIR`` to point to the location
-where LFRic's ``field_mod`` and ``integer_field_mod`` have been compiled.
-It defaults to the path to location of the pared-down LFRic infrastructure
-located in a clone of PSyclone repository,
+The ``Makefile`` uses the variable ``LFRIC_INF_DIR`` to point to the
+location where LFRic's ``field_mod`` and ``integer_field_mod`` have been
+compiled. It defaults to the path to location of the pared-down LFRic
+infrastructure located in a clone of PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``,
 but this will certainly need to be changed for any user (for instance with
 PSyclone installation). The LFRic infrastructure library is not used in
@@ -183,7 +183,7 @@ the required variables:
 
 .. code-block:: shell
 
-    make INF_DIR=some_path F90=ifort F90FLAGS="--some-flag"
+    make LFRIC_INF_DIR=some_path F90=ifort F90FLAGS="--some-flag"
 
 This will create a library called ``lib_read_only.a``.
 
@@ -196,10 +196,10 @@ read-only verification. Compiling this library requires access to the
 GOcean infrastructure library (since it must implement a generic interface
 for e.g. the ``dl_esm_inf`` ``r2d_field`` class).
 
-The ``Makefile`` uses the variable ``INF_DIR`` to point to the location
-where ``dl_esm_inf``'s ``field_mod`` has been compiled. It defaults to
-the relative path to location of the ``dl_esm_inf`` version included in
-PSyclone repository as a Git submodule,
+The ``Makefile`` uses the variable ``GOCEAN_INF_DIR`` to point to the
+location where ``dl_esm_inf``'s ``field_mod`` has been compiled. It
+defaults to the relative path to location of the ``dl_esm_inf`` version
+included in PSyclone repository as a Git submodule,
 ``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference/src``. It can be
 changed to a user-specified location if required (for instance with the
 PSyclone installation).
@@ -219,7 +219,7 @@ the required variables:
 
 .. code-block:: shell
 
-    make INF_DIR=some_path F90=ifort F90FLAGS="--some-flag"
+    make GOCEAN_INF_DIR=some_path F90=ifort F90FLAGS="--some-flag"
 
 This will create a library called ``lib_read_only.a``.
 An executable example for using the GOcean read-only-verification

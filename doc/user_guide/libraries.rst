@@ -167,12 +167,14 @@ are specified with the ``PSYDATA_LIB_DIR`` and ``LIB_TMPLT_DIR`` variables.
 For testing purposes their default values are set to relative paths to the
 respective directories in the PSyclone repository.
 
-The location of the infrastructure libraries for LFRic and GOcean1.0
-applications can be configured with the variable ``INF_DIR``. Their default
-values are set to relative paths to the locations of these libraries in the
-PSyclone repository. However, the infrastructure libraries are not available
-in a PSyclone installation so in this case ``INF_DIR`` **must be set** to
-the exact path to where the infrastructure can be found.
+The locations of the infrastructure libraries for LFRic and GOcean1.0
+applications can be configured with the variables ``LFRIC_INF_DIR`` and
+``GOCEAN_INF_DIR``, respectively. Their default values are set to relative
+paths to the locations of these libraries in the PSyclone repository.
+However, the infrastructure libraries are not available in a PSyclone
+installation so in this case ``LFRIC_INF_DIR`` and ``GOCEAN_INF_DIR``
+**must be set** to the exact paths to where the respective infrastructure
+source can be found.
 
 Profiling wrapper libraries that depend on external tools have specific
 variables that configure paths to where these libraries are located in a
