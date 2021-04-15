@@ -1210,13 +1210,13 @@ def test_deep_copy():
     assert symtab2.lookup("symbol1") in symtab2.argument_list
     assert symtab2._node == dummy
 
-    # But the symbols are not the same object than the original ones
+    # But the symbols are not the same objects as the original ones
     assert symtab2.lookup("symbol1") is not sym1
     assert symtab2.lookup_with_tag("tag1") is not sym2
     assert sym1 not in symtab2.argument_list
     assert symtab2.lookup("symbol1") not in symtab.argument_list
 
-    # Add new symbols and rename symbols in both symbols tables and check
+    # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
     symtab.add(Symbol("st1"))
     symtab.rename_symbol(symtab.lookup("symbol1"), "a")

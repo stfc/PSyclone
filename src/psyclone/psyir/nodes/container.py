@@ -122,6 +122,7 @@ class Container(ScopingNode):
                 "".format(type(children).__name__))
 
         container = Container(name)
+        # pylint: disable=protected-access
         container._symbol_table = symbol_table
         symbol_table._node = container
         container.children = children
@@ -159,3 +160,7 @@ class Container(ScopingNode):
 
     def __str__(self):
         return "Container[{0}]\n".format(self.name)
+
+
+# For AutoAPI documentation generation
+__all__ = ['Container']

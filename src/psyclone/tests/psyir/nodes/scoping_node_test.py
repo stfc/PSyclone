@@ -40,7 +40,7 @@ from __future__ import absolute_import
 from psyclone.psyir.nodes import (Schedule, Assignment, Reference, Container,
                                   Routine, ArrayReference)
 from psyclone.psyir.symbols import (DataSymbol, ArrayType, INTEGER_TYPE,
-                                    ArgumentInterface)
+                                    ArgumentInterface, SymbolTable)
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
@@ -50,6 +50,12 @@ def test_scoping_node_symbol_table():
     # Since ScopingNode is abstract we will try this with a Container
     container = Container("test")
     assert container.symbol_table is container._symbol_table
+    assert isinstance(container.symbol_table, SymbolTable)
+
+    # An existing symbol table can be given to the constructor
+    symtab = SymbolTable()
+    container = Container("test", symbol_table=symtab)
+    assert container.symbol_table is symtab
 
 
 def test_scoping_node_copy():
@@ -96,7 +102,7 @@ def test_scoping_node_copy_hierarchy():
     This test has 2 ScopingNodes, and the copy will only be applied to the
     inner one. This means that the References to the symbols on the outer
     scope should not be duplicated. Also it contains argument symbols and
-    a reference inside another reference to make sure all this are copied
+    a reference inside another reference to make sure all these are copied
     appropriately.
     '''
     parent_node = Container("module")
@@ -137,7 +143,7 @@ def test_scoping_node_copy_hierarchy():
     for symbol in new_schedule.symbol_table.symbols:
         new_schedule.symbol_table.rename_symbol(symbol, symbol.name+"_new")
 
-    # An update to a symbol to the outer scope must affect both copies of the
+    # An update to a symbol in the outer scope must affect both copies of the
     # inner schedule.
     parent_node.symbol_table.rename_symbol(symbol_b, symbol_b.name+"_global")
 
@@ -167,6 +173,10 @@ module module
 
   end subroutine routine
 
-end module module'''
+end module module
+'''
     writer = FortranWriter()
-    assert expected in writer(parent_node)
+    output = writer(parent_node)
+    assert expected == output
+    # TODO #1200: fixing this issue must allow to Compile the test output
+    # assert Compile(tmpdir).string_compiles(output)

@@ -34,7 +34,7 @@
 # Authors  S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the ScopingNode node implementation.'''
+''' This module contains the ScopingNode implementation.'''
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.reference import Reference
@@ -43,18 +43,19 @@ from psyclone.psyir.symbols import SymbolTable
 
 class ScopingNode(Node):
     ''' Abstract node that has an associated Symbol Table to keep track of
-    symbols declared on its scope.
+    symbols declared in its scope (symbols that can be accessed by this node
+    and any of its descendants).
 
-    :param children: the PSyIR nodes that are children of this Schedule.
+    :param children: the PSyIR nodes that are children of this node.
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent node of this Schedule in the PSyIR.
+    :param parent: the parent node of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
     :param symbol_table: initialise the node with a given symbol table.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
             NoneType
 
     '''
-    # Polymorphic parameter to initialize the Symbol Table of the Schedule
+    # Polymorphic parameter to initialize the Symbol Table of the ScopingNode
     _symbol_table_class = SymbolTable
 
     def __init__(self, children=None, parent=None, symbol_table=None):
@@ -72,23 +73,26 @@ class ScopingNode(Node):
         :param other: object we are copying from.
         :type other: :py:class:`psyclone.psyir.node.Node`
 
-        :raises NotImplementedError: Schedule copy is not supported yet.
         '''
         super(ScopingNode, self)._refine_copy(other)
         self._symbol_table = other.symbol_table.deep_copy()
         # pylint: disable=protected-access
         self._symbol_table._node = self  # Associate to self
 
-        # Update of children references to point to the equally named
-        # symbol but from the new symbol table attached to self
+        # Update of children references to point to the equivalent symbols in
+        # the new symbol table attached to self
         for ref in self.walk(Reference):
             if ref.symbol in other.symbol_table.symbols:
-                ref.symbol = self._symbol_table.lookup(ref.symbol.name)
+                ref.symbol = self.symbol_table.lookup(ref.symbol.name)
 
     @property
     def symbol_table(self):
         '''
-        :returns: table containing symbol information for the Schedule.
+        :returns: table containing symbol information for this scope.
         :rtype: :py:class:`psyclone.psyGen.SymbolTable`
         '''
         return self._symbol_table
+
+
+# For AutoAPI documentation generation
+__all__ = ['ScopingNode']

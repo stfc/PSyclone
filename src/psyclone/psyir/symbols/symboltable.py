@@ -189,9 +189,10 @@ class SymbolTable(object):
         return all_tags
 
     def shallow_copy(self):
-        '''Create a copy of the symbol table where the top-level containers
-        are new (symbols added to the new symbol table will not be added in
-        the original but the existing objects are still the same).
+        '''Create a copy of the symbol table with new instances of the
+        top-level data structures but keeping the same existing symbol
+        objects. Symbols added to the new symbol table will not be added
+        in the original but the existing objects are still the same.
 
         :returns: a shallow copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -206,10 +207,11 @@ class SymbolTable(object):
         return new_st
 
     def deep_copy(self):
-        '''Create a copy of the symbol table where the top-level containers
-        are new and the contained symbols are also new copies. (e.g modifying
-        a symbol property will not affect the equivalent named symbol in
-        the original symbol table)
+        '''Create a copy of the symbol table with new instances of the
+        top-level data structures and also new instances of the symbols
+        contained in these data structures. Modifying a symbol attribute
+        will not affect the equivalent named symbol in the original symbol
+        table.
 
         :returns: a deep copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -224,8 +226,7 @@ class SymbolTable(object):
 
         # Prepare the new argument list
         new_arguments = []
-        arg_names = [arg.name for arg in self.argument_list]
-        for name in arg_names:
+        for name in [arg.name for arg in self.argument_list]:
             new_arguments.append(new_st.lookup(name))
         new_st.specify_argument_list(new_arguments)
 

@@ -39,6 +39,7 @@
 ''' PSyIR nodes package module '''
 
 from psyclone.psyir.nodes.node import colored, Node
+from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
 from psyclone.psyir.nodes.assignment import Assignment

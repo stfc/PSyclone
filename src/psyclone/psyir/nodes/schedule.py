@@ -46,14 +46,6 @@ class Schedule(ScopingNode):
     ''' Stores schedule information for a sequence of statements (supplied
     as a list of children).
 
-    :param children: the PSyIR nodes that are children of this Schedule.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent node of this Schedule in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
-    :param symbol_table: initialise the Schedule with a given symbol table.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
-            NoneType
-
     '''
     # Textual description of the node.
     _children_valid_format = "[Statement]*"
@@ -110,3 +102,7 @@ class Schedule(ScopingNode):
         '''
         for child in self.children:
             child.gen_code(parent)
+
+
+# For AutoAPI documentation generation
+__all__ = ['Schedule']
