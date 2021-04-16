@@ -304,7 +304,7 @@ def test_profiling_case(parser):
         "   real, dimension(:,:,:) :: p_mask, p_e3\n"
         "   real :: zflcrs, rfactx_r\n"
         "   character(len=3) :: cd_op\n"
-        "   p_fld_crs(:,:) = 0._wp\n"
+        "   p_fld_crs(:,:) = 0.0\n"
         "   SELECT CASE ( cd_op )\n"
         "     CASE ( 'VOL' )\n"
         "         ALLOCATE( zsurfmsk(jpi,jpj) )\n"
@@ -345,40 +345,41 @@ def test_profiling_case(parser):
     PTRANS.apply(sched[1].else_body.children)
     # Whole routine
     PTRANS.apply(sched.children)
-    code = str(psy.gen)
+    code = str(psy.gen).lower()
     assert (
-        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2\n"
-        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1\n"
-        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3\n"
-        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0\n"
-        "  CALL profile_psy_data0 % PreStart('my_test', 'r0', 0, 0)\n"
-        "  p_fld_crs(:, :) = 0._wp\n" in code)
-    assert ("      IF (mje_crs(2) - mjs_crs(2) == 1) THEN\n"
-            "        CALL profile_psy_data2 % PreStart('my_test', 'r2', 0, "
+        "  type(profile_psydatatype), save, target :: profile_psy_data\n"
+        "  type(profile_psydatatype), save, target :: profile_psy_data_1\n"
+        "  type(profile_psydatatype), save, target :: profile_psy_data_2\n"
+        "  type(profile_psydatatype), save, target :: profile_psy_data_3\n"
+        "\n"
+        "  call profile_psy_data_3 % prestart('my_test', 'r0', 0, 0)\n"
+        "  p_fld_crs(:,:) = 0.0\n" in code)
+    assert ("      if (mje_crs(2) - mjs_crs(2) == 1) then\n"
+            "        call profile_psy_data % prestart('my_test', 'r2', 0, "
             "0)\n"
             in code)
-    assert ("        END DO\n"
-            "        CALL profile_psy_data2 % PostEnd\n"
-            "      END IF\n" in code)
-    assert ("  CASE ('VOL')\n"
-            "    CALL profile_psy_data1 % PreStart('my_test', 'r1', 0, 0)\n"
+    assert ("        enddo\n"
+            "        call profile_psy_data % postend\n"
+            "      end if\n" in code)
+    assert ("  if (cd_op == ''vol'') then\n"
+            "    call profile_psy_data_1 % prestart('my_test', 'r1', 0, 0)\n"
             in code)
-    assert ("    CALL profile_psy_data1 % PostEnd\n"
-            "  CASE ('SUM')\n" in code)
-    assert ("  CASE ('SUM')\n"
-            "    CALL profile_psy_data3 % PreStart('my_test', 'r3', 0, 0)\n"
+    assert ("    call profile_psy_data_1 % postend\n"
+            "  else\n"
+            "    call profile_psy_data_2 % prestart('my_test', 'r3', 0, 0)\n"
             in code)
-    assert ("    CALL profile_psy_data3 % PostEnd\n"
-            "  END SELECT\n"
-            "  CALL profile_psy_data0 % PostEnd\n"
-            "END SUBROUTINE my_test" in code)
+    assert ("    call profile_psy_data_2 % postend\n"
+            "  end if\n"
+            "  call profile_psy_data_3 % postend\n"
+            "\n"
+            "end subroutine my_test" in code)
 
 
 def test_profiling_case_loop(parser):
     ''' Check that we can put profiling around a CASE and a subsequent
     loop. '''
     code = ("subroutine my_test()\n"
-            "  use my_mod, only: a_type\n"
+            "  use my_mod, only: a_type, ctl_stop\n"
             "  integer :: igrd, ib, ii\n"
             "  type(a_type) :: idx\n"
             "  real, dimension(:,:,:) :: pmask, tmask\n"
@@ -395,34 +396,11 @@ def test_profiling_case_loop(parser):
             "end subroutine\n")
     psy, sched = get_nemo_schedule(parser, code)
     PTRANS.apply(sched.children)
-    code = str(psy.gen)
-    assert ("  CALL profile_psy_data0 % PreStart('my_test', 'r0', 0, 0)\n"
-            "  SELECT CASE (igrd)\n" in code)
-    assert ("CALL profile_psy_data0 % PostEnd\n"
-            "END SUBROUTINE" in code)
-
-
-def test_profiling_missing_end(parser):
-    ''' Check that we raise the expected error if we are unable to find
-    the end of the profiled code section in the parse tree. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program do_loop\n"
-                                      "integer :: ji\n"
-                                      "integer, parameter :: jpj=32\n"
-                                      "real :: sto_tmp(jpj)\n"
-                                      "do ji = 1,jpj\n"
-                                      "  sto_tmp(ji) = 1.0d0\n"
-                                      "end do\n"
-                                      "end program do_loop\n")
-    schedule, _ = PTRANS.apply(schedule.children[0])
-    # Manually break the _ast_end property by making it point to the root
-    # of the whole parse tree
-    loops = schedule.walk(Loop)
-    loops[0]._ast_end = psy._ast
-    with pytest.raises(InternalError) as err:
-        _ = psy.gen
-    assert ("nodes of the PSyData region in the fparser2 parse tree do not "
-            "have the same parent" in str(err.value))
+    code = str(psy.gen).lower()
+    assert ("  call profile_psy_data % prestart('my_test', 'r0', 0, 0)\n"
+            "  if (igrd == 1) then\n" in code)
+    assert ("call profile_psy_data % postend\n\n"
+            "end subroutine" in code)
 
 
 def test_profiling_mod_use_clash(parser):

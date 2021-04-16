@@ -86,7 +86,7 @@ def test_profile_node_construction():
     assert isinstance(dsym, DataSymbol)
     assert isinstance(dsym.datatype, UnknownFortranType)
     assert (dsym.datatype.declaration ==
-            "type(profile_PSyDataType), save, target ::")
+            "type(profile_PSyDataType), save, target :: profile_psy_data")
 
 
 def test_malformed_profile_node(monkeypatch):

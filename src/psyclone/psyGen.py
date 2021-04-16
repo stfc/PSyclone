@@ -2248,16 +2248,23 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         return self.coloured_name(colour) + "[OMP parallel do]"
 
     def gen_code(self, parent):
+        '''
+        Generates the f2pygen AST representing this OMP directive.
 
+        :param parent: the parent node in the f2pygen tree.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
         self._not_within_omp_parallel_region()
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-
+        # Use begin_string() to avoid code duplication but have to skip the
+        # leading "omp parallel do" characters.
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                "".join(self.begin_string().split()[3:]) +
+                                " ".join(self.begin_string().split()[3:]) +
                                 self._reduction_string()))
         for child in self.children:
             child.gen_code(parent)
