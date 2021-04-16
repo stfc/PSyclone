@@ -88,6 +88,11 @@ def test_kern_trans_validation(parser):
         trans.validate(loop)
     assert ("supplied node should be a PSyIR Schedule but found 'Loop'" in
             str(err.value))
+    # We should reject the top-level routine schedule because it is not
+    # within a loop
+    with pytest.raises(TransformationError) as err:
+        trans.validate(psyir)
+    assert "supplied Schedule must be within a Loop" in str(err.value)
     # Loop body should not validate because it contains a Write statement
     # (which ends up as a CodeBlock)
     assert loop.walk(CodeBlock)

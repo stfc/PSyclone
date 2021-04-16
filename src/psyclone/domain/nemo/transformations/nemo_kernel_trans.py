@@ -70,8 +70,8 @@ class NemoKernelTrans(Transformation):
             to None.
         :type options: dict of string:values or None
 
-        :raises TransformationError: if the supplied node is not a Schedule \
-            or it cannot be represented as a Kernel.
+        :raises TransformationError: if the supplied node is not a Schedule, \
+            is not within a loop or cannot be represented as a Kernel.
 
         '''
         super(NemoKernelTrans, self).validate(node)
@@ -81,6 +81,12 @@ class NemoKernelTrans(Transformation):
                 "Error in NemoKernelTrans transformation. The supplied node "
                 "should be a PSyIR Schedule but found '{0}'".format(
                     type(node).__name__))
+
+        # A Kernel must be within a Loop
+        if not isinstance(node.parent, Loop):
+            raise TransformationError(
+                "Error in NemoKernelTrans transformation. The supplied "
+                "Schedule must be within a Loop.")
 
         # Check for array assignments
         nodes = [assign for assign in node.walk(Assignment)
