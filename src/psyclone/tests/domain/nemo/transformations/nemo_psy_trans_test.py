@@ -31,34 +31,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''Transformation module for NEMO.
+'''Module containing tests for the NemoLoopTrans transformation.'''
+
+from __future__ import absolute_import
+
+import pytest
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.transformations import Transformation, TransformationError
+from psyclone.domain.nemo.transformations import NemoPSyTrans
+
+
+def test_construction():
+    ''' Check that we can construct the transformation object. '''
+    trans = NemoPSyTrans()
+    assert isinstance(trans, Transformation)
+    assert trans.name == "NemoPSyTrans"
+
+
+def test_basic_psy(parser):
+    ''' Check that the transformation correctly generates NEMO PSyIR for
+    a simple case. '''
+    code = '''subroutine basic_loop()
+  integer, parameter :: jpi=16
+  integer :: ji
+  real :: a(jpi), fconst
+  do ji = 1, jpi
+     a(ji) = fconst
+  end do
+end subroutine basic_loop
 '''
-
-from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
-    import NemoArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
-    import NemoAllArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_invoke_trans \
-    import NemoInvokeTrans
-from psyclone.domain.nemo.transformations.nemo_kernel_trans \
-    import NemoKernelTrans
-from psyclone.domain.nemo.transformations.nemo_loop_trans \
-    import NemoLoopTrans
-from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
-    import NemoOuterArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_psy_trans \
-    import NemoPSyTrans
-
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
-
-__all__ = ['NemoAllArrayRange2LoopTrans',
-           'NemoArrayRange2LoopTrans',
-           'NemoInvokeTrans',
-           'NemoKernelTrans',
-           'NemoLoopTrans',
-           'NemoPSyTrans',
-           'NemoOuterArrayRange2LoopTrans']
+    fp2reader = Fparser2Reader()
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psyir = fp2reader.generate_psyir(prog)
+    psyir.view()
+    trans = NemoPSyTrans()
+    sched = trans.apply(psyir)
+    sched.view()
+    assert 0

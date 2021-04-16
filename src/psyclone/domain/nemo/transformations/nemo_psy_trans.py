@@ -40,9 +40,8 @@
 
 from psyclone.transformations import Transformation, TransformationError
 from psyclone.psyir.nodes import Routine, Loop
-from psyclone.nemo import NemoLoop
 from psyclone.domain.nemo.transformations import NemoInvokeTrans, \
-    NemoKernelTrans
+    NemoKernelTrans, NemoLoopTrans
 
 
 class NemoPSyTrans(Transformation):
@@ -51,6 +50,19 @@ class NemoPSyTrans(Transformation):
     version with specialised, NEMO-specific nodes.
 
     '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of the transformation.
+        :rtype: str
+
+        '''
+        return type(self).__name__
+
+    def validate(self, node, options=None):
+        '''
+        '''
+
     def apply(self, psyir, options=None):
         '''
         Takes generic PSyIR and replaces recognised structures with
@@ -77,24 +89,23 @@ class NemoPSyTrans(Transformation):
         # replaced.
         root = psyir
         invoke_trans = NemoInvokeTrans()
+        kern_trans = NemoKernelTrans()
+        loop_trans = NemoLoopTrans()
 
         for routine in psyir.walk(Routine):
             new_node = invoke_trans.apply(routine)
+            if routine is root:
+                root = new_node
 
         # Reverse the result of the walk() so that we process loops depth
         # first. This permits the correct identification of NemoKern's.
         for loop in reversed(root.walk(Loop)):
-            # Convert a generic loop into a NEMO Loop by creating a new
-            # NemoLoop object and inserting it into the PSyIR.
-            nodes = loop.pop_all_children()
-            new_loop = NemoLoop.create(loop.variable,
-                                       nodes[0], nodes[1], nodes[2],
-                                       nodes[3].pop_all_children())
-            loop.replace_with(new_loop)
+            new_loop = loop_trans.apply(loop)
 
             try:
-                NemoKernelTrans.apply(new_loop.loop_body)
+                kern_trans.apply(new_loop.loop_body)
             except TransformationError:
+                # Not all loop bodies are valid kernels (e.g. if they do IO)
                 pass
 
         return root

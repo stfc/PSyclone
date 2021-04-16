@@ -48,6 +48,15 @@ class NemoKernelTrans(Transformation):
     Transform a generic PSyIR Schedule into a NEMO Kernel.
 
     '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of the transformation.
+        :rtype: str
+
+        '''
+        return type(self).__name__
+
     def validate(self, node, options=None):
         '''
         Check that the supplied node is a valid target for this transformation.
@@ -60,7 +69,8 @@ class NemoKernelTrans(Transformation):
             to None.
         :type options: dict of string:values or None
 
-        :raises TransformationError: if the supplied node is not a Routine.
+        :raises TransformationError: if the supplied node is not a Schedule \
+            or it cannot be represented as a Kernel.
 
         '''
         super(NemoKernelTrans, self).validate(node)
@@ -80,21 +90,15 @@ class NemoKernelTrans(Transformation):
 
     def apply(self, sched, options=None):
         '''
-        Takes a generic PSyIR Routine and replaces it with a NEMO Invoke.
-        NEMO-specific PSyIR (in-place). Note that this may mean replacing
-        the top-level node itself and therefore this routine returns the
-        root of the modified tree.
+        Takes a generic PSyIR Schedule and replaces it with a NEMO Kernel.
 
-        :param routine: the routine node to be transformed.
-        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
+        :param sched: the Schedule node to be transformed.
+        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for \
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
         :type options: dict of string:values or None
-
-        :returns: the new PSyIR node that replaces the Routine.
-        :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
 
         '''
         self.validate(sched)

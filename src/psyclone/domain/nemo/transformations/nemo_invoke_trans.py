@@ -48,6 +48,15 @@ class NemoInvokeTrans(Transformation):
     Transform a generic PSyIR Routine into a NEMO Invoke.
 
     '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of the transformation.
+        :rtype: str
+
+        '''
+        return type(self).__name__
+
     def validate(self, node, options=None):
         '''
         Check that the supplied node is a valid target for this transformation.
