@@ -487,6 +487,10 @@
 	158) PR #1167 for #1097. Install PSyData wrapper libraries; support
 	integer fields in PSyData.
 
+        159) PR #1201 for #1198. Introduces the ScopingNode abstract base
+        class. Container, Schedule and Routine now subclass this and deep
+        copying is supported.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
