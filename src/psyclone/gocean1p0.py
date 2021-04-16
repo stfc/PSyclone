@@ -1740,25 +1740,26 @@ class GOKern(CodedKern):
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes
             INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer(c_intptr_t) :: cl_mem
             integer :: ierr
             cmd_queues => get_cmd_queues()
             ! Integer grid buffers
             size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * &
                             c_sizeof(field%grid%tmask(1,1))
+            cl_mem = transfer(field%grid%tmask_device, cl_mem)
             ierr = clEnqueueWriteBuffer(cmd_queues(1), &
-                        field%grid%tmask_device, CL_TRUE, 0_8, &
-                        size_in_bytes, C_LOC(field%grid%tmask), 0, &
-                        C_NULL_PTR, C_NULL_PTR)
+                        cl_mem, CL_TRUE, 0_8, size_in_bytes, &
+                        C_LOC(field%grid%tmask), 0, C_NULL_PTR, C_NULL_PTR)
             CALL check_status("clEnqueueWriteBuffer tmask", ierr)
             ! Real grid buffers
             size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * &
                             c_sizeof(field%grid%area_t(1,1))
         '''
         write_str = '''
+            cl_mem = transfer(field%grid%{0}_device, cl_mem)
             ierr = clEnqueueWriteBuffer(cmd_queues(1), &
-                       field%grid%{0}_device, CL_TRUE, 0_8, &
-                       size_in_bytes, C_LOC(field%grid%{0}), 0, &
-                       C_NULL_PTR, C_NULL_PTR)
+                       cl_mem, CL_TRUE, 0_8, size_in_bytes, &
+                       C_LOC(field%grid%{0}), 0, C_NULL_PTR, C_NULL_PTR)
             CALL check_status("clEnqueueWriteBuffer {0}_device", ierr)
         '''
         for grid_prop in ['area_t', 'area_u', 'area_v', 'dx_u', 'dx_v',
@@ -1891,6 +1892,18 @@ class GOKern(CodedKern):
         num_x = props["go_grid_nx"].fortran.format("field")
         num_y = props["go_grid_ny"].fortran.format("field")
 
+        int_arrays = []
+        real_arrays = []
+        for key, prop in props.items():
+            if key == "go_grid_data":
+                # TODO #676: Ignore because go_grid_data is actually a field
+                # property
+                continue
+            if prop.type == "array" and prop.intrinsic_type == "integer":
+                int_arrays.append(prop.fortran.format("field"))
+            elif prop.type == "array" and prop.intrinsic_type == "real":
+                real_arrays.append(prop.fortran.format("field"))
+
         # Code of the subroutine in Fortran
         code = '''
         subroutine initialise_device_grid(field)
@@ -1898,28 +1911,32 @@ class GOKern(CodedKern):
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes
-            IF (field%grid%tmask_device == 0) THEN
+            IF (.not. c_associated({2}_device)) THEN
                 ! Create integer grid fields
-                size_in_bytes = int({0}*{1}, 8) * &
-                                    c_sizeof(field%grid%tmask(1,1))
-                field%grid%tmask_device = create_rw_buffer(size_in_bytes)
+                size_in_bytes = int({0}*{1}, 8) * c_sizeof({2}(1,1))
+        '''.format(num_x, num_y, int_arrays[0])
+
+        for int_array in int_arrays:
+            code += '''
+                {0}_device = transfer(create_rw_buffer(size_in_bytes), &
+                                      {0}_device)
+            '''.format(int_array)
+
+        code += '''
                 ! Create real grid buffers
-                size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * &
-                                    c_sizeof(field%grid%area_t(1,1))
-                field%grid%area_t_device = create_rw_buffer(size_in_bytes)
-                field%grid%area_u_device = create_rw_buffer(size_in_bytes)
-                field%grid%area_v_device = create_rw_buffer(size_in_bytes)
-                field%grid%dx_u_device = create_rw_buffer(size_in_bytes)
-                field%grid%dx_v_device = create_rw_buffer(size_in_bytes)
-                field%grid%dx_t_device = create_rw_buffer(size_in_bytes)
-                field%grid%dy_u_device = create_rw_buffer(size_in_bytes)
-                field%grid%dy_v_device = create_rw_buffer(size_in_bytes)
-                field%grid%dy_t_device = create_rw_buffer(size_in_bytes)
-                field%grid%gphiu_device = create_rw_buffer(size_in_bytes)
-                field%grid%gphiv_device = create_rw_buffer(size_in_bytes)
+                size_in_bytes = int({0} * {1}, 8) * c_sizeof({2}(1,1))
+        '''.format(num_x, num_y, real_arrays[0])
+
+        for real_array in real_arrays:
+            code += '''
+                {0}_device = transfer(create_rw_buffer(size_in_bytes), &
+                                      {0}_device)
+            '''.format(real_array)
+
+        code += '''
             END IF
         end subroutine initialise_device_grid
-        '''.format(num_x, num_y)
+        '''
 
         # Obtain the PSyIR representation of the code above
         processor = Fparser2Reader()

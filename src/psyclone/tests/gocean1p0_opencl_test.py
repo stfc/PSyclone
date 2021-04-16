@@ -228,23 +228,35 @@ def test_invoke_opencl_initialisation_grid():
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
 
-      if (field%grid%tmask_device == 0) then
+      if (.not.c_associated(field%grid%tmask_device)) then
         size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%tmask(1,1))
-        field%grid%tmask_device = create_rw_buffer(size_in_bytes)
+        field%grid%tmask_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%tmask_device)
         size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%area_t(1,1))
-        field%grid%area_t_device = create_rw_buffer(size_in_bytes)
-        field%grid%area_u_device = create_rw_buffer(size_in_bytes)
-        field%grid%area_v_device = create_rw_buffer(size_in_bytes)
-        field%grid%dx_u_device = create_rw_buffer(size_in_bytes)
-        field%grid%dx_v_device = create_rw_buffer(size_in_bytes)
-        field%grid%dx_t_device = create_rw_buffer(size_in_bytes)
-        field%grid%dy_u_device = create_rw_buffer(size_in_bytes)
-        field%grid%dy_v_device = create_rw_buffer(size_in_bytes)
-        field%grid%dy_t_device = create_rw_buffer(size_in_bytes)
-        field%grid%gphiu_device = create_rw_buffer(size_in_bytes)
-        field%grid%gphiv_device = create_rw_buffer(size_in_bytes)
+        field%grid%area_t_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%area_t_device)
+        field%grid%area_u_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%area_u_device)
+        field%grid%area_v_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%area_v_device)
+        field%grid%dx_t_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%dx_t_device)
+        field%grid%dx_u_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%dx_u_device)
+        field%grid%dx_v_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%dx_v_device)
+        field%grid%dy_t_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%dy_t_device)
+        field%grid%dy_u_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%dy_u_device)
+        field%grid%dy_v_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%dy_v_device)
+        field%grid%gphiu_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%gphiu_device)
+        field%grid%gphiv_device = transfer(create_rw_buffer(size_in_bytes), \
+field%grid%gphiv_device)
       end if
 
     end subroutine initialise_grid_device_buffers'''
@@ -260,48 +272,61 @@ c_sizeof(field%grid%area_t(1,1))
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
       integer(kind=c_intptr_t), pointer :: cmd_queues(:)
+      integer(kind=c_intptr_t) cl_mem
       integer ierr
 
       cmd_queues => get_cmd_queues()
       size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%tmask(1,1))
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%tmask_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%tmask),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%tmask_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%tmask),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer tmask"', ierr)
       size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%area_t(1,1))
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%area_t_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%area_t),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%area_t_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%area_t),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer area_t_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%area_u_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%area_u),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%area_u_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%area_u),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer area_u_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%area_v_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%area_v),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%area_v_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%area_v),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer area_v_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dx_u_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%dx_u),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%dx_u_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%dx_u),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer dx_u_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dx_v_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%dx_v),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%dx_v_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%dx_v),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer dx_v_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dx_t_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%dx_t),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%dx_t_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%dx_t),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer dx_t_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dy_u_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%dy_u),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%dy_u_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%dy_u),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer dy_u_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dy_v_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%dy_v),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%dy_v_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%dy_v),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer dy_v_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%dy_t_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%dy_t),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%dy_t_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%dy_t),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer dy_t_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%gphiu_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%gphiu),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%gphiu_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%gphiu),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer gphiu_device"', ierr)
-      ierr = clenqueuewritebuffer(cmd_queues(1),field%grid%gphiv_device,\
-cl_true,0_8,size_in_bytes,c_loc(field%grid%gphiv),0,c_null_ptr,c_null_ptr)
+      cl_mem = transfer(field%grid%gphiv_device, cl_mem)
+      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
+size_in_bytes,c_loc(field%grid%gphiv),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer gphiv_device"', ierr)
 
     end subroutine write_grid_buffers'''
