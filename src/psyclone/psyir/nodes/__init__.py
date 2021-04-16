@@ -107,4 +107,5 @@ __all__ = [
         'Statement',
         'StructureMember',
         'StructureReference',
-        'UnaryOperation']
+        'UnaryOperation',
+        'ScopingNode']
