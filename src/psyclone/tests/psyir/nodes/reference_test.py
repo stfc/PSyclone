@@ -57,8 +57,8 @@ def test_reference_bad_init():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = Reference("hello")
-    assert ("In Reference initialisation expecting a symbol but found 'str'."
-            in str(excinfo.value))
+    assert ("The Reference symbol setter expects a PSyIR Symbol object but "
+            "found 'str'." in str(excinfo.value))
 
 
 def test_reference_node_str():
