@@ -1,0 +1,157 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2021, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
+
+'''Module containing tests for the NemoLoopTrans transformation.'''
+
+from __future__ import absolute_import
+
+import pytest
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Loop, CodeBlock, Assignment
+from psyclone.psyGen import InlinedKern
+from psyclone.transformations import Transformation, TransformationError
+from psyclone.domain.nemo.transformations import NemoKernelTrans
+
+BASIC_KERN_CODE = '''subroutine basic_loop()
+  integer, parameter :: jpi=16
+  integer :: ji
+  real :: a(jpi), fconst
+  do ji = 1, jpi
+    a(ji) = fconst
+  end do
+end subroutine basic_loop
+'''
+
+
+def test_kerntrans_construction():
+    ''' Check that we can construct the transformation object. '''
+    trans = NemoKernelTrans()
+    assert isinstance(trans, Transformation)
+    assert trans.name == "NemoKernelTrans"
+
+
+def test_kern_trans_validation(parser):
+    ''' Test that the validate() method of the transformation correctly
+    rejects things that aren't kernels. '''
+    trans = NemoKernelTrans()
+    fp2reader = Fparser2Reader()
+    # Add a write() to the body of the loop
+    code = BASIC_KERN_CODE.replace("  end do\n",
+                                   "    write(*,*) ji\n  end do\n")
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psyir = fp2reader.generate_psyir(prog)
+    loop = psyir.walk(Loop)[0]
+    # Check that calling apply() also calls validate()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop)
+    assert ("supplied node should be a PSyIR Schedule but found 'Loop'" in
+            str(err.value))
+    # Test validate() directly
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    assert ("supplied node should be a PSyIR Schedule but found 'Loop'" in
+            str(err.value))
+    # Loop body should not validate because it contains a Write statement
+    # (which ends up as a CodeBlock)
+    assert loop.walk(CodeBlock)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop.loop_body)
+    assert ("A NEMO Kernel cannot contain nodes of type: ['CodeBlock']" in
+            str(err.value))
+
+
+def test_no_explicit_loop_in_kernel(parser):
+    ''' Check that the transformation rejects a loop body if it includes
+    an explicit loop. '''
+    trans = NemoKernelTrans()
+    fp2reader = Fparser2Reader()
+    reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj, idx\n"
+                                 "real :: sto_tmp(5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "  do idx = 1, 5\n"
+                                 "    sto_tmp(ji) = 1.0\n"
+                                 "  end do\n"
+                                 "end do\n"
+                                 "end program fake_kern\n")
+    prog = parser(reader)
+    psy = fp2reader.generate_psyir(prog)
+    loop = psy.walk(Loop)[0]
+    # 'loop.loop_body' is not a valid kernel because it itself contains a loop
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop.loop_body)
+    assert "Kernel cannot contain nodes of type: ['Loop']" in str(err.value)
+
+
+def test_no_implicit_loop_in_kernel(parser):
+    ''' Check that the transformation rejects a loop if it includes an implicit
+    loop. '''
+    trans = NemoKernelTrans()
+    fp2reader = Fparser2Reader()
+    reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
+                                 "real :: sto_tmp(5,5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "  sto_tmp(:,:) = 1.0\n"
+                                 "end do\n"
+                                 "end program fake_kern\n")
+    prog = parser(reader)
+    psy = fp2reader.generate_psyir(prog)
+    loop = psy.walk(Loop)[0]
+    assert isinstance(loop.loop_body[0], Assignment)
+    # 'loop.loop_body' is not a valid kernel because it contains an
+    # assignment to an array range.
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop.loop_body)
+    assert ("NEMO Kernel cannot contain array assignments but found: "
+            "['sto_tmp(:,:) = 1.0']" in str(err.value))
+
+
+def test_basic_kern(parser):
+    ''' Check that the transformation correctly transforms a very simple
+    kernel. '''
+    fp2reader = Fparser2Reader()
+    trans = NemoKernelTrans()
+    reader = FortranStringReader(BASIC_KERN_CODE)
+    prog = parser(reader)
+    psyir = fp2reader.generate_psyir(prog)
+    loop = psyir.walk(Loop)[0]
+    assign = loop.loop_body[0]
+    trans.apply(loop.loop_body)
+    assert isinstance(loop.loop_body[0], InlinedKern)
+    # Check that the body of the kernel is still the original assignment
+    assert loop.loop_body[0].children[0][0] is assign

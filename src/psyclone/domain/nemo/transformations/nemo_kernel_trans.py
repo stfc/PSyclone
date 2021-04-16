@@ -39,7 +39,8 @@ NEMO Kernel.
 '''
 
 from psyclone.transformations import Transformation, TransformationError
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
 
 
@@ -81,12 +82,24 @@ class NemoKernelTrans(Transformation):
                 "should be a PSyIR Schedule but found '{0}'".format(
                     type(node).__name__))
 
-        # TODO move match() functionality into this routine?
-        if not NemoKern.match(node):
+        # Check for array assignments
+        nodes = [assign for assign in node.walk(Assignment)
+                 if assign.is_array_range]
+        if nodes:
+            fwriter = FortranWriter()
             raise TransformationError(
-                "Error in NemoKernelTrans transformation. The supplied "
-                "Schedule cannot be converted into a NEMO kernel because it "
-                "blah blah")
+                "A NEMO Kernel cannot contain array assignments but found: "
+                "{0}".format([fwriter(node).rstrip("\n") for node in nodes]))
+
+        # A kernel cannot contain loops, calls or unrecognised code (including
+        # IO operations. So if there is any node in the result of
+        # the walk, this node cannot be represented as a NEMO kernel.
+        nodes = node.walk((CodeBlock, Loop, Call))
+        if nodes:
+            raise TransformationError(
+                "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
+                " contain nodes of type: {0}".format(
+                    [type(node).__name__ for node in nodes]))
 
     def apply(self, sched, options=None):
         '''
