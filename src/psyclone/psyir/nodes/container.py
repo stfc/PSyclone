@@ -38,14 +38,14 @@
 
 ''' This module contains the Container node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.errors import GenerationError
 
 
-class Container(Node):
+class Container(ScopingNode):
     '''Node representing a set of KernelSchedule and/or Container nodes,
     as well as a name and a SymbolTable. This construct can be used to
     scope symbols of variables, KernelSchedule names and Container
@@ -55,6 +55,9 @@ class Container(Node):
     :param str name: the name of the container.
     :param parent: optional parent node of this Container in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param symbol_table: initialise the node with a given symbol table.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
+            NoneType
 
     '''
     # Textual description of the node.
@@ -62,10 +65,10 @@ class Container(Node):
     _text_name = "Container"
     _colour = "green"
 
-    def __init__(self, name, parent=None):
-        super(Container, self).__init__(parent=parent)
+    def __init__(self, name, parent=None, symbol_table=None):
+        super(Container, self).__init__(parent=parent,
+                                        symbol_table=symbol_table)
         self._name = name
-        self._symbol_table = SymbolTable(self)
 
     @staticmethod
     def _validate_child(position, child):
@@ -119,6 +122,7 @@ class Container(Node):
                 "".format(type(children).__name__))
 
         container = Container(name)
+        # pylint: disable=protected-access
         container._symbol_table = symbol_table
         symbol_table._node = container
         container.children = children
@@ -142,15 +146,6 @@ class Container(Node):
         '''
         self._name = new_name
 
-    @property
-    def symbol_table(self):
-        '''
-        :returns: table containing symbol information for the container.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        '''
-        return self._symbol_table
-
     def node_str(self, colour=True):
         '''
         Returns the name of this node with appropriate control codes
@@ -165,3 +160,7 @@ class Container(Node):
 
     def __str__(self):
         return "Container[{0}]\n".format(self.name)
+
+
+# For AutoAPI documentation generation
+__all__ = ['Container']
