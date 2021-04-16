@@ -409,7 +409,7 @@ instance.
 
 For each variable used an instance of
 `psyclone.core.access_info.SingleVariableAccessInfo` is created, which collects
-all accesses for that variable using `psyclone.config.access_info.AccessInfo`
+all accesses for that variable using `psyclone.core.access_info.AccessInfo`
 instances:
 
 .. autoclass:: psyclone.core.access_info.SingleVariableAccessInfo
