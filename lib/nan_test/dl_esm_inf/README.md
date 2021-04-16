@@ -1,13 +1,10 @@
-# Read-only Verification Library for GOcean
+# ``NaN``-Test Verification Library for GOcean
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-gocean)
-to verify that variables declared read-only are not modified (overwritten) in
-a kernel call for an application using the [``dl_esm_inf`` library](
+https://psyclone.readthedocs.io/en/latest/psy_data.html#nan-test)
+to verify that input and output parameters of a GOcean kernel are not ``NaN``
+or infinite, using the [``dl_esm_inf`` library](
 https://github.com/stfc/dl_esm_inf).
-
-A full runnable example can be found in [``examples/gocean/eg5/readonly``](
-https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg5/readonly).
 
 ## Dependencies
 
@@ -24,13 +21,13 @@ with the application. The following dependencies must be available:
   submodules). However, it is not included in the PSyclone [installation](
   ./../../README.md#installation) and has to be cloned separately.
 
-- The ReadOnly (``read_only_base.jinja``) and PSyData
+- The NANTest (``nan_test_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create
-  the read-only verification code for ``integer``, 32- and 64-bit ``real``
+  the ``NaN``-test verification code for ``integer``, 32- and 64-bit ``real``
   scalars, and 2-dimensional ``real`` and ``integer`` arrays. The generated
-  Fortran modules, ``read_only_base.f90`` and ``psy_data_base.f90``, are then
-  used by the supplied ``read_only.f90`` module to create the wrapper library.
+  Fortran modules, ``nan_test_base.f90`` and ``psy_data_base.f90``, are then
+  used by the supplied ``nan_test.f90`` module to create the wrapper library.
 
 ## Compilation
 
@@ -50,12 +47,12 @@ so the exact path **must be specified** during the compilation process, e.g.
 GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
 ```
 
-The locations of the ReadOnly and PSyData base classes are specified
+The locations of the NANTest and PSyData base classes are specified
 using the environment variables ``$LIB_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
 respectively. They default to the relative paths to the
-[``lib/read_only``](./../) and top-level [``lib``](./../../) directories.
+[``lib/nan_test``](./../) and top-level [``lib``](./../../) directories.
 
-The compilation process will create the wrapper library ``lib_read_only.a``.
+The compilation process will create the wrapper library ``lib_nan_test.a``.
 The ``Makefile`` will compile the ``dl_esm_inf`` infrastructure library,
 ``lib_fd.a``, if required, with the previously selected compiler flags.
 
@@ -68,12 +65,12 @@ or compiler flags).
 
 ### Linking the wrapper library
 
-The application needs to provide the parameters to link in this read-only
-library, ``_read_only``, and the ``dl_esm_inf`` infrastructure library, ``_fd``.
+The application needs to provide the parameters to link in this ``NaN``-test
+library, ``_nan_test`` and the ``dl_esm_inf`` infrastructure library, ``_fd``.
 For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/read_only/dl_esm_inf -l_read_only \
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/nan_test/dl_esm_inf -l_nan_test \
         -L$(GOCEAN_INF_DIR) -l_fd
 ```
 
