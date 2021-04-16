@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-'''Module containing tests for the NemoLoopTrans transformation.'''
+'''Module containing tests for the NemoKernelTrans transformation.'''
 
 from __future__ import absolute_import
 
@@ -45,14 +45,17 @@ from psyclone.psyGen import InlinedKern
 from psyclone.transformations import Transformation, TransformationError
 from psyclone.domain.nemo.transformations import NemoKernelTrans
 
-BASIC_KERN_CODE = '''subroutine basic_loop()
+BASIC_KERN_CODE = '''subroutine basic_kern()
   integer, parameter :: jpi=16
   integer :: ji
   real :: a(jpi), fconst
   do ji = 1, jpi
     a(ji) = fconst
+    if(ji == jpi)then
+      a(ji) = 0.0
+    end if
   end do
-end subroutine basic_loop
+end subroutine basic_kern
 '''
 
 
