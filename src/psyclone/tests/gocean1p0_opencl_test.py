@@ -223,7 +223,7 @@ def test_invoke_opencl_initialisation_grid():
     # Check that device grid initialisation routine is generated
     expected = '''
     subroutine initialise_grid_device_buffers(field)
-      use fortcl, only: create_rw_buffer
+      use fortcl, only: create_ronly_buffer
       use field_mod
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
@@ -231,32 +231,32 @@ def test_invoke_opencl_initialisation_grid():
       if (.not.c_associated(field%grid%tmask_device)) then
         size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%tmask(1,1))
-        field%grid%tmask_device = transfer(create_rw_buffer(size_in_bytes), \
-field%grid%tmask_device)
+        field%grid%tmask_device = transfer(create_ronly_buffer(size_in_bytes),\
+ field%grid%tmask_device)
         size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%area_t(1,1))
-        field%grid%area_t_device = transfer(create_rw_buffer(size_in_bytes), \
-field%grid%area_t_device)
-        field%grid%area_u_device = transfer(create_rw_buffer(size_in_bytes), \
-field%grid%area_u_device)
-        field%grid%area_v_device = transfer(create_rw_buffer(size_in_bytes), \
-field%grid%area_v_device)
-        field%grid%dx_t_device = transfer(create_rw_buffer(size_in_bytes), \
+        field%grid%area_t_device = transfer(create_ronly_buffer(size_in_bytes)\
+, field%grid%area_t_device)
+        field%grid%area_u_device = transfer(create_ronly_buffer(size_in_bytes)\
+, field%grid%area_u_device)
+        field%grid%area_v_device = transfer(create_ronly_buffer(size_in_bytes)\
+, field%grid%area_v_device)
+        field%grid%dx_t_device = transfer(create_ronly_buffer(size_in_bytes), \
 field%grid%dx_t_device)
-        field%grid%dx_u_device = transfer(create_rw_buffer(size_in_bytes), \
+        field%grid%dx_u_device = transfer(create_ronly_buffer(size_in_bytes), \
 field%grid%dx_u_device)
-        field%grid%dx_v_device = transfer(create_rw_buffer(size_in_bytes), \
+        field%grid%dx_v_device = transfer(create_ronly_buffer(size_in_bytes), \
 field%grid%dx_v_device)
-        field%grid%dy_t_device = transfer(create_rw_buffer(size_in_bytes), \
+        field%grid%dy_t_device = transfer(create_ronly_buffer(size_in_bytes), \
 field%grid%dy_t_device)
-        field%grid%dy_u_device = transfer(create_rw_buffer(size_in_bytes), \
+        field%grid%dy_u_device = transfer(create_ronly_buffer(size_in_bytes), \
 field%grid%dy_u_device)
-        field%grid%dy_v_device = transfer(create_rw_buffer(size_in_bytes), \
+        field%grid%dy_v_device = transfer(create_ronly_buffer(size_in_bytes), \
 field%grid%dy_v_device)
-        field%grid%gphiu_device = transfer(create_rw_buffer(size_in_bytes), \
-field%grid%gphiu_device)
-        field%grid%gphiv_device = transfer(create_rw_buffer(size_in_bytes), \
-field%grid%gphiv_device)
+        field%grid%gphiu_device = transfer(create_ronly_buffer(size_in_bytes),\
+ field%grid%gphiu_device)
+        field%grid%gphiv_device = transfer(create_ronly_buffer(size_in_bytes),\
+ field%grid%gphiv_device)
       end if
 
     end subroutine initialise_grid_device_buffers'''
@@ -372,7 +372,7 @@ gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
 
 def test_opencl_routines_initialisation(kernel_outputdir):
     # pylint: disable=unused-argument
-    ''' Test that with an OpenCL invoke file has the necessary routines
+    ''' Test that an OpenCL invoke file has the necessary routines
     to initialise, read and write from buffers. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -501,10 +501,8 @@ field%device_ptr)
       end if
 
     end subroutine initialise_device_buffer'''
-    print(generated_code)
     assert expected in generated_code
-    # We don't need a Compilation test because it is the same than
-    # the test_invoke_opencl_initialisation test
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_psy_init(kernel_outputdir, monkeypatch):
@@ -697,24 +695,6 @@ C_NULL_PTR)
 
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
-
-
-def test_grid_proprty(kernel_outputdir):
-    # pylint: disable=unused-argument
-    ''' Test that using nx and ny from the gocean property dictionary
-    works.'''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
-    sched = psy.invokes.invoke_list[0].schedule
-    # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for the GOcean gen_ocl() code generation.
-    trans = GOMoveIterationBoundariesInsideKernelTrans()
-    for kernel in sched.coded_kernels():
-        trans.apply(kernel)
-
-    otrans = OCLTrans()
-    otrans.apply(sched)
-    generated_code = str(psy.gen).lower()
-    assert "globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)" in generated_code
 
 
 @pytest.mark.usefixtures("kernel_outputdir")

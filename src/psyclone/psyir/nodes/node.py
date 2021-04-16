@@ -941,7 +941,7 @@ class Node(object):
     @property
     def root(self):
         '''
-        :returns: the PSyIR tree root node.
+        :returns: the root node of the PSyIR tree.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''

@@ -1881,6 +1881,7 @@ class GOKern(CodedKern):
             return symtab.lookup_with_tag("ocl_init_grid_buffers")
         except KeyError:
             pass
+
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = symtab.new_symbol(
             "initialise_grid_device_buffers", symbol_type=RoutineSymbol,
@@ -1907,7 +1908,7 @@ class GOKern(CodedKern):
         # Code of the subroutine in Fortran
         code = '''
         subroutine initialise_device_grid(field)
-            USE fortcl, ONLY: create_rw_buffer
+            USE fortcl, ONLY: create_ronly_buffer
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes
@@ -1918,7 +1919,7 @@ class GOKern(CodedKern):
 
         for int_array in int_arrays:
             code += '''
-                {0}_device = transfer(create_rw_buffer(size_in_bytes), &
+                {0}_device = transfer(create_ronly_buffer(size_in_bytes), &
                                       {0}_device)
             '''.format(int_array)
 
@@ -1929,7 +1930,7 @@ class GOKern(CodedKern):
 
         for real_array in real_arrays:
             code += '''
-                {0}_device = transfer(create_rw_buffer(size_in_bytes), &
+                {0}_device = transfer(create_ronly_buffer(size_in_bytes), &
                                       {0}_device)
             '''.format(real_array)
 
