@@ -1185,6 +1185,57 @@ def test_shallow_copy():
     assert "st1" not in symtab2
 
 
+def test_deep_copy():
+    ''' Tests the SymbolTable deep copy generates a new SymbolTable with
+    new identical copies of the symbols in the original symbol table'''
+
+    # Create an initial SymbolTable
+    dummy = Schedule()
+    symtab = SymbolTable(node=dummy)
+    sym1 = DataSymbol("symbol1", INTEGER_TYPE,
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
+    sym2 = Symbol("symbol2")
+    symtab.add(sym1)
+    symtab.add(sym2, tag="tag1")
+    symtab.specify_argument_list([sym1])
+
+    # Create a copy and check the contents are the same
+    symtab2 = symtab.deep_copy()
+    assert "symbol1" in symtab2
+    assert isinstance(symtab2.lookup("symbol1"), DataSymbol)
+    assert symtab2.lookup("symbol1").datatype is INTEGER_TYPE
+    assert "symbol2" in symtab2
+    assert symtab2.lookup_with_tag("tag1") is symtab2.lookup("symbol2")
+    assert symtab2.lookup("symbol1") in symtab2.argument_list
+    assert symtab2._node == dummy
+
+    # But the symbols are not the same objects as the original ones
+    assert symtab2.lookup("symbol1") is not sym1
+    assert symtab2.lookup_with_tag("tag1") is not sym2
+    assert sym1 not in symtab2.argument_list
+    assert symtab2.lookup("symbol1") not in symtab.argument_list
+
+    # Add new symbols and rename symbols in both symbol tables and check
+    # they are not added/renamed in the other symbol table
+    symtab.add(Symbol("st1"))
+    symtab.rename_symbol(symtab.lookup("symbol1"), "a")
+    symtab2.add(Symbol("st2"))
+    symtab2.rename_symbol(symtab2.lookup("symbol2"), "b")
+    assert "st1" in symtab
+    assert "st2" in symtab2
+    assert "st2" not in symtab
+    assert "st1" not in symtab2
+    assert "a" in symtab
+    assert "a" not in symtab2
+    assert "b" in symtab2
+    assert "b" not in symtab
+    assert "symbol1" in symtab2
+    assert "symbol2" in symtab
+    assert "symbol1" not in symtab
+    assert "symbol2" not in symtab2
+
+
 def test_get_symbols():
     '''Check that the get_symbols method in the SymbolTable class
     behaves as expected.
