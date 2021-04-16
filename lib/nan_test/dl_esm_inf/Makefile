@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 
 # This Makefile picks up the compiler to use plus any flags from
@@ -43,16 +44,27 @@
 #
 # It also uses nf-config to query for flags required for NetCDF compilation.
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
 F90 ?= gfortran
+F90FLAGS ?=
+# Path to the 'dl_esm_inf' infrastructure library. It defaults to the version
+# distributed with PSyclone. Overwrite for a different infrastructure version.
+GOCEAN_INF_DIR ?= ./../../../external/dl_esm_inf/finite_difference
+# Paths to the PSyclone wrapper libraries and required templates. They default
+# to the relative paths to the top-level 'lib' and 'lib/nan_test'
+# directories. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./../..
+LIB_TMPLT_DIR ?= ./..
+# -----------------------------------------------------------------------------
 
-SHARED_DIR ?= ../../../external
-INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
-INF_INC = $(INF_DIR)/src
-INF_LIB = $(INF_DIR)/src/lib_fd.a
+INF_INC = $(GOCEAN_INF_DIR)/src
+INF_LIB_NAME = _fd
+INF_LIB = $(GOCEAN_INF_DIR)/src/lib$(INF_LIB_NAME).a
 
-F90FLAGS ?= 
 F90FLAGS += -I$(INF_INC)
-LIB_NAME = lib_nan_test.a
+PSYDATA_LIB_NAME = _nan_test
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 OBJS = nan_test.o psy_data_base.o nan_test_base.o
 
@@ -60,16 +72,14 @@ OBJS = nan_test.o psy_data_base.o nan_test_base.o
 # 2-dimensional arrays, and int, real- and double basic Fortran types
 PROCESS_ARGS = -prefix=nan_test_ -types=int,real,double \
 		       -dims=2
-PROCESS=$$(../../get_python.sh) ../../process.py
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-default: $(LIB_NAME)
+default: $(PSYDATA_LIB)
 
-.PHONY: default clean
+.PHONY: default clean allclean
 
-
-$(LIB_NAME):	$(OBJS)
-	${AR} ${ARFLAGS} ${LIB_NAME} $(OBJS)
-
+$(PSYDATA_LIB): $(INF_LIB) $(OBJS)
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
 # Dependencies:
 # -------------
@@ -79,24 +89,26 @@ nan_test.o: $(INF_LIB) nan_test.f90 nan_test_base.o
 
 nan_test_base.o: psy_data_base.o
 
-
 # Rules for file creation
 # -----------------------
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-# The dl_esm_inf NAN-test library is built on the psy-data base library
-# and the NAN-test base library. So add the rules to process
+# The dl_esm_inf NaN-test library is built on the PSyData base library
+# and the NaN-test base library. So add the rules to process
 # these files to get the plain Fortran files:
-psy_data_base.f90: ../../psy_data_base.jinja Makefile
+psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-nan_test_base.f90: ../nan_test_base.jinja Makefile
+nan_test_base.f90: $(LIB_TMPLT_DIR)/nan_test_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > nan_test_base.f90
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90=$(F90)
+	$(MAKE) -C $(GOCEAN_INF_DIR)
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.*
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* nan_test_base.*
+
+allclean: clean
+	$(MAKE) -C $(GOCEAN_INF_DIR) clean

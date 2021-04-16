@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, PSyDataNode, Call
+    Routine, PSyDataNode, Call, StructureReference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -1475,7 +1475,9 @@ class ACCEnterDataDirective(ACCDirective):
 class ACCParallelDirective(ACCDirective):
     '''
     Class representing the !$ACC PARALLEL directive of OpenACC
-    in the PSyIR.
+    in the PSyIR. By default it includes the 'DEFAULT(PRESENT)' clause which
+    means this node must either come after an EnterDataDirective or within
+    a DataDirective.
 
     '''
     def node_str(self, colour=True):
@@ -1498,6 +1500,39 @@ class ACCParallelDirective(ACCDirective):
         '''
         return "ACC_parallel_" + str(self.abs_position)
 
+    def _pre_gen_validate(self):
+        '''
+        Check that the PSyIR tree containing this node is valid. Since we
+        use 'default(present)', this node must either be the child of an
+        ACCDataDirective or the parent Schedule must contain an
+        ACCEnterDataDirective before this one.
+
+        :raises GenerationError: if this ACCParallel node is not preceded by \
+            an ACCEnterDataDirective and is not the child of an \
+            ACCDataDirective.
+
+        '''
+        # We can't use Node.ancestor() because the enter data directive does
+        # not have children. Instead, we go back up to the Schedule and
+        # walk down from there.
+        routine = self.ancestor(Routine)
+        nodes = routine.walk(ACCEnterDataDirective)
+        # Check that any enter-data directive comes before this parallel
+        # directive
+        if nodes and nodes[0].abs_position > self.abs_position:
+            raise GenerationError(
+                "An ACC parallel region must be preceded by an ACC enter-"
+                "data directive but in '{0}' this is not the case.".
+                format(routine.name))
+
+        if not nodes and not self.ancestor(ACCDataDirective):
+            raise GenerationError(
+                "An ACC parallel region must either be preceded by an ACC "
+                "enter data directive or enclosed within an ACC data region "
+                "but in '{0}' this is not the case.".format(routine.name))
+
+        super(ACCParallelDirective, self)._pre_gen_validate()
+
     def gen_code(self, parent):
         '''
         Generate the elements of the f2pygen AST for this Node in the Schedule.
@@ -1508,37 +1543,38 @@ class ACCParallelDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
-        # Since we use "default(present)" the Schedule must contain an
-        # 'enter data' directive. We don't mandate the order in which
-        # transformations are applied so we have to check for that here.
-        # We can't use Node.ancestor() because the data directive does
-        # not have children. Instead, we go back up to the Schedule and
-        # walk down from there.
-        nodes = self.root.walk(ACCEnterDataDirective)
-        if len(nodes) != 1:
-            raise GenerationError(
-                "A Schedule containing an ACC parallel region must also "
-                "contain an ACC enter data directive but none was found for "
-                "{0}".format(self.root.invoke.name))
-        # Check that the enter-data directive comes before this parallel
-        # directive
-        if nodes[0].abs_position > self.abs_position:
-            raise GenerationError(
-                "An ACC parallel region must be preceeded by an ACC enter-"
-                "data directive but in {0} this is not the case.".
-                format(self.root.invoke.name))
-
-        # "default(present)" means that the compiler is to assume that
-        # all data required by the parallel region is already present
-        # on the device. If we've made a mistake and it isn't present
-        # then we'll get a run-time error.
-        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
-                                "default(present)"))
+        parent.add(DirectiveGen(parent, *self.begin_string().split()))
 
         for child in self.children:
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, "acc", "end", "parallel", ""))
+        parent.add(DirectiveGen(parent, *self.end_string().split()))
+
+    def begin_string(self):
+        '''
+        Returns the beginning statement of this directive, i.e.
+        "acc begin parallel" plus any qualifiers. The backend is responsible
+        for adding the correct characters to mark this as a directive (e.g.
+        "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        # "default(present)" means that the compiler is to assume that
+        # all data required by the parallel region is already present
+        # on the device. If we've made a mistake and it isn't present
+        # then we'll get a run-time error.
+        return "acc begin parallel default(present)"
+
+    def end_string(self):
+        '''
+        :returns: the closing statement for this directive.
+        :rtype: str
+        '''
+        # pylint: disable=no-self-use
+        return "acc end parallel"
 
     @property
     def ref_list(self):
@@ -1600,7 +1636,8 @@ class ACCParallelDirective(ACCDirective):
         and end of this parallel region.
         '''
         self._pre_gen_validate()
-        self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
+        self._add_region(start_text="PARALLEL", end_text="END PARALLEL",
+                         data_movement="present")
 
 
 class ACCLoopDirective(ACCDirective):
@@ -1686,16 +1723,9 @@ class ACCLoopDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
-        # Add any clauses to the directive
-        options = []
-        if self._sequential:
-            options.append("seq")
-        else:
-            if self._collapse:
-                options.append("collapse({0})".format(self._collapse))
-            if self._independent:
-                options.append("independent")
-        options_str = " ".join(options)
+        # Add any clauses to the directive. We use self.begin_string() to avoid
+        # code duplication.
+        options_str = self.begin_string(leading_acc=False)
 
         parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
 
@@ -1710,15 +1740,49 @@ class ACCLoopDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
-        text = "LOOP"
+        # Use begin_string() to avoid code duplication although we have to
+        # put back the "loop" qualifier.
+        # TODO #435 remove this method altogether once the NEMO API is able to
+        # use the PSyIR backend.
+        self._add_region(
+            start_text="loop " + self.begin_string(leading_acc=False))
+
+    def begin_string(self, leading_acc=True):
+        ''' Returns the opening statement of this directive, i.e.
+        "acc loop" plus any qualifiers. If `leading_acc` is False then
+        the leading "acc loop" text is not included.
+
+        :param bool leading_acc: whether or not to include the leading \
+                                 "acc loop" in the text that is returned.
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        clauses = []
+        if leading_acc:
+            clauses = ["acc", "loop"]
+
         if self._sequential:
-            text += " SEQ"
+            clauses.append("seq")
         else:
             if self._independent:
-                text += " INDEPENDENT"
+                clauses.append("independent")
             if self._collapse:
-                text += " COLLAPSE({0})".format(self._collapse)
-        self._add_region(start_text=text)
+                clauses.append("collapse({0})".format(self._collapse))
+        return " ".join(clauses)
+
+    def end_string(self):
+        '''
+        Would return the end string for this directive but "acc loop"
+        doesn't have a closing directive.
+
+        :returns: empty string.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return ""
 
 
 class OMPDirective(Directive):
@@ -2139,6 +2203,7 @@ class OMPDoDirective(OMPDirective):
         :rtype: str
 
         '''
+        # pylint: disable=no-self-use
         return "omp end do"
 
     def update(self):
@@ -4406,14 +4471,13 @@ class ACCKernelsDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
-        data_movement = ""
-        if self._default_present:
-            data_movement = "default(present)"
-        parent.add(DirectiveGen(parent, "acc", "begin", "kernels",
-                                data_movement))
+        # We re-use the 'begin_string' method but must skip the leading 'acc'
+        # that it includes.
+        parent.add(DirectiveGen(parent, "acc", "begin",
+                                *self.begin_string().split()[1:]))
         for child in self.children:
             child.gen_code(parent)
-        parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
+        parent.add(DirectiveGen(parent, *self.end_string().split()))
 
     @property
     def ref_list(self):
@@ -4436,10 +4500,40 @@ class ACCKernelsDirective(ACCDirective):
                     variables.append(arg)
         return variables
 
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "acc kernels ...". The backend is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        result = "acc kernels"
+        if self._default_present:
+            result += " default(present)"
+        return result
+
+    def end_string(self):
+        '''
+        Returns the ending statement for this directive. The backend is
+        responsible for adding the language-specific syntax that marks this
+        as a directive.
+
+        :returns: the closing statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "acc end kernels"
+
     def update(self):
         '''
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
+
+        TODO #435 remove this routine once the NEMO API is able to use the
+        PSyIR backend.
 
         '''
         self._pre_gen_validate()
@@ -4482,6 +4576,9 @@ class ACCDataDirective(ACCDirective):
                                supported for the NEMO API and that uses the \
                                update() method to alter the underlying \
                                fparser2 parse tree.
+
+        TODO #435 update above explanation when update() method is removed.
+
         '''
         raise InternalError(
             "ACCDataDirective.gen_code should not have been called.")
@@ -4495,6 +4592,79 @@ class ACCDataDirective(ACCDirective):
         self._pre_gen_validate()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "acc data". The backend is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        :raises NotImplementedError: if the region contains one or more \
+                                     references to structures (TODO #1028).
+
+        '''
+        result = "acc data"
+
+        struct_accesses = self.walk(StructureReference)
+        if struct_accesses:
+            # TODO #1028. Dependence analysis does not yet work for structure
+            # references.
+            # Have to import here to avoid circular dependency
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.backend.fortran import FortranWriter
+            fwriter = FortranWriter()
+            ref_list = [fwriter(ref) for ref in struct_accesses]
+            raise NotImplementedError(
+                "Structure (derived-type) references are not yet supported "
+                "within OpenACC data regions but found: {0}".format(ref_list))
+
+        # Identify the inputs and outputs to the region (variables that
+        # are read and written).
+        var_accesses = VariablesAccessInfo(self)
+        table = self.scope.symbol_table
+        readers = set()
+        writers = set()
+        for var in var_accesses.all_vars:
+            sym = table.lookup(var)
+            accesses = var_accesses[var]
+            if not sym.is_array:
+                # We ignore scalars
+                continue
+            if accesses.is_read():
+                readers.add(var)
+            if accesses.is_written():
+                writers.add(var)
+        readwrites = readers.intersection(writers)
+        # Are any of the read-writes written before they are read?
+        for var in list(readwrites)[:]:
+            accesses = var_accesses[var]
+            if accesses[0].access_type == AccessType.WRITE:
+                # First access is a write so treat as a write
+                writers.add(var)
+                readers.discard(var)
+                readwrites.discard(var)
+        readers_list = sorted(list(readers - readwrites))
+        writers_list = sorted(list(writers - readwrites))
+        readwrites_list = sorted(list(readwrites))
+        if readers_list:
+            result += " copyin({0})".format(",".join(readers_list))
+        if writers_list:
+            result += " copyout({0})".format(",".join(writers_list))
+        if readwrites_list:
+            result += " copy({0})".format(",".join(readwrites_list))
+
+        return result
+
+    def end_string(self):
+        '''
+        :returns: the text for the end of this directive region.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "acc end data"
 
 
 # For Sphinx AutoAPI documentation generation

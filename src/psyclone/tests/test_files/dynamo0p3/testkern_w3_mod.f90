@@ -44,16 +44,15 @@ module testkern_w3_mod
   implicit none
 
   ! Description: discontinuous field (read)writer (w3)
-  ! TODO #874 change this metadata to include data type
   type, extends(kernel_type) :: testkern_w3_type
      type(arg_type), dimension(5) :: meta_args = (/       &
           arg_type(gh_scalar, gh_real, gh_read),          &
-          arg_type(gh_field,           gh_read,      w0), &
-          arg_type(gh_field,           gh_read,      w1), &
-          arg_type(gh_field,           gh_read,      w2), &
-          arg_type(gh_field,           gh_readwrite, w3)  &
+          arg_type(gh_field,  gh_real, gh_read,      w0), &
+          arg_type(gh_field,  gh_real, gh_read,      w1), &
+          arg_type(gh_field,  gh_real, gh_read,      w2), &
+          arg_type(gh_field,  gh_real, gh_readwrite, w3)  &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_w3_code
   end type testkern_w3_type
