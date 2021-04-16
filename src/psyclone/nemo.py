@@ -73,6 +73,8 @@ class NemoFparser2Reader(Fparser2Reader):
         Specialised method to create a NemoLoop instead of a
         generic Loop.
 
+        TODO #1210 replace this with a Transformation.
+
         :param parent: the parent of the node.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param variable: the loop variable.
@@ -94,41 +96,6 @@ class NemoFparser2Reader(Fparser2Reader):
             loop.loop_type = "unknown"
 
         return loop
-
-    def _process_loopbody(self, loop_body, node):
-        '''
-        Specialized method to process Nemo loop bodies. If the schedule
-        matches with a NemoKern, it will add a NemoKern instead of statements
-        in the loop_body.
-
-        :param loop_body: schedule representing the body of the loop.
-        :type loop_body: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param node: fparser loop node being processed.
-        :type node: \
-            :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-        '''
-        # We create a fake node because we need to parse the children
-        # before we decide what to do with them.
-        fakeparent = Schedule(parent=loop_body)
-        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1])
-
-        # We use the checking in NemoKernelTrans here. Ultimately this code
-        # will be entirely replaced by that transformation code - #435.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.transformations import TransformationError
-        from psyclone.domain.nemo.transformations import NemoKernelTrans
-        ktrans = NemoKernelTrans()
-        try:
-            ktrans.validate(fakeparent)
-            # Create a new kernel object and make it the only
-            # child of this Loop node. The PSyIR of the loop body becomes
-            # the schedule of this kernel.
-            children = fakeparent.pop_all_children()
-            nemokern = NemoKern(children, node, parent=loop_body)
-            loop_body.children.append(nemokern)
-        except TransformationError:
-            # Otherwise just connect the new children into the tree.
-            loop_body.children.extend(fakeparent.pop_all_children())
 
 
 class NemoInvoke(Invoke):
@@ -156,11 +123,23 @@ class NemoInvoke(Invoke):
         # We now walk through the fparser2 parse tree and construct the
         # PSyIR with a NemoInvokeSchedule at its root.
         processor = NemoFparser2Reader()
-        # TODO #737 the fparser2 processor should really first be used
-        # to explicitly get the Container for this particular Invoke and
-        # then be used to generate a 'subroutine' rather than a Schedule.
+        # TODO #737 the use of a NEMO-specific processor will be removed and
+        # the generic PSyIR will be 'raised' to NEMO-specific PSyIR using
+        # transformations.
         self._schedule = processor.generate_schedule(name, ast,
                                                      self.invokes.container)
+        # TODO #737 this 'raising' should be done somewhere else (perhaps
+        # NemoPSy). We have to import the transformation-related classes
+        # here to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.transformations import TransformationError
+        from psyclone.domain.nemo.transformations import NemoKernelTrans
+        ktrans = NemoKernelTrans()
+        for loop in self._schedule.walk(Loop):
+            try:
+                ktrans.apply(loop.loop_body)
+            except TransformationError:
+                pass
         self._schedule.invoke = self
 
     def update(self):
