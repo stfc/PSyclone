@@ -63,20 +63,20 @@
 !!             information;
 !!
 !!          4) `type(mesh_data_type) :: meta_mesh(...)` that describes the
-!!              required mesh properties information;
+!!             required mesh properties information;
 !!
 !!          5) `gh_shape = ...` (e.g.\ `gh_shape = gh_quadrature_XYoZ` that
 !!             describes the required quadrature and/or evaluator properties
 !!             information;
 !!
-!!          6) `operates_on` metadata that describes the kernel updates,
-!!             e.g.\ a vertical single-cell column);
+!!          6) `operates_on` metadata that describes what the kernel updates,
+!!             e.g.\ a vertical single-cell column;
 !!
 !!          7) `procedure` metadata that specifies the name of the kernel
-!!              subroutine that the metadata describes.
+!!             subroutine that the metadata describes.
 !!
-!!          `type(arg_type) :: meta_args(...)`, `operates_on`
-!!          and the `procedure` metadata are mandatory for all kernels.
+!!          `type(arg_type) :: meta_args(...)`, `operates_on` and
+!!          the `procedure` metadata are mandatory for all kernels.
 module argument_mod
 
   implicit none
@@ -213,12 +213,9 @@ module argument_mod
 
   !> @defgroup operates_on Enumeration of kernel iterator property descriptors.
   !> @{
-  ! Note: `iterates_over = CELLS` changes to `operates_on = CELL_COLUMN` in
-  !       PSyclone 2.0.0. Currently both options are supported for uninterrupted
-  !       development, however the `CELLS` option will be removed in #870 or #874).
   integer, public, parameter :: CELL_COLUMN = 396
-  integer, public, parameter :: CELLS       = 712
   integer, public, parameter :: DOMAIN      = 945
+  integer, public, parameter :: DOF         = 712
   !> @}
 
   !> Metadata for the argument type description, stored in the `arg_type` type
@@ -226,22 +223,19 @@ module argument_mod
   !! and/or operators are passed to the kernel and in what order they are
   !! passed. We also need to know how these scalars/fields/operators:
   !! - Are accessed (read, write, etc.) within the kernel;
-  !! - What is the type of argument data (to be enabled in #874 when removing
-  !!   support for the old-style `arg_type` metadata for the move to PSyclone 2.0.0);
+  !! - What is the type of argument data;
   !! - What function space the fields and operators are on (w0, w1, etc.).
   !! In the case of operators there are two function spaces (to and from).
   !! Fields may have an optional metadata describing either a stencil access
   !! or, for inter-grid kernels, which mesh the field is on.
   type, public :: arg_type
      !> Type of a kernel argument (scalar, field, operator or a
-     !! column-wise operator). Currently one of {GH_REAL, GH_INTEGER,
-     !! GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR}. One of
-     !! {GH_SCALAR, GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR}.
+     !! column-wise operator). One of {GH_SCALAR, GH_FIELD, GH_OPERATOR,
+     !! GH_COLUMNWISE_OPERATOR}.
      integer :: argument_type
-     !> @todo in #874: Add Fortran primitive type of a kernel argument data
-     !!                One of {GH_REAL, GH_INTEGER} (note that these values
-     !!                are currently used to denote scalar argument types).
-     ! integer :: data_type ! To be enabled in #874
+     !> Fortran primitive type of kernel argument data.
+     !! One of {GH_REAL, GH_INTEGER}.
+     integer :: data_type
      !> How the kernel argument data is accessed (e.g.\ read-only, update,
      !! global reduction). One of {GH_READ, GH_WRITE, GH_READWRITE,
      !! GH_INC, GH_SUM, GH_MIN, GH_MAX}.
