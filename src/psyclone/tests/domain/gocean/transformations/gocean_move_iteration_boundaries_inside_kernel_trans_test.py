@@ -170,15 +170,14 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
         trans.apply(kernel)
         trans.apply(kernel)
 
-    expected = '''subroutine invoke_0(cu_fld, p_fld, u_fld, u_fld, unew_fld, \
-uold_fld)
+    expected = '''subroutine invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
   use compute_cu_mod, only : compute_cu_code
   use time_smooth_mod, only : time_smooth_code
-  type(r2d_type), intent(out) :: cu_fld
-  type(r2d_type), intent(in) :: p_fld
-  type(r2d_type), intent(in) :: u_fld
-  type(r2d_type), intent(in) :: unew_fld
-  type(r2d_type), intent(inout) :: uold_fld
+  type(r2d_field), intent(inout) :: cu_fld
+  type(r2d_field), intent(inout) :: p_fld
+  type(r2d_field), intent(inout) :: u_fld
+  type(r2d_field), intent(inout) :: unew_fld
+  type(r2d_field), intent(inout) :: uold_fld
   integer :: j
   integer :: xstart
   integer :: xstop

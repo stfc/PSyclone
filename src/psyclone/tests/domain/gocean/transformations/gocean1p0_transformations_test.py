@@ -228,8 +228,8 @@ def test_omp_parallel_loop(tmpdir):
     gen = gen.lower()
     expected = ("!$omp parallel do default(shared), private(i,j), "
                 "schedule(static)\n"
-                "      do j=2,jstop\n"
-                "        do i=2,istop+1\n"
+                "      do j = 2, jstop, 1\n"
+                "        do i = 2, istop+1, 1\n"
                 "          call compute_cu_code(i, j, cu_fld%data, "
                 "p_fld%data, u_fld%data)\n"
                 "        end do\n"
@@ -243,8 +243,8 @@ def test_omp_parallel_loop(tmpdir):
     expected = (
         "      !$omp parallel do default(shared), private(i,j), "
         "schedule(static)\n"
-        "      do j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-        "        do i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "      do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+        "        do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
         "          call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
         "        end do\n"
@@ -290,7 +290,7 @@ def test_omp_region_with_single_loop(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -307,7 +307,7 @@ def test_omp_region_with_single_loop(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -339,7 +339,7 @@ def test_omp_region_with_slice(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -407,7 +407,7 @@ def test_omp_region_no_slice(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -440,7 +440,7 @@ def test_omp_region_no_slice_no_const_bounds(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -592,17 +592,13 @@ def test_omp_region_before_loops_trans(tmpdir):
     # Put all of the loops in the schedule within a single
     # OpenMP region
     ompr = OMPParallelTrans()
-    omp_schedule, _ = ompr.apply(schedule.children)
+    ompr.apply(schedule.children)
 
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].dir_body[:]:
-        schedule, _ = ompl.apply(child)
-        omp_schedule = schedule
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
+    for child in schedule.children[0].dir_body[:]:
+        ompl.apply(child)
 
     # Store the results of applying this code transformation as
     # a string
@@ -612,11 +608,11 @@ def test_omp_region_before_loops_trans(tmpdir):
     omp_region_idx = -1
     omp_do_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx
-        if 'DO j=' in line:
+        if 'DO j =' in line:
             break
 
     assert omp_region_idx != -1
@@ -654,11 +650,11 @@ def test_omp_region_after_loops_trans(tmpdir):
     omp_region_idx = -1
     omp_do_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx
-        if 'DO j=' in line:
+        if 'DO j =' in line:
             break
 
     assert omp_region_idx != -1
@@ -1056,8 +1052,6 @@ def test_omp_region_invalid_node():
     ompr.apply(new_sched.children, {"node-type-check": False})
 
 
-@pytest.mark.xfail(reason="OMP Region with children of different types "
-                   "not yet implemented")
 def test_omp_region_with_children_of_different_types(tmpdir):
     ''' Test that we can generate code if we have an
     OpenMP parallel region enclosing children of different types. '''
@@ -1887,10 +1881,10 @@ def test_accloop(tmpdir):
     assert '''\
       !$acc parallel default(present)
       !$acc loop independent
-      DO j=2,jstop''' in gen
+      DO j = 2, jstop, 1''' in gen
     assert ("END DO\n"
             "      !$acc loop independent\n"
-            "      DO j=2,jstop+1" in gen)
+            "      DO j = 2, jstop+1, 1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1993,8 +1987,8 @@ def test_acc_collapse(tmpdir):
     gen = str(psy.gen)
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop independent collapse(2)\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop+1\n"
+            "      DO j = 2, jstop, 1\n"
+            "        DO i = 2, istop+1, 1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -2018,8 +2012,8 @@ def test_acc_indep(tmpdir):
     # Check the generated code
     invoke.schedule = new_sched
     gen = str(psy.gen)
-    assert "!$acc loop\n      DO j=2,jstop" in gen
-    assert "!$acc loop independent\n      DO j=2,jstop+1" in gen
+    assert "!$acc loop\n      DO j = 2, jstop, 1" in gen
+    assert "!$acc loop independent\n      DO j = 2, jstop+1, 1" in gen
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 

@@ -2266,8 +2266,30 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         # make sure the directive occurs straight after the loop body
         position = parent.previous_loop()
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
+        parent.add(DirectiveGen(parent, *self.end_string().split()),
                    position=["after", position])
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp do ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        private_str = ",".join(self._get_private_list())
+        return ("omp parallel do default(shared), private({0}), "
+                "schedule({1})".format(private_str, self._omp_schedule) +
+                self._reduction_string())
+
+    def end_string(self):
+        '''
+        :returns: the closing statement for this directive.
+        :rtype: str
+        '''
+        # pylint: disable=no-self-use
+        return "omp end parallel do"
 
     def update(self):
         '''
