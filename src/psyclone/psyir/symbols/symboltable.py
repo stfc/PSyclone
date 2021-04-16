@@ -41,7 +41,7 @@
 from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import inspect
-from copy import copy
+import copy
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
@@ -189,20 +189,51 @@ class SymbolTable(object):
         return all_tags
 
     def shallow_copy(self):
-        '''Create a copy of the symbol table where the top-level containers
-        are new (symbols added to the new symbol table will not be added in
-        the original but the existing objects are still the same).
+        '''Create a copy of the symbol table with new instances of the
+        top-level data structures but keeping the same existing symbol
+        objects. Symbols added to the new symbol table will not be added
+        in the original but the existing objects are still the same.
 
-        :returns: a copy of this symbol table.
+        :returns: a shallow copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         # pylint: disable=protected-access
         new_st = SymbolTable()
-        new_st._symbols = copy(self._symbols)
-        new_st._argument_list = copy(self._argument_list)
-        new_st._tags = copy(self._tags)
+        new_st._symbols = copy.copy(self._symbols)
+        new_st._argument_list = copy.copy(self._argument_list)
+        new_st._tags = copy.copy(self._tags)
         new_st._node = self.node
+        return new_st
+
+    def deep_copy(self):
+        '''Create a copy of the symbol table with new instances of the
+        top-level data structures and also new instances of the symbols
+        contained in these data structures. Modifying a symbol attribute
+        will not affect the equivalent named symbol in the original symbol
+        table.
+
+        :returns: a deep copy of this symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # pylint: disable=protected-access
+        new_st = SymbolTable(self.node)
+
+        # Make a copy of each symbol in the symbol table
+        for symbol in self.symbols:
+            new_st.add(symbol.copy())
+
+        # Prepare the new argument list
+        new_arguments = []
+        for name in [arg.name for arg in self.argument_list]:
+            new_arguments.append(new_st.lookup(name))
+        new_st.specify_argument_list(new_arguments)
+
+        # Prepare the new tag dict
+        for tag, symbol in self._tags.items():
+            new_st._tags[tag] = new_st.lookup(symbol.name)
+
         return new_st
 
     @staticmethod
