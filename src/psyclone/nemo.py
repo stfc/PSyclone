@@ -112,14 +112,21 @@ class NemoFparser2Reader(Fparser2Reader):
         fakeparent = Schedule(parent=loop_body)
         self.process_nodes(parent=fakeparent, nodes=node.content[1:-1])
 
-        if NemoKern.match(fakeparent):
+        # We use the checking in NemoKernelTrans here. Ultimately this code
+        # will be entirely replaced by that transformation code - #435.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.transformations import TransformationError
+        from psyclone.domain.nemo.transformations import NemoKernelTrans
+        ktrans = NemoKernelTrans()
+        try:
+            ktrans.validate(fakeparent)
             # Create a new kernel object and make it the only
             # child of this Loop node. The PSyIR of the loop body becomes
             # the schedule of this kernel.
             children = fakeparent.pop_all_children()
             nemokern = NemoKern(children, node, parent=loop_body)
             loop_body.children.append(nemokern)
-        else:
+        except TransformationError:
             # Otherwise just connect the new children into the tree.
             loop_body.children.extend(fakeparent.pop_all_children())
 
@@ -376,38 +383,6 @@ class NemoKern(InlinedKern):
 
         # Name and colour-code to use for displaying this node
         self._reduction = False
-
-    @staticmethod
-    def match(node):
-        '''Whether or not the PSyIR sub-tree pointed to by node represents a
-        kernel. A kernel is defined as a section of code that sits
-        within a recognised loop structure and does not itself contain
-        loops, array assignments, or 'CodeBlocks' (code not
-        represented in the PSyIR such as subroutine calls or IO
-        operations).
-
-        :param node: node in the PSyIR to check.
-        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
-        :returns: true if this node conforms to the rules for a kernel.
-        :rtype: bool
-
-        '''
-        from psyclone.psyir.nodes import CodeBlock, Assignment
-        # This function is called with node being a Schedule.
-        if not isinstance(node, Schedule):
-            raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".
-                                format(type(node)))
-
-        # Check for array assignment, codeblock and loop
-        nodes = [assign for assign in node.walk(Assignment)
-                 if assign.is_array_range]
-        nodes += node.walk((CodeBlock, NemoLoop))
-
-        # A kernel cannot contain loops, array assignments or other
-        # unrecognised code (including IO operations and routine
-        # calls) or loops. So if there is any node in the result of
-        # the walk, this node can not be a kernel.
-        return len(nodes) == 0
 
     def get_kernel_schedule(self):
         '''

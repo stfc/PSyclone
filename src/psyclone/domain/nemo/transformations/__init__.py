@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford, STFC Daresbury Lab
+#          A. R. Porter, STFC Daresbury Lab
 
 '''Transformation module for NEMO.
 '''
@@ -42,10 +43,12 @@ from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
     import NemoOuterArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
     import NemoAllArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_kernel_trans \
+    import NemoKernelTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 
 __all__ = ['NemoArrayRange2LoopTrans', 'NemoOuterArrayRange2LoopTrans',
-           'NemoAllArrayRange2LoopTrans']
+           'NemoAllArrayRange2LoopTrans', 'NemoKernelTrans']
