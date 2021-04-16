@@ -295,18 +295,11 @@ cd eg16/
 python create.py
 ```
 
-## Example 17: Code Extraction
+## Example 17: Runnable Examples
 
-The subdirectory ``full_example_extract`` contains a runnable example
-of LFRic code that creates a NetCDF file with the input and output
-parameters of a simple kernel. The requirements are listed in the [README.md](
-full_example_extract/README.md) file.
-```sh
-cd full_example_extraction
-make
-./extract
-ncdump ./main-update.nc | less
-```
+This subdirectory contains three stand-alone and runnable examples of
+the LFRic code. For more details please refer to the relevant
+[eg17/README.md](./eg17) document.
 
 ## Code
 
