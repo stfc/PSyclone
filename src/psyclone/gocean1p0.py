@@ -1531,19 +1531,12 @@ class GOKern(CodedKern):
         symtab = self.root.symbol_table
         for arg in self._arguments.args:
             if arg.argument_type == "field":
-                # We need the buffer initialisation routine in the Invoke
-                try:
-                    init_buf = symtab.lookup_with_tag("ocl_init_buffer_func")
-                except KeyError:
-                    # If the subroutines does not exist, it needs to be
-                    # generated first.
-                    module = parent
-                    while module.parent:
-                        module = module.parent
-                    # Create the f2pygen AST for the routine that initialises
-                    # an OpenCL buffer on the device.
-                    self.gen_ocl_initialise_buffer(module)
-                    init_buf = symtab.lookup_with_tag("ocl_init_buffer_func")
+                # Create the f2pygen AST for the routine that initialises
+                # an OpenCL buffer on the device.
+                module = parent
+                while module.parent:
+                    module = module.parent
+                init_buf = self.gen_ocl_initialise_buffer(module)
 
                 # Insert call to init_buffer routine
                 field = symtab.lookup(arg.name)
@@ -1569,17 +1562,12 @@ class GOKern(CodedKern):
                                        kind="c_intptr_t", entity_decls=[name]))
 
             elif arg.argument_type == "grid_property" and not arg.is_scalar:
-                # We need the grid buffers initialisation routine in the Invoke
-                try:
-                    init_buf = symtab.lookup_with_tag("ocl_init_grid_buffers")
-                except KeyError:
-                    # If the subroutines does not exist, it needs to be
-                    # generated first.
-                    module = parent
-                    while module.parent:
-                        module = module.parent
-                    self.gen_ocl_initialise_grid_buffers(module)
-                    init_buf = symtab.lookup_with_tag("ocl_init_grid_buffers")
+                # If the subroutines does not exist, it needs to be
+                # generated first.
+                module = parent
+                while module.parent:
+                    module = module.parent
+                init_buf = self.gen_ocl_initialise_grid_buffers(module)
 
                 # Insert grid initialisation call
                 field = symtab.lookup(self._arguments.find_grid_access().name)
@@ -1623,21 +1611,14 @@ class GOKern(CodedKern):
                 there_is_a_grid_buffer = True
 
         if there_is_a_grid_buffer:
-            # We need the grid buffers writing routine in the Invoke
-            try:
-                init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
-            except KeyError:
-                # If the subroutines does not exist, it needs to be
-                # generated first.
-                module = parent
-                while module.parent:
-                    module = module.parent
-                self.gen_ocl_write_grid_buffers(module)
-                init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
+            module = parent
+            while module.parent:
+                module = module.parent
+            grid_write_routine = self.gen_ocl_write_grid_buffers(module)
 
             # Insert grid writing call
             field = symtab.lookup(self._arguments.find_grid_access().name)
-            call = Call.create(init_buf, [Reference(field)])
+            call = Call.create(grid_write_routine, [Reference(field)])
             parent.add(PSyIRGen(parent, call))
 
     def gen_ocl_set_args_call(self, parent):
@@ -1730,11 +1711,19 @@ class GOKern(CodedKern):
                                inserted.
         :param type: :py:class:`psyclone.f2pygen.ModuleGen`
 
-        :returns: the name of the generated subroutine.
-        :rtype: str
+        :returns: the symbol representing the grid buffers writing subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
         symtab = self.root.symbol_table
+
+        # We need the grid buffers writing routine in the Invoke
+        try:
+            return symtab.lookup_with_tag("ocl_write_grid_buffers")
+        except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
+            pass
 
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = symtab.new_symbol(
@@ -1789,7 +1778,7 @@ class GOKern(CodedKern):
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
 
-        return subroutine_name
+        return symtab.lookup_with_tag("ocl_write_grid_buffers")
 
     def gen_ocl_initialise_buffer(self, f2pygen_module):
         '''
@@ -1807,6 +1796,14 @@ class GOKern(CodedKern):
         '''
         symtab = self.root.symbol_table
 
+        # We need the buffer initialisation routine in the Invoke
+        try:
+            return symtab.lookup_with_tag("ocl_init_buffer_func")
+        except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
+            pass
+
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = symtab.new_symbol(
             "initialise_device_buffer", symbol_type=RoutineSymbol,
@@ -1823,17 +1820,8 @@ class GOKern(CodedKern):
         # Fields need to provide a function pointer to how the
         # device data is going to be read and written, if it doesn't
         # exist, create the appropriate subroutine first.
-        try:
-            read_fp = symtab.lookup_with_tag("ocl_read_func").name
-        except KeyError:
-            # If the subroutines does not exist, it needs to be
-            # generated first.
-            read_fp = self.gen_ocl_read_from_device_function(f2pygen_module)
-        try:
-            write_fp = \
-                symtab.lookup_with_tag("ocl_write_func").name
-        except KeyError:
-            write_fp = self.gen_ocl_write_to_device_function(f2pygen_module)
+        read_fp = self.gen_ocl_read_from_device_function(f2pygen_module).name
+        write_fp = self.gen_ocl_write_to_device_function(f2pygen_module).name
 
         # Code of the subroutine in Fortran
         code = '''
@@ -1869,7 +1857,7 @@ class GOKern(CodedKern):
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
 
-        return subroutine_name
+        return symtab.lookup_with_tag("ocl_init_buffer_func")
 
     def gen_ocl_initialise_grid_buffers(self, f2pygen_module):
         '''
@@ -1887,6 +1875,11 @@ class GOKern(CodedKern):
         '''
         symtab = self.root.symbol_table
 
+        # We need the grid buffers initialisation routine in the Invoke
+        try:
+            return symtab.lookup_with_tag("ocl_init_grid_buffers")
+        except KeyError:
+            pass
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = symtab.new_symbol(
             "initialise_grid_device_buffers", symbol_type=RoutineSymbol,
@@ -1940,7 +1933,7 @@ class GOKern(CodedKern):
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
 
-        return subroutine_name
+        return symtab.lookup_with_tag("ocl_init_grid_buffers")
 
     def gen_ocl_read_from_device_function(self, f2pygen_module):
         '''
@@ -1956,8 +1949,16 @@ class GOKern(CodedKern):
         :rtype: str
 
         '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_read_func")
+        except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
+            pass
+
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = self.root.symbol_table.new_symbol(
+        subroutine_name = symtab.new_symbol(
             "read_from_device", symbol_type=RoutineSymbol,
             tag="ocl_read_func").name
 
@@ -2024,7 +2025,7 @@ class GOKern(CodedKern):
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
 
-        return subroutine_name
+        return symtab.lookup_with_tag("ocl_read_func")
 
     def gen_ocl_write_to_device_function(self, f2pygen_module):
         '''
@@ -2039,8 +2040,14 @@ class GOKern(CodedKern):
         :rtype: str
 
         '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_write_func")
+        except KeyError:
+            pass
+
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = self.root.symbol_table.new_symbol(
+        subroutine_name = symtab.new_symbol(
             "write_to_device", symbol_type=RoutineSymbol,
             tag="ocl_write_func").name
 
@@ -2107,7 +2114,7 @@ class GOKern(CodedKern):
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
 
-        return subroutine_name
+        return symtab.lookup_with_tag("ocl_write_func")
 
     def get_kernel_schedule(self):
         '''

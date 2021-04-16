@@ -330,9 +330,10 @@ cl_true,0_8,size_in_bytes,c_loc(field%grid%gphiv),0,c_null_ptr,c_null_ptr)
       in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
       in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
       dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
+      gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, gphiu_cl_mem)
         call compute_kernel_code_set_args(kernel_compute_kernel_code, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, in_fld%grid%dx, \
-in_fld%grid%gphiu_device, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
+gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
         call out_fld%write_to_device()
         call in_out_fld%write_to_device()
         call in_fld%write_to_device()
@@ -914,8 +915,6 @@ in_fld, dx, gphiu
       REAL(KIND=go_wp), intent(in), target :: dx_1
       INTEGER, intent(in), target :: xstart, xstop, ystart, ystop'''
     assert expected in generated_code
-    print(generated_code)
-    assert False
     # TODO 284: Currently this example cannot be compiled because it needs to
     # import a module which won't be found on kernel_outputdir
 
