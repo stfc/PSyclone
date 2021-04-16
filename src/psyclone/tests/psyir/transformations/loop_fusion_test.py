@@ -48,7 +48,7 @@ from psyclone.domain.nemo.transformations import NemoLoopFuseTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 from psyclone.tests.utilities import Compile
 
@@ -608,3 +608,63 @@ def test_fuse_scalars_incorrect(parser):
         fuse_loops(parser, code)
     assert "Scalar variable 'b' might not be written in one loop" \
         in str(err.value)
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_no_symbol(parser, monkeypatch):
+    '''Tests what happens if a variable name is not in the symbol table,
+    or not fully defined (i.e. likely imported from another module).
+    We have to patch the object (to replace the existing symbol table)
+    since otherwise all variables are in the symbol table.
+    '''
+    # Case 1: assume that the array 't' is imported from mymod. In
+    # this case the loop validation will find a Symbol (not a DataSymbol),
+    # and cannot test if this variable is an array. It should fall back
+    # to use the variable accesses information (which includes indices),
+    # knowing this way that this is an array.
+    code = '''subroutine sub()
+              use mymod
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    t(ji, jj) = s(ji, jj) + t(ji, jj)
+                 enddo
+              enddo
+              end subroutine sub'''
+    out, psyir = fuse_loops(parser, code)
+    assert """
+  do jj = 1, n, 1
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+    enddo
+    do ji = 1, 10, 1
+      t(ji,jj) = s(ji,jj) + t(ji,jj)
+    enddo
+  enddo""" in out
+
+    # Case 2: remove the symbol table, which means that not
+    # even a Symbol instance is returned. This should then look
+    # up the information in the variable access information
+    # to determine which variables are an array
+    loop = psyir.children[0]
+    new_symbol_table = SymbolTable()
+    monkeypatch.setattr(loop.scope, "_symbol_table", new_symbol_table)
+    fuse = NemoLoopFuseTrans()
+    # Since the psyir has already the fused outer loop, fuse the inner
+    # loops now:
+    fuse.apply(loop.loop_body.children[0], loop.loop_body.children[1])
+
+    writer = FortranWriter()
+    out = writer(psyir)
+    assert """  do jj = 1, n, 1
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+      t(ji,jj) = s(ji,jj) + t(ji,jj)
+    enddo
+  enddo""" in out

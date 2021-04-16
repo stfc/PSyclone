@@ -38,6 +38,7 @@
 
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import LoopFuseTrans
 
@@ -99,7 +100,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
         for var_name in all_vars:
             # Ignore the loop variable
-            if var_name == loop_var1:
+            if var_name == loop_var1.name:
                 continue
             var_info1 = vars1[var_name]
             var_info2 = vars2[var_name]
@@ -112,7 +113,10 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 # Find the symbol for this variable. We only need to check
                 # one symboltable.
                 symbol = symbol_table.lookup(var_name)
-                is_array = symbol.is_array
+                if isinstance(symbol, DataSymbol):
+                    is_array = symbol.is_array
+                else:
+                    is_array = var_info1[0].indices is not None
             except KeyError:
                 # TODO #845: Once we have symbol tables, any variable should
                 # be in a symbol table, so we have to raise an exception here.
