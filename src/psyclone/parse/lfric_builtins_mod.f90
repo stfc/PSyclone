@@ -50,8 +50,7 @@ use argument_mod,  only : arg_type,            &
                           GH_REAL, GH_INTEGER, &
                           GH_READ, GH_WRITE,   &
                           GH_READWRITE,        &
-                          ! TODO #870 remove "DOFS"
-                          ANY_SPACE_1, DOF, DOFS
+                          ANY_SPACE_1, DOF
 
 ! ******************************************************************* !
 ! ************** Built-ins for real-valued fields ******************* !
@@ -69,8 +68,7 @@ use argument_mod,  only : arg_type,            &
           arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),         &
           arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
           /)
-     ! TODO #870 change this to operates_on = DOF
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: X_plus_Y_code
   end type X_plus_Y

@@ -100,13 +100,17 @@ class KernCallArgList(ArgOrdering):
         base_name = "cell_map_" + carg.name
         map_name = symtab.symbol_from_tag(base_name).name
         # Add the cell map to our argument list
-        self.append("{0}(:,{1})".format(map_name,
-                                        self._cell_ref_name(var_accesses)),
+        self.append("{0}(:,:,{1})".format(map_name,
+                                          self._cell_ref_name(var_accesses)),
                     var_accesses=var_accesses)
-        # No. of fine cells per coarse cell
-        base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
-        ncellpercell = symtab.symbol_from_tag(base_name).name
-        self.append(ncellpercell, var_accesses)
+        # No. of fine cells per coarse cell in x
+        base_name = "ncpc_{0}_{1}_x".format(farg.name, carg.name)
+        ncellpercellx = symtab.symbol_from_tag(base_name).name
+        self.append(ncellpercellx, var_accesses)
+        # No. of fine cells per coarse cell in y
+        base_name = "ncpc_{0}_{1}_y".format(farg.name, carg.name)
+        ncellpercelly = symtab.symbol_from_tag(base_name).name
+        self.append(ncellpercelly, var_accesses)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
         ncell_fine = symtab.symbol_from_tag(base_name).name

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -42,16 +42,16 @@ module testkern_2qr_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_2qr_type
-     type(arg_type), dimension(4) :: meta_args = &
-          (/ arg_type(gh_field,  gh_inc,  w1),   &
-             arg_type(gh_field,  gh_read, w2),   &
-             arg_type(gh_field,  gh_read, w2),   &
-             arg_type(gh_field,  gh_read, w3)    &
+     type(arg_type), dimension(4) :: meta_args =       &
+          (/ arg_type(gh_field, gh_real, gh_inc,  w1), &
+             arg_type(gh_field, gh_real, gh_read, w2), &
+             arg_type(gh_field, gh_real, gh_read, w2), &
+             arg_type(gh_field, gh_real, gh_read, w3)  &
            /)
-     type(func_type), dimension(3) :: meta_funcs =  &
-          (/ func_type(w1, gh_basis),               &
-             func_type(w2, gh_diff_basis),          &
-             func_type(w3, gh_basis, gh_diff_basis) &
+     type(func_type), dimension(3) :: meta_funcs =     &
+          (/ func_type(w1, gh_basis),                  &
+             func_type(w2, gh_diff_basis),             &
+             func_type(w3, gh_basis, gh_diff_basis)    &
            /)
      integer :: operates_on = cell_column
      integer :: gh_shape(2) = (/ gh_quadrature_face, gh_quadrature_edge /)
