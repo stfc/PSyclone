@@ -116,6 +116,11 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 if isinstance(symbol, DataSymbol):
                     is_array = symbol.is_array
                 else:
+                    # This typically indicates a symbol is used that we do
+                    # not have detailled information for, e.g. based on a
+                    # generic 'use some_mod' statement. In thise case use
+                    # the information based on the access pattern, which
+                    # is at least better than having no information at all.
                     is_array = var_info1[0].indices is not None
             except KeyError:
                 # TODO #845: Once we have symbol tables, any variable should
