@@ -541,6 +541,7 @@ def test_profile_nemo_auto_kernels(parser):
     code = str(psy.gen).lower()
     # Check that it's the first loop that's had profiling added
     assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
+            "\n"
             "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
             "  do ji = 1, jpj, 1" in code)
 
@@ -564,6 +565,7 @@ def test_profile_nemo_loop_nests(parser):
     code = str(psy.gen).lower()
     # Check that it's the outer loop that's had profiling added
     assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
+            "\n"
             "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
             "  do jj = 1, jpj, 1" in code)
 
@@ -588,8 +590,9 @@ def test_profile_nemo_openmp(parser):
     Profiler.add_profile_nodes(schedule, Loop)
     code = str(psy.gen).lower()
     assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
+            "\n"
             "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
-            "  !$omp parallel do default(shared), private(ji,jj), "
+            "  !$omp parallel do default(shared) private(ji,jj) "
             "schedule(static)\n"
             "  do jj = 1, jpj, 1" in code)
 

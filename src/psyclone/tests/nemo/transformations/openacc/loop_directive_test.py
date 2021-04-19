@@ -103,23 +103,27 @@ def test_explicit_loop(parser):
     assert ("program do_loop\n"
             "  integer :: ji\n"
             "  integer, parameter :: jpj = 13\n"
-            "  real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+            "  real, dimension(jpj) :: sto_tmp\n"
+            "  real, dimension(jpj) :: sto_tmp2\n"
+            "\n"
             "  !$acc data copyout(sto_tmp,sto_tmp2)\n"
-            "  !$acc parallel default(present)\n"
+            "  !$acc begin parallel default(present)\n"
             "  !$acc loop independent\n"
-            "  do ji = 1, jpj\n"
-            "    sto_tmp(ji) = 1.0d0\n"
-            "  end do\n"
+            "  do ji = 1, jpj, 1\n"
+            "    sto_tmp(ji) = 1.0e0\n"
+            "  enddo\n"
             "  !$acc loop\n"
-            "  do ji = 1, jpj\n"
-            "    sto_tmp2(ji) = 1.0d0\n"
-            "  end do\n"
+            "  do ji = 1, jpj, 1\n"
+            "    sto_tmp2(ji) = 1.0e0\n"
+            "  enddo\n"
             "  !$acc end parallel\n"
             "  !$acc end data\n"
+            "\n"
             "end program do_loop" in code)
 
 
 SINGLE_LOOP = ("program do_loop\n"
+               "use kind_params_mod, only: wp\n"
                "integer :: ji\n"
                "integer, parameter :: jpj=12\n"
                "real(kind=wp) :: sto_tmp(jpj)\n"
@@ -129,6 +133,7 @@ SINGLE_LOOP = ("program do_loop\n"
                "end program do_loop\n")
 
 DOUBLE_LOOP = ("program do_loop\n"
+               "use kind_params_mod, only: wp\n"
                "integer :: ji, jj\n"
                "integer, parameter :: jpi=16, jpj=16\n"
                "real(kind=wp) :: sto_tmp(jpi, jpj)\n"
@@ -154,10 +159,11 @@ def test_seq_loop(parser):
     loops = schedule[0].walk(Loop)
     _ = acc_trans.apply(loops[0], {"sequential": True})
     code = str(psy.gen).lower()
-    assert ("  real(kind = wp) :: sto_tmp(jpj)\n"
+    assert ("  real(kind=wp), dimension(jpj) :: sto_tmp\n"
+            "\n"
             "  !$acc kernels\n"
             "  !$acc loop seq\n"
-            "  do ji = 1, jpj\n" in code)
+            "  do ji = 1, jpj, 1\n" in code)
 
 
 def test_collapse(parser):
@@ -174,11 +180,12 @@ def test_collapse(parser):
     loops = schedule[0].walk(Loop)
     schedule, _ = acc_trans.apply(loops[0], {"collapse": 2})
     code = str(psy.gen).lower()
-    assert ("  real(kind = wp) :: sto_tmp(jpi, jpj)\n"
+    assert ("  real(kind=wp), dimension(jpi,jpj) :: sto_tmp\n"
+            "\n"
             "  !$acc kernels\n"
             "  !$acc loop independent collapse(2)\n"
-            "  do jj = 1, jpj\n"
-            "    do ji = 1, jpi\n" in code)
+            "  do jj = 1, jpj, 1\n"
+            "    do ji = 1, jpi, 1\n" in code)
 
 
 def test_collapse_err(parser):

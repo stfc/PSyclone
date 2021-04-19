@@ -1533,7 +1533,8 @@ class ACCParallelDirective(ACCDirective):
         '''
         self._pre_gen_validate()
 
-        parent.add(DirectiveGen(parent, *self.begin_string().split()))
+        parent.add(DirectiveGen(parent, "acc", "begin",
+                                *self.begin_string().split()[1:]))
 
         for child in self.children:
             child.gen_code(parent)
@@ -1556,7 +1557,7 @@ class ACCParallelDirective(ACCDirective):
         # all data required by the parallel region is already present
         # on the device. If we've made a mistake and it isn't present
         # then we'll get a run-time error.
-        return "acc begin parallel default(present)"
+        return "acc parallel default(present)"
 
     def end_string(self):
         '''
