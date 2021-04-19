@@ -220,6 +220,9 @@ def test_invoke_opencl_initialisation_grid():
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
 
+    check_properties = ['area_t', 'area_u', 'area_v', 'dx_u', 'dx_v', 'dx_t',
+                        'dy_u', 'dy_v', 'dy_t', 'gphiu', 'gphiv']
+
     # Check that device grid initialisation routine is generated
     expected = '''
     subroutine initialise_grid_device_buffers(field)
@@ -234,35 +237,13 @@ c_sizeof(field%grid%tmask(1,1))
         field%grid%tmask_device = transfer(create_ronly_buffer(size_in_bytes),\
  field%grid%tmask_device)
         size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
-c_sizeof(field%grid%area_t(1,1))
-        field%grid%area_t_device = transfer(create_ronly_buffer(size_in_bytes)\
-, field%grid%area_t_device)
-        field%grid%area_u_device = transfer(create_ronly_buffer(size_in_bytes)\
-, field%grid%area_u_device)
-        field%grid%area_v_device = transfer(create_ronly_buffer(size_in_bytes)\
-, field%grid%area_v_device)
-        field%grid%dx_t_device = transfer(create_ronly_buffer(size_in_bytes), \
-field%grid%dx_t_device)
-        field%grid%dx_u_device = transfer(create_ronly_buffer(size_in_bytes), \
-field%grid%dx_u_device)
-        field%grid%dx_v_device = transfer(create_ronly_buffer(size_in_bytes), \
-field%grid%dx_v_device)
-        field%grid%dy_t_device = transfer(create_ronly_buffer(size_in_bytes), \
-field%grid%dy_t_device)
-        field%grid%dy_u_device = transfer(create_ronly_buffer(size_in_bytes), \
-field%grid%dy_u_device)
-        field%grid%dy_v_device = transfer(create_ronly_buffer(size_in_bytes), \
-field%grid%dy_v_device)
-        field%grid%gphiu_device = transfer(create_ronly_buffer(size_in_bytes),\
- field%grid%gphiu_device)
-        field%grid%gphiv_device = transfer(create_ronly_buffer(size_in_bytes),\
- field%grid%gphiv_device)
-      end if
-
-    end subroutine initialise_grid_device_buffers'''
-    print(expected)
-    print(generated_code)
+c_sizeof(field%grid%'''
     assert expected in generated_code
+
+    for grid_property in check_properties:
+        code = ("field%grid%{0}_device = transfer(create_ronly_buffer("
+                "size_in_bytes), field%grid%{0}_device)".format(grid_property))
+        assert code in generated_code
 
     # Check that device grid write routine is generated
     expected = '''
@@ -285,56 +266,17 @@ c_sizeof(field%grid%tmask(1,1))
 size_in_bytes,c_loc(field%grid%tmask),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer tmask"', ierr)
       size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
-c_sizeof(field%grid%area_t(1,1))
-      cl_mem = transfer(field%grid%area_t_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%area_t),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer area_t_device"', ierr)
-      cl_mem = transfer(field%grid%area_u_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%area_u),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer area_u_device"', ierr)
-      cl_mem = transfer(field%grid%area_v_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%area_v),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer area_v_device"', ierr)
-      cl_mem = transfer(field%grid%dx_u_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%dx_u),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer dx_u_device"', ierr)
-      cl_mem = transfer(field%grid%dx_v_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%dx_v),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer dx_v_device"', ierr)
-      cl_mem = transfer(field%grid%dx_t_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%dx_t),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer dx_t_device"', ierr)
-      cl_mem = transfer(field%grid%dy_u_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%dy_u),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer dy_u_device"', ierr)
-      cl_mem = transfer(field%grid%dy_v_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%dy_v),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer dy_v_device"', ierr)
-      cl_mem = transfer(field%grid%dy_t_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%dy_t),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer dy_t_device"', ierr)
-      cl_mem = transfer(field%grid%gphiu_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%gphiu),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer gphiu_device"', ierr)
-      cl_mem = transfer(field%grid%gphiv_device, cl_mem)
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%gphiv),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer gphiv_device"', ierr)
-
-    end subroutine write_grid_buffers'''
-    print(expected)
-    print(generated_code)
+c_sizeof(field%grid%area_t(1,1))'''
     assert expected in generated_code
+
+    for grid_property in check_properties:
+        code = ("      cl_mem = transfer(field%grid%{0}_device, cl_mem)\n"
+                "      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,"
+                "cl_true,0_8,size_in_bytes,c_loc(field%grid%{0}),0,"
+                "c_null_ptr,c_null_ptr)\n      call check_status("
+                "'\"clenqueuewritebuffer {0}_device\"', ierr)\n"
+                "".format(grid_property))
+        assert code in generated_code
 
     # Check that during the first time set-up the previous routines are called
     # for a kernel which contains a grid property access.
