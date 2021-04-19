@@ -260,6 +260,8 @@ field%grid%dy_v_device)
       end if
 
     end subroutine initialise_grid_device_buffers'''
+    print(expected)
+    print(generated_code)
     assert expected in generated_code
 
     # Check that device grid write routine is generated
