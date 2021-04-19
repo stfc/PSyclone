@@ -107,7 +107,7 @@ def test_explicit_loop(parser):
             "  real, dimension(jpj) :: sto_tmp2\n"
             "\n"
             "  !$acc data copyout(sto_tmp,sto_tmp2)\n"
-            "  !$acc begin parallel default(present)\n"
+            "  !$acc parallel default(present)\n"
             "  !$acc loop independent\n"
             "  do ji = 1, jpj, 1\n"
             "    sto_tmp(ji) = 1.0e0\n"

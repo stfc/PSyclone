@@ -738,7 +738,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     _, _ = otrans.apply(schedule.children[4].loop_body[0])
     output = str(psy.gen)
     expected = (
-        "      !$omp parallel do default(shared), private(cell), "
+        "      !$omp parallel do default(shared) private(cell) "
         "schedule(static)\n"
         "      DO cell=1,mesh_fld_m%get_last_edge_cell()\n"
         "        !\n"
@@ -746,7 +746,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     assert expected in output
     expected = (
         "      DO colour=1,ncolour_fld_m\n"
-        "        !$omp parallel do default(shared), private(cell), "
+        "        !$omp parallel do default(shared) private(cell) "
         "schedule(static)\n"
         "        DO cell=1,mesh_fld_c%get_last_halo_cell_per_colour"
         "(colour,1)\n"

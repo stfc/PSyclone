@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -226,7 +226,7 @@ def test_single_node_ompparalleldo_gocean1p0():
       CALL extract_psy_data%ProvideVariable("p_fld", p_fld)
       CALL extract_psy_data%ProvideVariable("v_fld", v_fld)
       CALL extract_psy_data%PreEnd
-      !$omp parallel do default(shared), private(i,j), schedule(static)
+      !$omp parallel do default(shared) private(i,j) schedule(static)
       DO j=2,jstop+1
         DO i=2,istop
           CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
@@ -289,7 +289,7 @@ def test_node_list_ompparallel_gocean1p0():
       CALL extract_psy_data%ProvideVariable("u_fld", u_fld)
       CALL extract_psy_data%ProvideVariable("v_fld", v_fld)
       CALL extract_psy_data%PreEnd
-      !$omp parallel default(shared), private(i,j)
+      !$omp parallel default(shared) private(i,j)
       !$omp do schedule(static)
       DO j=2,jstop
         DO i=2,istop+1
