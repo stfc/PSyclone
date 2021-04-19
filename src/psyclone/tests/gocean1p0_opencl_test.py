@@ -330,6 +330,8 @@ size_in_bytes,c_loc(field%grid%gphiv),0,c_null_ptr,c_null_ptr)
       call check_status('"clenqueuewritebuffer gphiv_device"', ierr)
 
     end subroutine write_grid_buffers'''
+    print(expected)
+    print(generated_code)
     assert expected in generated_code
 
     # Check that during the first time set-up the previous routines are called
