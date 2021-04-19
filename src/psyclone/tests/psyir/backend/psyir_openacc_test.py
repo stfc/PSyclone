@@ -90,21 +90,21 @@ def test_acc_data_region(parser):
     dtrans.apply(sched)
     fvisitor = FortranWriter()
     result = fvisitor(sched)
-    assert ("!$acc data copyin(d) copyout(c) copy(b)\n"
-            "do i = 1, 20, 2\n" in result)
-    assert ("enddo\n"
-            "!$acc end data\n" in result)
+    assert ("  !$acc data copyin(d) copyout(c) copy(b)\n"
+            "  do i = 1, 20, 2\n" in result)
+    assert ("  enddo\n"
+            "  !$acc end data\n" in result)
     assigns = sched.walk(Assignment)
     # Remove the read from array 'd'
     assigns[0].detach()
     result = fvisitor(sched)
-    assert ("!$acc data copyout(c) copy(b)\n"
-            "do i = 1, 20, 2\n" in result)
+    assert ("  !$acc data copyout(c) copy(b)\n"
+            "  do i = 1, 20, 2\n" in result)
     # Remove the readwrite of array 'b'
     assigns[2].detach()
     result = fvisitor(sched)
-    assert ("!$acc data copyout(c)\n"
-            "do i = 1, 20, 2\n" in result)
+    assert ("  !$acc data copyout(c)\n"
+            "  do i = 1, 20, 2\n" in result)
 
 
 # ----------------------------------------------------------------------------
@@ -164,13 +164,13 @@ def test_nemo_acc_kernels(default_present, expected, parser):
 
     fvisitor = FortranWriter()
     result = fvisitor(nemo_sched)
-    correct = '''!$acc kernels{0}
-do i = 1, 20, 2
-  a = 2 * i + d(i)
-  c(i) = a
-  b(i) = b(i) + a + c(i)
-enddo
-!$acc end kernels'''.format(expected)
+    correct = '''  !$acc kernels{0}
+  do i = 1, 20, 2
+    a = 2 * i + d(i)
+    c(i) = a
+    b(i) = b(i) + a + c(i)
+  enddo
+  !$acc end kernels'''.format(expected)
     assert correct in result
 
     cvisitor = CWriter()
@@ -199,13 +199,13 @@ def test_nemo_acc_parallel(parser):
     fort_writer = FortranWriter()
     result = fort_writer(nemo_sched)
 
-    correct = '''!$acc begin parallel default(present)
-do i = 1, 20, 2
-  a = 2 * i + d(i)
-  c(i) = a
-  b(i) = b(i) + a + c(i)
-enddo
-!$acc end parallel'''
+    correct = '''  !$acc begin parallel default(present)
+  do i = 1, 20, 2
+    a = 2 * i + d(i)
+    c(i) = a
+    b(i) = b(i) + a + c(i)
+  enddo
+  !$acc end parallel'''
     assert correct in result
 
     cvisitor = CWriter()
@@ -229,32 +229,32 @@ def test_acc_loop(parser):
     _ = acc_trans.apply(loops[0], {"sequential": True})
     fort_writer = FortranWriter()
     result = fort_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop seq\n"
-            "do jj = 1, jpj, 1\n" in result)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop seq\n"
+            "  do jj = 1, jpj, 1\n" in result)
     loop_dir = loops[0].ancestor(Directive)
     # Rather than keep apply the transformation with different options,
     # change the internal state of the Directive directly.
     loop_dir._sequential = False
     result = fort_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop independent\n"
-            "do jj = 1, jpj, 1\n" in result)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop independent\n"
+            "  do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = 2
     result = fort_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop independent collapse(2)\n"
-            "do jj = 1, jpj, 1\n" in result)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop independent collapse(2)\n"
+            "  do jj = 1, jpj, 1\n" in result)
     loop_dir._independent = False
     result = fort_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop collapse(2)\n"
-            "do jj = 1, jpj, 1\n" in result)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop collapse(2)\n"
+            "  do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = None
     result = fort_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop\n"
-            "do jj = 1, jpj, 1\n" in result)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop\n"
+            "  do jj = 1, jpj, 1\n" in result)
 
 
 # ----------------------------------------------------------------------------

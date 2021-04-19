@@ -1889,6 +1889,8 @@ class OMPParallelDirective(OMPDirective):
 
         zero_reduction_variables(calls, parent)
 
+        # Cannot use `begin_string` here as it doesn't yet support reduction
+        # variables - TODO #514.
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
                                 "default(shared), private({0})".
                                 format(private_str)))
@@ -1909,7 +1911,7 @@ class OMPParallelDirective(OMPDirective):
                                           "different types")
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
+        parent.add(DirectiveGen(parent, *self.end_string()))
 
         if reprod_red_call_list:
             parent.add(CommentGen(parent, ""))
@@ -1928,7 +1930,7 @@ class OMPParallelDirective(OMPDirective):
         :rtype: str
 
         '''
-        result = "omp parallel"
+        result = "omp parallel default(shared)"
         # TODO #514: not yet working with NEMO, so commented out for now
         # if not self._reprod:
         #     result += self._reduction_string()
@@ -2303,7 +2305,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :rtype: str
 
         '''
-        return ("omp parallel do default(shared), private({0}), "
+        return ("omp parallel do default(shared) private({0}) "
                 "schedule({1})".format(",".join(self._get_private_list()),
                                        self._omp_schedule))
 
