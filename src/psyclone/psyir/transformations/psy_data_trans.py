@@ -37,8 +37,6 @@
 '''Contains the PSyData transformation.
 '''
 
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
 from psyclone.configuration import Config
 from psyclone.nemo import NemoInvoke
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
