@@ -1893,7 +1893,7 @@ class OMPParallelDirective(OMPDirective):
         # Cannot use `begin_string` here as it doesn't yet support reduction
         # variables - TODO #514.
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
-                                "default(shared), private({0})".
+                                "default(shared) private({0})".
                                 format(private_str)))
 
         if reprod_red_call_list:
@@ -1912,7 +1912,7 @@ class OMPParallelDirective(OMPDirective):
                                           "different types")
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, *self.end_string()))
+        parent.add(DirectiveGen(parent, *self.end_string().split()))
 
         if reprod_red_call_list:
             parent.add(CommentGen(parent, ""))
@@ -2114,7 +2114,7 @@ class OMPDoDirective(OMPDirective):
         for reduction_type in AccessType.get_valid_reduction_modes():
             reductions = self._get_reductions_list(reduction_type)
             for reduction in reductions:
-                reduction_str += ", reduction({0}:{1})".format(
+                reduction_str += " reduction({0}:{1})".format(
                     OMP_OPERATOR_MAPPING[reduction_type], reduction)
         return reduction_str
 

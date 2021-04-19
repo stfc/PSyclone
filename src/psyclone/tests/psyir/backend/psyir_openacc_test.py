@@ -199,7 +199,7 @@ def test_nemo_acc_parallel(parser):
     fort_writer = FortranWriter()
     result = fort_writer(nemo_sched)
 
-    correct = '''  !$acc begin parallel default(present)
+    correct = '''  !$acc parallel default(present)
   do i = 1, 20, 2
     a = 2 * i + d(i)
     c(i) = a
@@ -298,7 +298,7 @@ def test_gocean_acc_parallel():
     # So only convert starting from the OMPParallelDirective
     fvisitor = FortranWriter()
     result = fvisitor(sched[0])
-    correct = '''!$acc begin parallel default(present)
+    correct = '''!$acc parallel default(present)
 a = b
 !$acc end parallel'''
     assert correct in result
