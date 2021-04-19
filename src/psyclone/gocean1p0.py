@@ -1768,6 +1768,8 @@ class GOKern(CodedKern):
         code += "end subroutine write_device_grid"
 
         # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")
@@ -1847,6 +1849,8 @@ class GOKern(CodedKern):
         '''.format(num_x, num_y, host_buff, read_fp, write_fp)
 
         # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")
@@ -1940,6 +1944,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")
@@ -2032,6 +2038,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")
@@ -2121,6 +2129,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
         parser = ParserFactory().create(std="f2003")
