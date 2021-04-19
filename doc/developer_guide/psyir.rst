@@ -423,7 +423,7 @@ entry in its `shape` being an integer `Literal` (with value 1) and the
 second entry being a `Range`. In this case the `Range` will have a
 start value of `LBOUND(my_array, 1)`, a stop value of
 `UBOUND(my_array, 1)` and a step of `Literal("1")`. Note that `LBOUND`
-and `UBOUND` are not yet implemented (Issue #651) but will be
+and `UBOUND` will be
 instances of `BinaryOperation`. (For the particular code fragment
 given above, the values are in fact known [1 and 5, respectively] and
 could be obtained by querying the Symbol Table.)
