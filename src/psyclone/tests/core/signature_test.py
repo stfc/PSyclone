@@ -60,11 +60,7 @@ def test_signature_errors():
     with pytest.raises(InternalError) as err:
         _ = Signature(1)
 
-    # Test for python2 and python3 messages:
-    assert "Got unexpected type '<class \'int\'>' in Signature" in \
-           str(err.value) or \
-           "Got unexpected type '<type \'int\'>' in Signature" in \
-           str(err.value)
+    assert "Got unexpected type 'int' in Signature" in str(err.value)
 
 
 def test_signature_dict():

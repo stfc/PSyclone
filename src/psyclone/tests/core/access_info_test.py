@@ -210,9 +210,8 @@ def test_variables_access_info():
     with pytest.raises(InternalError) as err:
         var_accesses.add_access("no-signature", AccessType.READWRITE, node)
 
-    # Python3 and python2 tests
-    assert "Got 'no-signature' of type <class \'str\'>" in str(err.value) or \
-           "Got 'no-signature' of type <type \'str\'>" in str(err.value)
+    assert "Got 'no-signature' of type 'str' but expected it to be of type " \
+           "psyclone.core.Signature." in str(err.value)
 
 
 # -----------------------------------------------------------------------------

@@ -154,8 +154,14 @@ class SingleVariableAccessInfo(object):
 
     def __str__(self):
         '''Returns a string representation of this object with the format:
-        var_name:WRITE(2),WRITE(3),READ(5).'''
-        return "{0}:{1}".format(str(self._signature),
+        var_name:WRITE(2),WRITE(3),READ(5) where the numbers indicate
+        the 'location' of the corresponding access. The location is an
+        integer number that enumerates each stament in a program unit,
+        and can be used to compare if an access earlier, later or in
+        the same statement as another access.
+
+        '''
+        return "{0}:{1}".format(self._signature,
                                 ",".join([str(access)
                                           for access in self._accesses]))
 
@@ -347,33 +353,34 @@ class VariablesAccessInfo(dict):
         '''Increases the location number.'''
         self._location = self._location + 1
 
-    def add_access(self, variable, access_type, node, indices=None):
-        '''Adds access information for the specified variable.
+    def add_access(self, signature, access_type, node, indices=None):
+        '''Adds access information for the variable with the given signature.
 
-        :param variable: PSyIR node that represents the variable.
-        :type variable: :py:class:`psyclone.core.Signature`
-        :param access_type: The type of access (READ, WRITE, ...)
+        :param signature: the signature of the variable.
+        :type signature: :py:class:`psyclone.core.Signature`
+        :param access_type: the type of access (READ, WRITE, ...)
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node` instance
-        :param indices: Indices used in the access (None if the variable \
+        :param indices: indices used in the access (None if the variable \
             is not an array). Defaults to None.
         :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        if not isinstance(variable, Signature):
-            raise InternalError("Got '{0}' of type {1}, expected Signature."
-                                .format(variable, type(variable)))
-        sig = variable
+        if not isinstance(signature, Signature):
+            raise InternalError("Got '{0}' of type '{1}' but expected it to "
+                                "be of type psyclone.core.Signature."
+                                .format(signature, type(signature).__name__))
 
-        if sig in self:
-            self[sig].add_access_with_location(access_type, self._location,
-                                               node, indices)
+        if signature in self:
+            self[signature].add_access_with_location(access_type,
+                                                     self._location, node,
+                                                     indices)
         else:
-            var_info = SingleVariableAccessInfo(sig)
+            var_info = SingleVariableAccessInfo(signature)
             var_info.add_access_with_location(access_type, self._location,
                                               node, indices)
-            self[sig] = var_info
+            self[signature] = var_info
 
     @property
     def all_signatures(self):
@@ -389,7 +396,7 @@ class VariablesAccessInfo(dict):
         '''Merges data from a VariablesAccessInfo instance to the
         information in this instance.
 
-        :param other_access_info: The other VariablesAccessInfo instance.
+        :param other_access_info: the other VariablesAccessInfo instance.
         :type other_access_info: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
@@ -420,42 +427,50 @@ class VariablesAccessInfo(dict):
         # locations just merged in
         self._location = self._location + max_new_location
 
-    def is_written(self, var_name):
-        '''Checks if the specified variable name is at least written once.
+    def is_written(self, signature):
+        '''Checks if the specified variable signature is at least
+        written once.
 
-        :param str var_name: Name of the variable
+        :param signature: signature of the variable.
+        :type signature: :py:class:`psyclone.core.Signature`
 
-        :returns: True if the specified variable name is written (at least \
+        :returns: True if the specified variable is written (at least \
             once).
         :rtype: bool
 
         :raises: KeyError if the variable name cannot be found.
 
         '''
-        var_access_info = self[var_name]
+        var_access_info = self[signature]
         return var_access_info.is_written()
 
-    def is_read(self, var_name):
-        '''Checks if the specified variable name is at least read once.
+    def is_read(self, signature):
+        '''Checks if the specified variable signature is at least read once.
 
-        :param str var_name: Name of the variable
+        :param signature: signature of the variable
+        :type signature: :py:class:`psyclone.core.Signature`
+
         :returns: True if the specified variable name is read (at least \
             once).
         :rtype: bool
+
         :raises: KeyError if the variable names can not be found.'''
 
-        var_access_info = self[var_name]
+        var_access_info = self[signature]
         return var_access_info.is_read()
 
-    def has_read_write(self, var_name):
-        '''Checks if the specified variable name has at least one READWRITE
-        access (which is typically only used in a function call)
+    def has_read_write(self, signature):
+        '''Checks if the specified variable signature has at least one
+        READWRITE access (which is typically only used in a function call).
 
-        :param str var_name: Name of the variable
+        :param singature: signature of the variable
+        :type signature: :py:class:`psyclone.core.Signature`
+
         :returns: True if the specified variable name has (at least one) \
             READWRITE access.
         :rtype: bool
+
         :raises: KeyError if the variable names can not be found.'''
 
-        var_access_info = self[var_name]
+        var_access_info = self[signature]
         return var_access_info.has_read_write()
