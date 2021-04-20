@@ -6352,7 +6352,7 @@ def test_accenterdata_builtin(tmpdir):
         _, _ = acc_loop_trans.apply(loop)
     _, _ = parallel_trans.apply(sched.children)
     _, _ = acc_enter_trans.apply(sched)
-    output = str(psy.gen)
+    output = str(psy.gen).lower()
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6362,9 +6362,9 @@ def test_accenterdata_builtin(tmpdir):
             "undf_w3,map_w3,0.0_r_def,ndf_aspc1_f1,undf_aspc1_f1,"
             "map_aspc1_f1)" in output)
     assert ("      !$acc loop independent\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      do df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = 0.0_r_def\n"
-            "      END DO\n"
+            "      end do\n"
             "      !$acc end parallel\n" in output)
 
 # Class ACCEnterDataTrans end

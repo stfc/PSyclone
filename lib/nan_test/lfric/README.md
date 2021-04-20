@@ -1,36 +1,33 @@
-# Read-only Verification Library for GOcean
+# ``NaN``-Test Verification Library for LFRic
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-gocean)
-to verify that variables declared read-only are not modified (overwritten) in
-a kernel call for an application using the [``dl_esm_inf`` library](
-https://github.com/stfc/dl_esm_inf).
-
-A full runnable example can be found in [``examples/gocean/eg5/readonly``](
-https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg5/readonly).
+https://psyclone.readthedocs.io/en/latest/psy_data.html#nan-test)
+to verify that input and output parameters of an LFRic kernel are not ``NaN``
+or infinite, using the LFRic infrastructure library.
 
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface
-with the application. The following dependencies must be available:
+https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+the application. The following dependencies must be available:
 
-- The [GOcean](https://psyclone.readthedocs.io/en/latest/gocean1p0.html)
-  infrastructure library ``dl_esm_inf``. A stable version of this is included
-  in the PSyclone repository as a Git submodule (see ["Installation"](
-  https://psyclone-dev.readthedocs.io/en/stable/working_practises.html#dev-installation)
-  in the PSyclone [Developer Guide](
-  https://psyclone-dev.readthedocs.io/en/stable) for details on working with
-  submodules). However, it is not included in the PSyclone [installation](
-  ./../../README.md#installation) and has to be cloned separately.
+- The LFRic infrastructure library. A pared-down version of LFRic
+  infrastructure is located in the PSyclone repository (see e.g.
+  [LFRic Example 17](
+  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
+  it is not included in the PSyclone [installation](
+  ./../../README.md#installation). See the [LFRic API](
+  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) documentation
+  for information on how to obtain access to the LFRic code.
 
-- The ReadOnly (``read_only_base.jinja``) and PSyData
+- The NANTest (``nan_test_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
-  installation. These Jinja templates are processed to create
-  the read-only verification code for ``integer``, 32- and 64-bit ``real``
-  scalars, and 2-dimensional ``real`` and ``integer`` arrays. The generated
-  Fortran modules, ``read_only_base.f90`` and ``psy_data_base.f90``, are then
-  used by the supplied ``read_only.f90`` module to create the wrapper library.
+  installation. These Jinja templates are processed to create the
+  ``NaN``-test verification code for ``integer``, 32- and 64-bit ``real``
+  scalars, and 1, 2, 3, and 4-dimensional ``real`` and ``integer`` arrays.
+  The generated Fortran modules, ``nan_test_base.f90`` and
+  ``psy_data_base.f90``, are then used by the supplied ``nan_test.f90``
+  module to create the wrapper library.
 
 ## Compilation
 
@@ -39,25 +36,31 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
-The location of the ``dl_esm_inf`` library is specified using the
-environment variable ``GOCEAN_INF_DIR``. It defaults to the relative
-path to location of the version included in PSyclone repository
-(``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``). This is
-not available in the PSyclone [installation](./../../README.md#installation)
-so the exact path **must be specified** during the compilation process, e.g.
+The location of the LFRic infrastructure library is specified using the
+environment variable ``LFRIC_INF_DIR``. It defaults to the relative path
+to location of the pared-down LFRic infrastructure located in a clone of
+PSyclone repository,
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+This is not available in the PSyclone [installation](
+./../../README.md#installation) so the exact path
+**must be specified** during the compilation process, e.g.
 
 ```shell
-GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
+F90=ifort F90FLAGS="-g -check bounds" LFRIC_INF_DIR=<path/to/LFRic/code> make
 ```
 
-The locations of the ReadOnly and PSyData base classes are specified
+It is the responsibility of the user to make sure that the module files
+used when compiling the LFRic ``NaN``-test library are identical to the
+ones used when running an LFRic application.
+
+The locations of the NANTest and PSyData base classes are specified
 using the environment variables ``$LIB_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
 respectively. They default to the relative paths to the
-[``lib/read_only``](./../) and top-level [``lib``](./../../) directories.
+[``lib/nan_test``](./../) and top-level [``lib``](./../../) directories.
 
-The compilation process will create the wrapper library ``lib_read_only.a``.
-The ``Makefile`` will compile the ``dl_esm_inf`` infrastructure library,
-``lib_fd.a``, if required, with the previously selected compiler flags.
+The compilation process will create the wrapper library ``lib_nan_test.a``.
+The ``Makefile`` will compile the LFRic infrastructure library,
+``liblfric.a``, if required, with the previously selected compiler flags.
 
 Similar to compilation of the [examples](
 https://psyclone.readthedocs.io/en/latest/examples.html#compilation), the
@@ -68,13 +71,13 @@ or compiler flags).
 
 ### Linking the wrapper library
 
-The application needs to provide the parameters to link in this read-only
-library, ``_read_only``, and the ``dl_esm_inf`` infrastructure library, ``_fd``.
-For instance:
+The application needs to provide the parameters to link in this
+``NaN``-test library, ``_nan_test``, and the LFRic infrastructure library,
+``lfric``. For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/read_only/dl_esm_inf -l_read_only \
-        -L$(GOCEAN_INF_DIR) -l_fd
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/nan_test/lfric -l_nan_test \
+        -L$(LFRIC_INF_DIR) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
 ```
 
 <!--
