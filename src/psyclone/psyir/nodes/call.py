@@ -80,6 +80,11 @@ class Call(Statement):
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
+        :raises GenerationError: if the routine argument is not a \
+            RoutineSymbol.
+        :raises GenerationError: if the arguments argument is not a \
+            list.
+
         :returns: an instance of cls.
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
 

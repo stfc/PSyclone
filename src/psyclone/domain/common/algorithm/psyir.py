@@ -46,22 +46,69 @@ from psyclone.errors import GenerationError
 class AlgorithmInvokeCall(Call):
     '''An invoke call in a PSyclone Algorithm layer.
 
-    :param routine: the routine that this call calls.
-    :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+    :param invoke_routine_symbol: the routine that this call calls.
+    :type invoke_routine_symbol: \
+        py:class:`psyclone.psyir.symbols.RoutineSymbol`
+    :param int index: the position of this invoke call relative to \
+        other invokes in the algorithm layer.
     :param parent: optional parent of this node in the PSyIR. Defaults \
         to None.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node` \
         or NoneType
+
+    :raises TypeError: if the index argument is not an integer.
+    :raises ValueError: if the index argument is negative.
 
     '''
     _children_valid_format = "[KernelFunctor]*"
     _text_name = "AlgorithmInvokeCall"
     _colour = "green"
 
-    def __init__(self, routine, parent=None):
-        super(AlgorithmInvokeCall, self).__init__(routine, parent=parent)
-        self._routine_symbol = None
-        self._container_symbol = None
+    def __init__(self, invoke_routine_symbol, index, parent=None):
+        super(AlgorithmInvokeCall, self).__init__(
+            invoke_routine_symbol, parent=parent)
+
+        if not isinstance(index, int):
+            raise TypeError(
+                "AlgorithmInvokeCall index argument should be an int but "
+                "found '{0}'.".format(type(index).__name__))
+        if index < 0:
+            raise ValueError(
+                "AlgorithmInvokeCall index argument should be a non-negative "
+                "integer but found {0}.".format(index))
+
+        self._index = index
+        self._language_level_routine_symbol = None
+
+    @classmethod
+    def create(cls, routine, arguments, index):
+        '''Create an instance of class cls given valid instances of a routine
+        symbol, a list of child nodes for its arguments and an index.
+
+        :param routine: the routine that class cls calls.
+        :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param arguments: the arguments to this routine. These are \
+            added as child nodes.
+        :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
+        :param int index: the position of this invoke call relative to \
+            other invokes in the algorithm layer.
+
+        :raises GenerationError: if the arguments argument is not a \
+            list.
+
+        :returns: an instance of cls.
+        :rtype: :py:class:`psyclone.psyir.nodes.AlgorithmInvokeCall` \
+            or a subclass thereof.
+
+        '''
+        if not isinstance(arguments, list):
+            raise GenerationError(
+                "AlgorithmInvokeCall create arguments argument should be a "
+                "list but found '{0}'.".format(type(arguments).__name__))
+
+        call = cls(routine, index)
+        call.children = arguments
+        return call
 
     @staticmethod
     def _validate_child(position, child):
@@ -76,45 +123,32 @@ class AlgorithmInvokeCall(Call):
         '''
         return isinstance(child, KernelFunctor)
 
-    def _def_routine_root_name(self, index):
-        '''Internal method that returns the proposed processed routine name
-        given the index of this invoke.
-
-        :param int index: the position of this invoke call relative to \
-            other invokes in the algorithm layer.
+    def _def_routine_root_name(self):
+        '''Internal method that returns the proposed lamguage-level routine
+        name given the index of this invoke.
 
         :returns: the proposed processed routine name for this invoke.
         :rtype: str
 
         '''
-        routine_root_name = "invoke_{0}".format(index)
+        routine_root_name = "invoke_{0}".format(self._index)
         if len(self.children) == 1:
             # Add the name of the kernel if there is only one call
             routine_root_name += "_" + self.children[0].name
         return routine_root_name
 
-    def create_language_level_symbols(self, index):
-        '''Creates routine and container symbols whose names are based on the
-        position of this node (compared to other nodes of the same
-        type) in the PSyIR tree.
-
-        :param int index: the position of this invoke call relative to \
-            other invokes in the algorithm layer.
-
-        :raises TypeError: if the index argument is not an integer.
-        :raises ValueError: if the index argument is negative.
+    def create_language_level_symbols(self):
+        '''If the language-level routine and container symbols have not been
+        created, then create them. The names are based on the position
+        of this node (compared to other nodes of the same type) in the
+        PSyIR tree.
 
         '''
-        if not isinstance(index, int):
-            raise TypeError(
-                "AlgorithmInvokeCall index argument should be an int but "
-                "found '{0}'.".format(type(index).__name__))
-        if index < 0:
-            raise ValueError(
-                "AlgorithmInvokeCall index argument should be a non-negative "
-                "integer but found {0}.".format(index))
+        if self._language_level_routine_symbol:
+            # The language-level symbols have already been created
+            return
 
-        routine_root_name = self._def_routine_root_name(index)
+        routine_root_name = self._def_routine_root_name()
 
         symbol_table = self.scope.symbol_table
         routine_name = symbol_table.next_available_name(
@@ -124,23 +158,17 @@ class AlgorithmInvokeCall(Call):
         container_name = symbol_table.next_available_name(
             root_name=container_root_name)
 
-        self._container_symbol = ContainerSymbol(container_name)
-        interface = GlobalInterface(self._container_symbol)
-        self._routine_symbol = RoutineSymbol(
+        interface = GlobalInterface(ContainerSymbol(container_name))
+        self._language_level_routine_symbol = RoutineSymbol(
             routine_name, interface=interface)
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call
         node.
 
-        :raises GenerationError: if the create_language_level_symbols \
-            method has not been called.
-
         '''
-        if not self._container_symbol or not self._routine_symbol:
-            raise GenerationError(
-                "The 'create_language_level_symbols()' method must be called "
-                "before calling 'lower_to_language_level()'.")
+        self.create_language_level_symbols()
+
         arguments = []
         arguments_str = []
         for kern in self.children:
@@ -160,9 +188,11 @@ class AlgorithmInvokeCall(Call):
                         "found '{0}'.".format(type(arg).__name__))
 
         symbol_table = self.scope.symbol_table
-        symbol_table.add(self._container_symbol)
-        symbol_table.add(self._routine_symbol)
-        call = Call.create(self._routine_symbol, arguments)
+        routine_symbol = self._language_level_routine_symbol
+        container_symbol = routine_symbol.interface.container_symbol
+        symbol_table.add(container_symbol)
+        symbol_table.add(routine_symbol)
+        call = Call.create(routine_symbol, arguments)
         self.replace_with(call)
 
 
@@ -191,7 +221,7 @@ class KernelFunctor(Reference):
     @classmethod
     def create(cls, symbol, arguments):
         '''Create an instance of the calling class given valid instances of a
-        TypeSymbol, and a list of child nodes for its arguments.
+        TypeSymbol, a list of child nodes for its arguments an an index.
 
         :param symbol: the name of the kernel type that this object \
             references.

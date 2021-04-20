@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
     BinaryOperation
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
-    StructureType, Symbol, ContainerSymbol, REAL_TYPE
+    StructureType, Symbol, REAL_TYPE
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.errors import GenerationError
@@ -123,11 +123,47 @@ def test_algorithminvokecall():
 
     '''
     routine = RoutineSymbol("hello")
-    call = AlgorithmInvokeCall(routine)
+    call = AlgorithmInvokeCall(routine, 2)
     assert call._text_name == "AlgorithmInvokeCall"
     assert call._colour == "green"
-    assert call._routine_symbol is None
-    assert call._container_symbol is None
+    assert call._language_level_routine_symbol is None
+    assert call._index == 2
+
+
+def test_algorithminvokecall_error():
+    '''Check that AlgorithmInvokeCall raises the expected exceptions if
+    the invoke argument has an invalid value.
+
+    '''
+    routine = RoutineSymbol("hello")
+    with pytest.raises(TypeError) as info:
+        AlgorithmInvokeCall(routine, "error")
+    assert ("AlgorithmInvokeCall index argument should be an int but found "
+            "'str'." in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        AlgorithmInvokeCall(routine, -1)
+    assert ("AlgorithmInvokeCall index argument should be a non-negative "
+            "integer but found -1." in str(info.value))
+
+
+def test_aic_create():
+    '''Check that the create method behaves as expected.'''
+
+    kernel_functor = KernelFunctor(TypeSymbol("dummy", REAL_TYPE))
+    routine = RoutineSymbol("hello")
+    index = 10
+    aic = AlgorithmInvokeCall.create(routine, [kernel_functor], index)
+    assert isinstance(aic, AlgorithmInvokeCall)
+    assert len(aic.children) == 1
+    assert aic.children[0] is kernel_functor
+    assert aic._routine is routine
+    assert aic._index == index
+
+    with pytest.raises(GenerationError) as info:
+        AlgorithmInvokeCall.create(routine, kernel_functor, index)
+    assert ("AlgorithmInvokeCall create arguments argument should be a list "
+            "but found 'KernelFunctor'." in str(info.value))
 
 
 def test_aic_validate_child():
@@ -138,7 +174,7 @@ def test_aic_validate_child():
     assert not AlgorithmInvokeCall._validate_child(0, "Invalid")
 
     routine = RoutineSymbol("hello")
-    call = AlgorithmInvokeCall(routine)
+    call = AlgorithmInvokeCall(routine, 0)
     with pytest.raises(GenerationError) as info:
         call.children = ["invalid"]
     assert ("Item 'str' can't be child 0 of 'AlgorithmInvokeCall'. The valid "
@@ -151,38 +187,23 @@ def test_aic_defroutinerootname():
     expected.
 
     '''
-    kernel_functor = KernelFunctor(TypeSymbol("dummy", REAL_TYPE))
+    symbol_name = "dummy"
+    kernel_functor = KernelFunctor(TypeSymbol(symbol_name, REAL_TYPE))
     routine = RoutineSymbol("hello")
-    call = AlgorithmInvokeCall(routine)
+    index = 3
+    call = AlgorithmInvokeCall(routine, index)
     call.children = [kernel_functor]
-    assert call._def_routine_root_name(0) == "invoke_0_dummy"
+    assert call._def_routine_root_name() == "invoke_{0}_{1}".format(
+        index, symbol_name)
     call.children.append(kernel_functor.copy())
-    assert call._def_routine_root_name(1) == "invoke_1"
-
-
-def test_aic_createlanguagelevelsymbols_error():
-    '''Check that the create_language_level_symbols method in
-    AlgorithmInvokeCall raises the expected exceptions if the index
-    argument is invalid.
-
-    '''
-    routine = RoutineSymbol("hello")
-    invoke = AlgorithmInvokeCall(routine)
-    with pytest.raises(TypeError) as info:
-        invoke.create_language_level_symbols("error")
-    assert ("AlgorithmInvokeCall index argument should be an int but found "
-            "'str'." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        invoke.create_language_level_symbols(-1)
-    assert ("AlgorithmInvokeCall index argument should be a non-negative "
-            "integer but found -1." in str(info.value))
+    assert call._def_routine_root_name() == "invoke_{0}".format(index)
 
 
 def test_aic_createlanguagelevelsymbols():
     '''Check that the create_language_level_symbols method behaves in the
-    expected way, i.e. creates a routine_symbol and a
-    container_symbol.
+    expected way, i.e. creates and stores a routine_symbol and a
+    container_symbol the first time it is called and then does nothing
+    in subsequent calls.
 
     '''
     code = (
@@ -196,22 +217,27 @@ def test_aic_createlanguagelevelsymbols():
     psyir = create_alg_psyir(code)
     invoke = psyir.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._routine_symbol is None
-    assert invoke._container_symbol is None
+    assert invoke._language_level_routine_symbol is None
 
-    invoke.create_language_level_symbols(0)
+    invoke.create_language_level_symbols()
 
     routine_name = "invoke_0_kern"
-    assert isinstance(invoke._routine_symbol, RoutineSymbol)
-    assert invoke._routine_symbol.name == routine_name
-    assert isinstance(invoke._container_symbol, ContainerSymbol)
-    assert invoke._container_symbol.name == "{0}_mod".format(routine_name)
+    routine_symbol = invoke._language_level_routine_symbol
+    assert isinstance(routine_symbol, RoutineSymbol)
+    assert routine_symbol.name == routine_name
+    container_symbol = routine_symbol.interface.container_symbol
+    assert container_symbol.name == "{0}_mod".format(routine_name)
+
+    invoke.create_language_level_symbols()
+
+    assert invoke._language_level_routine_symbol is routine_symbol
+    assert (invoke._language_level_routine_symbol.interface.container_symbol
+            is container_symbol)
 
 
 def test_aic_lowertolanguagelevel_error():
     '''Check that the lower_to_language_level method raises the expected
-    exception when the create_language_level_symbols method has not
-    been called and when an unexpected argument is found.
+    exception when an unexpected argument is found.
 
     '''
     code = (
@@ -224,14 +250,6 @@ def test_aic_lowertolanguagelevel_error():
 
     psyir = create_alg_psyir(code)
     invoke = psyir.children[0]
-
-    with pytest.raises(GenerationError) as info:
-        invoke.lower_to_language_level()
-    assert ("The 'create_language_level_symbols()' method must be called "
-            "before calling 'lower_to_language_level()'." in str(info.value))
-
-    invoke.create_language_level_symbols(0)
-
     with pytest.raises(GenerationError) as info:
         invoke.lower_to_language_level()
     assert ("Expected Algorithm-layer kernel arguments to be a literal, "
@@ -263,7 +281,10 @@ def test_aic_lowertolanguagelevel_expr():
 
 def test_aic_lowertolanguagelevel_single():
     '''Check that the lower_to_language_level method works as expected
-    when it has a single kernel with multiple fields of the same name.
+    when it has a single kernel with multiple fields of the same
+    name. Also check that the lower_to_language_level creates the
+    required routine and container symbols if they have not already
+    been created.
 
     '''
     code = (
@@ -282,7 +303,9 @@ def test_aic_lowertolanguagelevel_single():
     assert len(psyir.walk(AlgorithmInvokeCall)) == 1
     assert len(psyir.walk(KernelFunctor)) == 1
 
-    invoke.create_language_level_symbols(0)
+    # Don't call create_language_level_symbols() here. This is to
+    # check that lower_to_language_level() creates the symbols if
+    # needed.
     invoke.lower_to_language_level()
 
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
@@ -319,7 +342,10 @@ def test_aic_lowertolanguagelevel_multi():
     assert len(psyir.walk(AlgorithmInvokeCall)) == 1
     assert len(psyir.walk(KernelFunctor)) == 7
 
-    invoke.create_language_level_symbols(0)
+    # Explicitly create the language level symbols before lowering to
+    # make sure lower_to_language_level works if they have already
+    # been created.
+    invoke.create_language_level_symbols()
     invoke.lower_to_language_level()
 
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
