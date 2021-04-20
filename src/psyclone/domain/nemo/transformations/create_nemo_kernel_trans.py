@@ -150,3 +150,7 @@ class CreateNemoKernelTrans(Transformation):
         nemokern = NemoKern(sched.pop_all_children(),
                             None, parent=sched)
         sched.addchild(nemokern)
+
+
+# For AutoAPI documentation generation
+__all__ = ['CreateNemoKernelTrans']
