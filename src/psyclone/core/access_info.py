@@ -59,11 +59,11 @@ class AccessInfo(object):
     which stores all `AccessInfo` objects for a variable, and it stores
     the name of the variable.
 
-    :param access: The access type.
+    :param access: the access type.
     :type access_type: :py:class:`psyclone.core.access_type.AccessType`
-    :param int location: A number used in ordering the accesses.
-    :param indices: Indices used in the access, defaults to None
-    :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances \
+    :param int location: a number used in ordering the accesses.
+    :param indices: indices used in the access, defaults to None
+    :type indices: list of :py:class:`psyclone.psyir.nodes.Node` \
         (e.g. Reference, ...)
     :param node: Node in PSyIR in which the access happens, defaults to None.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -103,8 +103,7 @@ class AccessInfo(object):
     def indices(self):
         '''
         :returns: the indices used in this access. Can be None.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node` instances, \
-                or None.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`, or None.
         '''
         return self._indices
 
@@ -112,7 +111,7 @@ class AccessInfo(object):
     def indices(self, indices):
         '''Sets the indices for this AccessInfo instance.
 
-        :param indices: List of indices used in the access.
+        :param indices: list of indices used in the access.
         :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._indices = indices[:]
@@ -142,7 +141,7 @@ class AccessInfo(object):
 class SingleVariableAccessInfo(object):
     '''This class stores a list with all accesses to one variable.
 
-    :param signature: signature instance of the variable.
+    :param signature: signature of the variable.
     :type signature: :py:class:`psyclone.core.signature`
 
     '''
@@ -217,8 +216,7 @@ class SingleVariableAccessInfo(object):
     @property
     def all_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable.
-        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo` \
-            instances.
+        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo`.
         '''
         return self._accesses
 
@@ -226,12 +224,12 @@ class SingleVariableAccessInfo(object):
                                  indices=None):
         '''Adds access information to this variable.
 
-        :param access_type: The type of access (READ, WRITE, ....)
+        :param access_type: the type of access (READ, WRITE, ....)
         :type access_type: \
             :py:class:`psyclone.core.access_type.AccessType`
-        :param location: Location information
+        :param location: location information
         :type location: int
-        :param indicies: Indices used in the access (None if the variable \
+        :param indicies: indices used in the access (None if the variable \
             is not an array). Defaults to None
         :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
         :param node: Node in PSyIR in which the access happens.
