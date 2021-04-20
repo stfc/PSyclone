@@ -1528,56 +1528,38 @@ class GOKern(CodedKern):
         :param parent: Parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
+        # Get the root symbol table and the root f2pygen node
         symtab = self.root.symbol_table
+        module = parent
+        while module.parent:
+            module = module.parent
+
+        # Traverse all arguments and make sure the buffers are initialised
         for arg in self._arguments.args:
             if arg.argument_type == "field":
-                # Create the f2pygen AST for the routine that initialises
-                # an OpenCL buffer on the device.
-                module = parent
-                while module.parent:
-                    module = module.parent
+                # Get the init_buffer routine and insert a call for this field
                 init_buf = self.gen_ocl_initialise_buffer(module)
-
-                # Insert call to init_buffer routine
                 field = symtab.lookup(arg.name)
                 call = Call.create(init_buf, [Reference(field)])
+
                 # TODO #1134: Currently we convert back the PSyIR to f2pygen
                 # but when using the PSyIR backend this will be removed.
-                # import pdb; pdb.set_trace()
                 parent.add(PSyIRGen(parent, call))
-
-                # Lookup for the OpenCL memory object for this field and make
-                # sure it is declared in the Invoke.
-                name = arg.name + "_cl_mem"
-                try:
-                    symtab.lookup_with_tag(name)
-                except KeyError:
-                    symtab.new_symbol(
-                        name, tag=name, symbol_type=DataSymbol,
-                        # TODO #1134: We could import the kind symbols from a
-                        # iso_c_binding global container.
-                        datatype=UnknownFortranType("INTEGER(KIND=c_intptr_t)"
-                                                    " :: " + name))
-                    parent.add(DeclGen(parent, datatype="integer",
-                                       kind="c_intptr_t", entity_decls=[name]))
 
             elif arg.argument_type == "grid_property" and not arg.is_scalar:
-                # If the subroutines does not exist, it needs to be
-                # generated first.
-                module = parent
-                while module.parent:
-                    module = module.parent
+                # Get the grid init_buffer routine and insert a call
                 init_buf = self.gen_ocl_initialise_grid_buffers(module)
-
-                # Insert grid initialisation call
                 field = symtab.lookup(self._arguments.find_grid_access().name)
                 call = Call.create(init_buf, [Reference(field)])
+
                 # TODO #1134: Currently we convert back the PSyIR to f2pygen
                 # but when using the PSyIR backend this will be removed.
                 parent.add(PSyIRGen(parent, call))
 
-                # Lookup for the OpenCL memory object for this field and make
-                # sure it is declared in the Invoke.
+            if not arg.is_scalar:
+                # All buffers will be assigned to a local OpenCL memory object
+                # to easily reference them, make sure this local variable is
+                # declared in the Invoke.
                 name = arg.name + "_cl_mem"
                 try:
                     symtab.lookup_with_tag(name)
@@ -1686,6 +1668,7 @@ class GOKern(CodedKern):
                 if arg.is_scalar:
                     arguments.append(arg.dereference(garg.name))
                 else:
+                    # Cast grid buffer to cl_mem type expected by OpenCL
                     device_grid_property = arg.name + "_device"
                     field = symtab.lookup(garg.name)
                     source = StructureReference.create(
@@ -1703,9 +1686,10 @@ class GOKern(CodedKern):
 
     def gen_ocl_write_grid_buffers(self, f2pygen_module):
         '''
-        Insert an f2pygen subroutine in the supplied module to write the values
-        of dl_esm_inf grid property buffers into the OpenCL device using
-        FortCL. Returns the name of the inserted subroutine.
+        Returns the symbol of a subroutine that writes the values of the grid
+        properties into the OpenCL device buffers using FortCL. If the
+        subroutine doesn't already exist it is generated in the supplied
+        f2pygen module.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
@@ -1716,8 +1700,6 @@ class GOKern(CodedKern):
 
         '''
         symtab = self.root.symbol_table
-
-        # We need the grid buffers writing routine in the Invoke
         try:
             return symtab.lookup_with_tag("ocl_write_grid_buffers")
         except KeyError:
@@ -1729,6 +1711,12 @@ class GOKern(CodedKern):
         subroutine_name = symtab.new_symbol(
             "write_grid_buffers", symbol_type=RoutineSymbol,
             tag="ocl_write_grid_buffers").name
+
+        # Get the GOcean API property names used in this routine
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.grid_properties
+        num_x = props["go_grid_nx"].fortran.format("field")
+        num_y = props["go_grid_ny"].fortran.format("field")
 
         # Code of the subroutine in Fortran
         code = '''
@@ -1744,7 +1732,7 @@ class GOKern(CodedKern):
             integer :: ierr
             cmd_queues => get_cmd_queues()
             ! Integer grid buffers
-            size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * &
+            size_in_bytes = int({0} * {1}, 8) * &
                             c_sizeof(field%grid%tmask(1,1))
             cl_mem = transfer(field%grid%tmask_device, cl_mem)
             ierr = clEnqueueWriteBuffer(cmd_queues(1), &
@@ -1752,9 +1740,9 @@ class GOKern(CodedKern):
                         C_LOC(field%grid%tmask), 0, C_NULL_PTR, C_NULL_PTR)
             CALL check_status("clEnqueueWriteBuffer tmask", ierr)
             ! Real grid buffers
-            size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * &
+            size_in_bytes = int({0} * {1}, 8) * &
                             c_sizeof(field%grid%area_t(1,1))
-        '''
+        '''.format(num_x, num_y)
         write_str = '''
             cl_mem = transfer(field%grid%{0}_device, cl_mem)
             ierr = clEnqueueWriteBuffer(cmd_queues(1), &
@@ -1785,26 +1773,24 @@ class GOKern(CodedKern):
 
     def gen_ocl_initialise_buffer(self, f2pygen_module):
         '''
-        Insert an f2pygen subroutine in the supplied module to initialise the
-        OpenCL buffer in an OpenCL device using FortCL. The name of the
-        subroutine is returned.
+        Returns the symbol of a subroutine that initialises a OpenCL buffer in
+        the OpenCL device using FortCL. If the subroutine doesn't already exist
+        it is generated in the supplied f2pygen module.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
         :param type: :py:class:`psyclone.f2pygen.ModuleGen`
 
-        :returns: the name of the generated subroutine.
-        :rtype: str
+        :returns: the symbol of the buffer initialisation subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
         symtab = self.root.symbol_table
-
-        # We need the buffer initialisation routine in the Invoke
         try:
             return symtab.lookup_with_tag("ocl_init_buffer_func")
         except KeyError:
-            # If the subroutines does not exist, it needs to be
-            # generated first.
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
@@ -1866,24 +1852,24 @@ class GOKern(CodedKern):
 
     def gen_ocl_initialise_grid_buffers(self, f2pygen_module):
         '''
-        Insert an f2pygen subroutine in the supplied module to initialise the
-        dl_esm_inf grid property buffers in the OpenCL device using FortCL.
-        Returns the name of the inserted subroutine.
+        Returns the symbol of a subroutine that initialises all OpenCL grid
+        buffers in the OpenCL device using FortCL. If the subroutine doesn't
+        already exist it is generated in the supplied f2pygen module.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
         :param type: :py:class:`psyclone.f2pygen.ModuleGen`
 
-        :returns: the name of the generated subroutine.
-        :rtype: str
+        :returns: the symbol of the grid buffer initialisation subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
         symtab = self.root.symbol_table
-
-        # We need the grid buffers initialisation routine in the Invoke
         try:
             return symtab.lookup_with_tag("ocl_init_grid_buffers")
         except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
@@ -1961,16 +1947,16 @@ class GOKern(CodedKern):
 
     def gen_ocl_read_from_device_function(self, f2pygen_module):
         '''
-        Insert an f2pygen subroutine in the given f2pygen module to retrieve
-        the data back from an OpenCL device using FortCL. Return the inserted
-        subroutine name.
+        Returns the symbol of a subroutine that retrieves the data back from
+        an OpenCL device using FortCL. If the subroutine doesn't already exist
+        it is generated in the supplied f2pygen module.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
         :param type: :py:class:`psyclone.f2pygen.ModuleGen`
 
-        :returns: the name of the generated subroutine.
-        :rtype: str
+        :returns: the symbol of the buffer data retrieving subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
         symtab = self.root.symbol_table
@@ -2003,6 +1989,7 @@ class GOKern(CodedKern):
             INTEGER(c_intptr_t), pointer :: cmd_queues(:)
             integer :: ierr, i
 
+            ! Give the from pointer the appropriate OpenCL memory object type
             cl_mem = transfer(from, cl_mem)
             cmd_queues => get_cmd_queues()
 
@@ -2055,21 +2042,24 @@ class GOKern(CodedKern):
 
     def gen_ocl_write_to_device_function(self, f2pygen_module):
         '''
-        Insert an f2pygen subroutine in the given f2pygen module to write data
-        to an OpenCL device using FortCL. Return the inserted subroutine name.
+        Returns the symbol of a subroutine that writes the buffer data into
+        an OpenCL device using FortCL. If the subroutine doesn't already exist
+        it is generated in the supplied f2pygen module.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
         :param type: :py:class:`psyclone.f2pygen.ModuleGen`
 
-        :returns: the name of the generated subroutine.
-        :rtype: str
+        :returns: the symbol of the buffer writing subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
         symtab = self.root.symbol_table
         try:
             return symtab.lookup_with_tag("ocl_write_func")
         except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
@@ -2094,6 +2084,7 @@ class GOKern(CodedKern):
             INTEGER(c_intptr_t), pointer :: cmd_queues(:)
             integer :: ierr, i
 
+            ! Give the to pointer the appropriate OpenCL memory object type
             cl_mem = transfer(to, cl_mem)
             cmd_queues => get_cmd_queues()
 
