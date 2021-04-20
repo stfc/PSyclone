@@ -103,7 +103,7 @@ class AccessInfo(object):
     def indices(self):
         '''
         :returns: the indices used in this access. Can be None.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`, or None.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`, or None
         '''
         return self._indices
 
@@ -216,7 +216,7 @@ class SingleVariableAccessInfo(object):
     @property
     def all_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable.
-        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo`.
+        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo`
         '''
         return self._accesses
 
