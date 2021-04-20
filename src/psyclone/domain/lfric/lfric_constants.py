@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,36 +31,40 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
-# Modified R. W. Ford, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
-'''Module for the LFRic domain.
+'''
+This module provides a class with all LFRic related constants.
 '''
 
-# The order here is not alphabetical, but important because
-# there are various dependencies between the modules (e.g.
-# KernCallAccArgList imports KernCallArgList, ArgOrdering
-# imports LFRicArgDescriptor, ...).
-from psyclone.domain.lfric.function_space import FunctionSpace
-from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
-from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.arg_ordering import ArgOrdering
-from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
-from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
-from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
-from psyclone.domain.lfric.kernel_interface import KernelInterface
+# Imports
+from __future__ import print_function, absolute_import
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.lfric import FunctionSpace
 
-__all__ = [
-    'ArgOrdering',
-    'FunctionSpace',
-    'KernCallAccArgList',
-    'KernCallArgList',
-    'KernelInterface',
-    'KernStubArgList',
-    'LFRicArgDescriptor',
-    'LFRicConstants']
+# pylint: disable=too-few-public-methods
+class LFRicConstants(object):
+    '''This class stores all LFRic constants. Note that some constants
+    depend on values in the config files, so this class can only be
+    used after the config file can be read.
+    It stores all values in class variables (to avoid re-evaluating them).
+    '''
+
+    HAS_BEEN_INITIALISED = False
+
+    def __init__(self):
+        if LFRicConstants.HAS_BEEN_INITIALISED:
+            return
+
+        LFRicConstants.HAS_BEEN_INITIALISED = True
+
+        # Evaluators: quadrature
+        LFRicConstants.VALID_QUADRATURE_SHAPES = \
+            ["gh_quadrature_xyoz", "gh_quadrature_face", "gh_quadrature_edge"]
+        LFRicConstants.VALID_EVALUATOR_SHAPES = \
+            LFRicConstants.VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
+
+
+# =============================================================================
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
+__all__ = ['LFRicConstants']

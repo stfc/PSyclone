@@ -50,6 +50,7 @@ from enum import Enum
 from collections import OrderedDict, namedtuple
 import six
 import fparser
+
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone import psyGen
@@ -60,7 +61,8 @@ from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
-                                   LFRicArgDescriptor, KernelInterface)
+                                   LFRicArgDescriptor, KernelInterface,
+                                   LFRicConstants)
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
@@ -78,10 +80,7 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 # --------------------------------------------------------------------------- #
 #
 # ---------- Evaluators ----------------------------------------------------- #
-# Evaluators: quadrature
-VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz", "gh_quadrature_face",
-                           "gh_quadrature_edge"]
-VALID_EVALUATOR_SHAPES = VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
+
 # Dictionary allowing us to look-up the name of the Fortran module, type
 # and proxy-type associated with each quadrature shape
 QUADRATURE_TYPE_MAP = {
@@ -184,11 +183,12 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     :raises NotImplementedError: if a quadrature shape other than \
                                  "gh_quadrature_xyoz" is supplied.
     '''
-    if basis_fn["shape"] not in VALID_QUADRATURE_SHAPES:
+    const = LFRicConstants()
+    if basis_fn["shape"] not in const.VALID_QUADRATURE_SHAPES:
         raise InternalError(
             "Unrecognised shape ('{0}') specified in "
             "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
-            "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
+            "{1}".format(basis_fn["shape"], const.VALID_QUADRATURE_SHAPES))
 
     qr_var = "_" + basis_fn["qr_var"]
 
@@ -215,7 +215,7 @@ def qr_basis_alloc_args(first_dim, basis_fn):
         raise NotImplementedError(
             "Unrecognised shape '{0}' specified in "
             "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
-            "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
+            "{1}".format(basis_fn["shape"], const.VALID_QUADRATURE_SHAPES))
     return alloc_args
 
 # ---------- Classes -------------------------------------------------------- #
@@ -526,6 +526,7 @@ class DynKernMetadata(KernelType):
                     "meta_funcs must be unique, but '{0}' is replicated."
                     .format(fs_name))
 
+            const = LFRicConstants()
             # Check that a valid shape has been specified if
             # this function space requires a basis or differential basis
             for op_name in descriptor.operator_names:
@@ -541,14 +542,15 @@ class DynKernMetadata(KernelType):
                             format(FunctionSpace.VALID_EVALUATOR_NAMES,
                                    self.name))
                     shape_set = set(self._eval_shapes)
-                    if not shape_set.issubset(set(VALID_EVALUATOR_SHAPES)):
+                    if not shape_set.issubset(
+                            set(const.VALID_EVALUATOR_SHAPES)):
                         raise ParseError(
                             "In the Dynamo0.3 API a kernel requiring either "
                             "quadrature or an evaluator must request one or "
                             "more valid gh_shapes (one of {0}) but got '{1}' "
                             "for kernel '{2}'".
-                            format(VALID_EVALUATOR_SHAPES, self._eval_shapes,
-                                   self.name))
+                            format(const.VALID_EVALUATOR_SHAPES,
+                                   self._eval_shapes, self.name))
 
             self._func_descriptors.append(descriptor)
 
@@ -4252,6 +4254,7 @@ class DynBasisFunctions(DynCollection):
         if not isinstance(call, DynKern):
             raise InternalError("Expected a DynKern object but got: '{0}'".
                                 format(type(call)))
+        const = LFRicConstants()
         # We need a full FunctionSpace object for each function space
         # that has basis functions associated with it.
         for fsd in call.fs_descriptors.descriptors:
@@ -4268,7 +4271,7 @@ class DynBasisFunctions(DynCollection):
                 entry = {"shape": shape,
                          "fspace": fspace,
                          "arg": arg}
-                if shape in VALID_QUADRATURE_SHAPES:
+                if shape in const.VALID_QUADRATURE_SHAPES:
                     # This is for quadrature - store the name of the
                     # qr variable
                     entry["qr_var"] = call.qr_rules[shape].psy_name
@@ -4288,7 +4291,8 @@ class DynBasisFunctions(DynCollection):
                 else:
                     raise InternalError("Unrecognised evaluator shape: '{0}'. "
                                         "Should be one of {1}".format(
-                                            shape, VALID_EVALUATOR_SHAPES))
+                                            shape,
+                                            const.VALID_EVALUATOR_SHAPES))
 
                 # Add our newly-constructed dict object to the list describing
                 # the required basis and/or differential basis functions for
@@ -4377,7 +4381,8 @@ class DynBasisFunctions(DynCollection):
 
         '''
         # Create a single declaration for each quadrature type
-        for shape in VALID_QUADRATURE_SHAPES:
+        const = LFRicConstants()
+        for shape in const.VALID_QUADRATURE_SHAPES:
             if shape in self._qr_vars and self._qr_vars[shape]:
                 # The PSy-layer routine is passed objects of
                 # quadrature_* type
@@ -4541,6 +4546,7 @@ class DynBasisFunctions(DynCollection):
         # List of names of dimensioning (scalar) variables
         var_dim_list = []
 
+        const = LFRicConstants()
         # Loop over the list of dicts describing each basis function
         # required by this Invoke.
         for basis_fn in self._basis_fns:
@@ -4579,7 +4585,7 @@ class DynBasisFunctions(DynCollection):
             if self._invoke and first_dim not in var_dim_list:
                 var_dim_list.append(first_dim)
 
-            if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
+            if basis_fn["shape"] in const.VALID_QUADRATURE_SHAPES:
 
                 qr_var = basis_fn["qr_var"]
                 if not qr_var:
@@ -4624,7 +4630,8 @@ class DynBasisFunctions(DynCollection):
             else:
                 raise InternalError(
                     "Unrecognised evaluator shape: '{0}'. Should be one of "
-                    "{1}".format(basis_fn["shape"], VALID_EVALUATOR_SHAPES))
+                    "{1}".format(basis_fn["shape"],
+                                 const.VALID_EVALUATOR_SHAPES))
 
         return (var_dim_list, basis_arrays)
 
@@ -4780,6 +4787,7 @@ class DynBasisFunctions(DynCollection):
 
         '''
         # pylint: disable=too-many-locals
+        const = LFRicConstants()
         api_config = Config.get().api_conf("dynamo0.3")
 
         loop_var_list = set()
@@ -4808,7 +4816,7 @@ class DynBasisFunctions(DynCollection):
                 raise InternalError(
                     "Unrecognised type of basis function: '{0}'. Expected one "
                     "of 'basis' or 'diff-basis'.". format(basis_fn["type"]))
-            if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
+            if basis_fn["shape"] in const.VALID_QUADRATURE_SHAPES:
                 op_name = basis_fn["fspace"].\
                     get_operator_name(basis_name, qr_var=basis_fn["qr_var"])
                 if op_name in op_name_list:
@@ -4862,8 +4870,8 @@ class DynBasisFunctions(DynCollection):
             else:
                 raise InternalError(
                     "Unrecognised shape '{0}' specified for basis function. "
-                    "Should be one of: {1}".format(basis_fn['shape'],
-                                                   VALID_EVALUATOR_SHAPES))
+                    "Should be one of: {1}"
+                    .format(basis_fn['shape'], const.VALID_EVALUATOR_SHAPES))
         if loop_var_list:
             # Declare any loop variables
             parent.add(DeclGen(parent, datatype="integer",
@@ -7370,6 +7378,7 @@ class DynKern(CodedKern):
         # Create a name for each argument
         from psyclone.parse.algorithm import Arg
         args = []
+        const = LFRicConstants()
         for idx, descriptor in enumerate(ktype.arg_descriptors):
             pre = None
             if descriptor.argument_type.lower() == "gh_operator":
@@ -7411,7 +7420,7 @@ class DynKern(CodedKern):
         self._setup_basis(ktype)
         if self._basis_required:
             for shape in self._eval_shapes:
-                if shape in VALID_QUADRATURE_SHAPES:
+                if shape in const.VALID_QUADRATURE_SHAPES:
                     # Add a quadrature argument for each required quadrature
                     # rule.
                     args.append(Arg("variable", "qr_"+shape))
@@ -7472,19 +7481,21 @@ class DynKern(CodedKern):
         # is an inter-grid kernel
         self._is_intergrid = ktype.is_intergrid
 
+        const = LFRicConstants()
         # Check that all specified evaluator shapes are recognised
-        invalid_shapes = set(self._eval_shapes) - set(VALID_EVALUATOR_SHAPES)
+        invalid_shapes = set(self._eval_shapes) \
+            - set(const.VALID_EVALUATOR_SHAPES)
         if invalid_shapes:
             raise InternalError(
                 "Evaluator shape(s) {0} is/are not recognised. "
                 "Must be one of {1}.".format(list(invalid_shapes),
-                                             VALID_EVALUATOR_SHAPES))
+                                             const.VALID_EVALUATOR_SHAPES))
 
         # If there are any quadrature rule(s), what are the names of the
         # corresponding algorithm arguments? Can't use set() here because
         # we need to preserve the ordering specified in the metadata.
         qr_shapes = [shape for shape in self._eval_shapes if
-                     shape in VALID_QUADRATURE_SHAPES]
+                     shape in const.VALID_QUADRATURE_SHAPES]
 
         # The quadrature-related arguments to a kernel always come last so
         # construct an enumerator with start value -<no. of qr rules>
@@ -8084,10 +8095,11 @@ def check_args(call):
                 # a direction argument must be provided
                 stencil_arg_count += 1
 
+    const = LFRicConstants()
     # Quadrature arguments - will have as many as there are distinct
     # quadrature shapes specified in the metadata.
     qr_arg_count = len(set(call.ktype.eval_shapes).intersection(
-        set(VALID_QUADRATURE_SHAPES)))
+        set(const.VALID_QUADRATURE_SHAPES)))
 
     expected_arg_count = len(call.ktype.arg_descriptors) + \
         stencil_arg_count + qr_arg_count
