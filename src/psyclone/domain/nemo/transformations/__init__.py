@@ -34,7 +34,7 @@
 # Authors: R. W. Ford, STFC Daresbury Lab
 #          A. R. Porter, STFC Daresbury Lab
 
-'''Transformation module for NEMO.
+'''Transformations module for NEMO.
 '''
 
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
