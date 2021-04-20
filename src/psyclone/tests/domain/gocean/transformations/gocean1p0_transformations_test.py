@@ -1496,7 +1496,7 @@ def test_go_loop_swap_errors():
         swap.apply(schedule.children[0].loop_body[0])
     assert re.search("Transformation Error: Target of GOLoopSwapTrans "
                      "transformation must be a sub-class of Loop but got "
-                     "'GOKern'.", str(error.value)) is not None
+                     "'GOKern'.", str(error.value), re.S) is not None
 
     # Not a loop: use the call to bc_ssh_code node as example for this test:
     with pytest.raises(TransformationError) as error:
@@ -1518,7 +1518,7 @@ def test_go_loop_swap_errors():
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
                      "and must have exactly one inner loop, but this node "
                      "has 2 inner statements, the first two being .* and .*",
-                     str(error.value)) is not None
+                     str(error.value), re.S) is not None
 
     # Now remove the body of the first inner loop, and pass the first
     # inner loop --> i.e. a loop with an empty body
@@ -1529,7 +1529,7 @@ def test_go_loop_swap_errors():
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
                      "and must have one inner loop, but this node does not "
                      "have any statements inside.",
-                     str(error.value)) is not None
+                     str(error.value), re.S) is not None
 
 
 def test_go_loop_swap_wrong_loop_type():
@@ -1543,7 +1543,7 @@ def test_go_loop_swap_wrong_loop_type():
         swap.apply(invoke.schedule.children[4])
 
     assert re.search("Given node .* is not a GOLoop, but an instance of "
-                     ".*DynLoop", str(error.value)) is not None
+                     ".*DynLoop", str(error.value), re.S) is not None
 
     _, invoke_loop1 = get_invoke("test27_loop_swap.f90", API, idx=1,
                                  dist_mem=False)

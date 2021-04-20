@@ -52,7 +52,10 @@ class VisitorError(Exception):
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = "Visitor Error: "+value
+        self.value = "Visitor Error: "+str(value)
+
+    def __repr__(self):
+        return "VisitorError()"
 
     def __str__(self):
         return str(self.value)

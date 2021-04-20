@@ -76,10 +76,13 @@ class ConfigurationError(Exception):
         self.value = "PSyclone configuration error"
         if config:
             self.value += " (file={0})".format(config.filename)
-        self.value += ": "+value
+        self.value += ": "+str(value)
+
+    def __repr__(self):
+        return "ConfigurationError()"
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 # =============================================================================

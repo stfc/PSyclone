@@ -43,7 +43,10 @@ class TransformationError(Exception):
 
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = "Transformation Error: "+value
+        self.value = "Transformation Error: "+str(value)
+
+    def __repr__(self):
+        return "TransformationError()"
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)

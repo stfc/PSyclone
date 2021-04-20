@@ -59,10 +59,13 @@ class ParseError(Exception):
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = "Parse Error: " + value
+        self.value = "Parse Error: " + str(value)
+
+    def __repr__(self):
+        return "ParseError()"
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 # support functions
 

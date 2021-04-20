@@ -47,7 +47,10 @@ class GenerationError(Exception):
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = "Generation Error: "+value
+        self.value = "Generation Error: "+str(value)
+
+    def __repr__(self):
+        return "GenerationError()"
 
     def __str__(self):
         return str(self.value)
@@ -61,7 +64,10 @@ class FieldNotFoundError(Exception):
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = "Field not found error: "+value
+        self.value = "Field not found error: "+str(value)
+
+    def __repr__(self):
+        return "FieldNotFoundError()"
 
     def __str__(self):
         return str(self.value)
@@ -76,7 +82,10 @@ class InternalError(Exception):
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = "PSyclone internal error: "+value
+        self.value = "PSyclone internal error: "+str(value)
+
+    def __repr__(self):
+        return "InternalError()"
 
     def __str__(self):
         return str(self.value)

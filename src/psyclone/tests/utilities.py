@@ -62,8 +62,11 @@ class CompileError(Exception):
         # pylint: disable=super-init-not-called
         self.value = "Compile error: " + str(value)
 
+    def __repr__(self):
+        return "CompileError()"
+
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 # =============================================================================

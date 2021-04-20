@@ -55,7 +55,10 @@ class SymbolError(Exception):
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = "PSyclone SymbolTable error: "+value
+        self.value = "PSyclone SymbolTable error: "+str(value)
+
+    def __repr__(self):
+        return "SymbolError()"
 
     def __str__(self):
         return str(self.value)
