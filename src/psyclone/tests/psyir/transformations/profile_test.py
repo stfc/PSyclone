@@ -778,7 +778,7 @@ def test_omp_transform():
     assert correct in code
 
 
-def test_auto_invoke_return_last_stmt(parser):
+def test_auto_invoke_return_last_stmt():
     ''' Check that using the auto-invoke profiling option avoids including
     a return statement within the profiling region if it is the last statement
     in the routine. '''
@@ -842,3 +842,18 @@ def test_auto_invoke_no_return(capsys):
     _, err = capsys.readouterr()
     assert ("Not adding profiling to routine 'work3' because it contains one "
             "or more Return statements" in err)
+
+
+def test_auto_invoke_empty_schedule(capsys):
+    ''' Check the auto-invoke profiling option rejects an empty Schedule, i.e
+    the routine has no statements. '''
+    Profiler.set_options([Profiler.INVOKES])
+    symbol_table = SymbolTable()
+    # Create Schedule with Return at the start.
+    kschedule = KernelSchedule.create(
+        "work1", symbol_table, [])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    assert not kschedule.walk(ProfileNode)
+    _, err = capsys.readouterr()
+    assert ("Not adding profiling to routine 'work1' because it does not "
+            "contain any statements." in err)
