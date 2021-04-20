@@ -109,16 +109,17 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             if var_info1.is_read_only() and var_info2.is_read_only():
                 continue
 
+            # TODO #1213 - try to find symbol in case of 'wildcard' imports.
             try:
                 # Find the symbol for this variable. We only need to check
-                # one symboltable.
+                # one symbol table.
                 symbol = symbol_table.lookup(var_name)
                 if isinstance(symbol, DataSymbol):
                     is_array = symbol.is_array
                 else:
                     # This typically indicates a symbol is used that we do
-                    # not have detailled information for, e.g. based on a
-                    # generic 'use some_mod' statement. In thise case use
+                    # not have detailed information for, e.g. based on a
+                    # generic 'use some_mod' statement. In this case use
                     # the information based on the access pattern, which
                     # is at least better than having no information at all.
                     is_array = var_info1[0].indices is not None
@@ -175,6 +176,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         once, allows loop fusion. The access pattern to this array is
         specified in the two parameters (which includes the name of the
         variable).
+
         :param var_info1: access information for variable in the first loop.
         :type var_info1: :py:class:`psyclone.core.var_info.VariableAccessInfo`
         :param var_info2: access information for variable in the second loop.
@@ -182,7 +184,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         :param loop_variable: symbol of the variable associated with the \
             loops being fused.
         :type loop_variable: \
-            :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol
+            :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`
 
         :raises TransformationError: an array that is written to uses \
             inconsistent indices, e.g. a(i,j) and a(j,i).

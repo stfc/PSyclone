@@ -140,6 +140,7 @@ def fuse_loops(parser, fortran_code):
                              :py:class:`psyclone.psyir.nodes.Routine`)
 
     '''
+    # TODO #1210: Apply transformation to convert PSyIR to Nemo PSY layer
     reader = FortranStringReader(fortran_code)
     fp2_ast = parser(reader)
     fp2_reader = Fparser2Reader()
@@ -461,7 +462,7 @@ def test_fuse_independent_array(parser):
     do j ...  d(j) = a(1)
     '''
 
-    # The first example can be merged, since 's does not
+    # The first example can be merged, since 's' does not
     # depend on the loop variable, and it is written and read.
     code = '''subroutine sub()
               integer :: ji, jj, n
