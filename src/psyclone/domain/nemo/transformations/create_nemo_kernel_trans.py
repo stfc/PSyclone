@@ -44,7 +44,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
 
 
-class NemoKernelTrans(Transformation):
+class CreateNemoKernelTrans(Transformation):
     '''
     Transform a generic PSyIR Schedule into a NEMO Kernel.
 
@@ -54,6 +54,8 @@ class NemoKernelTrans(Transformation):
         '''
         :returns: the name of the transformation.
         :rtype: str
+
+        TODO #1214 - replace this method with Transformation.name()
 
         '''
         return type(self).__name__
@@ -74,7 +76,7 @@ class NemoKernelTrans(Transformation):
             is not within a loop or cannot be represented as a Kernel.
 
         '''
-        super(NemoKernelTrans, self).validate(node)
+        super(CreateNemoKernelTrans, self).validate(node, options=options)
 
         if not isinstance(node, Schedule):
             raise TransformationError(
@@ -120,7 +122,7 @@ class NemoKernelTrans(Transformation):
         :type options: dict of string:values or None
 
         '''
-        self.validate(sched)
+        self.validate(sched, options=options)
 
         nemokern = NemoKern(sched.pop_all_children(),
                             None, parent=sched)

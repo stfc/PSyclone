@@ -133,8 +133,8 @@ class NemoInvoke(Invoke):
         # here to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.transformations import TransformationError
-        from psyclone.domain.nemo.transformations import NemoKernelTrans
-        ktrans = NemoKernelTrans()
+        from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
+        ktrans = CreateNemoKernelTrans()
         for loop in self._schedule.walk(Loop):
             try:
                 ktrans.apply(loop.loop_body)

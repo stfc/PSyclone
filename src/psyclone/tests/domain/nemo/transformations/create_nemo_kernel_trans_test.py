@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-'''Module containing tests for the NemoKernelTrans transformation.'''
+'''Module containing tests for the CreateNemoKernelTrans transformation.'''
 
 from __future__ import absolute_import
 
@@ -43,7 +43,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Loop, CodeBlock, Assignment
 from psyclone.psyGen import InlinedKern
 from psyclone.transformations import Transformation, TransformationError
-from psyclone.domain.nemo.transformations import NemoKernelTrans
+from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
 
 BASIC_KERN_CODE = '''subroutine basic_kern()
   integer, parameter :: jpi=16
@@ -59,17 +59,17 @@ end subroutine basic_kern
 '''
 
 
-def test_kerntrans_construction():
+def test_createkerneltrans_construction():
     ''' Check that we can construct the transformation object. '''
-    trans = NemoKernelTrans()
+    trans = CreateNemoKernelTrans()
     assert isinstance(trans, Transformation)
-    assert trans.name == "NemoKernelTrans"
+    assert trans.name == "CreateNemoKernelTrans"
 
 
 def test_kern_trans_validation(parser):
     ''' Test that the validate() method of the transformation correctly
     rejects things that aren't kernels. '''
-    trans = NemoKernelTrans()
+    trans = CreateNemoKernelTrans()
     fp2reader = Fparser2Reader()
     # Add a write() to the body of the loop
     code = BASIC_KERN_CODE.replace("  end do\n",
@@ -105,7 +105,7 @@ def test_kern_trans_validation(parser):
 def test_no_explicit_loop_in_kernel(parser):
     ''' Check that the transformation rejects a loop body if it includes
     an explicit loop. '''
-    trans = NemoKernelTrans()
+    trans = CreateNemoKernelTrans()
     fp2reader = Fparser2Reader()
     reader = FortranStringReader("program fake_kern\n"
                                  "integer :: ji, jpj, idx\n"
@@ -128,7 +128,7 @@ def test_no_explicit_loop_in_kernel(parser):
 def test_no_implicit_loop_in_kernel(parser):
     ''' Check that the transformation rejects a loop if it includes an implicit
     loop. '''
-    trans = NemoKernelTrans()
+    trans = CreateNemoKernelTrans()
     fp2reader = Fparser2Reader()
     reader = FortranStringReader("program fake_kern\n"
                                  "integer :: ji, jpj\n"
@@ -153,7 +153,7 @@ def test_basic_kern(parser):
     ''' Check that the transformation correctly transforms a very simple
     kernel. '''
     fp2reader = Fparser2Reader()
-    trans = NemoKernelTrans()
+    trans = CreateNemoKernelTrans()
     reader = FortranStringReader(BASIC_KERN_CODE)
     prog = parser(reader)
     psyir = fp2reader.generate_psyir(prog)
