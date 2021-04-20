@@ -48,7 +48,7 @@ from psyclone.domain.nemo.transformations import NemoLoopFuseTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 from psyclone.tests.utilities import Compile
 
@@ -612,7 +612,7 @@ def test_fuse_scalars_incorrect(parser):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_no_symbol(parser, monkeypatch):
+def test_fuse_no_symbol(parser):
     '''Tests what happens if a variable name is not in the symbol table,
     or not fully defined (i.e. likely imported from another module).
     We have to patch the object (to replace the existing symbol table)
@@ -654,8 +654,12 @@ def test_fuse_no_symbol(parser, monkeypatch):
     # up the information in the variable access information
     # to determine which variables are an array
     loop = psyir.children[0]
-    new_symbol_table = SymbolTable()
-    monkeypatch.setattr(loop.scope, "_symbol_table", new_symbol_table)
+
+    # Remove the symbol 't' from the symbol table to
+    # trigger using the variable accesses to determine the type
+    symbol_table = loop.scope.symbol_table
+    symbol_table.remove(symbol_table.lookup("t"))
+
     fuse = NemoLoopFuseTrans()
     # Since the psyir has already the fused outer loop, fuse the inner
     # loops now:
@@ -669,3 +673,45 @@ def test_fuse_no_symbol(parser, monkeypatch):
       t(ji,jj) = s(ji,jj) + t(ji,jj)
     enddo
   enddo""" in out
+
+    # Case 3: Symbol 't' is defined in outer module:
+    code = '''
+    module mymod
+        integer, dimension(10, 10) :: t
+    contains
+        subroutine sub()
+            integer :: ji, jj, n
+            integer, dimension(10,10) :: s
+            do jj=1, n
+               do ji=1, 10
+                  s(ji, jj)=t(ji, jj)+1
+               enddo
+            enddo
+            do jj=1, n
+               do ji=1, 10
+                  t(ji, jj) = s(ji, jj) + t(ji, jj)
+               enddo
+            enddo
+        end subroutine sub
+    end module mymod'''
+    reader = FortranStringReader(code)
+    fp2_ast = parser(reader)
+    fp2_reader = Fparser2Reader()
+    psyir = fp2_reader.generate_psyir(fp2_ast)
+    # First child is now the subroutine, which has
+    # two children which are the two loops:
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    fuse.apply(loop1, loop2)
+
+    writer = FortranWriter()
+    out = writer(psyir)
+    assert """
+    do jj = 1, n, 1
+      do ji = 1, 10, 1
+        s(ji,jj) = t(ji,jj) + 1
+      enddo
+      do ji = 1, 10, 1
+        t(ji,jj) = s(ji,jj) + t(ji,jj)
+      enddo
+    enddo""" in out
