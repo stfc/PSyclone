@@ -86,10 +86,12 @@ def test_lfricalgorithminvokecall():
 
     '''
     routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall(routine)
+    index = 2
+    call = LFRicAlgorithmInvokeCall(routine, index)
     assert call._description is None
     assert call.parent is None
     assert call.routine is routine
+    assert call._index == index
     assert call._text_name == "LFRicAlgorithmInvokeCall"
 
 
@@ -102,7 +104,7 @@ def test_lfricalgorithminvokecall_options():
     node = Node()
     routine = RoutineSymbol("hello")
     call = LFRicAlgorithmInvokeCall(
-        routine, description="describing an invoke", parent=node)
+        routine, 0, description="describing an invoke", parent=node)
     assert call._description == "describing an invoke"
     assert call.parent is node
 
@@ -122,7 +124,7 @@ def test_lfricalgorithminvokecall_create(cls):
     '''
     routine = RoutineSymbol("hello")
     klc = LFRicKernelFunctor.create(TypeSymbol("arg", StructureType()), [])
-    call = cls.create(routine, [klc], description="describing an invoke")
+    call = cls.create(routine, [klc], 0, description="describing an invoke")
     assert call._description == "describing an invoke"
     assert call.routine is routine
     # pylint: disable=unidiomatic-typecheck
@@ -137,7 +139,7 @@ def test_lfricalgorithminvokecall_create_nodescription():
 
     '''
     routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall.create(routine, [])
+    call = LFRicAlgorithmInvokeCall.create(routine, [], 0)
     assert call._description is None
 
 
@@ -158,8 +160,6 @@ def test_lfricalgorithminvoke_call_root_name():
         "end subroutine alg1\n")
 
     psyir = create_alg_psyir(code)
-    for idx, invoke in enumerate(psyir.walk(LFRicAlgorithmInvokeCall)):
-        invoke.create_language_level_symbols(idx)
 
     assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 2
     assert len(psyir.walk(LFRicKernelFunctor)) == 2
@@ -193,7 +193,7 @@ def test_lfricalgorithminvokecall_node_str():
     '''
     routine = RoutineSymbol("hello")
     call = LFRicAlgorithmInvokeCall.create(
-        routine, [], description="describing an invoke")
+        routine, [], 0, description="describing an invoke")
     assert ("LFRicAlgorithmInvokeCall[description=\"describing an invoke\"]"
             in call.node_str(colour=False))
 

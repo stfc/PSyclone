@@ -124,7 +124,7 @@ class AlgorithmInvokeCall(Call):
         return isinstance(child, KernelFunctor)
 
     def _def_routine_root_name(self):
-        '''Internal method that returns the proposed lamguage-level routine
+        '''Internal method that returns the proposed language-level routine
         name given the index of this invoke.
 
         :returns: the proposed processed routine name for this invoke.
