@@ -81,11 +81,6 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 #
 
 
-# Valid LFRic loop types. The default is "" which is over cell columns (in the
-# horizontal plane). A "null" loop doesn't iterate over anything but is
-# required for the halo-exchange logic.
-VALID_LOOP_TYPES = ["dof", "colours", "colour", "", "null"]
-
 # Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
 USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
 VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
@@ -6493,8 +6488,9 @@ class DynLoop(Loop):
 
     '''
     def __init__(self, parent=None, loop_type=""):
+        const = LFRicConstants()
         super(DynLoop, self).__init__(parent=parent,
-                                      valid_loop_types=VALID_LOOP_TYPES)
+                                      valid_loop_types=const.VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
         # Set our variable at initialisation as it might be required

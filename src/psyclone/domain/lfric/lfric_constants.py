@@ -133,6 +133,12 @@ class LFRicConstants(object):
                            # dofs.
              + LFRicConstants.HALO_ACCESS_LOOP_BOUNDS)
 
+        # Valid LFRic loop types. The default is "" which is over cell columns
+        # (in the horizontal plane). A "null" loop doesn't iterate over
+        # anything but is required for the halo-exchange logic.
+        LFRicConstants.VALID_LOOP_TYPES = ["dof", "colours", "colour", "",
+                                           "null"]
+
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to
