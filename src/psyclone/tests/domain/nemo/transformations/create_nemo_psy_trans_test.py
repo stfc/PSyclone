@@ -39,6 +39,7 @@ from __future__ import absolute_import
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import CodeBlock
 from psyclone.transformations import Transformation
 from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
@@ -55,11 +56,13 @@ def test_basic_psy(parser):
     ''' Check that the transformation correctly generates NEMO PSyIR for
     a simple case. '''
     code = '''subroutine basic_loop()
-  integer, parameter :: jpi=16
-  integer :: ji
-  real :: a(jpi), fconst
-  do ji = 1, jpi
-     a(ji) = fconst
+  integer, parameter :: jpi=16, jpj=16
+  integer :: ji, jj
+  real :: a(jpi, jpj), fconst
+  do jj = 1, jpj
+    do ji = 1, jpi
+      a(ji) = fconst
+    end do
   end do
 end subroutine basic_loop
 '''
@@ -71,4 +74,40 @@ end subroutine basic_loop
     sched = trans.apply(psyir)
     assert isinstance(sched, NemoInvokeSchedule)
     assert isinstance(sched[0], NemoLoop)
-    assert isinstance(sched[0].loop_body[0], NemoKern)
+    assert isinstance(sched[0].loop_body[0], NemoLoop)
+    assert isinstance(sched[0].loop_body[0].loop_body[0], NemoKern)
+
+
+def test_module_psy(parser):
+    ''' Check that the transformation works as expected when the source code
+    contains a module with more than one routine. '''
+    code = '''module my_mod
+contains
+subroutine init()
+  write (*,*) "init called"
+end subroutine init
+subroutine basic_loop()
+  integer, parameter :: jpi=16, jpj=16
+  integer :: ji, jj
+  real :: a(jpi, jpj), fconst
+  do jj = 1, jpj
+    do ji = 1, jpi
+      a(ji) = fconst
+    end do
+  end do
+end subroutine basic_loop
+end module my_mod
+'''
+    fp2reader = Fparser2Reader()
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psyir = fp2reader.generate_psyir(prog)
+    trans = CreateNemoPSyTrans()
+    sched = trans.apply(psyir)
+    sched.view()
+    invokes = sched.walk(NemoInvokeSchedule)
+    assert len(invokes) == 2
+    assert invokes[0].name == "init"
+    assert isinstance(invokes[0][0], CodeBlock)
+    assert invokes[1].name == "basic_loop"
+    assert isinstance(invokes[1][0], NemoLoop)
