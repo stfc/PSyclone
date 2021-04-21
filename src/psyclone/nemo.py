@@ -73,6 +73,8 @@ class NemoFparser2Reader(Fparser2Reader):
         Specialised method to create a NemoLoop instead of a
         generic Loop.
 
+        TODO #1210 replace this with a Transformation.
+
         :param parent: the parent of the node.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param variable: the loop variable.
@@ -94,34 +96,6 @@ class NemoFparser2Reader(Fparser2Reader):
             loop.loop_type = "unknown"
 
         return loop
-
-    def _process_loopbody(self, loop_body, node):
-        '''
-        Specialized method to process Nemo loop bodies. If the schedule
-        matches with a NemoKern, it will add a NemoKern instead of statements
-        in the loop_body.
-
-        :param loop_body: schedule representing the body of the loop.
-        :type loop_body: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param node: fparser loop node being processed.
-        :type node: \
-            :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-        '''
-        # We create a fake node because we need to parse the children
-        # before we decide what to do with them.
-        fakeparent = Schedule(parent=loop_body)
-        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1])
-
-        if NemoKern.match(fakeparent):
-            # Create a new kernel object and make it the only
-            # child of this Loop node. The PSyIR of the loop body becomes
-            # the schedule of this kernel.
-            children = fakeparent.pop_all_children()
-            nemokern = NemoKern(children, node, parent=loop_body)
-            loop_body.children.append(nemokern)
-        else:
-            # Otherwise just connect the new children into the tree.
-            loop_body.children.extend(fakeparent.pop_all_children())
 
 
 def raise_psyir(psyir):
@@ -190,6 +164,19 @@ class NemoInvoke(Invoke):
         self._invokes = invokes
         self._schedule = sched
         self._name = name
+
+        # TODO #737 this 'raising' should be done somewhere else (perhaps
+        # NemoPSy). We have to import the transformation-related classes
+        # here to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.transformations import TransformationError
+        from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
+        ktrans = CreateNemoKernelTrans()
+        for loop in self._schedule.walk(Loop):
+            try:
+                ktrans.apply(loop.loop_body)
+            except TransformationError:
+                pass
         self._schedule.invoke = self
 
     def update(self):
@@ -367,56 +354,18 @@ class NemoKern(InlinedKern):
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parse_tree: reference to the innermost loop in the fparser2 parse \
-                       tree that encloses this kernel.
-    :type parse_tree: \
-              :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
     :param parent: the parent of this Kernel node in the PSyIR or None (if \
                    this kernel is being created in isolation).
     :type parent: :py:class:`psyclone.nemo.NemoLoop` or NoneType.
 
     '''
-    # pylint: disable=too-many-instance-attributes
-    def __init__(self, psyir_nodes, parse_tree, parent=None):
+    def __init__(self, psyir_nodes, parent=None):
         super(NemoKern, self).__init__(psyir_nodes, parent=parent)
         self._name = ""
-        # The corresponding set of nodes in the fparser2 parse tree
-        self._ast = parse_tree
 
-        # Name and colour-code to use for displaying this node
+        # Whether this kernel performs a reduction. Not currently supported
+        # for the NEMO API.
         self._reduction = False
-
-    @staticmethod
-    def match(node):
-        '''Whether or not the PSyIR sub-tree pointed to by node represents a
-        kernel. A kernel is defined as a section of code that sits
-        within a recognised loop structure and does not itself contain
-        loops, array assignments, or 'CodeBlocks' (code not
-        represented in the PSyIR such as subroutine calls or IO
-        operations).
-
-        :param node: node in the PSyIR to check.
-        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
-        :returns: true if this node conforms to the rules for a kernel.
-        :rtype: bool
-
-        '''
-        from psyclone.psyir.nodes import CodeBlock, Assignment
-        # This function is called with node being a Schedule.
-        if not isinstance(node, Schedule):
-            raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".
-                                format(type(node)))
-
-        # Check for array assignment, codeblock and loop
-        nodes = [assign for assign in node.walk(Assignment)
-                 if assign.is_array_range]
-        nodes += node.walk((CodeBlock, NemoLoop))
-
-        # A kernel cannot contain loops, array assignments or other
-        # unrecognised code (including IO operations and routine
-        # calls) or loops. So if there is any node in the result of
-        # the walk, this node can not be a kernel.
-        return len(nodes) == 0
 
     def get_kernel_schedule(self):
         '''
@@ -446,19 +395,6 @@ class NemoKern(InlinedKern):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         self.children[0].reference_accesses(var_accesses)
-
-    @property
-    def ast(self):
-        '''
-        Override the default ast method as, for the NEMO API, we don't need
-        to take any special action to get hold of the parse tree for the
-        kernel.
-
-        :returns: a reference to that part of the fparser2 parse tree that \
-                  describes this kernel.
-        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
-        '''
-        return self._ast
 
     def gen_code(self, parent):
         '''This method must not be called for NEMO, since the actual
