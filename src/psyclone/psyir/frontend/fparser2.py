@@ -42,9 +42,7 @@ from __future__ import absolute_import
 from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
@@ -80,27 +78,6 @@ CONSTANT_TYPE_MAP = {
 INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "out": ArgumentInterface.Access.WRITE,
                   "inout": ArgumentInterface.Access.READWRITE}
-
-
-class FortranReader(object):
-    ''' FortranReader object '''
-    def __init__(self, std="f2008"):
-        self._parser = ParserFactory().create(std=std)
-        self._processor = Fparser2Reader()
-
-    def psyir_from_source(self, source_code):
-        ''' Generate the PSyIR tree representing the given Fortran source code.
-        '''
-        string_reader = FortranStringReader(source_code)
-        parse_tree = self._parser(string_reader)
-        psyir = self._processor.generate_psyir(parse_tree)
-        return psyir
-
-    def psyir_from_file(self, file_name):
-        ''' Generate the PSyIR tree representing the given Fortran file.
-        '''
-        with open(file_name) as source:
-            return self.psyir_from_source(source.read())
 
 
 def _first_type_match(nodelist, typekind):

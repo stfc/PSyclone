@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fparser2 import FortranReader
+from psyclone.psyir.frontend.fortran import FortranReader
 
 
 # fixtures defined here are available to all tests

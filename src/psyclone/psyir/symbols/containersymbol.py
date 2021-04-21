@@ -150,7 +150,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
             import path.
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.frontend.fparser2 import FortranReader
+        from psyclone.psyir.frontend.fortran import FortranReader
         for directory in Config.get().include_paths:
             for filename in [name+'.f90', name+'.F90']:
                 if filename in listdir(directory):

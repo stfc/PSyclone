@@ -41,8 +41,6 @@ import pytest
 
 from psyclone.psyir.transformations import \
         FoldConditionalReturnExpressionsTrans
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fparser2 import FortranReader
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -152,12 +150,10 @@ test_cases = [(SUB_IN1, SUB_OUT1), (SUB_IN2_1, SUB_OUT2_1),
 
 
 @pytest.mark.parametrize("test_case", [0, 1, 2, 3])
-def test_transformation(test_case):
+def test_transformation(freader, fort_writer, test_case):
     ''' Check that the transformation works as expected. '''
     input_code, expected = test_cases[test_case]
     trans = FoldConditionalReturnExpressionsTrans()
-    reader = FortranReader()
-    subroutine = reader.psyir_from_source(input_code)
+    subroutine = freader.psyir_from_source(input_code)
     trans.apply(subroutine)
-    writer = FortranWriter()
-    assert writer(subroutine) == expected
+    assert fort_writer(subroutine) == expected
