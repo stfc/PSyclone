@@ -111,8 +111,8 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
             # TODO #1213 - try to find symbol in case of 'wildcard' imports.
             try:
-                # Find the symbol for this variable. We only need to check
-                # one symbol table.
+                # Find the symbol for this variable - the lookup function
+                # checks automatically in outer scopes.
                 symbol = symbol_table.lookup(var_name)
                 if isinstance(symbol, DataSymbol):
                     is_array = symbol.is_array

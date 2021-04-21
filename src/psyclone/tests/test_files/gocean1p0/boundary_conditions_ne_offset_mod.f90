@@ -15,6 +15,7 @@ module boundary_conditions_ne_offset_mod
 
   !=======================================
 
+  ! TODO #1215: The second parameter is actually GO_WRITE
   type, extends(kernel_type) :: bc_ssh
      type(go_arg), dimension(3) :: meta_args =                 &
           (/ go_arg(GO_READ,      GO_I_SCALAR, GO_POINTWISE),  &
