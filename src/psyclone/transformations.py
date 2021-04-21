@@ -41,29 +41,32 @@
     checks before calling the base class for the actual transformation. '''
 
 from __future__ import absolute_import, print_function
+
 import abc
 import six
+
 from fparser.two.utils import walk
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Subroutine_Subprogram, \
     Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
     Implicit_Part, Comment
+
 from psyclone import psyGen
+from psyclone.configuration import Config
+from psyclone.domain.lfric import FunctionSpace, LFRicConstants
+from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.errors import InternalError
+from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule, \
     ACCLoopDirective, OMPDoDirective
-from psyclone.errors import InternalError
 from psyclone.psyir import nodes
-from psyclone.configuration import Config
-from psyclone.undoredo import Memento
-from psyclone.domain.lfric import FunctionSpace
-from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
-    TransformationError
+from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
-from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
-from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
+    TransformationError
+from psyclone.undoredo import Memento
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.gocean1p0 import GOLoop
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -1717,17 +1720,16 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 "method the loop type must be one of '' (cell-columns), 'dof' "
                 "or 'colour', but found '{0}'".format(node.loop_type))
 
-        from psyclone.dynamo0p3 import HALO_ACCESS_LOOP_BOUNDS
-
         # We don't currently support the application of transformations to
         # loops containing inter-grid kernels
         check_intergrid(node)
+        const = LFRicConstants()
 
         if not options:
             options = {}
         depth = options.get("depth")
         if depth is None:
-            if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if not node.upper_bound_halo_depth:
                     raise TransformationError(
                         "In the Dynamo0p3RedundantComputation transformation "
@@ -1754,7 +1756,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method the supplied depth is less than 1")
 
-            if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if node.upper_bound_halo_depth:
                     if node.upper_bound_halo_depth >= depth:
                         raise TransformationError(

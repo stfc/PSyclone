@@ -48,15 +48,15 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import FunctionSpace
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import FunctionSpace, LFRicArgDescriptor, \
+    LFRicConstants
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
-    KernCallArgList, DynACCEnterDataDirective, VALID_INTRINSIC_TYPES
+    KernCallArgList, DynACCEnterDataDirective
 
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
@@ -535,9 +535,10 @@ def test_invoke_uniq_declns_invalid_intrinsic():
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations(
             ["gh_scalar"], intrinsic_type="double")
+    const = LFRicConstants()
     assert ("Invoke.unique_declarations() called with an invalid intrinsic "
             "argument data type. Expected one of {0} but found 'double'.".
-            format(VALID_INTRINSIC_TYPES) in str(excinfo.value))
+            format(const.VALID_INTRINSIC_TYPES) in str(excinfo.value))
 
 
 def test_invoke_uniq_declns_valid_access():
@@ -623,8 +624,9 @@ def test_uniq_proxy_declns_invalid_intrinsic_type():
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             ["gh_field"], intrinsic_type="not_intrinsic_type")
+    const = LFRicConstants()
     assert ("Expected one of {0} as a valid intrinsic type but found "
-            "'not_intrinsic_type'.".format(VALID_INTRINSIC_TYPES)
+            "'not_intrinsic_type'.".format(const.VALID_INTRINSIC_TYPES)
             in str(excinfo.value))
 
 
@@ -666,9 +668,10 @@ def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent(
             ["gh_scalar"], intrinsic_type="triple")
+    const = LFRicConstants()
     assert ("Invoke.unique_declns_by_intent() called with an invalid "
             "intrinsic argument data type. Expected one of {0} but "
-            "found 'triple'.".format(VALID_INTRINSIC_TYPES)
+            "found 'triple'.".format(const.VALID_INTRINSIC_TYPES)
             in str(excinfo.value))
 
 

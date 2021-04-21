@@ -40,6 +40,11 @@ This module provides a class with all LFRic related constants.
 # Imports
 from __future__ import print_function, absolute_import
 
+from collections import OrderedDict
+
+from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicArgDescriptor
+
 
 # pylint: disable=too-few-public-methods
 class LFRicConstants(object):
@@ -57,11 +62,76 @@ class LFRicConstants(object):
 
         LFRicConstants.HAS_BEEN_INITIALISED = True
 
-        # Evaluators: quadrature
+        # ---------- Evaluators: quadrature ----------------------------------
         LFRicConstants.VALID_QUADRATURE_SHAPES = \
             ["gh_quadrature_xyoz", "gh_quadrature_face", "gh_quadrature_edge"]
         LFRicConstants.VALID_EVALUATOR_SHAPES = \
             LFRicConstants.VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
+
+        # ---------- Fortran datatypes ---------------------------------------
+        # This is only used here, so no class variable:
+        supported_fortran_datatypes = Config.get().api_conf(
+            "dynamo0.3").supported_fortran_datatypes
+
+        # ---------- Mapping from metadata data_type to Fortran intrinsic type
+        LFRicConstants.MAPPING_DATA_TYPES = \
+            OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
+                            supported_fortran_datatypes[0:2]))
+
+        LFRicConstants.VALID_INTRINSIC_TYPES = \
+            list(LFRicConstants.MAPPING_DATA_TYPES.values())
+
+        # ---------- Evaluators -----------------------------------------------
+
+        # Dictionary allowing us to look-up the name of the Fortran module,
+        # type and proxy-type associated with each quadrature shape
+        LFRicConstants.QUADRATURE_TYPE_MAP = {
+            "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
+                                   "type": "quadrature_xyoz_type",
+                                   "proxy_type": "quadrature_xyoz_proxy_type"},
+            "gh_quadrature_face": {"module": "quadrature_face_mod",
+                                   "type": "quadrature_face_type",
+                                   "proxy_type": "quadrature_face_proxy_type"},
+            "gh_quadrature_edge": {"module": "quadrature_edge_mod",
+                                   "type": "quadrature_edge_type",
+                                   "proxy_type": "quadrature_edge_proxy_type"}}
+
+        # ---------- Loops (bounds, types, names) -----------------------------
+        # These are loop bound names which identify positions in a field's
+        # halo. It is useful to group these together as we often need to
+        # determine whether an access to a field or other object includes
+        # access to the halo, or not.
+        LFRicConstants.HALO_ACCESS_LOOP_BOUNDS = ["cell_halo", "dof_halo",
+                                                  "colour_halo"]
+
+        LFRicConstants.VALID_LOOP_BOUNDS_NAMES = \
+            (["start",     # the starting
+                           # index. Currently this is
+                           # always 1
+              "inner",     # a placeholder for when we
+                           # support loop splitting into
+                           # work that does not access
+                           # the halo and work that does.
+                           # This will be used to help
+                           # overlap computation and
+                           # communication
+              "ncolour",   # the number of cells with
+                           # the current colour
+              "ncolours",  # the number of colours in a
+                           # coloured loop
+              "ncells",    # the number of owned cells
+              "ndofs",     # the number of owned dofs
+              "nannexed"]  # the number of owned dofs
+                           # plus the number of annexed
+                           # dofs. As the indices of
+                           # dofs are arranged that
+                           # owned dofs have lower
+                           # indices than annexed dofs,
+                           # having this value as an
+                           # upper bound will compute
+                           # both owned and annexed
+                           # dofs.
+             + LFRicConstants.HALO_ACCESS_LOOP_BOUNDS)
 
 
 # =============================================================================

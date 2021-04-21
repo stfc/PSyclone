@@ -79,65 +79,6 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 # ========== First section : Parser specialisations and classes ============= #
 # --------------------------------------------------------------------------- #
 #
-# ---------- Evaluators ----------------------------------------------------- #
-
-# Dictionary allowing us to look-up the name of the Fortran module, type
-# and proxy-type associated with each quadrature shape
-QUADRATURE_TYPE_MAP = {
-    "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
-                           "type": "quadrature_xyoz_type",
-                           "proxy_type": "quadrature_xyoz_proxy_type"},
-    "gh_quadrature_face": {"module": "quadrature_face_mod",
-                           "type": "quadrature_face_type",
-                           "proxy_type": "quadrature_face_proxy_type"},
-    "gh_quadrature_edge": {"module": "quadrature_edge_mod",
-                           "type": "quadrature_edge_type",
-                           "proxy_type": "quadrature_edge_proxy_type"}}
-
-# ---------- Fortran datatypes ---------------------------------------------- #
-SUPPORTED_FORTRAN_DATATYPES = Config.get().api_conf(
-    "dynamo0.3").supported_fortran_datatypes
-
-# ---------- Mapping from metadata data_type to Fortran intrinsic type ------ #
-MAPPING_DATA_TYPES = OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
-                                     SUPPORTED_FORTRAN_DATATYPES[0:2]))
-
-VALID_INTRINSIC_TYPES = list(MAPPING_DATA_TYPES.values())
-
-# ---------- Loops (bounds, types, names) ----------------------------------- #
-# These are loop bound names which identify positions in a field's
-# halo. It is useful to group these together as we often need to
-# determine whether an access to a field or other object includes
-# access to the halo, or not.
-HALO_ACCESS_LOOP_BOUNDS = ["cell_halo", "dof_halo", "colour_halo"]
-
-VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
-                                         # index. Currently this is
-                                         # always 1
-                            "inner",     # a placeholder for when we
-                                         # support loop splitting into
-                                         # work that does not access
-                                         # the halo and work that does.
-                                         # This will be used to help
-                                         # overlap computation and
-                                         # communication
-                            "ncolour",   # the number of cells with
-                                         # the current colour
-                            "ncolours",  # the number of colours in a
-                                         # coloured loop
-                            "ncells",    # the number of owned cells
-                            "ndofs",     # the number of owned dofs
-                            "nannexed"]  # the number of owned dofs
-                                         # plus the number of annexed
-                                         # dofs. As the indices of
-                                         # dofs are arranged that
-                                         # owned dofs have lower
-                                         # indices than annexed dofs,
-                                         # having this value as an
-                                         # upper bound will compute
-                                         # both owned and annexed
-                                         # dofs.
-                           + HALO_ACCESS_LOOP_BOUNDS)
 
 
 # Valid LFRic loop types. The default is "" which is over cell columns (in the
@@ -159,7 +100,7 @@ psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
 # psyGen intrinsic types for kernel argument data as defined in LFRic.
-psyGen.VALID_INTRINSIC_TYPES = VALID_INTRINSIC_TYPES
+psyGen.VALID_INTRINSIC_TYPES = LFRicConstants().VALID_INTRINSIC_TYPES
 
 # ---------- Functions ------------------------------------------------------ #
 
@@ -2782,15 +2723,16 @@ class LFRicFields(DynCollection):
 
         '''
         # Create dict of all field arguments for checks
+        const = LFRicConstants()
         fld_args = self._invoke.unique_declarations(
             argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
         # Filter field arguments by intent and intrinsic type
         real_fld_args = self._invoke.unique_declarations(
             argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
-            intrinsic_type=MAPPING_DATA_TYPES["gh_real"])
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
         int_fld_args = self._invoke.unique_declarations(
             argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
-            intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
 
         # Create lists of field names for real- and integer-valued fields
         fld_arg_list = [arg.declaration_name for arg in fld_args]
@@ -2804,7 +2746,7 @@ class LFRicFields(DynCollection):
                 "Found unsupported intrinsic types for the field "
                 "arguments {0} to Invoke '{1}'. Supported types are {2}.".
                 format(list(fld_inv), self._invoke.name,
-                       VALID_INTRINSIC_TYPES))
+                       const.VALID_INTRINSIC_TYPES))
         # Check that the same field name is not found in both real and
         # integer field lists (for instance if passed to one kernel as a
         # real-valued and to another kernel as an integer-valued field)
@@ -2816,7 +2758,7 @@ class LFRicFields(DynCollection):
                 "metadata for data type ({2}) in different kernels. "
                 "This is invalid.".
                 format(list(fld_multi_type), self._invoke.name,
-                       list(MAPPING_DATA_TYPES.keys())))
+                       list(const.MAPPING_DATA_TYPES.keys())))
 
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
@@ -3084,9 +3026,10 @@ class DynProxies(DynCollection):
 
         '''
         # Declarations of real and integer field proxies
+        const = LFRicConstants()
         real_field_proxy_decs = self._invoke.unique_proxy_declarations(
             LFRicArgDescriptor.VALID_FIELD_NAMES,
-            intrinsic_type=MAPPING_DATA_TYPES["gh_real"])
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
         if real_field_proxy_decs:
             dtype = "field_proxy_type"
             parent.add(TypeDeclGen(parent,
@@ -3096,7 +3039,7 @@ class DynProxies(DynCollection):
              add(dtype))
         int_field_proxy_decs = self._invoke.unique_proxy_declarations(
             LFRicArgDescriptor.VALID_FIELD_NAMES,
-            intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
         if int_field_proxy_decs:
             dtype = "integer_field_proxy_type"
             parent.add(TypeDeclGen(parent,
@@ -3281,15 +3224,16 @@ class LFRicScalarArgs(DynCollection):
 
         '''
         # Create dict of all scalar arguments for checks
+        const = LFRicConstants()
         self._scalar_args = self._invoke.unique_declns_by_intent(
             LFRicArgDescriptor.VALID_SCALAR_NAMES)
         # Filter scalar arguments by intent and intrinsic type
         self._real_scalars = self._invoke.unique_declns_by_intent(
             LFRicArgDescriptor.VALID_SCALAR_NAMES,
-            intrinsic_type=MAPPING_DATA_TYPES["gh_real"])
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
         self._int_scalars = self._invoke.unique_declns_by_intent(
             LFRicArgDescriptor.VALID_SCALAR_NAMES,
-            intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
 
         for intent in FORTRAN_INTENT_NAMES:
             scal = [arg.declaration_name for arg in self._scalar_args[intent]]
@@ -3304,7 +3248,7 @@ class LFRicScalarArgs(DynCollection):
                     "Found unsupported intrinsic types for the scalar "
                     "arguments {0} to Invoke '{1}'. Supported types are {2}.".
                     format(list(scal_inv), self._invoke.name,
-                           VALID_INTRINSIC_TYPES))
+                           const.VALID_INTRINSIC_TYPES))
             # Check that the same scalar name is not found in both real and
             # integer scalar lists (for instance if passed to one kernel as
             # a real and to another kernel as an integer scalar)
@@ -3315,7 +3259,7 @@ class LFRicScalarArgs(DynCollection):
                     "metadata for data type ({2}) in different kernels. "
                     "This is invalid.".
                     format(list(scal_multi_type), self._invoke.name,
-                           list(MAPPING_DATA_TYPES.keys())))
+                           list(const.MAPPING_DATA_TYPES.keys())))
 
         # Create declarations
         self._create_declarations(parent)
@@ -3364,9 +3308,9 @@ class LFRicScalarArgs(DynCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
-
+        const = LFRicConstants()
         # Real scalar arguments
-        dtype = MAPPING_DATA_TYPES["gh_real"]
+        dtype = const.MAPPING_DATA_TYPES["gh_real"]
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
                 real_scalar_names = [arg.declaration_name for arg
@@ -3378,7 +3322,7 @@ class LFRicScalarArgs(DynCollection):
                             intent=intent))
 
         # Integer scalar arguments
-        dtype = MAPPING_DATA_TYPES["gh_integer"]
+        dtype = const.MAPPING_DATA_TYPES["gh_integer"]
         for intent in FORTRAN_INTENT_NAMES:
             if self._int_scalars[intent]:
                 int_scalar_names = [arg.declaration_name for arg
@@ -4388,7 +4332,8 @@ class DynBasisFunctions(DynCollection):
                 # quadrature_* type
                 parent.add(
                     TypeDeclGen(parent,
-                                datatype=QUADRATURE_TYPE_MAP[shape]["type"],
+                                datatype=const.
+                                QUADRATURE_TYPE_MAP[shape]["type"],
                                 entity_decls=self._qr_vars[shape],
                                 intent="in"))
                 # For each of these we'll need a corresponding proxy, use
@@ -4400,7 +4345,8 @@ class DynBasisFunctions(DynCollection):
                 parent.add(
                     TypeDeclGen(
                         parent,
-                        datatype=QUADRATURE_TYPE_MAP[shape]["proxy_type"],
+                        datatype=const.
+                        QUADRATURE_TYPE_MAP[shape]["proxy_type"],
                         entity_decls=var_names))
 
     def initialise(self, parent):
@@ -4417,7 +4363,7 @@ class DynBasisFunctions(DynCollection):
                                self._basis_fns list.
         '''
         api_config = Config.get().api_conf("dynamo0.3")
-
+        const = LFRicConstants()
         basis_declarations = []
 
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
@@ -4434,12 +4380,12 @@ class DynBasisFunctions(DynCollection):
 
             # Look-up the module- and type-names from the QUADRATURE_TYPE_MAP
             for shp in self._qr_vars:
+                quad_map = const.QUADRATURE_TYPE_MAP[shp]
                 parent.add(UseGen(parent,
-                                  name=QUADRATURE_TYPE_MAP[shp]["module"],
+                                  name=quad_map["module"],
                                   only=True,
-                                  funcnames=[
-                                      QUADRATURE_TYPE_MAP[shp]["type"],
-                                      QUADRATURE_TYPE_MAP[shp]["proxy_type"]]))
+                                  funcnames=[quad_map["type"],
+                                             quad_map["proxy_type"]]))
             self._initialise_xyz_qr(parent)
             self._initialise_xyoz_qr(parent)
             self._initialise_xoyoz_qr(parent)
@@ -5170,6 +5116,7 @@ class DynInvoke(Invoke):
         :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
+        const = LFRicConstants()
         # First check for invalid argument types, access and intrinsic type
         if any(argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
@@ -5183,10 +5130,11 @@ class DynInvoke(Invoke):
             raise InternalError(
                 "Expected one of {0} as a valid access type but found '{1}'.".
                 format(valid_names, access))
-        if (intrinsic_type and intrinsic_type not in VALID_INTRINSIC_TYPES):
+        if (intrinsic_type and intrinsic_type not in
+                const.VALID_INTRINSIC_TYPES):
             raise InternalError(
                 "Expected one of {0} as a valid intrinsic type but found "
-                "'{1}'.".format(VALID_INTRINSIC_TYPES, intrinsic_type))
+                "'{1}'.".format(const.VALID_INTRINSIC_TYPES, intrinsic_type))
         # Create declarations list
         declarations = []
         for call in self.schedule.kernels():
@@ -6320,6 +6268,8 @@ class HaloWriteAccess(HaloDepth):
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
+        const = LFRicConstants()
+
         call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
 
@@ -6330,10 +6280,10 @@ class HaloWriteAccess(HaloDepth):
         self._dirty_outer = (
             not field.discontinuous and
             loop.iteration_space == "cell_column" and
-            loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS)
+            loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS)
         depth = 0
         max_depth = False
-        if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+        if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
             # loop does redundant computation
             if loop.upper_bound_halo_depth:
                 # loop redundant computation is to a fixed literal depth
@@ -6417,6 +6367,8 @@ class HaloReadAccess(HaloDepth):
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
+        const = LFRicConstants()
+
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
 
@@ -6439,7 +6391,7 @@ class HaloReadAccess(HaloDepth):
                                                "colour_halo"]))
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
-        if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+        if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
             # this loop performs redundant computation
             if loop.upper_bound_halo_depth:
                 # loop redundant computation is to a fixed literal depth
@@ -6689,10 +6641,11 @@ class DynLoop(Loop):
 
     def set_lower_bound(self, name, index=None):
         ''' Set the lower bounds of this loop '''
-        if name not in VALID_LOOP_BOUNDS_NAMES:
+        const = LFRicConstants()
+        if name not in const.VALID_LOOP_BOUNDS_NAMES:
             raise GenerationError(
                 "The specified lower bound loop name is invalid")
-        if name in ["inner"] + HALO_ACCESS_LOOP_BOUNDS and index < 1:
+        if name in ["inner"] + const.HALO_ACCESS_LOOP_BOUNDS and index < 1:
             raise GenerationError(
                 "The specified index '{0}' for this lower loop bound is "
                 "invalid".format(str(index)))
@@ -6708,17 +6661,19 @@ class DynLoop(Loop):
         :type index: int
 
         '''
-        if name not in VALID_LOOP_BOUNDS_NAMES:
+        const = LFRicConstants()
+        if name not in const.VALID_LOOP_BOUNDS_NAMES:
             raise GenerationError(
                 "The specified upper loop bound name is invalid. Expected one "
-                "of {0} but found '{1}'".format(VALID_LOOP_BOUNDS_NAMES, name))
+                "of {0} but found '{1}'".format(const.VALID_LOOP_BOUNDS_NAMES,
+                                                name))
         if name == "start":
             raise GenerationError("'start' is not a valid upper bound")
         # Only halo bounds and inner may have an index. We could just
         # test for index here and assume that index is None for other
         # types of bounds, but checking the type of bound as well is a
         # safer option.
-        if name in (["inner"] + HALO_ACCESS_LOOP_BOUNDS) and \
+        if name in (["inner"] + const.HALO_ACCESS_LOOP_BOUNDS) and \
            index is not None:
             if index < 1:
                 raise GenerationError(
@@ -6919,6 +6874,7 @@ class DynLoop(Loop):
         :raises InternalError: if an unsupported argument type is found.
 
         '''
+        const = LFRicConstants()
         if arg.is_scalar or arg.is_operator:
             # Scalars and operators do not have halos
             return False
@@ -6943,7 +6899,7 @@ class DynLoop(Loop):
                     # halo due to the stencil.
                     return True
                 # This is a non-stencil read access
-                if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+                if self._upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                     # An upper bound that is part of the halo means
                     # that the halo might be accessed.
                     return True
@@ -8517,7 +8473,8 @@ class DynKernelArgument(KernelArgument):
         # data type and check if an invalid data type is passed from
         # the argument descriptor.
         try:
-            self._intrinsic_type = MAPPING_DATA_TYPES[
+            const = LFRicConstants()
+            self._intrinsic_type = const.MAPPING_DATA_TYPES[
                 self.descriptor.data_type]
         except KeyError:
             raise InternalError(
