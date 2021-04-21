@@ -31,13 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, STFC Daresbury Lab
+#          A. R. Porter, STFC Daresbury Lab
 
-'''Transformation module for NEMO.
+'''Transformations module for NEMO.
 '''
 
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
     import NemoArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
+    import CreateNemoKernelTrans
+from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
+    import NemoOuterArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
     import NemoAllArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_invoke_trans \
@@ -55,10 +60,7 @@ from psyclone.domain.nemo.transformations.nemo_psy_trans \
 # this package e.g.:
 # from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 
-__all__ = ['NemoAllArrayRange2LoopTrans',
+__all__ = ['CreateNemoKernelTrans',
+           'NemoAllArrayRange2LoopTrans',
            'NemoArrayRange2LoopTrans',
-           'NemoInvokeTrans',
-           'NemoKernelTrans',
-           'NemoLoopTrans',
-           'NemoPSyTrans',
            'NemoOuterArrayRange2LoopTrans']

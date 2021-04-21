@@ -60,7 +60,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_no_gen_code():
     '''Test that we raise an exception if gen_code is called
     for a NemoKern.'''
-    kern = nemo.NemoKern([], None)
+    kern = nemo.NemoKern([])
     with pytest.raises(InternalError) as err:
         kern.gen_code(None)
     assert "NEMO kernels are assumed to be in-lined by default therefore " \
@@ -137,7 +137,7 @@ def test_multi_kern():
     sched = invoke_info.schedule
     loops = sched.walk(nemo.NemoLoop)
     # Create and add a second kernel as a child of the first loop
-    kern = nemo.NemoKern([], None)
+    kern = nemo.NemoKern([])
     loops[0].loop_body.children.append(kern)
     with pytest.raises(NotImplementedError) as err:
         _ = loops[0].kernel
