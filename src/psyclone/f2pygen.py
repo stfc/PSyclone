@@ -565,7 +565,9 @@ class PSyIRGen(BaseGen):
         fparser1_parser.parse()
 
         # Update the f2pygen AST with the newly parsed fparser1 AST content
-        BaseGen.__init__(self, parent, fparser1_parser.block.content[0])
+        fparser_node = fparser1_parser.block.content[0]
+        fparser_node.parent = None
+        BaseGen.__init__(self, parent, fparser_node)
         self.root.parent = parent.root
 
 
