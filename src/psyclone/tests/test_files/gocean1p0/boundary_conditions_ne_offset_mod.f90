@@ -16,10 +16,10 @@ module boundary_conditions_ne_offset_mod
   !=======================================
 
   type, extends(kernel_type) :: bc_ssh
-     type(go_arg), dimension(3) :: meta_args =             &
-          (/ go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),  &
-             go_arg(GO_WRITE, GO_CT,       GO_POINTWISE),  &
-             go_arg(GO_READ,               GO_GRID_MASK_T) &
+     type(go_arg), dimension(3) :: meta_args =                 &
+          (/ go_arg(GO_READ,      GO_I_SCALAR, GO_POINTWISE),  &
+             go_arg(GO_READWRITE, GO_CT,       GO_POINTWISE),  &
+             go_arg(GO_READ,                   GO_GRID_MASK_T) &
            /)
 
      !> Although this is a boundary-conditions kernel, it only
@@ -180,9 +180,9 @@ contains
   subroutine bc_ssh_code(ji, jj, istep, ssha, tmask)
     implicit none
     integer, intent(in)  :: ji, jj
-    integer, dimension(:,:),     intent(in)  :: tmask
-    integer,                     intent(in)  :: istep
-    real(go_wp), dimension(:,:), intent(out) :: ssha
+    integer, dimension(:,:),  intent(in)    :: tmask
+    integer,                  intent(in)    :: istep
+    real(go_wp), dimension(:,:), intent(inout) :: ssha
     ! Locals
     real(go_wp) :: amp_tide, omega_tide, rtime, rdt
 
