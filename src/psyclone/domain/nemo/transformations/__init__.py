@@ -37,18 +37,14 @@
 '''Transformations module for NEMO.
 '''
 
-from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
-    import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
     import CreateNemoKernelTrans
-from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
-    import NemoOuterArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
+    import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
     import NemoAllArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_invoke_trans \
     import NemoInvokeTrans
-from psyclone.domain.nemo.transformations.nemo_kernel_trans \
-    import NemoKernelTrans
 from psyclone.domain.nemo.transformations.nemo_loop_trans \
     import NemoLoopTrans
 from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
