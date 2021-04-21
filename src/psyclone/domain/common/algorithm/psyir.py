@@ -78,14 +78,15 @@ class AlgorithmInvokeCall(Call):
                 "integer but found {0}.".format(index))
 
         self._index = index
-        self._language_level_routine_symbol = None
+        self.psylayer_routine_symbol = None
 
     @classmethod
     def create(cls, routine, arguments, index):
-        '''Create an instance of class cls given valid instances of a routine
-        symbol, a list of child nodes for its arguments and an index.
+        '''Create an instance of the calling class given valid instances of a
+        routine symbol, a list of child nodes for its arguments and an
+        index.
 
-        :param routine: the routine that class cls calls.
+        :param routine: the routine that the calling class calls.
         :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
         :param arguments: the arguments to this routine. These are \
             added as child nodes.
@@ -96,7 +97,7 @@ class AlgorithmInvokeCall(Call):
         :raises GenerationError: if the arguments argument is not a \
             list.
 
-        :returns: an instance of cls.
+        :returns: an instance of the calling class.
         :rtype: :py:class:`psyclone.psyir.nodes.AlgorithmInvokeCall` \
             or a subclass thereof.
 
@@ -137,14 +138,14 @@ class AlgorithmInvokeCall(Call):
             routine_root_name += "_" + self.children[0].name
         return routine_root_name
 
-    def create_language_level_symbols(self):
+    def create_psylayer_symbols(self):
         '''If the language-level routine and container symbols have not been
         created, then create them. The names are based on the position
         of this node (compared to other nodes of the same type) in the
         PSyIR tree.
 
         '''
-        if self._language_level_routine_symbol:
+        if self.psylayer_routine_symbol:
             # The language-level symbols have already been created
             return
 
@@ -159,7 +160,7 @@ class AlgorithmInvokeCall(Call):
             root_name=container_root_name)
 
         interface = GlobalInterface(ContainerSymbol(container_name))
-        self._language_level_routine_symbol = RoutineSymbol(
+        self.psylayer_routine_symbol = RoutineSymbol(
             routine_name, interface=interface)
 
     def lower_to_language_level(self):
@@ -167,7 +168,7 @@ class AlgorithmInvokeCall(Call):
         node.
 
         '''
-        self.create_language_level_symbols()
+        self.create_psylayer_symbols()
 
         arguments = []
         arguments_str = []
@@ -188,7 +189,7 @@ class AlgorithmInvokeCall(Call):
                         "found '{0}'.".format(type(arg).__name__))
 
         symbol_table = self.scope.symbol_table
-        routine_symbol = self._language_level_routine_symbol
+        routine_symbol = self.psylayer_routine_symbol
         container_symbol = routine_symbol.interface.container_symbol
         symbol_table.add(container_symbol)
         symbol_table.add(routine_symbol)
@@ -221,7 +222,7 @@ class KernelFunctor(Reference):
     @classmethod
     def create(cls, symbol, arguments):
         '''Create an instance of the calling class given valid instances of a
-        TypeSymbol, a list of child nodes for its arguments an an index.
+        TypeSymbol and a list of child nodes for its arguments.
 
         :param symbol: the name of the kernel type that this object \
             references.

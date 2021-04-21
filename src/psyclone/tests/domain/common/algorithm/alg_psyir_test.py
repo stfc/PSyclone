@@ -126,7 +126,7 @@ def test_algorithminvokecall():
     call = AlgorithmInvokeCall(routine, 2)
     assert call._text_name == "AlgorithmInvokeCall"
     assert call._colour == "green"
-    assert call._language_level_routine_symbol is None
+    assert call.psylayer_routine_symbol is None
     assert call._index == 2
 
 
@@ -200,7 +200,7 @@ def test_aic_defroutinerootname():
 
 
 def test_aic_createlanguagelevelsymbols():
-    '''Check that the create_language_level_symbols method behaves in the
+    '''Check that the create_psylayer_symbols method behaves in the
     expected way, i.e. creates and stores a routine_symbol and a
     container_symbol the first time it is called and then does nothing
     in subsequent calls.
@@ -217,21 +217,21 @@ def test_aic_createlanguagelevelsymbols():
     psyir = create_alg_psyir(code)
     invoke = psyir.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._language_level_routine_symbol is None
+    assert invoke.psylayer_routine_symbol is None
 
-    invoke.create_language_level_symbols()
+    invoke.create_psylayer_symbols()
 
     routine_name = "invoke_0_kern"
-    routine_symbol = invoke._language_level_routine_symbol
+    routine_symbol = invoke.psylayer_routine_symbol
     assert isinstance(routine_symbol, RoutineSymbol)
     assert routine_symbol.name == routine_name
     container_symbol = routine_symbol.interface.container_symbol
     assert container_symbol.name == "{0}_mod".format(routine_name)
 
-    invoke.create_language_level_symbols()
+    invoke.create_psylayer_symbols()
 
-    assert invoke._language_level_routine_symbol is routine_symbol
-    assert (invoke._language_level_routine_symbol.interface.container_symbol
+    assert invoke.psylayer_routine_symbol is routine_symbol
+    assert (invoke.psylayer_routine_symbol.interface.container_symbol
             is container_symbol)
 
 
@@ -274,7 +274,6 @@ def test_aic_lowertolanguagelevel_expr():
 
     psyir = create_alg_psyir(code)
     invoke = psyir.children[0]
-    invoke.create_language_level_symbols(0)
     invoke.lower_to_language_level()
     assert len(psyir.children[0].children) == 1
 
@@ -303,7 +302,7 @@ def test_aic_lowertolanguagelevel_single():
     assert len(psyir.walk(AlgorithmInvokeCall)) == 1
     assert len(psyir.walk(KernelFunctor)) == 1
 
-    # Don't call create_language_level_symbols() here. This is to
+    # Don't call create_psylayer_symbols() here. This is to
     # check that lower_to_language_level() creates the symbols if
     # needed.
     invoke.lower_to_language_level()
@@ -345,7 +344,7 @@ def test_aic_lowertolanguagelevel_multi():
     # Explicitly create the language level symbols before lowering to
     # make sure lower_to_language_level works if they have already
     # been created.
-    invoke.create_language_level_symbols()
+    invoke.create_psylayer_symbols()
     invoke.lower_to_language_level()
 
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
