@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import Routine
 from psyclone.nemo import NemoInvokeSchedule
 
 
-class NemoInvokeTrans(Transformation):
+class CreateNemoInvokeTrans(Transformation):
     '''
     Transform a generic PSyIR Routine into a NEMO Invoke.
 
@@ -72,7 +72,7 @@ class NemoInvokeTrans(Transformation):
         :raises TransformationError: if the supplied node is not a Routine.
 
         '''
-        super(NemoInvokeTrans, self).validate(node)
+        super(CreateNemoInvokeTrans, self).validate(node)
 
         if not isinstance(node, Routine):
             raise TransformationError(

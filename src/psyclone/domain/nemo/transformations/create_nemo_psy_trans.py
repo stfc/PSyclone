@@ -40,11 +40,11 @@
 
 from psyclone.transformations import Transformation, TransformationError
 from psyclone.psyir.nodes import Routine, Loop
-from psyclone.domain.nemo.transformations import NemoInvokeTrans, \
-    NemoKernelTrans, NemoLoopTrans
+from psyclone.domain.nemo.transformations import CreateNemoInvokeTrans, \
+    CreateNemoKernelTrans, CreateNemoLoopTrans
 
 
-class NemoPSyTrans(Transformation):
+class CreateNemoPSyTrans(Transformation):
     '''
     Transform a generic PSyIR representation of a PSy layer into a PSyclone
     version with specialised, NEMO-specific nodes.
@@ -88,9 +88,9 @@ class NemoPSyTrans(Transformation):
         # supplied top-level node is itself a Routine and must therefore be
         # replaced.
         root = psyir
-        invoke_trans = NemoInvokeTrans()
-        kern_trans = NemoKernelTrans()
-        loop_trans = NemoLoopTrans()
+        invoke_trans = CreateNemoInvokeTrans()
+        kern_trans = CreateNemoKernelTrans()
+        loop_trans = CreateNemoLoopTrans()
 
         for routine in psyir.walk(Routine):
             new_node = invoke_trans.apply(routine)
