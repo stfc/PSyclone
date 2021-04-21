@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2020, Science and Technology Facilities Council.
+! Copyright (c) 2018-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 
 !> A very simple stand-alone profiling library for PSyclone's
@@ -39,24 +40,27 @@ module profile_psy_data_mod
   use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
                                 profile_PSyDataStop, is_enabled
 
+  implicit none
+
   !> The datatype to store information about a region.
   type, extends(PSyDataBaseType) :: profile_PSyDataType
      !> Counts how often this region was executed.
      integer                   :: count
      !> Time at whith PreStart was called.
-     real*4                    :: start
+     real(kind=4)              :: start
      !> Overall time spent in this subroutine, i.e. sum
-     !> of each individual call..
-     real*4                    :: sum
+     !> of each individual call.
+     real(kind=4)              :: sum_time
      !> Shortest measured time of this region.
-     real*4                    :: min
+     real(kind=4)              :: min_time
      !> Sum Longest measured time of this region.
-     real*4                    ::  max
+     real(kind=4)              :: max_time
      !> Inidicates if this structure has been initialised.
      logical                   :: initialised = .false.
   contains
       ! The profiling API uses only the two following calls:
-      procedure :: PreStart, PostEnd
+      procedure :: PreStart
+      procedure :: PostEnd
   end type profile_PSyDataType
 
   ! --------------------------------------------------------
@@ -89,7 +93,9 @@ contains
   !> call to this subroutine. But the simple timing library will
   !> actually call this function itself if it has not been called previously.
   subroutine profile_PSyDataInit()
+
     use psy_data_base_mod, only : base_PSyDataInit => profile_PsyDataInit
+
     implicit none
 
     call base_PSyDataInit()
@@ -102,7 +108,7 @@ contains
   !> Starts a profiling area. The module and region name can be used to create
   !> a unique name for each region.
   !! Parameters:
-  !! @param[inout] this This PSyData instance.
+  !! @param[in,out] this This PSyData instance.
   !! @param[in] module_name Name of the module in which the region is
   !! @param[in] region_name Name of the region (could be name of an invoke, or
   !!            subroutine name).
@@ -118,8 +124,8 @@ contains
 
     class(profile_PSyDataType), intent(inout), target :: this
     character(len=*), intent(in) :: module_name, region_name
-    integer                   :: count, count_rate
-    integer, intent(in)       :: num_pre_vars, num_post_vars
+    integer                      :: count, count_rate
+    integer, intent(in)          :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then
        call profile_PSyDataInit()
@@ -127,11 +133,11 @@ contains
 
     if (.not. is_enabled) return
 
-    call this%PSyDataBaseType%PreStart(module_name, region_name,  &
+    call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                        num_pre_vars, num_post_vars)
     ! Note that the actual initialisation of "this"
-    ! happens in PostEnd, which is when min, sum and
-    ! max are properly initialised
+    ! happens in PostEnd, which is when min_time, sum_time and
+    ! max_time are properly initialised
     call system_clock(count, count_rate)
     this%start  = real(count) / count_rate
 
@@ -140,15 +146,16 @@ contains
   ! ---------------------------------------------------------------------------
   !> Ends a profiling area. It takes a PSyDataType type that corresponds to
   !> to the PreStart call.
-  !> @param[inout] this: This PSyData instance.
+  !> @param[in,out] this: This PSyData instance.
   subroutine PostEnd(this)
+
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
 
     integer :: count, count_rate
-    real *4 :: now, duration
-    
+    real(kind=4) :: now, duration
+
     if (.not. is_enabled) return
     call system_clock(count, count_rate)
     now = real(count) / count_rate
@@ -156,9 +163,9 @@ contains
 
     ! Now initialise the data
     if (.not. this%initialised) then
-       this%sum         = duration
-       this%min         = this%sum
-       this%max         = this%sum
+       this%sum_time    = duration
+       this%min_time    = this%sum_time
+       this%max_time    = this%sum_time
        this%count       = 1
        this%initialised = .true.
 
@@ -168,21 +175,25 @@ contains
           all_data(used_entries)%p => this
        endif
     else
-       this%sum = this%sum + duration
-       if (duration < this%min ) this%min = duration
-       if (duration > this%max ) this%max = duration
+       this%sum_time = this%sum_time + duration
+       if (duration < this%min_time ) this%min_time = duration
+       if (duration > this%max_time ) this%max_time = duration
        this%count = this%count + 1
     endif
 
     call this%PSyDataBaseType%PostEnd()
+
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
   !> The finalise function prints the results. This subroutine must be called,
   !> otherwise no results will be printed.
   subroutine profile_PSyDataShutdown()
+
     use psy_data_base_mod, only : base_PSyDataShutdown => profile_PsyDataShutdown
+
     implicit none
+
     integer                    :: i
     integer                    :: max_len, this_len
     type(profile_PSyDataType), pointer :: p
@@ -195,7 +206,7 @@ contains
     ! Determine maximum header length to get proper alignment
     max_len = len(heading)
     do i=1, used_entries
-       p => all_data(i)%p    ! to abbreviate code a bit
+       p => all_data(i)%p    ! To abbreviate code a bit
        if (len(trim(p%module_name)) + len(trim(p%region_name)) > max_len) then
           max_len = len(trim(p%module_name)) + len(trim(p%region_name))
        endif
@@ -209,20 +220,21 @@ contains
        spaces(i:i) = " "
     enddo
 
-    print *
-    print *,"==========================================="
-    print *, heading, spaces(1:max_len - len(heading)),                       &
-             tab, tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab,   &
-             "average", tab, tab, tab, "max"
-    do i=1, used_entries
-       p => all_data(i)%p    ! to abbreviate code a bit
+    write(*,*)
+    write(*,*) "==========================================="
+    write(*,*) heading, spaces(1:max_len - len(heading)),                          &
+               tab, tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab, &
+               "average", tab, tab, tab, "max"
+    do i = 1, used_entries
+       p => all_data(i)%p    ! To abbreviate code a bit
        this_len = len(trim(p%module_name)) + len(trim(p%region_name))+3
-       print *, trim(p%module_name),"::",trim(p%region_name),   &
-                spaces(1:max_len-this_len),                     &
-                p%count, tab, p%sum, tab,                       &
-                p%min, tab, p%sum/p%count, tab, p%max
+       write(*,*) trim(p%module_name),"::",trim(p%region_name), &
+                  spaces(1:max_len-this_len),                   &
+                  p%count, tab, p%sum_time, tab,                &
+                  p%min_time, tab, p%sum_time/p%count, tab, p%max_time
     end do
-    print *,"==========================================="
+    write(*,*) "==========================================="
+
   end subroutine profile_PSyDataShutdown
 
 end module profile_psy_data_mod
