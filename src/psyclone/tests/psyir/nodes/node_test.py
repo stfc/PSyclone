@@ -61,18 +61,6 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 
 
-def test_node_abstract_methods():
-    ''' Tests that the abstract methods of the Node class raise appropriate
-    errors. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    sched = invoke.schedule
-    loop = sched.children[0].loop_body[0]
-    with pytest.raises(NotImplementedError) as err:
-        Node.gen_code(loop, parent=None)
-    assert "Please implement me" in str(err.value)
-
-
 def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
     tnode = Node()
