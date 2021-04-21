@@ -39,35 +39,11 @@ Algorithm PSyIR.
 '''
 from __future__ import absolute_import
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
-
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Call
-
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import LFRicAlgTrans, \
     LFRicInvokeCallTrans
-
-
-def create_psyir(code):
-    ''' Utility to create a PSyIR tree from Fortran code.
-
-    :param str code: Fortran code encoded as a string
-
-    :returns: psyir tree representing the Fortran code
-    :rtype: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
-
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
-
-    return psyir
 
 
 def test_init():
@@ -82,7 +58,7 @@ def test_init():
     assert isinstance(alg_trans._invoke_trans, LFRicInvokeCallTrans)
 
 
-def test_apply():
+def test_apply(freader):
     '''Test that the apply method behaves as expected.
 
     '''
@@ -102,7 +78,7 @@ def test_apply():
         "  end subroutine alg2\n"
         "end module alg_mod\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     alg_trans = LFRicAlgTrans()
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 0

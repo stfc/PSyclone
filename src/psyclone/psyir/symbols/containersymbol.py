@@ -39,8 +39,10 @@
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
 from __future__ import absolute_import
+from os import listdir, path
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.psyir.symbols.symbol import SymbolInterface
+from psyclone.configuration import Config
 
 
 class ContainerSymbol(Symbol):
@@ -147,25 +149,15 @@ class FortranModuleInterface(ContainerSymbolInterface):
         :raises SymbolError: the given Fortran module is not found on the \
             import path.
         '''
-        from os import listdir, path
-        from fparser.two.parser import ParserFactory
-        from fparser.common.readfortran import FortranFileReader
-        from psyclone.configuration import Config
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.fparser2 import FortranReader
         for directory in Config.get().include_paths:
             for filename in [name+'.f90', name+'.F90']:
                 if filename in listdir(directory):
                     # Parse the module source code
                     abspath = path.join(directory, filename)
-                    reader = FortranFileReader(abspath,
-                                               ignore_comments=True)
-                    f2008_parser = ParserFactory().create(std="f2008")
-                    ast = f2008_parser(reader)
-                    fp2reader = Fparser2Reader()
-
-                    # Generate the PSyIR container
-                    container = fp2reader.generate_container(ast)
+                    freader = FortranReader()
+                    container = freader.psyir_from_file(abspath)
 
                     # Check the imported container is the expected one
                     if container.name != name:

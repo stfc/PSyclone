@@ -1010,7 +1010,7 @@ def test_fw_routine_program(freader, fort_writer, tmpdir):
         "  real :: a\n"
         "  a = 0.0\n"
         "end program test")
-    psyir = freader.generate_psyir(code)
+    psyir = freader.psyir_from_source(code)
 
     # Generate Fortran from PSyIR
     result = fort_writer(psyir)

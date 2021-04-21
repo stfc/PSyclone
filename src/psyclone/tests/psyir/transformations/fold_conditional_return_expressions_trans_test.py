@@ -157,7 +157,7 @@ def test_transformation(test_case):
     input_code, expected = test_cases[test_case]
     trans = FoldConditionalReturnExpressionsTrans()
     reader = FortranReader()
-    subroutine = reader.generate_psyir(input_code)
+    subroutine = reader.psyir_from_source(input_code)
     trans.apply(subroutine)
     writer = FortranWriter()
     assert writer(subroutine) == expected

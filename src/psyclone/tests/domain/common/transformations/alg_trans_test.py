@@ -40,35 +40,12 @@ Algorithm PSyIR.
 from __future__ import absolute_import
 import pytest
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
-
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call
 
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.domain.common.transformations import InvokeCallTrans, AlgTrans
-
-
-def create_psyir(code):
-    ''' Utility to create a PSyIR tree from Fortran code.
-
-    :param str code: Fortran code encoded as a string
-
-    :returns: psyir tree representing the Fortran code
-    :rtype: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
-
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
-
-    return psyir
 
 
 def test_init():
@@ -83,7 +60,7 @@ def test_init():
     assert isinstance(alg_trans._invoke_trans, InvokeCallTrans)
 
 
-def test_validate_node_error():
+def test_validate_node_error(freader):
     '''Test that the validate method raises the expected exception if an
     invalid node argument is provided, or the node is not the root
     node. Also test that the apply method calls the validate method.
@@ -98,7 +75,7 @@ def test_validate_node_error():
         "  end subroutine alg\n"
         "end module alg_mod\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
 
     alg_trans = AlgTrans()
     with pytest.raises(TransformationError) as info:
@@ -119,7 +96,7 @@ def test_validate_node_error():
     alg_trans.validate(psyir)
 
 
-def test_apply():
+def test_apply(freader):
     '''Test that the apply method behaves as expected.
 
     '''
@@ -137,7 +114,7 @@ def test_apply():
         "  end subroutine alg2\n"
         "end module alg_mod\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     alg_trans = AlgTrans()
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0

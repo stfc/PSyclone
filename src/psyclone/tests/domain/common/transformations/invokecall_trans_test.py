@@ -40,9 +40,6 @@ Algorithm PSyIR.
 from __future__ import absolute_import
 import pytest
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
-
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
@@ -95,25 +92,6 @@ def check_literal(klr, name, arg_value):
     assert arg.value == arg_value
 
 
-def create_psyir(code):
-    ''' Utility to create a PSyIR tree from Fortran code.
-
-    :param str code: Fortran code encoded as a string
-
-    :returns: psyir tree representing the Fortran code
-    :rtype: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
-
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
-
-    return psyir
-
-
 def test_init():
     '''Check that an InvokeCallTrans instance can be created correctly,
     has the expected defaults, deals with any __init__ arguments and
@@ -125,7 +103,7 @@ def test_init():
     assert isinstance(invoke_trans, InvokeCallTrans)
 
 
-def test_parse_args_get_symbol():
+def test_parse_args_get_symbol(freader):
     '''Test that the parse_args and get_symbol methods work as
     expected.
 
@@ -136,7 +114,7 @@ def test_parse_args_get_symbol():
         "  call invoke(kern(1.0))\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     code_block = psyir[0].children[0]
     assert isinstance(code_block, CodeBlock)
 
@@ -215,7 +193,7 @@ def test_invoke_error():
             "found 'hello'." in str(info.value))
 
 
-def test_array_reference():
+def test_array_reference(freader):
     '''Test that the validate method does not raise an exception if a
     PSyIR ArrayReference is found.
 
@@ -228,13 +206,13 @@ def test_array_reference():
         "  call invoke(kern(field))\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     assert isinstance(psyir[0].children[0], ArrayReference)
     invoke_trans = InvokeCallTrans()
     invoke_trans.validate(psyir[0])
 
 
-def test_code_block_error():
+def test_code_block_error(freader):
     '''Test that the validate method raises an exception if unexpected
     content is found in a CodeBlock.
 
@@ -247,7 +225,7 @@ def test_code_block_error():
         "  call invoke(field=field)\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir[0])
@@ -256,7 +234,7 @@ def test_code_block_error():
             in str(info.value))
 
 
-def test_arg_error():
+def test_arg_error(freader):
     '''Test that the validate method raises an exception if unexpected
     content is found as an argument to an invoke.
 
@@ -269,7 +247,7 @@ def test_arg_error():
         "  call invoke('hello')\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir[0])
@@ -278,7 +256,7 @@ def test_arg_error():
             in str(info.value))
 
 
-def test_apply_arrayref():
+def test_apply_arrayref(freader):
     '''Test that an invoke with an array reference argument is transformed
     into PSyclone-specific AlgorithmInvokeCall and KernelFunctor
     classes.
@@ -292,7 +270,7 @@ def test_apply_arrayref():
         "  call invoke(kern(field))\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     assert len(psyir[0].children) == 1
     assert isinstance(psyir[0].children[0], ArrayReference)
 
@@ -305,7 +283,7 @@ def test_apply_arrayref():
     check_reference(invoke.children[0], "kern", "field")
 
 
-def test_apply_codeblock():
+def test_apply_codeblock(freader):
     '''Test that an invoke with a code block argument is transformed
     into PSyclone-specific AlgorithmInvokeCall and KernelFunctor
     classes.
@@ -317,7 +295,7 @@ def test_apply_codeblock():
         "  call invoke(kern(0.0))\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     assert len(psyir[0].children) == 1
     assert isinstance(psyir[0].children[0], CodeBlock)
 
@@ -330,7 +308,7 @@ def test_apply_codeblock():
     check_literal(invoke.children[0], "kern", "0.0")
 
 
-def test_apply_codeblocks():
+def test_apply_codeblocks(freader):
     '''Test that an invoke with a code block argument containing multiple
     structure constructors is transformed into PSyclone-specific
     AlgorithmInvokeCall and KernelFunctor classes.
@@ -342,7 +320,7 @@ def test_apply_codeblocks():
         "  call invoke(kern(0.0), kern(1.0))\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     assert len(psyir[0].children) == 1
     assert isinstance(psyir[0].children[0], CodeBlock)
 
@@ -356,7 +334,7 @@ def test_apply_codeblocks():
     check_literal(invoke.children[1], "kern", "1.0")
 
 
-def test_apply_mixed():
+def test_apply_mixed(freader):
     '''Test that an invoke with a mixture of code block and array
     reference arguments is transformed into PSyclone-specific
     AlgorithmInvokeCall and KernelFunctor classes.
@@ -370,7 +348,7 @@ def test_apply_mixed():
         "  call invoke(kern(0.0), kern(1.0), kern(field), kern(2.0))\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     assert len(psyir[0].children) == 3
     assert isinstance(psyir[0].children[0], CodeBlock)
     assert isinstance(psyir[0].children[1], ArrayReference)
@@ -388,7 +366,7 @@ def test_apply_mixed():
     check_literal(invoke.children[3], "kern", "2.0")
 
 
-def test_apply_expr():
+def test_apply_expr(freader):
     '''Test that an invoke with a mixture of code block and array
     reference arguments as expressions is transformed into PSyclone-specific
     AlgorithmInvokeCall and KernelFunctor classes.
@@ -402,7 +380,7 @@ def test_apply_expr():
         "  call invoke(kern((field+field)/2), kern((field+field)/2,1.0))\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    psyir = freader.psyir_from_source(code)
     assert len(psyir[0].children) == 2
     assert isinstance(psyir[0].children[0], ArrayReference)
     assert isinstance(psyir[0].children[1], CodeBlock)
