@@ -2138,20 +2138,6 @@ class Fparser2Reader(object):
         '''
         return Loop(parent=parent, variable=variable)
 
-    def _process_loopbody(self, loop_body, node):
-        ''' Process the loop body. This is done outside _do_construct_handler
-        because some APIs may want to perform specialised actions. By default
-        continue processing the tree nodes inside the loop body.
-
-        :param loop_body: Schedule representing the body of the loop.
-        :type loop_body: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param node: fparser loop node being processed.
-        :type node: \
-            :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-        '''
-        # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
-        self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
-
     def _do_construct_handler(self, node, parent):
         '''
         Transforms a fparser2 Do Construct into its PSyIR representation.
@@ -2227,7 +2213,8 @@ class Fparser2Reader(object):
         loop_body = Schedule(parent=loop)
         loop_body._ast = node
         loop.addchild(loop_body)
-        self._process_loopbody(loop_body, node)
+        # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
+        self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
 
         return loop
 

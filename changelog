@@ -486,13 +486,16 @@
 
 	158) PR #1167 for #1097. Install PSyData wrapper libraries; support
 	integer fields in PSyData.
-  
+
 	159) PR #1176 for #1174. Check that schedule is not empty when applying
 	profiling.
 
-  160) PR #1201 for #1198. Introduces the ScopingNode abstract base
-  class. Container, Schedule and Routine now subclass this and deep
-  copying is supported.
+	160) PR #1201 for #1198. Introduces the ScopingNode abstract base
+	class. Container, Schedule and Routine now subclass this and deep
+	copying is supported.
+
+	161) PR #1211 towards #1210. Add CreateNemoKernTrans transformation.
+
 
 release 1.9.0 20th May 2020
 

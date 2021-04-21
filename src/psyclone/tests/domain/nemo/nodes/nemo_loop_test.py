@@ -167,12 +167,12 @@ def test_kernel():
     assert not nemo_loop.kernel
 
     schedule = nemo_loop.loop_body
-    nemo_kern = NemoKern(schedule.pop_all_children(), None)
+    nemo_kern = NemoKern(schedule.pop_all_children())
     schedule.children = [nemo_kern]
     assert nemo_loop.kernel
 
     children = [Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))]
-    nemo_kern = NemoKern(children, None)
+    nemo_kern = NemoKern(children)
     schedule.children.append(nemo_kern)
     with pytest.raises(NotImplementedError) as info:
         _ = nemo_loop.kernel
