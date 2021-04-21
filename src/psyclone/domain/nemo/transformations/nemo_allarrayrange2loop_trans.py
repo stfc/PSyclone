@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford, STFC Daresbury Lab
+#          A. R. Porter, STFC Daresbury Lab
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
@@ -47,7 +48,8 @@ from psyclone.psyir.nodes import Assignment
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.domain.nemo.transformations import NemoOuterArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
+    import NemoOuterArrayRange2LoopTrans
 
 
 class NemoAllArrayRange2LoopTrans(Transformation):
