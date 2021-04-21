@@ -147,8 +147,7 @@ class CreateNemoKernelTrans(Transformation):
         '''
         self.validate(sched, options=options)
 
-        nemokern = NemoKern(sched.pop_all_children(),
-                            None, parent=sched)
+        nemokern = NemoKern(sched.pop_all_children(), parent=sched)
         sched.addchild(nemokern)
 
 

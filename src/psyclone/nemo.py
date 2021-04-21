@@ -344,23 +344,17 @@ class NemoKern(InlinedKern):
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parse_tree: reference to the innermost loop in the fparser2 parse \
-                       tree that encloses this kernel.
-    :type parse_tree: \
-              :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
     :param parent: the parent of this Kernel node in the PSyIR or None (if \
                    this kernel is being created in isolation).
     :type parent: :py:class:`psyclone.nemo.NemoLoop` or NoneType.
 
     '''
-    # pylint: disable=too-many-instance-attributes
-    def __init__(self, psyir_nodes, parse_tree, parent=None):
+    def __init__(self, psyir_nodes, parent=None):
         super(NemoKern, self).__init__(psyir_nodes, parent=parent)
         self._name = ""
-        # The corresponding set of nodes in the fparser2 parse tree
-        self._ast = parse_tree
 
-        # Name and colour-code to use for displaying this node
+        # Whether this kernel performs a reduction. Not currently supported
+        # for the NEMO API.
         self._reduction = False
 
     def get_kernel_schedule(self):
@@ -391,19 +385,6 @@ class NemoKern(InlinedKern):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         self.children[0].reference_accesses(var_accesses)
-
-    @property
-    def ast(self):
-        '''
-        Override the default ast method as, for the NEMO API, we don't need
-        to take any special action to get hold of the parse tree for the
-        kernel.
-
-        :returns: a reference to that part of the fparser2 parse tree that \
-                  describes this kernel.
-        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
-        '''
-        return self._ast
 
     def gen_code(self, parent):
         '''This method must not be called for NEMO, since the actual
