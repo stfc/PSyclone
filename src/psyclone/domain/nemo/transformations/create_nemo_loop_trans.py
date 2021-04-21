@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import Loop
 from psyclone.nemo import NemoLoop
 
 
-class NemoLoopTrans(Transformation):
+class CreateNemoLoopTrans(Transformation):
     '''
     Transform a generic PSyIR Schedule into a NEMO Kernel.
 
@@ -72,7 +72,7 @@ class NemoLoopTrans(Transformation):
         :raises TransformationError: if the supplied node is not a Routine.
 
         '''
-        super(NemoLoopTrans, self).validate(node)
+        super(CreateNemoLoopTrans, self).validate(node, options=options)
 
         if not isinstance(node, Loop):
             raise TransformationError(
