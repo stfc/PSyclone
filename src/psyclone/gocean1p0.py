@@ -716,10 +716,6 @@ class GOLoop(Loop):
                                              "space. But got "
                                              "{0}".format(bracket_expr))
 
-        # Test if a loop with the given boundaries can actually be parsed.
-        # Necessary to setup the parser
-        ParserFactory().create(std="f2003")
-
         # Test both the outer loop indices (index 3 and 4) and inner
         # indices (index 5 and 6):
         for bound in data[3:7]:

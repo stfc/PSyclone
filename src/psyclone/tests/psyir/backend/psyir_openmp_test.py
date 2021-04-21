@@ -43,11 +43,13 @@ from psyclone.psyir.nodes import Assignment, Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import create_schedule, get_invoke
+from psyclone.tests.utilities import get_invoke
+
+from psyclone.transformations import OMPParallelTrans, OMPLoopTrans
 
 
 # ----------------------------------------------------------------------------
-def test_nemo_omp_parallel():
+def test_nemo_omp_parallel(freader):
     '''Tests if an OpenMP parallel directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -63,8 +65,7 @@ def test_nemo_omp_parallel():
           enddo
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
-    from psyclone.transformations import OMPParallelTrans
+    schedule = freader.psyir_from_source(code).children[0]
 
     # Now apply a parallel transform
     omp_par = OMPParallelTrans()
@@ -123,9 +124,6 @@ def test_gocean_omp_parallel():
     '''Test that an OMP PARALLEL directive in a 'classical' API (gocean here)
     is created correctly.
     '''
-
-    from psyclone.transformations import OMPParallelTrans
-
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0, dist_mem=False)
 
@@ -158,7 +156,7 @@ a = b
 
 
 # ----------------------------------------------------------------------------
-def test_nemo_omp_do():
+def test_nemo_omp_do(freader):
     '''Tests if an OpenMP do directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -174,8 +172,7 @@ def test_nemo_omp_do():
           enddo
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
-    from psyclone.transformations import OMPLoopTrans
+    schedule = freader.psyir_from_source(code).children[0]
 
     # Now apply a parallel transform
     omp_loop = OMPLoopTrans()
@@ -209,8 +206,6 @@ def test_gocean_omp_do():
     '''Test that an OMP DO directive in a 'classical' API (gocean here)
     is created correctly.
     '''
-
-    from psyclone.transformations import OMPLoopTrans
 
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0, dist_mem=False)

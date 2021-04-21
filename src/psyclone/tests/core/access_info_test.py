@@ -261,10 +261,9 @@ def test_variables_access_info_merge():
 
 
 # -----------------------------------------------------------------------------
-def test_constructor():
+def test_constructor(freader):
     '''Test the optional constructor parameter (single node and list
     of nodes).'''
-    from psyclone.tests.utilities import create_schedule
     code = '''module test
         contains
         subroutine tmp()
@@ -273,7 +272,7 @@ def test_constructor():
           c = a*b
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
+    schedule = freader.psyir_from_source(code).children[0]
     node1 = schedule[0]
     node2 = schedule[1]
     vai1 = VariablesAccessInfo(node1)

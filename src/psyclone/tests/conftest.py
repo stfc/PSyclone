@@ -152,18 +152,18 @@ def fixture_f2008_parser():
     return ParserFactory().create(std="f2008")
 
 
-@pytest.fixture(scope="session", name="freader")
-def fixture_freader():
-    ''' Initialise f2parser2 to PSyIR reader with Fortran2008 standard. '''
-    return FortranReader()
-
-
 @pytest.fixture(scope="function")
 def kernel_outputdir(tmpdir, monkeypatch):
     '''Sets the PSyclone _kernel_output_dir Config parameter to tmpdir.'''
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
     return tmpdir
+
+
+@pytest.fixture(scope="session", name="freader")
+def fixture_freader():
+    ''' Initialise f2parser2 to PSyIR reader with Fortran2008 standard. '''
+    return FortranReader()
 
 
 @pytest.fixture(scope="function", name="fort_writer")

@@ -49,6 +49,7 @@ from psyclone.transformations import ACCRoutineTrans, \
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
+from psyclone.psyir.nodes import Container, Routine
 
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -158,10 +159,8 @@ def test_accroutine_empty_kernel():
     assert "!$acc routine\n  end subroutine testkern_code" in gen
 
 
-def test_new_kernel_file(kernel_outputdir, monkeypatch):
+def test_new_kernel_file(kernel_outputdir, monkeypatch, freader):
     ''' Check that we write out the transformed kernel to the CWD. '''
-    from fparser.two import Fortran2003, parser
-    from fparser.common.readfortran import FortranFileReader
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "multiple")
@@ -183,17 +182,14 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch):
                             "continuity{0}_mod.f90".format(tag))
     assert os.path.isfile(filename)
     # Parse the new kernel file
-    f2003_parser = parser.ParserFactory().create()
-    reader = FortranFileReader(filename)
-    prog = f2003_parser(reader)
+    psyir = freader.psyir_from_file(filename)
     # Check that the module has the right name
-    modules = walk(prog.content, Fortran2003.Module_Stmt)
-    assert str(modules[0].items[1]) == "continuity{0}_mod".format(tag)
+    assert isinstance(psyir, Container)
+    assert psyir.name == "continuity{0}_mod".format(tag)
     # Check that the subroutine has the right name
-    subs = walk(prog.content, Fortran2003.Subroutine_Stmt)
     found = False
-    for sub in subs:
-        if str(sub.items[1]) == "continuity{0}_code".format(tag):
+    for sub in psyir.walk(Routine):
+        if sub.name == "continuity{0}_code".format(tag):
             found = True
             break
     assert found
