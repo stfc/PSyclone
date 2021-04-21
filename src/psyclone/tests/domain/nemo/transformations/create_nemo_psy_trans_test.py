@@ -37,18 +37,18 @@
 
 from __future__ import absolute_import
 
-import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.transformations import Transformation, TransformationError
-from psyclone.domain.nemo.transformations import NemoPSyTrans
+from psyclone.transformations import Transformation
+from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
+from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 
 
 def test_construction():
     ''' Check that we can construct the transformation object. '''
-    trans = NemoPSyTrans()
+    trans = CreateNemoPSyTrans()
     assert isinstance(trans, Transformation)
-    assert trans.name == "NemoPSyTrans"
+    assert trans.name == "CreateNemoPSyTrans"
 
 
 def test_basic_psy(parser):
@@ -67,8 +67,8 @@ end subroutine basic_loop
     reader = FortranStringReader(code)
     prog = parser(reader)
     psyir = fp2reader.generate_psyir(prog)
-    psyir.view()
-    trans = NemoPSyTrans()
+    trans = CreateNemoPSyTrans()
     sched = trans.apply(psyir)
-    sched.view()
-    assert 0
+    assert isinstance(sched, NemoInvokeSchedule)
+    assert isinstance(sched[0], NemoLoop)
+    assert isinstance(sched[0].loop_body[0], NemoKern)

@@ -979,7 +979,7 @@ class InvokeSchedule(Routine):
         :rtype: str
         '''
         return "{0}[invoke='{1}']".format(
-            self.coloured_name(colour), self.invoke.name)
+            self.coloured_name(colour), self.name)
 
     def __str__(self):
         result = self.coloured_name(False) + ":\n"

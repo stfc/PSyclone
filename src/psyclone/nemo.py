@@ -111,7 +111,13 @@ class NemoInvoke(Invoke):
     :type invokes: :py:class:`psyclone.psyGen.NemoInvokes`
 
     '''
-    def __init__(self, ast, name, invokes):
+    def __init__(self, sched, invokes):
+        self._invokes = invokes
+        self._schedule = sched
+        self._schedule.invoke = self
+        self._name = sched.name
+
+    def old_init__(self, ast, name, invokes):
         # pylint: disable=super-init-not-called
         self._invokes = invokes
         self._schedule = None
@@ -161,8 +167,19 @@ class NemoInvokes(Invokes):
 
     :param ast: the fparser2 AST for the whole Fortran source file.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
+
     '''
-    def __init__(self, ast):
+    def __init__(self, psyir):
+        self._container = psyir
+        routines = psyir.walk(NemoInvokeSchedule)
+        self.invoke_list = []
+        for routine in routines:
+            self.invoke_list.append(NemoInvoke(routine, self))
+        self.invoke_map = {}
+        for invoke in self.invoke_list:
+            self.invoke_map[invoke.name] = invoke
+
+    def old_init__(self, ast):
         # pylint: disable=super-init-not-called
         from fparser.two.Fortran2003 import Main_Program,  \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, Name
@@ -244,8 +261,15 @@ class NemoPSy(PSy):
             raise InternalError("Found no names in supplied Fortran - should "
                                 "be impossible!")
         self._name = str(names[0]) + "_psy"
-        self._invokes = NemoInvokes(ast)
         self._ast = ast
+
+        processor = Fparser2Reader()
+        psyir = processor.generate_psyir(ast)
+        from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
+            import CreateNemoPSyTrans
+        nemo_psyir = CreateNemoPSyTrans().apply(psyir)
+
+        self._invokes = NemoInvokes(nemo_psyir)
 
     def inline(self, _):
         '''
@@ -286,10 +310,10 @@ class NemoInvokeSchedule(InvokeSchedule):
     '''
     _text_name = "NemoInvokeSchedule"
 
-    def __init__(self, invoke=None):
+    def __init__(self, name, invoke=None):
         # TODO #1010: The name placeholder should be changed with the
         # expected InvokeShcedule name to use the PSyIR backend.
-        super(NemoInvokeSchedule, self).__init__('name', None, None)
+        super(NemoInvokeSchedule, self).__init__(name, None, None)
 
         self._invoke = invoke
         # Whether or not we've already checked the associated Fortran for

@@ -111,4 +111,4 @@ class CreateNemoInvokeTrans(Transformation):
         if routine.parent:
             routine.replace_with(new_node)
 
-        return routine
+        return new_node
