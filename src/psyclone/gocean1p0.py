@@ -1576,7 +1576,8 @@ class GOKern(CodedKern):
     def gen_ocl_buffers_initial_write(self, parent):
         # pylint: disable=too-many-locals
         '''
-        Generate code to write the initial data into the device
+        Generate the f2pygen AST for the code to write the initial data into
+        the device.
 
         :param parent: parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -1605,7 +1606,8 @@ class GOKern(CodedKern):
 
     def gen_ocl_set_args_call(self, parent):
         '''
-        Generate code to call the set_args subroutine for this kernel.
+        Generate the f2pygen AST for the code to call the set_args subroutine
+        for this kernel.
 
         :param parent: parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
