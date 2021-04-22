@@ -37,16 +37,22 @@
 Module providing pytest tests of the CreateNemoLoopTrans transformation.
 '''
 
+from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Return
+
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Return, Loop, Assignment
 from psyclone.transformations import TransformationError
 from psyclone.domain.nemo.transformations import CreateNemoLoopTrans
+from psyclone.nemo import NemoLoop
 
 
 def test_construct_create_loop_trans():
     ''' Check that we can construct the Transformation object. '''
     trans = CreateNemoLoopTrans()
     assert isinstance(trans, CreateNemoLoopTrans)
+    assert trans.name == "CreateNemoLoopTrans"
 
 
 def test_create_loop_validate():
@@ -56,3 +62,36 @@ def test_create_loop_validate():
         trans.validate(Return())
     assert ("supplied node should be a PSyIR Loop but found 'Return'" in
             str(err.value))
+
+
+def test_basic_loop_trans(parser):
+    ''' Check that a basic loop can be transformed correctly. '''
+    code = '''subroutine basic_loop()
+  integer, parameter :: jpi=16, jpj=16
+  integer :: ji, jj
+  real :: a(jpi, jpj), fconst
+  do jj = 1, jpj
+    do ji = 1, jpi
+      a(ji) = fconst
+    end do
+  end do
+end subroutine basic_loop
+'''
+    trans = CreateNemoLoopTrans()
+    fp2reader = Fparser2Reader()
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psyir = fp2reader.generate_psyir(prog)
+    loops = psyir.walk(Loop)
+    # Apply the transformation to the outermost loop
+    outer_loop = trans.apply(loops[0])
+    assert isinstance(outer_loop, NemoLoop)
+    assert outer_loop.loop_type == "lat"
+    # Check that the new loop is in the Schedule
+    loops = psyir.walk(Loop)
+    assert loops[0] is outer_loop
+    # Apply the transformation to the inner loop
+    inner_loop = trans.apply(loops[1])
+    assert isinstance(inner_loop, NemoLoop)
+    assert inner_loop.loop_type == "lon"
+    assert isinstance(inner_loop.loop_body[0], Assignment)

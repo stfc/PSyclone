@@ -55,7 +55,7 @@ class CreateNemoLoopTrans(Transformation):
         :rtype: str
 
         '''
-        return self.__name__
+        return type(self).__name__
 
     def validate(self, node, options=None):
         '''
@@ -82,10 +82,11 @@ class CreateNemoLoopTrans(Transformation):
 
     def apply(self, loop, options=None):
         '''
-        Takes a generic PSyIR Schedule and replaces it with a NEMO Kernel.
+        Takes a generic PSyIR Loop node and replaces it with a NemoLoop.
+        The original loop object is deleted.
 
-        :param sched: the Schedule node to be transformed.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param sched: the Loop node to be transformed.
+        :type sched: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for \
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
@@ -105,4 +106,5 @@ class CreateNemoLoopTrans(Transformation):
                                    nodes[0], nodes[1], nodes[2],
                                    nodes[3].pop_all_children())
         loop.replace_with(new_loop)
+        del loop
         return new_loop
