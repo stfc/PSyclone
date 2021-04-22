@@ -62,6 +62,10 @@ from psyclone.version import __VERSION__
 from psyclone import configuration
 from psyclone.configuration import Config, ConfigurationError
 
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.domain.common.transformations import AlgTrans
+from psyclone.psyir.backend.fortran import FortranWriter
+
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
 
@@ -234,7 +238,40 @@ def generate(filename, api="", kernel_path="", script_name=None,
             Profiler.add_profile_nodes(invoke.schedule, Loop)
 
         if api not in API_WITHOUT_ALGORITHM:
-            alg_gen = Alg(ast, psy).gen
+            if api == "gocean1.0":
+                # Create language-level PSyIR from fparser2 ast
+                psyir_reader = Fparser2Reader()
+                psyir = psyir_reader.generate_psyir(ast)
+
+                # Raise to Algorithm PSyIR
+                alg_trans = AlgTrans()
+                alg_trans.apply(psyir)
+
+                # call to algorithm optimisation script would go here
+
+                # psygen creation and symbol generation would go here
+                # (+ algorithm processing could go here)
+
+                # psygen optimisation script would go here
+
+                # Process and lower to language-level PSyIR        
+                psyir.lower_to_language_level()
+
+                # TODO issue #xxx 
+                # remove_invoke_symbol(psyir)
+                from psyclone.psyir.nodes import Node
+                for node in psyir.walk(Node):
+                    if hasattr(node, "symbol_table"):
+                        try:
+                            symbol = node.symbol_table.lookup("invoke")
+                            node.symbol_table.remove(symbol)
+                        except:
+                            pass
+                # Create Fortran from language-level PSyIR
+                writer = FortranWriter()
+                alg_gen = writer(psyir)
+            else:
+                alg_gen = Alg(ast, psy).gen
         else:
             alg_gen = None
     except Exception:

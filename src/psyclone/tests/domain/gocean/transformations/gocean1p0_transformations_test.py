@@ -1402,7 +1402,7 @@ def test_loop_swap_correct(tmpdir):
     the right place.'''
 
     psy, _ = get_invoke("test27_loop_swap.f90", API, idx=0, dist_mem=False)
-    invoke = psy.invokes.get("invoke_loop1")
+    invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     schedule_str = str(schedule)
 
@@ -1424,7 +1424,7 @@ def test_loop_swap_correct(tmpdir):
     # Now swap the first loops
     swap = GOLoopSwapTrans()
     swapped1, _ = swap.apply(schedule.children[0])
-    psy.invokes.get('invoke_loop1').schedule = swapped1
+    psy.invokes.get('invoke_0').schedule = swapped1
     schedule_str = str(swapped1)
 
     expected = (
@@ -1442,7 +1442,7 @@ def test_loop_swap_correct(tmpdir):
 
     # Now swap the middle loops
     swapped2, _ = swap.apply(swapped1.children[1])
-    psy.invokes.get('invoke_loop1').schedule = swapped2
+    psy.invokes.get('invoke_0').schedule = swapped2
     schedule_str = str(swapped2)
 
     expected = (
@@ -1460,7 +1460,7 @@ def test_loop_swap_correct(tmpdir):
 
     # Now swap the last loops
     swapped3, _ = swap.apply(swapped2.children[2])
-    psy.invokes.get('invoke_loop1').schedule = swapped3
+    psy.invokes.get('invoke_0').schedule = swapped3
     schedule_str = str(swapped3)
 
     expected = (
@@ -1506,7 +1506,7 @@ def test_go_loop_swap_errors():
 
     # Now create an outer loop with more than one inner statement
     # ... by fusing the first and second outer loops :(
-    invoke_loop2 = psy.invokes.get("invoke_loop2")
+    invoke_loop2 = psy.invokes.get("invoke_1")
     schedule = invoke_loop2.schedule
 
     fuse = GOceanLoopFuseTrans()
