@@ -1753,8 +1753,8 @@ class GOKern(CodedKern):
         code += "end subroutine write_device_grid"
 
         # Obtain the PSyIR representation of the code above
-        freader = FortranReader()
-        subroutine = freader.psyir_from_source(code)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1827,8 +1827,8 @@ class GOKern(CodedKern):
         '''.format(num_x, num_y, host_buff, read_fp, write_fp)
 
         # Obtain the PSyIR representation of the code above
-        freader = FortranReader()
-        subroutine = freader.psyir_from_source(code)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1917,8 +1917,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        freader = FortranReader()
-        subroutine = freader.psyir_from_source(code)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2007,8 +2007,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        freader = FortranReader()
-        subroutine = freader.psyir_from_source(code)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2097,8 +2097,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        freader = FortranReader()
-        subroutine = freader.psyir_from_source(code)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 

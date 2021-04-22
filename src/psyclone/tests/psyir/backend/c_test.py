@@ -361,7 +361,7 @@ def test_cw_binaryoperator():
     assert "' operator." in str(err.value)
 
 
-def test_cw_loop(freader):
+def test_cw_loop(fortran_reader):
     '''Tests writing out a Loop node in C. It parses Fortran code
     and outputs it as C. Note that this is atm a literal translation,
     the loops are not functionally identical to Fortran, see TODO #523.
@@ -379,7 +379,7 @@ def test_cw_loop(freader):
           enddo
         end subroutine tmp
         end module test'''
-    schedule = freader.psyir_from_source(code).children[0]
+    schedule = fortran_reader.psyir_from_source(code).children[0]
 
     cvisitor = CWriter()
     result = cvisitor(schedule[0])

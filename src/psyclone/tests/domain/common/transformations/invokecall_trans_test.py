@@ -102,7 +102,7 @@ def test_init():
     assert isinstance(invoke_trans, InvokeCallTrans)
 
 
-def test_parse_args_get_symbol(freader):
+def test_parse_args_get_symbol(fortran_reader):
     '''Test that the parse_args and get_symbol methods work as
     expected.
 
@@ -113,7 +113,7 @@ def test_parse_args_get_symbol(freader):
         "  call invoke(kern(1.0))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     code_block = psyir[0].children[0]
     assert isinstance(code_block, CodeBlock)
 
@@ -192,7 +192,7 @@ def test_invoke_error():
             "found 'hello'." in str(info.value))
 
 
-def test_array_reference(freader):
+def test_array_reference(fortran_reader):
     '''Test that the validate method does not raise an exception if a
     PSyIR ArrayReference is found.
 
@@ -205,13 +205,13 @@ def test_array_reference(freader):
         "  call invoke(kern(field))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir[0].children[0], ArrayReference)
     invoke_trans = InvokeCallTrans()
     invoke_trans.validate(psyir[0])
 
 
-def test_code_block_error(freader):
+def test_code_block_error(fortran_reader):
     '''Test that the validate method raises an exception if unexpected
     content is found in a CodeBlock.
 
@@ -224,7 +224,7 @@ def test_code_block_error(freader):
         "  call invoke(field=field)\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir[0])
@@ -233,7 +233,7 @@ def test_code_block_error(freader):
             in str(info.value))
 
 
-def test_arg_error(freader):
+def test_arg_error(fortran_reader):
     '''Test that the validate method raises an exception if unexpected
     content is found as an argument to an invoke.
 
@@ -246,7 +246,7 @@ def test_arg_error(freader):
         "  call invoke('hello')\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir[0])
@@ -255,7 +255,7 @@ def test_arg_error(freader):
             in str(info.value))
 
 
-def test_apply_arrayref(freader):
+def test_apply_arrayref(fortran_reader):
     '''Test that an invoke with an array reference argument is transformed
     into PSyclone-specific AlgorithmInvokeCall and KernelFunctor
     classes.
@@ -269,7 +269,7 @@ def test_apply_arrayref(freader):
         "  call invoke(kern(field))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir[0].children) == 1
     assert isinstance(psyir[0].children[0], ArrayReference)
 
@@ -283,7 +283,7 @@ def test_apply_arrayref(freader):
     check_reference(invoke.children[0], "kern", "field")
 
 
-def test_apply_codeblock(freader):
+def test_apply_codeblock(fortran_reader):
     '''Test that an invoke with a code block argument is transformed
     into PSyclone-specific AlgorithmInvokeCall and KernelFunctor
     classes.
@@ -295,7 +295,7 @@ def test_apply_codeblock(freader):
         "  call invoke(kern(0.0))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir[0].children) == 1
     assert isinstance(psyir[0].children[0], CodeBlock)
 
@@ -309,7 +309,7 @@ def test_apply_codeblock(freader):
     check_literal(invoke.children[0], "kern", "0.0")
 
 
-def test_apply_codeblocks(freader):
+def test_apply_codeblocks(fortran_reader):
     '''Test that an invoke with a code block argument containing multiple
     structure constructors is transformed into PSyclone-specific
     AlgorithmInvokeCall and KernelFunctor classes.
@@ -321,7 +321,7 @@ def test_apply_codeblocks(freader):
         "  call invoke(kern(0.0), kern(1.0))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir[0].children) == 1
     assert isinstance(psyir[0].children[0], CodeBlock)
 
@@ -336,7 +336,7 @@ def test_apply_codeblocks(freader):
     check_literal(invoke.children[1], "kern", "1.0")
 
 
-def test_apply_mixed(freader):
+def test_apply_mixed(fortran_reader):
     '''Test that an invoke with a mixture of code block and array
     reference arguments is transformed into PSyclone-specific
     AlgorithmInvokeCall and KernelFunctor classes.
@@ -350,7 +350,7 @@ def test_apply_mixed(freader):
         "  call invoke(kern(0.0), kern(1.0), kern(field), kern(2.0))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir[0].children) == 3
     assert isinstance(psyir[0].children[0], CodeBlock)
     assert isinstance(psyir[0].children[1], ArrayReference)
@@ -369,7 +369,7 @@ def test_apply_mixed(freader):
     check_literal(invoke.children[3], "kern", "2.0")
 
 
-def test_apply_expr(freader):
+def test_apply_expr(fortran_reader):
     '''Test that an invoke with a mixture of code block and array
     reference arguments as expressions is transformed into PSyclone-specific
     AlgorithmInvokeCall and KernelFunctor classes.
@@ -383,7 +383,7 @@ def test_apply_expr(freader):
         "  call invoke(kern((field+field)/2), kern((field+field)/2,1.0))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir[0].children) == 2
     assert isinstance(psyir[0].children[0], ArrayReference)
     assert isinstance(psyir[0].children[1], CodeBlock)

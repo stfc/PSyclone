@@ -150,10 +150,10 @@ test_cases = [(SUB_IN1, SUB_OUT1), (SUB_IN2_1, SUB_OUT2_1),
 
 
 @pytest.mark.parametrize("test_case", [0, 1, 2, 3])
-def test_transformation(freader, fort_writer, test_case):
+def test_transformation(fortran_reader, fortran_writer, test_case):
     ''' Check that the transformation works as expected. '''
     input_code, expected = test_cases[test_case]
     trans = FoldConditionalReturnExpressionsTrans()
-    subroutine = freader.psyir_from_source(input_code)
+    subroutine = fortran_reader.psyir_from_source(input_code)
     trans.apply(subroutine)
-    assert fort_writer(subroutine) == expected
+    assert fortran_writer(subroutine) == expected

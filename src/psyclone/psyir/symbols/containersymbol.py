@@ -156,8 +156,8 @@ class FortranModuleInterface(ContainerSymbolInterface):
                 if filename in listdir(directory):
                     # Parse the module source code
                     abspath = path.join(directory, filename)
-                    freader = FortranReader()
-                    container = freader.psyir_from_file(abspath)
+                    fortran_reader = FortranReader()
+                    container = fortran_reader.psyir_from_file(abspath)
 
                     # Check the imported container is the expected one
                     if container.name != name:

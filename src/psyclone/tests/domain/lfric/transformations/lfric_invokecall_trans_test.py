@@ -108,7 +108,7 @@ def test_init():
     assert isinstance(invoke_trans, LFRicInvokeCallTrans)
 
 
-def test_structure_contructor(freader):
+def test_structure_contructor(fortran_reader):
     '''Test that validation does not raise an exception if the fparser2
     node is a structure constructor.
 
@@ -119,7 +119,7 @@ def test_structure_contructor(freader):
         "  call invoke(kern(1.0))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.validate(psyir[0])
@@ -128,7 +128,7 @@ def test_structure_contructor(freader):
 
 
 @pytest.mark.parametrize("string", ["error = 'hello'", "name = 0"])
-def test_named_arg_error(string, freader):
+def test_named_arg_error(string, fortran_reader):
     '''Test that the validation method raises an exception if a named
     argument has an unsupported format.
 
@@ -139,7 +139,7 @@ def test_named_arg_error(string, freader):
         "  call invoke({0})\n"
         "end subroutine alg\n".format(string))
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
@@ -156,7 +156,7 @@ def test_named_arg_error(string, freader):
             "'{0}'.".format(string) in str(info.value))
 
 
-def test_multi_named_arg_error(freader):
+def test_multi_named_arg_error(fortran_reader):
     '''Test that the validation method raises an exception if more than
     one named argument is specified in an invoke call. Also check that
     the apply method calls the validate method.
@@ -168,7 +168,7 @@ def test_multi_named_arg_error(freader):
         "  call invoke(name='first', name='second')\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
@@ -184,7 +184,7 @@ def test_multi_named_arg_error(freader):
             "two: 'first' and 'second'." in str(info.value))
 
 
-def test_codeblock_invalid(monkeypatch, freader):
+def test_codeblock_invalid(monkeypatch, fortran_reader):
     '''Test that the expected exception is raised if unsupported content
     is found within a codeblock. Use monkeypatch to sabotage the
     codeblock to cause the exception.
@@ -196,7 +196,7 @@ def test_codeblock_invalid(monkeypatch, freader):
         "  call invoke(name='tallulah')\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     code_block = psyir[0].children[0]
     assert isinstance(code_block, CodeBlock)
     monkeypatch.setattr(code_block, "_fp2_nodes", [None])
@@ -210,7 +210,7 @@ def test_codeblock_invalid(monkeypatch, freader):
             "'NoneType'." in str(info.value))
 
 
-def test_apply_codedkern_arrayref(freader):
+def test_apply_codedkern_arrayref(fortran_reader):
     '''Test that a kernel call within an invoke that is mistakenly encoded
     as an ArrayRef in the PSyIR is translated into an
     LFRicKernelFunctor and expected children. This test also checks
@@ -226,7 +226,7 @@ def test_apply_codedkern_arrayref(freader):
         "  call invoke(kern(field1), name='hello')\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0], 1)
@@ -238,7 +238,7 @@ def test_apply_codedkern_arrayref(freader):
     check_args(args, [(Reference, "field1")])
 
 
-def test_apply_codedkern_structconstruct(freader):
+def test_apply_codedkern_structconstruct(fortran_reader):
     '''Test that a kernel call within an invoke that is encoded within a
     PSyIR code block as an fparser2 Structure Constructor is
     translated into an LFRicKernelFunctor and expected children.
@@ -252,7 +252,7 @@ def test_apply_codedkern_structconstruct(freader):
         "  call invoke(kern(1.0))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0], 2)
@@ -262,7 +262,7 @@ def test_apply_codedkern_structconstruct(freader):
     check_args(args, [(Literal, "1.0")])
 
 
-def test_apply_builtin_structconstruct(freader):
+def test_apply_builtin_structconstruct(fortran_reader):
     '''Test that a builtin call within an invoke that is encoded within a
     PSyIR code block as an fparser2 Structure Constructor is
     translated into an LFRicBuiltinFunctor and expected children. This
@@ -277,7 +277,7 @@ def test_apply_builtin_structconstruct(freader):
         "  call invoke(setval_c(field1, 1.0))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0], 3)
@@ -287,7 +287,7 @@ def test_apply_builtin_structconstruct(freader):
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
 
 
-def test_apply_builtin_arrayref(freader):
+def test_apply_builtin_arrayref(fortran_reader):
     '''Test that a builtin call within an invoke that is mistakenly
     encoded as an ArrayRef in the PSyIR is translated into an
     LFRicBuiltinFunctor and expected children. This test also checks
@@ -303,7 +303,7 @@ def test_apply_builtin_arrayref(freader):
         "  call invoke(setval_c(field1, value), name='test')\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0], 4)
@@ -314,7 +314,7 @@ def test_apply_builtin_arrayref(freader):
     check_args(args, [(Reference, "field1"), (Reference, "value")])
 
 
-def test_apply_mixed(freader):
+def test_apply_mixed(fortran_reader):
     '''Test that an invoke with a mixture of kernels and builtins, with a
     number of the kernels and an optional name being within a single
     codeblock, are translated into an LFRicBuiltinFunctor and expected
@@ -331,7 +331,7 @@ def test_apply_mixed(freader):
         "setval_c(field1, 1.0), setval_c(field1, value))\n"
         "end subroutine alg\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     lfric_invoke_trans.apply(psyir[0], 5)

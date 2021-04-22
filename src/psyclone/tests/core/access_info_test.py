@@ -261,7 +261,7 @@ def test_variables_access_info_merge():
 
 
 # -----------------------------------------------------------------------------
-def test_constructor(freader):
+def test_constructor(fortran_reader):
     '''Test the optional constructor parameter (single node and list
     of nodes).'''
     code = '''module test
@@ -272,7 +272,7 @@ def test_constructor(freader):
           c = a*b
         end subroutine tmp
         end module test'''
-    schedule = freader.psyir_from_source(code).children[0]
+    schedule = fortran_reader.psyir_from_source(code).children[0]
     node1 = schedule[0]
     node2 = schedule[1]
     vai1 = VariablesAccessInfo(node1)

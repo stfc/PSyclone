@@ -64,14 +64,14 @@ def test_createkerneltrans_construction():
     assert trans.name == "CreateNemoKernelTrans"
 
 
-def test_kern_trans_validation(freader):
+def test_kern_trans_validation(fortran_reader):
     ''' Test that the validate() method of the transformation correctly
     rejects things that aren't kernels. '''
     trans = CreateNemoKernelTrans()
     # Add a write() to the body of the loop
     code = BASIC_KERN_CODE.replace("  end do\n",
                                    "    write(*,*) ji\n  end do\n")
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
     # Check that calling apply() also calls validate()
     with pytest.raises(TransformationError) as err:
@@ -97,7 +97,7 @@ def test_kern_trans_validation(freader):
             str(err.value))
 
 
-def test_no_explicit_loop_in_kernel(freader):
+def test_no_explicit_loop_in_kernel(fortran_reader):
     ''' Check that the transformation rejects a loop body if it includes
     an explicit loop. '''
     trans = CreateNemoKernelTrans()
@@ -110,7 +110,7 @@ def test_no_explicit_loop_in_kernel(freader):
             "  end do\n"
             "end do\n"
             "end program fake_kern\n")
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
     # 'loop.loop_body' is not a valid kernel because it itself contains a loop
     with pytest.raises(TransformationError) as err:
@@ -118,7 +118,7 @@ def test_no_explicit_loop_in_kernel(freader):
     assert "Kernel cannot contain nodes of type: ['Loop']" in str(err.value)
 
 
-def test_no_implicit_loop_in_kernel(freader):
+def test_no_implicit_loop_in_kernel(fortran_reader):
     ''' Check that the transformation rejects a loop if it includes an implicit
     loop. '''
     trans = CreateNemoKernelTrans()
@@ -129,7 +129,7 @@ def test_no_implicit_loop_in_kernel(freader):
             "  sto_tmp(:,:) = 1.0\n"
             "end do\n"
             "end program fake_kern\n")
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
     assert isinstance(loop.loop_body[0], Assignment)
     # 'loop.loop_body' is not a valid kernel because it contains an
@@ -140,11 +140,11 @@ def test_no_implicit_loop_in_kernel(freader):
             "['sto_tmp(:,:) = 1.0']" in str(err.value))
 
 
-def test_basic_kern(freader):
+def test_basic_kern(fortran_reader):
     ''' Check that the transformation correctly transforms a very simple
     kernel. '''
     trans = CreateNemoKernelTrans()
-    psyir = freader.psyir_from_source(BASIC_KERN_CODE)
+    psyir = fortran_reader.psyir_from_source(BASIC_KERN_CODE)
     loop = psyir.walk(Loop)[0]
     assign = loop.loop_body[0]
     trans.apply(loop.loop_body)

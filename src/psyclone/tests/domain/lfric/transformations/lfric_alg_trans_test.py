@@ -58,7 +58,7 @@ def test_init():
     assert isinstance(alg_trans._invoke_trans, LFRicInvokeCallTrans)
 
 
-def test_apply(freader):
+def test_apply(fortran_reader):
     '''Test that the apply method behaves as expected.
 
     '''
@@ -78,7 +78,7 @@ def test_apply(freader):
         "  end subroutine alg2\n"
         "end module alg_mod\n")
 
-    psyir = freader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     alg_trans = LFRicAlgTrans()
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 0

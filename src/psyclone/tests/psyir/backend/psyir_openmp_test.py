@@ -49,7 +49,7 @@ from psyclone.transformations import OMPParallelTrans, OMPLoopTrans
 
 
 # ----------------------------------------------------------------------------
-def test_nemo_omp_parallel(freader):
+def test_nemo_omp_parallel(fortran_reader):
     '''Tests if an OpenMP parallel directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -65,7 +65,7 @@ def test_nemo_omp_parallel(freader):
           enddo
         end subroutine tmp
         end module test'''
-    schedule = freader.psyir_from_source(code).children[0]
+    schedule = fortran_reader.psyir_from_source(code).children[0]
 
     # Now apply a parallel transform
     omp_par = OMPParallelTrans()
@@ -156,7 +156,7 @@ a = b
 
 
 # ----------------------------------------------------------------------------
-def test_nemo_omp_do(freader):
+def test_nemo_omp_do(fortran_reader):
     '''Tests if an OpenMP do directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -172,7 +172,7 @@ def test_nemo_omp_do(freader):
           enddo
         end subroutine tmp
         end module test'''
-    schedule = freader.psyir_from_source(code).children[0]
+    schedule = fortran_reader.psyir_from_source(code).children[0]
 
     # Now apply a parallel transform
     omp_loop = OMPLoopTrans()

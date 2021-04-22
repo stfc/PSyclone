@@ -153,13 +153,13 @@ def kernel_outputdir(tmpdir, monkeypatch):
     return tmpdir
 
 
-@pytest.fixture(scope="session", name="freader")
-def fixture_freader():
+@pytest.fixture(scope="session", name="fortran_reader")
+def fixture_fortran_reader():
     ''' Initialise f2parser2 to PSyIR reader with Fortran2008 standard. '''
     return FortranReader()
 
 
-@pytest.fixture(scope="function", name="fort_writer")
-def fixture_fort_writer():
+@pytest.fixture(scope="function", name="fortran_writer")
+def fixture_fortran_writer():
     '''Create and return a FortranWriter object with default settings.'''
     return FortranWriter()

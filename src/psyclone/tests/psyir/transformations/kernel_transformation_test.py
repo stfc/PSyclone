@@ -159,7 +159,7 @@ def test_accroutine_empty_kernel():
     assert "!$acc routine\n  end subroutine testkern_code" in gen
 
 
-def test_new_kernel_file(kernel_outputdir, monkeypatch, freader):
+def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     ''' Check that we write out the transformed kernel to the CWD. '''
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
@@ -182,7 +182,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, freader):
                             "continuity{0}_mod.f90".format(tag))
     assert os.path.isfile(filename)
     # Parse the new kernel file
-    psyir = freader.psyir_from_file(filename)
+    psyir = fortran_reader.psyir_from_file(filename)
     # Check that the module has the right name
     assert isinstance(psyir, Container)
     assert psyir.name == "continuity{0}_mod".format(tag)
