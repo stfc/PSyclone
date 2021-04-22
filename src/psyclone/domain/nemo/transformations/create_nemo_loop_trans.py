@@ -76,8 +76,8 @@ class CreateNemoLoopTrans(Transformation):
 
         if not isinstance(node, Loop):
             raise TransformationError(
-                "Error in NemoKernelTrans transformation. The supplied node "
-                "should be a PSyIR Loop but found '{0}'".format(
+                "Error in CreateNemoLoopTrans transformation. The supplied "
+                "node should be a PSyIR Loop but found '{0}'".format(
                     type(node).__name__))
 
     def apply(self, loop, options=None):

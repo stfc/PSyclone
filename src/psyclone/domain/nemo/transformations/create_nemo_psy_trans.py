@@ -39,7 +39,7 @@
 '''
 
 from psyclone.transformations import Transformation, TransformationError
-from psyclone.psyir.nodes import Routine, Loop
+from psyclone.psyir.nodes import Routine, Loop, Node
 from psyclone.domain.nemo.transformations import \
     CreateNemoInvokeScheduleTrans, \
     CreateNemoKernelTrans, CreateNemoLoopTrans
@@ -47,7 +47,7 @@ from psyclone.domain.nemo.transformations import \
 
 class CreateNemoPSyTrans(Transformation):
     '''
-    Transform a generic PSyIR representation of a PSy layer into a PSyclone
+    Transform generic (language-level) PSyIR representation into a PSyclone
     version with specialised, NEMO-specific nodes.
 
     '''
@@ -62,7 +62,26 @@ class CreateNemoPSyTrans(Transformation):
 
     def validate(self, node, options=None):
         '''
+        Check that the supplied node is a valid target for this transformation.
+
+        :param node: the root of the PSyIR tree to be transformed.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for \
+            transformations. No options are used in this \
+            transformation. This is an optional argument that defaults \
+            to None.
+        :type options: dict of string:values or None
+
+        :raises TransformationError: if the supplied node is not a PSyIR node.
+
         '''
+        if not isinstance(node, Node):
+            raise TransformationError(
+                "Error in CreateNemoPSyTrans transformation. The supplied node"
+                " should be a PSyIR Node but found '{0}'".format(
+                    type(node).__name__))
+
+        super(CreateNemoPSyTrans, self).validate(node, options=options)
 
     def apply(self, psyir, options=None):
         '''
@@ -85,22 +104,22 @@ class CreateNemoPSyTrans(Transformation):
         '''
         self.validate(psyir, options=options)
 
+        invoke_trans = CreateNemoInvokeScheduleTrans()
+        kern_trans = CreateNemoKernelTrans()
+        loop_trans = CreateNemoLoopTrans()
+
         # Deal with Routines first. Have to take care of the case where the
         # supplied top-level node is itself a Routine and must therefore be
         # replaced.
         root = psyir
-        invoke_trans = CreateNemoInvokeScheduleTrans()
-        kern_trans = CreateNemoKernelTrans()
-        loop_trans = CreateNemoLoopTrans()
 
         for routine in psyir.walk(Routine):
             new_node = invoke_trans.apply(routine)
             if routine is root:
                 root = new_node
 
-        # Reverse the result of the walk() so that we process loops depth
-        # first. This permits the correct identification of NemoKern's.
-        for loop in reversed(root.walk(Loop)):
+        # Now deal with any loops
+        for loop in root.walk(Loop):
             new_loop = loop_trans.apply(loop)
 
             try:

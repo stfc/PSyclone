@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,26 +33,57 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-'''Module containing tests for the NemoLoopTrans transformation.'''
+'''Module containing tests for the CreateNemoPSyTrans transformation.'''
 
 from __future__ import absolute_import
-
+import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import CodeBlock
-from psyclone.transformations import Transformation
+from psyclone.transformations import Transformation, TransformationError
 from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 
 
-def test_construction():
+@pytest.fixture(scope="session")
+def psy_trans():
+    ''' pytest fixture that creates an instance of the Transformation that
+    this module is testing. '''
+    return CreateNemoPSyTrans()
+
+
+def test_construction(psy_trans):
     ''' Check that we can construct the transformation object. '''
-    trans = CreateNemoPSyTrans()
-    assert isinstance(trans, Transformation)
-    assert trans.name == "CreateNemoPSyTrans"
+    assert isinstance(psy_trans, Transformation)
+    assert psy_trans.name == "CreateNemoPSyTrans"
 
 
-def test_basic_psy(parser):
+def test_create_psy_validation(psy_trans):
+    ''' Check the validate() method of the transformation. '''
+    with pytest.raises(TransformationError) as err:
+        psy_trans.validate(1)
+    assert ("Error in CreateNemoPSyTrans transformation. The supplied node "
+            "should be a PSyIR Node but found 'int'" in str(err.value))
+
+
+def test_no_matching_psyir(psy_trans, parser):
+    ''' Check that the transformation has no effect if no suitable nodes
+    are found in the supplied PSyIR. '''
+    code = '''subroutine basic()
+  write(*,*) "Hello world"
+end subroutine basic
+'''
+    fp2reader = Fparser2Reader()
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psyir = fp2reader.generate_psyir(prog)
+    cblock = psyir[0]
+    psy_trans.apply(psyir[0])
+    # Transformation should have had no effect
+    assert psyir[0] is cblock
+
+
+def test_basic_psy(psy_trans, parser):
     ''' Check that the transformation correctly generates NEMO PSyIR for
     a simple case. '''
     code = '''subroutine basic_loop()
@@ -70,15 +101,14 @@ end subroutine basic_loop
     reader = FortranStringReader(code)
     prog = parser(reader)
     psyir = fp2reader.generate_psyir(prog)
-    trans = CreateNemoPSyTrans()
-    sched = trans.apply(psyir)
+    sched = psy_trans.apply(psyir)
     assert isinstance(sched, NemoInvokeSchedule)
     assert isinstance(sched[0], NemoLoop)
     assert isinstance(sched[0].loop_body[0], NemoLoop)
     assert isinstance(sched[0].loop_body[0].loop_body[0], NemoKern)
 
 
-def test_module_psy(parser):
+def test_module_psy(psy_trans, parser):
     ''' Check that the transformation works as expected when the source code
     contains a module with more than one routine. '''
     code = '''module my_mod
@@ -102,8 +132,7 @@ end module my_mod
     reader = FortranStringReader(code)
     prog = parser(reader)
     psyir = fp2reader.generate_psyir(prog)
-    trans = CreateNemoPSyTrans()
-    sched = trans.apply(psyir)
+    sched = psy_trans.apply(psyir)
     sched.view()
     invokes = sched.walk(NemoInvokeSchedule)
     assert len(invokes) == 2
