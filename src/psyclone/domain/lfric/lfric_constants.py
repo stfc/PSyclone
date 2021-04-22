@@ -44,6 +44,7 @@ from collections import OrderedDict
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric.lfric_builtins import BUILTIN_ITERATION_SPACES
 
 
 # pylint: disable=too-few-public-methods
@@ -138,6 +139,13 @@ class LFRicConstants(object):
         # anything but is required for the halo-exchange logic.
         LFRicConstants.VALID_LOOP_TYPES = ["dof", "colours", "colour", "",
                                            "null"]
+
+        # Valid LFRic iteration spaces for user-supplied kernels and
+        # built-in kernels
+        LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
+        LFRicConstants.VALID_ITERATION_SPACES = \
+            LFRicConstants.USER_KERNEL_ITERATION_SPACES + \
+            BUILTIN_ITERATION_SPACES
 
 
 # =============================================================================

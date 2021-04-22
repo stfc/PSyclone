@@ -57,8 +57,7 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import (
-    BUILTIN_ITERATION_SPACES, LFRicBuiltInCallFactory,
-    LFRicBuiltIn, BUILTIN_MAP)
+    LFRicBuiltInCallFactory, LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
@@ -80,11 +79,6 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 # --------------------------------------------------------------------------- #
 #
 
-
-# Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
-USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
-VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
-    BUILTIN_ITERATION_SPACES
 
 # ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-specific code in psyGen.
@@ -7666,7 +7660,8 @@ class DynKern(CodedKern):
 
         '''
         # The operates-on/iterates-over values supported by the stub generator.
-        supported_operates_on = USER_KERNEL_ITERATION_SPACES[:]
+        const = LFRicConstants()
+        supported_operates_on = const.USER_KERNEL_ITERATION_SPACES[:]
         # TODO #925 Add support for 'domain' kernels
         supported_operates_on.remove("domain")
 
@@ -7730,12 +7725,13 @@ class DynKern(CodedKern):
 
         '''
         # Check operates-on (iteration space) before generating code
-        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
+        const = LFRicConstants()
+        if self.iterates_over not in const.USER_KERNEL_ITERATION_SPACES:
             raise GenerationError(
                 "The LFRic API supports calls to user-supplied kernels "
                 "that operate on one of {0}, but kernel '{1}' "
                 "operates on '{2}'.".
-                format(USER_KERNEL_ITERATION_SPACES, self.name,
+                format(const.USER_KERNEL_ITERATION_SPACES, self.name,
                        self.iterates_over))
 
         # Get configuration for valid argument kinds

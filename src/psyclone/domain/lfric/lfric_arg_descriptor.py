@@ -82,7 +82,7 @@ class LFRicArgDescriptor(Descriptor):
                            invalid argument type.
 
     '''
-
+    # pylint: disable=too-many-instance-attributes
     # ---------- LFRicArgDescriptor class constants  ------------------------ #
     # Supported LFRic API argument types (scalars, fields, operators)
     VALID_SCALAR_NAMES = ["gh_scalar"]
@@ -117,6 +117,7 @@ class LFRicArgDescriptor(Descriptor):
     # ----------------------------------------------------------------------- #
 
     def __init__(self, arg_type, operates_on):
+        # pylint: disable=too-many-branches, too-many-statements
         self._arg_type = arg_type
         # Initialise properties
         self._argument_type = None
@@ -211,12 +212,15 @@ class LFRicArgDescriptor(Descriptor):
 
         # Check for the allowed iteration spaces from the parsed kernel
         # metadata
-        from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
-        if operates_on not in VALID_ITERATION_SPACES:
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
+        if operates_on not in const.VALID_ITERATION_SPACES:
             raise InternalError(
                 "Expected operates_on in the kernel metadata to be one of "
                 "{0} but got '{1}'.".format(
-                    VALID_ITERATION_SPACES, operates_on))
+                    const.VALID_ITERATION_SPACES, operates_on))
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
@@ -339,6 +343,10 @@ class LFRicArgDescriptor(Descriptor):
                             kernel that operates on the domain.
 
         '''
+        # Note: import-outside is added here since it does not work
+        # when put into the else-branch below where the import is :(
+        # pylint: disable=too-many-locals, too-many-branches
+        # pylint: disable=too-many-statements, import-outside-toplevel
         # Check whether something other than a field is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
             raise InternalError(
@@ -468,10 +476,12 @@ class LFRicArgDescriptor(Descriptor):
                             self._function_space1.lower(), arg_type))
         # Raise an InternalError for an invalid value of operates-on
         else:
-            from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
+            from psyclone.domain.lfric import LFRicConstants
+            const = LFRicConstants()
             raise InternalError(
                 "Invalid operates_on '{0}' in the kernel metadata (expected "
-                "one of {1}).".format(operates_on, VALID_ITERATION_SPACES))
+                "one of {1}).".format(operates_on,
+                                      const.VALID_ITERATION_SPACES))
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil:
