@@ -51,8 +51,6 @@ from __future__ import print_function
 import re
 import six
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -69,6 +67,7 @@ from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, \
     REAL_TYPE, UnknownFortranType, LocalInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
@@ -1754,13 +1753,8 @@ class GOKern(CodedKern):
         code += "end subroutine write_device_grid"
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        freader = FortranReader()
+        subroutine = freader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1833,13 +1827,8 @@ class GOKern(CodedKern):
         '''.format(num_x, num_y, host_buff, read_fp, write_fp)
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        freader = FortranReader()
+        subroutine = freader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1928,13 +1917,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        freader = FortranReader()
+        subroutine = freader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2023,13 +2007,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        freader = FortranReader()
+        subroutine = freader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2118,13 +2097,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        freader = FortranReader()
+        subroutine = freader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 

@@ -61,7 +61,6 @@ class FortranReader(object):
 
     def __init__(self, std="f2008"):
         if std in self._parser_cache:
-            import pdb; pdb.set_trace()
             self._parser = self._parser_cache[std]
         else:
             self._parser = ParserFactory().create(std=std)
