@@ -199,7 +199,7 @@ def test_aic_defroutinerootname():
     assert call._def_routine_root_name() == "invoke_{0}".format(index)
 
 
-def test_aic_createlanguagelevelsymbols():
+def test_aic_createpsylayersymbols():
     '''Check that the create_psylayer_symbols method behaves in the
     expected way, i.e. creates and stores a routine_symbol and a
     container_symbol the first time it is called and then does nothing

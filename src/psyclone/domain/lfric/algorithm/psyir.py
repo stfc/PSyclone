@@ -94,7 +94,7 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         return instance
 
     def _def_routine_root_name(self):
-        '''Internal function that returns the proposed language_level routine
+        '''Internal function that returns the proposed PSy-layer routine
         name given the index of this invoke.
 
         :returns: the proposed processed routine name for this invoke.

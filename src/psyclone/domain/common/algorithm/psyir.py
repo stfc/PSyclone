@@ -139,7 +139,7 @@ class AlgorithmInvokeCall(Call):
         return routine_root_name
 
     def create_psylayer_symbols(self):
-        '''If the language-level routine and container symbols have not been
+        '''If the PSy-layer routine and container symbols have not been
         created, then create them. The names are based on the position
         of this node (compared to other nodes of the same type) in the
         PSyIR tree.
