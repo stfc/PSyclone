@@ -40,7 +40,8 @@
 
 from psyclone.transformations import Transformation, TransformationError
 from psyclone.psyir.nodes import Routine, Loop
-from psyclone.domain.nemo.transformations import CreateNemoInvokeTrans, \
+from psyclone.domain.nemo.transformations import \
+    CreateNemoInvokeScheduleTrans, \
     CreateNemoKernelTrans, CreateNemoLoopTrans
 
 
@@ -88,7 +89,7 @@ class CreateNemoPSyTrans(Transformation):
         # supplied top-level node is itself a Routine and must therefore be
         # replaced.
         root = psyir
-        invoke_trans = CreateNemoInvokeTrans()
+        invoke_trans = CreateNemoInvokeScheduleTrans()
         kern_trans = CreateNemoKernelTrans()
         loop_trans = CreateNemoLoopTrans()
 

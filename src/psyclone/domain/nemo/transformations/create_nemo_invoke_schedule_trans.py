@@ -110,5 +110,6 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         # tree that we've been passsed.
         if routine.parent:
             routine.replace_with(new_node)
+        del routine
 
         return new_node

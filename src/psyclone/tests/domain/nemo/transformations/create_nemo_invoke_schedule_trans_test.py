@@ -43,7 +43,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Return, Routine, Assignment
+from psyclone.psyir.nodes import Return, Routine, Loop
 from psyclone.transformations import TransformationError
 from psyclone.domain.nemo.transformations import CreateNemoInvokeScheduleTrans
 from psyclone.nemo import NemoInvokeSchedule
@@ -83,8 +83,44 @@ end subroutine basic_loop
     reader = FortranStringReader(code)
     prog = parser(reader)
     psyir = fp2reader.generate_psyir(prog)
+    first_loop = psyir[0]
     routines = psyir.walk(Routine)
+    assert routines[0] is psyir
     # Apply the transformation to the Routine
     sched = trans.apply(routines[0])
     sched.view()
-    assert 0
+    assert isinstance(sched, NemoInvokeSchedule)
+    assert sched[0] is first_loop
+
+
+def test_multi_invoke_schedules(parser):
+    ''' Test that the transformation works successfully when the target
+    routine is one of two in a module. '''
+    code = '''module my_mod
+contains
+subroutine init()
+  write (*,*) "init called"
+end subroutine init
+subroutine basic_loop()
+  integer, parameter :: jpi=16, jpj=16
+  integer :: ji, jj
+  real :: a(jpi, jpj), fconst
+  do jj = 1, jpj
+    do ji = 1, jpi
+      a(ji) = fconst
+    end do
+  end do
+end subroutine basic_loop
+end module my_mod
+'''
+    fp2reader = Fparser2Reader()
+    reader = FortranStringReader(code)
+    ptree = parser(reader)
+    psyir = fp2reader.generate_psyir(ptree)
+    trans = CreateNemoInvokeScheduleTrans()
+    routines = psyir.walk(Routine)
+    loops = psyir.walk(Loop)
+    trans.apply(routines[1])
+    assert isinstance(psyir.children[1], NemoInvokeSchedule)
+    # Check body has not changed
+    assert psyir.children[1][0] is loops[0]
