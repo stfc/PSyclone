@@ -40,7 +40,6 @@
 This module contains the abstract Node implementation.
 
 '''
-import abc
 import copy
 import six
 from psyclone.psyir.symbols import SymbolError
