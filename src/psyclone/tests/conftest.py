@@ -145,13 +145,6 @@ def parser():
     return ParserFactory().create()
 
 
-@pytest.fixture(scope="session", name="f2008_parser")
-def fixture_f2008_parser():
-    ''' Initialise fparser2 with Fortran2008 standard. '''
-    from fparser.two.parser import ParserFactory
-    return ParserFactory().create(std="f2008")
-
-
 @pytest.fixture(scope="function")
 def kernel_outputdir(tmpdir, monkeypatch):
     '''Sets the PSyclone _kernel_output_dir Config parameter to tmpdir.'''
