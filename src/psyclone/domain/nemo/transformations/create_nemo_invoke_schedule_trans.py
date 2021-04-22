@@ -35,7 +35,7 @@
 
 '''
 Module providing a transformation from a generic PSyIR routine into a
-NEMO Invoke.
+NEMO InvokeSchedule.
 '''
 
 from psyclone.transformations import Transformation, TransformationError
@@ -43,9 +43,9 @@ from psyclone.psyir.nodes import Routine
 from psyclone.nemo import NemoInvokeSchedule
 
 
-class CreateNemoInvokeTrans(Transformation):
+class CreateNemoInvokeScheduleTrans(Transformation):
     '''
-    Transform a generic PSyIR Routine into a NEMO Invoke.
+    Transform a generic PSyIR Routine into a NEMO InvokeSchedule.
 
     '''
     @property
@@ -72,7 +72,7 @@ class CreateNemoInvokeTrans(Transformation):
         :raises TransformationError: if the supplied node is not a Routine.
 
         '''
-        super(CreateNemoInvokeTrans, self).validate(node)
+        super(CreateNemoInvokeScheduleTrans, self).validate(node)
 
         if not isinstance(node, Routine):
             raise TransformationError(
@@ -82,8 +82,8 @@ class CreateNemoInvokeTrans(Transformation):
 
     def apply(self, routine, options=None):
         '''
-        Takes a generic PSyIR Routine and replaces it with a NEMO Invoke.
-        NEMO-specific PSyIR (in-place). Note that this may mean replacing
+        Takes a generic PSyIR Routine and replaces it with a
+        NemoInvokeSchedule (in-place). Note that this may mean replacing
         the top-level node itself and therefore this routine returns the
         root of the modified tree.
 

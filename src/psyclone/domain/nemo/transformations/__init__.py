@@ -37,6 +37,8 @@
 '''Transformations module for NEMO.
 '''
 
+from psyclone.domain.nemo.transformations.create_nemo_invoke_schedule_trans \
+    import CreateNemoInvokeScheduleTrans
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
     import CreateNemoKernelTrans
 from psyclone.domain.nemo.transformations.create_nemo_loop_trans \
@@ -45,8 +47,6 @@ from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
     import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
     import NemoAllArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.create_nemo_invoke_trans \
-    import CreateNemoInvokeTrans
 from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
     import NemoOuterArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
@@ -56,7 +56,7 @@ from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
 # this package e.g.:
 # from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 
-__all__ = ['CreateNemoInvokeTrans',
+__all__ = ['CreateNemoInvokeScheduleTrans',
            'CreateNemoKernelTrans',
            'CreateNemoLoopTrans',
            'CreateNemoPSyTrans',
