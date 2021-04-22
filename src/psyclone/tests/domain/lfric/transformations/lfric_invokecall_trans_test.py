@@ -178,7 +178,7 @@ def test_multi_named_arg_error(freader):
             "two: 'first' and 'second'." in str(info.value))
 
     with pytest.raises(TransformationError) as info:
-        lfric_invoke_trans.apply(psyir[0])
+        lfric_invoke_trans.apply(psyir[0], 0)
     assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
@@ -214,7 +214,8 @@ def test_apply_codedkern_arrayref(freader):
     '''Test that a kernel call within an invoke that is mistakenly encoded
     as an ArrayRef in the PSyIR is translated into an
     LFRicKernelFunctor and expected children. This test also checks
-    that an optional name is captured correctly.
+    that an optional name is captured correctly. Also checks that the
+    index argument is captured correctly.
 
     '''
     code = (
@@ -228,10 +229,11 @@ def test_apply_codedkern_arrayref(freader):
     psyir = freader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0])
+    lfric_invoke_trans.apply(psyir[0], 1)
 
     check_invoke(psyir[0], [(LFRicKernelFunctor, "kern")],
                  description="hello")
+    assert psyir[0]._index == 1
     args = psyir[0].children[0].children
     check_args(args, [(Reference, "field1")])
 
@@ -253,7 +255,7 @@ def test_apply_codedkern_structconstruct(freader):
     psyir = freader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0])
+    lfric_invoke_trans.apply(psyir[0], 2)
 
     check_invoke(psyir[0], [(LFRicKernelFunctor, "kern")])
     args = psyir[0].children[0].children
@@ -278,7 +280,7 @@ def test_apply_builtin_structconstruct(freader):
     psyir = freader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0])
+    lfric_invoke_trans.apply(psyir[0], 3)
 
     check_invoke(psyir[0], [(LFRicBuiltinFunctor, "setval_c")])
     args = psyir[0].children[0].children
@@ -304,7 +306,7 @@ def test_apply_builtin_arrayref(freader):
     psyir = freader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0])
+    lfric_invoke_trans.apply(psyir[0], 4)
 
     check_invoke(psyir[0], [(LFRicBuiltinFunctor, "setval_c")],
                  description="test")
@@ -332,7 +334,7 @@ def test_apply_mixed(freader):
     psyir = freader.psyir_from_source(code)
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0])
+    lfric_invoke_trans.apply(psyir[0], 5)
 
     check_invoke(
         psyir[0],

@@ -60,7 +60,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_no_gen_code():
     '''Test that we raise an exception if gen_code is called
     for a NemoKern.'''
-    kern = nemo.NemoKern([], None)
+    kern = nemo.NemoKern([])
     with pytest.raises(InternalError) as err:
         kern.gen_code(None)
     assert "NEMO kernels are assumed to be in-lined by default therefore " \
@@ -137,7 +137,7 @@ def test_multi_kern():
     sched = invoke_info.schedule
     loops = sched.walk(nemo.NemoLoop)
     # Create and add a second kernel as a child of the first loop
-    kern = nemo.NemoKern([], None)
+    kern = nemo.NemoKern([])
     loops[0].loop_body.children.append(kern)
     with pytest.raises(NotImplementedError) as err:
         _ = loops[0].kernel
@@ -185,86 +185,6 @@ def test_fn_call_no_kernel(parser):
     assert isinstance(loop, nemo.NemoLoop)
     # Child of loop should be an Assignment, not a Kernel.
     assert isinstance(loop.loop_body[0], Assignment)
-
-
-def test_codeblock_no_kernel(parser):
-    ''' Check that we don't create a kernel if the loop body contains a
-    CodeBlock. '''
-    reader = FortranStringReader("program fake_kern\n"
-                                 "integer :: ji, jpj\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "sto_tmp(ji) = 1.0\n"
-                                 "end do\n"
-                                 "end program fake_kern\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    # Check that we have the expected structure
-    assert isinstance(loop, nemo.NemoLoop)
-    assert nemo.NemoKern.match(loop.loop_body)
-    # Create a fake CodeBlock
-    cblock = CodeBlock([loop.loop_body[0].ast], CodeBlock.Structure.STATEMENT)
-    # Monkeypatch the loop_body object so that it has a CodeBlock as a child
-    loop.loop_body.children = [cblock]
-    # This should no longer match as a NemoKern
-    assert not nemo.NemoKern.match(loop.loop_body)
-
-
-def test_nemokern_match():
-    ''' Check that NemoKern.match raises an InternalError in case of
-    incorrect parameters.'''
-
-    with pytest.raises(InternalError) as err:
-        nemo.NemoKern.match("invalid string type")
-    # Different error message in python2 vs python3
-    assert ("Expected 'Schedule' in 'match', got '<class 'str'>"
-            in str(err.value) or "Expected 'Schedule' in 'match', "
-            "got '<type 'str'>" in str(err.value))
-
-
-def test_no_explicit_loop_in_kernel(parser):
-    ''' Check that NemoKern.match() does not match a candidate parse tree
-    if it includes an explicit loop. '''
-    reader = FortranStringReader("program fake_kern\n"
-                                 "integer :: ji, jpj, idx\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  do idx = 1, 5\n"
-                                 "    sto_tmp(ji) = 1.0\n"
-                                 "  end do\n"
-                                 "end do\n"
-                                 "end program fake_kern\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    assert isinstance(loop, nemo.NemoLoop)
-    assert isinstance(loop.loop_body[0], nemo.NemoLoop)
-    # 'loop.loop_body' is not a valid kernel because it itself contains a loop
-    assert not nemo.NemoKern.match(loop.loop_body)
-
-
-def test_no_implicit_loop_in_kernel(parser):
-    ''' Check that NemoKern.match() does not match a candidate parse tree
-    if it includes an implicit loop. '''
-    reader = FortranStringReader("program fake_kern\n"
-                                 "integer :: ji, jpj\n"
-                                 "real(kind=wp) :: sto_tmp(5,5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  sto_tmp(:,:) = 1.0\n"
-                                 "end do\n"
-                                 "end program fake_kern\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    assert isinstance(loop, nemo.NemoLoop)
-    assert isinstance(loop.loop_body[0], Assignment)
-    # 'loop.loop_body' is not a valid kernel because it contains an
-    # assignment to an array range.
-    assert not nemo.NemoKern.match(loop.loop_body)
 
 
 def test_schedule_view(capsys):

@@ -486,13 +486,25 @@
 
 	158) PR #1167 for #1097. Install PSyData wrapper libraries; support
 	integer fields in PSyData.
-  
+
 	159) PR #1176 for #1174. Check that schedule is not empty when applying
 	profiling.
 
-  160) PR #1201 for #1198. Introduces the ScopingNode abstract base
-  class. Container, Schedule and Routine now subclass this and deep
-  copying is supported.
+	160) PR #1201 for #1198. Introduces the ScopingNode abstract base
+	class. Container, Schedule and Routine now subclass this and deep
+	copying is supported.
+
+	161) PR #1211 towards #1210. Add CreateNemoKernTrans transformation.
+
+        162) PR #1219 for #1218. Removes the Node.gen_code() abstract method
+        as this is not used by the new PSyIR nodes that we are adding.
+
+	163) PR #1192 towards #753. Add methods to lower the Algorithm layer PSyIR
+	and create the appropriate symbols to be used by the PSy-layer.
+
+        164) PR #1175 for #1066. Update the GOcean OpenCL read/write
+        interfaces and use so that only halo data moved to/from the host for
+        halo exchanges.
 
 release 1.9.0 20th May 2020
 
