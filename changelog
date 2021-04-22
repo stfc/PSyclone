@@ -499,6 +499,9 @@
         162) PR #1219 for #1218. Removes the Node.gen_code() abstract method
         as this is not used by the new PSyIR nodes that we are adding.
 
+	163) PR #1192 towards #753. Add methods to lower the Algorithm layer PSyIR
+	and create the appropriate symbols to be used by the PSy-layer.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

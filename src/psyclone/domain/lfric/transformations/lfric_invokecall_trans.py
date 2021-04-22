@@ -115,12 +115,14 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
                 "actual-arg-spec, but found '{1}'."
                 "".format(self.name, type(fp2_node).__name__))
 
-    def apply(self, call, options=None):
+    def apply(self, call, index, options=None):
         ''' Apply the transformation to the supplied node.
 
         :param call: a PSyIR call node capturing an invoke call in \
             generic PSyIR.
         :type call: :py:class:`psyclone.psyir.nodes.Call`
+        :param int index: the position of this invoke call relative to \
+            other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -165,7 +167,7 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
                 calls.append(node_type.create(type_symbol, args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
-            call.routine, calls, description=call_description)
+            call.routine, calls, index, description=call_description)
         call.replace_with(invoke_call)
 
     @property
