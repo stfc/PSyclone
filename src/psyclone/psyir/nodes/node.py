@@ -40,7 +40,6 @@
 This module contains the abstract Node implementation.
 
 '''
-import abc
 import copy
 import six
 from psyclone.psyir.symbols import SymbolError
@@ -1134,15 +1133,6 @@ class Node(object):
         '''
         for child in self.children:
             child.lower_to_language_level()
-
-    def gen_code(self, parent):
-        '''Abstract base class for code generation function.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        '''
-        raise NotImplementedError(
-            "Please implement me: {0}".format(type(self)))
 
     def update(self):
         ''' By default we assume there is no need to update the existing

@@ -496,6 +496,8 @@
 
 	161) PR #1211 towards #1210. Add CreateNemoKernTrans transformation.
 
+        162) PR #1219 for #1218. Removes the Node.gen_code() abstract method
+        as this is not used by the new PSyIR nodes that we are adding.
 
 release 1.9.0 20th May 2020
 
