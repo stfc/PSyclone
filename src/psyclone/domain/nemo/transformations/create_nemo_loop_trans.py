@@ -36,18 +36,52 @@
 '''
 Module providing a transformation from a generic PSyIR Loop into a
 NEMO Loop.
-'''
 
+'''
 from psyclone.transformations import Transformation, TransformationError
 from psyclone.psyir.nodes import Loop
 from psyclone.nemo import NemoLoop
 
 
 class CreateNemoLoopTrans(Transformation):
-    '''
-    Transform a generic PSyIR Schedule into a NEMO Kernel.
+    """
+    Transform a generic PSyIR Loop into a NemoLoop. For example:
 
-    '''
+    >>> from fparser.common.readfortran import FortranStringReader
+    >>> from fparser.two.parser import ParserFactory
+    >>> from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.domain.nemo.transformations import CreateNemoLoopTrans
+    >>> reader = FortranStringReader('''
+    ... subroutine sub()
+    ...   integer :: ji, tmp(10)
+    ...   do ji=1, 10
+    ...     tmp(ji) = 2*ji
+    ...   end do
+    ... end subroutine sub''')
+    >>> parser = ParserFactory().create()
+    >>> psyir = Fparser2Reader().generate_psyir(parser(reader))
+    >>> loops = psyir.walk(Loop)
+    >>> trans = CreateNemoLoopTrans()
+    >>> trans.apply(loops[0])
+    >>> psyir.view()
+    Routine[name:'sub']
+        0: Loop[type='lon', field_space='None', it_space='None']
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Schedule[]
+                0: Assignment[]
+                    ArrayReference[name:'tmp']
+                        Reference[name:'ji']
+                    BinaryOperation[operator:'MUL']
+                        Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                        Reference[name:'ji']
+
+    As shown above, the resulting Schedule now contains a NemoLoop, indicated
+    by the "type='lon'" (for 'longitude') annotation for the Loop node.
+
+    """
     @property
     def name(self):
         '''

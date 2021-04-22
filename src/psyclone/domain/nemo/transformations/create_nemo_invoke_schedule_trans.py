@@ -44,10 +44,49 @@ from psyclone.nemo import NemoInvokeSchedule
 
 
 class CreateNemoInvokeScheduleTrans(Transformation):
-    '''
+    """
     Transform a generic PSyIR Routine into a NEMO InvokeSchedule.
+    For example:
 
-    '''
+    >>> from fparser.common.readfortran import FortranStringReader
+    >>> from fparser.two.parser import ParserFactory
+    >>> from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.domain.nemo.transformations import \
+    CreateNemoInvokeScheduleTrans
+    >>> reader = FortranStringReader('''
+    ... subroutine sub()
+    ...   integer :: ji
+    ...   real :: tmp(10)
+    ...   do ji=1, 10
+    ...     tmp(ji) = 2.0*ji
+    ...   end do
+    ... end subroutine sub''')
+    >>> parser = ParserFactory().create()
+    >>> psyir = Fparser2Reader().generate_psyir(parser(reader))
+    >>> loop = psyir.walk(Loop)[0]
+    >>> trans = CreateNemoInvokeScheduleTrans()
+    >>> sched = trans.apply(psyir)
+    >>> sched.view()
+    NemoInvokeSchedule[name:'sub']
+        0: Loop[type='None', field_space='None', it_space='None']
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Schedule[]
+                0: InlinedKern[]
+                    Schedule[]
+                        0: Assignment[]
+                            ArrayReference[name:'tmp']
+                                Reference[name:'ji']
+                            BinaryOperation[operator:'MUL']
+                                Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
+                                Reference[name:'ji']
+
+    The root node of this example has been transformed from a Routine into a
+    NemoInvokeSchedule.
+
+    """
     @property
     def name(self):
         '''
