@@ -72,14 +72,6 @@ OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 # domain-specific modules.
 VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
 
-# Valid types of argument to a kernel call. Can be overridden in
-# domain-specific modules.
-VALID_ARG_TYPE_NAMES = []
-
-# Valid intrinsic types of kernel argument data. Can be
-# overridden in domain-specific modules.
-VALID_INTRINSIC_TYPES = []
-
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
@@ -664,12 +656,13 @@ class Invoke(object):
 
         '''
         # First check for invalid argument types, access and intrinsic type
-        if any(argtype not in VALID_ARG_TYPE_NAMES for
+        const = Config.get().api_conf().get_constants()
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declarations() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
+                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
@@ -677,13 +670,14 @@ class Invoke(object):
                 "access type. Type is '{0}' instead of AccessType.".
                 format(str(access)))
 
+        const = Config.get().api_conf().get_constants()
         if (intrinsic_type and intrinsic_type not in
-                VALID_INTRINSIC_TYPES):
+                const.VALID_INTRINSIC_TYPES):
             raise InternalError(
                 "Invoke.unique_declarations() called with an invalid "
                 "intrinsic argument data type. Expected one of {0} but "
                 "found '{1}'.".
-                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
+                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # Initialise dictionary of kernel arguments to get the
         # argument list from
@@ -732,20 +726,22 @@ class Invoke(object):
 
         '''
         # First check for invalid argument types and intrinsic type
-        if any(argtype not in VALID_ARG_TYPE_NAMES for
+        const = Config.get().api_conf().get_constants()
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
+                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
 
+        const = Config.get().api_conf().get_constants()
         if (intrinsic_type and intrinsic_type not in
-                VALID_INTRINSIC_TYPES):
+                const.VALID_INTRINSIC_TYPES):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with an invalid "
                 "intrinsic argument data type. Expected one of {0} but "
                 "found '{1}'.".
-                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
+                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent

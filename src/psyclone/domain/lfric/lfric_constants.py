@@ -79,6 +79,7 @@ class LFRicConstants(object):
             OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
                             supported_fortran_datatypes[0:2]))
 
+        # psyGen intrinsic types for kernel argument data as defined in LFRic.
         LFRicConstants.VALID_INTRINSIC_TYPES = \
             list(LFRicConstants.MAPPING_DATA_TYPES.values())
 
@@ -146,6 +147,10 @@ class LFRicConstants(object):
         LFRicConstants.VALID_ITERATION_SPACES = \
             LFRicConstants.USER_KERNEL_ITERATION_SPACES + \
             BUILTIN_ITERATION_SPACES
+
+        # psyGen argument types translate to LFRic argument types.
+        LFRicConstants.VALID_ARG_TYPE_NAMES = \
+            LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
 
 # =============================================================================
