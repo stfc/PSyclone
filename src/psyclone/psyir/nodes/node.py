@@ -1309,6 +1309,7 @@ class Node(object):
 
         By default, this routine does nothing. It must be overridden
         appropriately in any sub-classes to which constraints apply.
+        If an error is found then a GenerationError should be raised.
 
         '''
 

@@ -72,11 +72,11 @@ instance as an argument. Note the names are always translated to lower
 case. Therefore, a particular back-end needs to subclass
 `PSyIRVisitor`, provide a `loop_node` method (in this particular example) and
 this method would then be called when the visitor finds an instance of
-`Loop`. For example:
+`Loop`. For example::
 
-::
 
     from __future__ import print_function
+    from psyclone.psyir.visitor import PSyIRVisitor
     class TestVisitor(PSyIRVisitor):
         ''' Example implementation of a back-end visitor. '''
 
@@ -89,11 +89,11 @@ this method would then be called when the visitor finds an instance of
 
 It is up to the sub-class to call any children of the particular
 node. This approach was chosen as it allows the sub-class to control
-when and how to call children. For example:
+when and how to call children. For example::
 
-::
 
     from __future__ import print_function
+    from psyclone.psyir.visitor import PSyIRVisitor
     class TestVisitor(PSyIRVisitor):
         ''' Example implementation of a back-end visitor. '''
 
@@ -149,9 +149,8 @@ One example of the power of this approach makes use of the fact that
 all PSyIR nodes have `Node` as a parent class. Therefore, some base
 functionality can be added there and all nodes that do not have a
 specific method implemented will call this. To see the
-class hierarchy, the following code can be written:
+class hierarchy, the following code can be written::
 
-::
 
    from __future__ import print_function
     class PrintHierarchy(PSyIRVisitor):
@@ -172,9 +171,8 @@ In the examples presented up to now, the information from a back-end
 has been printed. However, a back-end will generally not want to use
 print statements. Output from a `PSyIRVisitor` is supported by
 allowing each method call to return a string. Reimplementing the
-previous example using strings would give the following:
+previous example using strings would give the following::
 
-::
    
     from __future__ import print_function class
     PrintHierarchy(PSyIRVisitor):
@@ -199,17 +197,15 @@ indentation as a string and the indentation can be increased by
 increasing the value of the `self._depth` variable. The initial depth
 defaults to 0 and the initial indentation defaults to two
 spaces. These defaults can be changed when creating the back-end
-instance. For example:
+instance. For example::
 
-::
 
     print_hierarchy = PrintHierarchy(initial_indent_depth=2,
                                      indent_string="***")
 
 The `PrintHierarchy` example can be modified to support indenting by
-writing the following:
+writing the following::
 
-::
 
     from __future__ import print_function
     class PrintHierarchy(PSyIRVisitor):
@@ -235,9 +231,8 @@ writing the following:
 As a visitor instance always calls the `_visit` method, an alternative
 (functor) implementation is provided via the `__call__` method in the
 base class. This allows the above example to be called in the
-following simplified way (as if it were a function):
+following simplified way (as if it were a function)::
 
-::
 
     print_hierarchy = PrintHierarchy()
     result = print_hierarchy(psyir_tree)
@@ -247,6 +242,24 @@ The primary reason for providing the above (functor) interface is to
 hide users from the use of the visitor pattern. This is the interface
 to expose to users (which is why `_visit` is used for the visitor
 method, rather than `visit`).
+
+PSyIR Validation
+================
+
+Although the validity of parent-child relationships is checked during the
+construction of a PSyIR tree (see e.g. :ref:`nodesinfo-label`), there are
+often constraints that can only be checked once the tree is complete i.e.
+at the point that a backend is used to generate code. One such example
+is that an OpenMP `do` directive must appear within an OpenMP `parallel`
+region.
+
+The base PSyVisitor class provides support for this validation by
+calling the `validate_global_constraints()` method of each Node that
+it visits. The `Node` base class contains an empty implementation of
+this method. Therefore, if a subclass of `Node` is subject to certain
+global constraints then it must override this method and implement the
+required checks. If those checks fail then the method should raise a
+`GenerationError`.
 
 Available back-ends
 ===================
