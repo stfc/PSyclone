@@ -2782,14 +2782,13 @@ class LFRicFields(DynCollection):
 
             # Check for invalid descriptor data type
             fld_ad_dtype = fld.descriptor.data_type
-            if (fld_ad_dtype not in
-                    LFRicArgDescriptor.VALID_FIELD_DATA_TYPES):
+            if (fld_ad_dtype not in const.VALID_FIELD_DATA_TYPES):
                 raise InternalError(
                     "Found an unsupported data type '{0}' in kernel "
                     "stub declarations for the field argument '{1}'. "
                     "Supported types are {2}.".
                     format(fld_ad_dtype, fld.declaration_name,
-                           LFRicArgDescriptor.VALID_FIELD_DATA_TYPES))
+                           const.VALID_FIELD_DATA_TYPES))
 
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
@@ -3263,6 +3262,7 @@ class LFRicScalarArgs(DynCollection):
             if arg.is_scalar:
                 self._scalar_args[arg.intent].append(arg)
 
+        const = LFRicConstants()
         # Filter scalar arguments by intent and data type
         for intent in FORTRAN_INTENT_NAMES:
             for arg in self._scalar_args[intent]:
@@ -3275,7 +3275,7 @@ class LFRicScalarArgs(DynCollection):
                         "Found an unsupported data type '{0}' for the "
                         "scalar argument '{1}'. Supported types are {2}.".
                         format(arg.descriptor.data_type, arg.declaration_name,
-                               LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES))
+                               const.VALID_SCALAR_DATA_TYPES))
 
         # Create declarations
         self._create_declarations(parent)
@@ -7339,7 +7339,7 @@ class DynKern(CodedKern):
                     raise InternalError(
                         "Expected one of {0} data types for a scalar "
                         "argument but found '{1}'.".
-                        format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
+                        format(const.VALID_SCALAR_DATA_TYPES,
                                descriptor.data_type))
             else:
                 raise GenerationError(

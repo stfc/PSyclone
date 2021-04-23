@@ -44,7 +44,7 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicFields
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.errors import InternalError
@@ -107,10 +107,11 @@ def test_lfricfields_stub_err():
     print(fld_arg.descriptor._data_type)
     with pytest.raises(InternalError) as err:
         LFRicFields(kernel)._stub_declarations(sub_stub)
+    const = LFRicConstants()
     assert ("Found an unsupported data type 'gh_invalid_type' in "
             "kernel stub declarations for the field argument 'field_2'. "
             "Supported types are {0}.".
-            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES)
+            format(const.VALID_FIELD_DATA_TYPES)
             in str(err.value))
 
 

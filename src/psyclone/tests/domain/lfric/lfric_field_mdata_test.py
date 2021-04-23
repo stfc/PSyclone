@@ -122,10 +122,11 @@ def test_ad_field_invalid_data_type():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             "be a valid data type (one of {0}), but found 'gh_unreal' "
             "in 'arg_type(gh_field, gh_unreal, gh_inc, w1)'.".
-            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES)
+            format(const.VALID_FIELD_DATA_TYPES)
             in str(excinfo.value))
     # Check integer field
     code = FIELD_CODE.replace(
@@ -213,16 +214,17 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
     int_field_arg.args[1].name = "gh_double"
     # Now try to trip the error by making the initial test think
     # that 'gh_double' is actually a valid data type
+    const = LFRicConstants()
     monkeypatch.setattr(
-        target=LFRicArgDescriptor, name="VALID_ARG_DATA_TYPES",
-        value=LFRicArgDescriptor.VALID_ARG_DATA_TYPES + ["gh_double"])
+        target=LFRicConstants, name="VALID_ARG_DATA_TYPES",
+        value=LFRicConstants.VALID_ARG_DATA_TYPES + ["gh_double"])
     # Check real field
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             real_field_arg, metadata.iterates_over)._init_field(
                 real_field_arg, metadata.iterates_over)
     assert ("Expected one of {0} as the field data type but got 'gh_double'.".
-            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES) in
+            format(const.VALID_FIELD_DATA_TYPES) in
             str(excinfo.value))
     # Check integer field
     with pytest.raises(InternalError) as excinfo:
@@ -230,7 +232,7 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
             int_field_arg, metadata.iterates_over)._init_field(
                 int_field_arg, metadata.iterates_over)
     assert ("Expected one of {0} as the field data type but got 'gh_double'.".
-            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES) in
+            format(const.VALID_FIELD_DATA_TYPES) in
             str(excinfo.value))
 
 

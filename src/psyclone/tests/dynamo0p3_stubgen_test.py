@@ -48,7 +48,7 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicScalarArgs
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
@@ -106,9 +106,10 @@ def test_lfricscalars_stub_err():
     arg.descriptor._data_type = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
+    const = LFRicConstants()
     assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
             "scalar argument 'iscalar_2'. Supported types are {0}.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES)
+            format(const.VALID_SCALAR_DATA_TYPES)
             in str(err.value))
 
 

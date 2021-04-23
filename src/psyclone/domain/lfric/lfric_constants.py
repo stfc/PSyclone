@@ -43,7 +43,6 @@ from __future__ import print_function, absolute_import
 from collections import OrderedDict
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicArgDescriptor
 
 
 # pylint: disable=too-few-public-methods
@@ -79,6 +78,13 @@ class LFRicConstants(object):
             LFRicConstants.VALID_OPERATOR_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
+        # Supported API argument data types (real and integer for now)
+        LFRicConstants.VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
+        LFRicConstants.VALID_FIELD_DATA_TYPES = \
+            LFRicConstants.VALID_ARG_DATA_TYPES
+        LFRicConstants.VALID_SCALAR_DATA_TYPES = \
+            LFRicConstants.VALID_ARG_DATA_TYPES
+
         # ---------- Fortran datatypes ---------------------------------------
         # This is only used here, so no class variable:
         supported_fortran_datatypes = Config.get().api_conf(
@@ -86,7 +92,7 @@ class LFRicConstants(object):
 
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
         LFRicConstants.MAPPING_DATA_TYPES = \
-            OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
+            OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,
                             supported_fortran_datatypes[0:2]))
 
         # psyGen intrinsic types for kernel argument data as defined in LFRic.

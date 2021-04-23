@@ -170,16 +170,17 @@ def test_ad_scalar_init_wrong_data_type(monkeypatch):
     # Get a scalar argument descriptor and set a wrong data type
     scalar_arg = metadata._inits[0]
     scalar_arg.args[1].name = "gh_double"
+    const = LFRicConstants()
     # Now try to trip the error by making the initial test think
     # that 'gh_double' is actually a valid data type
     monkeypatch.setattr(
-        target=LFRicArgDescriptor, name="VALID_ARG_DATA_TYPES",
-        value=LFRicArgDescriptor.VALID_ARG_DATA_TYPES + ["gh_double"])
+        target=LFRicConstants, name="VALID_ARG_DATA_TYPES",
+        value=LFRicConstants.VALID_ARG_DATA_TYPES + ["gh_double"])
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             scalar_arg, metadata.iterates_over)._init_scalar(scalar_arg)
     assert ("Expected one of {0} as the scalar data type but got 'gh_double'.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
+            format(const.VALID_SCALAR_DATA_TYPES) in
             str(excinfo.value))
 
 
