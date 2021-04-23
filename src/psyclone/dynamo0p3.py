@@ -165,14 +165,15 @@ class DynFuncDescriptor03(object):
                 "In the dynamo0.3 API each meta_func entry must have at "
                 "least 2 args, but found '{0}'".format(len(func_type.args)))
         self._operator_names = []
+        const = LFRicConstants()
         for idx, arg in enumerate(func_type.args):
             if idx == 0:  # first func_type arg
-                if arg.name not in FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
+                if arg.name not in const.VALID_FUNCTION_SPACE_NAMES:
                     raise ParseError(
                         "In the dynamo0p3 API the 1st argument of a "
                         "meta_func entry should be a valid function space "
                         "name (one of {0}), but found '{1}' in '{2}'".format(
-                            FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                            const.VALID_FUNCTION_SPACE_NAMES,
                             arg.name, func_type))
                 self._function_space_name = arg.name
             else:  # subsequent func_type args
@@ -539,6 +540,7 @@ class DynKernMetadata(KernelType):
 
         '''
         # We must have at least one argument that is written to
+        const = LFRicConstants()
         write_count = 0
         for arg in self._arg_descriptors:
             if arg.access != AccessType.READ:
@@ -546,7 +548,7 @@ class DynKernMetadata(KernelType):
                 # We must not write to a field on a read-only function space
                 if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES \
                    and arg.function_spaces[0] in \
-                   FunctionSpace.READ_ONLY_FUNCTION_SPACES:
+                   const.READ_ONLY_FUNCTION_SPACES:
                     raise ParseError(
                         "Found kernel metadata in '{0}' that specifies "
                         "writing to the read-only function space '{1}'."
@@ -2857,6 +2859,7 @@ class LFRicRunTimeChecks(DynCollection):
         # time (as they will have already been checked at code
         # generation time).
 
+        const = LFRicConstants()
         existing_checks = []
         for kern_call in self._invoke.schedule.kernels():
             for arg in kern_call.arguments.args:
@@ -2865,7 +2868,7 @@ class LFRicRunTimeChecks(DynCollection):
                     continue
                 fs_name = arg.function_space.orig_name
                 field_name = arg.name_indexed
-                if fs_name in FunctionSpace.VALID_ANY_SPACE_NAMES:
+                if fs_name in const.VALID_ANY_SPACE_NAMES:
                     # We don't need to check validity of a field's
                     # function space if the metadata specifies
                     # any_space as this means that all spaces are
@@ -2877,12 +2880,11 @@ class LFRicRunTimeChecks(DynCollection):
                     continue
                 existing_checks.append((fs_name, field_name))
 
-                if fs_name in \
-                        FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+                if fs_name in const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
                     # We need to check against all discontinuous
                     # function spaces
                     function_space_names = \
-                        FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES
+                        const.DISCONTINUOUS_FUNCTION_SPACES
                 elif fs_name == "any_w2":
                     # We need to check against all any_w2 function
                     # spaces
@@ -4113,10 +4115,11 @@ class DynBasisFunctions(DynCollection):
             # function array dimension from the metadata for any_space or
             # any_discontinuous_space. This information needs to be passed
             # from the PSy layer to the kernels (see issue #461).
+            const = LFRicConstants()
             raise GenerationError(
                 "Unsupported space for basis function, "
                 "expecting one of {0} but found "
-                "'{1}'".format(FunctionSpace.VALID_FUNCTION_SPACES,
+                "'{1}'".format(const.VALID_FUNCTION_SPACES,
                                function_space.orig_name))
         return first_dim
 
@@ -4162,10 +4165,11 @@ class DynBasisFunctions(DynCollection):
             # for any_space or any_discontinuous_space. This information
             # needs to be passed from the PSy layer to the kernels
             # (see issue #461).
+            const = LFRicConstants()
             raise GenerationError(
                 "Unsupported space for differential basis function, expecting "
                 "one of {0} but found '{1}'"
-                .format(FunctionSpace.VALID_FUNCTION_SPACES,
+                .format(const.VALID_FUNCTION_SPACES,
                         function_space.orig_name))
         return first_dim
 
@@ -6586,7 +6590,7 @@ class DynLoop(Loop):
 
         # Loop bounds
         self.set_lower_bound("start")
-
+        const = LFRicConstants()
         if isinstance(kern, LFRicBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
@@ -6603,16 +6607,16 @@ class DynLoop(Loop):
                     # halo
                     self.set_upper_bound("cell_halo", index=1)
                 elif (self.field_space.orig_name in
-                      FunctionSpace.VALID_DISCONTINUOUS_NAMES):
+                      const.VALID_DISCONTINUOUS_NAMES):
                     # Iterate to ncells for all discontinuous quantities,
                     # including any_discontinuous_space
                     self.set_upper_bound("ncells")
                 elif (self.field_space.orig_name in
-                      FunctionSpace.CONTINUOUS_FUNCTION_SPACES):
+                      const.CONTINUOUS_FUNCTION_SPACES):
                     # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("cell_halo", index=1)
                 elif (self.field_space.orig_name in
-                      FunctionSpace.VALID_ANY_SPACE_NAMES):
+                      const.VALID_ANY_SPACE_NAMES):
                     # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is.
@@ -6621,7 +6625,7 @@ class DynLoop(Loop):
                     raise GenerationError(
                         "Unexpected function space found. Expecting one of "
                         "{0} but found '{1}'".format(
-                            str(FunctionSpace.VALID_FUNCTION_SPACES),
+                            str(const.VALID_FUNCTION_SPACES),
                             self.field_space.orig_name))
             else:  # sequential
                 self.set_upper_bound("ncells")
@@ -8326,15 +8330,16 @@ class DynKernelArguments(Arguments):
         # any_discontinuous_space. We do this because if a quantity on
         # a continuous FS is modified then our iteration space must be
         # larger (include L1-halo cells)
+        const = LFRicConstants()
         write_accesses = AccessType.all_write_accesses()
         fld_args = psyGen.args_filter(
             self._args,
             arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
             arg_accesses=write_accesses)
         if fld_args:
-            for spaces in [FunctionSpace.CONTINUOUS_FUNCTION_SPACES,
-                           FunctionSpace.VALID_ANY_SPACE_NAMES,
-                           FunctionSpace.VALID_DISCONTINUOUS_NAMES]:
+            for spaces in [const.CONTINUOUS_FUNCTION_SPACES,
+                           const.VALID_ANY_SPACE_NAMES,
+                           const.VALID_DISCONTINUOUS_NAMES]:
                 for arg in fld_args:
                     if arg.function_space.orig_name in spaces:
                         return arg
@@ -8761,11 +8766,12 @@ class DynKernelArgument(KernelArgument):
         :rtype: bool
 
         '''
+        const = LFRicConstants()
         if self.function_space.orig_name in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+           const.VALID_DISCONTINUOUS_NAMES:
             return True
         if self.function_space.orig_name in \
-           FunctionSpace.VALID_ANY_SPACE_NAMES:
+           const.VALID_ANY_SPACE_NAMES:
             # We will eventually look this up based on our dependence
             # analysis but for the moment we assume the worst
             return False

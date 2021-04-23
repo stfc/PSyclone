@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import Subroutine_Subprogram, \
 
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.domain.lfric import FunctionSpace, LFRicConstants
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOLoop
@@ -728,8 +728,9 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # it should be. If the field space is discontinuous (including
         # any_discontinuous_space) then we don't need to worry about
         # colouring.
+        const = LFRicConstants()
         if node.field_space.orig_name not in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+           const.VALID_DISCONTINUOUS_NAMES:
             if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
@@ -1108,8 +1109,9 @@ class Dynamo0p3ColourTrans(ColourTrans):
         super(Dynamo0p3ColourTrans, self).validate(node, options=options)
 
         # Check we need colouring
+        const = LFRicConstants()
         if node.field_space.orig_name in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+           const.VALID_DISCONTINUOUS_NAMES:
             raise TransformationError(
                 "Error in DynamoColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
@@ -2383,12 +2385,13 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     "Support is currently limited to 'xyoz' quadrature but "
                     "found {0}.".format(kernel.eval_shapes))
 
+        const = LFRicConstants()
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
                 if (info.function_space.lower() in
-                        (FunctionSpace.VALID_ANY_SPACE_NAMES +
-                         FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
+                        (const.VALID_ANY_SPACE_NAMES +
+                         const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
                          ["any_w2"])):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(

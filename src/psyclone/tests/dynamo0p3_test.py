@@ -1561,8 +1561,9 @@ def test_unrecognised_fspace_error():
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace("not_a_space", first_kernel.arguments)
+    const = LFRicConstants()
     assert ("Unrecognised function space 'not_a_space'. The supported spaces "
-            "are {0}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES) in
+            "are {0}".format(const.VALID_FUNCTION_SPACE_NAMES) in
             str(excinfo.value))
 
 
@@ -1636,16 +1637,17 @@ def test_no_mangle_specified_function_space():
     # than any_*_space name (not allowed)
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace(fs_name, first_kernel.arguments)._mangle_fs_name()
+    const = LFRicConstants()
     assert ("_mangle_fs_name: function space '{0}' is not one of {1} or {2} "
-            "spaces.".format(fs_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
-                             FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
+            "spaces.".format(fs_name, const.VALID_ANY_SPACE_NAMES,
+                             const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
             in str(excinfo.value))
     # Try to create a short name for this function space (not allowed)
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace(fs_name, first_kernel.arguments)._shorten_fs_name()
     assert ("_shorten_fs_name: function space '{0}' is not one of {1} or {2} "
-            "spaces.".format(fs_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
-                             FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
+            "spaces.".format(fs_name, const.VALID_ANY_SPACE_NAMES,
+                             const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
             in str(excinfo.value))
 
 
@@ -1729,8 +1731,9 @@ def test_dynkern_arg_for_fs():
     first_invoke = psy.invokes.invoke_list[0]
     with pytest.raises(InternalError) as err:
         _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
+    const = LFRicConstants()
     assert ("Unrecognised function space 'waah'. The supported spaces are "
-            "{0}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES) in
+            "{0}".format(const.VALID_FUNCTION_SPACE_NAMES) in
             str(err.value))
 
 

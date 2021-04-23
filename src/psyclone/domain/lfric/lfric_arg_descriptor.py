@@ -48,7 +48,6 @@ from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import FunctionSpace
 from psyclone.errors import InternalError
 
 # API configuration
@@ -343,6 +342,11 @@ class LFRicArgDescriptor(Descriptor):
                             kernel that operates on the domain.
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel, too-many-locals
+        # pylint: disable=too-many-branches, too-many-statements
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
         # Note: import-outside is added here since it does not work
         # when put into the else-branch below where the import is :(
         # pylint: disable=too-many-locals, too-many-branches
@@ -383,12 +387,12 @@ class LFRicArgDescriptor(Descriptor):
         # The 4th argument must be a valid function-space name
         prop_ind = 3
         if arg_type.args[prop_ind].name not in \
-           FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
+           const.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the LFRic API argument {0} of a 'meta_arg' field entry "
                 "must be a valid function-space name (one of {1}) if its "
                 "first argument is of {2} type, but found '{3}' in '{4}'.".
-                format(prop_ind+1, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                format(prop_ind+1, const.VALID_FUNCTION_SPACE_NAMES,
                        LFRicArgDescriptor.VALID_FIELD_NAMES,
                        arg_type.args[prop_ind].name, arg_type))
         self._function_space1 = arg_type.args[prop_ind].name
@@ -428,8 +432,8 @@ class LFRicArgDescriptor(Descriptor):
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
         # Joint lists of valid function spaces for continuous fields
-        fld_cont_spaces = (FunctionSpace.CONTINUOUS_FUNCTION_SPACES +
-                           FunctionSpace.VALID_ANY_SPACE_NAMES)
+        fld_cont_spaces = (const.CONTINUOUS_FUNCTION_SPACES +
+                           const.VALID_ANY_SPACE_NAMES)
 
         # Check accesses for kernels that operate on DoFs
         if operates_on == "dof":
@@ -446,7 +450,7 @@ class LFRicArgDescriptor(Descriptor):
         elif operates_on in ["cell_column", "domain"]:
             # Fields on discontinuous function spaces
             if (self._function_space1.lower() in
-                    FunctionSpace.VALID_DISCONTINUOUS_NAMES and
+                    const.VALID_DISCONTINUOUS_NAMES and
                     self._access_type not in field_disc_accesses):
                 raise ParseError(
                     "In the LFRic API, allowed accesses for fields on "
@@ -476,8 +480,6 @@ class LFRicArgDescriptor(Descriptor):
                             self._function_space1.lower(), arg_type))
         # Raise an InternalError for an invalid value of operates-on
         else:
-            from psyclone.domain.lfric import LFRicConstants
-            const = LFRicConstants()
             raise InternalError(
                 "Invalid operates_on '{0}' in the kernel metadata (expected "
                 "one of {1}).".format(operates_on,
@@ -517,6 +519,12 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if the operator argument has an invalid access.
 
         '''
+
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
+
         # Check whether something other than an operator is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             raise InternalError(
@@ -548,23 +556,23 @@ class LFRicArgDescriptor(Descriptor):
         # Check for a valid to- function space
         prop_ind = 3
         if arg_type.args[prop_ind].name not in \
-           FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
+           const.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the LFRic API argument {0} of a 'meta_arg' operator "
                 "entry must be a valid function-space name (one of "
                 "{1}), but found '{2}' in '{3}'.".
-                format(prop_ind+1, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                format(prop_ind+1, const.VALID_FUNCTION_SPACE_NAMES,
                        arg_type.args[prop_ind].name, arg_type))
         self._function_space1 = arg_type.args[prop_ind].name
         # Check for a valid from- function space
         prop_ind = 4
         if arg_type.args[prop_ind].name not in \
-           FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
+           const.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the LFRic API argument {0} of a 'meta_arg' operator "
                 "entry must be a valid function-space name (one of "
                 "{1}), but found '{2}' in '{3}'.".
-                format(prop_ind+1, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                format(prop_ind+1, const.VALID_FUNCTION_SPACE_NAMES,
                        arg_type.args[prop_ind].name, arg_type))
         self._function_space2 = arg_type.args[prop_ind].name
 

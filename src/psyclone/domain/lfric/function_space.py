@@ -39,7 +39,6 @@
 '''
 
 from psyclone.errors import InternalError, FieldNotFoundError, GenerationError
-from psyclone.configuration import Config
 
 
 class FunctionSpace(object):
@@ -59,10 +58,6 @@ class FunctionSpace(object):
     '''
 
     # ---------- Function spaces (FS) --------------------------------------- #
-    # Discontinuous FS
-    DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2vtrace",
-                                     "w2broken"]
-
     # Continuous FS
     # Note, any_w2 is not a space on its own. any_w2 is used as a common term
     # for any vector "w2*" function space (w2, w2h, w2v, w2broken) but not
@@ -73,37 +68,6 @@ class FunctionSpace(object):
     # whether ANY_W2 should be in the continuous function space list.
     ANY_W2_FUNCTION_SPACES = ["w2", "w2h", "w2v", "w2broken"]
 
-    CONTINUOUS_FUNCTION_SPACES = \
-        ["w0", "w1", "w2", "w2trace", "w2h", "w2htrace", "any_w2"]
-
-    # Read-only FS
-    READ_ONLY_FUNCTION_SPACES = ["wchi"]
-
-    # Valid FS names
-    VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
-        CONTINUOUS_FUNCTION_SPACES + READ_ONLY_FUNCTION_SPACES
-
-    # Valid any_space metadata (general FS, could be continuous or
-    # discontinuous). The number of 'ANY_SPACE' spaces is set in the
-    # PSyclone configuration file.
-    VALID_ANY_SPACE_NAMES = [
-        "any_space_{0}".format(x+1) for x in
-        range(Config.get().api_conf("dynamo0.3").num_any_space)]
-
-    # Valid any_discontinuous_space metadata (general FS known to be
-    # discontinuous). The number of 'ANY_DISCONTINUOU_SPACE' spaces is
-    # set in the PSyclone configuration file.
-    VALID_ANY_DISCONTINUOUS_SPACE_NAMES = [
-        "any_discontinuous_space_{0}".format(x+1) for x in
-        range(Config.get().api_conf("dynamo0.3").num_any_discontinuous_space)]
-
-    # Valid discontinuous FS names (for optimisation purposes)
-    VALID_DISCONTINUOUS_NAMES = DISCONTINUOUS_FUNCTION_SPACES +\
-        VALID_ANY_DISCONTINUOUS_SPACE_NAMES
-
-    # FS names consist of all valid names
-    VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
-        VALID_ANY_SPACE_NAMES + VALID_ANY_DISCONTINUOUS_SPACE_NAMES
     # Lists of function spaces that have
     # a) scalar basis functions;
     SCALAR_BASIS_SPACE_NAMES = \
@@ -128,16 +92,21 @@ class FunctionSpace(object):
         self._mangled_name = None
         self._short_name = None
 
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
         # Check whether the function space name is a valid name
-        if self._orig_name not in FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
+        if self._orig_name not in const.VALID_FUNCTION_SPACE_NAMES:
             raise InternalError(
                 "Unrecognised function space '{0}'. The "
                 "supported spaces are {1}."
                 .format(self._orig_name,
-                        FunctionSpace.VALID_FUNCTION_SPACE_NAMES))
+                        const.VALID_FUNCTION_SPACE_NAMES))
 
-        if self._orig_name not in FunctionSpace.VALID_ANY_SPACE_NAMES + \
-                FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+        const = LFRicConstants()
+        if self._orig_name not in const.VALID_ANY_SPACE_NAMES + \
+                const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             # We only need to name-mangle any_space and
             # any_discontinuous_space spaces
             self._short_name = self._orig_name
@@ -213,13 +182,17 @@ class FunctionSpace(object):
         '''
         # First check that the the function space is one of any_*_space
         # spaces and then proceed with name-mangling.
-        if self._orig_name not in FunctionSpace.VALID_ANY_SPACE_NAMES + \
-                FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
+        if self._orig_name not in const.VALID_ANY_SPACE_NAMES + \
+                const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             raise InternalError(
                 "_mangle_fs_name: function space '{0}' is not one of "
                 "{1} or {2} spaces.".
-                format(self._orig_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
-                       FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
+                format(self._orig_name, const.VALID_ANY_SPACE_NAMES,
+                       const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
 
         # List kernel arguments
         args = self._kernel_args.args
@@ -250,17 +223,20 @@ class FunctionSpace(object):
         '''
         # Create a start for the short name and check whether the function
         # space is one of any_*_space spaces
-        if self._orig_name in FunctionSpace.VALID_ANY_SPACE_NAMES:
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
+        if self._orig_name in const.VALID_ANY_SPACE_NAMES:
             start = "a"
-        elif self._orig_name in \
-                FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+        elif self._orig_name in const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             start = "ad"
         else:
             raise InternalError(
                 "_shorten_fs_name: function space '{0}' is not one of "
                 "{1} or {2} spaces.".
-                format(self._orig_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
-                       FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
+                format(self._orig_name, const.VALID_ANY_SPACE_NAMES,
+                       const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
 
         # Split name string to find any_*_space ID and create a short name as
         # "<start>" + "spc" + "ID"

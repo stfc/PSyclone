@@ -152,6 +152,47 @@ class LFRicConstants(object):
         LFRicConstants.VALID_ARG_TYPE_NAMES = \
             LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
+        api_config = Config.get().api_conf("dynamo0.3")
+        # Valid any_space metadata (general FS, could be continuous or
+        # discontinuous). The number of 'ANY_SPACE' spaces is set in the
+        # PSyclone configuration file.
+        LFRicConstants.VALID_ANY_SPACE_NAMES = [
+            "any_space_{0}".format(x+1) for x in
+            range(api_config.num_any_space)]
+
+        # Discontinuous FS
+        LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES = \
+            ["w3", "wtheta", "w2v", "w2vtrace", "w2broken"]
+
+        LFRicConstants.CONTINUOUS_FUNCTION_SPACES = \
+            ["w0", "w1", "w2", "w2trace", "w2h", "w2htrace", "any_w2"]
+
+        # Read-only FS
+        LFRicConstants.READ_ONLY_FUNCTION_SPACES = ["wchi"]
+
+        # Valid FS names
+        LFRicConstants.VALID_FUNCTION_SPACES = \
+            LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES + \
+            LFRicConstants.CONTINUOUS_FUNCTION_SPACES + \
+            LFRicConstants.READ_ONLY_FUNCTION_SPACES
+
+        # Valid any_discontinuous_space metadata (general FS known to be
+        # discontinuous). The number of 'ANY_DISCONTINUOU_SPACE' spaces is
+        # set in the PSyclone configuration file.
+        LFRicConstants.VALID_ANY_DISCONTINUOUS_SPACE_NAMES = [
+            "any_discontinuous_space_{0}".format(x+1) for x in
+            range(api_config.num_any_discontinuous_space)]
+        # Valid discontinuous FS names (for optimisation purposes)
+        LFRicConstants.VALID_DISCONTINUOUS_NAMES = \
+            LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES +\
+            LFRicConstants.VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+
+        # FS names consist of all valid names
+        LFRicConstants.VALID_FUNCTION_SPACE_NAMES = \
+            LFRicConstants.VALID_FUNCTION_SPACES + \
+            LFRicConstants.VALID_ANY_SPACE_NAMES + \
+            LFRicConstants.VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to

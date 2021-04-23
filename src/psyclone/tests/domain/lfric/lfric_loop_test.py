@@ -46,7 +46,7 @@ from fparser import api as fpapi
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Schedule
-from psyclone.domain.lfric import FunctionSpace, LFRicConstants
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
@@ -241,8 +241,9 @@ def test_dynloop_load_unexpected_func_space():
     # We can now raise the exception.
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
+    const = LFRicConstants()
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of " + str(FunctionSpace.VALID_FUNCTION_SPACES) +
+            "one of " + str(const.VALID_FUNCTION_SPACES) +
             " but found 'broken'" in str(err.value))
 
 

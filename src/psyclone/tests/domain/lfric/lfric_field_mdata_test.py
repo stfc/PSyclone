@@ -48,7 +48,7 @@ import six
 import fparser
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicArgDescriptor, FunctionSpace
+from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
 from psyclone.dynamo0p3 import DynKernMetadata, LFRicFields
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -245,10 +245,11 @@ def test_arg_descriptor_invalid_fs():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("In the LFRic API argument 4 of a 'meta_arg' field entry "
             "must be a valid function-space name (one of {0}) if its "
             "first argument is of ['gh_field'] type, but found 'w4'".
-            format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES)
+            format(const.VALID_FUNCTION_SPACE_NAMES)
             in str(excinfo.value))
     # Check integer field
     code = FIELD_CODE.replace(
@@ -285,7 +286,8 @@ def test_fs_discontinuous_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and 'gh_inc' are provided for the same field in the metadata. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+    const = LFRicConstants()
+    for fspace in const.VALID_DISCONTINUOUS_NAMES:
         code = FIELD_CODE.replace(
             "arg_type(gh_field,  gh_integer, gh_read,  w3)",
             "arg_type(gh_field,  gh_integer, gh_inc, " + fspace + ")", 1)
@@ -306,7 +308,8 @@ def test_fs_continuous_cells_write_or_readwrite_error():
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
+    const = LFRicConstants()
+    for fspace in const.CONTINUOUS_FUNCTION_SPACES:
         for acc in ["gh_write", "gh_readwrite"]:
             code = FIELD_CODE.replace(
                 "arg_type(gh_field,  gh_real,    gh_read,  w2)",
@@ -328,7 +331,8 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
+    const = LFRicConstants()
+    for fspace in const.VALID_ANY_SPACE_NAMES:
         for acc in ["gh_write", "gh_readwrite"]:
             code = FIELD_CODE.replace(
                 "arg_type(gh_field,  gh_real,    gh_read,  w2)",
@@ -349,7 +353,8 @@ def test_fs_anyspace_dofs_inc_error():
     fparser.logging.disable(fparser.logging.CRITICAL)
     dof_code = FIELD_CODE.replace("integer :: operates_on = cell_column",
                                   "integer :: operates_on = dof", 1)
-    for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
+    const = LFRicConstants()
+    for fspace in const.VALID_ANY_SPACE_NAMES:
         code = dof_code.replace(
             "arg_type(gh_field,  gh_real,    gh_inc,   w1)",
             "arg_type(gh_field, gh_real, gh_inc, " + fspace + ")", 1)
@@ -563,6 +568,7 @@ def test_field_arg_discontinuous(monkeypatch, annexed):
 
     '''
 
+    # pylint: disable=too-many-branches, too-many-statements
     # 1) Discontinuous fields return true
     # 1a) Check w3, wtheta and w2v in turn
     api_config = Config.get().api_conf(TEST_API)
@@ -576,7 +582,8 @@ def test_field_arg_discontinuous(monkeypatch, annexed):
         # continuous spaces)
         idchld_list = [3, 0, 0]
     idarg_list = [4, 0, 0]
-    fs_dict = dict(zip(FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES[0:3],
+    const = LFRicConstants()
+    fs_dict = dict(zip(const.DISCONTINUOUS_FUNCTION_SPACES[0:3],
                        zip(idchld_list, idarg_list)))
     for fspace in fs_dict.keys():
         filename = "1_single_invoke_" + fspace + ".f90"
