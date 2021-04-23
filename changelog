@@ -502,6 +502,10 @@
 	163) PR #1192 towards #753. Add methods to lower the Algorithm layer PSyIR
 	and create the appropriate symbols to be used by the PSy-layer.
 
+        164) PR #1175 for #1066. Update the GOcean OpenCL read/write
+        interfaces and use so that only halo data moved to/from the host for
+        halo exchanges.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
