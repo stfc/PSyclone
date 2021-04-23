@@ -111,7 +111,8 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         :raises TransformationError: if the supplied node is not a Routine.
 
         '''
-        super(CreateNemoInvokeScheduleTrans, self).validate(node)
+        super(CreateNemoInvokeScheduleTrans, self).validate(node,
+                                                            options=options)
 
         if not isinstance(node, Routine):
             raise TransformationError(
@@ -138,7 +139,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
 
         '''
-        self.validate(routine)
+        self.validate(routine, options=options)
 
         new_node = NemoInvokeSchedule.create(routine.name,
                                              routine.symbol_table,

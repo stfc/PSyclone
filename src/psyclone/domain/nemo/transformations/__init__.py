@@ -43,14 +43,15 @@ from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
     import CreateNemoKernelTrans
 from psyclone.domain.nemo.transformations.create_nemo_loop_trans \
     import CreateNemoLoopTrans
+from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
+    import CreateNemoPSyTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
     import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
     import NemoAllArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
     import NemoOuterArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
-    import CreateNemoPSyTrans
+
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:

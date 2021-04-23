@@ -131,7 +131,7 @@ class CreateNemoLoopTrans(Transformation):
         :rtype: :py:class:`psyclone.nemo.NemoLoop`
 
         '''
-        self.validate(loop)
+        self.validate(loop, options=options)
 
         # Convert a generic loop into a NEMO Loop by creating a new
         # NemoLoop object and inserting it into the PSyIR.
