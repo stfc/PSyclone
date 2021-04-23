@@ -62,6 +62,12 @@ class NemoConstants(object):
         # psyGen argument types
         NemoConstants.VALID_ARG_TYPE_NAMES = []
 
+        # psyGen names of internal scalar argument types.
+        NemoConstants.VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
+
+        # psyGen argument types translate to LFRic argument types.
+        NemoConstants.VALID_ARG_TYPE_NAMES = []
+
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to

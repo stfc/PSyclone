@@ -82,13 +82,6 @@ class LFRicArgDescriptor(Descriptor):
 
     '''
     # pylint: disable=too-many-instance-attributes
-    # ---------- LFRicArgDescriptor class constants  ------------------------ #
-    # Supported LFRic API argument types (scalars, fields, operators)
-    VALID_SCALAR_NAMES = ["gh_scalar"]
-    VALID_FIELD_NAMES = ["gh_field"]
-    VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
-    VALID_ARG_TYPE_NAMES = VALID_FIELD_NAMES + VALID_OPERATOR_NAMES + \
-        VALID_SCALAR_NAMES
 
     # Supported API argument data types (real and integer for now)
     VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
@@ -153,18 +146,19 @@ class LFRicArgDescriptor(Descriptor):
         else:
             argtype = arg_type.args[0]
 
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
         # First check for a valid argument type. It has to be a variable
         # (FunctionVar expression) and have a valid LFRic API argument name.
         if isinstance(argtype, expr.FunctionVar) and argtype.name in \
-           LFRicArgDescriptor.VALID_ARG_TYPE_NAMES:
+           const.VALID_ARG_TYPE_NAMES:
             self._argument_type = argtype.name
         else:
             raise ParseError(
                 "In the LFRic API the 1st argument of a 'meta_arg' "
                 "entry should be a valid argument type (one of {0}), "
                 "but found '{1}' in '{2}'.".
-                format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
-                       argtype, arg_type))
+                format(const.VALID_ARG_TYPE_NAMES, argtype, arg_type))
 
         # Check for a valid vector size in case of a binary
         # operator expression
@@ -213,8 +207,6 @@ class LFRicArgDescriptor(Descriptor):
         # metadata
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicConstants
-        const = LFRicConstants()
         if operates_on not in const.VALID_ITERATION_SPACES:
             raise InternalError(
                 "Expected operates_on in the kernel metadata to be one of "
@@ -222,15 +214,15 @@ class LFRicArgDescriptor(Descriptor):
                     const.VALID_ITERATION_SPACES, operates_on))
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
-        if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+        if self._argument_type in const.VALID_FIELD_NAMES:
             # Validate field arguments
             self._init_field(arg_type, operates_on)
 
-        elif self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
+        elif self._argument_type in const.VALID_OPERATOR_NAMES:
             # Validate operator arguments
             self._init_operator(arg_type)
 
-        elif self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+        elif self._argument_type in const.VALID_SCALAR_NAMES:
             # Validate scalar arguments
             self._init_scalar(arg_type)
 
@@ -285,6 +277,9 @@ class LFRicArgDescriptor(Descriptor):
                 "following '{0}' was found in '{1}'.".
                 format(str(arg_type.args[0].toks[2]), arg_type)), err)
         # ... or it is less than 2 (1 is the default for all fields)...
+
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
         if vectsize < 2:
             raise ParseError(
                 "In the LFRic API the 1st argument of a 'meta_arg' entry "
@@ -296,11 +291,11 @@ class LFRicArgDescriptor(Descriptor):
 
         # Check that no other arguments than fields use vector notation
         if self._argument_type not in \
-           LFRicArgDescriptor.VALID_FIELD_NAMES and self._vector_size:
+           const.VALID_FIELD_NAMES and self._vector_size:
             raise ParseError(
                 "In the LFRic API, vector notation is only supported "
                 "for {0} argument types but found '{1}'.".
-                format(LFRicArgDescriptor.VALID_FIELD_NAMES,
+                format(const.VALID_FIELD_NAMES,
                        arg_type.args[0]))
 
     def _init_field(self, arg_type, operates_on):
@@ -352,7 +347,7 @@ class LFRicArgDescriptor(Descriptor):
         # pylint: disable=too-many-locals, too-many-branches
         # pylint: disable=too-many-statements, import-outside-toplevel
         # Check whether something other than a field is passed in
-        if self._argument_type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
+        if self._argument_type not in const.VALID_FIELD_NAMES:
             raise InternalError(
                 "Expected a field argument but got an argument of type "
                 "'{0}'.".format(arg_type.args[0]))
@@ -364,7 +359,7 @@ class LFRicArgDescriptor(Descriptor):
                 "In the LFRic API each 'meta_arg' entry must have at "
                 "least {0} arguments if its first argument is of {1} type, "
                 "but found {2} in '{3}'.".
-                format(nargs_field_min, LFRicArgDescriptor.VALID_FIELD_NAMES,
+                format(nargs_field_min, const.VALID_FIELD_NAMES,
                        self._nargs, arg_type))
         # There must be at most 5 arguments
         nargs_field_max = 5
@@ -373,7 +368,7 @@ class LFRicArgDescriptor(Descriptor):
                 "In the LFRic API each 'meta_arg' entry must have at "
                 "most {0} arguments if its first argument is of {1} type, "
                 "but found {2} in '{3}'.".
-                format(nargs_field_max, LFRicArgDescriptor.VALID_FIELD_NAMES,
+                format(nargs_field_max, const.VALID_FIELD_NAMES,
                        self._nargs, arg_type))
 
         # Check whether an invalid data type for a field argument is passed in.
@@ -393,7 +388,7 @@ class LFRicArgDescriptor(Descriptor):
                 "must be a valid function-space name (one of {1}) if its "
                 "first argument is of {2} type, but found '{3}' in '{4}'.".
                 format(prop_ind+1, const.VALID_FUNCTION_SPACE_NAMES,
-                       LFRicArgDescriptor.VALID_FIELD_NAMES,
+                       const.VALID_FIELD_NAMES,
                        arg_type.args[prop_ind].name, arg_type))
         self._function_space1 = arg_type.args[prop_ind].name
 
@@ -526,7 +521,7 @@ class LFRicArgDescriptor(Descriptor):
         const = LFRicConstants()
 
         # Check whether something other than an operator is passed in
-        if self._argument_type not in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
+        if self._argument_type not in const.VALID_OPERATOR_NAMES:
             raise InternalError(
                 "Expected an operator argument but got an argument of type "
                 "'{0}'.".format(self._argument_type))
@@ -539,7 +534,7 @@ class LFRicArgDescriptor(Descriptor):
                 "In the LFRic API each 'meta_arg' entry must have {0} "
                 "arguments if its first argument is an operator (one "
                 "of {1}), but found {2} in '{3}'.".
-                format(nargs_operator, LFRicArgDescriptor.VALID_OPERATOR_NAMES,
+                format(nargs_operator, const.VALID_OPERATOR_NAMES,
                        self._nargs, arg_type))
 
         # Check whether an invalid data type for an operator argument is passed
@@ -609,8 +604,10 @@ class LFRicArgDescriptor(Descriptor):
                             scalar has a reduction access.
 
         '''
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
         # Check whether something other than a scalar is passed in
-        if self._argument_type not in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+        if self._argument_type not in const.VALID_SCALAR_NAMES:
             raise InternalError(
                 "Expected a scalar argument but got an argument of type "
                 "'{0}'.".format(arg_type.args[0]))
@@ -681,13 +678,14 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if this is not an operator.
 
         '''
-        if self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
+        if self._argument_type in const.VALID_OPERATOR_NAMES:
             return self._function_space1
         raise InternalError(
             "In the LFRic API 'function_space_to' only makes sense "
             "for one of {0}, but this is a '{1}'.".
-            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES,
-                   self._argument_type))
+            format(const.VALID_OPERATOR_NAMES, self._argument_type))
 
     @property
     def function_space_from(self):
@@ -701,13 +699,14 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if this is not an operator.
 
         '''
-        if self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
+        if self._argument_type in const.VALID_OPERATOR_NAMES:
             return self._function_space2
         raise InternalError(
             "In the LFRic API 'function_space_from' only makes sense "
             "for one of {0}, but this is a '{1}'.".
-            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES,
-                   self._argument_type))
+            format(const.VALID_OPERATOR_NAMES, self._argument_type))
 
     @property
     def function_space(self):
@@ -723,11 +722,13 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if an invalid argument type is passed in.
 
         '''
-        if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
+        if self._argument_type in const.VALID_FIELD_NAMES:
             return self._function_space1
-        if self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
+        if self._argument_type in const.VALID_OPERATOR_NAMES:
             return self._function_space2
-        if self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+        if self._argument_type in const.VALID_SCALAR_NAMES:
             return None
         raise InternalError("Expected a valid argument type but got '{0}'.".
                             format(self._argument_type))
@@ -746,12 +747,14 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if an invalid argument type is passed in.
 
         '''
-        if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
+        if self._argument_type in const.VALID_FIELD_NAMES:
             return [self.function_space]
-        if self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
+        if self._argument_type in const.VALID_OPERATOR_NAMES:
             # Return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
-        if self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+        if self._argument_type in const.VALID_SCALAR_NAMES:
             return []
         raise InternalError("Expected a valid argument type but got '{0}'.".
                             format(self._argument_type))
@@ -781,6 +784,8 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if an invalid argument type is passed in.
 
         '''
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
         res = "LFRicArgDescriptor object" + os.linesep
         res += "  argument_type[0]='{0}'".format(self._argument_type)
         if self._vector_size > 1:
@@ -791,15 +796,15 @@ class LFRicArgDescriptor(Descriptor):
         res += "  access_descriptor[2]='{0}'"\
                .format(self._access_type.api_specific_name())\
                + os.linesep
-        if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+        if self._argument_type in const.VALID_FIELD_NAMES:
             res += "  function_space[3]='{0}'".format(self._function_space1) \
                    + os.linesep
-        elif self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
+        elif self._argument_type in const.VALID_OPERATOR_NAMES:
             res += "  function_space_to[3]='{0}'".\
                    format(self._function_space1) + os.linesep
             res += "  function_space_from[4]='{0}'".\
                    format(self._function_space2) + os.linesep
-        elif self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+        elif self._argument_type in const.VALID_SCALAR_NAMES:
             pass  # We have nothing to add if we're a scalar
         else:  # We should never get to here
             raise InternalError("Expected a valid argument type but got "

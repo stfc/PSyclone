@@ -44,18 +44,13 @@ from __future__ import absolute_import
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
-from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.f2pygen import AssignGen
 from psyclone.configuration import Config
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "lfric_builtins_mod.f90"
-
-# The types of argument that are valid for built-in kernels in the
-# LFRic API
-VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
-    LFRicArgDescriptor.VALID_SCALAR_NAMES
 
 
 # Function to return the built-in operations that we support for this API.
@@ -213,18 +208,18 @@ class LFRicBuiltIn(BuiltIn):
         data_types = set()
         for arg in self.arg_descriptors:
             # Check valid argument types
-            if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
+            if arg.argument_type not in const.VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
                     "In the LFRic API an argument to a built-in kernel "
                     "must be one of {0} but kernel '{1}' has an argument of "
-                    "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
-                                         arg.argument_type))
+                    "type '{2}'.".format(const.VALID_BUILTIN_ARG_TYPES,
+                                         self.name, arg.argument_type))
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
                               AccessType.READWRITE]:
                 write_count += 1
-            if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+            if arg.argument_type in const.VALID_FIELD_NAMES:
                 field_count += 1
                 spaces.add(arg.function_space)
                 data_types.add(arg.data_type)

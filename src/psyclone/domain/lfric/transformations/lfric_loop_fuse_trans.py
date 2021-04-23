@@ -41,7 +41,6 @@
 
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyGen import VALID_SCALAR_NAMES
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 from psyclone.transformations import check_intergrid
 
@@ -210,7 +209,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                        node2.upper_bound_halo_depth))
 
         # 5) Check for reductions
-        arg_types = VALID_SCALAR_NAMES
+        arg_types = const.VALID_SCALAR_NAMES
         all_reductions = AccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=all_reductions)

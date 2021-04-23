@@ -68,6 +68,17 @@ class LFRicConstants(object):
         LFRicConstants.VALID_EVALUATOR_SHAPES = \
             LFRicConstants.VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 
+        # ---------- LFRicArgDescriptor class constants  ---------------------
+        # Supported LFRic API argument types (scalars, fields, operators)
+        LFRicConstants.VALID_SCALAR_NAMES = ["gh_scalar"]
+        LFRicConstants.VALID_FIELD_NAMES = ["gh_field"]
+        LFRicConstants.VALID_OPERATOR_NAMES = ["gh_operator",
+                                               "gh_columnwise_operator"]
+        LFRicConstants.VALID_ARG_TYPE_NAMES = \
+            LFRicConstants.VALID_FIELD_NAMES + \
+            LFRicConstants.VALID_OPERATOR_NAMES + \
+            LFRicConstants.VALID_SCALAR_NAMES
+
         # ---------- Fortran datatypes ---------------------------------------
         # This is only used here, so no class variable:
         supported_fortran_datatypes = Config.get().api_conf(
@@ -143,16 +154,18 @@ class LFRicConstants(object):
         # Valid LFRic iteration spaces for built-in kernels
         LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]
 
+        # The types of argument that are valid for built-in kernels in the
+        # LFRic API
+        LFRicConstants.VALID_BUILTIN_ARG_TYPES = \
+            LFRicConstants.VALID_FIELD_NAMES + \
+            LFRicConstants.VALID_SCALAR_NAMES
+
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
         LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
         LFRicConstants.VALID_ITERATION_SPACES = \
             LFRicConstants.USER_KERNEL_ITERATION_SPACES + \
             LFRicConstants.BUILTIN_ITERATION_SPACES
-
-        # psyGen argument types translate to LFRic argument types.
-        LFRicConstants.VALID_ARG_TYPE_NAMES = \
-            LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
         # Functionspace related constants
         # -------------------------------

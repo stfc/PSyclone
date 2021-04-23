@@ -137,9 +137,10 @@ def test_ad_invalid_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("the 1st argument of a 'meta_arg' entry should be a valid "
             "argument type (one of {0}), but found 'gh_operato'".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            format(const.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
     # Check other type of expression (here array Slicing)
@@ -150,7 +151,7 @@ def test_ad_invalid_type():
         _ = DynKernMetadata(ast, name=name)
     assert ("the 1st argument of a 'meta_arg' entry should be a valid "
             "argument type (one of {0}), but found ':'".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            format(const.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
 
@@ -504,9 +505,10 @@ def test_invoke_uniq_declns_invalid_argtype():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations(["not_a_type"])
+    const = LFRicConstants()
     assert ("Invoke.unique_declarations() called with at least one invalid "
             "argument type. Expected one of {0} but found ['not_a_type'].".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
+            format(const.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
 
 
@@ -592,8 +594,9 @@ def test_invoke_uniq_proxy_declns():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(["not_a_type"])
+    const = LFRicConstants()
     assert ("Expected one of {0} as a valid argument type but found "
-            "['not_a_type'].".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            "['not_a_type'].".format(const.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
 
@@ -652,9 +655,10 @@ def test_dyninvoke_uniq_declns_intent_inv_argtype():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_invalid"])
+    const = LFRicConstants()
     assert ("Invoke.unique_declns_by_intent() called with at least one invalid"
             " argument type. Expected one of {0} but found ['gh_invalid'].".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
+            format(const.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
 
 
@@ -886,9 +890,10 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
                         lambda function_space=None: "vspace")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
+    const = LFRicConstants()
     assert ("Expected an argument of {0} type from which to look-up "
             "boundary dofs for kernel enforce_bc_code but got "
-            "'gh_operator'".format(LFRicArgDescriptor.VALID_FIELD_NAMES)
+            "'gh_operator'".format(const.VALID_FIELD_NAMES)
             in str(excinfo.value))
 
 
@@ -1683,9 +1688,10 @@ def test_arg_descriptor_init_error(monkeypatch):
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
     # that 'GH_INVALID' is actually valid
+    const = LFRicConstants()
     monkeypatch.setattr(
-        target=LFRicArgDescriptor, name="VALID_ARG_TYPE_NAMES",
-        value=LFRicArgDescriptor.VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
+        target=LFRicConstants, name="VALID_ARG_TYPE_NAMES",
+        value=const.VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, metadata.iterates_over)

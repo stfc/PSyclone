@@ -68,10 +68,6 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # overidden.
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
-# Names of internal scalar argument types. Can be overridden in
-# domain-specific modules.
-VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
-
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
@@ -670,7 +666,6 @@ class Invoke(object):
                 "access type. Type is '{0}' instead of AccessType.".
                 format(str(access)))
 
-        const = Config.get().api_conf().get_constants()
         if (intrinsic_type and intrinsic_type not in
                 const.VALID_INTRINSIC_TYPES):
             raise InternalError(
@@ -734,7 +729,6 @@ class Invoke(object):
                 "invalid argument type. Expected one of {0} but found {1}.".
                 format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
 
-        const = Config.get().api_conf().get_constants()
         if (intrinsic_type and intrinsic_type not in
                 const.VALID_INTRINSIC_TYPES):
             raise InternalError(
@@ -1822,9 +1816,10 @@ class OMPDirective(Directive):
 
         '''
         result = []
+        const = Config.get().api_conf().get_constants()
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.argument_type in VALID_SCALAR_NAMES:
+                if arg.argument_type in const.VALID_SCALAR_NAMES:
                     if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
@@ -2567,8 +2562,9 @@ class Kern(Statement):
 
         # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
+        const = Config.get().api_conf().get_constants()
         args = args_filter(self._arguments.args,
-                           arg_types=VALID_SCALAR_NAMES,
+                           arg_types=const.VALID_SCALAR_NAMES,
                            arg_accesses=reduction_modes)
         if args:
             self._reduction = True

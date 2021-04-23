@@ -42,7 +42,7 @@ import os
 import pytest
 
 from psyclone.domain.lfric import (KernCallArgList,
-                                   KernStubArgList, LFRicArgDescriptor)
+                                   KernStubArgList, LFRicConstants)
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -77,10 +77,11 @@ def test_unexpected_type_error(dist_mem):
     create_arg_list = KernCallArgList(kernel)
     with pytest.raises(GenerationError) as excinfo:
         create_arg_list.generate()
+    const = LFRicConstants()
     assert (
         "ArgOrdering.generate(): Unexpected argument "
         "type found. Expected one of '{0}' but found 'invalid'".
-        format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+        format(const.VALID_ARG_TYPE_NAMES)
         in str(excinfo.value))
 
 
@@ -99,8 +100,9 @@ def test_kernel_stub_invalid_scalar_argument():
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
+    const = LFRicConstants()
     assert ("Expected argument type to be one of {0} but got "
-            "'invalid'".format(LFRicArgDescriptor.VALID_SCALAR_NAMES)
+            "'invalid'".format(const.VALID_SCALAR_NAMES)
             in str(excinfo.value))
 
 

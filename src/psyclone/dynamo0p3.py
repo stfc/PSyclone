@@ -79,15 +79,6 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 # --------------------------------------------------------------------------- #
 #
 
-
-# ---------- psyGen mappings ------------------------------------------------ #
-# Mappings used by non-API-specific code in psyGen.
-# psyGen ["rscalar", "iscalar"] translate to LFRic scalar names.
-psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
-
-# psyGen argument types translate to LFRic argument types.
-psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
-
 # ---------- Functions ------------------------------------------------------ #
 
 
@@ -546,7 +537,7 @@ class DynKernMetadata(KernelType):
             if arg.access != AccessType.READ:
                 write_count += 1
                 # We must not write to a field on a read-only function space
-                if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES \
+                if arg.argument_type in const.VALID_FIELD_NAMES \
                    and arg.function_spaces[0] in \
                    const.READ_ONLY_FUNCTION_SPACES:
                     raise ParseError(
@@ -557,7 +548,7 @@ class DynKernMetadata(KernelType):
                 # We must not write to scalar arguments if it's not a
                 # built-in
                 if self.name not in BUILTIN_MAP and \
-                   arg.argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+                   arg.argument_type in const.VALID_SCALAR_NAMES:
                     raise ParseError(
                         "A user-supplied LFRic kernel must not write/update "
                         "a scalar argument but kernel '{0}' has a scalar "
@@ -609,7 +600,7 @@ class DynKernMetadata(KernelType):
                                      arg_types=["gh_operator"])
         if lma_ops:
             for arg in self._arg_descriptors:
-                if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES
+                if (arg.argument_type in const.VALID_FIELD_NAMES
                         and arg.data_type != "gh_real"):
                     raise ParseError(
                         "In the LFRic API a kernel that has an LMA "
@@ -651,9 +642,10 @@ class DynKernMetadata(KernelType):
         # arguments. Keep a record of any non-field arguments for the benefit
         # of a verbose error message.
         non_field_arg_types = set()
+        const = LFRicConstants()
         for arg in self._arg_descriptors:
             # Collect info so that we can check inter-grid kernels
-            if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+            if arg.argument_type in const.VALID_FIELD_NAMES:
                 if arg.mesh:
                     # Argument has a mesh associated with it so this must
                     # be an inter-grid kernel
@@ -745,6 +737,7 @@ class DynKernMetadata(KernelType):
                             LFRic rules for a kernel with a CMA operator.
 
         '''
+        const = LFRicConstants()
         for arg in self._arg_descriptors:
             # No vector arguments are permitted
             if arg.vector_size > 1:
@@ -760,7 +753,7 @@ class DynKernMetadata(KernelType):
                     "with a stencil access ('{1}'). This is forbidden.".
                     format(self.name, arg.stencil['type']))
             # Only field arguments with 'gh_real' data type are permitted
-            if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
+            if (arg.argument_type in const.VALID_FIELD_NAMES and
                     arg.data_type != "gh_real"):
                 raise ParseError(
                     "In the LFRic API a kernel that takes a CMA operator "
@@ -796,12 +789,12 @@ class DynKernMetadata(KernelType):
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(
                 self._arg_descriptors,
-                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+                arg_types=const.VALID_FIELD_NAMES,
                 arg_accesses=[AccessType.READ])
             write_accesses = AccessType.all_write_accesses()
             farg_write = psyGen.args_filter(
                 self._arg_descriptors,
-                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+                arg_types=const.VALID_FIELD_NAMES,
                 arg_accesses=write_accesses)
             if len(farg_read) != 1:
                 raise ParseError(
@@ -875,7 +868,7 @@ class DynKernMetadata(KernelType):
                 # and scalars as arguments.
                 scalar_args = psyGen.args_filter(
                     self._arg_descriptors,
-                    arg_types=LFRicArgDescriptor.VALID_SCALAR_NAMES)
+                    arg_types=const.VALID_SCALAR_NAMES)
                 if (len(scalar_args) + len(cwise_ops)) != \
                    len(self._arg_descriptors):
                     raise ParseError(
@@ -903,10 +896,10 @@ class DynKernMetadata(KernelType):
         if self.iterates_over != "domain":
             return
 
+        const = LFRicConstants()
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
-        valid_arg_types = (LFRicArgDescriptor.VALID_SCALAR_NAMES +
-                           LFRicArgDescriptor.VALID_FIELD_NAMES)
+        valid_arg_types = (const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES)
         for arg in self._arg_descriptors:
             if arg.argument_type not in valid_arg_types:
                 raise ParseError(
@@ -2713,13 +2706,13 @@ class LFRicFields(DynCollection):
         # Create dict of all field arguments for checks
         const = LFRicConstants()
         fld_args = self._invoke.unique_declarations(
-            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
+            argument_types=const.VALID_FIELD_NAMES)
         # Filter field arguments by intent and intrinsic type
         real_fld_args = self._invoke.unique_declarations(
-            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+            argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
         int_fld_args = self._invoke.unique_declarations(
-            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+            argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
 
         # Create lists of field names for real- and integer-valued fields
@@ -2778,9 +2771,10 @@ class LFRicFields(DynCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
         fld_args = psyGen.args_filter(
-            self._kernel.args, arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
+            self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
         for fld in fld_args:
             undf_name = fld.function_space.undf_name
             intent = fld.intent
@@ -3016,7 +3010,7 @@ class DynProxies(DynCollection):
         # Declarations of real and integer field proxies
         const = LFRicConstants()
         real_field_proxy_decs = self._invoke.unique_proxy_declarations(
-            LFRicArgDescriptor.VALID_FIELD_NAMES,
+            const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
         if real_field_proxy_decs:
             dtype = "field_proxy_type"
@@ -3026,7 +3020,7 @@ class DynProxies(DynCollection):
             (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
              add(dtype))
         int_field_proxy_decs = self._invoke.unique_proxy_declarations(
-            LFRicArgDescriptor.VALID_FIELD_NAMES,
+            const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
         if int_field_proxy_decs:
             dtype = "integer_field_proxy_type"
@@ -3214,13 +3208,13 @@ class LFRicScalarArgs(DynCollection):
         # Create dict of all scalar arguments for checks
         const = LFRicConstants()
         self._scalar_args = self._invoke.unique_declns_by_intent(
-            LFRicArgDescriptor.VALID_SCALAR_NAMES)
+            const.VALID_SCALAR_NAMES)
         # Filter scalar arguments by intent and intrinsic type
         self._real_scalars = self._invoke.unique_declns_by_intent(
-            LFRicArgDescriptor.VALID_SCALAR_NAMES,
+            const.VALID_SCALAR_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
         self._int_scalars = self._invoke.unique_declns_by_intent(
-            LFRicArgDescriptor.VALID_SCALAR_NAMES,
+            const.VALID_SCALAR_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
 
         for intent in FORTRAN_INTENT_NAMES:
@@ -5068,12 +5062,13 @@ class DynInvoke(Invoke):
         # which have a gh_sum access.
         if Config.get().distributed_memory:
             # halo exchange calls
+            const = LFRicConstants()
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
             # global sum calls
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
-                        arg_types=LFRicArgDescriptor.VALID_SCALAR_NAMES,
+                        arg_types=const.VALID_SCALAR_NAMES,
                         arg_accesses=AccessType.get_valid_reduction_modes(),
                         unique=True):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
@@ -5108,11 +5103,11 @@ class DynInvoke(Invoke):
         '''
         const = LFRicConstants()
         # First check for invalid argument types, access and intrinsic type
-        if any(argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES for
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Expected one of {0} as a valid argument type but found {1}.".
-                format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
+                format(str(const.VALID_ARG_TYPE_NAMES),
                        str(argument_types)))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
@@ -7335,7 +7330,7 @@ class DynKern(CodedKern):
             elif descriptor.argument_type.lower() == "gh_field":
                 pre = "field_"
             elif (descriptor.argument_type.lower() in
-                  LFRicArgDescriptor.VALID_SCALAR_NAMES):
+                  const.VALID_SCALAR_NAMES):
                 if descriptor.data_type.lower() == "gh_real":
                     pre = "rscalar_"
                 elif descriptor.data_type.lower() == "gh_integer":
@@ -7349,7 +7344,7 @@ class DynKern(CodedKern):
             else:
                 raise GenerationError(
                     "DynKern.load_meta() expected one of {0} but found '{1}'".
-                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
+                    format(const.VALID_ARG_TYPE_NAMES,
                            descriptor.argument_type))
             args.append(Arg("variable", pre+str(idx+1)))
 
@@ -7746,7 +7741,7 @@ class DynKern(CodedKern):
 
         # Check whether this kernel reads from an operator
         op_args = parent_loop.args_filter(
-            arg_types=LFRicArgDescriptor.VALID_OPERATOR_NAMES,
+            arg_types=const.VALID_OPERATOR_NAMES,
             arg_accesses=[AccessType.READ, AccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
@@ -8260,14 +8255,15 @@ class DynKernelArguments(Arguments):
         of type op_type (either gh_operator [LMA] or gh_columnwise_operator
         [CMA]). If op_type is None then searches for *any* valid operator
         type. '''
-        if op_type and op_type not in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
+        const = LFRicConstants()
+        if op_type and op_type not in const.VALID_OPERATOR_NAMES:
             raise GenerationError(
                 "If supplied, 'op_type' must be a valid operator type (one "
                 "of {0}) but got '{1}'".
-                format(LFRicArgDescriptor.VALID_OPERATOR_NAMES, op_type))
+                format(const.VALID_OPERATOR_NAMES, op_type))
         if not op_type:
             # If no operator type is specified then we match any type
-            op_list = LFRicArgDescriptor.VALID_OPERATOR_NAMES
+            op_list = const.VALID_OPERATOR_NAMES
         else:
             op_list = [op_type]
         for arg in self._args:
@@ -8303,9 +8299,10 @@ class DynKernelArguments(Arguments):
         # Since we always compute operators out to the L1 halo we first
         # check whether this kernel writes to an operator
         write_accesses = AccessType.all_write_accesses()
+        const = LFRicConstants()
         op_args = psyGen.args_filter(
             self._args,
-            arg_types=LFRicArgDescriptor.VALID_OPERATOR_NAMES,
+            arg_types=const.VALID_OPERATOR_NAMES,
             arg_accesses=write_accesses)
         if op_args:
             return op_args[0]
@@ -8317,7 +8314,7 @@ class DynKernelArguments(Arguments):
         if self._parent_call.is_intergrid:
             fld_args = psyGen.args_filter(
                 self._args,
-                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+                arg_types=const.VALID_FIELD_NAMES,
                 arg_meshes=["gh_coarse"])
             return fld_args[0]
 
@@ -8334,7 +8331,7 @@ class DynKernelArguments(Arguments):
         write_accesses = AccessType.all_write_accesses()
         fld_args = psyGen.args_filter(
             self._args,
-            arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+            arg_types=const.VALID_FIELD_NAMES,
             arg_accesses=write_accesses)
         if fld_args:
             for spaces in [const.CONTINUOUS_FUNCTION_SPACES,
@@ -8347,7 +8344,7 @@ class DynKernelArguments(Arguments):
         # No modified fields or operators. Check for unmodified fields...
         fld_args = psyGen.args_filter(
             self._args,
-            arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
+            arg_types=const.VALID_FIELD_NAMES)
         if fld_args:
             return fld_args[0]
 
@@ -8552,7 +8549,8 @@ class DynKernelArgument(KernelArgument):
                   False otherwise.
         :rtype: bool
         '''
-        return self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES
+        const = LFRicConstants()
+        return self._argument_type in const.VALID_SCALAR_NAMES
 
     @property
     def is_field(self):
@@ -8561,7 +8559,8 @@ class DynKernelArgument(KernelArgument):
                   False otherwise.
         :rtype: bool
         '''
-        return self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES
+        const = LFRicConstants()
+        return self._argument_type in const.VALID_FIELD_NAMES
 
     @property
     def is_operator(self):
@@ -8570,7 +8569,8 @@ class DynKernelArgument(KernelArgument):
                   False otherwise.
         :rtype: bool
         '''
-        return self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
+        const = LFRicConstants()
+        return self._argument_type in const.VALID_OPERATOR_NAMES
 
     @property
     def descriptor(self):

@@ -103,9 +103,10 @@ def test_ad_fld_type_1st_arg():
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("the 1st argument of a 'meta_arg' entry should be a valid "
             "argument type (one of {0}), but found 'gh_hedge'".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            format(const.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
 
@@ -528,15 +529,16 @@ def test_field_invoke_uniq_declns_valid_intrinsic():
     invoke = psy.invokes.invoke_list[0]
 
     # Return 'real'-valued fields
+    const = LFRicConstants()
     fields_real_args = invoke.unique_declarations(
-        LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="real")
+        const.VALID_FIELD_NAMES, intrinsic_type="real")
     fields_real = [arg.declaration_name for arg in fields_real_args]
     assert fields_real == ["f1", "f2", "m1", "m2", "f3", "f4", "m3",
                            "m4", "f5", "f6", "m5", "m6", "m7"]
 
     # Return 'integer'-valued fields
-    fields_int_args = invoke.unique_declarations(
-        LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="integer")
+    fields_int_args = invoke.unique_declarations(const.VALID_FIELD_NAMES,
+                                                 intrinsic_type="integer")
     fields_int = [arg.declaration_name for arg in fields_int_args]
     assert fields_int == ["i1", "i2", "n1", "n2", "i3", "i4", "n3", "n4",
                           "i5", "i6", "n5", "n6", "i7", "i8", "n7"]

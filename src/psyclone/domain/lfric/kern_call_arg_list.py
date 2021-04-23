@@ -45,7 +45,7 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import (ArgOrdering, LFRicArgDescriptor)
+from psyclone.domain.lfric import (ArgOrdering, LFRicConstants)
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -168,6 +168,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         components = ["matrix"]
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynCMAOperators
         if arg.function_space_to.orig_name != (arg.function_space_from.
                                                orig_name):
@@ -538,11 +540,12 @@ class KernCallArgList(ArgOrdering):
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
+        const = LFRicConstants()
         if not farg.is_field:
             raise GenerationError(
                 "Expected an argument of {0} type from which to look-up "
                 "boundary dofs for kernel {1} but got '{2}'".
-                format(LFRicArgDescriptor.VALID_FIELD_NAMES,
+                format(const.VALID_FIELD_NAMES,
                        self._kern.name, farg.argument_type))
 
         base_name = "boundary_dofs_" + farg.name
@@ -581,6 +584,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         if self._kern.mesh.properties:
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import LFRicMeshProperties
             self.extend(LFRicMeshProperties(self._kern).
                         kern_args(stub=False, var_accesses=var_accesses))

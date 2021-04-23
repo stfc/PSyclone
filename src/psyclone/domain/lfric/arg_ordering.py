@@ -43,7 +43,7 @@ from __future__ import print_function, absolute_import
 import abc
 
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -203,7 +203,7 @@ class ArgOrdering(object):
         # scalar). If the argument is a field or field vector and also
         # has a stencil access then also call appropriate stencil
         # methods.
-
+        const = LFRicConstants()
         for arg in self._kern.arguments.args:
             if arg.is_field:
                 if arg.vector_size > 1:
@@ -250,7 +250,7 @@ class ArgOrdering(object):
                 raise GenerationError(
                     "ArgOrdering.generate(): Unexpected argument type found. "
                     "Expected one of '{0}' but found '{1}'".
-                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
+                    format(const.VALID_ARG_TYPE_NAMES,
                            arg.argument_type))
         # For each function space (in the order they appear in the
         # metadata arguments)
@@ -547,10 +547,11 @@ class ArgOrdering(object):
         :raises InternalError: if the argument is not a recognised scalar type.
 
         '''
+        const = LFRicConstants()
         if not scalar_arg.is_scalar:
             raise InternalError(
                 "Expected argument type to be one of {0} but got '{1}'".
-                format(LFRicArgDescriptor.VALID_SCALAR_NAMES,
+                format(const.VALID_SCALAR_NAMES,
                        scalar_arg.argument_type))
 
         self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access)
@@ -735,6 +736,8 @@ class ArgOrdering(object):
 
         '''
         if self._kern.reference_element.properties:
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import DynReferenceElement
             refelem_args = DynReferenceElement(self._kern).kern_args()
             self.extend(refelem_args, var_accesses)
