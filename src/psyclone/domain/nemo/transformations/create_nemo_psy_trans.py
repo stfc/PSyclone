@@ -46,11 +46,49 @@ from psyclone.domain.nemo.transformations import \
 
 
 class CreateNemoPSyTrans(Transformation):
-    '''
+    """
     Transform generic (language-level) PSyIR representation into a PSyclone
-    version with specialised, NEMO-specific nodes.
+    version with specialised, NEMO-specific nodes. For example:
 
-    '''
+    >>> from fparser.common.readfortran import FortranStringReader
+    >>> from fparser.two.parser import ParserFactory
+    >>> from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
+    >>> reader = FortranStringReader('''
+    ... subroutine sub()
+    ...   integer :: ji, tmp(10)
+    ...   do ji=1, 10
+    ...     tmp(ji) = 2*ji
+    ...   end do
+    ... end subroutine sub''')
+    >>> parser = ParserFactory().create()
+    >>> psyir = Fparser2Reader().generate_psyir(parser(reader))
+    >>> loop = psyir.walk(Loop)[0]
+    >>> trans = CreateNemoPSyTrans()
+    >>> sched = trans.apply(psyir)
+    >>> sched.view()
+    NemoInvokeSchedule[invoke='sub']
+        0: Loop[type='lon', field_space='None', it_space='None']
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Schedule[]
+                0: InlinedKern[]
+                    Schedule[]
+                        0: Assignment[]
+                            ArrayReference[name:'tmp']
+                                Reference[name:'ji']
+                            BinaryOperation[operator:'MUL']
+                                Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
+                                Reference[name:'ji']
+
+    The result of this transformation is that the root `Routine` has
+    been converted into a `NemoInvokeSchedule`, the `Loop` is now a
+    `NemoLoop` (with type 'lon' [for longitude]) and the body of the loop
+    is now an `InlinedKern`.
+
+    """
     @property
     def name(self):
         '''
