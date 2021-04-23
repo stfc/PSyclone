@@ -39,6 +39,7 @@
 '''
 
 from psyclone.errors import InternalError, FieldNotFoundError, GenerationError
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 
 
 class FunctionSpace(object):
@@ -92,9 +93,6 @@ class FunctionSpace(object):
         self._mangled_name = None
         self._short_name = None
 
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicConstants
         const = LFRicConstants()
         # Check whether the function space name is a valid name
         if self._orig_name not in const.VALID_FUNCTION_SPACE_NAMES:
@@ -104,7 +102,6 @@ class FunctionSpace(object):
                 .format(self._orig_name,
                         const.VALID_FUNCTION_SPACE_NAMES))
 
-        const = LFRicConstants()
         if self._orig_name not in const.VALID_ANY_SPACE_NAMES + \
                 const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             # We only need to name-mangle any_space and
@@ -182,9 +179,6 @@ class FunctionSpace(object):
         '''
         # First check that the the function space is one of any_*_space
         # spaces and then proceed with name-mangling.
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicConstants
         const = LFRicConstants()
         if self._orig_name not in const.VALID_ANY_SPACE_NAMES + \
                 const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
@@ -223,9 +217,6 @@ class FunctionSpace(object):
         '''
         # Create a start for the short name and check whether the function
         # space is one of any_*_space spaces
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicConstants
         const = LFRicConstants()
         if self._orig_name in const.VALID_ANY_SPACE_NAMES:
             start = "a"
