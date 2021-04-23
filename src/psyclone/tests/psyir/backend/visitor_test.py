@@ -60,7 +60,8 @@ def test_psyirvisitor_defaults():
 def test_psyirvisitor_init():
     '''Check the PSyIRVisitor class __init__ arguments are stored.'''
     visitor = PSyIRVisitor(skip_nodes=True, indent_string=" ",
-                           initial_indent_depth=1, validate_nodes=False)
+                           initial_indent_depth=1,
+                           check_global_constraints=False)
     assert visitor._skip_nodes
     assert visitor._indent == " "
     assert visitor._depth == 1
@@ -112,13 +113,13 @@ def test_psyirvisitor_init_error4():
 
 
 def test_psyirvisitor_init_error5():
-    '''Check that the expected error is raised if the PSyIRVisitor class
-    __init__ validate_nodes argument is not a bool.
+    '''Check that the expected error is raised if the check_global_constraints
+    argument to the PSyIRVisitor constructor is not a bool.
 
     '''
     with pytest.raises(TypeError) as excinfo:
-        _ = PSyIRVisitor(validate_nodes=-1)
-    assert ("validate_nodes should be a boolean but found 'int'" in
+        _ = PSyIRVisitor(check_global_constraints=-1)
+    assert ("check_global_constraints should be a boolean but found 'int'" in
             str(excinfo.value))
 
 
@@ -296,11 +297,11 @@ def test_psyirvisitor_validation():
     test_node2 = Node2()
     test_node1 = Node1(children=[test_node2])
     # Visit the node hierarchy with node validation disabled
-    test_visitor = MyVisitor(validate_nodes=False)
+    test_visitor = MyVisitor(check_global_constraints=False)
     output = test_visitor(test_node1)
     assert output == "node1\nnode2\n"
     # Repeat but with tree validation enabled - this should raise an exception
-    test_visitor = MyVisitor(validate_nodes=True)
+    test_visitor = MyVisitor(check_global_constraints=True)
     with pytest.raises(GenerationError) as err:
         _ = test_visitor(test_node1)
     assert "Fail for testing purposes" in str(err.value)

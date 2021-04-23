@@ -196,7 +196,7 @@ def test_nemo_acc_parallel(parser):
     dtrans.apply(nemo_sched[0])
 
     # Disable node validation to avoid having to add a data region
-    fort_writer = FortranWriter(validate_nodes=False)
+    fort_writer = FortranWriter(check_global_constraints=False)
     result = fort_writer(nemo_sched)
 
     correct = '''!$acc begin parallel default(present)
@@ -208,7 +208,7 @@ enddo
 !$acc end parallel'''
     assert correct in result
 
-    cvisitor = CWriter(validate_nodes=False)
+    cvisitor = CWriter(check_global_constraints=False)
     with pytest.raises(VisitorError) as err:
         _ = cvisitor(nemo_sched[0])
     assert "Unsupported node 'ACCDataDirective' found" in str(err.value)
@@ -297,14 +297,14 @@ def test_gocean_acc_parallel():
     # omp_sched is a GOInvokeSchedule, which is not yet supported.
     # So only convert starting from the OMPParallelDirective. Also, disable
     # node validation so as to avoid the need for a data region.
-    fvisitor = FortranWriter(validate_nodes=False)
+    fvisitor = FortranWriter(check_global_constraints=False)
     result = fvisitor(sched[0])
     correct = '''!$acc begin parallel default(present)
 a = b
 !$acc end parallel'''
     assert correct in result
 
-    cvisitor = CWriter(validate_nodes=False)
+    cvisitor = CWriter(check_global_constraints=False)
     with pytest.raises(VisitorError) as err:
         _ = cvisitor(sched[0])
     assert "Unsupported node 'ACCParallelDirective' found" in str(err.value)

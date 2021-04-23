@@ -63,7 +63,8 @@ class VisitorError(Exception):
 
 class PSyIRVisitor(object):
     '''A generic PSyIR visitor. This is designed to be specialised by
-    a particular back end.
+    a particular back end. By default, global constraints are enforced by
+    calling the `validate_global_constraints()` method of each Node visited.
 
     :param bool skip_nodes: If skip_nodes is False then an exception \
         is raised if a visitor method for a PSyIR node has not been \
@@ -74,13 +75,14 @@ class PSyIRVisitor(object):
     :type indent_string: str or NoneType
     :param int initial_indent_depth: Specifies how much indentation to \
         start with. This is an optional argument that defaults to 0.
-    :param bool validate_nodes: whether or not to validate the PSyIR tree.
+    :param bool check_global_constraints: whether or not to validate all \
+        global constraints when walking the tree.
 
     :raises TypeError: if any of the supplied parameters are of the wrong type.
 
     '''
     def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, validate_nodes=True):
+                 initial_indent_depth=0, check_global_constraints=True):
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
@@ -98,16 +100,17 @@ class PSyIRVisitor(object):
             raise TypeError(
                 "initial_indent_depth should not be negative, but found '{0}'."
                 "".format(initial_indent_depth))
-        if not isinstance(validate_nodes, bool):
-            raise TypeError("validate_nodes should be a boolean but found "
-                            "'{0}'.".format(type(validate_nodes).__name__))
+        if not isinstance(check_global_constraints, bool):
+            raise TypeError("check_global_constraints should be a boolean but "
+                            "found '{0}'.".format(
+                                type(check_global_constraints).__name__))
 
         self._skip_nodes = skip_nodes
         self._indent = indent_string
         self._depth = initial_indent_depth
         #: If validate_nodes is True then each node visited will have any
         #: global constraints validated.
-        self._validate_nodes = validate_nodes
+        self._validate_nodes = check_global_constraints
 
     def reference_node(self, node):
         # pylint: disable=no-self-use
@@ -219,3 +222,7 @@ class PSyIRVisitor(object):
         raise VisitorError(
             "Unsupported node '{0}' found: method names attempted were "
             "{1}.".format(type(node).__name__, str(possible_method_names)))
+
+
+# For AutoAPI documentation generation
+__all__ = ['VisitorError', 'PSyIRVisitor']

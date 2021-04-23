@@ -180,8 +180,8 @@ def test_nemo_omp_do():
     # Now apply a parallel transform
     omp_loop = OMPLoopTrans()
     omp_loop.apply(schedule[0])
-    # Disable node validation to remove need for parallel region
-    fvisitor = FortranWriter(validate_nodes=False)
+    # Disable checks on global constraints to remove need for parallel region
+    fvisitor = FortranWriter(check_global_constraints=False)
     result = fvisitor(schedule)
     correct = '''  !$omp do schedule(static)
   do i = 1, 20, 2
@@ -191,7 +191,7 @@ def test_nemo_omp_do():
   !$omp end do'''
     assert correct in result
 
-    cvisitor = CWriter(validate_nodes=False)
+    cvisitor = CWriter(check_global_constraints=False)
     result = cvisitor(schedule[0])
     correct = '''#pragma omp do schedule(static)
 {
@@ -224,7 +224,7 @@ def test_gocean_omp_do():
     # TODO #440 fixes this.
     replace_child_with_assignment(invoke.schedule[0].dir_body)
     # Disable validation checks to avoid having to add a parallel region
-    fvisitor = FortranWriter(validate_nodes=False)
+    fvisitor = FortranWriter(check_global_constraints=False)
     # GOInvokeSchedule is not yet supported, so start with
     # the OMP node:
     result = fvisitor(invoke.schedule[0])
@@ -233,7 +233,7 @@ a = b
 !$omp end do'''
     assert correct in result
 
-    cvisitor = CWriter(validate_nodes=False)
+    cvisitor = CWriter(check_global_constraints=False)
     result = cvisitor(invoke.schedule[0])
     correct = '''#pragma omp do schedule(static)
 {
