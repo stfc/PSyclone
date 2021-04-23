@@ -152,3 +152,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         del routine
 
         return new_node
+
+
+# For AutoAPI documentation generation
+__all__ = ['CreateNemoInvokeScheduleTrans']

@@ -167,3 +167,7 @@ class CreateNemoPSyTrans(Transformation):
                 pass
 
         return root
+
+
+# For AutoAPI documentation generation
+__all__ = ['CreateNemoPSyTrans']

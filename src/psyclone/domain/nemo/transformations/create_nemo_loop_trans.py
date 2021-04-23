@@ -142,3 +142,7 @@ class CreateNemoLoopTrans(Transformation):
         loop.replace_with(new_loop)
         del loop
         return new_loop
+
+
+# For AutoAPI documentation generation
+__all__ = ['CreateNemoLoopTrans']
