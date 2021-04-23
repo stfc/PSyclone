@@ -261,6 +261,13 @@ global constraints then it must override this method and implement the
 required checks. If those checks fail then the method should raise a
 `GenerationError`.
 
+Note that, if required, this validation may be disabled by passing
+`check_global_constraints=False` when constructing the PSyIRVisitor
+instance::
+
+    print_hierarchy = PrintHierarchy(check_global_constraints=False)
+
+ 
 Available back-ends
 ===================
 
