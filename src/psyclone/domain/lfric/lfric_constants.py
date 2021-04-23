@@ -44,7 +44,6 @@ from collections import OrderedDict
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.domain.lfric.lfric_builtins import BUILTIN_ITERATION_SPACES
 
 
 # pylint: disable=too-few-public-methods
@@ -141,17 +140,22 @@ class LFRicConstants(object):
         LFRicConstants.VALID_LOOP_TYPES = ["dof", "colours", "colour", "",
                                            "null"]
 
+        # Valid LFRic iteration spaces for built-in kernels
+        LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]
+
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
         LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
         LFRicConstants.VALID_ITERATION_SPACES = \
             LFRicConstants.USER_KERNEL_ITERATION_SPACES + \
-            BUILTIN_ITERATION_SPACES
+            LFRicConstants.BUILTIN_ITERATION_SPACES
 
         # psyGen argument types translate to LFRic argument types.
         LFRicConstants.VALID_ARG_TYPE_NAMES = \
             LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
+        # Functionspace related constants
+        # -------------------------------
         api_config = Config.get().api_conf("dynamo0.3")
         # Valid any_space metadata (general FS, could be continuous or
         # discontinuous). The number of 'ANY_SPACE' spaces is set in the
