@@ -45,6 +45,8 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
 
     :param routine: the routine that this call calls.
     :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+    :param int index: the position of this invoke call relative to \
+        other invokes in the algorithm layer.
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     :param description: an optional description of the \
@@ -54,12 +56,13 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
     '''
     _text_name = "LFRicAlgorithmInvokeCall"
 
-    def __init__(self, routine, parent=None, description=None):
-        super(LFRicAlgorithmInvokeCall, self).__init__(routine, parent=parent)
+    def __init__(self, routine, index, parent=None, description=None):
+        super(LFRicAlgorithmInvokeCall, self).__init__(
+            routine, index, parent=parent)
         self._description = description
 
     @classmethod
-    def create(cls, routine, arguments, description=None):
+    def create(cls, routine, arguments, index, description=None):
         '''Create an instance of the calling class given valid instances of a
         routine symbol, a list of child nodes for its arguments and an
         optional description.
@@ -70,9 +73,11 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         :param arguments: the arguments to this routine. These are \
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
+        :param int index: the position of this invoke call relative to \
+            other invokes in the algorithm layer.
         :param description: a string describing the purpose of the \
             invoke or None if one is not provided. This is used to \
-            create the name of the subroutine that replaces the \
+            create the name of the routine that replaces the \
             invoke. Defaults to None.
         :type name: str or NoneType
 
@@ -83,10 +88,31 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
 
         '''
         instance = super(LFRicAlgorithmInvokeCall, cls).create(
-            routine, arguments)
+            routine, arguments, index)
         # pylint: disable=protected-access
         instance._description = description
         return instance
+
+    def _def_routine_root_name(self):
+        '''Internal function that returns the proposed PSy-layer routine
+        name given the index of this invoke.
+
+        :returns: the proposed processed routine name for this invoke.
+        :rtype: str
+
+        '''
+        if self._description:
+            name = self._description.lower().strip()
+            if name[0] == '"' and name[-1] == '"' or \
+               name[0] == "'" and name[-1] == "'":
+                # fparser2 (issue #295) currently includes quotes as
+                # part of a string, so strip them out.
+                name = name[1:-1]
+            name = name.replace(" ", "_")
+        else:
+            name = super(LFRicAlgorithmInvokeCall,
+                         self)._def_routine_root_name()
+        return name
 
     def node_str(self, colour=True):
         '''Construct a text representation of this node, optionally

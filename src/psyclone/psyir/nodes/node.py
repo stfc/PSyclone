@@ -40,7 +40,6 @@
 This module contains the abstract Node implementation.
 
 '''
-import abc
 import copy
 import six
 from psyclone.psyir.symbols import SymbolError
@@ -940,7 +939,17 @@ class Node(object):
 
     @property
     def root(self):
-        node = self
+        '''
+        :returns: the root node of the PSyIR tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # Starting with 'self.parent' instead of 'node = self' avoids many
+        # false positive pylint issues that assume self.root type would be
+        # the same as self type.
+        if self.parent is None:
+            return self
+        node = self.parent
         while node.parent is not None:
             node = node.parent
         return node
@@ -1134,15 +1143,6 @@ class Node(object):
         '''
         for child in self.children:
             child.lower_to_language_level()
-
-    def gen_code(self, parent):
-        '''Abstract base class for code generation function.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        '''
-        raise NotImplementedError(
-            "Please implement me: {0}".format(type(self)))
 
     def update(self):
         ''' By default we assume there is no need to update the existing

@@ -148,3 +148,6 @@ def test_apply():
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(AlgorithmInvokeCall)) == 3
     assert len(psyir.walk(KernelFunctor)) == 3
+
+    for idx, invoke_call in enumerate(psyir.walk(AlgorithmInvokeCall)):
+        assert invoke_call._index == idx

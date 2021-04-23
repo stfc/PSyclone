@@ -465,8 +465,6 @@ together. For example:
     assignment = Assignment()
     literal = Literal("0.0", REAL_TYPE)
     reference = Reference(symbol)
-    literal.parent = assignment
-    reference.parent = assignment
     assignment.children = [reference, literal]
     
 However, as connections get more complicated, creating the correct

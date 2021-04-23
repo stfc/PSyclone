@@ -890,17 +890,11 @@ class InvokeSchedule(Routine):
         super(InvokeSchedule, self).__init__(name)
 
         self._invoke = None
-        self._opencl = False  # Whether or not to generate OpenCL
-
-        # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True,
-                                "enable_profiling": False,
-                                "out_of_order": False}
 
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
-            for name in reserved_names:
-                self.symbol_table.add(Symbol(name))
+            for reserved in reserved_names:
+                self.symbol_table.add(Symbol(reserved))
 
         # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
@@ -912,6 +906,19 @@ class InvokeSchedule(Routine):
                 self.addchild(BuiltInFactory.create(call, parent=self))
             else:
                 self.addchild(KernFactory.create(call, parent=self))
+
+        # TODO #1134: If OpenCL is just a PSyIR transformation the following
+        # properties may not be needed or are transformation options instead.
+        self._opencl = False  # Whether or not to generate OpenCL
+
+        # InvokeSchedule opencl_options default values
+        self._opencl_options = {"end_barrier": True,
+                                "enable_profiling": False,
+                                "out_of_order": False}
+
+        # This reference will store during gen_code() the block of code that
+        # is executed only on the first iteration of the invoke.
+        self._first_time_block = None
 
     @property
     def symbol_table(self):
@@ -1062,6 +1069,9 @@ class InvokeSchedule(Routine):
                                entity_decls=[first],
                                initial_values=[".true."]))
             if_first = IfThenGen(parent, first)
+            # Keep a reference to the block of code that is executed only on
+            # the first iteration of the invoke.
+            self._first_time_block = if_first
             parent.add(if_first)
             if_first.add(AssignGen(if_first, lhs=first, rhs=".false."))
             if_first.add(CommentGen(if_first,
