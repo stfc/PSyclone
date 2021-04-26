@@ -668,7 +668,7 @@ class DynKernMetadata(KernelType):
             # this is not an inter-grid kernel
             return
 
-        if len(LFRicArgDescriptor.VALID_MESH_TYPES) != 2:
+        if len(const.VALID_MESH_TYPES) != 2:
             # Sanity check that nobody has messed with the number of
             # grid types that we recognise. This is here because the
             # implementation assumes that there are just two grids
@@ -676,15 +676,15 @@ class DynKernMetadata(KernelType):
             raise InternalError(
                 "The implementation of inter-grid support in the LFRic "
                 "API assumes there are exactly two mesh types but "
-                "LFRicArgDescriptor.VALID_MESH_TYPES contains {0}: {1}".
-                format(len(LFRicArgDescriptor.VALID_MESH_TYPES),
-                       LFRicArgDescriptor.VALID_MESH_TYPES))
-        if len(mesh_list) != len(LFRicArgDescriptor.VALID_MESH_TYPES):
+                "LFRicConstants.VALID_MESH_TYPES contains {0}: {1}".
+                format(len(const.VALID_MESH_TYPES),
+                       const.VALID_MESH_TYPES))
+        if len(mesh_list) != len(const.VALID_MESH_TYPES):
             raise ParseError(
                 "Inter-grid kernels in the Dynamo 0.3 API must have at least "
                 "one field argument on each of the mesh types ({0}). However, "
                 "kernel {1} has arguments only on {2}".format(
-                    LFRicArgDescriptor.VALID_MESH_TYPES, self.name,
+                    const.VALID_MESH_TYPES, self.name,
                     [str(name) for name in mesh_list]))
         # Inter-grid kernels must only have field arguments
         if non_field_arg_types:
@@ -1587,6 +1587,7 @@ class DynStencils(DynCollection):
         parent.add(CommentGen(parent, ""))
         api_config = Config.get().api_conf("dynamo0.3")
         stencil_map_names = []
+        const = LFRicConstants()
         for arg in self._kern_args:
             map_name = self.map_name(arg)
             if map_name not in stencil_map_names:
@@ -1628,14 +1629,13 @@ class DynStencils(DynCollection):
                                   api_config.default_kind["integer"]))
                 else:
                     try:
-                        stencil_name = \
-                            LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
+                        stencil_name = const.STENCIL_MAPPING[stencil_type]
                     except KeyError:
                         raise GenerationError(
                             "Unsupported stencil type '{0}' supplied. "
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
-                                   str(LFRicArgDescriptor.STENCIL_MAPPING)))
+                                   str(const.STENCIL_MAPPING)))
                     parent.add(
                         AssignGen(parent, pointer=True, lhs=map_name,
                                   rhs=arg.proxy_name_indexed +
@@ -1669,6 +1669,8 @@ class DynStencils(DynCollection):
 
         symtab = self._symbol_table
         stencil_map_names = []
+        const = LFRicConstants()
+
         for arg in self._kern_args:
             map_name = self.map_name(arg)
 
@@ -1715,14 +1717,13 @@ class DynStencils(DynCollection):
                                                             "STENCIL_1DY"]))
                 else:
                     try:
-                        stencil_name = \
-                            LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
+                        stencil_name = const.STENCIL_MAPPING[stencil_type]
                     except KeyError:
                         raise GenerationError(
                             "Unsupported stencil type '{0}' supplied. "
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
-                                   str(LFRicArgDescriptor.STENCIL_MAPPING)))
+                                   str(const.STENCIL_MAPPING)))
                     parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                       only=True, funcnames=[stencil_name]))
 
@@ -4975,8 +4976,9 @@ class DynInvoke(Invoke):
             return
         self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
         reserved_names_list = []
-        reserved_names_list.extend(LFRicArgDescriptor.STENCIL_MAPPING.values())
-        reserved_names_list.extend(LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS)
+        const = LFRicConstants()
+        reserved_names_list.extend(const.STENCIL_MAPPING.values())
+        reserved_names_list.extend(const.VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
@@ -8159,6 +8161,7 @@ class DynKernelArguments(Arguments):
             # TODO 719 The symtab is not connected to other parts of the
             # Stub generation.
             symtab = SymbolTable()
+        const = LFRicConstants()
         for arg in self._args:
             if not arg.descriptor.stencil:
                 continue
@@ -8174,7 +8177,7 @@ class DynKernelArguments(Arguments):
                 # a direction argument has been added
                 if arg.stencil.direction_arg.varname and \
                    arg.stencil.direction_arg.varname not in \
-                   LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS:
+                   const.VALID_STENCIL_DIRECTIONS:
                     # Register the name of the direction argument to ensure
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text

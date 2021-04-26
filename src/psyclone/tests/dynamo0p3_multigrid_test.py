@@ -47,15 +47,18 @@ import pytest
 import fparser
 
 from fparser import api as fpapi
-from psyclone.errors import InternalError
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynHaloExchange, DynKernMetadata, HaloReadAccess
+from psyclone.errors import GenerationError, InternalError
+from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.configuration import Config
-
+from psyclone.psyir.nodes import Node
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.transformations import check_intergrid, Dynamo0p3ColourTrans, \
+        DynamoOMPParallelLoopTrans, TransformationError
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -91,8 +94,6 @@ def setup():
 def test_check_intergrid():
     ''' Test that the check_intergrid utility does not raise an error if the
     supplied node has no children. '''
-    from psyclone.psyir.nodes import Node
-    from psyclone.transformations import check_intergrid
     tnode = Node()
     check_intergrid(tnode)
 
@@ -133,10 +134,11 @@ def test_all_args_same_mesh_error():
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
             "one field argument on each of the mesh types ({0}). However, "
             "kernel restrict_kernel_type has arguments only on ['gh_fine']".
-            format(LFRicArgDescriptor.VALID_MESH_TYPES) in str(excinfo.value))
+            format(const.VALID_MESH_TYPES) in str(excinfo.value))
     # Both on coarse mesh
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -145,7 +147,7 @@ def test_all_args_same_mesh_error():
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
             "one field argument on each of the mesh types ({0}). However, "
             "kernel restrict_kernel_type has arguments only on ['gh_coarse']".
-            format(LFRicArgDescriptor.VALID_MESH_TYPES) in str(excinfo.value))
+            format(const.VALID_MESH_TYPES) in str(excinfo.value))
 
 
 def test_all_fields_have_mesh():
@@ -231,10 +233,10 @@ def test_field_vector():
 def test_two_grid_types(monkeypatch):
     ''' Check that PSyclone raises an error if the number of grid types
     supported for inter-grid kernels is not two. '''
-    # Change LFRicArgDescriptor.VALID_MESH_TYPES so that it contains
+    # Change LFRicConstants.VALID_MESH_TYPES so that it contains
     # three values
     monkeypatch.setattr(
-        target=LFRicArgDescriptor, name="VALID_MESH_TYPES",
+        target=LFRicConstants, name="VALID_MESH_TYPES",
         value=["gh_coarse", "gh_fine", "gh_medium"])
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(RESTRICT_MDATA, ignore_comments=False)
@@ -243,7 +245,7 @@ def test_two_grid_types(monkeypatch):
         _ = DynKernMetadata(ast, name=name)
     assert ("The implementation of inter-grid support in the LFRic "
             "API assumes there are exactly two mesh types but "
-            "LFRicArgDescriptor.VALID_MESH_TYPES contains 3: "
+            "LFRicConstants.VALID_MESH_TYPES contains 3: "
             "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
 
 
@@ -600,7 +602,6 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
 def test_fine_halo_read():
     ''' Check that the halo exchange has double the depth if it is
     for a field on the fine mesh with a read dependence '''
-    from psyclone.dynamo0p3 import DynHaloExchange, HaloReadAccess
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.2_intergrid_3levels.f90"),
                            api=API)
@@ -626,7 +627,6 @@ def test_prolong_with_gp_error():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.3_intergrid_plus_general.f90"),
                            api=API)
-    from psyclone.errors import GenerationError
     with pytest.raises(GenerationError) as err:
         _ = PSyFactory(API).create(invoke_info)
     assert ("no other kernel types but kernels 'testkern_w2_only_code' in "
@@ -667,7 +667,6 @@ def test_prolong_vector(tmpdir):
 def test_no_stub_gen():
     ''' Check that the kernel-stub generator refuses to attempt to create
     a kernel stub if the meta-data contains mesh information. '''
-    from psyclone.gen_kernel_stub import generate
     with pytest.raises(NotImplementedError) as excinfo:
         generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
                  api="dynamo0.3")
@@ -727,8 +726,6 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Now do some transformations
-    from psyclone.transformations import Dynamo0p3ColourTrans, \
-        DynamoOMPParallelLoopTrans, TransformationError
     otrans = DynamoOMPParallelLoopTrans()
     ctrans = Dynamo0p3ColourTrans()
     # Apply OMP to the first restrict kernel

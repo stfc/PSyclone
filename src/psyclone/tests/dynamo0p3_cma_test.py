@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for Column-Matrix-Assembly operators in
 the Dynamo 0.3 API using pytest. '''
@@ -172,10 +173,11 @@ def test_cma_mdata_init_wrong_data_type():
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
+    const = LFRicConstants()
     assert ("In the LFRic API the permitted data types for operator arguments "
             "are one of {0}, but found 'gh_integer' in 'arg_type(gh_columnwise"
             "_operator, gh_integer, gh_write, any_space_1, any_space_2)'.".
-            format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
+            format(const.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 
 

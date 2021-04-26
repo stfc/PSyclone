@@ -221,10 +221,11 @@ def test_ad_op_type_init_wrong_data_type():
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             op_arg, metadata.iterates_over)._init_operator(op_arg)
+    const = LFRicConstants()
     assert ("In the LFRic API the permitted data types for operator "
             "arguments are one of {0}, but found 'gh_integer' in "
             "'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'.".
-            format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
+            format(const.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 
 

@@ -68,6 +68,7 @@ class LFRicConstants(object):
             LFRicConstants.VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 
         # ---------- LFRicArgDescriptor class constants  ---------------------
+
         # Supported LFRic API argument types (scalars, fields, operators)
         LFRicConstants.VALID_SCALAR_NAMES = ["gh_scalar"]
         LFRicConstants.VALID_FIELD_NAMES = ["gh_field"]
@@ -80,10 +81,34 @@ class LFRicConstants(object):
 
         # Supported API argument data types (real and integer for now)
         LFRicConstants.VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
-        LFRicConstants.VALID_FIELD_DATA_TYPES = \
-            LFRicConstants.VALID_ARG_DATA_TYPES
         LFRicConstants.VALID_SCALAR_DATA_TYPES = \
             LFRicConstants.VALID_ARG_DATA_TYPES
+        LFRicConstants.VALID_FIELD_DATA_TYPES = \
+            LFRicConstants.VALID_ARG_DATA_TYPES
+        LFRicConstants.VALID_OPERATOR_DATA_TYPES = ["gh_real"]
+
+        # pylint: disable=too-many-instance-attributes
+
+        # Supported LFRic API stencil types and directions
+        LFRicConstants.VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross",
+                                              "region", "cross2d"]
+        # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
+        # file as it causes failures with py.test 2.8.7. Therefore some parts
+        # of the code do not use the VALID_STENCIL_DIRECTIONS variable.
+        LFRicConstants.VALID_STENCIL_DIRECTIONS = ["x_direction",
+                                                   "y_direction"]
+
+        # Note, xory1d does not have a direct mapping in STENCIL_MAPPING as it
+        # indicates either x1d or y1d.
+        LFRicConstants.STENCIL_MAPPING = \
+            {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
+             "cross": "STENCIL_CROSS", "cross2d": "STENCIL_2D_CROSS",
+             "region": "STENCIL_REGION"}
+
+        # Supported LFRic API mesh types that may be specified for a field
+        # using the mesh_arg=... meta-data element (for inter-grid kernels that
+        # perform prolongation/restriction).
+        LFRicConstants.VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
         # ---------- Fortran datatypes ---------------------------------------
         # This is only used here, so no class variable:
