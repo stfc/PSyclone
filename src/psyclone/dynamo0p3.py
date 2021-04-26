@@ -51,8 +51,6 @@ from collections import OrderedDict, namedtuple
 import six
 import fparser
 
-from psyclone.parse.kernel import KernelType, getkerneldescriptors
-from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
@@ -62,18 +60,23 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicConstants)
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
-                             Arguments, KernelArgument, HaloExchange,
-                             GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
-                             CodedKern, ACCEnterDataDirective)
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DirectiveGen, DoGen,
                               IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
                               UseGen)
+from psyclone.parse.algorithm import Arg, KernelCall
+from psyclone.parse.kernel import KernelType, getkerneldescriptors
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
+                             Arguments, KernelArgument, HaloExchange,
+                             GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
+                             CodedKern, ACCEnterDataDirective,
+                             OMPParallelDoDirective)
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
+from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 
+# pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
 # --------------------------------------------------------------------------- #
@@ -225,6 +228,7 @@ class RefElementMetaData(object):
     :raises ParseError: if a duplicate reference-element property is found.
 
     '''
+    # pylint: disable=too-few-public-methods
     class Property(Enum):
         '''
         Enumeration of the various properties of the Reference Element
@@ -290,6 +294,7 @@ class MeshProperty(Enum):
     of kernel).
 
     '''
+    # pylint: disable=too-few-public-methods
     ADJACENT_FACE = 1
     NCELL_2D = 2
 
@@ -308,6 +313,7 @@ class MeshPropertiesMetaData(object):
     :raises ParseError: if a duplicate mesh property is found.
 
     '''
+    # pylint: disable=too-few-public-methods
     # The properties that may be specified in kernel meta-data are a subset
     # of the MeshProperty enumeration values.
     supported_properties = [MeshProperty.ADJACENT_FACE]
@@ -370,7 +376,9 @@ class DynKernMetadata(KernelType):
     :raises ParseError: if the meta-data does not conform to the \
                         rules for the Dynamo 0.3 API.
     '''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, ast, name=None):
+        # pylint: disable=too-many-branches, too-many-locals
 
         KernelType.__init__(self, ast, name=name)
 
@@ -530,6 +538,7 @@ class DynKernMetadata(KernelType):
                             data type (other than 'gh_real').
 
         '''
+        # pylint: disable=too-many-branches
         # We must have at least one argument that is written to
         const = LFRicConstants()
         write_count = 0
@@ -632,6 +641,7 @@ class DynKernMetadata(KernelType):
 
         :raises: ParseError: if meta-data breaks inter-grid rules
         '''
+        # pylint: disable=too-many-branches
         # Dictionary of meshes associated with arguments (for inter-grid
         # kernels). Keys are the meshes, values are lists of function spaces
         # of the corresponding field arguments.
@@ -737,6 +747,7 @@ class DynKernMetadata(KernelType):
                             LFRic rules for a kernel with a CMA operator.
 
         '''
+        # pylint: disable=too-many-branches
         const = LFRicConstants()
         for arg in self._arg_descriptors:
             # No vector arguments are permitted
@@ -824,7 +835,7 @@ class DynKernMetadata(KernelType):
             # This is a valid CMA-apply or CMA-apply-inverse kernel
             return "apply"
 
-        elif write_count == 1:
+        if write_count == 1:
             # This kernel writes to a single CMA operator and therefore
             # must either be assembling a CMA operator
             # or performing a matrix-matrix operation...
@@ -857,33 +868,30 @@ class DynKernMetadata(KernelType):
                     arg_accesses=[AccessType.READ])
                 if lma_read_ops:
                     return "assembly"
-                else:
-                    raise ParseError(
-                        "Kernel '{0}' has a single column-wise operator "
-                        "argument but does not conform to the rules for an "
-                        "Assembly kernel because it does not have any read-"
-                        "only LMA operator arguments.".format(self.name))
-            else:
-                # A valid matrix-matrix kernel must only have CMA operators
-                # and scalars as arguments.
-                scalar_args = psyGen.args_filter(
-                    self._arg_descriptors,
-                    arg_types=const.VALID_SCALAR_NAMES)
-                if (len(scalar_args) + len(cwise_ops)) != \
-                   len(self._arg_descriptors):
-                    raise ParseError(
-                        "A column-wise matrix-matrix kernel must have only "
-                        "column-wise operators and scalars as arguments but "
-                        "kernel '{0}' has: {1}.".
-                        format(self.name,
-                               [str(arg.argument_type) for arg in
-                                self._arg_descriptors]))
-                return "matrix-matrix"
-        else:
-            raise ParseError(
-                "An LFRic kernel cannot update more than one CMA "
-                "(column-wise) operator but kernel '{0}' updates {1}.".
-                format(self.name, write_count))
+                raise ParseError(
+                    "Kernel '{0}' has a single column-wise operator "
+                    "argument but does not conform to the rules for an "
+                    "Assembly kernel because it does not have any read-"
+                    "only LMA operator arguments.".format(self.name))
+            # A valid matrix-matrix kernel must only have CMA operators
+            # and scalars as arguments.
+            scalar_args = psyGen.args_filter(
+                self._arg_descriptors,
+                arg_types=const.VALID_SCALAR_NAMES)
+            if (len(scalar_args) + len(cwise_ops)) != \
+               len(self._arg_descriptors):
+                raise ParseError(
+                    "A column-wise matrix-matrix kernel must have only "
+                    "column-wise operators and scalars as arguments but "
+                    "kernel '{0}' has: {1}.".
+                    format(self.name,
+                           [str(arg.argument_type) for arg in
+                            self._arg_descriptors]))
+            return "matrix-matrix"
+        raise ParseError(
+            "An LFRic kernel cannot update more than one CMA "
+            "(column-wise) operator but kernel '{0}' updates {1}.".
+            format(self.name, write_count))
 
     def _validate_operates_on_domain(self, need_evaluator):
         '''
@@ -1216,6 +1224,7 @@ class DynStencils(DynCollection):
                              direction.
     '''
     def __init__(self, node):
+        # pylint: disable=too-many-branches
         super(DynStencils, self).__init__(node)
 
         # List of arguments which have an extent value passed to this
@@ -1225,18 +1234,20 @@ class DynStencils(DynCollection):
         extent_names = []
         for call in self._calls:
             for arg in call.arguments.args:
-                if arg.stencil:
-                    # Check for the existence of arg.extent here as in
-                    # the future we plan to support kernels which
-                    # specify the value of extent in metadata. If this
-                    # is the case then an extent argument is not
-                    # required.
-                    if not arg.stencil.extent:
-                        if not arg.stencil.extent_arg.is_literal():
-                            if arg.stencil.extent_arg.text not in extent_names:
-                                extent_names.append(
-                                    arg.stencil.extent_arg.text)
-                                self._unique_extent_args.append(arg)
+                if not arg.stencil:
+                    continue
+                # Check for the existence of arg.extent here as in
+                # the future we plan to support kernels which
+                # specify the value of extent in metadata. If this
+                # is the case then an extent argument is not
+                # required.
+                if arg.stencil.extent:
+                    continue
+                if not arg.stencil.extent_arg.is_literal():
+                    if arg.stencil.extent_arg.text not in extent_names:
+                        extent_names.append(
+                            arg.stencil.extent_arg.text)
+                        self._unique_extent_args.append(arg)
 
         # A list of arguments that have a direction variable passed in
         # to this invoke routine from the algorithm layer. Duplicate
@@ -2018,6 +2029,7 @@ class DynReferenceElement(DynCollection):
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, node):
+        # pylint: disable=too-many-branches, too-many-statements
         super(DynReferenceElement, self).__init__(node)
 
         # Create a union of the reference-element properties required by all
@@ -2333,6 +2345,7 @@ class DynDofmaps(DynCollection):
 
     '''
     def __init__(self, node):
+        # pylint: disable=too-many-branches
         super(DynDofmaps, self).__init__(node)
 
         # Look at every kernel call in this invoke and generate a list
@@ -2783,7 +2796,7 @@ class LFRicFields(DynCollection):
 
             # Check for invalid descriptor data type
             fld_ad_dtype = fld.descriptor.data_type
-            if (fld_ad_dtype not in const.VALID_FIELD_DATA_TYPES):
+            if fld_ad_dtype not in const.VALID_FIELD_DATA_TYPES:
                 raise InternalError(
                     "Found an unsupported data type '{0}' in kernel "
                     "stub declarations for the field argument '{1}'. "
@@ -3808,6 +3821,7 @@ class DynMeshes(object):
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        # pylint: disable=too-many-branches
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
         if len(self._mesh_names) == 0:
@@ -3955,6 +3969,7 @@ class DynInterGrid(object):
     :param coarse_arg: Kernel argument on the coarse mesh.
     :type coarse_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     '''
+    # pylint: disable=too-few-public-methods, too-many-instance-attributes
     def __init__(self, fine_arg, coarse_arg):
 
         # Arguments on the coarse and fine grids
@@ -4345,6 +4360,7 @@ class DynBasisFunctions(DynCollection):
         :raises InternalError: if an invalid entry is encountered in the \
                                self._basis_fns list.
         '''
+        # pylint: disable=too-many-branches, too-many-locals
         api_config = Config.get().api_conf("dynamo0.3")
         const = LFRicConstants()
         basis_declarations = []
@@ -4469,6 +4485,7 @@ class DynBasisFunctions(DynCollection):
                                when generating PSy-layer code.
 
         '''
+        # pylint: disable=too-many-branches
         # Dictionary of basis arrays where key values are the array names and
         # entries are a list of dimensions.
         basis_arrays = OrderedDict()
@@ -4968,6 +4985,7 @@ class DynInvoke(Invoke):
         psy-layer.
 
     '''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, alg_invocation, idx, invokes):
         if not alg_invocation and not idx:
             # This if test is added to support pyreverse.
@@ -5124,12 +5142,13 @@ class DynInvoke(Invoke):
         declarations = []
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
-                if not intrinsic_type or arg.intrinsic_type == intrinsic_type:
-                    if not access or arg.access == access:
-                        if arg.text and arg.argument_type in argument_types:
-                            if arg.proxy_declaration_name not in declarations:
-                                declarations.append(
-                                    arg.proxy_declaration_name)
+                if intrinsic_type and arg.intrinsic_type != intrinsic_type:
+                    continue
+                if access and arg.access != access:
+                    continue
+                if arg.text and arg.argument_type in argument_types \
+                        and arg.proxy_declaration_name not in declarations:
+                    declarations.append(arg.proxy_declaration_name)
         return declarations
 
     def arg_for_funcspace(self, fspace):
@@ -5374,6 +5393,7 @@ def _create_depth_list(halo_info_list):
     :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
     '''
+    # pylint: disable=too-many-branches
     depth_info_list = []
     # first look to see if all field dependencies are
     # annexed_only. If so we only care about annexed dofs
@@ -5689,6 +5709,7 @@ class DynHaloExchange(HaloExchange):
         :rtype: (bool, bool)
 
         '''
+        # pylint: disable=too-many-branches, too-many-return-statements
         # get *aggregated* information about halo reads
         required_clean_info = self._compute_halo_read_depth_info(
             ignore_hex_dep)
@@ -5926,6 +5947,7 @@ class DynHaloExchangeStart(DynHaloExchange):
         :rtype: str
 
         '''
+        # pylint: disable=protected-access
         return self._get_hex_end()._compute_stencil_type()
 
     def _compute_halo_depth(self):
@@ -5938,6 +5960,7 @@ class DynHaloExchangeStart(DynHaloExchange):
         :rtype: str
 
         '''
+        # pylint: disable=protected-access
         return self._get_hex_end()._compute_halo_depth()
 
     def required(self):
@@ -6127,6 +6150,7 @@ class HaloDepth(object):
 
     def set_by_value(self, max_depth, var_depth, literal_depth, annexed_only,
                      max_depth_m1):
+        # pylint: disable=too-many-arguments
         '''Set halo depth information directly
 
         :param bool max_depth: True if the field accesses all of the \
@@ -6352,6 +6376,7 @@ class HaloReadAccess(HaloDepth):
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
+        # pylint: disable=too-many-branches
         const = LFRicConstants()
 
         self._annexed_only = False
@@ -6433,27 +6458,26 @@ class HaloReadAccess(HaloDepth):
                 raise GenerationError(
                     "redundant computation to max depth with a stencil is "
                     "invalid")
+            self._stencil_type = field.descriptor.stencil['type']
+            if self._literal_depth:
+                # halo exchange does not support mixed accesses to the halo
+                self._stencil_type = "region"
+            stencil_depth = field.descriptor.stencil['extent']
+            if stencil_depth:
+                # stencil_depth is provided in the kernel metadata
+                self._literal_depth += stencil_depth
             else:
-                self._stencil_type = field.descriptor.stencil['type']
-                if self._literal_depth:
-                    # halo exchange does not support mixed accesses to the halo
-                    self._stencil_type = "region"
-                stencil_depth = field.descriptor.stencil['extent']
-                if stencil_depth:
-                    # stencil_depth is provided in the kernel metadata
-                    self._literal_depth += stencil_depth
+                # Stencil_depth is provided by the algorithm layer.
+                # It is currently not possible to specify kind for an
+                # integer literal stencil depth in a kernel call. This
+                # will be enabled when addressing issue #753.
+                if field.stencil.extent_arg.is_literal():
+                    # a literal is specified
+                    value_str = field.stencil.extent_arg.text
+                    self._literal_depth += int(value_str)
                 else:
-                    # Stencil_depth is provided by the algorithm layer.
-                    # It is currently not possible to specify kind for an
-                    # integer literal stencil depth in a kernel call. This
-                    # will be enabled when addressing issue #753.
-                    if field.stencil.extent_arg.is_literal():
-                        # a literal is specified
-                        value_str = field.stencil.extent_arg.text
-                        self._literal_depth += int(value_str)
-                    else:
-                        # a variable is specified
-                        self._var_depth = field.stencil.extent_arg.varname
+                    # a variable is specified
+                    self._var_depth = field.stencil.extent_arg.varname
         # If this is an intergrid kernel and the field in question is on
         # the fine mesh then we must double the halo depth
         if call.is_intergrid and field.mesh == "gh_fine":
@@ -6477,6 +6501,7 @@ class DynLoop(Loop):
     :raises InternalError: if an unrecognised loop_type is specified.
 
     '''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, parent=None, loop_type=""):
         const = LFRicConstants()
         super(DynLoop, self).__init__(parent=parent,
@@ -6737,6 +6762,7 @@ class DynLoop(Loop):
         :rtype: str
 
         '''
+        # pylint: disable=too-many-branches, too-many-return-statements
         # precompute halo_index as a string as we use it in more than
         # one of the if clauses
         halo_index = ""
@@ -6773,12 +6799,12 @@ class DynLoop(Loop):
                         "All kernels within a loop over colours must have been"
                         " coloured but kernel '{0}' has not".format(kern.name))
             return ncolours
-        elif self._upper_bound_name == "ncolour":
+        if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
             # when running without MPI.
             return "{0}%get_last_edge_cell_per_colour(colour)".format(mesh)
-        elif self._upper_bound_name == "colour_halo":
+        if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
             # computation.
@@ -6793,7 +6819,7 @@ class DynLoop(Loop):
                 append = ","+halo_index
             return ("{0}%get_last_halo_cell_per_colour(colour"
                     "{1})".format(mesh, append))
-        elif self._upper_bound_name in ["ndofs", "nannexed"]:
+        if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
                     result = self.field.proxy_name_indexed + "%" + \
@@ -6804,42 +6830,38 @@ class DynLoop(Loop):
             else:
                 result = self._kern.undf_name
             return result
-        elif self._upper_bound_name == "ncells":
+        if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
                 result = mesh + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             return result
-        elif self._upper_bound_name == "cell_halo":
+        if self._upper_bound_name == "cell_halo":
             if Config.get().distributed_memory:
                 return "{0}%get_last_halo_cell({1})".format(mesh,
                                                             halo_index)
-            else:
-                raise GenerationError(
-                    "'cell_halo' is not a valid loop upper bound for "
-                    "sequential/shared-memory code")
-        elif self._upper_bound_name == "dof_halo":
+            raise GenerationError(
+                "'cell_halo' is not a valid loop upper bound for "
+                "sequential/shared-memory code")
+        if self._upper_bound_name == "dof_halo":
             if Config.get().distributed_memory:
                 return "{0}%{1}%get_last_dof_halo({2})".format(
                     self.field.proxy_name_indexed, self.field.ref_name(),
                     halo_index)
-            else:
-                raise GenerationError(
-                    "'dof_halo' is not a valid loop upper bound for "
-                    "sequential/shared-memory code")
-        elif self._upper_bound_name == "inner":
+            raise GenerationError(
+                "'dof_halo' is not a valid loop upper bound for "
+                "sequential/shared-memory code")
+        if self._upper_bound_name == "inner":
             if Config.get().distributed_memory:
                 return "{0}%get_last_inner_cell({1})".format(mesh,
                                                              halo_index)
-            else:
-                raise GenerationError(
-                    "'inner' is not a valid loop upper bound for "
-                    "sequential/shared-memory code")
-        else:
             raise GenerationError(
-                "Unsupported upper bound name '{0}' found in dynloop.upper_"
-                "bound_fortran()".format(self._upper_bound_name))
+                "'inner' is not a valid loop upper bound for "
+                "sequential/shared-memory code")
+        raise GenerationError(
+            "Unsupported upper bound name '{0}' found in dynloop.upper_"
+            "bound_fortran()".format(self._upper_bound_name))
 
     def _halo_read_access(self, arg):
         '''
@@ -6999,6 +7021,7 @@ class DynLoop(Loop):
         # required. This is done by removing halo exchanges after this
         # loop where a field in this loop previously had a forward
         # dependence on a halo exchange but no longer does
+        # pylint: disable=too-many-nested-blocks
         for call in self.kernels():
             for arg in call.arguments.args:
                 if arg.access in AccessType.all_write_accesses():
@@ -7080,6 +7103,7 @@ class DynLoop(Loop):
         OpenMP parallel region (as it must be serial)
 
         '''
+        # pylint: disable=too-many-statements, too-many-branches
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
@@ -7104,8 +7128,8 @@ class DynLoop(Loop):
             for child in self.loop_body.children:
                 child.gen_code(parent)
 
+        # pylint: disable=too-many-nested-blocks
         if Config.get().distributed_memory and self._loop_type != "colour":
-
             # Set halo clean/dirty for all fields that are modified
             fields = self.unique_modified_args("gh_field")
 
@@ -7120,7 +7144,6 @@ class DynLoop(Loop):
                                "modified in the above {0}".format(
                                    prev_node_name)))
                 parent.add(CommentGen(parent, ""))
-                from psyclone.psyGen import OMPParallelDoDirective
                 use_omp_master = False
                 if self.is_openmp_parallel():
                     if not self.ancestor(OMPParallelDoDirective):
@@ -7226,6 +7249,7 @@ class DynKern(CodedKern):
     instance or to generate a Kernel stub.
 
     '''
+    # pylint: disable=too-many-instance-attributes
     # An instance of this `namedtuple` is used to store information on each of
     # the quadrature rules required by a kernel.
     #
@@ -7317,8 +7341,8 @@ class DynKern(CodedKern):
                                  in the kernel.
 
         '''
+        # pylint: disable=too-many-branches
         # Create a name for each argument
-        from psyclone.parse.algorithm import Arg
         args = []
         const = LFRicConstants()
         for idx, descriptor in enumerate(ktype.arg_descriptors):
@@ -7400,7 +7424,7 @@ class DynKern(CodedKern):
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
 
         '''
-        from psyclone.parse.algorithm import KernelCall
+        # pylint: disable=too-many-branches, too-many-locals
         CodedKern.__init__(self, DynKernelArguments,
                            KernelCall(module_name, ktype, args),
                            parent, check=False)
@@ -8108,6 +8132,7 @@ class DynKernelArguments(Arguments):
     :raises GenerationError: if the kernel meta-data specifies stencil extent.
     '''
     def __init__(self, call, parent_call):
+        # pylint: disable=too-many-branches
         if False:  # pylint: disable=using-constant-test
             # For pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
@@ -8139,10 +8164,9 @@ class DynKernelArguments(Arguments):
                     # for extent in DynStencil so this would need to
                     # be added.  stencil.extent =
                     # dyn_argument.descriptor.stencil['extent']
-                else:
-                    # An extent argument has been added.
-                    stencil.extent_arg = call.args[idx]
-                    idx += 1
+                # An extent argument has been added.
+                stencil.extent_arg = call.args[idx]
+                idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil.direction_arg = call.args[idx]
@@ -8427,6 +8451,7 @@ class DynKernelArgument(KernelArgument):
                            descriptor data type.
 
     '''
+    # pylint: disable=too-many-public-methods, too-many-instance-attributes
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         # Keep a reference to DynKernelArguments object that contains
@@ -8501,6 +8526,7 @@ class DynKernelArgument(KernelArgument):
         :raises GenerationError: if the argument type is not supported.
 
         '''
+        # pylint: disable=too-many-branches
         if not function_space:
             if self.is_operator:
                 # For an operator we use the 'from' FS
@@ -8527,21 +8553,19 @@ class DynKernelArgument(KernelArgument):
         if self.is_operator:
             if function_space.orig_name == self.descriptor.function_space_from:
                 return "fs_from"
-            elif function_space.orig_name == self.descriptor.function_space_to:
+            if function_space.orig_name == self.descriptor.function_space_to:
                 return "fs_to"
-            else:
-                raise GenerationError(
-                    "DynKernelArgument.ref_name(fs): Function space '{0}' "
-                    "is one of the 'gh_operator' function spaces '{1}' but "
-                    "is not being returned by either function_space_from "
-                    "'{2}' or function_space_to '{3}'.".format(
-                        function_space.orig_name, self.function_spaces,
-                        self.descriptor.function_space_from,
-                        self.descriptor.function_space_to))
-        else:
             raise GenerationError(
-                "DynKernelArgument.ref_name(fs): Found unsupported argument "
-                "type '{0}'.".format(self._argument_type))
+                "DynKernelArgument.ref_name(fs): Function space '{0}' "
+                "is one of the 'gh_operator' function spaces '{1}' but "
+                "is not being returned by either function_space_from "
+                "'{2}' or function_space_to '{3}'.".format(
+                    function_space.orig_name, self.function_spaces,
+                    self.descriptor.function_space_from,
+                    self.descriptor.function_space_to))
+        raise GenerationError(
+            "DynKernelArgument.ref_name(fs): Found unsupported argument "
+            "type '{0}'.".format(self._argument_type))
 
     @property
     def is_scalar(self):
@@ -8804,6 +8828,7 @@ class DynKernCallFactory(object):
     user-supplied kernel routine.
 
     '''
+    # pylint: disable=too-few-public-methods
     @staticmethod
     def create(call, parent=None):
         '''
