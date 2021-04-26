@@ -43,8 +43,11 @@ from __future__ import print_function, absolute_import
 
 # pylint: disable=too-few-public-methods
 class NemoConstants(object):
-    '''This class stores all GOcean constants.
+    '''This class stores all Nemo constants.
     It stores all values in class variables (to avoid re-evaluating them).
+    At this stage it only contains the variables that might be used in
+    psyGen.
+    # TODO #1223 - Add more constants into this object (if required).
     '''
 
     HAS_BEEN_INITIALISED = False
@@ -56,7 +59,6 @@ class NemoConstants(object):
         NemoConstants.HAS_BEEN_INITIALISED = True
 
         # Valid intrinsic types of kernel argument data, used in psyGen.
-        # Not actually used in GOcean
         NemoConstants.VALID_INTRINSIC_TYPES = []
 
         # psyGen argument types
@@ -64,9 +66,6 @@ class NemoConstants(object):
 
         # psyGen names of internal scalar argument types.
         NemoConstants.VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
-
-        # psyGen argument types translate to LFRic argument types.
-        NemoConstants.VALID_ARG_TYPE_NAMES = []
 
 
 # =============================================================================

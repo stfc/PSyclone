@@ -45,7 +45,10 @@ from __future__ import print_function, absolute_import
 class GOceanConstants(object):
     '''This class stores all GOcean constants.
     It stores all values in class variables (to avoid re-evaluating them).
-    '''
+    At this stage it only contains the variables that might be used in
+    psyGen.
+    # TODO #1223 - Add more constants into this object.
+   '''
 
     HAS_BEEN_INITIALISED = False
 
@@ -64,9 +67,6 @@ class GOceanConstants(object):
 
         # psyGen names of internal scalar argument types.
         GOceanConstants.VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
-
-        # psyGen argument types translate to LFRic argument types.
-        GOceanConstants.VALID_ARG_TYPE_NAMES = []
 
 
 # =============================================================================
