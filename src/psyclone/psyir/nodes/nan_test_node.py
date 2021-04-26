@@ -49,17 +49,12 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 class NanTestNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for
-    NAN-checking using the NanTestTrans transformation. By
-    applying the transformation the Nodes marked for checking become
-    children of (the Schedule of) a NanTestNode.
+    NAN-checking using the NanTestTrans transformation. The Nodes
+    marked for checking become children of (the Schedule of) a NanTestNode.
 
     :param ast: reference into the fparser2 parse tree corresponding to \
                 this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options provided via transformations.
     :type options: dictionary of string:values or None
     :param str options["prefix"]: a prefix to use for the PSyData module name \
@@ -73,7 +68,7 @@ class NanTestNode(PSyDataNode):
     _text_name = "NanTest"
     _colour = "green"
 
-    def __init__(self, ast=None, children=None, parent=None, options=None):
+    def __init__(self, ast=None, options=None):
         if options:
             my_options = options.copy()
         else:
@@ -81,8 +76,7 @@ class NanTestNode(PSyDataNode):
         # If there is no value specified in the constructor, default
         # to the "nan_test" class.
         my_options["prefix"] = my_options.get("prefix", "nan_test")
-        super(NanTestNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=my_options)
+        super(NanTestNode, self).__init__(ast=ast, options=my_options)
 
     @property
     def nan_test_body(self):

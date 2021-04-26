@@ -57,18 +57,24 @@ def teardown_function():
     Profiler.set_options([])
 
 
-def test_profile_node_construction():
-    ''' Basic checks for the construction of a ProfileNode. '''
-    sched = KernelSchedule.create("test", SymbolTable(), [])
-    pnode = ProfileNode(parent=sched)
+def test_profile_node_constructor():
+    ''' Basic checks for the ProfileNode constructor. '''
+    pnode = ProfileNode()
     assert pnode._class_string == "profile_"
+    assert pnode._psy_data_symbol_with_prefix == "profile_psy_data"
+
+
+def test_profile_node_create():
+    ''' Basic checks for the create() method of ProfileNode. '''
+    sched = KernelSchedule.create("test", SymbolTable(), [])
+    pnode = ProfileNode.create([])
+    sched.addchild(pnode)
     assert str(pnode) == ("ProfileStart[var=profile_psy_data]\n"
                           "ProfileEnd")
-    pnode2 = ProfileNode(options={"region_name": ("my_mod", "first")})
+    pnode2 = ProfileNode.create([], symbol_table=sched.symbol_table,
+                                options={"region_name": ("my_mod", "first")})
     assert pnode2._module_name == "my_mod"
     assert pnode2._region_name == "first"
-    # TODO #1185 the initialisation that the remainder of this test checks
-    # for should not be done in the Constructor.
     # Check that the symbol table contains the appropriate symbols:
     # A Container for the profile_psy_data_mod module
     table = sched.symbol_table
@@ -86,7 +92,7 @@ def test_profile_node_construction():
     assert isinstance(dsym, DataSymbol)
     assert isinstance(dsym.datatype, UnknownFortranType)
     assert (dsym.datatype.declaration ==
-            "type(profile_PSyDataType), save, target ::")
+            "type(profile_PSyDataType), save, target :: profile_psy_data")
 
 
 def test_malformed_profile_node(monkeypatch):
@@ -111,7 +117,7 @@ def test_profile_node_invalid_name(value):
 
     '''
     with pytest.raises(InternalError) as excinfo:
-        _ = ProfileNode(options={"region_name": value})
+        _ = ProfileNode.create([], options={"region_name": value})
     assert ("Error in PSyDataNode. The name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
 

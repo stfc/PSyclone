@@ -175,6 +175,28 @@ class PSyDataTrans(RegionTrans):
                         .format(prefix, Config.get().valid_psy_data_prefixes,
                                 Config.get().filename))
 
+        # We have to create an instance of the node that will be inserted in
+        # order to find out what module name it will use.
+        psy_data_node = self._node_class(options=options)
+        table = node_list[0].scope.symbol_table
+        for name in ([sym.name for sym in PSyDataNode.symbols] +
+                     [PSyDataNode.fortran_module]):
+            sym_name = psy_data_node.add_psydata_class_prefix(name)
+            try:
+                _ = table.lookup_with_tag(sym_name)
+            except KeyError:
+                # The tag doesn't exist which means that we haven't already
+                # added this symbol as part of a PSyData transformation. Check
+                # for any clashes with existing symbols.
+                try:
+                    _ = table.lookup(sym_name)
+                    raise TransformationError(
+                        "Cannot add PSyData calls because there is already a "
+                        "symbol named '{0}' which clashes with one of those "
+                        "used by the PSyclone PSyData API. ".format(sym_name))
+                except KeyError:
+                    pass
+
         super(PSyDataTrans, self).validate(node_list, options)
 
         # The checks below are only for the NEMO API and can be removed
@@ -237,25 +259,28 @@ class PSyDataTrans(RegionTrans):
         position = node_list[0].position
         schedule = node_list[0].root
 
+        # In principle, we should be able to use `parent.scope.symbol_table`
+        # here but that currently does not work if a new PSyData region is
+        # added inside an existing one. Once we move to using a PSyIR
+        # backend everywhere, this problem should go away as any name clashes
+        # get resolved before code is generated.
+        table = parent.root.symbol_table
+
         # create a memento of the schedule and the proposed
         # transformation
         keep = Memento(schedule, self)
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
-        # GOceanExtractNode. The base constructor of the extraction node
-        # will insert the node into the PSyIR between the
-        # nodes to be extracted and their parent. The nodes to
-        # be extracted will become children of the extraction node.
-        # We also pass the user-specified options to the constructor,
-        # so that the behaviour of the code extraction can be controlled.
-        # An example use case of this is the 'create_driver' flag, where
-        # the calling program can control if a stand-alone driver program
-        # should be created or not.
+        # GOceanExtractNode. We pass the user-specified options to the
+        # create() method.  An example use case for this is the
+        # 'create_driver' flag, where the calling program can control if
+        # a stand-alone driver program should be created or not (when
+        # performing kernel extraction).
         for node in node_list:
             node.detach()
-        psy_data_node = self._node_class(parent=parent, children=node_list,
-                                         options=options)
+        psy_data_node = self._node_class.create(
+            node_list, symbol_table=table, options=options)
         parent.addchild(psy_data_node, position)
 
         return schedule, keep

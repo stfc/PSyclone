@@ -53,12 +53,6 @@ class ProfileNode(PSyDataNode):
     :param ast: reference into the fparser2 parse tree corresponding to \
         this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: a list of child nodes for this node. These will be made \
-        children of the child Schedule of this Profile Node.
-    :type children: list of :py::class::`psyclone.psyir.nodes.Node` \
-        or derived classes
-    :param parent: the parent of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
     :param str options["prefix"]: The PSyData prefix to use. This string \
@@ -73,7 +67,7 @@ class ProfileNode(PSyDataNode):
     _text_name = "Profile"
     _colour = "green"
 
-    def __init__(self, ast=None, children=None, parent=None, options=None):
+    def __init__(self, ast=None, options=None):
         if options:
             my_options = options.copy()
         else:
@@ -82,8 +76,7 @@ class ProfileNode(PSyDataNode):
         # to the "profile" prefix.
         my_options["prefix"] = my_options.get("prefix", "profile")
 
-        super(ProfileNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=my_options)
+        super(ProfileNode, self).__init__(ast=ast, options=my_options)
 
     # -------------------------------------------------------------------------
     def __str__(self):

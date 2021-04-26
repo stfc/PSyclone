@@ -43,7 +43,7 @@ import pytest
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.transformations import PSyDataTrans
+from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import ContainerSymbol, GlobalInterface
 from psyclone.tests.utilities import get_invoke
 
@@ -51,7 +51,7 @@ from psyclone.tests.utilities import get_invoke
 # -----------------------------------------------------------------------------
 def test_psy_data_node_basics():
     '''Tests some elementary functions.'''
-    psy_node = PSyDataNode()
+    psy_node = PSyDataNode.create([])
     assert "PSyDataStart[var=psy_data]\n"\
         "PSyDataEnd[var=psy_data]" in str(psy_node)
 
@@ -61,13 +61,13 @@ def test_psy_data_node_basics():
     assert "PSyData node malformed or incomplete" in str(error.value)
 
     psy_node_rename = \
-        PSyDataNode(options={"region_name": ("module", "local")})
+        PSyDataNode.create([], options={"region_name": ("module", "local")})
     assert psy_node_rename.region_identifier == ("module", "local")
 
     # Test incorrect rename type
     with pytest.raises(InternalError) as error:
         psy_node_rename = \
-            PSyDataNode(options={"region_name": 1})
+            PSyDataNode.create([], options={"region_name": 1})
     assert "The name must be a tuple containing two non-empty strings." \
         in str(error.value)
 
@@ -80,7 +80,7 @@ def test_psy_data_node_tree_correct():
 
     # 1. No parent and no children:
     # =============================
-    psy_node = PSyDataNode()
+    psy_node = PSyDataNode.create([])
 
     # We must have a single profile node with a schedule which has
     # no children:
@@ -93,7 +93,7 @@ def test_psy_data_node_tree_correct():
     # 2. Parent, but no children:
     # ===========================
     parent = Schedule()
-    psy_node = PSyDataNode()
+    psy_node = PSyDataNode.create([], symbol_table=parent.symbol_table)
     parent.addchild(psy_node)
 
     # We must have a single node connected to the parent, and an
@@ -108,7 +108,7 @@ def test_psy_data_node_tree_correct():
     # 3. No parent, but children:
     # ===========================
     children = [Statement(), Statement()]
-    psy_node = PSyDataNode(children=children)
+    psy_node = PSyDataNode.create(children)
 
     # The children must be connected to the schedule, which is
     # connected to the ExtractNode:
@@ -136,7 +136,7 @@ def test_psy_data_node_tree_correct():
     children = [parent.children[0], parent.children[1]]
     for child in children:
         child.detach()
-    psy_node = PSyDataNode(children=children)
+    psy_node = PSyDataNode.create(children)
     parent.addchild(psy_node, 0)
 
     # Check all connections
@@ -169,10 +169,10 @@ def test_psy_data_node_incorrect_container():
     schedule.symbol_table.new_symbol("PSyDataType",
                                      interface=GlobalInterface(csym))
     data_trans = PSyDataTrans()
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(TransformationError) as err:
         data_trans.apply(schedule[0].loop_body)
-    assert ("already contains a symbol named 'PSyDataType' but its interface "
-            "does not refer to the 'psy_data_mod' container" in str(err.value))
+    assert ("already a symbol named 'PSyDataType' which clashes with one of "
+            "those used by the PSyclone PSyData API" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -279,11 +279,10 @@ def test_psy_data_node_options():
 
 def test_psy_data_node_children_validation():
     '''Test that children added to PSyDataNode are validated. PSyDataNode
-    accepts just one Schedule as children.
+    accepts just one Schedule as its child.
 
     '''
-    psy_node = PSyDataNode()
-    schedule = Schedule()
+    psy_node = PSyDataNode.create([])
     del psy_node.children[0]
 
     # Invalid children (e.g. Return Statement)
@@ -294,10 +293,10 @@ def test_psy_data_node_children_validation():
             " is: 'Schedule'." in str(excinfo.value))
 
     # Valid children
-    psy_node.addchild(schedule)
+    psy_node.addchild(Schedule())
 
     # Additional children
     with pytest.raises(GenerationError) as excinfo:
-        psy_node.addchild(schedule)
+        psy_node.addchild(Schedule())
     assert ("Item 'Schedule' can't be child 1 of 'PSyData'. The valid format"
             " is: 'Schedule'." in str(excinfo.value))

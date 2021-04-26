@@ -460,47 +460,48 @@ def test_profiling_mod_use_clash(parser):
                                       "  real :: my_array(20,10)\n"
                                       "  my_array(:,:) = 0.0\n"
                                       "end program the_clash\n")
-    PTRANS.apply(schedule.children[0])
-    schedule.view()
-    with pytest.raises(NotImplementedError) as err:
-        _ = psy.gen
-    assert ("Cannot add PSyData calls to 'the_clash' because it already "
-            "'uses' a module named 'profile_psy_data_mod'" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        PTRANS.apply(schedule.children[0])
+    assert ("Cannot add PSyData calls because there is already a symbol "
+            "named 'profile_psy_data_mod' which clashes" in str(err.value))
 
 
 def test_profiling_mod_name_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with the name of the profiling API module. '''
     psy, schedule = get_nemo_schedule(parser,
-                                      "program psy_data_mod\n"
+                                      "program profile_psy_data_mod\n"
                                       "  real :: my_array(3,3)\n"
                                       "  my_array(:,:) = 0.0\n"
-                                      "end program psy_data_mod\n")
+                                      "end program profile_psy_data_mod\n")
+    # TODO #435 once the NEMO API is fully working with the PSyIR, this
+    # transformation should fail at the validation stage. (Currently it
+    # does not because the 'name' of the root Routine node is not set.)
     PTRANS.apply(schedule.children[0])
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
-    assert ("Cannot add PSyData calls to 'psy_data_mod' because it already "
-            "contains a symbol that clashes with the name of the PSyclone "
-            "PSyData module" in str(err.value))
+    assert ("Cannot add PSyData calls to 'profile_psy_data_mod' because it "
+            "already contains symbols that potentially clash with the "
+            "variables we will insert" in str(err.value))
 
 
-def test_profiling_symbol_clash(parser):
+def test_profiling_symbol_clash(parser, monkeypatch):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with any of the symbols we 'use' from profile_mode. '''
-    for var_name in PSyDataNode.symbols:
+    for sym in PSyDataNode.symbols:
         psy, schedule = get_nemo_schedule(
             parser,
             "program my_test\n"
             "  real :: my_array(3,3)\n"
             "  integer :: {0}\n"
             "  my_array(:,:) = 0.0\n"
-            "end program my_test\n".format(var_name))
-        PTRANS.apply(schedule.children[0])
-        with pytest.raises(NotImplementedError) as err:
-            _ = psy.gen
-        assert ("Cannot add PSyData calls to 'my_test' because it already "
-                "contains a symbol that clashes with one of those ('{0}')"
-                " that must be".format(var_name) in str(err.value))
+            "end program my_test\n".format("profile_"+sym.name))
+        with pytest.raises(TransformationError) as err:
+            PTRANS.apply(schedule.children[0])
+        assert ("Cannot add PSyData calls because there is already "
+                "a symbol named '{0}' which clashes with one of those used "
+                "by the PSyclone PSyData API.".format("profile_"+sym.name)
+                in str(err.value))
 
 
 def test_profiling_var_clash(parser):
