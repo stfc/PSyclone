@@ -214,14 +214,6 @@ class LFRicConstants(object):
         LFRicConstants.ANY_W2_FUNCTION_SPACES = \
             ["w2", "w2h", "w2v", "w2broken"]
 
-        api_config = Config.get().api_conf("dynamo0.3")
-        # Valid any_space metadata (general FS, could be continuous or
-        # discontinuous). The number of 'ANY_SPACE' spaces is set in the
-        # PSyclone configuration file.
-        LFRicConstants.VALID_ANY_SPACE_NAMES = [
-            "any_space_{0}".format(x+1) for x in
-            range(api_config.num_any_space)]
-
         LFRicConstants.CONTINUOUS_FUNCTION_SPACES = \
             ["w0", "w1", "w2", "w2trace", "w2h", "w2htrace", "any_w2"]
 
@@ -234,12 +226,21 @@ class LFRicConstants(object):
             LFRicConstants.CONTINUOUS_FUNCTION_SPACES + \
             LFRicConstants.READ_ONLY_FUNCTION_SPACES
 
+        api_config = Config.get().api_conf("dynamo0.3")
+        # Valid any_space metadata (general FS, could be continuous or
+        # discontinuous). The number of 'ANY_SPACE' spaces is set in the
+        # PSyclone configuration file.
+        LFRicConstants.VALID_ANY_SPACE_NAMES = [
+            "any_space_{0}".format(x+1) for x in
+            range(api_config.num_any_space)]
+
         # Valid any_discontinuous_space metadata (general FS known to be
         # discontinuous). The number of 'ANY_DISCONTINUOU_SPACE' spaces is
         # set in the PSyclone configuration file.
         LFRicConstants.VALID_ANY_DISCONTINUOUS_SPACE_NAMES = [
             "any_discontinuous_space_{0}".format(x+1) for x in
             range(api_config.num_any_discontinuous_space)]
+
         # Valid discontinuous FS names (for optimisation purposes)
         LFRicConstants.VALID_DISCONTINUOUS_NAMES = \
             LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES +\
