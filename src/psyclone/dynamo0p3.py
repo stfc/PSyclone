@@ -168,13 +168,13 @@ class DynFuncDescriptor03(object):
                             arg.name, func_type))
                 self._function_space_name = arg.name
             else:  # subsequent func_type args
-                if arg.name not in FunctionSpace.VALID_METAFUNC_NAMES:
+                if arg.name not in const.VALID_METAFUNC_NAMES:
                     raise ParseError(
                         "In the dynamo0.3 API, the 2nd argument and all "
                         "subsequent arguments of a meta_func entry should "
                         "be one of {0}, but found "
                         "'{1}' in '{2}".
-                        format(FunctionSpace.VALID_METAFUNC_NAMES,
+                        format(const.VALID_METAFUNC_NAMES,
                                arg.name, func_type))
                 if arg.name in self._operator_names:
                     raise ParseError(
@@ -449,7 +449,7 @@ class DynKernMetadata(KernelType):
             # Check that a valid shape has been specified if
             # this function space requires a basis or differential basis
             for op_name in descriptor.operator_names:
-                if op_name in FunctionSpace.VALID_EVALUATOR_NAMES:
+                if op_name in const.VALID_EVALUATOR_NAMES:
                     need_evaluator = True
                     if not self._eval_shapes:
                         raise ParseError(
@@ -458,7 +458,7 @@ class DynKernMetadata(KernelType):
                             "supply the shape of that evaluator by setting "
                             "'gh_shape' in the kernel meta-data but "
                             "this is missing for kernel '{1}'".
-                            format(FunctionSpace.VALID_EVALUATOR_NAMES,
+                            format(const.VALID_EVALUATOR_NAMES,
                                    self.name))
                     shape_set = set(self._eval_shapes)
                     if not shape_set.issubset(
@@ -2877,13 +2877,11 @@ class LFRicRunTimeChecks(DynCollection):
                 if fs_name in const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
                     # We need to check against all discontinuous
                     # function spaces
-                    function_space_names = \
-                        const.DISCONTINUOUS_FUNCTION_SPACES
+                    function_space_names = const.DISCONTINUOUS_FUNCTION_SPACES
                 elif fs_name == "any_w2":
                     # We need to check against all any_w2 function
                     # spaces
-                    function_space_names = \
-                        FunctionSpace.ANY_W2_FUNCTION_SPACES
+                    function_space_names = const.ANY_W2_FUNCTION_SPACES
                 else:
                     # We need to check against a specific function space
                     function_space_names = [fs_name]

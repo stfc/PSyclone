@@ -59,33 +59,6 @@ class FunctionSpace(object):
     '''
 
     # ---------- Function spaces (FS) --------------------------------------- #
-    # Continuous FS
-    # Note, any_w2 is not a space on its own. any_w2 is used as a common term
-    # for any vector "w2*" function space (w2, w2h, w2v, w2broken) but not
-    # w2*trace (spaces of scalar functions). As any_w2 stands for all vector
-    # "w2*" spaces it needs to a) be treated as continuous and b) have vector
-    # basis and scalar differential basis dimensions.
-    # TODO #540: resolve what W2* spaces should be included in ANY_W2 list and
-    # whether ANY_W2 should be in the continuous function space list.
-    ANY_W2_FUNCTION_SPACES = ["w2", "w2h", "w2v", "w2broken"]
-
-    # Lists of function spaces that have
-    # a) scalar basis functions;
-    SCALAR_BASIS_SPACE_NAMES = \
-        ["w0", "w2trace", "w2htrace", "w2vtrace", "w3", "wtheta", "wchi"]
-    # b) vector basis functions;
-    VECTOR_BASIS_SPACE_NAMES = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
-    # c) scalar differential basis functions;
-    SCALAR_DIFF_BASIS_SPACE_NAMES = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
-    # d) vector differential basis functions.
-    VECTOR_DIFF_BASIS_SPACE_NAMES = \
-        ["w0", "w1", "w2trace", "w2htrace", "w2vtrace", "w3", "wtheta", "wchi"]
-
-    # Evaluators: basis and differential basis
-    VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
-
-    # Meta functions
-    VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES
 
     def __init__(self, name, kernel_args):
         self._orig_name = name
@@ -342,9 +315,10 @@ class FunctionSpace(object):
         if operator_name == "gh_diff_basis":
             return self.get_diff_basis_name(qr_var=qr_var, on_space=on_space)
 
+        const = LFRicConstants()
         raise GenerationError(
             "Unsupported name '{0}' found. Expected one of {1}".
-            format(operator_name, FunctionSpace.VALID_METAFUNC_NAMES))
+            format(operator_name, const.VALID_METAFUNC_NAMES))
 
     def field_on_space(self, arguments):
         '''Returns the corresponding argument if the supplied list of
@@ -396,16 +370,16 @@ class FunctionSpace(object):
         ''':returns: True if this function space has scalar basis functions.
         :rtype: bool
         '''
-        return self.orig_name.lower() in \
-            FunctionSpace.SCALAR_BASIS_SPACE_NAMES
+        const = LFRicConstants()
+        return self.orig_name.lower() in const.SCALAR_BASIS_SPACE_NAMES
 
     @property
     def has_vector_basis(self):
         ''':returns: True if this function space has vector basis functions.
         :rtype: bool
         '''
-        return self.orig_name.lower() in \
-            FunctionSpace.VECTOR_BASIS_SPACE_NAMES
+        const = LFRicConstants()
+        return self.orig_name.lower() in const.VECTOR_BASIS_SPACE_NAMES
 
     @property
     def has_scalar_diff_basis(self):
@@ -413,8 +387,8 @@ class FunctionSpace(object):
             basis functions.
         :rtype: bool
         '''
-        return self.orig_name.lower() in \
-            FunctionSpace.SCALAR_DIFF_BASIS_SPACE_NAMES
+        const = LFRicConstants()
+        return self.orig_name.lower() in const.SCALAR_DIFF_BASIS_SPACE_NAMES
 
     @property
     def has_vector_diff_basis(self):
@@ -422,5 +396,5 @@ class FunctionSpace(object):
             basis functions.
         :rtype: bool
         '''
-        return self.orig_name.lower() in \
-            FunctionSpace.VECTOR_DIFF_BASIS_SPACE_NAMES
+        const = LFRicConstants()
+        return self.orig_name.lower() in const.VECTOR_DIFF_BASIS_SPACE_NAMES
