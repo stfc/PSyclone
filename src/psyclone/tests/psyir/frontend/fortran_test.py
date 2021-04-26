@@ -38,15 +38,12 @@
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
 from __future__ import absolute_import
-import pytest
+import os
+from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from fparser.two import Fortran2003
-from fparser.two.utils import FortranSyntaxError
 from psyclone.psyir.nodes import Routine
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
 
 # The 'contiguous' keyword is just valid with Fortran 2008
 ONLY_2008_CODE = '''
@@ -64,29 +61,29 @@ end subroutine sub
 
 
 def test_fortran_reader_constructor():
+    ''' Test that the constructor initialises the _parser and _processor
+    attributes. '''
     freader = FortranReader()
     assert freader._parser is Fortran2003.Program
     assert isinstance(freader._processor, Fparser2Reader)
 
-    # By default is a f2008 parser
-    freader.psyir_from_source(ONLY_2008_CODE)  # Succeeds
-
-    # Can be instantiated with different std version
-    #freader2 = FortranReader(std="f2003")
-    #with pytest.raises(FortranSyntaxError):
-    #    freader2.psyir_from_source(ONLY_2008_CODE)  # Fails
-
-    #freader.psyir_from_source(ONLY_2008_CODE)  # Succeeds
-
-    reader = FortranStringReader(ONLY_2008_CODE)
-    parser = ParserFactory().create(std="f2008")
-    code = parser(reader)
-    another_parser = ParserFactory().create(std="f2003")
-    code = parser(reader)
-
 
 def test_fortran_psyir_from_source():
-
+    ''' Test that the psyir_from_source method parses to PSyIR
+    the specified source code. '''
     fortran_reader = FortranReader()
     subroutine = fortran_reader.psyir_from_source(CODE)
+    assert isinstance(subroutine, Routine)
+
+
+def test_fortran_psyir_from_file(tmpdir):
+    ''' Test that the psyir_from_file method reads and parses to PSyIR
+    the specified file. '''
+    filename = "testfile.f90"
+    filepath = os.path.join(tmpdir, filename)
+    with open(filepath, "w") as wfile:
+        wfile.write(CODE)
+
+    fortran_reader = FortranReader()
+    subroutine = fortran_reader.psyir_from_file(filepath)
     assert isinstance(subroutine, Routine)
