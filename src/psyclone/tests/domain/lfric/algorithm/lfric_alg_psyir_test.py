@@ -192,7 +192,7 @@ def test_lfricalgorithminvokecall_node_str():
 
     '''
     routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall.create(
+    call = AlgorithmInvokeCall.create(
         routine, [], 0, description="describing an invoke")
     assert ("LFRicAlgorithmInvokeCall[description=\"describing an invoke\"]"
             in call.node_str(colour=False))

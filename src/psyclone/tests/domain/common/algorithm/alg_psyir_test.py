@@ -47,7 +47,7 @@ from fparser.common.readfortran import FortranStringReader
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
-    BinaryOperation
+    BinaryOperation, Container
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType, Symbol, REAL_TYPE
@@ -119,15 +119,25 @@ def check_call(call, routine_name, args_info):
 
 def test_algorithminvokecall():
     '''Check that an instance of AlgorithmInvokeCall can be
-    created.
+    created. Also check any optional arguments.
 
     '''
     routine = RoutineSymbol("hello")
     call = AlgorithmInvokeCall(routine, 2)
+    assert call._children_valid_format == "[KernelFunctor]*"
     assert call._text_name == "AlgorithmInvokeCall"
     assert call._colour == "green"
     assert call.psylayer_routine_symbol is None
     assert call._index == 2
+    assert call.parent is None
+    assert call._description is None
+
+    description = "description"
+    parent = Container("container")
+    call = AlgorithmInvokeCall(
+        routine, 2, parent=parent, description=description)
+    assert call.parent is parent
+    assert call._description == description
 
 
 def test_algorithminvokecall_error():
@@ -146,6 +156,11 @@ def test_algorithminvokecall_error():
     assert ("AlgorithmInvokeCall index argument should be a non-negative "
             "integer but found -1." in str(info.value))
 
+    with pytest.raises(TypeError) as info:
+        AlgorithmInvokeCall(routine, 1, description=routine)
+    assert ("AlgorithmInvokeCall description argument should be a str but "
+            "found 'RoutineSymbol'." in str(info.value))
+
 
 def test_aic_create():
     '''Check that the create method behaves as expected.'''
@@ -159,6 +174,12 @@ def test_aic_create():
     assert aic.children[0] is kernel_functor
     assert aic._routine is routine
     assert aic._index == index
+    assert aic._description is None
+
+    description = "description"
+    aic = AlgorithmInvokeCall.create(
+        routine, [kernel_functor.detach()], index, description=description)
+    assert aic._description == description
 
     with pytest.raises(GenerationError) as info:
         AlgorithmInvokeCall.create(routine, kernel_functor, index)
@@ -182,6 +203,18 @@ def test_aic_validate_child():
     call.children = [kernel_functor]
 
 
+def test_aic_node_str():
+    '''Check that the node_str method returns the expected representation
+    of this node.
+
+    '''
+    routine = RoutineSymbol("hello")
+    call = AlgorithmInvokeCall.create(
+        routine, [], 0, description="describing an invoke")
+    assert ("AlgorithmInvokeCall[description=\"describing an invoke\"]"
+            in call.node_str(colour=False))
+
+    
 def test_aic_defroutinerootname():
     '''Check that the _def_routine_root_name() internal method behaves as
     expected.
@@ -195,8 +228,14 @@ def test_aic_defroutinerootname():
     call.children = [kernel_functor]
     assert call._def_routine_root_name() == "invoke_{0}_{1}".format(
         index, symbol_name)
+
     call.children.append(kernel_functor.copy())
     assert call._def_routine_root_name() == "invoke_{0}".format(index)
+
+    for name in [" a  description ", "' a__description '",
+                 "\" a  description \""]:
+        call._description = name
+        assert call._def_routine_root_name() == "a__description"
 
 
 def test_aic_createpsylayersymbols():
@@ -319,7 +358,8 @@ def test_aic_lowertolanguagelevel_single():
 
 def test_aic_lowertolanguagelevel_multi():
     '''Check that the lower_to_language_level method works as expected
-    when it has multiple kernels with fields of the same name.
+    when it has multiple kernels with fields of the same name. Also
+    check that an invoke name is supported.
 
     '''
     code = (
@@ -331,7 +371,8 @@ def test_aic_lowertolanguagelevel_multi():
         "  type(field_type) :: field1, field2(10)\n"
         "  call invoke(kern1(field1), kern2(field1), kern3(field2(i)), &\n"
         "              kern1(field2(I)), kern2(field2( j )), &\n"
-        "              kern3(field2(j+1)), kern1(1.0_r_def))\n"
+        "              kern3(field2(j+1)), kern1(1.0_r_def), &\n"
+        "              name=\"multi kern invoke\")\n"
         "end subroutine alg1\n")
 
     psyir = create_alg_psyir(code)
@@ -351,7 +392,7 @@ def test_aic_lowertolanguagelevel_multi():
     assert len(psyir.walk(KernelFunctor)) == 0
 
     call = psyir.children[0]
-    check_call(call, "invoke_0",
+    check_call(call, "multi_kern_invoke",
                [(Reference, "field1"),
                 (ArrayReference, "field2", ["i"]),
                 (ArrayReference, "field2", ["j"]),

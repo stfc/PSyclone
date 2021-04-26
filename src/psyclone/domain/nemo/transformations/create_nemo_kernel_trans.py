@@ -54,13 +54,13 @@ class CreateNemoKernelTrans(Transformation):
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
     >>> reader = FortranStringReader('''
-    subroutine sub()
-      integer :: ji
-      real :: tmp(10)
-      do ji=1, 10
-        tmp(ji) = 2.0*ji
-      end do
-    end subroutine sub''')
+    ... subroutine sub()
+    ...   integer :: ji
+    ...   real :: tmp(10)
+    ...   do ji=1, 10
+    ...     tmp(ji) = 2.0*ji
+    ...   end do
+    ... end subroutine sub''')
     >>> parser = ParserFactory().create()
     >>> psyir = Fparser2Reader().generate_psyir(parser(reader))
     >>> loop = psyir.walk(Loop)[0]

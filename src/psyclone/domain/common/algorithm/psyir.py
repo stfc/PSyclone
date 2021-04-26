@@ -55,6 +55,9 @@ class AlgorithmInvokeCall(Call):
         to None.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node` \
         or NoneType
+    :param description: an optional description of the \
+        AlgorithmInvokeCall. Defaults to None.
+    :type description: str or NoneType
 
     :raises TypeError: if the index argument is not an integer.
     :raises ValueError: if the index argument is negative.
@@ -64,7 +67,8 @@ class AlgorithmInvokeCall(Call):
     _text_name = "AlgorithmInvokeCall"
     _colour = "green"
 
-    def __init__(self, invoke_routine_symbol, index, parent=None):
+    def __init__(self, invoke_routine_symbol, index, parent=None,
+                 description=None):
         super(AlgorithmInvokeCall, self).__init__(
             invoke_routine_symbol, parent=parent)
 
@@ -76,15 +80,20 @@ class AlgorithmInvokeCall(Call):
             raise ValueError(
                 "AlgorithmInvokeCall index argument should be a non-negative "
                 "integer but found {0}.".format(index))
+        if description and not isinstance(description, str):
+            raise TypeError(
+                "AlgorithmInvokeCall description argument should be a str but "
+                "found '{0}'.".format(type(description).__name__))
 
         self._index = index
         self.psylayer_routine_symbol = None
+        self._description = description
 
     @classmethod
-    def create(cls, routine, arguments, index):
+    def create(cls, routine, arguments, index, description=None):
         '''Create an instance of the calling class given valid instances of a
-        routine symbol, a list of child nodes for its arguments and an
-        index.
+        routine symbol, a list of child nodes for its arguments, an
+        index and an optional description.
 
         :param routine: the routine that the calling class calls.
         :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -93,6 +102,11 @@ class AlgorithmInvokeCall(Call):
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
+        :param description: a string describing the purpose of the \
+            invoke or None if one is not provided. This is used to \
+            create the name of the routine that replaces the \
+            invoke. Defaults to None.
+        :type name: str or NoneType
 
         :raises GenerationError: if the arguments argument is not a \
             list.
@@ -107,7 +121,7 @@ class AlgorithmInvokeCall(Call):
                 "AlgorithmInvokeCall create arguments argument should be a "
                 "list but found '{0}'.".format(type(arguments).__name__))
 
-        call = cls(routine, index)
+        call = cls(routine, index, description=description)
         call.children = arguments
         return call
 
@@ -124,6 +138,20 @@ class AlgorithmInvokeCall(Call):
         '''
         return isinstance(child, KernelFunctor)
 
+    def node_str(self, colour=True):
+        '''Construct a text representation of this node, optionally
+        containing colour control codes. Specialise as this node has
+        an additional description argument.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this PSyIR node.
+        :rtype: str
+
+        '''
+        return "{0}[description=\"{1}\"]".format(self.coloured_name(colour),
+                                                 self._description)
+
     def _def_routine_root_name(self):
         '''Internal method that returns the proposed language-level routine
         name given the index of this invoke.
@@ -132,10 +160,20 @@ class AlgorithmInvokeCall(Call):
         :rtype: str
 
         '''
-        routine_root_name = "invoke_{0}".format(self._index)
-        if len(self.children) == 1:
-            # Add the name of the kernel if there is only one call
-            routine_root_name += "_" + self.children[0].name
+        if self._description:
+            routine_root_name = self._description.lower().strip()
+            if routine_root_name[0] == '"' and routine_root_name[-1] == '"' or \
+               routine_root_name[0] == "'" and routine_root_name[-1] == "'":
+                # fparser2 (issue #295) currently includes quotes as
+                # part of a string, so strip them out.
+                routine_root_name = routine_root_name[1:-1].strip()
+
+            routine_root_name = routine_root_name.replace(" ", "_")
+        else:
+            routine_root_name = "invoke_{0}".format(self._index)
+            if len(self.children) == 1:
+                # Add the name of the kernel if there is only one call
+                routine_root_name += "_" + self.children[0].name
         return routine_root_name
 
     def create_psylayer_symbols(self):

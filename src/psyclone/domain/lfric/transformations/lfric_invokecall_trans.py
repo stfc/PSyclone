@@ -56,10 +56,6 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
     nodes.
 
     '''
-    def __init__(self):
-        super(LFRicInvokeCallTrans, self).__init__()
-        self._call_description = None
-
     def validate(self, call, options=None):
         ''' Check that the call argument has the expected structure.
 
