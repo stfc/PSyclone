@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
 Module containing pytest tests for kernel stub code generation and the related

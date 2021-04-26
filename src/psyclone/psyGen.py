@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic,    Met Office
 #          C.M. Maynard, Met Office / University of Reading
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation

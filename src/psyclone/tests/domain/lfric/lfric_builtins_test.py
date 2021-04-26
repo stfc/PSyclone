@@ -34,6 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that

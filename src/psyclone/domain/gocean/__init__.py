@@ -40,6 +40,6 @@ from psyclone.domain.gocean.gocean_constants import GOceanConstants
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
-# from psyclone.domain.nemo import NemoConstants
+# from psyclone.domain.gocean import GOceanConstants
 
 __all__ = ['GOceanConstants']

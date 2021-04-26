@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 # Modified I. Kavcic Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module tests the DynKern class within dynamo0p3 using
 pytest. A the moment the tests here do not fully cover DynKern as

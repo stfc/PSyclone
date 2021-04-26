@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the multi-grid part of the Dynamo 0.3 API
     using pytest. '''

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
 quadrature in the LFRic API '''
