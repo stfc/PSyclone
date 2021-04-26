@@ -65,6 +65,9 @@ def test_gocean_const():
     assert gocean_const.VALID_INTRINSIC_TYPES == "INVALID"
     assert gocean_const.VALID_ARG_TYPE_NAMES == []
     assert gocean_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
+    # Make sure the 'INVALID' value is reset when the constant
+    # object is created again.
+    GOceanConstants.HAS_BEEN_INITIALISED = False
 
 
 def test_lfric_const():
@@ -94,6 +97,9 @@ def test_lfric_const():
                                                 "gh_columnwise_operator",
                                                 "gh_scalar"]
     assert lfric_const.VALID_SCALAR_NAMES == ["gh_scalar"]
+    # Make sure the 'INVALID' value is reset when the constant
+    # object is created again.
+    LFRicConstants.HAS_BEEN_INITIALISED = False
 
 
 def test_nemo_const():
@@ -118,3 +124,6 @@ def test_nemo_const():
     assert gocean_const.VALID_INTRINSIC_TYPES == "INVALID"
     assert gocean_const.VALID_ARG_TYPE_NAMES == []
     assert gocean_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
+    # Make sure the 'INVALID' value is reset when the constant
+    # object is created again.
+    NemoConstants.HAS_BEEN_INITIALISED = False
