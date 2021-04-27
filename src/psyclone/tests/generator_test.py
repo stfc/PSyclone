@@ -342,7 +342,6 @@ def test_script_trans():
     loop2 = schedule.children[5]
     trans = LoopFuseTrans()
     trans.apply(loop1, loop2)
-    invoke.schedule = schedule
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="dynamo0.3",

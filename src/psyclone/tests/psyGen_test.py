@@ -1108,7 +1108,6 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     otrans.apply(schedule.children[0], {"reprod": True})
     # Apply an OpenMP Parallel directive around the OpenMP do directive
     rtrans.apply(schedule.children[0])
-    invoke.schedule = schedule
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert (
@@ -1774,7 +1773,6 @@ def test_omp_dag_names():
     ptrans.apply(child)
     # Put an OMP DO around this loop
     olooptrans.apply(schedule[0].dir_body[0])
-    # Replace the original loop schedule with the transformed one
     omp_par_node = schedule.children[0]
     assert omp_par_node.dag_name == "OMP_parallel_1"
     assert omp_par_node.dir_body[0].dag_name == "OMP_do_3"

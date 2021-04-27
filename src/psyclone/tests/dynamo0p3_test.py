@@ -1119,7 +1119,6 @@ def test_loopfuse(dist_mem, tmpdir):
     loop2 = schedule.children[index+1]
     trans = LoopFuseTrans()
     trans.apply(loop1, loop2)
-    invoke.schedule = schedule
     generated_code = psy.gen
     # only one loop
     assert str(generated_code).count("DO cell") == 1
