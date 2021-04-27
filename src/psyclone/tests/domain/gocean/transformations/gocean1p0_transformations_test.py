@@ -1402,7 +1402,7 @@ def test_loop_swap_correct(tmpdir):
     the right place.'''
 
     psy, _ = get_invoke("test27_loop_swap.f90", API, idx=0, dist_mem=False)
-    invoke = psy.invokes.get("invoke_0")
+    invoke = psy.invokes.get("invoke_loop1")
     schedule = invoke.schedule
     schedule_str = str(schedule)
 
@@ -1424,7 +1424,7 @@ def test_loop_swap_correct(tmpdir):
     # Now swap the first loops
     swap = GOLoopSwapTrans()
     swapped1, _ = swap.apply(schedule.children[0])
-    psy.invokes.get('invoke_0').schedule = swapped1
+    psy.invokes.get('invoke_loop1').schedule = swapped1
     schedule_str = str(swapped1)
 
     expected = (
