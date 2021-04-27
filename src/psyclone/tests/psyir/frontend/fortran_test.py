@@ -80,7 +80,7 @@ def test_fortran_psyir_from_source():
 def test_fortran_psyir_from_file(tmpdir_factory):
     ''' Test that the psyir_from_file method reads and parses to PSyIR
     the specified file. '''
-    filename = tmpdir_factory.mktemp('frontend_test').join("testfile.f90")
+    filename = str(tmpdir_factory.mktemp('frontend_test').join("testfile.f90"))
     with open(filename, "w") as wfile:
         wfile.write(CODE)
 
