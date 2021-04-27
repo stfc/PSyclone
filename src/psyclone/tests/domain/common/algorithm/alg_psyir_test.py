@@ -187,6 +187,26 @@ def test_aic_create():
             "but found 'KernelFunctor'." in str(info.value))
 
 
+class DummySubClass(AlgorithmInvokeCall):
+    '''A dummy subclass of AlgorithmInvokeCall used for testing the
+    behaviour of the create method in AlgorithmInvokeCall.
+
+    '''
+
+
+@pytest.mark.parametrize("cls", [AlgorithmInvokeCall, DummySubClass])
+def test_aic_create_object(cls):
+    '''Check that the AlgorithmInvokeCall create method creates the
+    expected object (which could be a subclass of AlgorithmInvokeCall)
+
+    '''
+    routine = RoutineSymbol("hello")
+    call = cls.create(routine, [], 0)
+    assert call.routine is routine
+    # pylint: disable=unidiomatic-typecheck
+    assert type(call) is cls
+
+
 def test_aic_validate_child():
     '''Check that the _validate_child method behaves as expected.'''
 
@@ -214,7 +234,7 @@ def test_aic_node_str():
     assert ("AlgorithmInvokeCall[description=\"describing an invoke\"]"
             in call.node_str(colour=False))
 
-    
+
 def test_aic_defroutinerootname():
     '''Check that the _def_routine_root_name() internal method behaves as
     expected.

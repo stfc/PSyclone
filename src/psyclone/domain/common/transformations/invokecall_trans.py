@@ -125,8 +125,7 @@ class InvokeCallTrans(Transformation):
             symbol.datatype = StructureType()
 
     def _validate_fp2_node(self, fp2_node):
-        '''Separate validation routine for an fparser2 node within a code
-        block. This is separated to make it simpler to subclass. **********
+        '''Validation routine for an fparser2 node within a code block.
 
         :param fp2_node: an fparser2 Structure Constructor or Actual \
             Arg Spec node.
@@ -229,7 +228,6 @@ class InvokeCallTrans(Transformation):
             if isinstance(call_arg, ArrayReference):
                 # kernel misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
-                name = call_arg.name
                 type_symbol = call_arg.symbol
                 arg_info.append((type_symbol, args))
             else:

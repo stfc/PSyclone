@@ -47,13 +47,13 @@ from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Node, Reference
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
-    StructureType
+    StructureType, REAL_TYPE
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, \
     LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
+from psyclone.errors import GenerationError
 
 
 def create_alg_psyir(code):
@@ -88,114 +88,31 @@ def test_lfricalgorithminvokecall():
     routine = RoutineSymbol("hello")
     index = 2
     call = LFRicAlgorithmInvokeCall(routine, index)
-    assert call._description is None
-    assert call.parent is None
     assert call.routine is routine
     assert call._index == index
+    assert (call._children_valid_format ==
+            "[LFRicKernelFunctor|LFRicBuiltinFunctor]*")
     assert call._text_name == "LFRicAlgorithmInvokeCall"
 
 
-def test_lfricalgorithminvokecall_options():
-    '''Check that an instance of LFRicAlgorithmInvokeCall can be created
-    with optional arguments and that these optional arguments are
-    stored as expected.
+def test_validate_child():
+    '''Check that the _validate_child method behaves as expected.'''
 
-    '''
-    node = Node()
+    lfric_kernel_functor = LFRicKernelFunctor(TypeSymbol("dummy1", REAL_TYPE))
+    lfric_builtin_functor = LFRicBuiltinFunctor(
+        TypeSymbol("dummy2", REAL_TYPE))
+    assert LFRicAlgorithmInvokeCall._validate_child(0, lfric_kernel_functor)
+    assert LFRicAlgorithmInvokeCall._validate_child(1, lfric_builtin_functor)
+    assert not LFRicAlgorithmInvokeCall._validate_child(0, "Invalid")
+
     routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall(
-        routine, 0, description="describing an invoke", parent=node)
-    assert call._description == "describing an invoke"
-    assert call.parent is node
-
-
-class DummySubClass(LFRicAlgorithmInvokeCall):
-    '''A dummy subclass of LFRicAlgorithmInvokeCall used for testing the
-    behaviour of the create method in LFRicAlgorithmInvokeCall.
-
-    '''
-
-
-@pytest.mark.parametrize("cls", [LFRicAlgorithmInvokeCall, DummySubClass])
-def test_lfricalgorithminvokecall_create(cls):
-    '''Check that the LFRicAlgorithmInvokeCall create method creates the
-    expected object.
-
-    '''
-    routine = RoutineSymbol("hello")
-    klc = LFRicKernelFunctor.create(TypeSymbol("arg", StructureType()), [])
-    call = cls.create(routine, [klc], 0, description="describing an invoke")
-    assert call._description == "describing an invoke"
-    assert call.routine is routine
-    # pylint: disable=unidiomatic-typecheck
-    assert type(call) is cls
-    assert len(call.children) == 1
-    assert call.children[0] == klc
-
-
-def test_lfricalgorithminvokecall_create_nodescription():
-    '''Check that the LFRicAlgorithmInvokeCall create method sets
-    description to None if it is not provided.
-
-    '''
-    routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall.create(routine, [], 0)
-    assert call._description is None
-
-
-def test_lfricalgorithminvoke_call_root_name():
-    '''Check that an LFRicAlgorithmInvokeCall node is translated into the
-    expected PSyIR call node when the lower_to_language_level() method
-    is called. This test exercises the _def_routine_root_name(). The
-    rest of the functionality is in the parent class.
-
-    '''
-    code = (
-        "subroutine alg1()\n"
-        "  use kern_mod, only : kern\n"
-        "  use field_mod, only : field_type\n"
-        "  type(field_type) :: field1\n"
-        "  call invoke(kern(field1))\n"
-        "  call invoke(kern(field1), name=\"test 1\")\n"
-        "end subroutine alg1\n")
-
-    psyir = create_alg_psyir(code)
-
-    assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 2
-    assert len(psyir.walk(LFRicKernelFunctor)) == 2
-
-    psyir.lower_to_language_level()
-
-    assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(LFRicKernelFunctor)) == 0
-    call0 = psyir.children[0]
-    assert call0.routine.name == "invoke_0_kern"
-    assert call0.routine.is_global
-    assert call0.routine.interface.container_symbol.name == "invoke_0_kern_mod"
-    args = call0.children
-    assert len(args) == 1
-    assert isinstance(args[0], Reference)
-    assert args[0].symbol.name == "field1"
-    call1 = psyir.children[1]
-    assert call1.routine.name == "test_1"
-    assert call1.routine.is_global
-    assert call1.routine.interface.container_symbol.name == "test_1_mod"
-    args = call1.children
-    assert len(args) == 1
-    assert isinstance(args[0], Reference)
-    assert args[0].symbol.name == "field1"
-
-
-def test_lfricalgorithminvokecall_node_str():
-    '''Check that the LFRicAlgorithmInvokeCall node_str  method creates the
-    expected object.
-
-    '''
-    routine = RoutineSymbol("hello")
-    call = AlgorithmInvokeCall.create(
-        routine, [], 0, description="describing an invoke")
-    assert ("LFRicAlgorithmInvokeCall[description=\"describing an invoke\"]"
-            in call.node_str(colour=False))
+    call = LFRicAlgorithmInvokeCall(routine, 0)
+    with pytest.raises(GenerationError) as info:
+        call.children = ["invalid"]
+    assert ("Item 'str' can't be child 0 of 'LFRicAlgorithmInvokeCall'. The "
+            "valid format is: '[LFRicKernelFunctor|LFRicBuiltinFunctor]*'."
+            in str(info.value))
+    call.children = [lfric_kernel_functor, lfric_builtin_functor]
 
 
 def test_lfricbuiltinfunctor():

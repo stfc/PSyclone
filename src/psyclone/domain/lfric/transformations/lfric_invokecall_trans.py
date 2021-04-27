@@ -38,11 +38,9 @@ algorithm layer to an LFRic algorithm-layer-specific invoke call which
 uses specialised classes.
 
 '''
-from fparser.two.Fortran2003 import Actual_Arg_Spec, Name, \
-    Char_Literal_Constant, Structure_Constructor
+from fparser.two.Fortran2003 import Actual_Arg_Spec
 
 from psyclone.psyir.nodes import ArrayReference
-from psyclone.psyir.transformations import TransformationError
 
 from psyclone.domain.common.transformations import InvokeCallTrans
 from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
@@ -56,61 +54,6 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
     nodes.
 
     '''
-    def validate(self, call, options=None):
-        ''' Check that the call argument has the expected structure.
-
-        :param call: the PSyIR invoke call to be validated.
-        :type call: :py:class:`psyclone.psyir.nodes.Call`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        '''
-        self._call_description = None
-        super(LFRicInvokeCallTrans, self).validate(call, options=options)
-
-    def _validate_fp2_node(self, fp2_node):
-        '''Specialisation of the fparser2 node validation routine to
-        additionally validate named arguments, which are specific to
-        the LFRic API.
-
-        :param fp2_node: an fparser2 Structure Constructor or Actual \
-            Arg Spec node.
-        :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor` or \
-            :py:class:`fparser.two.Fortran2003.Actual_Arg_Spec
-
-        :raises TransformationError: if the named argument is not in \
-            the expected form.
-        :raises TransformationError: if more than one named argument \
-            is found.
-        :raises TransformationError: if the fparser2 node is not the \
-            expected type.
-
-        '''
-        if isinstance(fp2_node, Structure_Constructor):
-            pass
-        elif isinstance(fp2_node, Actual_Arg_Spec):
-            if not (isinstance(fp2_node.children[0], Name) and
-                    fp2_node.children[0].string.lower() == "name" and
-                    isinstance(fp2_node.children[1], Char_Literal_Constant)):
-                raise TransformationError(
-                    "Error in {0} transformation. If there is a named "
-                    "argument, it must take the form name='str', but found "
-                    "'{1}'.".format(self.name, str(fp2_node)))
-            if self._call_description:
-                raise TransformationError(
-                    "Error in {0} transformation. There should be at most one "
-                    "named argument in an invoke, but there are at least two: "
-                    "{1} and {2}.".format(self.name, self._call_description,
-                                          fp2_node.children[1].string))
-            self._call_description = fp2_node.children[1].string
-        else:
-            raise TransformationError(
-                "Error in {0} transformation. Expecting an algorithm invoke "
-                "codeblock to contain either Structure-Constructor or "
-                "actual-arg-spec, but found '{1}'."
-                "".format(self.name, type(fp2_node).__name__))
-
     def apply(self, call, index, options=None):
         ''' Apply the transformation to the supplied node.
 
