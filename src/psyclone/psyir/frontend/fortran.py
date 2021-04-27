@@ -57,6 +57,8 @@ class FortranReader(object):
         ''' Generate the PSyIR tree representing the given Fortran source code.
 
         :param str source_code: text representation of the code to be parsed.
+        :returns: PSyIR representing the provided Fortran source code.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         string_reader = FortranStringReader(source_code)
         parse_tree = self._parser(string_reader)
@@ -68,6 +70,8 @@ class FortranReader(object):
 
         :param file_path: path of the file to be read and parsed.
         :type file_path: str or any Python Path format.
+        :returns: PSyIR representing the provided Fortran file.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         # Note that this is the main performance hotspot in PSyclone, taking
         # more the 90% of the runtime in some cases. Therefore this is a good
