@@ -63,7 +63,7 @@ def test_loop_fuse_with_not_a_loop():
     lftrans = LoopFuseTrans()
     ompf = GOceanOMPParallelLoopTrans()
     # Enclose the first loop within an OMP parallel do
-    new_sched, _ = ompf.apply(schedule.children[0])
+    ompf.apply(schedule.children[0])
     # Attempt to (erroneously) fuse this OMP parallel do
     # with the next loop in the schedule
     with pytest.raises(TransformationError) as ex:
@@ -114,7 +114,7 @@ def test_gocean_loop_fuse_with_not_a_loop():
     lftrans = GOceanLoopFuseTrans()
     ompf = GOceanOMPParallelLoopTrans()
     # Enclose the first loop within an OMP parallel do
-    new_sched, _ = ompf.apply(schedule.children[0])
+    ompf.apply(schedule.children[0])
     # Attempt to (erroneously) fuse this OMP parallel do
     # with the next loop in the schedule
     with pytest.raises(TransformationError):

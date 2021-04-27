@@ -276,7 +276,7 @@ def test_kernels_around_where_construct(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    sched, _ = acc_trans.apply(schedule)
+    acc_trans.apply(schedule)
     assert isinstance(sched[0], ACCKernelsDirective)
     assert isinstance(sched[0].dir_body[0], Loop)
     new_code = str(psy.gen)

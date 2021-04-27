@@ -619,7 +619,14 @@ class Node(object):
     @property
     def dag_name(self):
         '''Return the base dag name for this node.'''
-        return "node_" + str(self.abs_position)
+        from psyclone.psyir.nodes.routine import Routine
+        if isinstance()
+        routine = self.ancestor(Routine)
+        if routine:
+            suffix = str(self.abs_position - routine.abs_position)
+        else:
+            suffix = str(self.abs_position)
+        return "node_" + suffix
 
     @property
     def args(self):

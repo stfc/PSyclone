@@ -844,25 +844,25 @@ def test_acc_dir_node_str():
     schedule = invoke.schedule
 
     # Enter-data
-    new_sched, _ = accdt.apply(schedule)
+    accdt.apply(schedule)
     out = new_sched[0].node_str()
     assert out.startswith(
         colored("Directive", colour)+"[ACC enter data]")
 
     # Parallel region around outermost loop
-    new_sched, _ = accpt.apply(new_sched[1])
+    accpt.apply(new_sched[1])
     out = new_sched[1].node_str()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Parallel]")
 
     # Loop directive on outermost loop
-    new_sched, _ = acclt.apply(new_sched[1].dir_body[0])
+    acclt.apply(new_sched[1].dir_body[0])
     out = new_sched[1].dir_body[0].node_str()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Loop, independent]")
 
     # Loop directive with collapse
-    new_sched, _ = acclt.apply(new_sched[1].dir_body[0].dir_body[0],
+    acclt.apply(new_sched[1].dir_body[0].dir_body[0],
                                {"collapse": 2})
     out = new_sched[1].dir_body[0].dir_body[0].node_str()
     assert out.startswith(
@@ -1796,13 +1796,13 @@ def test_acc_dag_names():
     accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
     # Enter-data
-    new_sched, _ = accdt.apply(schedule)
+    accdt.apply(schedule)
     assert schedule[0].dag_name == "ACC_data_1"
     # Parallel region
-    new_sched, _ = accpt.apply(new_sched[1])
+    accpt.apply(new_sched[1])
     assert schedule[1].dag_name == "ACC_parallel_3"
     # Loop directive
-    new_sched, _ = acclt.apply(new_sched[1].dir_body[0])
+    acclt.apply(new_sched[1].dir_body[0])
     assert schedule[1].dir_body[0].dag_name == "ACC_loop_5"
     # Base class
     name = super(ACCEnterDataDirective, schedule[0]).dag_name

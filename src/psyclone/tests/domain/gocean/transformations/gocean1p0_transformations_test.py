@@ -106,7 +106,7 @@ def test_const_loop_bounds_toggle(tmpdir):
 
     # Next, check the generated code applying the constant loop-bounds
     # transformation.
-    newsched, _ = cbtrans.apply(schedule)
+    newcbtrans.apply(schedule)
     gen = str(psy.gen)
     assert schedule._const_loop_bounds is True
     assert "INTEGER istop, jstop" in gen
@@ -117,7 +117,7 @@ def test_const_loop_bounds_toggle(tmpdir):
 
     # Next, check that applying the constant loop-bounds
     # transformation again has no effect.
-    newsched, _ = cbtrans.apply(schedule)
+    newcbtrans.apply(schedule)
     gen = str(psy.gen)
     assert "INTEGER istop, jstop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
@@ -126,7 +126,7 @@ def test_const_loop_bounds_toggle(tmpdir):
     assert "DO i=2,istop" in gen
 
     # Finally, test that we can turn-off constant loop bounds.
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
+    newcbtrans.apply(schedule, {"const_bounds": False})
     invoke.schedule = newsched
     gen = str(psy.gen)
     assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
@@ -145,7 +145,7 @@ def test_const_loop_bounds_invalid_offset():
                              API, idx=0)
     cbtrans = GOConstLoopBoundsTrans()
     schedule = invoke.schedule
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": True})
+    newcbtrans.apply(schedule, {"const_bounds": True})
     invoke.schedule = newsched
     with pytest.raises(GenerationError):
         _ = psy.gen
@@ -169,7 +169,7 @@ def test_loop_fuse_different_iterates_over():
 
     # Turn off constant loop bounds (which should have no effect)
     # and repeat
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
+    newcbtrans.apply(schedule, {"const_bounds": False})
     with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(newsched.children[0],
                              newsched.children[1])
@@ -300,7 +300,7 @@ def test_omp_region_with_single_loop(tmpdir):
     assert call_count == 1
 
     # Repeat the test after turning off constant loop bounds
-    newsched, _ = cbtrans.apply(omp_schedule, {"const_bounds": False})
+    newcbtrans.apply(omp_schedule, {"const_bounds": False})
     invoke.schedule = newsched
     gen = str(psy.gen)
     gen = gen.lower()
@@ -428,7 +428,7 @@ def test_omp_region_no_slice_no_const_bounds(tmpdir):
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
 
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
+    newcbtrans.apply(schedule, {"const_bounds": False})
     omp_schedule, _ = ompr.apply(newsched.children)
     # Replace the original loop schedule with the transformed one
     invoke.schedule = omp_schedule
@@ -485,7 +485,7 @@ def test_omp_region_retains_kernel_order1(tmpdir):
     assert cu_idx < cv_idx < ts_idx
 
     # Repeat after turning off constant loop bounds
-    newsched, _ = cbtrans.apply(omp_schedule, {"const_bounds": False})
+    newcbtrans.apply(omp_schedule, {"const_bounds": False})
     invoke.schedule = newsched
     gen = str(psy.gen)
     gen = gen.lower()
@@ -732,7 +732,7 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     schedule = invoke.schedule
     # Turn-off constant loop bounds
     cbtrans = GOConstLoopBoundsTrans()
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
+    newcbtrans.apply(schedule, {"const_bounds": False})
 
     # Put an OpenMP do directive around each loop contained
     # in the schedule
@@ -1045,7 +1045,7 @@ def test_omp_region_invalid_node():
     ompr = OMPParallelTrans()
     acct = ACCParallelTrans()
     # Apply an OpenACC parallel transformation to the first loop
-    new_sched, _ = acct.apply(schedule.children[0])
+    acct.apply(schedule.children[0])
 
     with pytest.raises(TransformationError) as err:
         _, _ = ompr.apply(new_sched.children)
@@ -1576,7 +1576,7 @@ def test_ocl_apply(kernel_outputdir):
     assert "the supplied node must be a (sub-class of) InvokeSchedule " \
         in str(err.value)
 
-    new_sched, _ = ocl.apply(schedule)
+    ocl.apply(schedule)
     assert new_sched.opencl
 
     gen = str(psy.gen)
@@ -1617,7 +1617,7 @@ def test_acc_parallel_trans(tmpdir):
     acct = ACCParallelTrans()
     # Apply the OpenACC Parallel transformation
     # to the first loop of the schedule
-    new_sched, _ = acct.apply(schedule.children[0])
+    acct.apply(schedule.children[0])
     invoke.schedule = new_sched
 
     with pytest.raises(GenerationError) as err:
@@ -1627,7 +1627,7 @@ def test_acc_parallel_trans(tmpdir):
             "'invoke_0' this is not the case" in str(err.value))
 
     accdt = ACCEnterDataTrans()
-    new_sched, _ = accdt.apply(schedule)
+    accdt.apply(schedule)
     invoke.schedule = new_sched
     code = str(psy.gen)
 
@@ -1698,7 +1698,7 @@ def test_acc_parallel_invalid_node():
     accpara = ACCParallelTrans()
 
     # Add an enter-data directive to the schedule
-    new_sched, _ = acct.apply(schedule)
+    acct.apply(schedule)
 
     # Attempt to enclose the enter-data directive within a parallel region
     with pytest.raises(TransformationError) as err:
@@ -1720,10 +1720,10 @@ def test_acc_data_copyin(tmpdir):
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
+    accdt.apply(new_sched)
     invoke.schedule = new_sched
     code = str(psy.gen)
 
@@ -1748,10 +1748,10 @@ def test_acc_data_grid_copyin(tmpdir):
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
+    accdt.apply(new_sched)
 
     invoke.schedule = new_sched
     code = str(psy.gen)
@@ -1785,10 +1785,10 @@ def test_acc_data_parallel_commute(tmpdir):
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
+    accdt.apply(new_sched)
 
     invoke.schedule = new_sched
     code1 = str(psy.gen)
@@ -1800,12 +1800,12 @@ def test_acc_data_parallel_commute(tmpdir):
     schedule = invoke.schedule
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(schedule)
+    accdt.apply(schedule)
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
     invoke.schedule = new_sched
     code2 = str(psy.gen)
@@ -1825,12 +1825,12 @@ def test_accdata_duplicate():
     schedule = invoke.schedule
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(schedule)
+    accdt.apply(schedule)
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
     # Erroneously attempt to add a data region for the second time
     with pytest.raises(TransformationError):
@@ -1858,7 +1858,7 @@ def test_accloop(tmpdir):
     # Apply an OpenACC loop directive to each loop
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = acclpt.apply(child)
+            acclpt.apply(child)
 
     # Code generation should fail at this point because there's no
     # enclosing parallel region
@@ -1869,7 +1869,7 @@ def test_accloop(tmpdir):
             str(err.value))
 
     # Add an enclosing parallel region
-    new_sched, _ = accpara.apply(schedule.children)
+    accpara.apply(schedule.children)
 
     # Code generation should still fail because there's no 'enter data'
     # directive and we need one for the parallel region to work
@@ -1880,7 +1880,7 @@ def test_accloop(tmpdir):
             "'invoke_0' this is not the case." in str(err.value))
 
     # Add a data region
-    new_sched, _ = accdata.apply(new_sched)
+    accdata.apply(new_sched)
 
     gen = str(psy.gen)
 
@@ -1906,12 +1906,12 @@ def test_acc_loop_not_within_data_region():
     schedule = invoke.schedule
 
     # Apply ACCLoopTrans to just the second loop
-    new_sched, _ = acclpt.apply(schedule[1])
+    acclpt.apply(schedule[1])
     # Add an enclosing parallel region
-    new_sched, _ = accpara.apply(new_sched[1])
+    accpara.apply(new_sched[1])
 
     # Add a static data region around the wrong loop
-    new_sched, _ = accstaticdata.apply(new_sched[2])
+    accstaticdata.apply(new_sched[2])
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("An ACC parallel region must either be preceded by an ACC enter "
@@ -1932,14 +1932,14 @@ def test_acc_loop_before_enter_data():
     schedule = invoke.schedule
 
     # Apply ACCLoopTrans to just the second loop
-    new_sched, _ = acclpt.apply(schedule[1])
+    acclpt.apply(schedule[1])
     # Add an enclosing parallel region
-    new_sched, _ = accpara.apply(new_sched[1])
+    accpara.apply(new_sched[1])
 
     # Add a data region. By default, the enter data is always added at the
     # beginning of the Schedule. We must therefore move it in order to trigger
     # the error.
-    new_sched, _ = accdata.apply(new_sched)
+    accdata.apply(new_sched)
     mvtrans.apply(new_sched[0], new_sched[3])
 
     with pytest.raises(GenerationError) as err:
@@ -1983,10 +1983,10 @@ def test_acc_collapse(tmpdir):
 
     # Finally, do something valid and check that we get the correct
     # generated code
-    new_sched, _ = acclpt.apply(child, {"collapse": 2})
+    acclpt.apply(child, {"collapse": 2})
 
-    new_sched, _ = accpara.apply(new_sched.children)
-    new_sched, _ = accdata.apply(new_sched)
+    accpara.apply(new_sched.children)
+    accdata.apply(new_sched)
 
     invoke.schedule = new_sched
 
@@ -2010,11 +2010,11 @@ def test_acc_indep(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    new_sched, _ = cbtrans.apply(schedule)
-    new_sched, _ = acclpt.apply(schedule.children[0], {"independent": False})
-    new_sched, _ = acclpt.apply(schedule.children[1], {"independent": True})
-    new_sched, _ = accpara.apply(new_sched.children)
-    new_sched, _ = accdata.apply(new_sched)
+    cbtrans.apply(schedule)
+    acclpt.apply(schedule.children[0], {"independent": False})
+    acclpt.apply(schedule.children[1], {"independent": True})
+    accpara.apply(new_sched.children)
+    accdata.apply(new_sched)
     # Check the generated code
     invoke.schedule = new_sched
     gen = str(psy.gen)
@@ -2034,10 +2034,10 @@ def test_acc_loop_seq():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    new_sched, _ = cbtrans.apply(schedule)
-    new_sched, _ = acclpt.apply(schedule.children[0], {"sequential": True})
-    new_sched, _ = accpara.apply(new_sched.children)
-    new_sched, _ = accdata.apply(new_sched)
+    cbtrans.apply(schedule)
+    acclpt.apply(schedule.children[0], {"sequential": True})
+    accpara.apply(new_sched.children)
+    accdata.apply(new_sched)
     # Check the generated code
     invoke.schedule = new_sched
     gen = str(psy.gen).lower()
@@ -2053,9 +2053,9 @@ def test_acc_loop_view(capsys):
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                            name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], {"independent": False})
-    new_sched, _ = acclpt.apply(schedule.children[1], {"independent": True})
-    new_sched, _ = acclpt.apply(schedule.children[2], {"sequential": True})
+    acclpt.apply(schedule.children[0], {"independent": False})
+    acclpt.apply(schedule.children[1], {"independent": True})
+    acclpt.apply(schedule.children[2], {"sequential": True})
     # Check the view method
     new_sched.view()
     output, _ = capsys.readouterr()

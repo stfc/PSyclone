@@ -101,7 +101,7 @@ def test_profile_basic(capsys):
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    new_sched, _ = prt.apply(invoke.schedule[0].profile_body[0].loop_body[0])
+    prt.apply(invoke.schedule[0].profile_body[0].loop_body[0])
 
     new_sched_str = str(new_sched)
     correct = ("""GOInvokeSchedule[invoke='invoke_0', \

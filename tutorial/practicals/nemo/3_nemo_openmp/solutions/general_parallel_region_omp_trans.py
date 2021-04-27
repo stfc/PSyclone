@@ -96,9 +96,9 @@ def trans(psy):
         idx = current
 
         try:
-            sched, _ = OMP_PARALLEL_TRANS.apply(loop_list)
+            OMP_PARALLEL_TRANS.apply(loop_list)
             for loop in loop_list:
-                sched, _ = OMP_LOOP_TRANS.apply(loop)
+                OMP_LOOP_TRANS.apply(loop)
         except TransformationError:
             pass
 

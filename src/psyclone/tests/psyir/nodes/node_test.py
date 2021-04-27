@@ -134,7 +134,7 @@ def test_node_depth():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    schedule = invoke.schedule.detach()
     # Assert that start_depth of any Node (including Schedule) is 0
     assert schedule.START_DEPTH == 0
     # Assert that Schedule depth is 1
@@ -157,7 +157,7 @@ def test_node_position():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    schedule = invoke.schedule.detach()
     child = schedule.children[6]
     # Assert that position of a Schedule (no parent Node) is 0
     assert schedule.position == 0
@@ -194,7 +194,7 @@ def test_node_root():
     ru_loop = ru_schedule.children[1]
     ru_kern = ru_loop.children[0]
     # Assert that the absolute root is a Schedule
-    assert isinstance(ru_kern.root, Schedule)
+    assert isinstance(ru_kern.root, Container)
 
 
 def test_node_annotations():
@@ -240,7 +240,7 @@ def test_node_args():
         assert arg == loop2_args[idx]
     # 4) Loop fuse
     ftrans = LFRicLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]
     kern1 = loop.loop_body[0]
     kern2 = loop.loop_body[1]
@@ -470,6 +470,7 @@ def test_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    # import pdb; pdb.set_trace()
     assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"

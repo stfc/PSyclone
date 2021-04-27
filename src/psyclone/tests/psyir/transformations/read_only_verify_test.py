@@ -84,7 +84,7 @@ def test_read_only_basic(capsys):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
-    new_sched, _ = read_only.apply(invoke.schedule[0].loop_body[0])
+    read_only.apply(invoke.schedule[0].loop_body[0])
     new_sched.view()
     result, _ = capsys.readouterr()
 

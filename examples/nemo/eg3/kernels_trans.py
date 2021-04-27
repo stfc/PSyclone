@@ -109,7 +109,7 @@ def trans(psy):
         # a data region. In reality we would want to try and make the data
         # regions bigger but this is only an example.
         for directive in directives:
-            sched, _ = ACC_DATA_TRANS.apply([directive])
+            ACC_DATA_TRANS.apply([directive])
 
         sched.view()
 

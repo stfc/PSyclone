@@ -97,7 +97,7 @@ def test_psy_data_trans_basic(capsys):
     # Insert a DataTrans call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    new_sched, _ = data_trans.apply(invoke.schedule[0].psy_data_body[0]
+    data_trans.apply(invoke.schedule[0].psy_data_body[0]
                                     .loop_body[0])
 
     new_sched_str = str(new_sched)

@@ -59,7 +59,7 @@ class GOceanExtractTrans(ExtractTrans):
     >>> etrans = GOceanExtractTrans()
     >>>
     >>> # Apply GOceanExtractTrans transformation to selected Nodes
-    >>> newsched, _ = etrans.apply(schedule.children[0])
+    >>> newetrans.apply(schedule.children[0])
     >>> newsched.view()
     '''
 

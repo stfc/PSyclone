@@ -72,7 +72,7 @@ def trans(psy):
     for child in loops:
         if child.loop_type == "levels":
             try:
-                sched, _ = OMP_TRANS.apply(child)
+                OMP_TRANS.apply(child)
             except TransformationError:
                 pass
 

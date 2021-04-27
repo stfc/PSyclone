@@ -1068,7 +1068,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>> # Then apply OpenMP to each of the colour loops
     >>> schedule = cschedule
     >>> for child in schedule.children:
-    >>>     newsched, _ = otrans.apply(child.children[0])
+    >>>     newotrans.apply(child.children[0])
     >>>
     >>> newsched.view()
 
@@ -1417,9 +1417,9 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> from psyclone.transformations import GOConstLoopBoundsTrans
     >>> clbtrans = GOConstLoopBoundsTrans()
     >>>
-    >>> newsched, _ = clbtrans.apply(schedule)
+    >>> newclbtrans.apply(schedule)
     >>> # or, to turn off const. looop bounds:
-    >>> # newsched, _ = clbtrans.apply(schedule, const_bounds=False)
+    >>> # newclbtrans.apply(schedule, const_bounds=False)
     >>>
     >>> newsched.view()
 
@@ -1964,7 +1964,7 @@ class OCLTrans(Transformation):
     >>> schedule = invoke.schedule
     >>>
     >>> ocl_trans = OCLTrans()
-    >>> new_sched, _ = ocl_trans.apply(schedule)
+    >>> ocl_trans.apply(schedule)
 
     '''
     @property
@@ -2771,7 +2771,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> schedule.view()
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Transform the kernel
-    >>> new_sched, _ = ktrans.apply(kernels)
+    >>> ktrans.apply(kernels)
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
@@ -2894,7 +2894,7 @@ class ACCDataTrans(RegionTrans):
     >>> schedule.view()
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Enclose the kernels
-    >>> new_sched, _ = dtrans.apply(kernels)
+    >>> dtrans.apply(kernels)
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)

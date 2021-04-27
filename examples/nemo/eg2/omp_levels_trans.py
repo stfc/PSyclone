@@ -70,7 +70,7 @@ def trans(psy):
         # multiple kernels
         kernels = loop.walk(NemoKern)
         if kernels and loop.loop_type == "levels":
-            sched, _ = ompt.apply(loop)
+            ompt.apply(loop)
     psy.invokes.get('tra_ldf_iso').schedule = sched
     # Return the modified psy object
     return psy

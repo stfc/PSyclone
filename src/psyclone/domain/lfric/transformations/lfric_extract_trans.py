@@ -59,7 +59,7 @@ class LFRicExtractTrans(ExtractTrans):
     >>> etrans = LFRicExtractTrans()
     >>>
     >>> # Apply LFRicExtractTrans transformation to selected Nodes
-    >>> newsched, _ = etrans.apply(schedule.children[0:3])
+    >>> newetrans.apply(schedule.children[0:3])
     >>> newsched.view()
     '''
 
