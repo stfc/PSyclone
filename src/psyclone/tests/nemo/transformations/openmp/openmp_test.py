@@ -177,7 +177,7 @@ def test_omp_parallel_multi():
             "      end do\n"
             "    end do\n"
             "    !$omp end parallel\n" in gen_code)
-    directive = new_sched[0].loop_body[2]
+    directive = schedule[0].loop_body[2]
     assert isinstance(directive, OMPParallelDirective)
 
     # Check that further calls to the update() method don't change the
@@ -216,9 +216,9 @@ def test_omp_do_update():
     par_trans = OMPParallelTrans()
     loop_trans = OMPLoopTrans()
     par_trans.apply(schedule[0].loop_body[1]
-                                   .else_body[0].else_body[0])
-    loop_trans.apply(new_sched[0].loop_body[1]
-                                    .else_body[0].else_body[0].dir_body[0])
+                    .else_body[0].else_body[0])
+    loop_trans.apply(schedule[0].loop_body[1]
+                     .else_body[0].else_body[0].dir_body[0])
     gen_code = str(psy.gen).lower()
     correct = '''      !$omp parallel default(shared), private(ji,jj)
       !$omp do schedule(static)
@@ -231,8 +231,7 @@ wmask(ji, jj, jk)
       !$omp end do
       !$omp end parallel'''
     assert correct in gen_code
-    directive = new_sched[0].loop_body[1].else_body[0].else_body[0]\
-        .dir_body[0]
+    directive = schedule[0].loop_body[1].else_body[0].else_body[0].dir_body[0]
     assert isinstance(directive, OMPDoDirective)
 
     # Call update a second time and make sure that this does not
@@ -264,9 +263,9 @@ def test_omp_parallel_errs():
     # loop nests (Python's slice notation is such that the expression below
     # gives elements 2-3).
     otrans.apply(schedule[0].loop_body[2:4])
-    directive = new_sched[0].loop_body[2]
+    directive = schedule[0].loop_body[2]
     # Break the AST by deleting some of it
-    _ = new_sched[0].ast.content.remove(directive.children[0].ast)
+    schedule[0].ast.content.remove(directive.children[0].ast)
     with pytest.raises(InternalError) as err:
         _ = psy.gen
     assert ("Failed to find locations to insert begin/end directives" in
@@ -282,7 +281,7 @@ def test_omp_do_children_err():
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     otrans.apply(schedule[0].loop_body[2])
-    directive = new_sched[0].loop_body[2]
+    directive = schedule[0].loop_body[2]
     assert isinstance(directive, OMPParallelDoDirective)
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
