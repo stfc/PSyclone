@@ -88,9 +88,11 @@ class AlgTrans(Transformation):
 
         '''
         self.validate(psyir, options=options)
+        idx = 0
         for call in psyir.walk(Call):
             if call.routine.name.lower() == "invoke":
-                self._invoke_trans.apply(call, options=options)
+                self._invoke_trans.apply(call, idx, options=options)
+                idx += 1
 
     @property
     def name(self):
