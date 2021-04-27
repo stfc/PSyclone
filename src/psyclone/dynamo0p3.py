@@ -272,13 +272,13 @@ class RefElementMetaData(object):
                 for arg in re_prop.args:
                     self.properties.append(
                         self.Property[str(arg).upper()])
-        except KeyError:
+        except KeyError as err:
             # We found a reference-element property that we don't recognise.
             # Sort for consistency when testing.
             sorted_names = sorted([prop.name for prop in self.Property])
-            raise ParseError(
+            six.raise_from(ParseError(
                 "Unsupported reference-element property: '{0}'. Supported "
-                "values are: {1}".format(arg, sorted_names))
+                "values are: {1}".format(arg, sorted_names)), err)
 
         # Check for duplicate properties
         for prop in self.properties:
@@ -1641,12 +1641,12 @@ class DynStencils(DynCollection):
                 else:
                     try:
                         stencil_name = const.STENCIL_MAPPING[stencil_type]
-                    except KeyError:
-                        raise GenerationError(
+                    except KeyError as err:
+                        six.raise_from(GenerationError(
                             "Unsupported stencil type '{0}' supplied. "
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
-                                   str(const.STENCIL_MAPPING)))
+                                   str(const.STENCIL_MAPPING))), err)
                     parent.add(
                         AssignGen(parent, pointer=True, lhs=map_name,
                                   rhs=arg.proxy_name_indexed +
@@ -1729,12 +1729,12 @@ class DynStencils(DynCollection):
                 else:
                     try:
                         stencil_name = const.STENCIL_MAPPING[stencil_type]
-                    except KeyError:
-                        raise GenerationError(
+                    except KeyError as err:
+                        six.raise_from(GenerationError(
                             "Unsupported stencil type '{0}' supplied. "
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
-                                   str(const.STENCIL_MAPPING)))
+                                   str(const.STENCIL_MAPPING))), err)
                     parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                       only=True, funcnames=[stencil_name]))
 
@@ -6216,11 +6216,11 @@ def halo_check_arg(field, access_types):
     try:
         # Get the kernel/built-in call associated with this field
         call = field.call
-    except AttributeError:
-        raise GenerationError(
+    except AttributeError as err:
+        six.raise_from(GenerationError(
             "HaloInfo class expects an argument of type DynArgument, or "
             "equivalent, on initialisation, but found, "
-            "'{0}'".format(type(field)))
+            "'{0}'".format(type(field))), err)
 
     if field.access not in access_types:
         api_strings = [access.api_specific_name() for access in access_types]
@@ -8493,11 +8493,11 @@ class DynKernelArgument(KernelArgument):
             const = LFRicConstants()
             self._intrinsic_type = const.MAPPING_DATA_TYPES[
                 self.descriptor.data_type]
-        except KeyError:
-            raise InternalError(
+        except KeyError as err:
+            six.raise_from(InternalError(
                 "DynKernelArgument.__init__(): Found unsupported data "
                 "type '{0}' in the kernel argument descriptor '{1}'.".
-                format(self.descriptor.data_type, self.descriptor))
+                format(self.descriptor.data_type, self.descriptor)), err)
 
         # Addressing issue #753 will allow us to perform static checks
         # for consistency between the algorithm and the kernel
