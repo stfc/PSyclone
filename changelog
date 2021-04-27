@@ -506,6 +506,9 @@
         interfaces and use so that only halo data moved to/from the host for
         halo exchanges.
 
+	165) PR #1207 for #1184. Add a validation for the node global constraints
+	that is check once a node is visited by any of the Visitor classes.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
