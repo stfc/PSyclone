@@ -1372,6 +1372,7 @@ class GOKern(CodedKern):
         :param parent: Parent node of the set-kernel-arguments routine
         :type parent: :py:class:`psyclone.f2pygen.moduleGen`
         '''
+        # pylint: disable=too-many-locals, too-many-statements
         # The arg_setter code is in a subroutine, so we create a new scope
         argsetter_st = SymbolTable()
 
@@ -1592,6 +1593,7 @@ class GOKern(CodedKern):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        # pylint: disable=too-many-locals, too-many-branches
         # Retrieve symbol table and kernel name
         symtab = self.root.symbol_table
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
@@ -1680,6 +1682,7 @@ class GOKern(CodedKern):
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
+        # pylint: disable=too-many-locals
         symtab = self.root.symbol_table
         try:
             return symtab.lookup_with_tag("ocl_write_grid_buffers")
@@ -1766,6 +1769,7 @@ class GOKern(CodedKern):
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
+        # pylint: disable=too-many-locals
         symtab = self.root.symbol_table
         try:
             return symtab.lookup_with_tag("ocl_init_buffer_func")
@@ -1845,6 +1849,7 @@ class GOKern(CodedKern):
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
+        # pylint: disable=too-many-locals
         symtab = self.root.symbol_table
         try:
             return symtab.lookup_with_tag("ocl_init_grid_buffers")
