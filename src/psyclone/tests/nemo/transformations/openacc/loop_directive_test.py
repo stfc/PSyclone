@@ -95,8 +95,7 @@ def test_explicit_loop(parser):
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     para_trans.apply(schedule.children)
     acc_trans.apply(schedule[0].dir_body[0])
-    acc_trans.apply(schedule[0].dir_body[1],
-                                  {"independent": False})
+    acc_trans.apply(schedule[0].dir_body[1], {"independent": False})
     data_trans.apply(schedule)
 
     code = str(psy.gen).lower()

@@ -3081,7 +3081,6 @@ class CodedKern(Kern):
                 search = PSyIRGen(module, self.get_kernel_schedule()).root
                 for child in module.children:
                     if isinstance(child, PSyIRGen):
-                        
                         if child.root == search:
                             # If there is an exact match (the implementation is
                             # the same), it is safe to continue.

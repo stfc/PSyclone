@@ -338,7 +338,7 @@ def test_driver_generation_flag(tmpdir, create_driver):
         etrans.apply(schedule.children[0:2])
     else:
         etrans.apply(schedule.children[0:2],
-                                   {'create_driver': create_driver})
+                     {'create_driver': create_driver})
     # We are only interested in the potentially triggered driver-creation.
     str(psy.gen)
 
@@ -368,8 +368,7 @@ def test_driver_creation(tmpdir):
     # This test expects constant loop bounds
     ctrans.apply(schedule)
 
-    etrans.apply(schedule.children[0],
-                               {'create_driver': True})
+    etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
@@ -533,8 +532,7 @@ def test_driver_loop_variables(tmpdir):
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    etrans.apply(schedule.children[0],
-                               {'create_driver': True})
+    etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 

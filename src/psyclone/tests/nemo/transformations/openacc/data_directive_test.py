@@ -429,8 +429,7 @@ def test_kernels_in_data_region(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_dtrans = TransInfo().get_trans_name('ACCDataTrans')
     acc_ktrans = TransInfo().get_trans_name('ACCKernelsTrans')
-    acc_ktrans.apply(schedule.children[:],
-                                   {"default_present": True})
+    acc_ktrans.apply(schedule.children[:], {"default_present": True})
     acc_dtrans.apply(schedule.children[:])
     new_code = str(psy.gen)
     assert ("  !$ACC DATA COPYOUT(sto_tmp)\n"

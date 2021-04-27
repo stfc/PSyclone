@@ -622,9 +622,6 @@ def test_omp_region_after_loops_trans(tmpdir):
     ompr = OMPParallelTrans()
     ompr.apply(schedule.children)
 
-
-    # Store the results of applying this code transformation as
-    # a string
     gen = str(psy.gen)
 
     # Iterate over the lines of generated code
@@ -715,9 +712,6 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     ompr = OMPParallelTrans()
     ompr.apply(schedule.children)
 
-
-    # Store the results of applying this code transformation as
-    # a string
     loop_before_region_gen = str(psy.gen)
 
     # Now we do it again but in the opposite order...
@@ -941,7 +935,6 @@ def test_omp_parallel_do_inside_parallel_region():
     # Now enclose all of the children within a parallel region
     ompr.apply(schedule.children)
 
-
     # Attempt to generate the transformed code
     with pytest.raises(GenerationError):
         _ = psy.gen
@@ -986,7 +979,6 @@ def test_omp_parallel_do_around_parallel_region():
     # (which is now a child of the region directive)
     ompl.apply(schedule[0].dir_body[0])
 
-
     # Attempt to generate the transformed code
     with pytest.raises(GenerationError):
         _ = psy.gen
@@ -1030,7 +1022,6 @@ def test_omp_region_with_children_of_different_types(tmpdir):
 
     # Now enclose all of the children within a parallel region
     ompr.apply(schedule.children)
-
 
     # Attempt to generate the transformed code
     _ = psy.gen
@@ -1100,7 +1091,6 @@ def test_omp_do_schedule_dynamic(tmpdir):
     # Now enclose it within a parallel region
     ompr.apply(schedule.children[1])
 
-
     # Attempt to generate the transformed code
     gen = str(psy.gen)
 
@@ -1123,7 +1113,6 @@ def test_omp_do_schedule_guided(tmpdir):
 
     # Now enclose it within a parallel region
     ompr.apply(schedule.children[1])
-
 
     # Attempt to generate the transformed code
     gen = str(psy.gen)
@@ -1154,7 +1143,6 @@ def test_omp_schedule_guided_with_chunk(tmpdir):
 
     # Now enclose it within a parallel region
     ompr.apply(schedule.children[1])
-
 
     # Attempt to generate the transformed code
     gen = str(psy.gen)
