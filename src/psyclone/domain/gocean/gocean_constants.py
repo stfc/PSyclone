@@ -68,6 +68,36 @@ class GOceanConstants(object):
         # psyGen names of internal scalar argument types.
         GOceanConstants.VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
 
+        # The different grid-point types that a field can live on
+        GOceanConstants.VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct",
+                                                  "go_cf", "go_every"]
+
+        # The two scalar types we support
+        GOceanConstants.VALID_SCALAR_TYPES = ["go_i_scalar", "go_r_scalar"]
+
+        # Index-offset schemes (for the Arakawa C-grid)
+        GOceanConstants.VALID_OFFSET_NAMES = ["go_offset_se", "go_offset_sw",
+                                              "go_offset_ne", "go_offset_nw",
+                                              "go_offset_any"]
+
+        # The offset schemes for which we can currently generate constant
+        # loop bounds in the PSy layer
+        GOceanConstants.SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw",
+                                             "go_offset_any"]
+
+        # The sets of grid points that a kernel may operate on
+        GOceanConstants.VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts",
+                                               "go_external_pts"]
+
+        # The list of valid stencil properties. We currently only support
+        # pointwise. This property could probably be removed from the
+        # GOcean API altogether.
+        GOceanConstants.VALID_STENCIL_NAMES = ["go_pointwise"]
+
+        # The valid types of loop. In this API we expect only doubly-nested
+        # loops.
+        GOceanConstants.VALID_LOOP_TYPES = ["inner", "outer"]
+
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to
