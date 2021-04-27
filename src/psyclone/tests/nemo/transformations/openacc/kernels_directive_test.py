@@ -69,7 +69,7 @@ def test_kernels_view(parser, capsys):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children,
+    acc_trans.apply(schedule.children,
                                   {"default_present": True})
     schedule.view()
     output, _ = capsys.readouterr()
@@ -83,7 +83,7 @@ def test_kernels_dag_name(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children,
+    acc_trans.apply(schedule.children,
                                   {"default_present": True})
     assert schedule.children[0].dag_name == "ACC_kernels_1"
 
@@ -152,7 +152,7 @@ def test_implicit_loop(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children[0:1],
+    acc_trans.apply(schedule.children[0:1],
                                   {"default_present": True})
     gen_code = str(psy.gen)
     assert ("  !$ACC KERNELS DEFAULT(PRESENT)\n"
@@ -181,7 +181,7 @@ def test_multikern_if(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children[0:1],
+    acc_trans.apply(schedule.children[0:1],
                                   {"default_present": True})
     gen_code = str(psy.gen).lower()
     assert ("!$acc kernels default(present)\n"
@@ -212,9 +212,9 @@ def test_kernels_within_if(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
 
-    schedule, _ = acc_trans.apply(schedule.children[0].if_body,
+    acc_trans.apply(schedule.children[0].if_body,
                                   {"default_present": True})
-    schedule, _ = acc_trans.apply(schedule.children[0].else_body,
+    acc_trans.apply(schedule.children[0].else_body,
                                   {"default_present": True})
     new_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"

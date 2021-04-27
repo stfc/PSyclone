@@ -55,6 +55,6 @@ def trans(psy):
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
     transform = LoopFuseTrans()
-    schedule, _ = transform.apply(loop1, loop2)
+    transform.apply(loop1, loop2)
     invoke.schedule = schedule
     return psy

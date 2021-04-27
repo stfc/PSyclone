@@ -40,6 +40,7 @@ all read-only entities passed to the kernel have not been modified.
 '''
 
 from __future__ import print_function
+from psyclone.psyir.transformations import ReadOnlyVerifyTrans
 
 
 def trans(psy):
@@ -54,7 +55,6 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.psyir.transformations import ReadOnlyVerifyTrans
     read_only_verify = ReadOnlyVerifyTrans()
 
     invoke = psy.invokes.get("invoke_0")
@@ -63,17 +63,15 @@ def trans(psy):
     # You could just apply the transform for all elements of
     # psy.invokes.invoke_list. But in this case we also
     # want to give the regions a friendlier name:
-    _, _ = read_only_verify.apply(schedule.children,
-                                  {"region_name": ("main", "init")})
+    read_only_verify.apply(schedule.children,
+                           {"region_name": ("main", "init")})
 
     invoke = psy.invokes.get("invoke_1_update_field")
     schedule = invoke.schedule
 
     # Enclose everything in a read_only_verify region
-    newschedule, _ = read_only_verify.apply(schedule.children,
-                                            {"region_name": ("main",
-                                                             "update")})
+    read_only_verify.apply(schedule.children,
+                           {"region_name": ("main", "update")})
 
-    invoke.schedule = newschedule
-    newschedule.view()
+    schedule.view()
     return psy

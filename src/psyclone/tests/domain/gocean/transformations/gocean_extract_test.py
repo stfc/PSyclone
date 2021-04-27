@@ -146,11 +146,11 @@ def test_no_parent_accdirective():
     # Apply the OpenACC Loop transformation to every loop in the Schedule
     for child in schedule.children:
         if isinstance(child, Loop):
-            schedule, _ = acclpt.apply(child)
+            acclpt.apply(child)
     # Enclose all of these loops within a single ACC Parallel region
-    schedule, _ = accpara.apply(schedule.children)
+    accpara.apply(schedule.children)
     # Add a mandatory ACC enter-data directive
-    schedule, _ = accdata.apply(schedule)
+    accdata.apply(schedule)
 
     orphaned_directive = schedule.children[1].children[0]
     with pytest.raises(TransformationError) as excinfo:
@@ -181,7 +181,7 @@ def test_extract_node_position():
     child = schedule.children[pos]
     abspos = child.abs_position
     dpth = child.depth
-    schedule, _ = gocetrans.apply(child)
+    gocetrans.apply(child)
     extract_node = schedule.walk(ExtractNode)
     # The result is only one ExtractNode in the list with position 1
     assert extract_node[0].position == pos
@@ -207,10 +207,10 @@ def test_single_node_ompparalleldo_gocean1p0():
     schedule._const_loop_bounds = True
 
     # Apply GOceanOMPParallelLoopTrans to the second Loop
-    schedule, _ = otrans.apply(schedule.children[1])
+    otrans.apply(schedule.children[1])
     # Now enclose the parallel region within an ExtractNode (inserted
     # at the previous location of the OMPParallelDoDirective
-    schedule, _ = etrans.apply(schedule.children[1])
+    etrans.apply(schedule.children[1])
 
     code = str(psy.gen)
     output = """      ! ExtractStart
@@ -261,15 +261,15 @@ def test_node_list_ompparallel_gocean1p0():
     schedule = invoke.schedule
 
     # Apply GOConstLoopBoundsTrans
-    schedule, _ = ctrans.apply(schedule)
+    ctrans.apply(schedule)
     # Apply GOceanOMPParallelLoopTrans to the first two Loops
-    schedule, _ = ltrans.apply(schedule.children[0])
-    schedule, _ = ltrans.apply(schedule.children[1])
+    ltrans.apply(schedule.children[0])
+    ltrans.apply(schedule.children[1])
     # and enclose them within a parallel region
-    schedule, _ = otrans.apply(schedule.children[0:2])
+    otrans.apply(schedule.children[0:2])
     # Now enclose the parallel region within an ExtractNode (inserted
     # at the previous location of the OMPParallelDirective
-    schedule, _ = etrans.apply(schedule.children[0])
+    etrans.apply(schedule.children[0])
 
     code = str(psy.gen)
     output = """
@@ -335,9 +335,9 @@ def test_driver_generation_flag(tmpdir, create_driver):
     schedule = invoke.schedule
 
     if create_driver is None:
-        schedule, _ = etrans.apply(schedule.children[0:2])
+        etrans.apply(schedule.children[0:2])
     else:
-        schedule, _ = etrans.apply(schedule.children[0:2],
+        etrans.apply(schedule.children[0:2],
                                    {'create_driver': create_driver})
     # We are only interested in the potentially triggered driver-creation.
     str(psy.gen)
@@ -366,9 +366,9 @@ def test_driver_creation(tmpdir):
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     # This test expects constant loop bounds
-    schedule, _ = ctrans.apply(schedule)
+    ctrans.apply(schedule)
 
-    schedule, _ = etrans.apply(schedule.children[0],
+    etrans.apply(schedule.children[0],
                                {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
@@ -533,7 +533,7 @@ def test_driver_loop_variables(tmpdir):
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    schedule, _ = etrans.apply(schedule.children[0],
+    etrans.apply(schedule.children[0],
                                {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)

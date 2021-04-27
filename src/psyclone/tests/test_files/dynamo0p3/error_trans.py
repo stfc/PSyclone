@@ -14,5 +14,5 @@ def trans(psy):
     schedule = psy.invokes.get("invoke_0_testkern_type").schedule
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space != "w3":
-            cschedule, _ = ctrans.appy(child)
+            cctrans.appy(child)
     return psy

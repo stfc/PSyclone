@@ -39,6 +39,7 @@ OpenACC directives and then encloses the whole in a profiling region. '''
 
 from __future__ import print_function
 from acc_transform import trans as acc_trans
+from psyclone.psyir.transformations import ProfileTrans
 
 
 def trans(psy):
@@ -53,7 +54,6 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.psyir.transformations import ProfileTrans
     proftrans = ProfileTrans()
 
     # Use the trans() routine in acc_transform.py to add the OpenACC directives
@@ -63,7 +63,6 @@ def trans(psy):
     schedule = invoke.schedule
 
     # Enclose everything in a profiling region
-    newschedule, _ = proftrans.apply(schedule.children)
-    invoke.schedule = newschedule
-    newschedule.view()
+    proftrans.apply(schedule.children)
+    schedule.view()
     return psy

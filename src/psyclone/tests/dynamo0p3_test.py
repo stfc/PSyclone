@@ -1118,7 +1118,7 @@ def test_loopfuse(dist_mem, tmpdir):
     loop1 = schedule.children[index]
     loop2 = schedule.children[index+1]
     trans = LoopFuseTrans()
-    schedule, _ = trans.apply(loop1, loop2)
+    trans.apply(loop1, loop2)
     invoke.schedule = schedule
     generated_code = psy.gen
     # only one loop

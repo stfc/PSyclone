@@ -35,15 +35,14 @@
 
 ''' example showing the use of the module-inline transformation '''
 from __future__ import print_function
+import os
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
+from psyclone.transformations import KernelModuleInlineTrans
 
 
 def inline():
     ''' function exercising the module-inline transformation '''
-    from psyclone.parse.algorithm import parse
-    from psyclone.psyGen import PSyFactory
-    import os
-    from psyclone.transformations import KernelModuleInlineTrans
-
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "..", "..", "..", "src", "psyclone", "tests",
                                  "test_files", "dynamo0p1", "algorithm",
@@ -61,10 +60,10 @@ def inline():
     schedule.view()
     # unsetting module inline via a transformation
     trans = KernelModuleInlineTrans()
-    schedule, _ = trans.apply(kern, {"inline": False})
+    trans.apply(kern, {"inline": False})
     schedule.view()
     # setting module inline via a transformation
-    schedule, _ = trans.apply(kern)
+    trans.apply(kern)
     schedule.view()
     print(str(psy.gen))
 

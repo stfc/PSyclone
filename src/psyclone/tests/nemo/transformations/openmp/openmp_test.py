@@ -61,7 +61,7 @@ def test_omp_explicit_gen():
     for loop in schedule.loops():
         kernel = loop.kernel
         if kernel and loop.loop_type == "levels":
-            schedule, _ = omp_trans.apply(loop)
+            omp_trans.apply(loop)
     gen_code = str(psy.gen).lower()
 
     expected = (
@@ -122,7 +122,7 @@ def test_omp_parallel():
     otrans = OMPParallelTrans()
     psy, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
     schedule = invoke_info.schedule
-    schedule, _ = otrans.apply([schedule[0]])
+    otrans.apply([schedule[0]])
     gen_code = str(psy.gen).lower()
     assert ("  !$omp parallel default(shared), private(ji,jj,jk)\n"
             "  do jk = 1, jpk\n"
@@ -141,7 +141,7 @@ def test_omp_add_region_invalid_data_move():
     otrans = OMPParallelTrans()
     _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
     schedule = invoke_info.schedule
-    schedule, _ = otrans.apply([schedule[0]])
+    otrans.apply([schedule[0]])
     ompdir = schedule[0]
     with pytest.raises(InternalError) as err:
         ompdir._add_region("DATA", "END DATA", data_movement="analyse")
@@ -302,7 +302,7 @@ def test_omp_do_within_if():
     loop = schedule[0].loop_body[1].else_body[0].else_body[0]
     assert isinstance(loop, nemo.NemoLoop)
     # Apply the transformation to a loop within an else clause
-    schedule, _ = otrans.apply(loop)
+    otrans.apply(loop)
     gen = str(psy.gen).lower()
     expected = (
         "    else\n"

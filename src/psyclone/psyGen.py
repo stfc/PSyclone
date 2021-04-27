@@ -1016,7 +1016,9 @@ class InvokeSchedule(Routine):
         # during the whole gen_code() chain, but at the end of this method the
         # original symbol table is restored.
         symbol_table_before_gen = self.symbol_table
+        psy_symbol_table_before_gen = self.parent.symbol_table
         self._symbol_table = self.symbol_table.shallow_copy()
+        self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
 
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
@@ -1055,10 +1057,10 @@ class InvokeSchedule(Routine):
             flag = self.symbol_table.new_symbol(
                 "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_error").name
-            self.ancestor(InvokeSchedule).symbol_table.new_symbol(
+            self.symbol_table.new_symbol(
                 "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_bytes")
-            self.ancestor(InvokeSchedule).symbol_table.new_symbol(
+            self.symbol_table.new_symbol(
                 "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_wevent")
 
@@ -1124,6 +1126,7 @@ class InvokeSchedule(Routine):
 
         # Restore symbol table
         self._symbol_table = symbol_table_before_gen
+        self.parent._symbol_table = psy_symbol_table_before_gen
 
     @property
     def opencl(self):
@@ -3072,6 +3075,7 @@ class CodedKern(Kern):
                 search = PSyIRGen(module, self.get_kernel_schedule()).root
                 for child in module.children:
                     if isinstance(child, PSyIRGen):
+                        
                         if child.root == search:
                             # If there is an exact match (the implementation is
                             # the same), it is safe to continue.

@@ -81,22 +81,21 @@ print(TRANS_INFO.list)
 FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuseTrans')
 
 # fuse all outer loops
-LF1_SCHED, _ = FUSE_TRANS.apply(SCHEDULE.children[0],
-                                SCHEDULE.children[1])
-LF2_SCHED, _ = FUSE_TRANS.apply(LF1_SCHED.children[0],
-                                LF1_SCHED.children[1])
-LF3_SCHED, _ = FUSE_TRANS.apply(LF2_SCHED.children[0],
-                                LF2_SCHED.children[1])
-LF3_SCHED.view()
+FUSE_TRANS.apply(SCHEDULE.children[0],
+                 SCHEDULE.children[1])
+FUSE_TRANS.apply(SCHEDULE.children[0],
+                 SCHEDULE.children[1])
+FUSE_TRANS.apply(SCHEDULE.children[0],
+                 SCHEDULE.children[1])
+SCHEDULE.view()
 
 # fuse all inner loops
-LF4_SCHED, _ = FUSE_TRANS.apply(LF3_SCHED.children[0].loop_body[0],
-                                LF3_SCHED.children[0].loop_body[1])
-LF5_SCHED, _ = FUSE_TRANS.apply(LF4_SCHED.children[0].loop_body[0],
-                                LF4_SCHED.children[0].loop_body[1])
-LF6_SCHED, _ = FUSE_TRANS.apply(LF5_SCHED.children[0].loop_body[0],
-                                LF5_SCHED.children[0].loop_body[1])
-LF6_SCHED.view()
+FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
+                 SCHEDULE.children[0].loop_body[1])
+FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
+                 SCHEDULE.children[0].loop_body[1])
+FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
+                 SCHEDULE.children[0].loop_body[1])
+SCHEDULE.view()
 
-PSY.invokes.get('invoke_0').schedule = LF6_SCHED
 print(PSY.gen)

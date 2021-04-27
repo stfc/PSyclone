@@ -44,6 +44,7 @@ missing (TODO: #647)
 '''
 
 from __future__ import print_function
+from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
 
 def trans(psy):
@@ -57,7 +58,6 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.domain.gocean.transformations import GOceanExtractTrans
     extract = GOceanExtractTrans()
 
     invoke = psy.invokes.get("invoke_0")
@@ -70,10 +70,9 @@ def trans(psy):
     schedule = invoke.schedule
 
     # Enclose everything in a extract region
-    newschedule, _ = extract.apply(schedule.children,
-                                   {"create_driver": True,
-                                    "region_name": ("main", "update")})
+    extract.apply(schedule.children,
+                  {"create_driver": True,
+                   "region_name": ("main", "update")})
 
-    invoke.schedule = newschedule
-    newschedule.view()
+    schedule.view()
     return psy

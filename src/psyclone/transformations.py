@@ -892,7 +892,7 @@ class ColourTrans(LoopTrans):
     >>>
     >>> # Colour all of the loops
     >>> for child in schedule.children:
-    >>>     cschedule, _ = ctrans.apply(child)
+    >>>     cctrans.apply(child)
     >>>
     >>> csched.view()
 
@@ -972,7 +972,7 @@ class KernelModuleInlineTrans(KernelTrans):
     >>>
     >>> inline_trans = KernelModuleInlineTrans()
     >>>
-    >>> ischedule, _ = inline_trans.apply(schedule.children[0].loop_body[0])
+    >>> iinline_trans.apply(schedule.children[0].loop_body[0])
     >>> ischedule.view()
 
     .. warning ::
@@ -1063,7 +1063,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>>
     >>> # Colour all of the loops
     >>> for child in schedule.children:
-    >>>     cschedule, _ = ctrans.apply(child)
+    >>>     cctrans.apply(child)
     >>>
     >>> # Then apply OpenMP to each of the colour loops
     >>> schedule = cschedule
@@ -1280,7 +1280,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
-    >>> newschedule, _ = rtrans.apply(schedule.children)
+    >>> newrtrans.apply(schedule.children)
     >>> newschedule.view()
 
     '''
@@ -1352,9 +1352,9 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose everything within a single OpenACC PARALLEL region
-    >>> newschedule, _ = ptrans.apply(schedule.children)
+    >>> newptrans.apply(schedule.children)
     >>> # Add an enter-data directive
-    >>> newschedule, _ = dtrans.apply(newschedule)
+    >>> newdtrans.apply(newschedule)
     >>> newschedule.view()
 
     '''
@@ -1560,14 +1560,12 @@ class MoveTrans(Transformation):
 
         self.validate(node, location, options)
 
-        schedule = node.root
-
         if not options:
             options = {}
         position = options.get("position", "before")
 
         # Create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node, location])
+        keep = Memento(node.root, self, [node, location])
 
         parent = node.parent
 
@@ -1575,11 +1573,11 @@ class MoveTrans(Transformation):
 
         location_index = location.position
         if position == "before":
-            schedule.children.insert(location_index, my_node)
+            location.parent.children.insert(location_index, my_node)
         else:
-            schedule.children.insert(location_index+1, my_node)
+            location.children.insert(location_index+1, my_node)
 
-        return schedule, keep
+        return node.root, keep
 
 
 class Dynamo0p3RedundantComputationTrans(LoopTrans):
@@ -2184,7 +2182,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
-    >>>     new_schedule, _ = trans.apply(kernel, number_of_layers=150)
+    >>>     new_trans.apply(kernel, number_of_layers=150)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
     >>>     kernel_schedule.symbol_table.view()
 
@@ -2516,7 +2514,7 @@ class ACCEnterDataTrans(Transformation):
     >>> schedule.view()
     >>>
     >>> # Add an enter-data directive
-    >>> newschedule, _ = dtrans.apply(schedule)
+    >>> newdtrans.apply(schedule)
     >>> newschedule.view()
 
     '''
@@ -3022,11 +3020,12 @@ class KernelGlobalsToArguments(Transformation):
                 "nodes but found '{1}' instead.".
                 format(self.name, type(node).__name__))
 
-        if not isinstance(node.root, GOInvokeSchedule):
+        invoke_schedule = node.ancestor(InvokeSchedule)
+        if not isinstance(invoke_schedule, GOInvokeSchedule):
             raise TransformationError(
                 "The {0} transformation is currently only supported for the "
                 "GOcean API but got an InvokeSchedule of type: '{1}'".
-                format(self.name, type(node.root).__name__))
+                format(self.name, type(invoke_schedule).__name__))
 
         # Check that there are no unqualified imports or undeclared symbols
         try:

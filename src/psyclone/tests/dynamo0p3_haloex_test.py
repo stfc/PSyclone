@@ -547,7 +547,7 @@ def test_add_halo_exchange_code_nreader(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule[0]
     rtrans = Dynamo0p3RedundantComputationTrans()
-    schedule, _ = rtrans.apply(loop, options={"depth": 1})
+    rtrans.apply(loop, options={"depth": 1})
     f1_field = schedule[0].field
     del schedule.children[0]
     schedule[1].field._name = "f1"

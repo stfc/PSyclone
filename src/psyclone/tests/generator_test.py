@@ -341,7 +341,7 @@ def test_script_trans():
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
     trans = LoopFuseTrans()
-    schedule, _ = trans.apply(loop1, loop2)
+    trans.apply(loop1, loop2)
     invoke.schedule = schedule
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script

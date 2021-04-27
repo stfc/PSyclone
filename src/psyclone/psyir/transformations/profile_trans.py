@@ -61,7 +61,7 @@ class ProfileTrans(PSyDataTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose all children within a single profile region
-    >>> newschedule, _ = p_trans.apply(schedule.children)
+    >>> newp_trans.apply(schedule.children)
     >>> newschedule.view()
 
     This implementation relies completely on the base class PSyDataTrans

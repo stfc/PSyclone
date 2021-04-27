@@ -38,13 +38,14 @@ function via the -s option. Transforms all kernels in the invoke
 to have them compiled for an OpenACC accelerator. '''
 
 from __future__ import print_function
+from psyclone.transformations import ACCParallelTrans, \
+    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans
+from psyclone.psyir.nodes import Loop
 
 
 def trans(psy):
     ''' Take the supplied psy object, apply OpenACC transformations
     to the schedule of invoke_0 and return the new psy object '''
-    from psyclone.transformations import ACCParallelTrans, \
-        ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
@@ -56,26 +57,23 @@ def trans(psy):
 
     # Apply the OpenACC Loop transformation to *every* loop
     # nest in the schedule
-    from psyclone.psyir.nodes import Loop
     for child in schedule.children:
         if isinstance(child, Loop):
-            newschedule, _ = ltrans.apply(child, {"collapse": 2})
-            schedule = newschedule
+            ltrans.apply(child, {"collapse": 2})
 
     # Put all of the loops in a single parallel region
-    newschedule, _ = ptrans.apply(schedule.children)
+    ptrans.apply(schedule.children)
 
     # Add an enter-data directive
-    newschedule, _ = dtrans.apply(schedule)
+    dtrans.apply(schedule)
 
     # Put an 'acc routine' directive inside each kernel
     for kern in schedule.coded_kernels():
-        _, _ = ktrans.apply(kern)
+        ktrans.apply(kern)
         # Ideally we would module-inline the kernel here (to save having to
         # rely on the compiler to do it) but this does not currently work
         # for the fparser2 AST (issue #229).
         # _, _ = itrans.apply(kern)
 
-    invoke.schedule = newschedule
-    newschedule.view()
+    schedule.view()
     return psy

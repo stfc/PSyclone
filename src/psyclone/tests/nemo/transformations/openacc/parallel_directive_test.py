@@ -66,7 +66,7 @@ def test_parallel_single_loop(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule[0:1])
+    acc_trans.apply(schedule[0:1])
     data_trans.apply(schedule[0])
     code = str(psy.gen)
 
@@ -102,7 +102,7 @@ def test_parallel_two_loops(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule[0:2])
+    acc_trans.apply(schedule[0:2])
     data_trans.apply(schedule[0])
     code = str(psy.gen)
     assert ("PROGRAM do_loop\n"
@@ -144,7 +144,7 @@ def test_parallel_if_block(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule[0:1])
+    acc_trans.apply(schedule[0:1])
     data_trans.apply(schedule[0])
     code = str(psy.gen)
     assert ("  !$ACC DATA COPYOUT(sto_tmp,sto_tmp2)\n"
@@ -166,7 +166,7 @@ def test_parallel_repeat_update(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1])
+    acc_trans.apply(schedule.children[0:1])
     data_trans.apply(schedule[0])
     accdir = schedule[0].dir_body[0]
     assert isinstance(accdir, ACCParallelDirective)

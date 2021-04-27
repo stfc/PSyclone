@@ -69,10 +69,10 @@ class PSyDataTrans(RegionTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose all children within a single PSyData region
-    >>> newschedule, _ = data_trans.apply(schedule.children)
+    >>> newdata_trans.apply(schedule.children)
     >>> newschedule.view()
     >>> # Or to use a class-prefix string and different region name:
-    >>> newschedule, _ = data_trans.apply(schedule.children,
+    >>> newdata_trans.apply(schedule.children,
     >>>                                   {"prefix": "my_prefix",
     >>>                                    "region_name": ("module","region")})
 
