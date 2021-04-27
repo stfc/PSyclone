@@ -38,7 +38,8 @@
 '''Performs pytest tests on the psyclone.psyir.backend.fortran and c module'''
 
 from __future__ import absolute_import
-
+import pytest
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.c import CWriter
@@ -180,6 +181,13 @@ def test_nemo_omp_do():
     # Now apply a parallel transform
     omp_loop = OMPLoopTrans()
     omp_loop.apply(schedule[0])
+    # By default the visitor should raise an exception because the loop
+    # directive is not inside a parallel region
+    fvisitor_with_checks = FortranWriter()
+    with pytest.raises(GenerationError) as err:
+        fvisitor_with_checks(schedule)
+    assert ("OMPDoDirective must be inside an OMP parallel region but could "
+            "not find an ancestor OMPParallelDirective" in str(err.value))
     # Disable checks on global constraints to remove need for parallel region
     fvisitor = FortranWriter(check_global_constraints=False)
     result = fvisitor(schedule)
