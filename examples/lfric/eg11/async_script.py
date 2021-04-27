@@ -69,7 +69,7 @@ def trans(psy):
     # (halo_exchange_start and halo_exchange_end) ones.
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     for kern in schedule.children[3:0:-1]:
-        schedule, _ = ahex_trans.apply(kern)
+        ahex_trans.apply(kern)
     schedule.view()
 
     # This transformation moves the start of the three halo exchanges
@@ -77,7 +77,7 @@ def trans(psy):
     # between communication and computation.
     mtrans = MoveTrans()
     for kern in schedule.children[5:0:-2]:
-        schedule, _ = mtrans.apply(kern, schedule.children[0])
+        mtrans.apply(kern, schedule.children[0])
     schedule.view()
 
     return psy

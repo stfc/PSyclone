@@ -629,14 +629,12 @@ def test_extract_colouring_omp_dynamo0p3():
 
     # First colour all of the loops over cells unless they are on
     # discontinuous spaces
-    cschedule = schedule
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
            not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
            and child.iteration_space == "cell_column":
-            cctrans.apply(child)
+            ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops
-    schedule = cschedule
     for child in schedule.children:
         if isinstance(child, Loop):
             if child.loop_type == "colours":

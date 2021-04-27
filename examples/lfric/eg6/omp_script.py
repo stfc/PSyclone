@@ -59,16 +59,16 @@ def trans(psy):
        config.distributed_memory:
         # We can't loop fuse as the loop bounds differ so add
         # OpenMP parallel do directives to the loops
-        schedule, _ = otrans.apply(schedule.children[0])
-        schedule, _ = otrans.apply(schedule.children[1])
+        otrans.apply(schedule.children[0])
+        otrans.apply(schedule.children[1])
     else:
         # Loop fuse the two built-in kernels. The 'same_space' flag needs to
         # be set as built-ins are over ANY_SPACE.
-        schedule, _ = ftrans.apply(schedule[0], schedule[1],
+        ftrans.apply(schedule[0], schedule[1],
                                    {"same_space": True})
 
         # Add an OpenMP parallel do directive to the resultant loop-fused loop
-        schedule, _ = otrans.apply(schedule.children[0])
+        otrans.apply(schedule.children[0])
 
     # take a look at what we've done
     schedule.view()

@@ -98,10 +98,7 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
         index = 0
 
     # Colour the loop
-    cctrans.apply(schedule.children[index])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = cschedule
+    ctrans.apply(schedule.children[index])
 
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
@@ -131,9 +128,7 @@ def test_colour_trans(tmpdir, dist_mem):
         index = 0
 
     # Colour the loop
-    cctrans.apply(schedule.children[index])
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = cschedule
+    ctrans.apply(schedule.children[index])
 
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
@@ -279,10 +274,7 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
         index = 0
 
     # Colour the loop
-    cctrans.apply(schedule.children[index])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = cschedule
+    ctrans.apply(schedule.children[index])
 
     # Store the results of applying this code transformation as
     # a string
@@ -433,12 +425,11 @@ def test_omp_colour_trans(tmpdir, dist_mem):
         index = 0
 
     # Colour the loop
-    cctrans.apply(schedule.children[index])
+    ctrans.apply(schedule.children[index])
 
     # Then apply OpenMP to the inner loop
-    otrans.apply(cschedule.children[index].loop_body[0])
+    otrans.apply(schedule.children[index].loop_body[0])
 
-    invoke.schedule = schedule
     code = str(psy.gen)
 
     assert ("      ncolour = mesh%get_ncolours()\n"
@@ -547,12 +538,12 @@ def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed, dist_mem):
     otrans = DynamoOMPParallelLoopTrans()
 
     # Colour the loop
-    cctrans.apply(schedule.children[index])
+    ctrans.apply(schedule.children[index])
 
     # Then erroneously attempt to apply OpenMP to the loop over
     # colours
     with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(cschedule.children[index])
+        otrans.apply(schedule.children[index])
     assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
     assert "target loop is over colours" in str(excinfo.value)
     assert "must be computed serially" in str(excinfo.value)
@@ -585,12 +576,12 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     otrans = Dynamo0p3OMPLoopTrans()
 
     # Colour the loop
-    cctrans.apply(schedule.children[index])
+    ctrans.apply(schedule.children[index])
 
     # Then erroneously attempt to apply OpenMP to the loop over
     # colours
     with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(cschedule.children[index])
+        otrans.apply(schedule.children[index])
 
     assert "Error in Dynamo0p3OMPLoopTrans" in str(excinfo.value)
     assert "target loop is over colours" in str(excinfo.value)
@@ -667,8 +658,7 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
             index = 5
         else:
             # f is required but can be moved before the first loop
-            mtrans.apply(schedule.children[7],
-                                       schedule.children[6])
+            mtrans.apply(schedule.children[7], schedule.children[6])
             index = 7
     else:
         index = 0
@@ -711,13 +701,10 @@ def test_omp_region_omp_do(dist_mem):
 
     # Put an OMP PARALLEL around this loop
     child = schedule[index]
-    optrans.apply(child)
+    ptrans.apply(child)
 
     # Put an OMP DO around this loop
-    olooptrans.apply(oschedule[index].dir_body[0])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    olooptrans.apply(schedule[index].dir_body[0])
 
     # Store the results of applying this code transformation as
     # a string
@@ -771,13 +758,10 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
         # there are no halo exchange calls
         index = 0
     child = schedule[index]
-    optrans.apply(child)
+    ptrans.apply(child)
 
     # Put an OMP DO around this loop
-    olooptrans.apply(oschedule[index].dir_body[0])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    olooptrans.apply(schedule[index].dir_body[0])
 
     # Store the results of applying this code transformation as
     # a string
@@ -961,7 +945,7 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
             # before the 1st loop as they are not accessed in it
             for idx in range(index-3, index):
                 mtrans.apply(schedule.children[idx+1],
-                                           schedule.children[idx])
+                             schedule.children[idx])
         else:
             index = 0
 
@@ -1008,7 +992,7 @@ def test_loop_fuse(dist_mem):
 
     # Fuse the loops
     ftrans.apply(schedule.children[index],
-                               schedule.children[index+1])
+                 schedule.children[index+1])
 
     gen = str(psy.gen)
 
@@ -1046,8 +1030,7 @@ def test_loop_fuse_set_dirty():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     # Fuse the loops
-    ftrans.apply(schedule.children[4],
-                               schedule.children[5])
+    ftrans.apply(schedule.children[4], schedule.children[5])
 
     gen = str(psy.gen)
     assert gen.count("set_dirty()") == 1
@@ -1067,8 +1050,7 @@ def test_loop_fuse_omp(dist_mem):
     ftrans = LFRicLoopFuseTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
-    ftrans.apply(schedule.children[0],
-                               schedule.children[1])
+    ftrans.apply(schedule.children[0], schedule.children[1])
 
     otrans.apply(schedule.children[0])
 
@@ -1133,8 +1115,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
     else:
         # there are no halo exchange calls
         index = 0
-    ftrans.apply(schedule.children[index],
-                               schedule.children[index+1])
+    ftrans.apply(schedule.children[index], schedule.children[index+1])
 
     otrans.apply(schedule.children[index])
 
@@ -1202,8 +1183,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
             index = 5
         else:
             # f is required but can be moved before the first loop
-            mtrans.apply(schedule.children[7],
-                                       schedule.children[6])
+            mtrans.apply(schedule.children[7], schedule.children[6])
             index = 7
     else:
         index = 0
@@ -1213,8 +1193,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     ctrans.apply(schedule[index+1])
 
     # fuse the sequential colours loop
-    ftrans.apply(schedule[index],
-                               schedule[index+1])
+    ftrans.apply(schedule[index], schedule[index+1])
 
     # Enclose the colour loops within an OMP parallel region
     rtrans.apply(schedule[index].loop_body.children)
@@ -1290,20 +1269,16 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
     schedule = invoke.schedule
     if dist_mem:
         # move halo exchanges before the first loop
-        mtrans.apply(schedule.children[2],
-                                   schedule.children[1])
-        mtrans.apply(schedule.children[3],
-                                   schedule.children[2])
-        mtrans.apply(schedule.children[4],
-                                   schedule.children[3])
+        mtrans.apply(schedule.children[2], schedule.children[1])
+        mtrans.apply(schedule.children[3], schedule.children[2])
+        mtrans.apply(schedule.children[4], schedule.children[3])
         index = 4
     else:
         index = 0
 
     # Fuse the loops
-    ftrans.apply(schedule.children[index],
-                               schedule.children[index+1],
-                               {"same_space": True})
+    ftrans.apply(schedule.children[index], schedule.children[index+1],
+                 {"same_space": True})
     code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1543,9 +1518,9 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     ftrans.apply(schedule.children[0], schedule.children[1],
-                               {"same_space": True})
+                 {"same_space": True})
     ftrans.apply(schedule.children[0], schedule.children[1],
-                               {"same_space": True})
+                 {"same_space": True})
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     otrans.apply(schedule.children[0])
@@ -1747,10 +1722,8 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
                              idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply(schedule[0], schedule[1],
-                               {"same_space": True})
-    ftrans.apply(schedule[0], schedule[1],
-                               {"same_space": True})
+    ftrans.apply(schedule[0], schedule[1], {"same_space": True})
+    ftrans.apply(schedule[0], schedule[1], {"same_space": True})
 
     olooptrans = Dynamo0p3OMPLoopTrans()
     ptrans = OMPParallelTrans()
@@ -2138,9 +2111,8 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
     if dist_mem:
         # Move the first global sum after the second loop
         mtrans = MoveTrans()
-        mtrans.apply(schedule.children[1],
-                                   schedule.children[2],
-                                   {"position": "after"})
+        mtrans.apply(schedule.children[1], schedule.children[2],
+                     {"position": "after"})
     otrans = Dynamo0p3OMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
@@ -2212,9 +2184,8 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
     if dist_mem:
         # Move the first global sum after the second loop
         mtrans = MoveTrans()
-        mtrans.apply(schedule.children[1],
-                                   schedule.children[2],
-                                   {"position": "after"})
+        mtrans.apply(schedule.children[1], schedule.children[2],
+                     {"position": "after"})
     otrans = Dynamo0p3OMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
@@ -2357,9 +2328,8 @@ def test_multi_reduction_real_fuse():
                 # to perform our check
                 del schedule.children[1]
             with pytest.raises(TransformationError) as excinfo:
-                ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           {"same_space": True})
+                ftrans.apply(schedule.children[0], schedule.children[1],
+                             {"same_space": True})
             assert ("Error in LFRicLoopFuseTrans transformation: Cannot "
                     "fuse loops when each loop already contains a "
                     "reduction" in str(excinfo.value))
@@ -2525,9 +2495,8 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             otrans.apply(child, {"reprod": False})
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
-        mtrans.apply(schedule.children[1],
-                                   schedule.children[2],
-                                   {"position": "after"})
+        mtrans.apply(schedule.children[1], schedule.children[2],
+                     {"position": "after"})
     rtrans.apply(schedule.children[0:2])
     invoke.schedule = schedule
     result = str(psy.gen)
@@ -2602,25 +2571,21 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
     ftrans = LFRicLoopFuseTrans()
     if dist_mem and annexed:
         mtrans = MoveTrans()
-        mtrans.apply(schedule.children[1],
-                                   schedule.children[2],
-                                   {"position": "after"})
+        mtrans.apply(schedule.children[1], schedule.children[2],
+                     {"position": "after"})
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       {"same_space": True})
+            ftrans.apply(schedule.children[0], schedule.children[1],
+                         {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
         if dist_mem:  # annexed must be False here
             # first move the loop as the global sum is in the way
             mtrans = MoveTrans()
-            mtrans.apply(schedule.children[1],
-                                       schedule.children[2],
-                                       {"position": "after"})
+            mtrans.apply(schedule.children[1], schedule.children[2],
+                         {"position": "after"})
         rtrans = DynamoOMPParallelLoopTrans()
-        ftrans.apply(schedule.children[0],
-                                   schedule.children[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
         rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         result = str(psy.gen)
@@ -2681,25 +2646,21 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
     ftrans = LFRicLoopFuseTrans()
     if dist_mem and annexed:
         mtrans = MoveTrans()
-        mtrans.apply(schedule.children[1],
-                                   schedule.children[2],
-                                   {"position": "after"})
+        mtrans.apply(schedule.children[1], schedule.children[2],
+                     {"position": "after"})
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       {"same_space": True})
+            ftrans.apply(schedule.children[0], schedule.children[1],
+                         {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
         if dist_mem:  # annexed must be False here
             mtrans = MoveTrans()
-            mtrans.apply(schedule.children[1],
-                                       schedule.children[2],
-                                       {"position": "after"})
+            mtrans.apply(schedule.children[1], schedule.children[2],
+                         {"position": "after"})
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
-        ftrans.apply(schedule.children[0],
-                                   schedule.children[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
         otrans.apply(schedule.children[0], {"reprod": False})
         rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
@@ -2836,15 +2797,13 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
 
     if dist_mem and annexed:
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       {"same_space": True})
+            ftrans.apply(schedule.children[0], schedule.children[1],
+                         {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
         otrans = DynamoOMPParallelLoopTrans()
-        ftrans.apply(schedule.children[0],
-                                   schedule.children[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
         otrans.apply(schedule.children[0])
         invoke.schedule = schedule
         result = str(psy.gen)
@@ -2906,16 +2865,14 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
 
     if dist_mem and annexed:
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       {"same_space": True})
+            ftrans.apply(schedule.children[0], schedule.children[1],
+                         {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
-        ftrans.apply(schedule.children[0],
-                                   schedule.children[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
         otrans.apply(schedule.children[0], {"reprod": False})
         rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
@@ -2977,10 +2934,10 @@ def test_multi_builtins_fuse_error():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     ftrans.apply(schedule.children[0], schedule.children[1],
-                               {"same_space": True})
+                 {"same_space": True})
     with pytest.raises(TransformationError) as excinfo:
         ftrans.apply(schedule.children[0], schedule.children[1],
-                                   {"same_space": True})
+                     {"same_space": True})
     assert ("Cannot fuse loops as the first loop has a reduction and "
             "the second loop reads the result of the "
             "reduction") in str(excinfo.value)
@@ -2994,8 +2951,7 @@ def test_loop_fuse_error(dist_mem):
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        ftrans.apply(schedule.children[0],
-                                   schedule.children[1])
+        ftrans.apply(schedule.children[0], schedule.children[1])
     assert ("One or more of the iteration spaces is unknown "
             "('ANY_SPACE') so loop fusion might be "
             "invalid") in str(excinfo.value)
@@ -3131,9 +3087,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             otrans.apply(child, {"reprod": True})
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
-        mtrans.apply(schedule.children[1],
-                                   schedule.children[2],
-                                   {"position": "after"})
+        mtrans.apply(schedule.children[1], schedule.children[2],
+                     {"position": "after"})
     rtrans.apply(schedule.children[0:2])
     invoke.schedule = schedule
     result = str(psy.gen)
@@ -3241,25 +3196,21 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
 
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
-        mtrans.apply(schedule.children[1],
-                                   schedule.children[2],
-                                   {"position": "after"})
+        mtrans.apply(schedule.children[1], schedule.children[2],
+                     {"position": "after"})
     if dist_mem and annexed:
         # we can't loop fuse as the loop bounds differ
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       {"same_space": True})
+            ftrans.apply(schedule.children[0], schedule.children[1],
+                         {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
         # we can loop fuse as the loop bounds are the same
-        ftrans.apply(schedule.children[0],
-                                   schedule.children[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
-        otrans.apply(schedule.children[0],
-                                   {"reprod": "True"})
+        otrans.apply(schedule.children[0], {"reprod": "True"})
         rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         result = str(psy.gen)
@@ -3356,16 +3307,14 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
 
     if dist_mem and annexed:
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       {"same_space": True})
+            ftrans.apply(schedule.children[0], schedule.children[1],
+                         {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not distmem and annexed
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
-        ftrans.apply(schedule.children[0],
-                                   schedule.children[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
         otrans.apply(schedule.children[0], {"reprod": True})
         rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
@@ -3657,8 +3606,7 @@ def test_reductions_reprod():
             otrans = Dynamo0p3OMPLoopTrans()
             rtrans = OMPParallelTrans()
             # Apply an OpenMP do directive to the loop
-            otrans.apply(schedule.children[0],
-                                       {"reprod": reprod})
+            otrans.apply(schedule.children[0], {"reprod": reprod})
             # Apply an OpenMP Parallel directive around the OpenMP do directive
             rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
@@ -5403,12 +5351,12 @@ def test_rc_colour(tmpdir):
     # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cctrans.apply(schedule.children[4])
+    ctrans.apply(schedule.children[4])
 
     # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the colour loop
-    rc_trans.apply(cschedule.children[4].loop_body[0], {"depth": 2})
+    rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 2})
 
     result = str(psy.gen)
 
@@ -5451,13 +5399,13 @@ def test_rc_max_colour(tmpdir):
     # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cctrans.apply(schedule.children[4])
+    ctrans.apply(schedule.children[4])
 
     # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the colour loop out to the full
     # halo depth
-    rc_trans.apply(cschedule.children[4].loop_body[0])
+    rc_trans.apply(schedule.children[4].loop_body[0])
 
     result = str(psy.gen)
     assert (
@@ -5621,8 +5569,7 @@ def test_loop_fuse_then_rc(tmpdir):
     ftrans = LFRicLoopFuseTrans()
 
     # Fuse the loops
-    ftrans.apply(schedule.children[4],
-                               schedule.children[5])
+    ftrans.apply(schedule.children[4], schedule.children[5])
 
     # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -6550,10 +6497,8 @@ def test_async_hex_move_1(tmpdir):
     ahex_trans.apply(m1_hex)
 
     mtrans = MoveTrans()
-    mtrans.apply(schedule.children[2],
-                               schedule.children[1])
-    mtrans.apply(schedule.children[4],
-                               schedule.children[3])
+    mtrans.apply(schedule.children[2], schedule.children[1])
+    mtrans.apply(schedule.children[4], schedule.children[3])
     result = str(psy.gen)
     assert (
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
@@ -6653,8 +6598,7 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     ahex_trans.apply(f2_hex)
 
     mtrans = MoveTrans()
-    mtrans.apply(schedule.children[10],
-                               schedule.children[9])
+    mtrans.apply(schedule.children[10], schedule.children[9])
     result = str(psy.gen)
     assert (
         "      CALL f2_proxy%halo_exchange_start(depth=1)\n"
@@ -6687,14 +6631,12 @@ def test_async_hex_move_error_1():
 
     # end before start
     with pytest.raises(TransformationError) as excinfo:
-        mtrans.apply(schedule.children[2],
-                                   schedule.children[1])
+        mtrans.apply(schedule.children[2], schedule.children[1])
     assert "dependencies forbid" in str(excinfo.value)
 
     # start after end
     with pytest.raises(TransformationError) as excinfo:
-        mtrans.apply(schedule.children[1],
-                                   schedule.children[3])
+        mtrans.apply(schedule.children[1], schedule.children[3])
     assert "dependencies forbid" in str(excinfo.value)
 
 
@@ -6716,15 +6658,13 @@ def test_async_hex_move_error_2():
 
     # Start before prev modifier
     with pytest.raises(TransformationError) as excinfo:
-        mtrans.apply(schedule.children[5],
-                                   schedule.children[4])
+        mtrans.apply(schedule.children[5], schedule.children[4])
     assert "dependencies forbid" in str(excinfo.value)
 
     # End after following reader
     with pytest.raises(TransformationError) as excinfo:
-        mtrans.apply(schedule.children[6],
-                                   schedule.children[7],
-                                   {"position": "after"})
+        mtrans.apply(schedule.children[6], schedule.children[7],
+                     {"position": "after"})
     assert "dependencies forbid" in str(excinfo.value)
 
 
@@ -6823,10 +6763,8 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     # move m2 async halo exchange start and end then check depths and
     # set clean are still generated correctly for m2
     mtrans = MoveTrans()
-    mtrans.apply(schedule.children[5],
-                               schedule.children[0])
-    mtrans.apply(schedule.children[6],
-                               schedule.children[2])
+    mtrans.apply(schedule.children[5], schedule.children[0])
+    mtrans.apply(schedule.children[6], schedule.children[2])
     result = str(psy.gen)
     assert (
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
@@ -6882,10 +6820,8 @@ def test_move_vector_halo_exchange():
 
     # reverse the order of the vector halo exchanges
     mtrans = MoveTrans()
-    mtrans.apply(schedule.children[1],
-                               schedule.children[0])
-    mtrans.apply(schedule.children[2],
-                               schedule.children[1])
+    mtrans.apply(schedule.children[1], schedule.children[0])
+    mtrans.apply(schedule.children[2], schedule.children[1])
     # When the test is fixed, add a check for re-ordered output here
 
 

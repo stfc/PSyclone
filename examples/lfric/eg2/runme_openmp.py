@@ -56,27 +56,21 @@ OMP_PAR = TRANS.get_trans_name('OMPParallelLoopTrans')
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
 SCHEDULE.view()
 
-FUSE_SCHEDULE, _ = LOOP_FUSE.apply(SCHEDULE.children[0], SCHEDULE.children[1])
-FUSE_SCHEDULE.view()
-OMP_SCHEDULE, _ = OMP_PAR.apply(FUSE_SCHEDULE.children[0])
-OMP_SCHEDULE.view()
-
-PSY.invokes.get('invoke_0').schedule = OMP_SCHEDULE
+LOOP_FUSE.apply(SCHEDULE.children[0], SCHEDULE.children[1])
+SCHEDULE.view()
+OMP_PAR.apply(SCHEDULE.children[0])
+SCHEDULE.view()
 
 SCHEDULE = PSY.invokes.get('invoke_1_v2_kernel_type').schedule
 SCHEDULE.view()
 
-OMP_SCHEDULE, _ = OMP_PAR.apply(SCHEDULE.children[0])
-OMP_SCHEDULE.view()
-
-PSY.invokes.get('invoke_1_v2_kernel_type').schedule = OMP_SCHEDULE
+OMP_PAR.apply(SCHEDULE.children[0])
+SCHEDULE.view()
 
 SCHEDULE = PSY.invokes.get('invoke_2_v1_kernel_type').schedule
 SCHEDULE.view()
 
-OMP_SCHEDULE, _ = OMP_PAR.apply(SCHEDULE.children[0])
-OMP_SCHEDULE.view()
-
-PSY.invokes.get('invoke_2_v1_kernel_type').schedule = OMP_SCHEDULE
+OMP_PAR.apply(SCHEDULE.children[0])
+SCHEDULE.view()
 
 print(PSY.gen)

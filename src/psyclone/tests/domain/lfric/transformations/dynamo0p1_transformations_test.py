@@ -31,7 +31,7 @@ def test_openmp_region():
                              name="invoke_0_testkern_type")
     schedule = invoke.schedule
     rtrans = OMPParallelTrans()
-    invoke.rtrans.apply(schedule.children[0])
+    rtrans.apply(schedule.children[0])
     gen = str(psy.gen)
 
     # Check that our list of private variables is correct

@@ -57,10 +57,10 @@ def trans(psy):
     schedule = invoke.schedule
 
     # redundant computation to remove grad_p halo exchanges
-    schedule, _ = rc_trans.apply(schedule.children[5], {"depth": 2})
-    schedule, _ = rc_trans.apply(schedule.children[0], {"depth": 2})
+    rc_trans.apply(schedule.children[5], {"depth": 2})
+    rc_trans.apply(schedule.children[0], {"depth": 2})
 
     # move remaining (potential) halo exchanges to start of the invoke
-    schedule, _ = m_trans.apply(schedule.children[0], schedule.children[4])
+    m_trans.apply(schedule.children[0], schedule.children[4])
 
     return psy

@@ -67,8 +67,7 @@ def trans(psy):
             node = schedule.children[idx]
             prev_node = schedule.children[idx-1]
             try:
-                schedule, _ = lf_trans.apply(prev_node, node,
-                                             {"same_space": True})
+                lf_trans.apply(prev_node, node, {"same_space": True})
                 local_fused += 1
             except TransformationError:
                 pass
@@ -77,7 +76,6 @@ def trans(psy):
         if local_fused > 0:
             print("After fusing ...")
             schedule.view()
-            invoke.schedule = schedule
 
     print("Fused {0} loops".format(total_fused))
     return psy

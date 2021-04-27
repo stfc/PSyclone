@@ -59,23 +59,20 @@ def trans(psy):
 
         # Colour all of the loops over cells unless they are on
         # discontinuous spaces
-        cschedule = schedule
         for child in schedule.children:
             if isinstance(child, Loop) \
                and child.field_space.orig_name \
                not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
                and child.iteration_space == "cell_column":
-                cschedule, _ = ctrans.apply(child)
+                ctrans.apply(child)
         # Then apply OpenMP to each of the colour loops
-        schedule = cschedule
         for child in schedule.children:
             if isinstance(child, Loop):
                 if child.loop_type == "colours":
-                    schedule, _ = otrans.apply(child.loop_body[0])
+                    otrans.apply(child.loop_body[0])
                 else:
-                    schedule, _ = otrans.apply(child)
+                    otrans.apply(child)
 
         schedule.view()
-        invoke.schedule = schedule
 
     return psy

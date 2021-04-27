@@ -84,7 +84,7 @@ def trans(psy):
     # Apply extract transformation to selected Nodes
     print("\nExtracting Nodes '[" + str(LBOUND) + ":" + str(UBOUND) +
           "]' from Invoke '" + invoke.name + "'\n")
-    schedule, _ = etrans.apply(schedule.children[LBOUND:UBOUND])
+    etrans.apply(schedule.children[LBOUND:UBOUND])
 
     # Take a look at the transformed Schedule
     schedule.view()

@@ -1575,7 +1575,7 @@ class MoveTrans(Transformation):
         if position == "before":
             location.parent.children.insert(location_index, my_node)
         else:
-            location.children.insert(location_index+1, my_node)
+            location.parent.children.insert(location_index+1, my_node)
 
         return node.root, keep
 

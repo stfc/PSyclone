@@ -103,7 +103,7 @@ def trans(psy):
                 print("\nExtracting Node '[" + str(child.position) +
                       "]' with Kernel call '" + KERNEL_NAME +
                       "' from Invoke '" + invoke.name + "'\n")
-                schedule, _ = etrans.apply(child)
+                etrans.apply(child)
 
     # Take a look at the transformed Schedule
     schedule.view()
