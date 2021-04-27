@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''A transformation script that seeks to apply OpenACC DATA and KERNELS
+'''A transformation script that seeks to apply OpenACC KERNELS
 directives to NEMO style code.  In order to use
 it you must first install PSyclone. See README.md in the top-level
 psyclone directory.
@@ -257,7 +257,7 @@ def valid_acc_kernel(node):
 
     if (isinstance(node.parent.parent, IfBlock) and
             "was_where" in node.parent.parent.annotations):
-        # Cannot put KERNELS *within* a loop nest tht originated from
+        # Cannot put KERNELS *within* a loop nest that originated from
         # a WHERE construct.
         log_msg(routine_name, "cannot put KERNELs *inside* a WHERE", node)
         return False
@@ -610,20 +610,6 @@ def try_kernels_trans(nodes):
     :rtype: bool
 
     '''
-    # We only enclose the proposed region if it contains a loop.
-    have_loop = False
-    for node in nodes:
-        if node.walk(Loop):
-            have_loop = True
-            break
-        assigns = node.walk(Assignment)
-        for assign in assigns:
-            if assign.is_array_range:
-                have_loop = True
-                break
-    if not have_loop:
-        return False
-
     invokesched = nodes[0].ancestor(NemoInvokeSchedule)
     routine_name = invokesched.invoke.name.lower()
     try:
