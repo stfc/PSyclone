@@ -710,10 +710,10 @@ class GOLoop(Loop):
             try:
                 _ = Nonlabel_Do_Stmt(do_string)
             except NoMatchError as err:
-                raise ConfigurationError("Expression '{0}' is not a "
+                six.raise_from(ConfigurationError("Expression '{0}' is not a "
                                          "valid do loop boundary. Error "
                                          "message: '{1}'."
-                                         .format(bound, str(err)))
+                                         .format(bound, str(err))), err)
 
         # All tests successful, so add the new bounds:
         # --------------------------------------------
@@ -2477,11 +2477,12 @@ class GOKernelGridArgument(Argument):
         api_config = Config.get().api_conf("gocean1.0")
         try:
             deref_name = api_config.grid_properties[arg.grid_prop].fortran
-        except KeyError:
+        except KeyError as err:
             all_keys = str(api_config.grid_properties.keys())
-            raise GenerationError("Unrecognised grid property specified. "
-                                  "Expected one of {0} but found '{1}'".
-                                  format(all_keys, arg.grid_prop))
+            six.raise_from(GenerationError("Unrecognised grid property "
+                                  "specified. Expected one of {0} but found "
+                                  "'{1}'". format(all_keys, arg.grid_prop)),
+                           err)
 
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
@@ -2850,6 +2851,7 @@ class GO1p0Descriptor(Descriptor):
 
     '''
     def __init__(self, kernel_name, kernel_arg):
+        # pylint: disable=too-many-locals
         nargs = len(kernel_arg.args)
         stencil_info = None
 
@@ -2911,12 +2913,12 @@ class GO1p0Descriptor(Descriptor):
         access_mapping = api_config.get_access_mapping()
         try:
             access_type = access_mapping[access]
-        except KeyError:
+        except KeyError as err:
             valid_names = api_config.get_valid_accesses_api()
-            raise ParseError("Meta-data error in kernel {0}: argument "
-                             "access  is given as '{1}' but must be "
+            six.raise_from(ParseError("Meta-data error in kernel {0}: "
+                             "argument access  is given as '{1}' but must be "
                              "one of {2}".
-                             format(kernel_name, access, valid_names))
+                             format(kernel_name, access, valid_names)), err)
 
         # Finally we can call the __init__ method of our base class
         super(GO1p0Descriptor,
