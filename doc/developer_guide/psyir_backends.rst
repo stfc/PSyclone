@@ -152,7 +152,7 @@ specific method implemented will call this. To see the
 class hierarchy, the following code can be written::
 
 
-   from __future__ import print_function
+    from __future__ import print_function
     class PrintHierarchy(PSyIRVisitor):
         ''' Example of a visitor that prints the PSyIR node hierarchy. '''
 
@@ -175,7 +175,7 @@ previous example using strings would give the following::
 
    
     from __future__ import print_function class
-    PrintHierarchy(PSyIRVisitor):
+    class PrintHierarchy(PSyIRVisitor):
         ''' Example of a visitor that prints the PSyIR node hierarchy'''
 
         def node_node(self, node):
@@ -209,7 +209,7 @@ writing the following::
 
     from __future__ import print_function
     class PrintHierarchy(PSyIRVisitor):
-    ''' Example of a visitor that prints the PSyIR node hierarchy
+        ''' Example of a visitor that prints the PSyIR node hierarchy
         with indentation'''
 
         def node_node(self, node):

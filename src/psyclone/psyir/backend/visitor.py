@@ -169,7 +169,7 @@ class PSyIRVisitor(object):
         :param node: A PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: representation of the sub-tree with `node` at its root.
+        :returns: text representation of the PSyIR node sub-tree.
         :rtype: str
 
         :raises VisitorError: if a node is found that does not have \
