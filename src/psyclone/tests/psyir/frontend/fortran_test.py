@@ -31,14 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Authors S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
 from __future__ import absolute_import
-import os
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -67,6 +65,9 @@ def test_fortran_reader_constructor():
     assert freader._parser is Fortran2003.Program
     assert isinstance(freader._processor, Fparser2Reader)
 
+    # The initialised parser can parse Fortran 2008 standard
+    freader.psyir_from_source(ONLY_2008_CODE)
+
 
 def test_fortran_psyir_from_source():
     ''' Test that the psyir_from_source method parses to PSyIR
@@ -76,14 +77,13 @@ def test_fortran_psyir_from_source():
     assert isinstance(subroutine, Routine)
 
 
-def test_fortran_psyir_from_file(tmpdir):
+def test_fortran_psyir_from_file(tmpdir_factory):
     ''' Test that the psyir_from_file method reads and parses to PSyIR
     the specified file. '''
-    filename = "testfile.f90"
-    filepath = os.path.join(tmpdir, filename)
-    with open(filepath, "w") as wfile:
+    filename = tmpdir_factory.mktemp('frontend_test').join("testfile.f90")
+    with open(filename, "w") as wfile:
         wfile.write(CODE)
 
     fortran_reader = FortranReader()
-    subroutine = fortran_reader.psyir_from_file(filepath)
+    subroutine = fortran_reader.psyir_from_file(filename)
     assert isinstance(subroutine, Routine)
