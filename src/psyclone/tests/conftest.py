@@ -43,6 +43,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
+from fparser.two.parser import ParserFactory
 
 
 # fixtures defined here are available to all tests
@@ -140,9 +141,12 @@ def parser():
     '''
     Creates and returns an fparser object. Since this is expensive we only
     do this once per test session (scope="session" above).
+
+    Note: If this fixture is not used to the fparser parse tree but is just
+    a step to getting the PSyIR, use the fortran_reader fixture below.
+
     '''
-    from fparser.two.parser import ParserFactory
-    return ParserFactory().create()
+    return ParserFactory().create(std="f2008")
 
 
 @pytest.fixture(scope="function")
@@ -153,9 +157,9 @@ def kernel_outputdir(tmpdir, monkeypatch):
     return tmpdir
 
 
-@pytest.fixture(scope="session", name="fortran_reader")
+@pytest.fixture(scope="function", name="fortran_reader")
 def fixture_fortran_reader():
-    ''' Initialise f2parser2 to PSyIR reader with Fortran2008 standard. '''
+    '''Create and return a FortranReader object with default settings.'''
     return FortranReader()
 
 

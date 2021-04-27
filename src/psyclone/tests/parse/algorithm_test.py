@@ -53,7 +53,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
 
 
-ParserFactory().create()
+ParserFactory().create(std="f2008")
 
 
 # class parser() tests
@@ -125,7 +125,7 @@ def test_parser_caseinsensitive1():
     statement is case insensitive.
 
     '''
-    ParserFactory().create(std="f2003")
+    ParserFactory().create(std="f2008")
     parser = Parser()
     use = Use_Stmt("use my_mod, only : SETVAL_X")
     parser.update_arg_to_module_map(use)
@@ -149,7 +149,7 @@ def test_parser_caseinsensitive2(monkeypatch):
         raise NotImplementedError("test_parser_caseinsensitive2")
 
     monkeypatch.setattr("psyclone.parse.kernel.get_kernel_ast", dummy_func)
-    ParserFactory().create(std="f2003")
+    ParserFactory().create(std="f2008")
     parser = Parser()
     use = Use_Stmt("use my_mod, only : MY_KERN")
     parser.update_arg_to_module_map(use)

@@ -45,12 +45,12 @@ class FortranReader(object):
     or a file into PSyIR using the fparser2 utilities.
 
     '''
-    # Save parser object across instances.
+    # Save parser object across instances to reduce the initialisation time
     _parser = None
 
     def __init__(self):
         if not self._parser:
-            self._parser = ParserFactory().create()
+            self._parser = ParserFactory().create(std="f2008")
         self._processor = Fparser2Reader()
 
     def psyir_from_source(self, source_code):

@@ -40,15 +40,15 @@ the parser modules.
 
 import io
 
-from psyclone.configuration import Config
-from psyclone.line_length import FortLineLength
-from psyclone.errors import InternalError
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranFileReader
 from fparser.two.utils import FortranSyntaxError
+from psyclone.configuration import Config
+from psyclone.line_length import FortLineLength
+from psyclone.errors import InternalError
+
 
 # Exceptions
-
 
 class ParseError(Exception):
     '''Provides a PSyclone-specific error class for the situation when
@@ -117,7 +117,7 @@ def parse_fp2(filename):
     :raises ParseError: if the file could not be parsed.
 
     '''
-    parser = ParserFactory().create()
+    parser = ParserFactory().create(std="f2008")
     # We get the directories to search for any Fortran include files from
     # our configuration object.
     config = Config.get()
