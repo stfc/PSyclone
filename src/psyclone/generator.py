@@ -65,6 +65,7 @@ from psyclone.configuration import Config, ConfigurationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.symbols import LocalInterface
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
@@ -140,6 +141,28 @@ def handle_script(script_name, psy):
         raise msg
     if sys_path_appended:
         os.sys.path.pop()
+
+
+def remove_invoke_symbol(psyir):
+    '''Utility routine that removes any symbols named 'invoke' from the
+    symbol tables within the supplied PSyIR. This is likely to be
+    removed when issue #*** is addressed.
+
+    :param psyir: the PSyIR tree having symbols named 'invoke' \
+        removed.
+    :type psyir: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    from psyclone.psyir.nodes import Node
+    for node in psyir.walk(Node):
+        if hasattr(node, "symbol_table"):
+            try:
+                symbol = node.symbol_table.lookup("invoke")
+                print (dir(symbol))
+                symbol._interface = LocalInterface()
+                # node.symbol_table.remove(symbol)
+            except:
+                pass
 
 
 def generate(filename, api="", kernel_path="", script_name=None,
@@ -247,26 +270,16 @@ def generate(filename, api="", kernel_path="", script_name=None,
                 alg_trans = AlgTrans()
                 alg_trans.apply(psyir)
 
-                # call to algorithm optimisation script would go here
-
-                # psygen creation and symbol generation would go here
-                # (+ algorithm processing could go here)
-
-                # psygen optimisation script would go here
+                # issue #753
+                # 1) call to algorithm optimisation script will go here
+                # 2) psygen creation and symbol generation will go here
+                #    (+ algorithm processing could go here, which would
+                #    include the removal of the invoke symbol).
+                # 3) psygen optimisation script will go here
 
                 # Process and lower to language-level PSyIR        
                 psyir.lower_to_language_level()
 
-                # TODO issue #xxx 
-                # remove_invoke_symbol(psyir)
-                from psyclone.psyir.nodes import Node
-                for node in psyir.walk(Node):
-                    if hasattr(node, "symbol_table"):
-                        try:
-                            symbol = node.symbol_table.lookup("invoke")
-                            node.symbol_table.remove(symbol)
-                        except:
-                            pass
                 # Create Fortran from language-level PSyIR
                 writer = FortranWriter()
                 alg_gen = writer(psyir)
