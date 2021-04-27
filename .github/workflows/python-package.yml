@@ -78,7 +78,7 @@ jobs:
         # If you wish to install the version of fparser pointed to by the
         # submodule instead of the released version (from pypi) then
         # uncomment the following line:
-        pip install external/fparser
+        # pip install external/fparser
         pip install .
     - name: Lint with flake8
       run: |
