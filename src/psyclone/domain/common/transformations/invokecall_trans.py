@@ -235,8 +235,9 @@ class InvokeCallTrans(Transformation):
             else:
                 for fp2_node in call_arg._fp2_nodes:
                     if isinstance(fp2_node, Actual_Arg_Spec):
-                        # This child is a named argument
-                        call_description = fp2_node.children[1].string
+                        # This child is a named argument. Add the
+                        # extra str to avoid Python2 unicode issues.
+                        call_description = str(fp2_node.children[1].string)
                     else:
                         # This child is a kernel
                         type_symbol = InvokeCallTrans._get_symbol(
