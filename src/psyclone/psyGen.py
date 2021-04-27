@@ -374,6 +374,12 @@ class Invokes(object):
         ocl_enable_profiling = None
         ocl_out_of_order = None
         for invoke in self.invoke_list:
+            if not isinstance(invoke.schedule, InvokeSchedule):
+                raise InternalError(
+                    "An invoke.schedule element on the {0} invoke_list "
+                    "is a '{1}', but it should be an InvokeSchedule"
+                    "".format(self, type(invoke.shcedule).__name__))
+
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
             # calls. We do it here as this enables us to prevent
