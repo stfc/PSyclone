@@ -546,7 +546,7 @@ class Node(object):
         edges (but their direction is reversed so the layout looks
         reasonable) and parent child dependencies are represented as
         blue edges.'''
-        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-branches, import-outside-toplevel
         from psyclone.psyir.nodes.loop import Loop
         # names to append to my default name to create start and end vertices
         start_postfix = "_start"
@@ -619,14 +619,7 @@ class Node(object):
     @property
     def dag_name(self):
         '''Return the base dag name for this node.'''
-        from psyclone.psyir.nodes.routine import Routine
-        if isinstance()
-        routine = self.ancestor(Routine)
-        if routine:
-            suffix = str(self.abs_position - routine.abs_position)
-        else:
-            suffix = str(self.abs_position)
-        return "node_" + suffix
+        return "node_" + str(self.abs_position_in_routine)
 
     @property
     def args(self):
@@ -903,22 +896,39 @@ class Node(object):
         '''
         Find a Node's absolute position in the tree (starting with 0 if
         it is the root). Needs to be computed dynamically from the
-        starting position (0) as its position may change.
+        starting position as its position may change.
 
         :returns: absolute position of a Node in the tree
         :rtype: int
 
+        '''
+        if self.root == self:
+            return self.START_POSITION
+        _, position = self._find_position(self.root.children,
+                                          self.START_POSITION)
+        return position
+
+    @property
+    def abs_position_in_routine(self):
+        '''
+        Find a Node's absolute position in the routine it belongs (starting
+        with 0 if it is the routine node). Needs to be computed dynamically
+        from the starting position as its position may change.
+
+        :returns: absolute position of a Node in a Routine
+        :rtype: int
+
         :raises InternalError: if the absolute position cannot be found
         '''
-        from psyclone.psyir.nodes import Schedule
-        if self.root == self and isinstance(self.root, Schedule):
-            return self.START_POSITION
-        found, position = self._find_position(self.root.children,
-                                              self.START_POSITION)
-        if not found:
-            raise InternalError("Error in search for Node position "
-                                "in the tree")
-        return position
+        # Import outside top-level to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+
+        parent_routine = self.ancestor(Routine)
+        if parent_routine:
+            return self.abs_position - parent_routine.abs_position
+
+        return self.abs_position
 
     def _find_position(self, children, position):
         '''

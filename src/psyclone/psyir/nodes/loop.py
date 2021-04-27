@@ -300,9 +300,9 @@ class Loop(Statement):
         '''
         if self.loop_type:
             name = "loop_[{0}]_".format(self.loop_type) + \
-                   str(self.abs_position)
+                   str(self.abs_position_in_routine)
         else:
-            name = "loop_" + str(self.abs_position)
+            name = "loop_" + str(self.abs_position_in_routine)
         return name
 
     @property

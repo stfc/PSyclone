@@ -72,7 +72,7 @@ class Schedule(ScopingNode):
         :returns: The name of this node in the dag.
         :rtype: str
         '''
-        return "schedule_" + str(self.abs_position)
+        return "schedule_" + str(self.abs_position_in_routine)
 
     def __getitem__(self, index):
         '''

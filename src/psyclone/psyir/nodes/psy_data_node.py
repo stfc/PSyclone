@@ -133,8 +133,8 @@ class PSyDataNode(Statement):
 
         # Get or create a symbol table so we can avoid name clashes
         # when creating variables
-        if parent and hasattr(self.root, 'symbol_table'):
-            symtab = self.root.symbol_table
+        if parent and hasattr(self.scope, 'symbol_table'):
+            symtab = self.scope.symbol_table
         else:
             # FIXME: This may not be a good solution
             symtab = SymbolTable()

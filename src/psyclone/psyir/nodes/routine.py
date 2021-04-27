@@ -157,7 +157,7 @@ class Routine(Schedule):
         :returns: the name of this node in the dag.
         :rtype: str
         '''
-        return "_".join(["routine", self.name, str(self.abs_position)])
+        return "_".join(["routine", self.name, str(self.START_POSITION)])
 
     @property
     def name(self):

@@ -82,7 +82,7 @@ def test_nan_test_basic(capsys):
                            "gocean1.0", idx=0, dist_mem=False)
     nan_test = NanTestTrans()
     nan_test.apply(invoke.schedule[0].loop_body[0])
-    new_sched.view()
+    invoke.schedule.view()
     result, _ = capsys.readouterr()
 
     # Create the coloured text (if required)
@@ -92,7 +92,7 @@ def test_nan_test_basic(capsys):
             0: {1}[]
                 {0}[]""".format(sched_node, read_node) in result
 
-    read_node = new_sched[0].loop_body[0]
+    read_node = invoke.schedule[0].loop_body[0]
     assert read_node.dag_name == "nan_test_0"
 
 
