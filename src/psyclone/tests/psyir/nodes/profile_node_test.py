@@ -67,7 +67,7 @@ def test_profile_node_constructor():
 def test_profile_node_create():
     ''' Basic checks for the create() method of ProfileNode. '''
     sched = KernelSchedule.create("test", SymbolTable(), [])
-    pnode = ProfileNode.create([])
+    pnode = ProfileNode.create([], SymbolTable())
     sched.addchild(pnode)
     assert str(pnode) == ("ProfileStart[var=profile_psy_data]\n"
                           "ProfileEnd")
@@ -117,7 +117,8 @@ def test_profile_node_invalid_name(value):
 
     '''
     with pytest.raises(InternalError) as excinfo:
-        _ = ProfileNode.create([], options={"region_name": value})
+        _ = ProfileNode.create([], SymbolTable(),
+                               options={"region_name": value})
     assert ("Error in PSyDataNode. The name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
 

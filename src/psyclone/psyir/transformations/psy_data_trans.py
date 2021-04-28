@@ -259,11 +259,9 @@ class PSyDataTrans(RegionTrans):
         position = node_list[0].position
         schedule = node_list[0].root
 
-        # In principle, we should be able to use `parent.scope.symbol_table`
-        # here but that currently does not work if a new PSyData region is
-        # added inside an existing one. Once we move to using a PSyIR
-        # backend everywhere, this problem should go away as any name clashes
-        # get resolved before code is generated.
+        # We always use the outermost symbol table so that any name clashes
+        # due to multiple applications of this transformation are handled
+        # automatically.
         table = parent.root.symbol_table
 
         # create a memento of the schedule and the proposed

@@ -42,8 +42,13 @@ or profiling.'''
 
 from __future__ import absolute_import, print_function
 from collections import namedtuple
+from fparser.common.sourceinfo import FortranFormat
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.utils import walk
+from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import (SymbolTable, TypeSymbol, DataSymbol,
@@ -160,12 +165,16 @@ class PSyDataNode(Statement):
             self.set_region_identifier(self._module_name,
                                        self._region_name)
 
+        # TODO #435. This can be removed when update() is removed.
+        self.use_stmt = ""
+
     @classmethod
-    def create(cls, children, symbol_table=None, ast=None, options=None):
+    def create(cls, children, symbol_table, ast=None, options=None):
         '''
         Creates a new (sub-class of a) PSyData node with the supplied
         'children' nodes as its children. The symbols used by the PSyData API
-        are added to the supplied symbol table.
+        are added to the supplied symbol table. This is a class method so that
+        it acts as a factory for the various sub-classes of PSyDataNode.
 
         :param children: the PSyIR nodes that will become children of the \
             new PSyData node.
@@ -188,12 +197,25 @@ class PSyDataNode(Statement):
             followed by a local name. The pair of strings should uniquely \
              identify a region unless aggregate information is required \
             (and is supported by the runtime library).
+
+        :raises TypeError: if the supplied children or symbol table are not \
+            of the correct type.
+
         '''
-        if symbol_table:
-            symtab = symbol_table
-        else:
-            # FIXME: This may not be a good solution
-            symtab = SymbolTable()
+        if not isinstance(children, list):
+            raise TypeError("Error in PSyDataNode.create(). The 'children' "
+                            "argument must be a list (of PSyIR nodes) but got "
+                            "'{0}'".format(type(children).__name__))
+        if children and not all(isinstance(child, Node) for child in children):
+            raise TypeError(
+                "Error in PSyDataNode.create(). The 'children' argument must "
+                "be a list of PSyIR nodes but it contains: {0}".format(
+                    [type(child).__name__ for child in children]))
+        if not isinstance(symbol_table, SymbolTable):
+            raise TypeError(
+                "Error in PSyDataNode.create(). The 'symbol_table' argument "
+                "must be an instance of psyir.symbols.SymbolTable but got "
+                "'{0}'.".format(type(symbol_table).__name__))
 
         data_node = cls(ast=ast, options=options)
 
@@ -201,16 +223,17 @@ class PSyDataNode(Statement):
         fortran_module = data_node.add_psydata_class_prefix(
             data_node.fortran_module)
         try:
-            csym = symtab.lookup_with_tag(fortran_module)
+            csym = symbol_table.lookup_with_tag(fortran_module)
         except KeyError:
             # The tag doesn't exist which means that we haven't already added
             # this Container as part of a PSyData transformation.
             csym = ContainerSymbol(fortran_module)
-            symtab.add(csym, tag=fortran_module)
+            symbol_table.add(csym, tag=fortran_module)
 
         # A PSyData node always contains a Schedule
         # TODO 435 we can probably get rid of _insert_schedule() once we
         # do away with the ast argument?
+        # pylint: disable=protected-access
         sched = data_node._insert_schedule(children=children, ast=ast)
         data_node.addchild(sched)
 
@@ -227,23 +250,22 @@ class PSyDataNode(Statement):
         # than once if multiple transformations are applied.
         for sym in PSyDataNode.symbols:
             sym_name = data_node.add_psydata_class_prefix(sym.name)
-            symtab.symbol_from_tag(sym_name, symbol_type=sym.symbol_type,
-                                   interface=GlobalInterface(csym),
-                                   datatype=DeferredType())
+            symbol_table.symbol_from_tag(sym_name, symbol_type=sym.symbol_type,
+                                         interface=GlobalInterface(csym),
+                                         datatype=DeferredType())
 
         # Store the name of the PSyData variable that is used for this
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
-        data_node._var_name = symtab.next_available_name(
+        data_node._var_name = symbol_table.next_available_name(
             data_node._psy_data_symbol_with_prefix)
         type_name = data_node.add_psydata_class_prefix("PSyDataType")
         psydata_type = UnknownFortranType(
             "type({0}), save, target :: {1}".format(type_name,
                                                     data_node._var_name))
-        symtab.new_symbol(data_node._var_name, symbol_type=DataSymbol,
-                          datatype=psydata_type)
-
+        symbol_table.new_symbol(data_node._var_name, symbol_type=DataSymbol,
+                                datatype=psydata_type)
         return data_node
 
     @staticmethod
@@ -270,6 +292,7 @@ class PSyDataNode(Statement):
 
         :returns: the symbol name with the class string as prefix.
         :rtype: str
+
         '''
         return self._class_string + symbol
 
@@ -487,10 +510,8 @@ class PSyDataNode(Statement):
                              corresponding to the end of the PSyData region.
 
         '''
-        from fparser.common.sourceinfo import FortranFormat
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.utils import walk
-        from fparser.two import Fortran2003
+        # Avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import object_index, InvokeSchedule
         from psyclone.psyir.nodes import ProfileNode
 
