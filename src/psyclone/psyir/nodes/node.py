@@ -894,11 +894,11 @@ class Node(object):
     @property
     def abs_position(self):
         '''
-        Find a Node's absolute position in the tree (starting with 0 if
-        it is the root). Needs to be computed dynamically from the
-        starting position as its position may change.
+        Find a Node's absolute position in the tree (starting with
+        START_POSITION if it is the root). Needs to be computed dynamically
+        from the root as its position may change.
 
-        :returns: absolute position of a Node in the tree
+        :returns: absolute position of a Node in the tree.
         :rtype: int
 
         '''
@@ -912,10 +912,10 @@ class Node(object):
     def abs_position_in_routine(self):
         '''
         Find a Node's absolute position in the routine it belongs (starting
-        with 0 if it is the routine node). Needs to be computed dynamically
-        from the starting position as its position may change.
+        with START_POSITION if it is the routine node). Needs to be computed
+        dynamically from the ancestor routine as its position may change.
 
-        :returns: absolute position of a Node in a Routine
+        :returns: absolute position of a Node in a Routine.
         :rtype: int
 
         :raises InternalError: if the absolute position cannot be found
