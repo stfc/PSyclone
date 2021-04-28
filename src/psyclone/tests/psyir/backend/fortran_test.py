@@ -43,9 +43,8 @@ from collections import OrderedDict
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
-    gen_datatype, get_fortran_operator, _reverse_map, \
-    is_fortran_intrinsic, precedence
+from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
+    get_fortran_operator, _reverse_map, is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
