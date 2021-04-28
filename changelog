@@ -1,3 +1,7 @@
+
+        1) PR #1183 for #1075. Improves (tightens) the checking performed
+        by the LoopFusion transformation.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
