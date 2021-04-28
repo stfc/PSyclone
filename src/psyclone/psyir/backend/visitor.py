@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified: J. Henrichs, Bureau of Meteorology
+#           A. R. Porter, STFC Daresbury Lab
 
 
 '''Generic PSyIR visitor code that can be specialised by different
@@ -40,6 +41,8 @@ back ends.
 
 '''
 
+import inspect
+import six
 from psyclone.psyir.nodes import Node
 
 
@@ -60,24 +63,26 @@ class VisitorError(Exception):
 
 class PSyIRVisitor(object):
     '''A generic PSyIR visitor. This is designed to be specialised by
-    a particular back end.
+    a particular back end. By default, global constraints are enforced by
+    calling the `validate_global_constraints()` method of each Node visited.
 
     :param bool skip_nodes: If skip_nodes is False then an exception \
-    is raised if a visitor method for a PSyIR node has not been \
-    implemented, otherwise the visitor silently continues. This is an \
-    optional argument which defaults to False.
+        is raised if a visitor method for a PSyIR node has not been \
+        implemented, otherwise the visitor silently continues. This is an \
+        optional argument which defaults to False.
     :param indent_string: Specifies what to use for indentation. This \
-    is an optional argument that defaults to two spaces.
+        is an optional argument that defaults to two spaces.
     :type indent_string: str or NoneType
     :param int initial_indent_depth: Specifies how much indentation to \
-    start with. This is an optional argument that defaults to 0.
+        start with. This is an optional argument that defaults to 0.
+    :param bool check_global_constraints: whether or not to validate all \
+        global constraints when walking the tree.
 
-    :raises TypeError: If skip_nodes is not a boolean, indent_string \
-    is not a string, or initial_indent_depth is not an integer.
+    :raises TypeError: if any of the supplied parameters are of the wrong type.
 
     '''
     def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0):
+                 initial_indent_depth=0, check_global_constraints=True):
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
@@ -95,10 +100,17 @@ class PSyIRVisitor(object):
             raise TypeError(
                 "initial_indent_depth should not be negative, but found '{0}'."
                 "".format(initial_indent_depth))
+        if not isinstance(check_global_constraints, bool):
+            raise TypeError("check_global_constraints should be a boolean but "
+                            "found '{0}'.".format(
+                                type(check_global_constraints).__name__))
 
         self._skip_nodes = skip_nodes
         self._indent = indent_string
         self._depth = initial_indent_depth
+        #: If validate_nodes is True then each node visited will have any
+        #: global constraints validated.
+        self._validate_nodes = check_global_constraints
 
     def reference_node(self, node):
         # pylint: disable=no-self-use
@@ -108,7 +120,7 @@ class PSyIRVisitor(object):
         :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :returns: the Fortran code as a string.
+        :returns: the text representation of this reference.
         :rtype: str
 
         :raises VisitorError: if this node has children.
@@ -138,6 +150,9 @@ class PSyIRVisitor(object):
         :param node: A PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
+        :returns: text representation of the PSyIR tree.
+        :rtype: str
+
         '''
         return self._visit(node)
 
@@ -154,10 +169,13 @@ class PSyIRVisitor(object):
         :param node: A PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
+        :returns: text representation of the PSyIR node sub-tree.
+        :rtype: str
+
         :raises VisitorError: if a node is found that does not have \
-        associated call back methods (and skip_nodes is not set).
+            associated call back methods (and skip_nodes is not set).
         :raises AttributeError: if a call back method is found but it \
-        raises an AttributeError.
+            raises an AttributeError.
 
         '''
         if not isinstance(node, Node):
@@ -165,10 +183,13 @@ class PSyIRVisitor(object):
                 "Expected argument to be of type 'Node' but found '{0}'."
                 "".format(type(node).__name__))
 
+        # Check global constraints for this node (if validation enabled).
+        if self._validate_nodes:
+            node.validate_global_constraints()
+
         # Make a list of the node's ancestor classes (including
         # itself) in method resolution order (mro), apart from the
         # base "object" class.
-        import inspect
         possible_method_names = [curr_class.__name__.lower()+"_node"
                                  for curr_class in inspect.getmro(type(node))]
         possible_method_names.remove("object_node")
@@ -179,6 +200,7 @@ class PSyIRVisitor(object):
             try:
                 # pylint: disable=eval-used
                 return eval("self.{0}(node)".format(method_name))
+
             except AttributeError as excinfo:
                 if "attribute '{0}'".format(method_name) in str(excinfo):
                     # This attribute error is because the method that
@@ -187,12 +209,20 @@ class PSyIRVisitor(object):
                 else:
                     # The method does exist but it has raised an
                     # attribute error so re-raise it here.
-                    raise AttributeError(excinfo)
+                    six.raise_from(AttributeError(excinfo), excinfo)
 
         if self._skip_nodes:
+            # We haven't found a handler for this node but '_skip_nodes' is
+            # set so we ignore it and continue on down to any children.
+            results = []
             for child in node.children:
-                self._visit(child)
-        else:
-            raise VisitorError(
-                "Unsupported node '{0}' found: method names attempted were "
-                "{1}.".format(type(node).__name__, str(possible_method_names)))
+                results.append(self._visit(child))
+            return "".join(results)
+
+        raise VisitorError(
+            "Unsupported node '{0}' found: method names attempted were "
+            "{1}.".format(type(node).__name__, str(possible_method_names)))
+
+
+# For AutoAPI documentation generation
+__all__ = ['VisitorError', 'PSyIRVisitor']
