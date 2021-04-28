@@ -143,28 +143,6 @@ def handle_script(script_name, psy):
         os.sys.path.pop()
 
 
-def remove_invoke_symbol(psyir):
-    '''Utility routine that removes any symbols named 'invoke' from the
-    symbol tables within the supplied PSyIR. This is likely to be
-    removed when issue #*** is addressed.
-
-    :param psyir: the PSyIR tree having symbols named 'invoke' \
-        removed.
-    :type psyir: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    from psyclone.psyir.nodes import Node
-    for node in psyir.walk(Node):
-        if hasattr(node, "symbol_table"):
-            try:
-                symbol = node.symbol_table.lookup("invoke")
-                print (dir(symbol))
-                symbol._interface = LocalInterface()
-                # node.symbol_table.remove(symbol)
-            except:
-                pass
-
-
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
              distributed_memory=None,
