@@ -36,6 +36,8 @@
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
+import six
+
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference
 from psyclone.psyir.symbols import TypeSymbol, ContainerSymbol, \
@@ -81,7 +83,7 @@ class AlgorithmInvokeCall(Call):
                 "AlgorithmInvokeCall index argument should be a non-negative "
                 "integer but found {0}.".format(index))
         
-        if description and not isinstance(description, (str, unicode)):
+        if description and not isinstance(description, (str, six.text_type)):
             raise TypeError(
                 "AlgorithmInvokeCall description argument should be a str but "
                 "found '{0}'.".format(type(description).__name__))
