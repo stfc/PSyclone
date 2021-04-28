@@ -195,7 +195,8 @@ def test_nemo_acc_parallel(parser):
     ktrans.apply(nemo_sched[0])
     dtrans.apply(nemo_sched[0])
 
-    fort_writer = FortranWriter()
+    # Disable node validation to avoid having to add a data region
+    fort_writer = FortranWriter(check_global_constraints=False)
     result = fort_writer(nemo_sched)
 
     correct = '''!$acc begin parallel default(present)
@@ -207,7 +208,7 @@ enddo
 !$acc end parallel'''
     assert correct in result
 
-    cvisitor = CWriter()
+    cvisitor = CWriter(check_global_constraints=False)
     with pytest.raises(VisitorError) as err:
         _ = cvisitor(nemo_sched[0])
     assert "Unsupported node 'ACCDataDirective' found" in str(err.value)
@@ -294,15 +295,16 @@ def test_gocean_acc_parallel():
     replace_child_with_assignment(invoke.schedule[0].dir_body)
 
     # omp_sched is a GOInvokeSchedule, which is not yet supported.
-    # So only convert starting from the OMPParallelDirective
-    fvisitor = FortranWriter()
+    # So only convert starting from the OMPParallelDirective. Also, disable
+    # node validation so as to avoid the need for a data region.
+    fvisitor = FortranWriter(check_global_constraints=False)
     result = fvisitor(invoke.schedule[0])
     correct = '''!$acc begin parallel default(present)
 a = b
 !$acc end parallel'''
     assert correct in result
 
-    cvisitor = CWriter()
+    cvisitor = CWriter(check_global_constraints=False)
     with pytest.raises(VisitorError) as err:
         _ = cvisitor(invoke.schedule[0])
     assert "Unsupported node 'ACCParallelDirective' found" in str(err.value)
