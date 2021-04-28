@@ -356,6 +356,9 @@ class Invokes(object):
 
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
+
+        :raises GenerationError: if an invoke_list schdedule is not an \
+            InvokeSchedule.
         '''
         def raise_unmatching_options(option_name):
             ''' Create unmatching OpenCL options error message.
@@ -375,10 +378,10 @@ class Invokes(object):
         ocl_out_of_order = None
         for invoke in self.invoke_list:
             if not isinstance(invoke.schedule, InvokeSchedule):
-                raise InternalError(
-                    "An invoke.schedule element on the {0} invoke_list "
-                    "is a '{1}', but it should be an InvokeSchedule"
-                    "".format(self, type(invoke.shcedule).__name__))
+                raise GenerationError(
+                    "An invoke.schedule element on the '{0}' invoke_list "
+                    "is a '{1}', but it should be an 'InvokeSchedule'."
+                    "".format(self, type(invoke.schedule).__name__))
 
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it

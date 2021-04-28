@@ -1031,6 +1031,23 @@ def test_call_multi_reduction_error(monkeypatch):
             "or builtin" in str(err.value))
 
 
+def test_invokes_wrong_schedule_gen_code(tmpdir):
+    ''' Check that a CodedKern with module-inline gets copied into the
+    local module appropriately when the PSy-layer is generated'''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy.invokes.invoke_list[0].schedule = Node()
+
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An invoke.schedule element on the 'Invokes object containing "
+            "dict_keys(['invoke_0'])' invoke_list is a 'Node', but it should "
+            "be an 'InvokeSchedule'." in str(err.value))
+
+
 def test_invoke_name():
     ''' Check that specifying the name of an invoke in the Algorithm
     layer results in a correctly-named routine in the PSy layer '''
