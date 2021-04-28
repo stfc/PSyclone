@@ -858,8 +858,6 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
                 "cma_op1_alpha, ndf_aspc1_lma_op1, cbanded_map_aspc1_lma_op1, "
                 "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)")
 
-    print(expected)
-    print(code)
     assert expected in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

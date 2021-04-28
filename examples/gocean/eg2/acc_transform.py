@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. Transforms all kernels in the invoke

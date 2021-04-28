@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
+# Modified by: S. Siso, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code to insert profiling calls.

@@ -174,8 +174,8 @@ class KernCallArgList(ArgOrdering):
         else:
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
-            name = \
-                self._symtab.symbol_from_tag(arg.name + "_" + component).name
+            name = self._symtab.symbol_from_tag(
+                arg.name + "_" + component).name
             # Matrix is an output parameter, the rest are input
             if component == "matrix":
                 mode = AccessType.WRITE

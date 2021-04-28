@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 '''Contains the PSyData transformation.
 '''
@@ -69,12 +69,12 @@ class PSyDataTrans(RegionTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose all children within a single PSyData region
-    >>> newdata_trans.apply(schedule.children)
-    >>> newschedule.view()
+    >>> data_trans.apply(schedule.children)
+    >>> schedule.view()
     >>> # Or to use a class-prefix string and different region name:
-    >>> newdata_trans.apply(schedule.children,
-    >>>                                   {"prefix": "my_prefix",
-    >>>                                    "region_name": ("module","region")})
+    >>> data_trans.apply(schedule.children,
+    >>>                  {"prefix": "my_prefix",
+    >>>                   "region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).

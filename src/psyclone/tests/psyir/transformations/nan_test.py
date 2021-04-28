@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified by: R. W. Ford, STFC Daresbury
+# Modified by: R. W. Ford and S. Siso, STFC Daresbury
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for NanTestTrans and NanTestNode

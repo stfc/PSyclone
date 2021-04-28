@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 from __future__ import print_function
 from psyclone.parse.algorithm import parse

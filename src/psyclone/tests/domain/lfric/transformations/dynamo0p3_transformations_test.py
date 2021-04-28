@@ -6820,10 +6820,8 @@ def test_vector_async_halo_exchange(tmpdir):
     # we are not able to test re-ordering of vector halo exchanges as
     # the dependence analysis does not currently support it
     # mtrans = MoveTrans()
-    # mtrans.apply(schedule.children[2],
-    #                            schedule.children[1])
-    # mtrans.apply(schedule.children[4],
-    #                            schedule.children[2])
+    # mtrans.apply(schedule.children[2], schedule.children[1])
+    # mtrans.apply(schedule.children[4], schedule.children[2])
 
     # remove second set of halo exchanges via redundant
     # computation. If they are removed correctly then the two loops

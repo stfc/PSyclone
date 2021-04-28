@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the support for OpenACC directives in the

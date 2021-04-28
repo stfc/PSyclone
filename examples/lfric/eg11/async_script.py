@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Laboratory
-
+# Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 '''File containing a PSyclone transformation script for the Dynamo0p3
 API to make asynchronous halo exchanges and overlap their

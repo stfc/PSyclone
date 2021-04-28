@@ -4,7 +4,7 @@
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Contains tests for transformations on the Dynamo 0.1 API '''
 

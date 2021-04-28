@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Authors: R. Ford, A. R. Porter, S. Siso, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
 
 

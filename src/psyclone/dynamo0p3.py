@@ -7598,8 +7598,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
         else:
-            cmap = self.ancestor(InvokeSchedule).symbol_table.\
-                lookup_with_tag("cmap").name
+            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
         return cmap
 
     @property
@@ -7624,8 +7623,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
         else:
-            ncols = self.ancestor(InvokeSchedule).symbol_table.\
-                lookup_with_tag("ncolour").name
+            ncols = self.scope.symbol_table.lookup_with_tag("ncolour").name
         return ncols
 
     @property

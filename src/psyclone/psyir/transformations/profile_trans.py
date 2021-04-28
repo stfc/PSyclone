@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides the Profile transformation.
@@ -61,8 +61,8 @@ class ProfileTrans(PSyDataTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose all children within a single profile region
-    >>> newp_trans.apply(schedule.children)
-    >>> newschedule.view()
+    >>> p_trans.apply(schedule.children)
+    >>> schedule.view()
 
     This implementation relies completely on the base class PSyDataTrans
     for the actual work, it only adjusts the name etc, and the list

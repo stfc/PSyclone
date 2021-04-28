@@ -34,6 +34,7 @@
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by S. Siso, STFC Daresbury Laboratory
 
 '''File containing a PSyclone transformation script for the Dynamo0.3
 API to apply loop fusion generically. Fusion is attempted for all

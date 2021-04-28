@@ -892,9 +892,9 @@ class ColourTrans(LoopTrans):
     >>>
     >>> # Colour all of the loops
     >>> for child in schedule.children:
-    >>>     cctrans.apply(child)
+    >>>     ctrans.apply(child)
     >>>
-    >>> csched.view()
+    >>> schedule.view()
 
     '''
     def __str__(self):
@@ -1063,14 +1063,13 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>>
     >>> # Colour all of the loops
     >>> for child in schedule.children:
-    >>>     cctrans.apply(child)
+    >>>     ctrans.apply(child)
     >>>
     >>> # Then apply OpenMP to each of the colour loops
-    >>> schedule = cschedule
     >>> for child in schedule.children:
-    >>>     newotrans.apply(child.children[0])
+    >>>     otrans.apply(child.children[0])
     >>>
-    >>> newsched.view()
+    >>> schedule.view()
 
     Colouring in the Dynamo 0.3 API is subject to the following rules:
 
@@ -1270,18 +1269,16 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> new_schedule = schedule
     >>>
     >>> # Apply the OpenMP Loop transformation to *every* loop
     >>> # in the schedule
     >>> for child in schedule.children:
-    >>>     newschedule, memento = ltrans.apply(child)
-    >>>     schedule = newschedule
+    >>>     ltrans.apply(child)
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
-    >>> newrtrans.apply(schedule.children)
-    >>> newschedule.view()
+    >>> rtrans.apply(schedule.children)
+    >>> schedule.view()
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1352,10 +1349,10 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose everything within a single OpenACC PARALLEL region
-    >>> newptrans.apply(schedule.children)
+    >>> ptrans.apply(schedule.children)
     >>> # Add an enter-data directive
-    >>> newdtrans.apply(newschedule)
-    >>> newschedule.view()
+    >>> dtrans.apply(schedule)
+    >>> schedule.view()
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
@@ -1417,11 +1414,11 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> from psyclone.transformations import GOConstLoopBoundsTrans
     >>> clbtrans = GOConstLoopBoundsTrans()
     >>>
-    >>> newclbtrans.apply(schedule)
+    >>> clbtrans.apply(schedule)
     >>> # or, to turn off const. looop bounds:
-    >>> # newclbtrans.apply(schedule, const_bounds=False)
+    >>> # clbtrans.apply(schedule, const_bounds=False)
     >>>
-    >>> newsched.view()
+    >>> schedule.view()
 
     '''
 
@@ -2182,7 +2179,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
-    >>>     new_trans.apply(kernel, number_of_layers=150)
+    >>>     trans.apply(kernel, number_of_layers=150)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
     >>>     kernel_schedule.symbol_table.view()
 
@@ -2514,8 +2511,8 @@ class ACCEnterDataTrans(Transformation):
     >>> schedule.view()
     >>>
     >>> # Add an enter-data directive
-    >>> newdtrans.apply(schedule)
-    >>> newschedule.view()
+    >>> dtrans.apply(schedule)
+    >>> schedule.view()
 
     '''
     def __str__(self):

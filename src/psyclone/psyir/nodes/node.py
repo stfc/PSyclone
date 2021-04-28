@@ -918,7 +918,6 @@ class Node(object):
         :returns: absolute position of a Node in a Routine.
         :rtype: int
 
-        :raises InternalError: if the absolute position cannot be found
         '''
         # Import outside top-level to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel

@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''A simple test script showing the introduction of OpenMP with PSyclone.
 In order to use it you must first install PSyclone. See README.md in the

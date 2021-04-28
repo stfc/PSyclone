@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Authors: R. W. Ford, A. R. Porter, S. Siso, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
@@ -65,8 +65,7 @@ def trans(psy):
     else:
         # Loop fuse the two built-in kernels. The 'same_space' flag needs to
         # be set as built-ins are over ANY_SPACE.
-        ftrans.apply(schedule[0], schedule[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule[0], schedule[1], {"same_space": True})
 
         # Add an OpenMP do directive to the resultant loop-fused loop,
         # specifying that we want reproducible reductions

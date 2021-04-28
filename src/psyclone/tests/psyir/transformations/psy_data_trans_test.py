@@ -34,6 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modifications: R. W. Ford, STFC Daresbury Lab
 #                A. R. Porter, STFC Daresbury Lab
+#                S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
