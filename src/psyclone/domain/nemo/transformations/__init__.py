@@ -45,10 +45,10 @@ from psyclone.domain.nemo.transformations.create_nemo_loop_trans \
     import CreateNemoLoopTrans
 from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
     import CreateNemoPSyTrans
-from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
-    import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
     import NemoAllArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
+    import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_loop_fuse \
     import NemoLoopFuseTrans
 from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \

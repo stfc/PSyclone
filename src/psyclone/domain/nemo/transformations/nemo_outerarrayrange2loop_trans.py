@@ -52,9 +52,8 @@ from psyclone.psyir.nodes import ArrayReference, ArrayOfStructuresReference, \
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations import ArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans import \
-    get_outer_index
+    NemoArrayRange2LoopTrans, get_outer_index
 
 
 class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
