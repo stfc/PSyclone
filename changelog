@@ -512,6 +512,8 @@
 	166) PR #1226 towards #1151. Update fparser to 0.0.12 for the
 	PSyclone release 2.0.0.
 
+        167) Issue #1151. Release version 2.0.0 of PSyclone.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
