@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a verification that read-only fields (in the
 !! dl_esm_inf infrastructure) are not overwritten (due to memory overwrites etc).
@@ -40,23 +41,27 @@
 !! It adds the support for the dl_esm_inf-specific field type.
 
 module read_only_verify_psy_data_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
 
     use read_only_base_mod, only : ReadOnlyBaseType, read_only_verify_PSyDataInit, &
                  read_only_verify_PSyDataShutdown, is_enabled, &
                  read_only_verify_PSyDataStart, read_only_verify_PSyDataStop
+
     implicit none
 
     !> This is the data type that stores a checksum for each read-only
     !! variable. A static instance of this type is created for each
     !! instrumented region with PSyclone.
-    type, extends(ReadOnlyBaseType), public:: read_only_verify_PSyDataType
+    type, extends(ReadOnlyBaseType), public :: read_only_verify_PSyDataType
 
     contains
+
         ! The various procedures used from this class
-        procedure :: DeclareFieldDouble, ProvideFieldDouble
+        procedure :: DeclareFieldDouble
+        procedure :: ProvideFieldDouble
         procedure :: Abort
 
         !> Add the `DeclareFieldDouble` subroutine to the generic
@@ -71,51 +76,63 @@ module read_only_verify_psy_data_mod
 
     end type read_only_verify_PSyDataType
 
-Contains
+contains
 
     ! -------------------------------------------------------------------------
     !> Displays the message and aborts execution. Use dl_esm_inf'subroutine
     !! `abort` function.
     !! @param[in] message Error message to be displayed (string).
     subroutine Abort(this, message)
-        use gocean_mod, only: gocean_stop
+
+        use gocean_mod, only : gocean_stop
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*) :: message
 
         call gocean_stop(message)
+
     end subroutine Abort
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares a double precision field as defined in
     !! dl_esm_inf (r2d_field). It does nothing for the read-only verification.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     subroutine DeclareFieldDouble(this, name, value)
+
         use field_mod, only : r2d_field
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
+
         this%next_var_index = this%next_var_index + 1
+
     end subroutine DeclareFieldDouble
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
     !! (depending on this%verify_checksums) of a dl_esm_field (r2d_field)
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideFieldDouble(this, name, value)
+
         use field_mod, only : r2d_field
-        use read_onlY_base_mod, only: ComputeChecksum
+        use read_onlY_base_mod, only : ComputeChecksum
+
         implicit none
+
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
-        integer(kind=int64):: cksum
+        integer(kind=int64) :: cksum
 
         this%next_var_index = this%next_var_index + 1
 
@@ -136,7 +153,9 @@ Contains
         else
             this%checksums(this%next_var_index) = cksum
         endif
+
         this%next_var_index = this%next_var_index + 1
+
     end subroutine ProvideFieldDouble
-    
+
 end module read_only_verify_psy_data_mod

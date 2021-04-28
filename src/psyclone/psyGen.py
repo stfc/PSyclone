@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, PSyDataNode, Call
+    Routine, PSyDataNode, Call, StructureReference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -894,17 +894,11 @@ class InvokeSchedule(Routine):
         super(InvokeSchedule, self).__init__(name)
 
         self._invoke = None
-        self._opencl = False  # Whether or not to generate OpenCL
-
-        # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True,
-                                "enable_profiling": False,
-                                "out_of_order": False}
 
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
-            for name in reserved_names:
-                self.symbol_table.add(Symbol(name))
+            for reserved in reserved_names:
+                self.symbol_table.add(Symbol(reserved))
 
         # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
@@ -916,6 +910,19 @@ class InvokeSchedule(Routine):
                 self.addchild(BuiltInFactory.create(call, parent=self))
             else:
                 self.addchild(KernFactory.create(call, parent=self))
+
+        # TODO #1134: If OpenCL is just a PSyIR transformation the following
+        # properties may not be needed or are transformation options instead.
+        self._opencl = False  # Whether or not to generate OpenCL
+
+        # InvokeSchedule opencl_options default values
+        self._opencl_options = {"end_barrier": True,
+                                "enable_profiling": False,
+                                "out_of_order": False}
+
+        # This reference will store during gen_code() the block of code that
+        # is executed only on the first iteration of the invoke.
+        self._first_time_block = None
 
     @property
     def symbol_table(self):
@@ -1066,6 +1073,9 @@ class InvokeSchedule(Routine):
                                entity_decls=[first],
                                initial_values=[".true."]))
             if_first = IfThenGen(parent, first)
+            # Keep a reference to the block of code that is executed only on
+            # the first iteration of the invoke.
+            self._first_time_block = if_first
             parent.add(if_first)
             if_first.add(AssignGen(if_first, lhs=first, rhs=".false."))
             if_first.add(CommentGen(if_first,
@@ -1344,16 +1354,18 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
-        Perform validation checks that can only be done at code-generation
-        time.
+        Perform validation checks for any global constraints. This can only
+        be done at code-generation time.
 
         :raises GenerationError: if this ACCDirective encloses any form of \
             PSyData node since calls to PSyData routines within OpenACC \
             regions are not supported.
 
         '''
+        super(ACCDirective, self).validate_global_constraints()
+
         data_nodes = self.walk(PSyDataNode)
         if data_nodes:
             raise GenerationError(
@@ -1414,7 +1426,7 @@ class ACCEnterDataDirective(ACCDirective):
         :raises GenerationError: if no data is found to copy in.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel or kernels
@@ -1465,7 +1477,9 @@ class ACCEnterDataDirective(ACCDirective):
 class ACCParallelDirective(ACCDirective):
     '''
     Class representing the !$ACC PARALLEL directive of OpenACC
-    in the PSyIR.
+    in the PSyIR. By default it includes the 'DEFAULT(PRESENT)' clause which
+    means this node must either come after an EnterDataDirective or within
+    a DataDirective.
 
     '''
     def node_str(self, colour=True):
@@ -1488,6 +1502,39 @@ class ACCParallelDirective(ACCDirective):
         '''
         return "ACC_parallel_" + str(self.abs_position)
 
+    def validate_global_constraints(self):
+        '''
+        Check that the PSyIR tree containing this node is valid. Since we
+        use 'default(present)', this node must either be the child of an
+        ACCDataDirective or the parent Schedule must contain an
+        ACCEnterDataDirective before this one.
+
+        :raises GenerationError: if this ACCParallel node is not preceded by \
+            an ACCEnterDataDirective and is not the child of an \
+            ACCDataDirective.
+
+        '''
+        # We can't use Node.ancestor() because the enter data directive does
+        # not have children. Instead, we go back up to the Schedule and
+        # walk down from there.
+        routine = self.ancestor(Routine)
+        nodes = routine.walk(ACCEnterDataDirective)
+        # Check that any enter-data directive comes before this parallel
+        # directive
+        if nodes and nodes[0].abs_position > self.abs_position:
+            raise GenerationError(
+                "An ACC parallel region must be preceded by an ACC enter-"
+                "data directive but in '{0}' this is not the case.".
+                format(routine.name))
+
+        if not nodes and not self.ancestor(ACCDataDirective):
+            raise GenerationError(
+                "An ACC parallel region must either be preceded by an ACC "
+                "enter data directive or enclosed within an ACC data region "
+                "but in '{0}' this is not the case.".format(routine.name))
+
+        super(ACCParallelDirective, self).validate_global_constraints()
+
     def gen_code(self, parent):
         '''
         Generate the elements of the f2pygen AST for this Node in the Schedule.
@@ -1496,39 +1543,40 @@ class ACCParallelDirective(ACCDirective):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
-        # Since we use "default(present)" the Schedule must contain an
-        # 'enter data' directive. We don't mandate the order in which
-        # transformations are applied so we have to check for that here.
-        # We can't use Node.ancestor() because the data directive does
-        # not have children. Instead, we go back up to the Schedule and
-        # walk down from there.
-        nodes = self.root.walk(ACCEnterDataDirective)
-        if len(nodes) != 1:
-            raise GenerationError(
-                "A Schedule containing an ACC parallel region must also "
-                "contain an ACC enter data directive but none was found for "
-                "{0}".format(self.root.invoke.name))
-        # Check that the enter-data directive comes before this parallel
-        # directive
-        if nodes[0].abs_position > self.abs_position:
-            raise GenerationError(
-                "An ACC parallel region must be preceeded by an ACC enter-"
-                "data directive but in {0} this is not the case.".
-                format(self.root.invoke.name))
-
-        # "default(present)" means that the compiler is to assume that
-        # all data required by the parallel region is already present
-        # on the device. If we've made a mistake and it isn't present
-        # then we'll get a run-time error.
-        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
-                                "default(present)"))
+        parent.add(DirectiveGen(parent, *self.begin_string().split()))
 
         for child in self.children:
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, "acc", "end", "parallel", ""))
+        parent.add(DirectiveGen(parent, *self.end_string().split()))
+
+    def begin_string(self):
+        '''
+        Returns the beginning statement of this directive, i.e.
+        "acc begin parallel" plus any qualifiers. The backend is responsible
+        for adding the correct characters to mark this as a directive (e.g.
+        "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        # "default(present)" means that the compiler is to assume that
+        # all data required by the parallel region is already present
+        # on the device. If we've made a mistake and it isn't present
+        # then we'll get a run-time error.
+        return "acc begin parallel default(present)"
+
+    def end_string(self):
+        '''
+        :returns: the closing statement for this directive.
+        :rtype: str
+        '''
+        # pylint: disable=no-self-use
+        return "acc end parallel"
 
     @property
     def ref_list(self):
@@ -1589,8 +1637,9 @@ class ACCParallelDirective(ACCDirective):
         Update the underlying fparser2 parse tree with nodes for the start
         and end of this parallel region.
         '''
-        self._pre_gen_validate()
-        self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
+        self.validate_global_constraints()
+        self._add_region(start_text="PARALLEL", end_text="END PARALLEL",
+                         data_movement="present")
 
 
 class ACCLoopDirective(ACCDirective):
@@ -1643,10 +1692,10 @@ class ACCLoopDirective(ACCDirective):
         text += "]"
         return text
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
-        Perform validation checks that can only be done at code-generation
-        time.
+        Perform validation of those global constraints that can only be done
+        at code-generation time.
 
         :raises GenerationError: if this ACCLoopDirective is not enclosed \
                             within some OpenACC parallel or kernels region.
@@ -1661,7 +1710,7 @@ class ACCLoopDirective(ACCDirective):
                 "ACCLoopDirective must have an ACCParallelDirective or "
                 "ACCKernelsDirective as an ancestor in the Schedule")
 
-        super(ACCLoopDirective, self)._pre_gen_validate()
+        super(ACCLoopDirective, self).validate_global_constraints()
 
     def gen_code(self, parent):
         '''
@@ -1674,18 +1723,11 @@ class ACCLoopDirective(ACCDirective):
         :raises GenerationError: if this "!$acc loop" is not enclosed within \
                                  an ACC Parallel region.
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
-        # Add any clauses to the directive
-        options = []
-        if self._sequential:
-            options.append("seq")
-        else:
-            if self._collapse:
-                options.append("collapse({0})".format(self._collapse))
-            if self._independent:
-                options.append("independent")
-        options_str = " ".join(options)
+        # Add any clauses to the directive. We use self.begin_string() to avoid
+        # code duplication.
+        options_str = self.begin_string(leading_acc=False)
 
         parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
 
@@ -1698,17 +1740,51 @@ class ACCLoopDirective(ACCDirective):
         this ACC LOOP directive.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
-        text = "LOOP"
+        # Use begin_string() to avoid code duplication although we have to
+        # put back the "loop" qualifier.
+        # TODO #435 remove this method altogether once the NEMO API is able to
+        # use the PSyIR backend.
+        self._add_region(
+            start_text="loop " + self.begin_string(leading_acc=False))
+
+    def begin_string(self, leading_acc=True):
+        ''' Returns the opening statement of this directive, i.e.
+        "acc loop" plus any qualifiers. If `leading_acc` is False then
+        the leading "acc loop" text is not included.
+
+        :param bool leading_acc: whether or not to include the leading \
+                                 "acc loop" in the text that is returned.
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        clauses = []
+        if leading_acc:
+            clauses = ["acc", "loop"]
+
         if self._sequential:
-            text += " SEQ"
+            clauses.append("seq")
         else:
             if self._independent:
-                text += " INDEPENDENT"
+                clauses.append("independent")
             if self._collapse:
-                text += " COLLAPSE({0})".format(self._collapse)
-        self._add_region(start_text=text)
+                clauses.append("collapse({0})".format(self._collapse))
+        return " ".join(clauses)
+
+    def end_string(self):
+        '''
+        Would return the end string for this directive but "acc loop"
+        doesn't have a closing directive.
+
+        :returns: empty string.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return ""
 
 
 class OMPDirective(Directive):
@@ -2056,7 +2132,7 @@ class OMPDoDirective(OMPDirective):
         ''' returns whether reprod has been set for this object or not '''
         return self._reprod
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
         time.
@@ -2075,6 +2151,8 @@ class OMPDoDirective(OMPDirective):
                 "OMPDoDirective must be inside an OMP parallel region but "
                 "could not find an ancestor OMPParallelDirective node")
 
+        super(OMPDoDirective, self).validate_global_constraints()
+
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenMP do
@@ -2087,7 +2165,7 @@ class OMPDoDirective(OMPDirective):
                                  an OMP Parallel region.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         if self._reprod:
             local_reduction_string = ""
@@ -2129,6 +2207,7 @@ class OMPDoDirective(OMPDirective):
         :rtype: str
 
         '''
+        # pylint: disable=no-self-use
         return "omp end do"
 
     def update(self):
@@ -2139,7 +2218,7 @@ class OMPDoDirective(OMPDirective):
                                  correct structure to permit the insertion \
                                  of the OpenMP parallel do.
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
@@ -4394,16 +4473,15 @@ class ACCKernelsDirective(ACCDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
-        data_movement = ""
-        if self._default_present:
-            data_movement = "default(present)"
-        parent.add(DirectiveGen(parent, "acc", "begin", "kernels",
-                                data_movement))
+        # We re-use the 'begin_string' method but must skip the leading 'acc'
+        # that it includes.
+        parent.add(DirectiveGen(parent, "acc", "begin",
+                                *self.begin_string().split()[1:]))
         for child in self.children:
             child.gen_code(parent)
-        parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
+        parent.add(DirectiveGen(parent, *self.end_string().split()))
 
     @property
     def ref_list(self):
@@ -4426,13 +4504,43 @@ class ACCKernelsDirective(ACCDirective):
                     variables.append(arg)
         return variables
 
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "acc kernels ...". The backend is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        result = "acc kernels"
+        if self._default_present:
+            result += " default(present)"
+        return result
+
+    def end_string(self):
+        '''
+        Returns the ending statement for this directive. The backend is
+        responsible for adding the language-specific syntax that marks this
+        as a directive.
+
+        :returns: the closing statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "acc end kernels"
+
     def update(self):
         '''
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
 
+        TODO #435 remove this routine once the NEMO API is able to use the
+        PSyIR backend.
+
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         data_movement = None
         if self._default_present:
@@ -4472,6 +4580,9 @@ class ACCDataDirective(ACCDirective):
                                supported for the NEMO API and that uses the \
                                update() method to alter the underlying \
                                fparser2 parse tree.
+
+        TODO #435 update above explanation when update() method is removed.
+
         '''
         raise InternalError(
             "ACCDataDirective.gen_code should not have been called.")
@@ -4482,9 +4593,82 @@ class ACCDataDirective(ACCDirective):
         directive.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "acc data". The backend is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        :raises NotImplementedError: if the region contains one or more \
+                                     references to structures (TODO #1028).
+
+        '''
+        result = "acc data"
+
+        struct_accesses = self.walk(StructureReference)
+        if struct_accesses:
+            # TODO #1028. Dependence analysis does not yet work for structure
+            # references.
+            # Have to import here to avoid circular dependency
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.backend.fortran import FortranWriter
+            fwriter = FortranWriter()
+            ref_list = [fwriter(ref) for ref in struct_accesses]
+            raise NotImplementedError(
+                "Structure (derived-type) references are not yet supported "
+                "within OpenACC data regions but found: {0}".format(ref_list))
+
+        # Identify the inputs and outputs to the region (variables that
+        # are read and written).
+        var_accesses = VariablesAccessInfo(self)
+        table = self.scope.symbol_table
+        readers = set()
+        writers = set()
+        for var in var_accesses.all_vars:
+            sym = table.lookup(var)
+            accesses = var_accesses[var]
+            if not sym.is_array:
+                # We ignore scalars
+                continue
+            if accesses.is_read():
+                readers.add(var)
+            if accesses.is_written():
+                writers.add(var)
+        readwrites = readers.intersection(writers)
+        # Are any of the read-writes written before they are read?
+        for var in list(readwrites)[:]:
+            accesses = var_accesses[var]
+            if accesses[0].access_type == AccessType.WRITE:
+                # First access is a write so treat as a write
+                writers.add(var)
+                readers.discard(var)
+                readwrites.discard(var)
+        readers_list = sorted(list(readers - readwrites))
+        writers_list = sorted(list(writers - readwrites))
+        readwrites_list = sorted(list(readwrites))
+        if readers_list:
+            result += " copyin({0})".format(",".join(readers_list))
+        if writers_list:
+            result += " copyout({0})".format(",".join(writers_list))
+        if readwrites_list:
+            result += " copy({0})".format(",".join(readwrites_list))
+
+        return result
+
+    def end_string(self):
+        '''
+        :returns: the text for the end of this directive region.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "acc end data"
 
 
 # For Sphinx AutoAPI documentation generation

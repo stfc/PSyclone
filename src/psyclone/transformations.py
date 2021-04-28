@@ -955,7 +955,7 @@ class ColourTrans(LoopTrans):
 
         # add contents of node to colour loop
         colour_loop.loop_body.children.extend(
-                node.loop_body.pop_all_children())
+            node.loop_body.pop_all_children())
 
         # remove original loop
         node_parent.children.remove(node)
@@ -1709,13 +1709,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method distributed memory must be switched on")
 
-        # loop must iterate over cells, dofs or colour. Note, an
-        # empty loop_type iterates over cells
-        if node.loop_type not in ["", "dofs", "colour"]:
+        # loop must iterate over cell-column, dof or colour. Note, an
+        # empty loop_type iterates over cell-columns.
+        if node.loop_type not in ["", "dof", "colour"]:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
-                "method the loop must iterate over cells, dofs or cells of "
-                "a given colour, but found '{0}'".format(node.loop_type))
+                "method the loop type must be one of '' (cell-columns), 'dof' "
+                "or 'colour', but found '{0}'".format(node.loop_type))
 
         from psyclone.dynamo0p3 import HALO_ACCESS_LOOP_BOUNDS
 
@@ -1808,7 +1808,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         elif loop.loop_type == "colour":
             # Loop is over cells of a single colour
             loop.set_upper_bound("colour_halo", depth)
-        elif loop.loop_type == "dofs":
+        elif loop.loop_type == "dof":
             loop.set_upper_bound("dof_halo", depth)
         else:
             raise TransformationError(
@@ -2823,8 +2823,8 @@ class ACCKernelsTrans(RegionTrans):
         # Create a directive containing the nodes in node_list and insert it.
         from psyclone.psyGen import ACCKernelsDirective
         directive = ACCKernelsDirective(
-                parent=parent, children=[node.detach() for node in node_list],
-                default_present=default_present)
+            parent=parent, children=[node.detach() for node in node_list],
+            default_present=default_present)
 
         parent.children.insert(start_index, directive)
 
@@ -2938,7 +2938,7 @@ class ACCDataTrans(RegionTrans):
         # Create a directive containing the nodes in node_list and insert it.
         from psyclone.psyGen import ACCDataDirective
         directive = ACCDataDirective(
-                parent=parent, children=[node.detach() for node in node_list])
+            parent=parent, children=[node.detach() for node in node_list])
 
         parent.children.insert(start_index, directive)
 

@@ -430,7 +430,7 @@ class FortranWriter(PSyIRVisitor):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                return symbol.datatype.declaration
+                return symbol.datatype.declaration + "\n"
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
                 "The Fortran backend cannot handle the declaration of a "
@@ -1281,24 +1281,26 @@ class FortranWriter(PSyIRVisitor):
             result += self._visit(child)
         return result
 
-    def ompdirective_node(self, node):
-        '''This method is called when an OMPDirective instance is found in
+    def directive_node(self, node):
+        '''This method is called when a Directive instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
         the statements in between as a string (depending on the language).
 
         :param node: a Directive PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Directive`
 
-        :returns: the Fortran code as a string.
+        :returns: the Fortran code for this node.
         :rtype: str
 
         '''
-        result_list = ["!${0}\n".format(node.begin_string())]
-        self._depth += 1
+        result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
+
         for child in node.dir_body:
             result_list.append(self._visit(child))
-        self._depth -= 1
-        result_list.append("!${0}\n".format(node.end_string()))
+
+        end_string = node.end_string()
+        if end_string:
+            result_list.append("{0}!${1}\n".format(self._nindent, end_string))
         return "".join(result_list)
 
     def call_node(self, node):

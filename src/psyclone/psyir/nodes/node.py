@@ -40,7 +40,6 @@
 This module contains the abstract Node implementation.
 
 '''
-import abc
 import copy
 import six
 from psyclone.psyir.symbols import SymbolError
@@ -435,7 +434,6 @@ class Node(object):
         '''
         return self.coloured_name(colour) + "[]"
 
-    @abc.abstractmethod
     def __str__(self):
         return self.node_str(False)
 
@@ -941,7 +939,17 @@ class Node(object):
 
     @property
     def root(self):
-        node = self
+        '''
+        :returns: the root node of the PSyIR tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # Starting with 'self.parent' instead of 'node = self' avoids many
+        # false positive pylint issues that assume self.root type would be
+        # the same as self type.
+        if self.parent is None:
+            return self
+        node = self.parent
         while node.parent is not None:
             node = node.parent
         return node
@@ -1136,15 +1144,6 @@ class Node(object):
         for child in self.children:
             child.lower_to_language_level()
 
-    def gen_code(self, parent):
-        '''Abstract base class for code generation function.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        '''
-        raise NotImplementedError(
-            "Please implement me: {0}".format(type(self)))
-
     def update(self):
         ''' By default we assume there is no need to update the existing
         fparser2 AST which this Node represents. We simply call the update()
@@ -1190,21 +1189,21 @@ class Node(object):
 
     @property
     def scope(self):
-        '''Schedule and Container nodes allow symbols to be scoped via an
-        attached symbol table. This property returns the closest
-        ancestor Schedule or Container node including self.
+        ''' Some nodes (e.g. Schedule and Container) allow symbols to be
+        scoped via an attached symbol table. This property returns the closest
+        ScopingNode node including self.
 
-        :returns: the closest ancestor Schedule or Container node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
+        :returns: the closest ancestor ScopingNode node.
+        :rtype: :py:class:`psyclone.psyir.node.ScopingNode`
 
-        :raises SymbolError: if there is no Schedule or Container ancestor.
+        :raises SymbolError: if there is no ScopingNode ancestor.
 
         '''
         # These imports have to be local to this method to avoid circular
         # dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Schedule, Container
-        node = self.ancestor((Container, Schedule), include_self=True)
+        from psyclone.psyir.nodes.scoping_node import ScopingNode
+        node = self.ancestor(ScopingNode, include_self=True)
         if node:
             return node
         raise SymbolError(
@@ -1299,6 +1298,20 @@ class Node(object):
         # pylint: disable=protected-access
         new_instance._refine_copy(self)
         return new_instance
+
+    def validate_global_constraints(self):
+        ''' Validates this Node in the context of the whole PSyIR tree.
+        Although there are validation checks for the parent<->child
+        relationships, there are other constraints that can only be
+        checked once the tree is complete and all transformations have
+        been applied. (One example is that an OMP Do directive must be
+        within the scope of an OMP Parallel directive.)
+
+        By default, this routine does nothing. It must be overridden
+        appropriately in any sub-classes to which constraints apply.
+        If an error is found then a GenerationError should be raised.
+
+        '''
 
 
 # For automatic documentation generation

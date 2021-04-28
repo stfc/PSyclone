@@ -71,14 +71,6 @@ def test_container_name():
     assert container.name == "new_test"
 
 
-def test_container_symbol_table():
-    '''Test that the container symbol_table method returns the expected
-    content.'''
-    container = Container("test")
-    assert isinstance(container._symbol_table, SymbolTable)
-    assert container.symbol_table is container._symbol_table
-
-
 def test_container_node_str():
     '''Check the node_str method of the Container class.'''
     cont_stmt = Container("bin")

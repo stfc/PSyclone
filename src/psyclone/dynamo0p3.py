@@ -141,14 +141,13 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
                            + HALO_ACCESS_LOOP_BOUNDS)
 
 
-# Valid LFRic loop types. The default is "" which is over cells (in the
+# Valid LFRic loop types. The default is "" which is over cell columns (in the
 # horizontal plane). A "null" loop doesn't iterate over anything but is
 # required for the halo-exchange logic.
-VALID_LOOP_TYPES = ["dofs", "colours", "colour", "", "null"]
+VALID_LOOP_TYPES = ["dof", "colours", "colour", "", "null"]
 
 # Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
-# TODO #870 rm 'cells' from list below.
-USER_KERNEL_ITERATION_SPACES = ["cells", "cell_column", "domain"]
+USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
 VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
     BUILTIN_ITERATION_SPACES
 
@@ -455,14 +454,6 @@ class DynKernMetadata(KernelType):
     def __init__(self, ast, name=None):
 
         KernelType.__init__(self, ast, name=name)
-
-        # Currently we permit old-style 'iterates_over' kernel metadata
-        # so here we map from the old-style names to the new ones.
-        # TODO #870 remove this mapping from old values to new values
-        if self.iterates_over == "cells":
-            self._iterates_over = "cell_column"
-        if self.iterates_over == "dofs":
-            self._iterates_over = "dof"
 
         # The type of CMA operation this kernel performs (or None if
         # no CMA operators are involved)
@@ -3842,14 +3833,15 @@ class DynMeshes(object):
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
                         kind=api_config.default_kind["integer"],
-                        entity_decls=[kern.cell_map + "(:,:) => null()"]))
+                        entity_decls=[kern.cell_map + "(:,:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=[kern.ncell_fine,
-                                             kern.ncellpercell]))
+                                             kern.ncellpercellx,
+                                             kern.ncellpercelly]))
             # Declare variables to hold the colourmap information if required
             if kern.colourmap:
                 parent.add(
@@ -3991,13 +3983,21 @@ class DynMeshes(object):
                                                 dig.fine.ref_name(),
                                                 "get_ncell()"])))
 
-            # Number of fine cells per coarse cell.
-            if dig.ncellpercell not in initialised:
-                initialised.append(dig.ncellpercell)
+            # Number of fine cells per coarse cell in x.
+            if dig.ncellpercellx not in initialised:
+                initialised.append(dig.ncellpercellx)
                 parent.add(
-                    AssignGen(parent, lhs=dig.ncellpercell,
+                    AssignGen(parent, lhs=dig.ncellpercellx,
                               rhs=dig.mmap +
-                              "%get_ntarget_cells_per_source_cell()"))
+                              "%get_ntarget_cells_per_source_x()"))
+
+            # Number of fine cells per coarse cell in y.
+            if dig.ncellpercelly not in initialised:
+                initialised.append(dig.ncellpercelly)
+                parent.add(
+                    AssignGen(parent, lhs=dig.ncellpercelly,
+                              rhs=dig.mmap +
+                              "%get_ntarget_cells_per_source_y()"))
 
             # Colour map for the coarse mesh (if required)
             if dig.colourmap:
@@ -4045,9 +4045,12 @@ class DynInterGrid(object):
         # Generate name for ncell variables
         self.ncell_fine = symtab.symbol_from_tag(
             "ncell_{0}".format(fine_arg.name)).name
-        # No. of fine cells per coarse cell
-        self.ncellpercell = symtab.symbol_from_tag(
-            "ncpc_{0}_{1}".format(fine_arg.name, coarse_arg.name)).name
+        # No. of fine cells per coarse cell in x
+        self.ncellpercellx = symtab.symbol_from_tag(
+            "ncpc_{0}_{1}_x".format(fine_arg.name, coarse_arg.name)).name
+        # No. of fine cells per coarse cell in y
+        self.ncellpercelly = symtab.symbol_from_tag(
+            "ncpc_{0}_{1}_y".format(fine_arg.name, coarse_arg.name)).name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
         self.cell_map = symtab.symbol_from_tag(base_name).name
@@ -6516,14 +6519,22 @@ class HaloReadAccess(HaloDepth):
 
 
 class DynLoop(Loop):
-    ''' The Dynamo specific Loop class. This passes the Dynamo
-    specific loop information to the base class so it creates the one
-    we require.  Creates Dynamo specific loop bounds when the code is
-    being generated. '''
+    '''
+    The LFRic-specific Loop class. This passes the LFRic-specific
+    loop information to the base class so it creates the one
+    we require.  Creates LFRic-specific loop bounds when the code is
+    being generated.
 
+    :param parent: the parent of this Node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param str loop_type: the type (iteration space) of this loop.
+
+    :raises InternalError: if an unrecognised loop_type is specified.
+
+    '''
     def __init__(self, parent=None, loop_type=""):
-        Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+        super(DynLoop, self).__init__(parent=parent,
+                                      valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
         # Set our variable at initialisation as it might be required
@@ -6537,12 +6548,17 @@ class DynLoop(Loop):
             elif self.loop_type == "colour":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
-            elif self.loop_type == "dofs":
+            elif self.loop_type == "dof":
                 tag = "dof_loop_idx"
                 suggested_name = "df"
-            else:
+            elif self.loop_type == "":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
+            else:
+                raise InternalError(
+                    "Unsupported loop type '{0}' found when creating loop "
+                    "variable. Supported values are 'colours', 'colour', "
+                    "'dof' or '' (for cell-columns).".format(self.loop_type))
 
             symtab = self.scope.symbol_table
             try:
@@ -7152,7 +7168,7 @@ class DynLoop(Loop):
                 parent.add(
                     CommentGen(parent, " Set halos dirty/clean for fields "
                                "modified in the above {0}".format(
-                                          prev_node_name)))
+                                   prev_node_name)))
                 parent.add(CommentGen(parent, ""))
                 from psyclone.psyGen import OMPParallelDoDirective
                 use_omp_master = False
