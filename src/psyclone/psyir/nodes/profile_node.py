@@ -188,3 +188,7 @@ class ProfileNode(PSyDataNode):
         # Finally, replace this ProfileNode with the CodeBlock containing the
         # start call
         self.replace_with(start_call)
+
+
+# For AutoAPI documentation generation
+__all__ = ['ProfileNode']

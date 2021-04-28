@@ -682,3 +682,7 @@ class PSyDataNode(Statement):
         self.ast = pscall
         self.ast_end = pecall
         self.set_region_identifier(routine_name, region_name)
+
+
+# For AutoAPI documentation generation
+__all__ = ['PSyDataNode']

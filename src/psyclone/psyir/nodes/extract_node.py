@@ -178,3 +178,7 @@ class ExtractNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
+
+
+# For AutoAPI documentation generation
+__all__ = ['ExtractNode']

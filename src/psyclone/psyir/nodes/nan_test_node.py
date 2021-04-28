@@ -137,3 +137,7 @@ class NanTestNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " NanTestEnd"))
         parent.add(CommentGen(parent, ""))
+
+
+# For AutoAPI documentation generation
+__all__ = ['NanTestNode']

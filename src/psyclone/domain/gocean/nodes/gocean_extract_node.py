@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -356,3 +356,7 @@ class GOceanExtractNode(ExtractNode):
         with open("driver-{0}-{1}.f90".
                   format(module_name, region_name), "w") as out:
             out.write(code)
+
+
+# For AutoAPI documentation generation
+__all__ = ['GOceanExtractNode']

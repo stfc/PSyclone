@@ -284,3 +284,7 @@ class PSyDataTrans(RegionTrans):
         parent.addchild(psy_data_node, position)
 
         return schedule, keep
+
+
+# For AutoAPI documentation generation
+__all__ = ['PSyDataTrans']
