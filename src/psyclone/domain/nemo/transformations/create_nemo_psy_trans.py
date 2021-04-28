@@ -66,7 +66,7 @@ class CreateNemoPSyTrans(Transformation):
     >>> psyir = Fparser2Reader().generate_psyir(parser(reader))
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoPSyTrans()
-    >>> sched = trans.apply(psyir)
+    >>> sched, _ = trans.apply(psyir)
     >>> sched.view()
     NemoInvokeSchedule[invoke='sub']
         0: Loop[type='lon', field_space='None', it_space='None']

@@ -60,11 +60,13 @@ class NemoFparser2Reader(Fparser2Reader):
     @staticmethod
     def _create_schedule(name):
         '''
-        Create an empty InvokeSchedule. The un-named argument would be 'name'
-        but this isn't used in the NEMO API.
+        Create an empty InvokeSchedule.
+
+        :param str name: the name of the Schedule to create.
 
         :returns: New InvokeSchedule empty object.
         :rtype: py:class:`psyclone.nemo.NemoInvokeSchedule`
+
         '''
         return NemoInvokeSchedule(name)
 

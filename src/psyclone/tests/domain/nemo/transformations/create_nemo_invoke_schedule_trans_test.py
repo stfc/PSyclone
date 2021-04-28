@@ -89,6 +89,7 @@ end subroutine basic_loop
     # Apply the transformation to the Routine
     sched, _ = trans.apply(routines[0])
     assert isinstance(sched, NemoInvokeSchedule)
+    assert sched.name == "basic_loop"
     assert sched[0] is first_loop
 
 
