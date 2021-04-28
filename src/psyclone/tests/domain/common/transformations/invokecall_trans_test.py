@@ -195,7 +195,7 @@ def test_call_error():
 
     # Check that validate is called via the apply method
     with pytest.raises(TransformationError) as info:
-        invoke_trans.apply("hello")
+        invoke_trans.apply("hello", 0)
     assert ("Error in InvokeCallTrans transformation. The supplied call "
             "argument should be a `Call` node but found 'str'."
             in str(info.value))
@@ -297,10 +297,11 @@ def test_apply_arrayref():
     assert isinstance(psyir[0].children[0], ArrayReference)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0])
+    invoke_trans.apply(psyir[0], 1)
 
     invoke = psyir.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
+    assert invoke._index == 1
     assert len(invoke.children) == 1
     check_reference(invoke.children[0], "kern", "field")
 
@@ -322,10 +323,11 @@ def test_apply_codeblock():
     assert isinstance(psyir[0].children[0], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0])
+    invoke_trans.apply(psyir[0], 2)
 
     invoke = psyir.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
+    assert invoke._index == 2
     assert len(invoke.children) == 1
     check_literal(invoke.children[0], "kern", "0.0")
 
@@ -347,10 +349,11 @@ def test_apply_codeblocks():
     assert isinstance(psyir[0].children[0], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0])
+    invoke_trans.apply(psyir[0], 3)
 
     invoke = psyir.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
+    assert invoke._index == 3
     assert len(invoke.children) == 2
     check_literal(invoke.children[0], "kern", "0.0")
     check_literal(invoke.children[1], "kern", "1.0")
@@ -377,10 +380,11 @@ def test_apply_mixed():
     assert isinstance(psyir[0].children[2], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0])
+    invoke_trans.apply(psyir[0], 4)
 
     invoke = psyir.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
+    assert invoke._index == 4
     assert len(invoke.children) == 4
     check_literal(invoke.children[0], "kern", "0.0")
     check_literal(invoke.children[1], "kern", "1.0")
@@ -408,10 +412,11 @@ def test_apply_expr():
     assert isinstance(psyir[0].children[1], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0])
+    invoke_trans.apply(psyir[0], 5)
 
     invoke = psyir.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
+    assert invoke._index == 5
     assert len(invoke.children) == 2
 
     klr = invoke.children[0]
