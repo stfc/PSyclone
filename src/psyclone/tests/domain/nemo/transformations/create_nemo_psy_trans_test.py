@@ -101,7 +101,7 @@ end subroutine basic_loop
     reader = FortranStringReader(code)
     prog = parser(reader)
     psyir = fp2reader.generate_psyir(prog)
-    sched = psy_trans.apply(psyir)
+    sched, _ = psy_trans.apply(psyir)
     assert isinstance(sched, NemoInvokeSchedule)
     assert isinstance(sched[0], NemoLoop)
     assert isinstance(sched[0].loop_body[0], NemoLoop)
@@ -132,8 +132,7 @@ end module my_mod
     reader = FortranStringReader(code)
     prog = parser(reader)
     psyir = fp2reader.generate_psyir(prog)
-    sched = psy_trans.apply(psyir)
-    sched.view()
+    sched, _ = psy_trans.apply(psyir)
     invokes = sched.walk(NemoInvokeSchedule)
     assert len(invokes) == 2
     assert invokes[0].name == "init"

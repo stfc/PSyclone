@@ -88,6 +88,8 @@ class CreateNemoLoopTrans(Transformation):
         :returns: the name of the transformation.
         :rtype: str
 
+        TODO #1214 remove this method.
+
         '''
         return type(self).__name__
 
@@ -127,8 +129,11 @@ class CreateNemoLoopTrans(Transformation):
             to None.
         :type options: dict of string:values or None
 
-        :returns: the new NemoLoop object.
-        :rtype: :py:class:`psyclone.nemo.NemoLoop`
+        TODO #595 decide what this method should return.
+
+        :returns: 2-tuple containing the root of the modified PSyIR tree \
+            and None.
+        :rtype: (:py:class:`psyclone.psyir.nodes.Node`, None)
 
         '''
         self.validate(loop, options=options)
@@ -140,8 +145,8 @@ class CreateNemoLoopTrans(Transformation):
                                    nodes[0], nodes[1], nodes[2],
                                    nodes[3].pop_all_children())
         loop.replace_with(new_loop)
-        del loop
-        return new_loop
+
+        return (new_loop.root, None)
 
 
 # For AutoAPI documentation generation

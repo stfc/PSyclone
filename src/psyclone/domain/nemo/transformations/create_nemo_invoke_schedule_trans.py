@@ -93,6 +93,8 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         :returns: the name of the transformation.
         :rtype: str
 
+        TODO #1214 remove this method.
+
         '''
         return type(self).__name__
 
@@ -133,10 +135,13 @@ class CreateNemoInvokeScheduleTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: dict of str:values or None
 
-        :returns: the new PSyIR node that replaces the Routine.
-        :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
+        TODO #595 - transformation should return nothing.
+
+        :returns: 2-tuple containing the root node of the modified PSyIR tree \
+            and None.
+        :rtype: (:py:class:`psyclone.nemo.NemoInvokeSchedule`, NoneType)
 
         '''
         self.validate(routine, options=options)
@@ -150,9 +155,8 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         # tree that we've been passsed.
         if routine.parent:
             routine.replace_with(new_node)
-        del routine
 
-        return new_node
+        return (new_node.root, None)
 
 
 # For AutoAPI documentation generation

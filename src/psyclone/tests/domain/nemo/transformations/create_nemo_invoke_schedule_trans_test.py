@@ -87,8 +87,7 @@ end subroutine basic_loop
     routines = psyir.walk(Routine)
     assert routines[0] is psyir
     # Apply the transformation to the Routine
-    sched = trans.apply(routines[0])
-    sched.view()
+    sched, _ = trans.apply(routines[0])
     assert isinstance(sched, NemoInvokeSchedule)
     assert sched[0] is first_loop
 

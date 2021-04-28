@@ -95,6 +95,8 @@ class CreateNemoPSyTrans(Transformation):
         :returns: the name of the transformation.
         :rtype: str
 
+        TODO #1214 remove this method.
+
         '''
         return type(self).__name__
 
@@ -136,8 +138,12 @@ class CreateNemoPSyTrans(Transformation):
             to None.
         :type options: dict of string:values or None
 
-        :returns: root of the modified PSyIR tree.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        TODO #595. Decide what this transformation should return. Since it may
+        replace the root node of a given PSyIR tree, it seems that it has to
+        return that node?
+
+        :returns: 2-tuple containing root of the modified PSyIR tree and None.
+        :rtype: (:py:class:`psyclone.psyir.nodes.Node`, NoneType)
 
         '''
         self.validate(psyir, options=options)
@@ -146,27 +152,30 @@ class CreateNemoPSyTrans(Transformation):
         kern_trans = CreateNemoKernelTrans()
         loop_trans = CreateNemoLoopTrans()
 
-        # Deal with Routines first. Have to take care of the case where the
-        # supplied top-level node is itself a Routine and must therefore be
-        # replaced.
-        root = psyir
+        # Since the transformations replace nodes in the tree, we apply
+        # them 'depth first':
 
-        for routine in psyir.walk(Routine):
-            new_node = invoke_trans.apply(routine)
-            if routine is root:
-                root = new_node
-
-        # Now deal with any loops
-        for loop in root.walk(Loop):
-            new_loop = loop_trans.apply(loop)
-
+        # First, transform suitable Loop bodies into Kernels
+        loops = psyir.walk(Loop)
+        for loop in loops:
             try:
-                kern_trans.apply(new_loop.loop_body)
+                kern_trans.apply(loop.loop_body)
             except TransformationError:
                 # Not all loop bodies are valid kernels (e.g. if they do IO)
                 pass
 
-        return root
+        # Second, transform generic Loops into NemoLoops
+        for loop in loops:
+            _ = loop_trans.apply(loop)
+
+        # Third, transform any Routines into NemoInvokeSchedules. Have to
+        # allow for the supplied top-level node being a Routine and therefore
+        # being replaced.
+        new_root = psyir
+        for routine in psyir.walk(Routine):
+            new_root, _ = invoke_trans.apply(routine)
+
+        return (new_root.root, None)
 
 
 # For AutoAPI documentation generation
