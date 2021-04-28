@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,7 @@ domain-specific knowledge, this language level PSyIR must be 'raised'
 to a domain-specific PSyIR. The resulting PSyIR will then contain
 nodes representing higher-level concepts such as kernels or halo
 exchanges. This raising is performed by means of the transformations
-listed in the sections below.
+listed in the sub-sections below.
 
 Raising Transformations for the NEMO API
 ----------------------------------------
