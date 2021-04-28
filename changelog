@@ -1,3 +1,5 @@
+release 2.0.0 28th April 2021
+
 	1) #778 for #713. Use 'make' to execute all examples.
 
 	2) #782 for #780. Refactor FunctionSpace support and move it
