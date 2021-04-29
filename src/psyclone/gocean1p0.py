@@ -52,25 +52,27 @@ import re
 import six
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
+from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference, BinaryOperation, Reference
+    KernelSchedule, StructureReference, BinaryOperation, Reference, \
+    Call, Assignment
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
-    TypeSymbol, LocalInterface, ArgumentInterface, UnresolvedInterface, \
-    REAL_TYPE
+    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
+    ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, \
+    REAL_TYPE, UnknownFortranType, LocalInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
-    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen
+    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
 
 
 # The different grid-point types that a field can live on
@@ -1261,8 +1263,26 @@ class GOKern(CodedKern):
             parent.add(UseGen(parent, name="ocl_utils_mod", only=True,
                               funcnames=["check_status"]))
 
-        # Generate code to ensure data is on device
-        self.gen_data_on_ocl_device(parent)
+        # Generate code inside the first_time block to ensure the device
+        # buffers are initialised and the data is on the device. A set_args
+        # call is also inserted because in some platforms (e.g. Xiling FPGA)
+        # knowing which arguments each kernel is going to use allows the write
+        # operation to place the data into the appropriate memory bank.
+        # This will create duplicate write operation for fields that are
+        # repeated in multiple kernels, but the performance penalty is small
+        # because it just happens during the first iteration.
+        # TODO #1134: Explore removing duplicated write operations.
+        ft_block = self.ancestor(InvokeSchedule)._first_time_block
+        self.gen_ocl_buffers_initialisation(ft_block)
+        self.gen_ocl_set_args_call(ft_block)
+        self.gen_ocl_buffers_initial_write(ft_block)
+
+        # Call the set_args again outside the first_time block in case some
+        # value has changed between iterations. This doesn't seem to have any
+        # performance penalty, but some of these could be removed for nicer
+        # code generation.
+        # TODO #1134: Explore removing unnecessary set_args calls.
+        self.gen_ocl_set_args_call(parent)
 
         # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
@@ -1304,47 +1324,6 @@ class GOKern(CodedKern):
 
         # Retrieve kernel name
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
-
-        # Find the symbol that defines each boundary for this kernel.
-        # In OpenCL the iteration boundaries are passed as arguments to the
-        # kernel because the global work size may exceed the dimensions and
-        # therefore the updates outside the boundaries should be masked.
-        # If any of the boundaries is not found, it can not proceed.
-        boundaries = []
-        try:
-            for boundary in ["xstart", "xstop", "ystart", "ystop"]:
-                tag = boundary + "_" + self.name
-                symbol = symtab.lookup_with_tag(tag)
-                boundaries.append(symbol.name)
-        except KeyError as err:
-            six.raise_from(GenerationError(
-                "Boundary symbol tag '{0}' not found while generating the "
-                "OpenCL code for kernel '{1}'. Make sure to apply the "
-                "GOMoveIterationBoundariesInsideKernelTrans before attempting"
-                " the OpenCL code generation.".format(tag, self.name)), err)
-
-        # Then we set the kernel arguments
-        arguments = [kernel]
-        for arg in self._arguments.args:
-            if arg.argument_type == "scalar":
-                if arg.name in boundaries:
-                    # Boundary values are 0-indexed in OpenCL
-                    arguments.append(arg.name + " - 1")
-                else:
-                    arguments.append(arg.name)
-            elif arg.argument_type == "field":
-                arguments.append(arg.name + "%device_ptr")
-            elif arg.argument_type == "grid_property":
-                # TODO (dl_esm_inf/#18) the dl_esm_inf library stores
-                # the pointers to device memory for grid properties in
-                # "<grid-prop-name>_device" which is a bit hacky but
-                # works for now.
-                if arg.is_scalar:
-                    arguments.append(arg.dereference(garg.name))
-                else:
-                    arguments.append(garg.name+"%grid%"+arg.name+"_device")
-        sub_name = symtab.lookup_with_tag(self.name + "_set_args").name
-        parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
@@ -1544,7 +1523,7 @@ class GOKern(CodedKern):
         # Finally we can provide the updated argument list without name clashes
         sub.args = [kobj] + argument_names
 
-    def gen_data_on_ocl_device(self, parent):
+    def gen_ocl_buffers_initialisation(self, parent):
         # pylint: disable=too-many-locals
         '''
         Generate code to create data buffers on OpenCL device.
@@ -1552,131 +1531,614 @@ class GOKern(CodedKern):
         :param parent: Parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        grid_arg = self._arguments.find_grid_access()
+        # Get the root symbol table and the root f2pygen node
         symtab = self.root.symbol_table
-        # Ensure the fields required by this kernel are on device. We must
-        # create the buffers for them if they're not.
-        parent.add(UseGen(parent, name="fortcl", only=True,
-                          funcnames=["create_rw_buffer"]))
-        parent.add(CommentGen(parent, " Ensure field data is on device"))
+        module = parent
+        while module.parent:
+            module = module.parent
+
+        # Traverse all arguments and make sure the buffers are initialised
         for arg in self._arguments.args:
-            if arg.argument_type == "field" or \
-               (arg.argument_type == "grid_property" and not arg.is_scalar):
-                api_config = Config.get().api_conf("gocean1.0")
-                if arg.argument_type == "field":
-                    # fields have a 'data_on_device' property for keeping
-                    # track of whether they are on the device
-                    condition = ".NOT. {0}%data_on_device".format(arg.name)
-                    device_buff = "{0}%device_ptr".format(arg.name)
-                    host_buff = api_config.grid_properties["go_grid_data"]\
-                        .fortran.format(arg.name)
-                else:
-                    # grid properties do not have such an attribute (because
-                    # they are just pointers) so we check whether the device
-                    # pointer is NULL.
-                    device_buff = "{0}%grid%{1}_device".format(grid_arg.name,
-                                                               arg.name)
-                    condition = device_buff + " == 0"
-                    host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
-                # Name of variable to hold no. of bytes of storage required
-                nbytes = symtab.lookup_with_tag("opencl_bytes").name
-                # Variable to hold write event returned by OpenCL runtime
-                wevent = symtab.lookup_with_tag("opencl_wevent").name
-                ifthen = IfThenGen(parent, condition)
-                parent.add(ifthen)
-                parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
-                                   entity_decls=[nbytes]))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind="c_intptr_t", target=True,
-                                   entity_decls=[wevent]))
-                api_config = Config.get().api_conf("gocean1.0")
-                props = api_config.grid_properties
-                num_x = props["go_grid_nx"].fortran.format(grid_arg.name)
-                num_y = props["go_grid_ny"].fortran.format(grid_arg.name)
-                # Use c_sizeof() on first element of array to be copied over in
-                # order to cope with the fact that some grid properties are
-                # integer.
-                size_expr = "int({0}*{1}, 8)*c_sizeof({2}(1,1))" \
-                            .format(num_x, num_y, host_buff)
-                ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
-                ifthen.add(CommentGen(ifthen, " Create buffer on device"))
-                # Get the name of the list of command queues (set in
-                # psyGen.InvokeSchedule)
-                qlist = symtab.lookup_with_tag("opencl_cmd_queues").name
-                flag = symtab.lookup_with_tag("opencl_error").name
+            if arg.argument_type == "field":
+                # Get the init_buffer routine and insert a call for this field
+                init_buf = self.gen_ocl_initialise_buffer(module)
+                field = symtab.lookup(arg.name)
+                call = Call.create(init_buf, [Reference(field)])
 
-                ifthen.add(AssignGen(ifthen, lhs=device_buff,
-                                     rhs="create_rw_buffer(" + nbytes + ")"))
-                ifthen.add(
-                    AssignGen(ifthen, lhs=flag,
-                              rhs="clEnqueueWriteBuffer({0}(1), {1}, CL_TRUE, "
-                              "0_8, {2}, C_LOC({3}), 0, C_NULL_PTR, "
-                              "C_LOC({4}))".format(qlist, device_buff,
-                                                   nbytes, host_buff, wevent)))
-                if arg.argument_type == "field":
-                    # Fields have to set their 'data_on_device' flag to True
-                    ifthen.add(AssignGen(
-                        ifthen, lhs="{0}%data_on_device".format(arg.name),
-                        rhs=".true."))
-                    # Fields also have a 'read_from_device_f' function pointer
-                    # to specify how to read the data back from the device.
-                    try:
-                        read_fp = symtab.lookup_with_tag("ocl_read_func").name
-                    except KeyError:
-                        # If the subroutines does not exist, it needs to be
-                        # generated first.
-                        read_fp = self.gen_ocl_read_from_device_function(
-                            parent.parent)
-                    ifthen.add(AssignGen(
-                        ifthen, lhs="{0}%read_from_device_f".format(arg.name),
-                        rhs=read_fp, pointer=True))
+                # TODO #1134: Currently we convert back the PSyIR to f2pygen
+                # but when using the PSyIR backend this will be removed.
+                parent.add(PSyIRGen(parent, call))
 
-                # Ensure data copies have finished
-                ifthen.add(CommentGen(
-                    ifthen, " Block until data copies have finished"))
-                ifthen.add(AssignGen(ifthen, lhs=flag,
-                                     rhs="clFinish(" + qlist + "(1))"))
+            elif arg.argument_type == "grid_property" and not arg.is_scalar:
+                # Get the grid init_buffer routine and insert a call
+                init_buf = self.gen_ocl_initialise_grid_buffers(module)
+                field = symtab.lookup(self._arguments.find_grid_access().name)
+                call = Call.create(init_buf, [Reference(field)])
 
-    def gen_ocl_read_from_device_function(self, f2pygen_module):
+                # TODO #1134: Currently we convert back the PSyIR to f2pygen
+                # but when using the PSyIR backend this will be removed.
+                parent.add(PSyIRGen(parent, call))
+
+            if not arg.is_scalar:
+                # All buffers will be assigned to a local OpenCL memory object
+                # to easily reference them, make sure this local variable is
+                # declared in the Invoke.
+                name = arg.name + "_cl_mem"
+                try:
+                    symtab.lookup_with_tag(name)
+                except KeyError:
+                    symtab.new_symbol(
+                        name, tag=name, symbol_type=DataSymbol,
+                        # TODO #1134: We could import the kind symbols from a
+                        # iso_c_binding global container.
+                        datatype=UnknownFortranType("INTEGER(KIND=c_intptr_t)"
+                                                    " :: " + name))
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       kind="c_intptr_t", entity_decls=[name]))
+
+    def gen_ocl_buffers_initial_write(self, parent):
+        # pylint: disable=too-many-locals
         '''
-        Insert a f2pygen subroutine to retrieve the data back from an
-        OpenCL device using FortCL in the given f2pygen module and return
-        its name.
+        Generate the f2pygen AST for the code to write the initial data into
+        the device.
+
+        :param parent: parent subroutine in f2pygen AST of generated code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        symtab = self.root.symbol_table
+        there_is_a_grid_buffer = False
+        for arg in self._arguments.args:
+            if arg.argument_type == "field":
+                # Insert call to write_to_device method
+                call = Call.create(
+                    RoutineSymbol(arg.name+"%write_to_device()"), [])
+                parent.add(PSyIRGen(parent, call))
+            elif arg.argument_type == "grid_property" and not arg.is_scalar:
+                there_is_a_grid_buffer = True
+
+        if there_is_a_grid_buffer:
+            module = parent
+            while module.parent:
+                module = module.parent
+            grid_write_routine = self.gen_ocl_write_grid_buffers(module)
+
+            # Insert grid writing call
+            field = symtab.lookup(self._arguments.find_grid_access().name)
+            call = Call.create(grid_write_routine, [Reference(field)])
+            parent.add(PSyIRGen(parent, call))
+
+    def gen_ocl_set_args_call(self, parent):
+        '''
+        Generate the f2pygen AST for the code to call the set_args subroutine
+        for this kernel.
+
+        :param parent: parent subroutine in f2pygen AST of generated code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        # Retrieve symbol table and kernel name
+        symtab = self.root.symbol_table
+        kernel = symtab.lookup_with_tag("kernel_" + self.name).name
+
+        # Find the symbol that defines each boundary for this kernel.
+        # In OpenCL the iteration boundaries are passed as arguments to the
+        # kernel because the global work size may exceed the dimensions and
+        # therefore the updates outside the boundaries should be masked.
+        # If any of the boundaries is not found, it can not proceed.
+        boundaries = []
+        try:
+            for boundary in ["xstart", "xstop", "ystart", "ystop"]:
+                tag = boundary + "_" + self.name
+                symbol = symtab.lookup_with_tag(tag)
+                boundaries.append(symbol.name)
+        except KeyError as err:
+            six.raise_from(GenerationError(
+                "Boundary symbol tag '{0}' not found while generating the "
+                "OpenCL code for kernel '{1}'. Make sure to apply the "
+                "GOMoveIterationBoundariesInsideKernelTrans before attempting"
+                " the OpenCL code generation.".format(tag, self.name)), err)
+
+        # If this is an IfBlock, make a copy of boundary assignments statements
+        # to make sure they are initialised before calling the set_args routine
+        # that have them as a parameter.
+        # TODO #1134: If everything was PSyIR we could probably move this
+        # assignment before the IfBlock instead of duplicating it inside.
+        if isinstance(parent, IfThenGen):
+            for node in self.ancestor(InvokeSchedule).walk(Assignment):
+                if node.lhs.symbol.name in boundaries:
+                    parent.add(PSyIRGen(parent, node.copy()))
+
+        # Prepare the argument list for the set_args routine
+        arguments = [kernel]
+        for arg in self._arguments.args:
+            if arg.argument_type == "scalar":
+                if arg.name in boundaries:
+                    # Boundary values are 0-indexed in OpenCL
+                    arguments.append(arg.name + " - 1")
+                else:
+                    arguments.append(arg.name)
+            elif arg.argument_type == "field":
+                # Cast buffer to cl_mem type expected by OpenCL
+                field = symtab.lookup(arg.name)
+                symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                source = StructureReference.create(field, ['device_ptr'])
+                dest = Reference(symbol)
+                bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
+                                             source, dest)
+                assig = Assignment.create(dest.copy(), bop)
+                parent.add(PSyIRGen(parent, assig))
+                arguments.append(symbol.name)
+            elif arg.argument_type == "grid_property":
+                garg = self._arguments.find_grid_access()
+                if arg.is_scalar:
+                    arguments.append(arg.dereference(garg.name))
+                else:
+                    # Cast grid buffer to cl_mem type expected by OpenCL
+                    device_grid_property = arg.name + "_device"
+                    field = symtab.lookup(garg.name)
+                    source = StructureReference.create(
+                                field, ['grid', device_grid_property])
+                    symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                    dest = Reference(symbol)
+                    bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
+                                                 source, dest)
+                    assig = Assignment.create(dest.copy(), bop)
+                    parent.add(PSyIRGen(parent, assig))
+                    arguments.append(symbol.name)
+
+        sub_name = symtab.lookup_with_tag(self.name + "_set_args").name
+        parent.add(CallGen(parent, sub_name, arguments))
+
+    def gen_ocl_write_grid_buffers(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that writes the values of the grid
+        properties into the OpenCL device buffers using FortCL. If the
+        subroutine doesn't already exist it is generated in the supplied
+        f2pygen module.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
         :param type: :py:class:`psyclone.f2pygen.ModuleGen`
 
-        :returns: the name of the generated subroutine.
-        :rtype: str
+        :returns: the symbol representing the grid buffers writing subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_write_grid_buffers")
+        except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
+            pass
+
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = self.root.symbol_table.new_symbol(
+        subroutine_name = symtab.new_symbol(
+            "write_grid_buffers", symbol_type=RoutineSymbol,
+            tag="ocl_write_grid_buffers").name
+
+        # Get the GOcean API property names used in this routine
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.grid_properties
+        num_x = props["go_grid_nx"].fortran.format("field")
+        num_y = props["go_grid_ny"].fortran.format("field")
+
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine write_device_grid(field)
+            USE fortcl, ONLY: get_cmd_queues
+            use iso_c_binding, only: c_intptr_t, c_size_t, c_sizeof
+            USE clfortran
+            USE ocl_utils_mod, ONLY: check_status
+            type(r2d_field), intent(inout), target :: field
+            integer(kind=c_size_t) size_in_bytes
+            INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer(c_intptr_t) :: cl_mem
+            integer :: ierr
+            cmd_queues => get_cmd_queues()
+            ! Integer grid buffers
+            size_in_bytes = int({0} * {1}, 8) * &
+                            c_sizeof(field%grid%tmask(1,1))
+            cl_mem = transfer(field%grid%tmask_device, cl_mem)
+            ierr = clEnqueueWriteBuffer(cmd_queues(1), &
+                        cl_mem, CL_TRUE, 0_8, size_in_bytes, &
+                        C_LOC(field%grid%tmask), 0, C_NULL_PTR, C_NULL_PTR)
+            CALL check_status("clEnqueueWriteBuffer tmask", ierr)
+            ! Real grid buffers
+            size_in_bytes = int({0} * {1}, 8) * &
+                            c_sizeof(field%grid%area_t(1,1))
+        '''.format(num_x, num_y)
+        write_str = '''
+            cl_mem = transfer(field%grid%{0}_device, cl_mem)
+            ierr = clEnqueueWriteBuffer(cmd_queues(1), &
+                       cl_mem, CL_TRUE, 0_8, size_in_bytes, &
+                       C_LOC(field%grid%{0}), 0, C_NULL_PTR, C_NULL_PTR)
+            CALL check_status("clEnqueueWriteBuffer {0}_device", ierr)
+        '''
+        for grid_prop in ['area_t', 'area_u', 'area_v', 'dx_u', 'dx_v',
+                          'dx_t', 'dy_u', 'dy_v', 'dy_t', 'gphiu', 'gphiv']:
+            code += write_str.format(grid_prop)
+        code += "end subroutine write_device_grid"
+
+        # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
+        processor = Fparser2Reader()
+        reader = FortranStringReader(code)
+        parser = ParserFactory().create(std="f2003")
+        parse_tree = parser(reader)
+        subroutine = processor.generate_psyir(parse_tree)
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_write_grid_buffers")
+
+    def gen_ocl_initialise_buffer(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that initialises a OpenCL buffer in
+        the OpenCL device using FortCL. If the subroutine doesn't already exist
+        it is generated in the supplied f2pygen module.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the symbol of the buffer initialisation subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_init_buffer_func")
+        except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "initialise_device_buffer", symbol_type=RoutineSymbol,
+            tag="ocl_init_buffer_func").name
+
+        # Get the GOcean API property names used in this routine
+        api_config = Config.get().api_conf("gocean1.0")
+        host_buff = \
+            api_config.grid_properties["go_grid_data"].fortran.format("field")
+        props = api_config.grid_properties
+        num_x = props["go_grid_nx"].fortran.format("field")
+        num_y = props["go_grid_ny"].fortran.format("field")
+
+        # Fields need to provide a function pointer to how the
+        # device data is going to be read and written, if it doesn't
+        # exist, create the appropriate subroutine first.
+        read_fp = self.gen_ocl_read_from_device_function(f2pygen_module).name
+        write_fp = self.gen_ocl_write_to_device_function(f2pygen_module).name
+
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine initialise_device_buffer(field)
+            USE fortcl, ONLY: create_rw_buffer
+            use field_mod
+            type(r2d_field), intent(inout), target :: field
+            integer(kind=c_size_t) size_in_bytes
+            IF (.NOT. field%data_on_device) THEN
+                size_in_bytes = int({0}*{1}, 8) * &
+                                    c_sizeof({2}(1,1))
+                ! Create buffer on device, we store it without type information
+                ! on the dl_esm_inf pointer (transfer/static_cast to void*)
+                field%device_ptr = transfer( &
+                    create_rw_buffer(size_in_bytes), &
+                    field%device_ptr)
+                field%data_on_device = .true.
+                field%read_from_device_f => {3}
+                field%write_to_device_f => {4}
+            END IF
+        end subroutine initialise_device_buffer
+        '''.format(num_x, num_y, host_buff, read_fp, write_fp)
+
+        # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
+        processor = Fparser2Reader()
+        reader = FortranStringReader(code)
+        parser = ParserFactory().create(std="f2003")
+        parse_tree = parser(reader)
+        subroutine = processor.generate_psyir(parse_tree)
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_init_buffer_func")
+
+    def gen_ocl_initialise_grid_buffers(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that initialises all OpenCL grid
+        buffers in the OpenCL device using FortCL. If the subroutine doesn't
+        already exist it is generated in the supplied f2pygen module.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the symbol of the grid buffer initialisation subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_init_grid_buffers")
+        except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "initialise_grid_device_buffers", symbol_type=RoutineSymbol,
+            tag="ocl_init_grid_buffers").name
+
+        # Get the GOcean API property names used in this routine
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.grid_properties
+        num_x = props["go_grid_nx"].fortran.format("field")
+        num_y = props["go_grid_ny"].fortran.format("field")
+
+        int_arrays = []
+        real_arrays = []
+        for key, prop in props.items():
+            if key == "go_grid_data":
+                # TODO #676: Ignore because go_grid_data is actually a field
+                # property
+                continue
+            if prop.type == "array" and prop.intrinsic_type == "integer":
+                int_arrays.append(prop.fortran.format("field"))
+            elif prop.type == "array" and prop.intrinsic_type == "real":
+                real_arrays.append(prop.fortran.format("field"))
+
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine initialise_device_grid(field)
+            USE fortcl, ONLY: create_ronly_buffer
+            use field_mod
+            type(r2d_field), intent(inout), target :: field
+            integer(kind=c_size_t) size_in_bytes
+            IF (.not. c_associated({2}_device)) THEN
+                ! Create integer grid fields
+                size_in_bytes = int({0}*{1}, 8) * c_sizeof({2}(1,1))
+        '''.format(num_x, num_y, int_arrays[0])
+
+        for int_array in int_arrays:
+            code += '''
+                {0}_device = transfer(create_ronly_buffer(size_in_bytes), &
+                                      {0}_device)
+            '''.format(int_array)
+
+        code += '''
+                ! Create real grid buffers
+                size_in_bytes = int({0} * {1}, 8) * c_sizeof({2}(1,1))
+        '''.format(num_x, num_y, real_arrays[0])
+
+        for real_array in real_arrays:
+            code += '''
+                {0}_device = transfer(create_ronly_buffer(size_in_bytes), &
+                                      {0}_device)
+            '''.format(real_array)
+
+        code += '''
+            END IF
+        end subroutine initialise_device_grid
+        '''
+
+        # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
+        processor = Fparser2Reader()
+        reader = FortranStringReader(code)
+        parser = ParserFactory().create(std="f2003")
+        parse_tree = parser(reader)
+        subroutine = processor.generate_psyir(parse_tree)
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_init_grid_buffers")
+
+    def gen_ocl_read_from_device_function(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that retrieves the data back from
+        an OpenCL device using FortCL. If the subroutine doesn't already exist
+        it is generated in the supplied f2pygen module.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the symbol of the buffer data retrieving subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_read_func")
+        except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
             "read_from_device", symbol_type=RoutineSymbol,
             tag="ocl_read_func").name
 
-        # Generate the routine in the given f2pygen_module
-        args = ["from", "to", "nx", "ny", "width"]
-        sub = SubroutineGen(f2pygen_module, name=subroutine_name, args=args)
-        f2pygen_module.add(sub)
-        sub.add(UseGen(sub, name="fortcl", only=True,
-                       funcnames=["read_buffer"]))
-        sub.add(UseGen(sub, name="iso_c_binding", only=True,
-                       funcnames=["c_intptr_t"]))
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine read_sub(from, to, startx, starty, nx, ny, blocking)
+            USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
+            USE ocl_utils_mod, ONLY: check_status
+            use kind_params_mod, only: go_wp
+            USE clfortran
+            USE fortcl, ONLY: get_cmd_queues
+            type(c_ptr), intent(in) :: from
+            real(go_wp), intent(inout), dimension(:,:), target :: to
+            integer, intent(in) :: startx, starty, nx, ny
+            logical, intent(in) :: blocking
+            INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
+            integer(c_intptr_t) :: cl_mem
+            INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer :: ierr, i
 
-        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                        intent="in", entity_decls=["from"]))
-        sub.add(DeclGen(sub, datatype="real", kind="go_wp", intent="inout",
-                        dimension=":,:", entity_decls=["to"]))
-        sub.add(DeclGen(sub, datatype="integer", intent="in",
-                        entity_decls=["nx", "ny", "width"]))
-        sub.add(
-            CallGen(
-                sub, name="read_buffer",
-                args=["from", "to", "int(width*ny, kind=8)"]))
+            ! Give the from pointer the appropriate OpenCL memory object type
+            cl_mem = transfer(from, cl_mem)
+            cmd_queues => get_cmd_queues()
 
-        return subroutine_name
+            ! Two copy strategies depending on how much of the total length
+            ! nx covers.
+            if (nx < size(to, 1) / 2) then
+                ! Dispatch asynchronous copies of just the contiguous data.
+                do i = starty, starty+ny
+                    size_in_bytes = int(nx, 8) * c_sizeof(to(1,1))
+                    offset_in_bytes = int(size(to, 1) * (i-1) + (startx-1)) &
+                                      * c_sizeof(to(1,1))
+                    ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
+                        CL_FALSE, offset_in_bytes, size_in_bytes, &
+                        C_LOC(to(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
+                    CALL check_status("clEnqueueReadBuffer", ierr)
+                enddo
+                if (blocking) then
+                    CALL check_status("clFinish on read", &
+                        clFinish(cmd_queues(1)))
+                endif
+            else
+                ! Copy across the whole starty:starty+ny rows in a single
+                ! copy operation.
+                size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
+                offset_in_bytes = int(size(to,1)*(starty-1), 8) &
+                                  * c_sizeof(to(1,1))
+                ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
+                    CL_TRUE, offset_in_bytes, size_in_bytes, &
+                    C_LOC(to(1,starty)), 0, C_NULL_PTR, C_NULL_PTR)
+                CALL check_status("clEnqueueReadBuffer", ierr)
+            endif
+        end subroutine read_sub
+        '''
+
+        # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
+        processor = Fparser2Reader()
+        reader = FortranStringReader(code)
+        parser = ParserFactory().create(std="f2003")
+        parse_tree = parser(reader)
+        subroutine = processor.generate_psyir(parse_tree)
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_read_func")
+
+    def gen_ocl_write_to_device_function(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that writes the buffer data into
+        an OpenCL device using FortCL. If the subroutine doesn't already exist
+        it is generated in the supplied f2pygen module.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the symbol of the buffer writing subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_write_func")
+        except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "write_to_device", symbol_type=RoutineSymbol,
+            tag="ocl_write_func").name
+
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine write_sub(from, to, startx, starty, nx, ny, blocking)
+            USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
+            USE ocl_utils_mod, ONLY: check_status
+            use kind_params_mod, only: go_wp
+            USE clfortran
+            USE fortcl, ONLY: get_cmd_queues
+            real(go_wp), intent(in), dimension(:,:), target :: from
+            type(c_ptr), intent(in) :: to
+            integer, intent(in) :: startx, starty, nx, ny
+            logical, intent(in) :: blocking
+            integer(c_intptr_t) :: cl_mem
+            INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
+            INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer :: ierr, i
+
+            ! Give the to pointer the appropriate OpenCL memory object type
+            cl_mem = transfer(to, cl_mem)
+            cmd_queues => get_cmd_queues()
+
+            ! Two copy strategies depending on how much of the total length
+            ! nx covers.
+            if (nx < size(from,1) / 2) then
+                ! Dispatch asynchronous copies of just the contiguous data.
+                do i=starty, starty+ny
+                    size_in_bytes = int(nx, 8) * c_sizeof(from(1,1))
+                    offset_in_bytes = int(size(from, 1) * (i-1) + (startx-1)) &
+                                      * c_sizeof(from(1,1))
+                    ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
+                        CL_FALSE, offset_in_bytes, size_in_bytes, &
+                        C_LOC(from(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
+                    CALL check_status("clEnqueueWriteBuffer", ierr)
+                enddo
+                if (blocking) then
+                    CALL check_status("clFinish on write", &
+                        clFinish(cmd_queues(1)))
+                endif
+            else
+                ! Copy across the whole starty:starty+ny rows in a single
+                ! copy operation.
+                size_in_bytes = int(size(from,1) * ny, 8) * c_sizeof(from(1,1))
+                offset_in_bytes = int(size(from,1) * (starty-1)) &
+                                  * c_sizeof(from(1,1))
+                ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
+                    CL_TRUE, offset_in_bytes, size_in_bytes, &
+                    C_LOC(from(1, starty)), 0, C_NULL_PTR, C_NULL_PTR)
+                CALL check_status("clEnqueueWriteBuffer", ierr)
+            endif
+        end subroutine write_sub
+        '''
+
+        # Obtain the PSyIR representation of the code above
+        # TODO #1188: Reduce verbosity and improve performance by caching an
+        # already created fparser2 parser
+        processor = Fparser2Reader()
+        reader = FortranStringReader(code)
+        parser = ParserFactory().create(std="f2003")
+        parse_tree = parser(reader)
+        subroutine = processor.generate_psyir(parse_tree)
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_write_func")
 
     def get_kernel_schedule(self):
         '''

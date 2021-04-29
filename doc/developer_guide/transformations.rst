@@ -79,6 +79,31 @@ The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `Routine` class with the `is_program` and `return_type` properties set to
 `False` and `None`, respectively.
 
+Raising Transformations
+=======================
+
+Whenever the PSyIR is created from existing source code using one of
+the frontends, the result is language-level PSyIR. That is, it
+contains only nodes that can be mapped directly into a language such
+as C or Fortran by one of the PSyIR backends. In order to utilise
+domain-specific knowledge, this language level PSyIR must be 'raised'
+to a domain-specific PSyIR. The resulting PSyIR will then contain
+nodes representing higher-level concepts such as kernels or halo
+exchanges. This raising is performed by means of the transformations
+listed in this section.
+
+Raising Transformations for the NEMO API
+----------------------------------------
+
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoKernelTrans
+
+Raising Transformations for the LFRic API
+-----------------------------------------
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicInvokeCallTrans
+
 OpenACC
 =======
 

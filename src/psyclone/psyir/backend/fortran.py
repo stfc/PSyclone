@@ -430,7 +430,7 @@ class FortranWriter(PSyIRVisitor):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                return symbol.datatype.declaration
+                return symbol.datatype.declaration + "\n"
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
                 "The Fortran backend cannot handle the declaration of a "
@@ -1293,8 +1293,6 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        # TODO #1184 perform validation checks here, use a separate visitor or
-        # get the base visitor class to call the appropriate routine?
         result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
 
         for child in node.dir_body:
