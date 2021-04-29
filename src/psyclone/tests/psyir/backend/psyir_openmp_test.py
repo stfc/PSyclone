@@ -44,7 +44,6 @@ from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke
-
 from psyclone.transformations import OMPParallelTrans, OMPLoopTrans
 
 

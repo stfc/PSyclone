@@ -41,6 +41,10 @@ import pytest
 from fparser.two.parser import ParserFactory
 
 
+# This is similar to the top-level pytest 'parse' fixture but that one has
+# a deprecation notice. However it is appropriate to use it inside the Fortran
+# frontend tests because the fparser dependency should be encapsulated inside
+# this module and the fixture won't go away.
 @pytest.fixture(scope="session", name="f2008_parser")
 def fixture_f2008_parser():
     ''' Initialise fparser2 with Fortran2008 standard. '''

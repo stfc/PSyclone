@@ -140,8 +140,10 @@ annexed        	 Supplies a test with the various possible values of the LFRic
 dist_mem       	 Supplies a test with the various possible values of the
                  `distributed-memory` option (only applicable to the LFRic API
                  currently).
-f2008_parser     Creates an fparser2 parser for the Fortran2008 standard. This
-                 is only done once per test session.
+fortran_reader   Provides a Fortran PSyIR front-end object to convert Fortran
+                 code snippets into PSyIR.
+fortran_writer   Provides a Fortran PSyIR back-end object to convert PSyIR
+                 trees into Fortran code.
 have_graphviz  	 True if the Python bindings to the graphviz package (used when
                  generating DAG visualisations) are available. Does *not* check
                  that the underlying graphviz library is installed.
@@ -151,9 +153,9 @@ kernel_outputdir Sets the output directory used by PSyclone for transformed
                  kernels to be transformed needs to use this fixture in order
                  to avoid having unwanted files created within the git working
                  tree.
-parser           Creates an fparser2 parser for the Fortran2003 standard. This
+parser           Creates an fparser2 parser for the Fortran2008 standard. This
                  is an expensive operation so this fixture is only run once
-		 per test session.
+		         per test session.
 ================ ==============================================================
 
 In addition, there are two fixtures that are automatically run (just

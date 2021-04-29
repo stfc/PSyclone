@@ -1671,7 +1671,6 @@ def test_fw_codeblock_1(fortran_reader, fortran_writer, tmpdir):
     assert psyir.walk(CodeBlock)
     # Generate Fortran from the PSyIR
     result = fortran_writer(psyir)
-    print(result)
     assert (
         "    a = 1\n"
         "    PRINT *, \"I am a code block\"\n"

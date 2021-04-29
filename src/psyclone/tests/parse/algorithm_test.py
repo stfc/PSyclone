@@ -46,15 +46,15 @@ from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor, \
     Data_Ref, Proc_Component_Ref, Name, Call_Stmt, Use_Stmt, \
     Actual_Arg_Spec
 from fparser.two.parser import ParserFactory
-
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
 
 
+# This ParserFactory call needs to happen at the top-level in order for the
+# fparser.two.Fortran2003 import to work as expected.
 ParserFactory().create(std="f2008")
-
 
 # class parser() tests
 
@@ -125,7 +125,6 @@ def test_parser_caseinsensitive1():
     statement is case insensitive.
 
     '''
-    ParserFactory().create(std="f2008")
     parser = Parser()
     use = Use_Stmt("use my_mod, only : SETVAL_X")
     parser.update_arg_to_module_map(use)
@@ -149,7 +148,6 @@ def test_parser_caseinsensitive2(monkeypatch):
         raise NotImplementedError("test_parser_caseinsensitive2")
 
     monkeypatch.setattr("psyclone.parse.kernel.get_kernel_ast", dummy_func)
-    ParserFactory().create(std="f2008")
     parser = Parser()
     use = Use_Stmt("use my_mod, only : MY_KERN")
     parser.update_arg_to_module_map(use)

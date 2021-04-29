@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -173,3 +173,8 @@ class FortranModuleInterface(ContainerSymbolInterface):
             "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
             " any of the include_paths directories {1}."
             "".format(name, Config.get().include_paths))
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ['ContainerSymbol', 'ContainerSymbolInterface',
+           'FortranModuleInterface']

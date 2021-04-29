@@ -65,7 +65,8 @@ def test_fortran_reader_constructor():
     assert freader._parser is Fortran2003.Program
     assert isinstance(freader._processor, Fparser2Reader)
 
-    # The initialised parser can parse Fortran 2008 standard
+    # Check that the initialised parser can parse Fortran 2008 standard,
+    # the return value of this function is tested in the following tests
     freader.psyir_from_source(ONLY_2008_CODE)
 
 

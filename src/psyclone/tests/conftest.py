@@ -142,8 +142,9 @@ def parser():
     Creates and returns an fparser object. Since this is expensive we only
     do this once per test session (scope="session" above).
 
-    Note: If this fixture is not used to the fparser parse tree but is just
-    a step to getting the PSyIR, use the fortran_reader fixture below.
+    Note: If this fixture is not used to get the fparser parse tree but is
+    used as just a step in getting the PSyIR, use the fortran_reader fixture
+    below.
 
     '''
     return ParserFactory().create(std="f2008")
