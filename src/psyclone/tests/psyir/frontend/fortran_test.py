@@ -37,6 +37,7 @@
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
 from __future__ import absolute_import
+import pytest
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -85,6 +86,13 @@ def test_fortran_psyir_from_file(tmpdir_factory):
     with open(filename, "w") as wfile:
         wfile.write(CODE)
 
+    # Check with a proper file
     fortran_reader = FortranReader()
     subroutine = fortran_reader.psyir_from_file(filename)
     assert isinstance(subroutine, Routine)
+
+    # Check with a file that doesn't exist
+    filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))
+    with pytest.raises(FileNotFoundError) as err:
+        fortran_reader.psyir_from_file(filename)
+    assert "No such file or directory: '" + str(filename) in str(err.value)
