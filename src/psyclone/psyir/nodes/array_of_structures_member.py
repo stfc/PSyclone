@@ -91,6 +91,19 @@ class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
             obj.addchild(child)
         return obj
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. The default implementation
+        just recurses down to all children.
+
+        :param var_accesses: Stores the output results.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        #print("array of structures_member")
+        for child in self._children:
+            #print("  asm type -->", type(child))
+            child.reference_accesses(var_accesses)
+
 
 # For AutoAPI automatic documentation generation
 __all__ = ['ArrayOfStructuresMember']

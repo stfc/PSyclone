@@ -38,6 +38,10 @@
 node. '''
 
 from __future__ import absolute_import
+
+from psyclone.core import AccessType, Signature
+from psyclone.psyir.nodes.member import Member
+# Circular import if only '...nodes' is used:
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir import symbols
 from psyclone.psyir.nodes.array_of_structures_mixin import \
@@ -123,6 +127,38 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             ref.addchild(child)
         return ref
 
+    def get_signature(self):
+        ''':returns: the Signature of this structure reference.
+        :rtype: :py:class:`psyclone.core.Signature
+
+        '''
+        components = [self.name]
+        current = self
+        while current.children:
+            current = current.children[0]
+            # Array members have other references as children,
+            # which are not be part of this signature, so only
+            # add actual members
+            if isinstance(current, Member):
+                components.append(current.name)
+
+        return Signature(tuple(components))
+
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. The default implementation
+        just recurses down to all children.
+
+        :param var_accesses: Stores the output results.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        #print("Array of structure references", self.get_signature())
+        var_accesses.add_access(self.get_signature(), AccessType.READ,
+                         self, )
+        for child in self._children:
+            #print("  asr type -->", type(child))
+            child.reference_accesses(var_accesses)
 
 # For AutoAPI documentation generation
 __all__ = ['ArrayOfStructuresReference']

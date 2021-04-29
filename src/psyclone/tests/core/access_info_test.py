@@ -308,17 +308,18 @@ def test_constructor():
 
 
 # -----------------------------------------------------------------------------
-def test_derived_type():
-    '''This function tests the handling of derived types.
+def test_derived_type_scalar():
+    '''This function tests the handling of derived scalartypes.
     '''
 
     code = '''module test
         contains
         subroutine tmp()
-          use my_mod, only: something
-          type(something) :: a, b, c
+          use my_mod
+          !use my_mod, only: something
+          !type(something) :: a, b, c
+          integer :: i, j, k
           a%b = b%c/c%d%e
-          !c(i)%e(j,k) = a(i)%b(j,k)%c
         end subroutine tmp
         end module test'''
     schedule = create_schedule(code, "tmp")
@@ -326,3 +327,29 @@ def test_derived_type():
     vai1 = VariablesAccessInfo(node1)
     assert isinstance(node1, Assignment)
     assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("array", ["a%b%c", "a(i)%b%c",
+                                   "a%b(j)%c", "a(i)%b(j)%c",
+                                   "a%b%c(k)", "a(i)%b%c(k)",
+                                   "a%b(j)%c(k)", "a(i)%b(j)%c(k)"])
+def test_derived_type_array(array):
+    '''This function tests the handling of derived array types.
+    '''
+
+    code = '''module test
+        contains
+        subroutine tmp()
+          use my_mod
+          !use my_mod, only: something
+          !type(something) :: a, b, c
+          integer :: i, j, k
+          c(i)%e(j,k) = {0}
+        end subroutine tmp
+        end module test'''.format(array)
+
+    schedule = create_schedule(code, "tmp")
+    node1 = schedule[0]
+    vai1 = VariablesAccessInfo(node1)
+    assert isinstance(node1, Assignment)
+    assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
