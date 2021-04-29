@@ -156,7 +156,7 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser==0.0.11', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.0.12', 'configparser',
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
             'dag': ["graphviz"],

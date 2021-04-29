@@ -1299,6 +1299,20 @@ class Node(object):
         new_instance._refine_copy(self)
         return new_instance
 
+    def validate_global_constraints(self):
+        ''' Validates this Node in the context of the whole PSyIR tree.
+        Although there are validation checks for the parent<->child
+        relationships, there are other constraints that can only be
+        checked once the tree is complete and all transformations have
+        been applied. (One example is that an OMP Do directive must be
+        within the scope of an OMP Parallel directive.)
+
+        By default, this routine does nothing. It must be overridden
+        appropriately in any sub-classes to which constraints apply.
+        If an error is found then a GenerationError should be raised.
+
+        '''
+
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.
