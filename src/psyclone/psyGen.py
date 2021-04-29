@@ -47,7 +47,7 @@ import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
@@ -4630,9 +4630,10 @@ class ACCDataDirective(ACCDirective):
         table = self.scope.symbol_table
         readers = set()
         writers = set()
-        for var in var_accesses.all_vars:
+        for signature in var_accesses.all_signatures:
+            var = str(signature)
             sym = table.lookup(var)
-            accesses = var_accesses[var]
+            accesses = var_accesses[signature]
             if not sym.is_array:
                 # We ignore scalars
                 continue
@@ -4643,7 +4644,7 @@ class ACCDataDirective(ACCDirective):
         readwrites = readers.intersection(writers)
         # Are any of the read-writes written before they are read?
         for var in list(readwrites)[:]:
-            accesses = var_accesses[var]
+            accesses = var_accesses[Signature(var)]
             if accesses[0].access_type == AccessType.WRITE:
                 # First access is a write so treat as a write
                 writers.add(var)

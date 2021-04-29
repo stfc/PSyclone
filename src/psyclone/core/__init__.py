@@ -33,7 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Core package module.'''
+'''This module provides access to various classes used in determining
+variable access information.
+'''
 
 from psyclone.core.signature import Signature
 from psyclone.core.access_info import AccessInfo, SingleVariableAccessInfo, \
@@ -42,7 +44,7 @@ from psyclone.core.access_type import AccessType
 
 
 # The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.nodes import Literal'
+# this package e.g. 'from psyclone.core import Signature'
 __all__ = [
         'AccessInfo',
         'AccessType',

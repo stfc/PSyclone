@@ -54,18 +54,19 @@ class AccessInfo(object):
     accesses in the same statement will have the same location number.
     If the variable accessed is an array, this class will also store
     the indices used in the access.
-    Note that the name of the variable is not stored in this instance, it
-    is typically available using `SingleVariableAccessInfo` class (which
-    stores all `AccessInfo` objects for a variable).
+    Note that the name of the variable is not stored in this class.
+    It is a helper class used in the `SingleVariableAccessInfo` class,
+    which stores all `AccessInfo` objects for a variable, and it stores
+    the name of the variable.
 
-    :param access: The access type.
+    :param access: the access type.
     :type access_type: :py:class:`psyclone.core.access_type.AccessType`
-    :param int location: A number used in ordering the accesses.
-    :param indices: Indices used in the access, defaults to None
-    :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances \
+    :param int location: a number used in ordering the accesses.
+    :param indices: indices used in the access, defaults to None
+    :type indices: list of :py:class:`psyclone.psyir.nodes.Node` \
         (e.g. Reference, ...)
     :param node: Node in PSyIR in which the access happens, defaults to None.
-    :type node: :py:class:`psyclone.psyir.nodes.Node` instance
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, access_type, location, node, indices=None):
@@ -102,8 +103,7 @@ class AccessInfo(object):
     def indices(self):
         '''
         :returns: the indices used in this access. Can be None.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node` instances, \
-                or None.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`, or None
         '''
         return self._indices
 
@@ -111,8 +111,8 @@ class AccessInfo(object):
     def indices(self, indices):
         '''Sets the indices for this AccessInfo instance.
 
-        :param indices: List of indices used in the access.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances
+        :param indices: list of indices used in the access.
+        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._indices = indices[:]
 
@@ -141,7 +141,7 @@ class AccessInfo(object):
 class SingleVariableAccessInfo(object):
     '''This class stores a list with all accesses to one variable.
 
-    :param signature: signature instance of the variable.
+    :param signature: signature of the variable.
     :type signature: :py:class:`psyclone.core.signature`
 
     '''
@@ -153,8 +153,14 @@ class SingleVariableAccessInfo(object):
 
     def __str__(self):
         '''Returns a string representation of this object with the format:
-        var_name:WRITE(2),WRITE(3),READ(5).'''
-        return "{0}:{1}".format(str(self._signature),
+        var_name:WRITE(2),WRITE(3),READ(5) where the numbers indicate
+        the 'location' of the corresponding access. The location is an
+        integer number that enumerates each stament in a program unit,
+        and can be used to compare if an access earlier, later or in
+        the same statement as another access.
+
+        '''
+        return "{0}:{1}".format(self._signature,
                                 ",".join([str(access)
                                           for access in self._accesses]))
 
@@ -210,8 +216,7 @@ class SingleVariableAccessInfo(object):
     @property
     def all_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable.
-        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo` \
-            instances.
+        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo`
         '''
         return self._accesses
 
@@ -219,16 +224,16 @@ class SingleVariableAccessInfo(object):
                                  indices=None):
         '''Adds access information to this variable.
 
-        :param access_type: The type of access (READ, WRITE, ....)
+        :param access_type: the type of access (READ, WRITE, ....)
         :type access_type: \
             :py:class:`psyclone.core.access_type.AccessType`
-        :param location: Location information
+        :param location: location information
         :type location: int
-        :param indicies: Indices used in the access (None if the variable \
+        :param indicies: indices used in the access (None if the variable \
             is not an array). Defaults to None
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances
+        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
         :param node: Node in PSyIR in which the access happens.
-        :type node: :py:class:`psyclone.psyir.nodes.Node` instance
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._accesses.append(AccessInfo(access_type, location, node, indices))
 
@@ -257,7 +262,7 @@ class SingleVariableAccessInfo(object):
 # =============================================================================
 class VariablesAccessInfo(dict):
     '''This class stores all `SingleVariableAccessInfo` instances for all
-    variables in the corresponding code section. It maintains a 'location'
+    variables in the corresponding code section. It maintains 'location'
     information, which is an integer number that is increased for each new
     statement. It can be used to easily determine if one access is before
     another.
@@ -269,7 +274,7 @@ class VariablesAccessInfo(dict):
 
     '''
     def __init__(self, nodes=None):
-        # This dictionary stores the mapping of variable names to the
+        # This dictionary stores the mapping of signatures to the
         # corresponding SingleVariableAccessInfo instance.
         dict.__init__(self)
 
@@ -346,39 +351,40 @@ class VariablesAccessInfo(dict):
         '''Increases the location number.'''
         self._location = self._location + 1
 
-    def add_access(self, variable, access_type, node, indices=None):
-        '''Adds access information for the specified variable.
+    def add_access(self, signature, access_type, node, indices=None):
+        '''Adds access information for the variable with the given signature.
 
-        :param variable: PSyIR node that represents the variable.
-        :type variable: :py:class:`psyclone.core.Signature` instance
-        :param access_type: The type of access (READ, WRITE, ...)
+        :param signature: the signature of the variable.
+        :type signature: :py:class:`psyclone.core.Signature`
+        :param access_type: the type of access (READ, WRITE, ...)
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node` instance
-        :param indices: Indices used in the access (None if the variable \
+        :param indices: indices used in the access (None if the variable \
             is not an array). Defaults to None.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances
+        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        if not isinstance(variable, Signature):
-            raise InternalError("Got '{0}' of type {1}, expected Signature."
-                                .format(variable, type(variable)))
-        sig = variable
+        if not isinstance(signature, Signature):
+            raise InternalError("Got '{0}' of type '{1}' but expected it to "
+                                "be of type psyclone.core.Signature."
+                                .format(signature, type(signature).__name__))
 
-        if sig in self:
-            self[sig].add_access_with_location(access_type, self._location,
-                                               node, indices)
+        if signature in self:
+            self[signature].add_access_with_location(access_type,
+                                                     self._location, node,
+                                                     indices)
         else:
-            var_info = SingleVariableAccessInfo(sig)
+            var_info = SingleVariableAccessInfo(signature)
             var_info.add_access_with_location(access_type, self._location,
                                               node, indices)
-            self[sig] = var_info
+            self[signature] = var_info
 
     @property
     def all_signatures(self):
         ''':returns: all signatures contained in this instance, sorted (in \
                      order to make test results reproducible).
-        :rtype: list of :py:class:`psyclone.core.signature`.
+        :rtype: list of :py:class:`psyclone.core.signature`
         '''
         list_of_vars = list(self.keys())
         list_of_vars.sort()
@@ -388,7 +394,7 @@ class VariablesAccessInfo(dict):
         '''Merges data from a VariablesAccessInfo instance to the
         information in this instance.
 
-        :param other_access_info: The other VariablesAccessInfo instance.
+        :param other_access_info: the other VariablesAccessInfo instance.
         :type other_access_info: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
@@ -419,42 +425,50 @@ class VariablesAccessInfo(dict):
         # locations just merged in
         self._location = self._location + max_new_location
 
-    def is_written(self, var_name):
-        '''Checks if the specified variable name is at least written once.
+    def is_written(self, signature):
+        '''Checks if the specified variable signature is at least
+        written once.
 
-        :param str var_name: Name of the variable
+        :param signature: signature of the variable.
+        :type signature: :py:class:`psyclone.core.Signature`
 
-        :returns: True if the specified variable name is written (at least \
+        :returns: True if the specified variable is written (at least \
             once).
         :rtype: bool
 
         :raises: KeyError if the variable name cannot be found.
 
         '''
-        var_access_info = self[var_name]
+        var_access_info = self[signature]
         return var_access_info.is_written()
 
-    def is_read(self, var_name):
-        '''Checks if the specified variable name is at least read once.
+    def is_read(self, signature):
+        '''Checks if the specified variable signature is at least read once.
 
-        :param str var_name: Name of the variable
+        :param signature: signature of the variable
+        :type signature: :py:class:`psyclone.core.Signature`
+
         :returns: True if the specified variable name is read (at least \
             once).
         :rtype: bool
+
         :raises: KeyError if the variable names can not be found.'''
 
-        var_access_info = self[var_name]
+        var_access_info = self[signature]
         return var_access_info.is_read()
 
-    def has_read_write(self, var_name):
-        '''Checks if the specified variable name has at least one READWRITE
-        access (which is typically only used in a function call)
+    def has_read_write(self, signature):
+        '''Checks if the specified variable signature has at least one
+        READWRITE access (which is typically only used in a function call).
 
-        :param str var_name: Name of the variable
+        :param singature: signature of the variable
+        :type signature: :py:class:`psyclone.core.Signature`
+
         :returns: True if the specified variable name has (at least one) \
             READWRITE access.
         :rtype: bool
+
         :raises: KeyError if the variable names can not be found.'''
 
-        var_access_info = self[var_name]
+        var_access_info = self[signature]
         return var_access_info.has_read_write()

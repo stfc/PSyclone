@@ -388,9 +388,20 @@ variable accesses (READ, WRITE etc.), which is based on the PSyIR information.
 The only exception to this is if a kernel is called, in which case the
 metadata for the kernel declaration will be used to determine the variable
 accesses for the call statement. The information about all variable usage
-of a node can be gathered by creating an object of type
-`psyclone.core.access_info.VariablesAccessInfo`, and then calling
-the function `reference_accesses()` for the node:
+of a PSyIR node or a list of nodes can be gathered by creating an object of
+type `psyclone.core.access_info.VariablesAccessInfo`.
+This class uses a `Signature` object to keep track of the variables used.
+A signature can be thought of as a tuple that consists of the variable name
+and structure members used in an access. For example, an access like
+`a(1)%b(k)%c(i,j)` would be stored with a signature `(a, b, c)`.
+And a simple variable `a` is stored as a one-element tuple `(a, )`.
+
+.. autoclass:: psyclone.core.access_info.Signature
+    :members:
+    :special-members: __hash__, __eq__, __lt__
+
+To collect access information in a `VariablesAccessInfo` object, the
+function `reference_accesses()` for the code region must be called:
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
 
@@ -409,7 +420,7 @@ instance.
 
 For each variable used an instance of
 `psyclone.core.access_info.SingleVariableAccessInfo` is created, which collects
-all accesses for that variable using `psyclone.config.access_info.AccessInfo`
+all accesses for that variable using `psyclone.core.access_info.AccessInfo`
 instances:
 
 .. autoclass:: psyclone.core.access_info.SingleVariableAccessInfo
@@ -480,17 +491,34 @@ variables that must be declared as thread-private::
       # Ignore variables that are arrays, we only look at scalar ones.
       # If we do have a symbol table, use the shape of the variable
       # to determine if the variable is scalar or not
-      if symbol_table:
-          if len(symbol_table.lookup(var_name).shape) > 0:
-              continue
 
-      # If there is no symbol table, check instead if the first access of
-      # the variable has indices, and assume it is an array if it has:
-      elif accesses[0].indices is not None:
+      try:
+          # Find the symbol for this variable. We only need to check
+          # one symboltable.
+          symbol = symbol_table.lookup(var_name)
+          if isinstance(symbol, DataSymbol):
+              is_array = symbol.is_array
+          else:
+              # This typically indicates a symbol is used that we do
+              # not have detailled information for, e.g. based on a
+              # generic 'use some_mod' statement. In thise case use
+              # the information based on the access pattern, which
+              # is at least better than having no information at all.
+              is_array = accesses[0].indices is not None
+      except KeyError:
+          # TODO #845: Once we have symbol tables, any variable should
+          # be in a symbol table, so we have to raise an exception here.
+          # We need to fall-back to the old-style test, since we do not
+          # have information in a symbol table. So check if the access
+          # information stored an index:
+          is_array = accesses[0].indices is not None
+
+       if is_array:
+          # It's not a scalar variable, so it will not be private
           continue
 
-      # If a variable is only accessed once, it is either a coding error
-      # or a shared variable - anyway it is not private
+      # If a scalar variable is only accessed once, it is either a coding
+      # error or a shared variable - anyway it is not private
       if len(accesses) == 1:
           continue
 
@@ -498,7 +526,6 @@ variables that must be declared as thread-private::
       # assume the variable should be private:
       if accesses[0].access_type == AccessType.WRITE:
           result.add(var_name.lower())
-
 
 The next, hypothetical example shows how the `VariablesAccessInfo` class
 can be used iteratively. Assume that you have a function that determines

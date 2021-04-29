@@ -44,13 +44,13 @@ from psyclone.errors import InternalError
 
 
 # =============================================================================
-class Signature:
+class Signature(object):
     '''Given a variable access of the form ``a(i,j)%b(k,l)%c``, the signature
     of this access is the tuple ``(a,b,c)``. For a simple scalar variable
     ``a`` the signature would just be ``(a,)``.
-    The signature is the key used in VariablesAccessInfo. In order to make
+    The signature is the key used in `VariablesAccessInfo`. In order to make
     sure two different signature objects containing the same variable
-    can be used as a key, this class implements __hash__ and other special
+    can be used as a key, this class implements `__hash__` and other special
     functions.
 
     :param variable: the variable that is accessed.
@@ -66,8 +66,8 @@ class Signature:
         elif isinstance(variable, tuple):
             self._signature = variable
         else:
-            raise InternalError("Got unexpected type '{0}' in Signature"
-                                .format(type(variable)))
+            raise InternalError("Got unexpected type '{0}' in Signature "
+                                "constructor".format(type(variable).__name__))
 
     # ------------------------------------------------------------------------
     def __str__(self):
@@ -88,11 +88,10 @@ class Signature:
     # ------------------------------------------------------------------------
     def __eq__(self, other):
         '''Required in order to use a Signature instance as a key.
-        Compares two objects (one of which might '''
+        Compares two objects (one of which might not be a Signature).'''
         if not hasattr(other, "_signature"):
             return False
-        return hasattr(other, "_signature") and \
-            self._signature == other._signature
+        return self._signature == other._signature
 
     # ------------------------------------------------------------------------
     def __lt__(self, other):
