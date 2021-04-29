@@ -38,6 +38,7 @@
 
 from __future__ import absolute_import
 import pytest
+import six
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -93,6 +94,6 @@ def test_fortran_psyir_from_file(tmpdir_factory):
 
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))
-    with pytest.raises(FileNotFoundError) as err:
+    with pytest.raises(IOError) as err:
         fortran_reader.psyir_from_file(filename)
     assert "No such file or directory: '" + str(filename) in str(err.value)
