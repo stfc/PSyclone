@@ -34,7 +34,7 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 
-'''Module for the Nemo domain.
+'''Module for the NEMO domain.
 '''
 
 from psyclone.domain.nemo.nemo_constants import NemoConstants

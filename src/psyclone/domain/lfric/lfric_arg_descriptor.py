@@ -187,8 +187,6 @@ class LFRicArgDescriptor(Descriptor):
 
         # Check for the allowed iteration spaces from the parsed kernel
         # metadata
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
         if operates_on not in const.VALID_ITERATION_SPACES:
             raise InternalError(
                 "Expected operates_on in the kernel metadata to be one of "

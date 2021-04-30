@@ -48,8 +48,8 @@ from psyclone.configuration import Config
 # pylint: disable=too-few-public-methods
 class LFRicConstants(object):
     '''This class stores all LFRic constants. Note that some constants
-    depend on values in the config files, so this class can only be
-    used after the config file can be read.
+    depend on values in the config file, so this class can only be
+    used after the config file has been read.
     It stores all values in class variables (to avoid re-evaluating them).
     '''
 
@@ -60,6 +60,7 @@ class LFRicConstants(object):
             return
 
         LFRicConstants.HAS_BEEN_INITIALISED = True
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # ---------- Evaluators: quadrature ----------------------------------
         LFRicConstants.VALID_QUADRATURE_SHAPES = \
@@ -112,8 +113,7 @@ class LFRicConstants(object):
 
         # ---------- Fortran datatypes ---------------------------------------
         # This is only used here, so no class variable:
-        supported_fortran_datatypes = Config.get().api_conf(
-            "dynamo0.3").supported_fortran_datatypes
+        supported_fortran_datatypes = api_config.supported_fortran_datatypes
 
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
         LFRicConstants.MAPPING_DATA_TYPES = \
@@ -226,7 +226,6 @@ class LFRicConstants(object):
             LFRicConstants.CONTINUOUS_FUNCTION_SPACES + \
             LFRicConstants.READ_ONLY_FUNCTION_SPACES
 
-        api_config = Config.get().api_conf("dynamo0.3")
         # Valid any_space metadata (general FS, could be continuous or
         # discontinuous). The number of 'ANY_SPACE' spaces is set in the
         # PSyclone configuration file.

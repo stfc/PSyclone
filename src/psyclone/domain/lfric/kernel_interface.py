@@ -699,7 +699,6 @@ class KernelInterface(ArgOrdering):
         '''
         # pylint: disable=too-many-locals
         # This import must be placed here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
         const = LFRicConstants()
         for shape in self._kern.eval_shapes:
             fs_name = function_space.orig_name
