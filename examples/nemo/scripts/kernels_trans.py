@@ -85,7 +85,7 @@ PROFILE_TRANS = ProfileTrans()
 _AUTO_PROFILE = True
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
-                    "ice_thd_pnd", "macho", "mpp_", "nemo_gcm",
+                    "ice_thd_pnd", "macho", "mpp_", "mynode", "nemo_gcm",
                     # These are small functions that the addition of profiling
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
@@ -93,7 +93,7 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "sum", "sign_"]
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
-# the PGI compiler or because it just isn't worth it)
+# the NVIDIA compiler or because it just isn't worth it)
 ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
               "day_mth",  # Just calendar operations
               "oce_alloc",
@@ -102,6 +102,7 @@ ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
               "turb_ncar",   # Resulting code seg. faults with PGI 19.4
               "ice_dyn_adv",  # No significant compute
               "iom_open", "iom_get_123d", "iom_nf90_rp0123d",
+              "mynode",  # Just sets-up MPI rank
               "p2z_ini",  # Str manipulation in init routine
               "p4z_ini"]  # Str manipulation in init routine
 
@@ -507,6 +508,8 @@ def add_kernels(children):
                 success = success1 or success2
             elif isinstance(child, Loop):
                 success = add_kernels(child.loop_body)
+            elif isinstance(child, Call):
+                success = False
             else:
                 success = add_kernels(child.children)
             added_kernels |= success
@@ -546,7 +549,7 @@ def add_profiling(children):
             if isinstance(child, IfBlock):
                 add_profiling(child.if_body)
                 add_profiling(child.else_body)
-            elif isinstance(child, (Assignment, ACCDirective)):
+            elif isinstance(child, (Assignment, ACCDirective, Call)):
                 # We don't attempt to put profiling in below OpenACC
                 # directives or within Assignments
                 pass
@@ -610,6 +613,9 @@ def try_kernels_trans(nodes):
     :rtype: bool
 
     '''
+    if not nodes:
+        return False
+
     invokesched = nodes[0].ancestor(NemoInvokeSchedule)
     routine_name = invokesched.invoke.name.lower()
     try:
