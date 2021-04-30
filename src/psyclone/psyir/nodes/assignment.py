@@ -38,6 +38,8 @@
 
 ''' This module contains the Assignment node implementation.'''
 
+import six
+
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
@@ -150,13 +152,14 @@ class Assignment(Statement):
         var_info = accesses_left[sig]
         try:
             var_info.change_read_to_write()
-        except InternalError:
+        except InternalError as err:
             # An internal error typically indicates that the same variable
             # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
             # supported in PSyclone.
-            raise ParseError("The variable '{0}' appears more than once "
-                             "on the left-hand side of an assignment."
-                             .format(self.lhs.name))
+            six.raise_from(
+                ParseError("The variable '{0}' appears more than once "
+                           "on the left-hand side of an assignment."
+                           .format(self.lhs.name)), err)
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the
