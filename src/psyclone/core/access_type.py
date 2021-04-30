@@ -123,3 +123,9 @@ class AccessType(Enum):
         '''
         return [access.api_specific_name() for access in
                 AccessType.get_valid_reduction_modes()]
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ["AccessType"]

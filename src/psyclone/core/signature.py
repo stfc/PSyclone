@@ -96,3 +96,8 @@ class Signature(object):
     def __lt__(self, other):
         '''Required to sort signatures. It just compares the tuples.'''
         return self._signature < other._signature
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ["Signature"]

@@ -472,3 +472,11 @@ class VariablesAccessInfo(dict):
 
         var_access_info = self[signature]
         return var_access_info.has_read_write()
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ["AccessInfo",
+           "SingleVariableAccessInfo",
+           "VariablesAccessInfo"]
