@@ -204,7 +204,7 @@ def test_profile_codeblock(parser):
     assert (
         "  CALL profile_psy_data0 % PreStart('cb_test', 'r0', 0, 0)\n"
         "  DO ji = 1, jpj\n"
-        "    WRITE(*, FMT = *) sto_tmp2(ji)\n"
+        "    WRITE(*, *) sto_tmp2(ji)\n"
         "  END DO\n"
         "  CALL profile_psy_data0 % PostEnd\n" in code)
 
@@ -287,7 +287,7 @@ def test_profile_single_line_if(parser):
     gen_code = str(psy.gen)
     assert (
         "  CALL profile_psy_data0 % PreStart('one_line_if_test', 'r0', 0, 0)\n"
-        "  IF (do_this) WRITE(*, FMT = *) sto_tmp2(ji)\n"
+        "  IF (do_this) WRITE(*, *) sto_tmp2(ji)\n"
         "  CALL profile_psy_data0 % PostEnd\n" in gen_code)
 
 
