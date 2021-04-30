@@ -379,9 +379,9 @@ class Invokes(object):
         for invoke in self.invoke_list:
             if not isinstance(invoke.schedule, InvokeSchedule):
                 raise GenerationError(
-                    "An invoke.schedule element on the '{0}' invoke_list "
-                    "is a '{1}', but it should be an 'InvokeSchedule'."
-                    "".format(self, type(invoke.schedule).__name__))
+                    "An invoke.schedule element of the invoke_list "
+                    "is a '{0}', but it should be an 'InvokeSchedule'."
+                    "".format(type(invoke.schedule).__name__))
 
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it

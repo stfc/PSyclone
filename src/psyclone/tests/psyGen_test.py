@@ -1043,9 +1043,8 @@ def test_invokes_wrong_schedule_gen_code(tmpdir):
 
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("An invoke.schedule element on the 'Invokes object containing "
-            "dict_keys(['invoke_0'])' invoke_list is a 'Node', but it should "
-            "be an 'InvokeSchedule'." in str(err.value))
+    assert ("An invoke.schedule element of the invoke_list is a 'Node', "
+            "but it should be an 'InvokeSchedule'." in str(err.value))
 
 
 def test_invoke_name():
