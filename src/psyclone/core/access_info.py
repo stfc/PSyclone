@@ -155,8 +155,8 @@ class SingleVariableAccessInfo(object):
         '''Returns a string representation of this object with the format:
         var_name:WRITE(2),WRITE(3),READ(5) where the numbers indicate
         the 'location' of the corresponding access. The location is an
-        integer number that enumerates each stament in a program unit,
-        and can be used to compare if an access earlier, later or in
+        integer number that enumerates each statement in a program unit,
+        and can be used to compare if an access is earlier, later or in
         the same statement as another access.
 
         '''
@@ -436,7 +436,7 @@ class VariablesAccessInfo(dict):
             once).
         :rtype: bool
 
-        :raises: KeyError if the variable name cannot be found.
+        :raises: KeyError if the signature name cannot be found.
 
         '''
         var_access_info = self[signature]
@@ -452,7 +452,7 @@ class VariablesAccessInfo(dict):
             once).
         :rtype: bool
 
-        :raises: KeyError if the variable names can not be found.'''
+        :raises: KeyError if the signature cannot be found.'''
 
         var_access_info = self[signature]
         return var_access_info.is_read()
@@ -461,14 +461,14 @@ class VariablesAccessInfo(dict):
         '''Checks if the specified variable signature has at least one
         READWRITE access (which is typically only used in a function call).
 
-        :param singature: signature of the variable
+        :param signature: signature of the variable
         :type signature: :py:class:`psyclone.core.Signature`
 
         :returns: True if the specified variable name has (at least one) \
             READWRITE access.
         :rtype: bool
 
-        :raises: KeyError if the variable names can not be found.'''
+        :raises: KeyError if the signature cannot be found.'''
 
         var_access_info = self[signature]
         return var_access_info.has_read_write()
