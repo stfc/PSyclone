@@ -1232,22 +1232,22 @@ class DynStencils(DynCollection):
         # names are removed.
         self._unique_extent_args = []
         extent_names = []
+        # pylint: disable=too-many-nested-blocks
         for call in self._calls:
             for arg in call.arguments.args:
-                if not arg.stencil:
-                    continue
-                # Check for the existence of arg.extent here as in
-                # the future we plan to support kernels which
-                # specify the value of extent in metadata. If this
-                # is the case then an extent argument is not
-                # required.
-                if arg.stencil.extent:
-                    continue
-                if not arg.stencil.extent_arg.is_literal():
-                    if arg.stencil.extent_arg.text not in extent_names:
-                        extent_names.append(
-                            arg.stencil.extent_arg.text)
-                        self._unique_extent_args.append(arg)
+                if arg.stencil:
+                    # Check for the existence of arg.extent here as in
+                    # the future we plan to support kernels which
+                    # specify the value of extent in metadata. If this
+                    # is the case then an extent argument is not
+                    # required.
+                    # TODO #963
+                    if not arg.stencil.extent:
+                        if not arg.stencil.extent_arg.is_literal():
+                            if arg.stencil.extent_arg.text not in extent_names:
+                                extent_names.append(
+                                    arg.stencil.extent_arg.text)
+                                self._unique_extent_args.append(arg)
 
         # A list of arguments that have a direction variable passed in
         # to this invoke routine from the algorithm layer. Duplicate
