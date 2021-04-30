@@ -52,6 +52,7 @@ def test_signature():
     assert repr(Signature("a")) == "Signature(a)"
     assert repr(Signature(("a",))) == "Signature(a)"
     assert repr(Signature(("a", "b", "c"))) == "Signature(a%b%c)"
+    assert Signature("a") != "a"
 
 
 def test_signature_errors():
@@ -97,5 +98,3 @@ def test_signature_sort():
     sig_list.sort()
     assert str(sig_list) == "[Signature(a), Signature(a%b), Signature(a%c), " \
                             "Signature(b), Signature(b%a), Signature(c)]"
-
-    assert Signature("a") != "a"
