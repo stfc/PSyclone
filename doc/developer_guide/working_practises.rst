@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 Working With PSyclone from GitHub
 #################################
@@ -155,7 +155,7 @@ kernel_outputdir Sets the output directory used by PSyclone for transformed
                  tree.
 parser           Creates an fparser2 parser for the Fortran2008 standard. This
                  is an expensive operation so this fixture is only run once
-		         per test session.
+                 per test session.
 ================ ==============================================================
 
 In addition, there are two fixtures that are automatically run (just

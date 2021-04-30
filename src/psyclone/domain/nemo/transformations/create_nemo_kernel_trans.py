@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Schedule into a

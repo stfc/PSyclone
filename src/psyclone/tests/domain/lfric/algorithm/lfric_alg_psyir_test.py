@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the LFRicAlgorithmInvokeCall,
 LFRicBuiltinFunctor and LFRicKernelFunctor LFRic

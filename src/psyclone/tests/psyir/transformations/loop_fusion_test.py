@@ -126,9 +126,9 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
 
     :param str fortran_code: the Fortran code to loop fuse.
     :param fortran_reader: the PSyIR Fortran frontend.
-    :type parser: :py:class:`psyclone.psyir.frontend.fortran`
+    :type fortran_reader: :py:class:`psyclone.psyir.frontend.fortran`
     :param fortran_writer: the PSyIR Fortran backend.
-    :type parser: :py:class:`psyclone.psyir.backend.fortran`
+    :type fortran_writer: :py:class:`psyclone.psyir.backend.fortran`
 
     :returns: a 2-tuple of the fused Fortran code, and the PSyIR \
         representation of the supplied Fortran code.
