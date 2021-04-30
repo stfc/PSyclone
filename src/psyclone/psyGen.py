@@ -47,7 +47,7 @@ import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
@@ -4638,27 +4638,30 @@ class ACCDataDirective(ACCDirective):
                 # We ignore scalars
                 continue
             if accesses.is_read():
-                readers.add(var)
+                readers.add(signature)
             if accesses.is_written():
-                writers.add(var)
+                writers.add(signature)
         readwrites = readers.intersection(writers)
         # Are any of the read-writes written before they are read?
-        for var in list(readwrites)[:]:
-            accesses = var_accesses[Signature(var)]
+        for signature in list(readwrites)[:]:
+            accesses = var_accesses[signature]
             if accesses[0].access_type == AccessType.WRITE:
                 # First access is a write so treat as a write
-                writers.add(var)
-                readers.discard(var)
-                readwrites.discard(var)
+                writers.add(signature)
+                readers.discard(signature)
+                readwrites.discard(signature)
         readers_list = sorted(list(readers - readwrites))
         writers_list = sorted(list(writers - readwrites))
         readwrites_list = sorted(list(readwrites))
         if readers_list:
-            result += " copyin({0})".format(",".join(readers_list))
+            str_readers = [str(sig) for sig in readers_list]
+            result += " copyin({0})".format(",".join(str_readers))
         if writers_list:
-            result += " copyout({0})".format(",".join(writers_list))
+            str_writers = [str(sig) for sig in writers_list]
+            result += " copyout({0})".format(",".join(str_writers))
         if readwrites_list:
-            result += " copy({0})".format(",".join(readwrites_list))
+            str_readwrites = [str(sig) for sig in readwrites_list]
+            result += " copy({0})".format(",".join(str_readwrites))
 
         return result
 
