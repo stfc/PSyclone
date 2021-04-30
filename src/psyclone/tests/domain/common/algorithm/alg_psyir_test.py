@@ -81,12 +81,14 @@ def create_alg_psyir(code):
     return psyir
 
 
-def check_call(call, routine_name, args_info):
+def check_call(call, routine_name, container_name, args_info):
     '''Utility function to check the contents of a processed invoke call.
 
     :param invoke: the call node that is being checked.
     :type invoke: :py:class:`psyclone.psyir.nodes.Call`
     :param str routine_name: the name of the call node.
+    :param str container_name: the name of the container containing \
+        the call node.
     ;param args_info: information to check the call arguments.
     :type args_info: list of \
         (:py:class:`psyclone.psyir.nodes.Reference`, str) or \
@@ -97,8 +99,7 @@ def check_call(call, routine_name, args_info):
     assert isinstance(call.routine, RoutineSymbol)
     assert call.routine.name == routine_name
     assert call.routine.is_global
-    assert (call.routine.interface.container_symbol.name ==
-            "{0}_mod".format(routine_name))
+    assert call.routine.interface.container_symbol.name == container_name
     args = call.children
     assert len(args) == len(args_info)
     for idx, arg_info in enumerate(args_info):
@@ -285,13 +286,36 @@ def test_aic_createpsylayersymbols():
     assert isinstance(routine_symbol, RoutineSymbol)
     assert routine_symbol.name == routine_name
     container_symbol = routine_symbol.interface.container_symbol
-    assert container_symbol.name == "{0}_mod".format(routine_name)
+    assert container_symbol.name == "psy_alg1"
 
     invoke.create_psylayer_symbols()
 
     assert invoke.psylayer_routine_symbol is routine_symbol
     assert (invoke.psylayer_routine_symbol.interface.container_symbol
             is container_symbol)
+
+
+def test_aic_createpsylayersymbols_clash(monkeypatch):
+    '''Check that the create_psylayer_symbols method creates the expected
+    routine and container names when there is a name clash.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  real :: psy_alg1, invoke_0_kern\n"
+        "  type(field_type) :: field1\n"
+        "  call invoke(kern(field1))\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0]
+    invoke.create_psylayer_symbols()
+    routine_symbol = invoke.psylayer_routine_symbol
+    assert routine_symbol.name == "invoke_0_kern_1"
+    container_symbol = routine_symbol.interface.container_symbol
+    assert container_symbol.name == "psy_alg1_1"
 
 
 def test_aic_lowertolanguagelevel_error():
@@ -370,7 +394,7 @@ def test_aic_lowertolanguagelevel_single():
     assert len(psyir.walk(KernelFunctor)) == 0
 
     call = psyir.children[0]
-    check_call(call, "invoke_0_kern1",
+    check_call(call, "invoke_0_kern1", "psy_alg1",
                [(Reference, "field1"),
                 (ArrayReference, "field2", ["i"]),
                 (ArrayReference, "field2", ["j"])])
@@ -412,7 +436,7 @@ def test_aic_lowertolanguagelevel_multi():
     assert len(psyir.walk(KernelFunctor)) == 0
 
     call = psyir.children[0]
-    check_call(call, "multi_kern_invoke",
+    check_call(call, "multi_kern_invoke", "psy_alg1",
                [(Reference, "field1"),
                 (ArrayReference, "field2", ["i"]),
                 (ArrayReference, "field2", ["j"]),

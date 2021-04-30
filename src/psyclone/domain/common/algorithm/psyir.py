@@ -39,7 +39,7 @@
 import six
 
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
-    ArrayReference
+    ArrayReference, Routine
 from psyclone.psyir.symbols import TypeSymbol, ContainerSymbol, \
     GlobalInterface, RoutineSymbol
 from psyclone.errors import GenerationError
@@ -82,7 +82,7 @@ class AlgorithmInvokeCall(Call):
             raise ValueError(
                 "AlgorithmInvokeCall index argument should be a non-negative "
                 "integer but found {0}.".format(index))
-        
+
         if description and not isinstance(description, (str, six.text_type)):
             raise TypeError(
                 "AlgorithmInvokeCall description argument should be a str but "
@@ -168,7 +168,8 @@ class AlgorithmInvokeCall(Call):
         '''
         if self._description:
             routine_root_name = self._description.lower().strip()
-            if routine_root_name[0] == '"' and routine_root_name[-1] == '"' or \
+            if routine_root_name[0] == '"' and routine_root_name[-1] == '"' \
+               or \
                routine_root_name[0] == "'" and routine_root_name[-1] == "'":
                 # fparser2 (issue #295) currently includes quotes as
                 # part of a string, so strip them out.
@@ -199,7 +200,10 @@ class AlgorithmInvokeCall(Call):
         routine_name = symbol_table.next_available_name(
             root_name=routine_root_name)
 
-        container_root_name = "{0}_mod".format(routine_name)
+        # Use the name of the closest ancestor routine of this node as
+        # the basis for the new container name
+        node = self.ancestor(Routine, include_self=True)
+        container_root_name = "psy_{0}".format(node.name)
         container_name = symbol_table.next_available_name(
             root_name=container_root_name)
 
