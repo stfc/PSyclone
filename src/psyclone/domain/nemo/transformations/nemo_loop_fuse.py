@@ -36,8 +36,7 @@
 '''This module contains the NEMO-specific loop fusion transformation.
 '''
 
-from psyclone.core.access_info import VariablesAccessInfo
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import LoopFuseTrans
@@ -64,6 +63,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         :raises TransformationError: if the loop variables are not the same.
 
         '''
+        # pylint: disable=too-many-locals
         # First check constraints on the nodes inherited from the parent
         # LoopFuseTrans:
         super(NemoLoopFuseTrans, self).validate(node1, node2, options)
@@ -98,12 +98,13 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         all_vars = set(vars1).intersection(vars2)
         symbol_table = node1.scope.symbol_table
 
-        for var_name in all_vars:
+        for signature in all_vars:
+            var_name = str(signature)
             # Ignore the loop variable
             if var_name == loop_var1.name:
                 continue
-            var_info1 = vars1[var_name]
-            var_info2 = vars2[var_name]
+            var_info1 = vars1[signature]
+            var_info2 = vars2[signature]
 
             # Variables that are only read in both loops can always be fused
             if var_info1.is_read_only() and var_info2.is_read_only():
@@ -215,7 +216,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 accesses = VariablesAccessInfo()
 
                 index_expression.reference_accesses(accesses)
-                if loop_variable.name not in accesses:
+                if Signature(loop_variable.name) not in accesses:
                     continue
 
                 # If a previously identified index location does not match

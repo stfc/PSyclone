@@ -46,7 +46,7 @@ from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.errors import InternalError
-from psyclone.core.access_info import AccessType
+from psyclone.core import AccessType
 
 
 # pylint: disable=too-many-public-methods, no-member
