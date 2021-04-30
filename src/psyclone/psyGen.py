@@ -1345,16 +1345,18 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
-        Perform validation checks that can only be done at code-generation
-        time.
+        Perform validation checks for any global constraints. This can only
+        be done at code-generation time.
 
         :raises GenerationError: if this ACCDirective encloses any form of \
             PSyData node since calls to PSyData routines within OpenACC \
             regions are not supported.
 
         '''
+        super(ACCDirective, self).validate_global_constraints()
+
         data_nodes = self.walk(PSyDataNode)
         if data_nodes:
             raise GenerationError(
@@ -1415,7 +1417,7 @@ class ACCEnterDataDirective(ACCDirective):
         :raises GenerationError: if no data is found to copy in.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel or kernels
@@ -1491,7 +1493,7 @@ class ACCParallelDirective(ACCDirective):
         '''
         return "ACC_parallel_" + str(self.abs_position)
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
         Check that the PSyIR tree containing this node is valid. Since we
         use 'default(present)', this node must either be the child of an
@@ -1522,7 +1524,7 @@ class ACCParallelDirective(ACCDirective):
                 "enter data directive or enclosed within an ACC data region "
                 "but in '{0}' this is not the case.".format(routine.name))
 
-        super(ACCParallelDirective, self)._pre_gen_validate()
+        super(ACCParallelDirective, self).validate_global_constraints()
 
     def gen_code(self, parent):
         '''
@@ -1532,7 +1534,7 @@ class ACCParallelDirective(ACCDirective):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         parent.add(DirectiveGen(parent, *self.begin_string().split()))
 
@@ -1626,7 +1628,7 @@ class ACCParallelDirective(ACCDirective):
         Update the underlying fparser2 parse tree with nodes for the start
         and end of this parallel region.
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
         self._add_region(start_text="PARALLEL", end_text="END PARALLEL",
                          data_movement="present")
 
@@ -1681,10 +1683,10 @@ class ACCLoopDirective(ACCDirective):
         text += "]"
         return text
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
-        Perform validation checks that can only be done at code-generation
-        time.
+        Perform validation of those global constraints that can only be done
+        at code-generation time.
 
         :raises GenerationError: if this ACCLoopDirective is not enclosed \
                             within some OpenACC parallel or kernels region.
@@ -1699,7 +1701,7 @@ class ACCLoopDirective(ACCDirective):
                 "ACCLoopDirective must have an ACCParallelDirective or "
                 "ACCKernelsDirective as an ancestor in the Schedule")
 
-        super(ACCLoopDirective, self)._pre_gen_validate()
+        super(ACCLoopDirective, self).validate_global_constraints()
 
     def gen_code(self, parent):
         '''
@@ -1712,7 +1714,7 @@ class ACCLoopDirective(ACCDirective):
         :raises GenerationError: if this "!$acc loop" is not enclosed within \
                                  an ACC Parallel region.
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # Add any clauses to the directive. We use self.begin_string() to avoid
         # code duplication.
@@ -1729,7 +1731,7 @@ class ACCLoopDirective(ACCDirective):
         this ACC LOOP directive.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # Use begin_string() to avoid code duplication although we have to
         # put back the "loop" qualifier.
@@ -2122,7 +2124,7 @@ class OMPDoDirective(OMPDirective):
         ''' returns whether reprod has been set for this object or not '''
         return self._reprod
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
         time.
@@ -2141,6 +2143,8 @@ class OMPDoDirective(OMPDirective):
                 "OMPDoDirective must be inside an OMP parallel region but "
                 "could not find an ancestor OMPParallelDirective node")
 
+        super(OMPDoDirective, self).validate_global_constraints()
+
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenMP do
@@ -2153,7 +2157,7 @@ class OMPDoDirective(OMPDirective):
                                  an OMP Parallel region.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         if self._reprod:
             local_reduction_string = ""
@@ -2206,7 +2210,7 @@ class OMPDoDirective(OMPDirective):
                                  correct structure to permit the insertion \
                                  of the OpenMP parallel do.
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
@@ -4462,7 +4466,7 @@ class ACCKernelsDirective(ACCDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # We re-use the 'begin_string' method but must skip the leading 'acc'
         # that it includes.
@@ -4529,7 +4533,7 @@ class ACCKernelsDirective(ACCDirective):
         PSyIR backend.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         data_movement = None
         if self._default_present:
@@ -4582,7 +4586,7 @@ class ACCDataDirective(ACCDirective):
         directive.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
 
