@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Module containing pytest tests for the StructureReference class. '''
@@ -178,7 +179,7 @@ def test_reference_accesses():
             symbols.TypeSymbol("grid_type", symbols.DeferredType())),
         ["data"])
     dref.reference_accesses(var_access_info)
-    assert var_access_info.all_vars == []
+    assert var_access_info.all_signatures == []
 
 
 def test_struc_ref_semantic_nav():

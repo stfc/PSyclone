@@ -39,15 +39,18 @@
 ''' This module contains the Assignment node implementation.'''
 
 import re
+import six
+
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.errors import InternalError
+from psyclone.f2pygen import PSyIRGen
+from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.operation import Operation, REDUCTION_OPERATORS
-from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.errors import InternalError
-from psyclone.f2pygen import PSyIRGen
 
 
 class Assignment(Statement):
@@ -152,7 +155,16 @@ class Assignment(Statement):
             # Here an absolute hack to get at least some information out
             # from the AST - though indices are just strings, which will
             # likely cause problems later as well.
-            name = str(self.lhs.ast)
+            # Here a very bad hack to reach full coverage: re-create the
+            # Fortran string using a Fortran writer, then the code below
+            # will still work as expected. Note that this whole code
+            # section will be removed in #1028. Leaving the local import
+            # here to make sure it will be removed as well.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.backend.fortran import FortranWriter
+            writer = FortranWriter()
+
+            name = writer(self.lhs)
             # A regular expression that tries to find the last parenthesis
             # pair in the name ("a(i,j)" --> "(i,j)")
             ind = re.search(r"\([^\(]+\)$", name)
@@ -160,22 +172,23 @@ class Assignment(Statement):
                 # Remove the index part of the name
                 name = name.replace(ind.group(0), "")
                 # The index must be added as a list
-                accesses_left.add_access(name, AccessType.WRITE, self,
-                                         [ind.group(0)])
+                accesses_left.add_access(Signature(name), AccessType.WRITE,
+                                         self, [ind.group(0)])
             else:
-                accesses_left.add_access(name, AccessType.WRITE, self)
+                accesses_left.add_access(Signature(name), AccessType.WRITE,
+                                         self)
         else:
-            var_info = accesses_left[self.lhs.name]
+            var_info = accesses_left[Signature(self.lhs.name)]
             try:
                 var_info.change_read_to_write()
-            except InternalError:
+            except InternalError as err:
                 # An internal error typically indicates that the same variable
                 # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
                 # supported in PSyclone.
-                from psyclone.parse.utils import ParseError
-                raise ParseError("The variable '{0}' appears more than once "
-                                 "on the left-hand side of an assignment."
-                                 .format(self.lhs.name))
+                six.raise_from(
+                    ParseError("The variable '{0}' appears more than once "
+                               "on the left-hand side of an assignment."
+                               .format(self.lhs.name)), err)
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the
