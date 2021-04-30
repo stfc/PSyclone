@@ -58,8 +58,7 @@ class Signature(object):
 
     '''
     def __init__(self, variable):
-        if isinstance(variable, str) or \
-                isinstance(variable, six.text_type):
+        if isinstance(variable, (str, six.text_type)):
             # str() required for python2 unicode support
             self._signature = (str(variable),)
         elif isinstance(variable, tuple):
@@ -96,6 +95,7 @@ class Signature(object):
     def __lt__(self, other):
         '''Required to sort signatures. It just compares the tuples.'''
         return self._signature < other._signature
+
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
