@@ -83,6 +83,8 @@ class AlgorithmInvokeCall(Call):
                 "AlgorithmInvokeCall index argument should be a non-negative "
                 "integer but found {0}.".format(index))
 
+        # In Python2 description may be unicode or str so check for
+        # both (in a way that Python3 is happy with).
         if description and not isinstance(description, (str, six.text_type)):
             raise TypeError(
                 "AlgorithmInvokeCall description argument should be a str but "
@@ -112,7 +114,7 @@ class AlgorithmInvokeCall(Call):
             invoke or None if one is not provided. This is used to \
             create the name of the routine that replaces the \
             invoke. Defaults to None.
-        :type name: str or NoneType
+        :type description: str or NoneType
 
         :raises GenerationError: if the arguments argument is not a \
             list.
@@ -149,7 +151,8 @@ class AlgorithmInvokeCall(Call):
         containing colour control codes. Specialise as this node has
         an additional description argument.
 
-        :param bool colour: whether or not to include colour control codes.
+        :param bool colour: whether or not to include colour control \
+            codes. Optional argument that defaults to True.
 
         :returns: description of this PSyIR node.
         :rtype: str
