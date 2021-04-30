@@ -422,6 +422,7 @@ def test_user_defined_variables(parser):
     reader = FortranStringReader('''program test_prog
                                        use some_mod, only: my_type
                                        type(my_type) :: a, e
+                                       integer :: ji, jj, d
                                        a%b%c(ji, jj) = d
                                        e%f = d
                                     end program test_prog''')
