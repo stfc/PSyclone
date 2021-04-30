@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,9 @@ from __future__ import absolute_import
 
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
+
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Node, Schedule
 from psyclone.psyir.transformations import RegionTrans
@@ -171,6 +174,25 @@ def test_validate_errors():
         my_rt.validate(node_list)
     assert ("Transformation Error: Nodes of type 'GOLoop' cannot be enclosed"
             in str(err.value))
+
+
+# -----------------------------------------------------------------------------
+def test_validate_rejects_call_children(parser):
+    ''' Check that the validate() method correctly rejects nodes if they
+    are the children of a Call. '''
+    code = '''program call_test
+  integer :: var
+  var = 1
+  call hello(var)
+end program call_test'''
+    ptree = parser(FortranStringReader(code))
+    psy = PSyFactory("nemo", distributed_memory=False).create(ptree)
+    sched = psy.invokes.invoke_list[0].schedule
+    my_rt = MyRegionTrans()
+    with pytest.raises(TransformationError) as err:
+        my_rt.validate(sched[1].children)
+    assert ("Cannot apply transformation to the immediate children "
+            "(arguments) of a Call." in str(err.value))
 
 
 # -----------------------------------------------------------------------------

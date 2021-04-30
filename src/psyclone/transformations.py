@@ -60,7 +60,7 @@ from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
-from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
+from psyclone.psyir.nodes import CodeBlock, Loop, Schedule
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.gocean1p0 import GOLoop
@@ -2774,7 +2774,8 @@ class ACCKernelsTrans(RegionTrans):
     >>> new_sched, _ = ktrans.apply(kernels)
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
+    excluded_node_types = (nodes.Call, nodes.CodeBlock, nodes.Return,
+                           nodes.PSyDataNode)
 
     @property
     def name(self):
@@ -2843,9 +2844,7 @@ class ACCKernelsTrans(RegionTrans):
         :type options: dictionary of string:values or None
 
         :raises NotImplementedError: if the supplied Nodes do not belong to \
-                                     a NemoInvokeSchedule.
-        :raises TransformationError: if there are no Loops within the \
-                                     proposed region.
+                                     a {Nemo,Dyn}InvokeSchedule.
 
         '''
         # Ensure we are always working with a list of nodes, even if only
@@ -2859,18 +2858,6 @@ class ACCKernelsTrans(RegionTrans):
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")
         super(ACCKernelsTrans, self).validate(node_list, options)
-
-        # Check that we have at least one loop or array range within
-        # the proposed region
-        for node in node_list:
-            if (any(assign for assign in node.walk(Assignment)
-                    if assign.is_array_range) or node.walk(Loop)):
-                break
-        else:
-            # Branch executed if loop does not exit with a break
-            raise TransformationError(
-                "A kernels transformation must enclose at least one loop or "
-                "array range but none were found.")
 
 
 class ACCDataTrans(RegionTrans):

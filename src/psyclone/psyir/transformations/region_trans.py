@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ import six
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.nodes import Schedule, Node, IfBlock, Loop
+from psyclone.psyir.nodes import Schedule, Node, IfBlock, Loop, Call
 from psyclone.nemo import NemoInvokeSchedule
 
 
@@ -191,6 +191,11 @@ class RegionTrans(Transformation):
                 "Cannot apply a transformation to multiple nodes when one "
                 "or more is a Schedule. Either target a single Schedule "
                 "or the children of a Schedule.")
+
+        if isinstance(node_parent, Call):
+            raise TransformationError(
+                "Cannot apply transformation to the immediate children "
+                "(arguments) of a Call.")
 
         # Sanity check that we've not been passed the condition part of
         # an If statement or the bounds of a Loop. If the parent node is

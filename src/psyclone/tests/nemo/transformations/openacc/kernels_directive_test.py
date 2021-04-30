@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -124,8 +124,8 @@ def test_no_kernels_error(parser):
 
 
 def test_no_loops(parser):
-    ''' Check that the transformation refuses to generate a kernels region
-    if it contains no loops. '''
+    ''' Check that the transformation generates a kernels region
+    even if it contains no loops. '''
     reader = FortranStringReader("program no_loop\n"
                                  "integer :: jpk\n"
                                  "jpk = 30\n"
@@ -134,11 +134,10 @@ def test_no_loops(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:1],
-                               {"default_present": True})
-    assert ("must enclose at least one loop or array range but none were "
-            "found" in str(err.value))
+    _, _ = acc_trans.apply(schedule.children[0:1],
+                           {"default_present": True})
+    kdir = schedule.walk(ACCKernelsDirective)[0]
+    assert isinstance(kdir.dir_body[0], Assignment)
 
 
 def test_implicit_loop(parser):
