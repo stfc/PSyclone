@@ -71,7 +71,7 @@ def test_gocean_const():
 
 
 def test_lfric_const():
-    '''Tests the Nemo constant object.
+    '''Tests the LFRic constant object.
     '''
     # This guarantees that the first time we use the constant object,
     # we read it from the config file.
@@ -80,7 +80,6 @@ def test_lfric_const():
 
     lfric_const = config.api_conf("dynamo0.3").get_constants()
     # Don't test intrinsic_types, which comes from the config file
-    print(lfric_const.VALID_ARG_TYPE_NAMES)
     assert lfric_const.VALID_ARG_TYPE_NAMES == ["gh_field", "gh_operator",
                                                 "gh_columnwise_operator",
                                                 "gh_scalar"]
@@ -111,19 +110,19 @@ def test_nemo_const():
     NemoConstants.HAS_BEEN_INITIALISED = False
     config = Config.get()
 
-    gocean_const = config.api_conf("nemo").get_constants()
-    assert gocean_const.VALID_INTRINSIC_TYPES == []
-    assert gocean_const.VALID_ARG_TYPE_NAMES == []
-    assert gocean_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
+    nemo_const = config.api_conf("nemo").get_constants()
+    assert nemo_const.VALID_INTRINSIC_TYPES == []
+    assert nemo_const.VALID_ARG_TYPE_NAMES == []
+    assert nemo_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
 
     assert NemoConstants.HAS_BEEN_INITIALISED
     # Test that we don't re-evalue the constants, i.e. if
     # we modify them, the modified value will not be overwritten.
     NemoConstants.VALID_INTRINSIC_TYPES = "INVALID"
-    gocean_const = NemoConstants()
-    assert gocean_const.VALID_INTRINSIC_TYPES == "INVALID"
-    assert gocean_const.VALID_ARG_TYPE_NAMES == []
-    assert gocean_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
+    nemo_const = NemoConstants()
+    assert nemo_const.VALID_INTRINSIC_TYPES == "INVALID"
+    assert nemo_const.VALID_ARG_TYPE_NAMES == []
+    assert nemo_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
     # Make sure the 'INVALID' value is reset when the constant
     # object is created again.
     NemoConstants.HAS_BEEN_INITIALISED = False

@@ -1813,9 +1813,10 @@ def test_dynstencils_extent_vars_err(monkeypatch):
             in str(err.value))
 
 
-def test_dynstencils_initialise_err():
-    ''' Check that DynStencils.initialise raises the expected InternalError
-    if an unsupported stencil type is encountered. '''
+def test_dynstencils_err():
+    ''' Check that DynStencils.initialise and DynStencils._declare_maps_invoke
+    raises the expected InternalError if an unsupported stencil type is
+    encountered. '''
     _, info = parse(os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
@@ -1826,3 +1827,7 @@ def test_dynstencils_initialise_err():
     with pytest.raises(GenerationError) as err:
         stencils.initialise(ModuleGen(name="testmodule"))
     assert "Unsupported stencil type 'not-a-type' supplied." in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        stencils._declare_maps_invoke(ModuleGen(name="testmodule"))
+    assert "Unsupported stencil type 'not-a-type' supplied. Supported " \
+        "mappings are" in str(err.value)

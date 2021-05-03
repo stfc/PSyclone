@@ -1340,3 +1340,14 @@ class NemoConfig(APISpecificConfig):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.nemo import NemoConstants
         return NemoConstants()
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ["APISpecificConfig",
+           "Config",
+           "ConfigurationError",
+           "DynConfig",
+           "GOceanConfig",
+           "NemoConfig"]

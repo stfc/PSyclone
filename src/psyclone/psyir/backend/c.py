@@ -456,5 +456,5 @@ class CWriter(PSyIRVisitor):
         for child in node.dir_body:
             result_list.append(self._visit(child))
         self._depth -= 1
-        result_list.append("}}\n")
+        result_list.append("}\n")
         return "".join(result_list)

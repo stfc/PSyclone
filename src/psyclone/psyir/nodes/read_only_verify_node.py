@@ -44,6 +44,9 @@ There is currently only one class in this module: ReadOnlyVerifyNode.
 '''
 
 from __future__ import absolute_import, print_function
+
+from psyclone.core import VariablesAccessInfo
+from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
@@ -120,7 +123,6 @@ class ReadOnlyVerifyNode(PSyDataNode):
         '''
 
         # Determine the variables to validate:
-        from psyclone.core.access_info import VariablesAccessInfo
         variables_info = VariablesAccessInfo(self)
         read_only = []
         for var_name in variables_info:
@@ -135,7 +137,6 @@ class ReadOnlyVerifyNode(PSyDataNode):
         options = {'pre_var_list': read_only,
                    'post_var_list': read_only}
 
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ReadOnlyVerifyStart"))
         parent.add(CommentGen(parent, ""))

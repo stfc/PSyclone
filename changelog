@@ -1,3 +1,13 @@
+
+        1) PR #1183 for #1075. Improves (tightens) the checking performed
+        by the LoopFusion transformation.
+
+        2) PR #1197 for #1189. Changes the dependence analysis to use a
+        Signature rather than just the symbol name (in preparation for
+        supporting derived types/structures).
+
+release 2.0.0 28th April 2021
+
 	1) #778 for #713. Use 'make' to execute all examples.
 
 	2) #782 for #780. Refactor FunctionSpace support and move it
@@ -496,15 +506,23 @@
 
 	161) PR #1211 towards #1210. Add CreateNemoKernTrans transformation.
 
-        162) PR #1219 for #1218. Removes the Node.gen_code() abstract method
-        as this is not used by the new PSyIR nodes that we are adding.
+	162) PR #1219 for #1218. Removes the Node.gen_code() abstract method
+	as this is not used by the new PSyIR nodes that we are adding.
 
 	163) PR #1192 towards #753. Add methods to lower the Algorithm layer PSyIR
 	and create the appropriate symbols to be used by the PSy-layer.
 
-        164) PR #1175 for #1066. Update the GOcean OpenCL read/write
-        interfaces and use so that only halo data moved to/from the host for
-        halo exchanges.
+	164) PR #1175 for #1066. Update the GOcean OpenCL read/write
+	interfaces and use so that only halo data moved to/from the host for
+	halo exchanges.
+
+	165) PR #1207 for #1184. Add a validation for the node global constraints
+	that is check once a node is visited by any of the Visitor classes.
+
+	166) PR #1226 towards #1151. Update fparser to 0.0.12 for the
+	PSyclone release 2.0.0.
+
+        167) Issue #1151. Release version 2.0.0 of PSyclone.
 
 release 1.9.0 20th May 2020
 

@@ -58,8 +58,6 @@ class FunctionSpace(object):
 
     '''
 
-    # ---------- Function spaces (FS) --------------------------------------- #
-
     def __init__(self, name, kernel_args):
         self._orig_name = name
         self._kernel_args = kernel_args

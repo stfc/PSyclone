@@ -46,7 +46,7 @@ from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.errors import InternalError
-from psyclone.core.access_info import AccessType
+from psyclone.core import AccessType
 
 
 # pylint: disable=too-many-public-methods, no-member
@@ -699,7 +699,6 @@ class KernelInterface(ArgOrdering):
         '''
         # pylint: disable=too-many-locals
         # This import must be placed here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
         const = LFRicConstants()
         for shape in self._kern.eval_shapes:
             fs_name = function_space.orig_name
