@@ -41,6 +41,7 @@
 from __future__ import absolute_import
 import abc
 import six
+from psyclone.core import Signature
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.operation import BinaryOperation
@@ -91,7 +92,7 @@ class ArrayMixin(object):
             list_indices.append(child)
 
         if list_indices:
-            var_info = var_accesses[self.name]
+            var_info = var_accesses[Signature(self.name)]
             # The last entry in all_accesses is the one added above
             # in super(ArrayReference...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices

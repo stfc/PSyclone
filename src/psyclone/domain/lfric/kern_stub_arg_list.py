@@ -244,10 +244,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional `VariableAccessInfo` instance to store \
-            the information about variable accesses.
+        :param var_accesses: optional `SingleVariableAccessInfo` \
+            instance to store the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariableAccessInfo`
+            :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         '''
         # The maximum branch extent is not specified in the metadata so pass
@@ -356,6 +356,10 @@ class KernStubArgList(ArgOrdering):
 
         '''
         const = LFRicConstants()
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
+            VALID_QUADRATURE_SHAPES
         for shape in self._kern.eval_shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
                 # A kernel stub won't have a name for the corresponding
@@ -395,6 +399,10 @@ class KernStubArgList(ArgOrdering):
 
         '''
         const = LFRicConstants()
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
+            VALID_QUADRATURE_SHAPES
         for shape in self._kern.eval_shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
                 # We need differential basis functions for quadrature. A
