@@ -356,10 +356,6 @@ class KernStubArgList(ArgOrdering):
 
         '''
         const = LFRicConstants()
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
-            VALID_QUADRATURE_SHAPES
         for shape in self._kern.eval_shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
                 # A kernel stub won't have a name for the corresponding
@@ -399,10 +395,6 @@ class KernStubArgList(ArgOrdering):
 
         '''
         const = LFRicConstants()
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
-            VALID_QUADRATURE_SHAPES
         for shape in self._kern.eval_shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
                 # We need differential basis functions for quadrature. A

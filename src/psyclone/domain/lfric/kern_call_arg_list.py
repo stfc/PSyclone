@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 from collections import namedtuple
 
 from psyclone import psyGen
-from psyclone.core.access_type import AccessType, Signature
+from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import (ArgOrdering, LFRicConstants)
 from psyclone.errors import GenerationError, InternalError
 
