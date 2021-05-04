@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Schedule into a
@@ -49,20 +50,17 @@ class CreateNemoKernelTrans(Transformation):
     Transform a generic PSyIR Schedule representing a loop body into a NEMO
     Kernel. For example:
 
-    >>> from fparser.common.readfortran import FortranStringReader
-    >>> from fparser.two.parser import ParserFactory
-    >>> from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
-    >>> reader = FortranStringReader('''
+    >>> code = '''
     ... subroutine sub()
     ...   integer :: ji, tmp(10)
     ...   do ji=1, 10
     ...     tmp(ji) = 2*ji
     ...   end do
     ... end subroutine sub''')
-    >>> parser = ParserFactory().create()
-    >>> psyir = Fparser2Reader().generate_psyir(parser(reader))
+    >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoKernelTrans()
     >>> trans.apply(loop.loop_body)
