@@ -32,49 +32,44 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''Module containing pytest tests for the _program_handler method in
-the class Fparser2Reader. This handler deals with the translation of
-the fparser2 Program construct to PSyIR.'''
+''' Performs py.test tests on the FileContainer PSyIR node. '''
 
 from __future__ import absolute_import
 import pytest
-
-from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.nodes import Return, Routine, FileContainer, \
+    Container
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import FileContainer
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes.node import colored
 
 
-def test_program_handler(parser):
-    '''Test that program handler works with multiple program units of
-    different types.
+def test_file_container_init():
+    '''Test that a file container can be created'''
+
+    file_container = FileContainer("test")
+    assert isinstance(file_container, FileContainer)
+
+
+def test_file_container_create():
+    '''Test that the create method in the Container class correctly
+    creates a FileContainer instance.
 
     '''
-    code = (
-        "module a\n"
-        "end module\n"
-        "program b\n"
-        "end program b\n"
-        "subroutine c\n"
-        "end subroutine")
-    expected = (
-        "module a\n"
-        "  implicit none\n\n"
+    symbol_table = SymbolTable()
+    symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    module = Container.create("mod_1", symbol_table, [])
+    program = Routine.create("prog_1", SymbolTable(), [], is_program=True)
+    file_container = FileContainer.create(
+        "container_name", SymbolTable(), [module, program])
+    result = FortranWriter().filecontainer_node(file_container)
+    assert result == (
+        "module mod_1\n"
+        "  implicit none\n"
+        "  real :: tmp\n\n"
         "  contains\n\n"
-        "end module a\n"
-        "program b\n\n\n"
-        "end program b\n"
-        "subroutine c()\n\n\n"
-        "end subroutine c\n")
-    processor = Fparser2Reader()
-    reader = FortranStringReader(code)
-    parse_tree = parser(reader)
-    psyir = processor._program_handler(parse_tree, None)
-    # Check PSyIR nodes are being created
-    assert isinstance(psyir, FileContainer)
-    assert psyir.parent is None
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert result == expected
+        "end module mod_1\n"
+        "program prog_1\n\n\n"
+        "end program prog_1\n")
