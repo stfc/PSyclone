@@ -152,7 +152,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
                                              is_program=routine.is_program)
 
         # We need to replace the top node in the (possibly sub-) PSyIR
-        # tree that we've been passsed.
+        # tree that we've been passed.
         if routine.parent:
             routine.replace_with(new_node)
 

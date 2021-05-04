@@ -119,10 +119,9 @@ class CreateNemoLoopTrans(Transformation):
     def apply(self, loop, options=None):
         '''
         Takes a generic PSyIR Loop node and replaces it with a NemoLoop.
-        The original loop object is deleted.
 
-        :param sched: the Loop node to be transformed.
-        :type sched: :py:class:`psyclone.psyir.nodes.Loop`
+        :param loop: the Loop node to be transformed.
+        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for \
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \

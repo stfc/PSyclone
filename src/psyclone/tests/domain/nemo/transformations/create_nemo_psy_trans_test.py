@@ -45,8 +45,8 @@ from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 
 
-@pytest.fixture(scope="session")
-def psy_trans():
+@pytest.fixture(scope="session", name="psy_trans")
+def psy_trans_fixture():
     ''' pytest fixture that creates an instance of the Transformation that
     this module is testing. '''
     return CreateNemoPSyTrans()
