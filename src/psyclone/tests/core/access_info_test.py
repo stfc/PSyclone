@@ -44,7 +44,6 @@ from psyclone.core import AccessInfo, Signature, SingleVariableAccessInfo, \
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node
-from psyclone.tests.utilities import create_schedule
 
 
 def test_access_info():
