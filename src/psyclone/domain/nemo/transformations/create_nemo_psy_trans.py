@@ -50,20 +50,17 @@ class CreateNemoPSyTrans(Transformation):
     Transform generic (language-level) PSyIR representation into a PSyclone
     version with specialised, NEMO-specific nodes. For example:
 
-    >>> from fparser.common.readfortran import FortranStringReader
-    >>> from fparser.two.parser import ParserFactory
-    >>> from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
-    >>> reader = FortranStringReader('''
+    >>> code = '''
     ... subroutine sub()
     ...   integer :: ji, tmp(10)
     ...   do ji=1, 10
     ...     tmp(ji) = 2*ji
     ...   end do
-    ... end subroutine sub''')
-    >>> parser = ParserFactory().create()
-    >>> psyir = Fparser2Reader().generate_psyir(parser(reader))
+    ... end subroutine sub'''
+    >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoPSyTrans()
     >>> sched, _ = trans.apply(psyir)

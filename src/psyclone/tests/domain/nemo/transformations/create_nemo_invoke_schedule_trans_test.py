@@ -41,8 +41,6 @@ transformation.
 from __future__ import absolute_import
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Return, Routine, Loop
 from psyclone.transformations import TransformationError
 from psyclone.domain.nemo.transformations import CreateNemoInvokeScheduleTrans
@@ -65,7 +63,7 @@ def test_create_invokesched_validate():
             str(err.value))
 
 
-def test_basic_invokesched_trans(parser):
+def test_basic_invokesched_trans(fortran_reader):
     ''' Check that a basic routine can be transformed correctly. '''
     code = '''subroutine basic_loop()
   integer, parameter :: jpi=16, jpj=16
@@ -78,11 +76,8 @@ def test_basic_invokesched_trans(parser):
   end do
 end subroutine basic_loop
 '''
+    psyir = fortran_reader.psyir_from_source(code)
     trans = CreateNemoInvokeScheduleTrans()
-    fp2reader = Fparser2Reader()
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psyir = fp2reader.generate_psyir(prog)
     first_loop = psyir[0]
     routines = psyir.walk(Routine)
     assert routines[0] is psyir
@@ -93,7 +88,7 @@ end subroutine basic_loop
     assert sched[0] is first_loop
 
 
-def test_multi_invoke_schedules(parser):
+def test_multi_invoke_schedules(fortran_reader):
     ''' Test that the transformation works successfully when the target
     routine is one of two in a module. '''
     code = '''module my_mod
@@ -113,10 +108,7 @@ subroutine basic_loop()
 end subroutine basic_loop
 end module my_mod
 '''
-    fp2reader = Fparser2Reader()
-    reader = FortranStringReader(code)
-    ptree = parser(reader)
-    psyir = fp2reader.generate_psyir(ptree)
+    psyir = fortran_reader.psyir_from_source(code)
     trans = CreateNemoInvokeScheduleTrans()
     routines = psyir.walk(Routine)
     loops = psyir.walk(Loop)

@@ -59,7 +59,7 @@ class CreateNemoKernelTrans(Transformation):
     ...   do ji=1, 10
     ...     tmp(ji) = 2*ji
     ...   end do
-    ... end subroutine sub''')
+    ... end subroutine sub'''
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoKernelTrans()

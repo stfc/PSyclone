@@ -47,20 +47,17 @@ class CreateNemoLoopTrans(Transformation):
     """
     Transform a generic PSyIR Loop into a NemoLoop. For example:
 
-    >>> from fparser.common.readfortran import FortranStringReader
-    >>> from fparser.two.parser import ParserFactory
-    >>> from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.domain.nemo.transformations import CreateNemoLoopTrans
-    >>> reader = FortranStringReader('''
+    >>> code = '''
     ... subroutine sub()
     ...   integer :: ji, tmp(10)
     ...   do ji=1, 10
     ...     tmp(ji) = 2*ji
     ...   end do
-    ... end subroutine sub''')
-    >>> parser = ParserFactory().create()
-    >>> psyir = Fparser2Reader().generate_psyir(parser(reader))
+    ... end subroutine sub'''
+    >>> psyir = FortranReader().psyir_from_source(code)
     >>> loops = psyir.walk(Loop)
     >>> trans = CreateNemoLoopTrans()
     >>> trans.apply(loops[0])

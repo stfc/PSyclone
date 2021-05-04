@@ -37,8 +37,6 @@
 
 from __future__ import absolute_import
 import pytest
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.transformations import Transformation, TransformationError
 from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
@@ -66,24 +64,21 @@ def test_create_psy_validation(psy_trans):
             "should be a PSyIR Node but found 'int'" in str(err.value))
 
 
-def test_no_matching_psyir(psy_trans, parser):
+def test_no_matching_psyir(psy_trans, fortran_reader):
     ''' Check that the transformation has no effect if no suitable nodes
     are found in the supplied PSyIR. '''
     code = '''subroutine basic()
   write(*,*) "Hello world"
 end subroutine basic
 '''
-    fp2reader = Fparser2Reader()
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psyir = fp2reader.generate_psyir(prog)
+    psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir[0]
     psy_trans.apply(psyir[0])
     # Transformation should have had no effect
     assert psyir[0] is cblock
 
 
-def test_basic_psy(psy_trans, parser):
+def test_basic_psy(psy_trans, fortran_reader):
     ''' Check that the transformation correctly generates NEMO PSyIR for
     a simple case. '''
     code = '''subroutine basic_loop()
@@ -97,10 +92,7 @@ def test_basic_psy(psy_trans, parser):
   end do
 end subroutine basic_loop
 '''
-    fp2reader = Fparser2Reader()
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psyir = fp2reader.generate_psyir(prog)
+    psyir = fortran_reader.psyir_from_source(code)
     sched, _ = psy_trans.apply(psyir)
     assert isinstance(sched, NemoInvokeSchedule)
     assert isinstance(sched[0], NemoLoop)
@@ -108,7 +100,7 @@ end subroutine basic_loop
     assert isinstance(sched[0].loop_body[0].loop_body[0], NemoKern)
 
 
-def test_module_psy(psy_trans, parser):
+def test_module_psy(psy_trans, fortran_reader):
     ''' Check that the transformation works as expected when the source code
     contains a module with more than one routine. '''
     code = '''module my_mod
@@ -128,10 +120,7 @@ subroutine basic_loop()
 end subroutine basic_loop
 end module my_mod
 '''
-    fp2reader = Fparser2Reader()
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psyir = fp2reader.generate_psyir(prog)
+    psyir = fortran_reader.psyir_from_source(code)
     sched, _ = psy_trans.apply(psyir)
     invokes = sched.walk(NemoInvokeSchedule)
     assert len(invokes) == 2

@@ -40,8 +40,6 @@ Module providing pytest tests of the CreateNemoLoopTrans transformation.
 from __future__ import absolute_import
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Return, Loop, Assignment
 from psyclone.transformations import TransformationError
 from psyclone.domain.nemo.transformations import CreateNemoLoopTrans
@@ -64,7 +62,7 @@ def test_create_loop_validate():
             str(err.value))
 
 
-def test_basic_loop_trans(parser):
+def test_basic_loop_trans(fortran_reader):
     ''' Check that a basic loop can be transformed correctly. '''
     code = '''subroutine basic_loop()
   integer, parameter :: jpi=16, jpj=16
@@ -77,11 +75,8 @@ def test_basic_loop_trans(parser):
   end do
 end subroutine basic_loop
 '''
+    psyir = fortran_reader.psyir_from_source(code)
     trans = CreateNemoLoopTrans()
-    fp2reader = Fparser2Reader()
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psyir = fp2reader.generate_psyir(prog)
     loops = psyir.walk(Loop)
     # Apply the transformation to the outermost loop
     root, _ = trans.apply(loops[0])
