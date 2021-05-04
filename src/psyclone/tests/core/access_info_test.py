@@ -44,7 +44,6 @@ from psyclone.core import AccessInfo, Signature, SingleVariableAccessInfo, \
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node
-from psyclone.tests.utilities import create_schedule
 
 
 def test_access_info():
@@ -270,10 +269,9 @@ def test_variables_access_info_merge():
 
 
 # -----------------------------------------------------------------------------
-def test_constructor():
+def test_constructor(fortran_reader):
     '''Test the optional constructor parameter (single node and list
     of nodes).'''
-
     code = '''module test
         contains
         subroutine tmp()
@@ -282,7 +280,7 @@ def test_constructor():
           c = a*b
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
+    schedule = fortran_reader.psyir_from_source(code).children[0]
     node1 = schedule[0]
     node2 = schedule[1]
     vai1 = VariablesAccessInfo(node1)
