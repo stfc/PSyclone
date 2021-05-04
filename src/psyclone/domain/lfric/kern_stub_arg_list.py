@@ -192,6 +192,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
@@ -209,6 +211,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.direction_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
@@ -227,6 +231,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._stub_symtab, arg)
         self.append(var_name, var_accesses)
@@ -238,10 +244,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional `VariableAccessInfo` instance to store \
-            the information about variable accesses.
+        :param var_accesses: optional `SingleVariableAccessInfo` \
+            instance to store the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariableAccessInfo`
+            :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         '''
         # The maximum branch extent is not specified in the metadata so pass
@@ -265,6 +271,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
@@ -347,6 +355,8 @@ class KernStubArgList(ArgOrdering):
         :raises InternalError: if the evaluator shape is not recognised.
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
             VALID_QUADRATURE_SHAPES
         for shape in self._kern.eval_shapes:
@@ -387,6 +397,8 @@ class KernStubArgList(ArgOrdering):
         :raises InternalError: if the evaluator shape is not recognised.
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
             VALID_QUADRATURE_SHAPES
         for shape in self._kern.eval_shapes:
@@ -457,6 +469,8 @@ class KernStubArgList(ArgOrdering):
 
         '''
         if self._kern.mesh.properties:
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import LFRicMeshProperties
             self.extend(LFRicMeshProperties(self._kern).
                         kern_args(stub=True, var_accesses=var_accesses))

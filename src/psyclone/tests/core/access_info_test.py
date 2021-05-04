@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,13 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.core.access_info import AccessInfo, VariableAccessInfo, \
+
+from psyclone.core import AccessInfo, Signature, SingleVariableAccessInfo, \
     VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node
+from psyclone.tests.utilities import create_schedule
 
 
 def test_access_info():
@@ -82,14 +84,14 @@ def test_variable_access_info():
     of VariableInfo instances for one variable
     '''
 
-    vai = VariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo("var_name")
     assert vai.var_name == "var_name"
     assert str(vai) == "var_name:"
     assert vai.is_written() is False
     assert vai.is_read() is False
     assert vai.all_accesses == []
 
-    vai.add_access(AccessType.READ, 2, Node())
+    vai.add_access_with_location(AccessType.READ, 2, Node())
     assert str(vai) == "var_name:READ(2)"
     assert vai.is_read()
     assert vai.is_read_only()
@@ -111,14 +113,14 @@ def test_variable_access_info():
 
     # Add a READ access - now we should not be able to
     # change read to write anymore:
-    vai.add_access(AccessType.READ, 1, Node())
+    vai.add_access_with_location(AccessType.READ, 1, Node())
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
     assert "Variable 'var_name' had 2 accesses listed, "\
            "not one in change_read_to_write." in str(err.value)
 
     # And make sure the variable is not read_only if a write is added
-    vai.add_access(AccessType.WRITE, 3, Node())
+    vai.add_access_with_location(AccessType.WRITE, 3, Node())
     assert vai.is_read_only() is False
 
 
@@ -130,24 +132,24 @@ def test_variable_access_info_read_write():
     used in subroutine calls (depending on kernel metadata)
     '''
 
-    vai = VariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo("var_name")
     assert vai.has_read_write() is False
 
     # Add a READ and WRITE access at the same location, and make sure it
     # is not reported as READWRITE access
     node = Node()
-    vai.add_access(AccessType.READ, 2, node)
+    vai.add_access_with_location(AccessType.READ, 2, node)
     assert vai[0].node == node
     assert vai[0].location == 2
-    vai.add_access(AccessType.WRITE, 2, Node())
+    vai.add_access_with_location(AccessType.WRITE, 2, Node())
     assert vai.has_read_write() is False
 
-    vai.add_access(AccessType.READWRITE, 2, Node())
+    vai.add_access_with_location(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
-    vai = VariableAccessInfo("var_name")
-    vai.add_access(AccessType.READWRITE, 2, Node())
+    vai = SingleVariableAccessInfo("var_name")
+    vai.add_access_with_location(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
     assert vai.is_read()
     assert vai.is_written()
@@ -160,24 +162,25 @@ def test_variables_access_info():
     '''
     var_accesses = VariablesAccessInfo()
     node1 = Node()
-    var_accesses.add_access("read", AccessType.READ, node1)
+    var_accesses.add_access(Signature("read"), AccessType.READ, node1)
     node2 = Node()
-    var_accesses.add_access("written", AccessType.WRITE, node2)
+    var_accesses.add_access(Signature("written"), AccessType.WRITE, node2)
     assert str(var_accesses) == "read: READ, written: WRITE"
 
     var_accesses.next_location()
     node = Node()
-    var_accesses.add_access("written", AccessType.WRITE, node)
+    var_accesses.add_access(Signature("written"), AccessType.WRITE, node)
     var_accesses.next_location()
-    var_accesses.add_access("read_written", AccessType.WRITE, node)
-    var_accesses.add_access("read_written", AccessType.READ, node)
+    var_accesses.add_access(Signature("read_written"), AccessType.WRITE, node)
+    var_accesses.add_access(Signature("read_written"), AccessType.READ, node)
     assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
                                 "written: WRITE"
-    assert set(var_accesses.all_vars) == set(["read", "written",
-                                              "read_written"])
-    all_accesses = var_accesses["read"].all_accesses
+    assert set(var_accesses.all_signatures) == set([Signature("read"),
+                                                    Signature("written"),
+                                                    Signature("read_written")])
+    all_accesses = var_accesses[Signature("read")].all_accesses
     assert all_accesses[0].node == node1
-    written_accesses = var_accesses["written"].all_accesses
+    written_accesses = var_accesses[Signature("written")].all_accesses
     assert written_accesses[0].location == 0
     assert written_accesses[1].location == 1
     # Check that the location pointer is pointing to the next statement:
@@ -185,8 +188,8 @@ def test_variables_access_info():
 
     # Create a new instance
     var_accesses2 = VariablesAccessInfo()
-    var_accesses2.add_access("new_var", AccessType.READ, node)
-    var_accesses2.add_access("written", AccessType.READ, node)
+    var_accesses2.add_access(Signature("new_var"), AccessType.READ, node)
+    var_accesses2.add_access(Signature("written"), AccessType.READ, node)
 
     # Now merge the new instance with the previous instance:
     var_accesses.merge(var_accesses2)
@@ -194,15 +197,21 @@ def test_variables_access_info():
                                 "read_written: READ+WRITE, written: READ+WRITE"
 
     with pytest.raises(KeyError):
-        _ = var_accesses["does_not_exist"]
+        _ = var_accesses[Signature("does_not_exist")]
     with pytest.raises(KeyError):
-        var_accesses.is_read("does_not_exist")
+        var_accesses.is_read(Signature("does_not_exist"))
     with pytest.raises(KeyError):
-        var_accesses.is_written("does_not_exist")
+        var_accesses.is_written(Signature("does_not_exist"))
 
     assert "READWRITE" not in str(var_accesses)
-    var_accesses.add_access("readwrite", AccessType.READWRITE, node)
+    var_accesses.add_access(Signature("readwrite"), AccessType.READWRITE, node)
     assert "READWRITE" in str(var_accesses)
+
+    with pytest.raises(InternalError) as err:
+        var_accesses.add_access("no-signature", AccessType.READWRITE, node)
+
+    assert "Got 'no-signature' of type 'str' but expected it to be of type " \
+           "psyclone.core.Signature." in str(err.value)
 
 
 # -----------------------------------------------------------------------------
@@ -213,23 +222,23 @@ def test_variables_access_info_merge():
     # a=b; c=d
     var_accesses1 = VariablesAccessInfo()
     node = Node()
-    var_accesses1.add_access("b", AccessType.READ, node)
-    var_accesses1.add_access("a", AccessType.WRITE, node)
+    var_accesses1.add_access(Signature("b"), AccessType.READ, node)
+    var_accesses1.add_access(Signature("a"), AccessType.WRITE, node)
     var_accesses1.next_location()
-    var_accesses1.add_access("d", AccessType.READ, node)
-    var_accesses1.add_access("c", AccessType.WRITE, node)
-    c_accesses = var_accesses1["c"]
+    var_accesses1.add_access(Signature("d"), AccessType.READ, node)
+    var_accesses1.add_access(Signature("c"), AccessType.WRITE, node)
+    c_accesses = var_accesses1[Signature("c")]
     assert len(c_accesses.all_accesses) == 1
     assert c_accesses[0].access_type == AccessType.WRITE
 
     # First create one instance representing for example:
     # e=f; g=h
     var_accesses2 = VariablesAccessInfo()
-    var_accesses2.add_access("f", AccessType.READ, node)
-    var_accesses2.add_access("e", AccessType.WRITE, node)
+    var_accesses2.add_access(Signature("f"), AccessType.READ, node)
+    var_accesses2.add_access(Signature("e"), AccessType.WRITE, node)
     var_accesses2.next_location()
-    var_accesses2.add_access("h", AccessType.READ, node)
-    var_accesses2.add_access("g", AccessType.WRITE, node)
+    var_accesses2.add_access(Signature("h"), AccessType.READ, node)
+    var_accesses2.add_access(Signature("g"), AccessType.WRITE, node)
 
     # Now merge the second instance into the first one
     var_accesses1.merge(var_accesses2)
@@ -237,8 +246,8 @@ def test_variables_access_info_merge():
     # The e=f access pattern should have the same location
     # as the c=d (since there is no next_location after
     # adding the b=a access):
-    c_accesses = var_accesses1["c"]
-    e_accesses = var_accesses1["e"]
+    c_accesses = var_accesses1[Signature("c")]
+    e_accesses = var_accesses1[Signature("e")]
     assert c_accesses[0].access_type == AccessType.WRITE
     assert e_accesses[0].access_type == AccessType.WRITE
     assert c_accesses[0].location == e_accesses[0].location
@@ -246,9 +255,9 @@ def test_variables_access_info_merge():
     # Test that the g=h part has a higher location than the
     # c=d data. This makes sure that merge() increases the
     # location number of accesses when merging.
-    c_accesses = var_accesses1["c"]
-    g_accesses = var_accesses1["g"]
-    h_accesses = var_accesses1["h"]
+    c_accesses = var_accesses1[Signature("c")]
+    g_accesses = var_accesses1[Signature("g")]
+    h_accesses = var_accesses1[Signature("h")]
     assert c_accesses[0].location < g_accesses[0].location
     assert g_accesses[0].location == h_accesses[0].location
 
