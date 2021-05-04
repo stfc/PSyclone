@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,55 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''xxx'''
+'''PSyDA, the PSyclone data assimilation module.'''
 
-import argparse
+from psyclone.psyad.main import main, psyad
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranFileReader
-
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import LocalInterface
-
-def main(args):
-    '''
-    xxx
-
-    :param list args: the list of command-line arguments that PSyDA has \
-                      been invoked with.
-
-    '''
-    parser = argparse.ArgumentParser(
-        description="Run the PSyDA code generator on an LFRic tangent-linear "
-        "kernel file")
-    parser.add_argument('filename', help='tangent-linear source code')
-
-    args = parser.parse_args(args)
-
-    # TL Fortran code
-    filename = args.filename
-    print ("Reading file {0}".format(filename))
-
-    # TL fparser parse tree
-    reader = FortranFileReader(filename, ignore_comments=False)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(reader)
-    print (repr(parse_tree))
-
-    # TL Language-level PSyIR
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
-    psyir.view()
-
-    # TL LFRic-specific PSyIR
-
-    # Transform from TL to AD
-
-    # AD Fortran code
-    writer = FortranWriter()
-    alg_gen = writer(psyir)
-    print(alg_gen)
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+__all__ = [main, psyad]
