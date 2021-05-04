@@ -42,7 +42,7 @@ kernel calls.
 from __future__ import print_function, absolute_import
 import abc
 
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.errors import GenerationError, InternalError
 
@@ -92,10 +92,10 @@ class ArgOrdering(object):
         self._arglist.append(var_name)
         if var_accesses is not None:
             if var_access_name:
-                var_accesses.add_access(var_access_name, mode,
+                var_accesses.add_access(Signature(var_access_name), mode,
                                         self._kern)
             else:
-                var_accesses.add_access(var_name, mode,
+                var_accesses.add_access(Signature(var_name), mode,
                                         self._kern)
 
     def extend(self, list_var_name, var_accesses=None,
@@ -119,7 +119,7 @@ class ArgOrdering(object):
         self._arglist.extend(list_var_name)
         if var_accesses:
             for var_name in list_var_name:
-                var_accesses.add_access(var_name, mode, self._kern)
+                var_accesses.add_access(Signature(var_name), mode, self._kern)
 
     @property
     def num_args(self):
@@ -735,6 +735,8 @@ class ArgOrdering(object):
 
         '''
         if self._kern.reference_element.properties:
+            # Avoid circular import.
+            # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import DynReferenceElement
             refelem_args = DynReferenceElement(self._kern).kern_args()
             self.extend(refelem_args, var_accesses)
