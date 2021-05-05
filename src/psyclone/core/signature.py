@@ -56,13 +56,23 @@ class Signature(object):
     :param variable: the variable that is accessed.
     :type variable: can be str or a tuple of strings.
 
+    :param sub_sig: a signature that is to be added to this new signature.
+    :type sub_sig: :py:class:`psyclone.core.Signature`
+
     '''
-    def __init__(self, variable):
+    def __init__(self, variable, sub_sig=None):
+        if sub_sig:
+            sub_tuple = sub_sig._signature
+        else:
+            # null-tuple
+            sub_tuple = ()
         if isinstance(variable, (str, six.text_type)):
             # str() required for python2 unicode support
-            self._signature = (str(variable),)
+            self._signature = (str(variable),) + sub_tuple
         elif isinstance(variable, tuple):
-            self._signature = variable
+            self._signature = variable + sub_tuple
+        elif isinstance(variable, Signature):
+            self._signature = variable._signature + sub_tuple
         else:
             raise InternalError("Got unexpected type '{0}' in Signature "
                                 "constructor".format(type(variable).__name__))
@@ -95,6 +105,15 @@ class Signature(object):
     def __lt__(self, other):
         '''Required to sort signatures. It just compares the tuples.'''
         return self._signature < other._signature
+
+    # ------------------------------------------------------------------------
+    @property
+    def var_name(self):
+        ''':returns: the actual variable name, i.e. the first component of
+        the signature.
+        :rtype: str
+        '''
+        return self._signature[0]
 
 
 # ---------- Documentation utils -------------------------------------------- #
