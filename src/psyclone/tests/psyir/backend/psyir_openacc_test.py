@@ -228,8 +228,8 @@ def test_acc_loop(parser):
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     _ = acc_trans.apply(loops[0], {"sequential": True})
-    fort_writer = FortranWriter()
-    result = fort_writer(schedule)
+    fortran_writer = FortranWriter()
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop seq\n"
             "do jj = 1, jpj, 1\n" in result)
@@ -237,22 +237,22 @@ def test_acc_loop(parser):
     # Rather than keep apply the transformation with different options,
     # change the internal state of the Directive directly.
     loop_dir._sequential = False
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop independent\n"
             "do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = 2
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop independent collapse(2)\n"
             "do jj = 1, jpj, 1\n" in result)
     loop_dir._independent = False
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop collapse(2)\n"
             "do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = None
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop\n"
             "do jj = 1, jpj, 1\n" in result)
