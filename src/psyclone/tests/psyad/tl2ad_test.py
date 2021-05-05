@@ -38,6 +38,7 @@ within the psyad directory.
 
 '''
 import logging
+import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -45,6 +46,8 @@ from psyclone.psyad import generate
 
 
 # 1: generate function
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions", strict=False)
 def test_generate(caplog):
     '''Test that the generate() function works as expected including
     logging.
@@ -71,9 +74,8 @@ def test_generate(caplog):
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
 
-    caplog.set_level(logging.DEBUG)
-    #with caplog.at_level(logging.DEBUG):
-    ad_psyir = generate(tl_psyir)
+    with caplog.at_level(logging.DEBUG):
+        ad_psyir = generate(tl_psyir)
     assert (
         "DEBUG    root:tl2ad.py:57 Translation from generic PSyIR to "
         "LFRic-specific PSyIR should be done now." in caplog.text)

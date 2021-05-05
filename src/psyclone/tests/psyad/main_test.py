@@ -151,6 +151,8 @@ def test_main_fileout(tmpdir, capsys):
 
 
 # -v output
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions", strict=False)
 def test_main_verbose(tmpdir, capsys, caplog):
     '''Test that the the main() function outputs additional information if
     the -v flag is set. Actually -v seems to have no effect here as
@@ -167,9 +169,9 @@ def test_main_verbose(tmpdir, capsys, caplog):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(tl_code)
-    caplog.set_level(logging.DEBUG)
-    #with caplog.at_level(logging.DEBUG):
-    main([filename_in, "-v", "-oad", filename_out])
+    with caplog.at_level(logging.DEBUG):
+        main([filename_in, "-v", "-oad", filename_out])
+
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
@@ -184,6 +186,8 @@ def test_main_verbose(tmpdir, capsys, caplog):
 
 
 # expected output
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions", strict=False)
 def test_main_str(caplog):
     '''Test that the main_str() function works as expected including
     logging.
@@ -199,15 +203,16 @@ def test_main_str(caplog):
         "  integer :: a\n\n"
         "  a = 0.0\n\n"
         "end program test\n")
-    caplog.set_level(logging.INFO)
-    #with caplog.at_level(logging.INFO):
-    result = main_str(tl_code)
+
+    with caplog.at_level(logging.INFO):
+        result = main_str(tl_code)
+
     assert caplog.text == ""
     assert expected in result
 
-    caplog.set_level(logging.DEBUG)
-    #with caplog.at_level(logging.DEBUG):
-    result = main_str(tl_code)
+    with caplog.at_level(logging.DEBUG):
+        result = main_str(tl_code)
+
     assert "DEBUG    root:main.py:101" in caplog.text
     assert tl_code in caplog.text
     assert "DEBUG    root:main.py:108" in caplog.text
@@ -223,7 +228,7 @@ def test_main_str(caplog):
 
 
 # Capturing
-def test_capturing(caplog):
+def test_capturing():
     '''Test that the utility Capturing class behaves as expected.'''
 
     with Capturing() as output:
