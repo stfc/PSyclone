@@ -39,13 +39,14 @@
 from __future__ import print_function, absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import TransInfo, PSyFactory
-from psyclone.errors import InternalError, GenerationError
-from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
-from psyclone.psyGen import OMPDoDirective
-from psyclone.psyir.nodes import Statement
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import TransInfo, PSyFactory, OMPDoDirective, \
+    OMPParallelDirective, OMPParallelDoDirective
+from psyclone.psyir.nodes import Return
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
+    OMPParallelLoopTrans
 
 # Constants
 API = "nemo"
@@ -75,7 +76,7 @@ def test_omp_explicit_gen():
         "  real :: r\n"
         "  real, dimension(jpi,jpj,jpk) :: umask\n"
         "\n"
-        "  !$omp parallel do default(shared), private(ji,jj,jk), "
+        "  !$omp parallel do default(shared) private(ji,jj,jk) "
         "schedule(static)\n"
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
@@ -157,7 +158,6 @@ def test_omp_add_region_invalid_data_move():
 def test_omp_parallel_multi():
     ''' Check insertion of an OpenMP parallel region containing more than
     one node. '''
-    from psyclone.psyGen import OMPParallelDirective
     otrans = OMPParallelTrans()
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke_info.schedule
@@ -237,9 +237,7 @@ wmask(ji,jj,jk)
 
 def test_omp_do_children_err():
     ''' Tests that we raise the expected error when an OpenMP parallel do
-    directive has more than one child. '''
-    from psyclone.transformations import OMPParallelLoopTrans
-    from psyclone.psyGen import OMPParallelDoDirective
+    directive has more than one child or the child is not a loop. '''
     otrans = OMPParallelLoopTrans()
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke_info.schedule
@@ -248,16 +246,20 @@ def test_omp_do_children_err():
     assert isinstance(directive, OMPParallelDoDirective)
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
-    directive.dir_body.children.append(Statement())
+    directive.dir_body.children.append(directive.dir_body[0].copy())
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("An OpenMP PARALLEL DO can only be applied to a single loop but "
             "this Node has 2 children:" in str(err.value))
+    directive.dir_body.children = [Return()]
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An OpenMP PARALLEL DO can only be applied to a loop but "
+            "found a node of type 'Return'" in str(err.value))
 
 
 def test_omp_do_within_if():
     ''' Check that we can insert an OpenMP parallel do within an if block. '''
-    from psyclone.transformations import OMPParallelLoopTrans
     otrans = OMPParallelLoopTrans()
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke_info.schedule

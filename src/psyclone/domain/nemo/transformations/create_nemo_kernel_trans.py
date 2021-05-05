@@ -134,10 +134,10 @@ class CreateNemoKernelTrans(Transformation):
                 "A NEMO Kernel cannot contain array assignments but found: "
                 "{0}".format([fwriter(node).rstrip("\n") for node in nodes]))
 
-        # A kernel cannot contain loops, calls or unrecognised code (including
-        # IO operations. So if there is any node in the result of
-        # the walk, this node cannot be represented as a NEMO kernel.
-        nodes = node.walk((CodeBlock, Loop, Call))
+        # A kernel cannot contain loops, calls, other kernels or unrecognised
+        # code (including IO operations. So if there is any node in the result
+        # of the walk, this node cannot be represented as a NEMO kernel.
+        nodes = node.walk((CodeBlock, Loop, Call, NemoKern))
         if nodes:
             raise TransformationError(
                 "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"

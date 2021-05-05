@@ -1839,6 +1839,36 @@ class OMPDirective(Directive):
 
 
 class OMPParallelDirective(OMPDirective):
+    '''
+    Class representing the creation of a new, OpenMP thread-parallel region.
+    Since we do not support nested parallelism, a node of this type cannot
+    be enclosed within another parallel region.
+
+    '''
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OpenMP parallel region is enclosed \
+                                 within another parallel region.
+        '''
+        if self.ancestor(OMPParallelDirective):
+            raise GenerationError(
+                "Nested parallelism is not supported: an OpenMP parallel "
+                "region cannot be nested inside another OMP parallel region")
+
+        # Check that this OpenMP PARALLEL directive encloses other
+        # OpenMP directives. Although it is valid OpenMP if it doesn't,
+        # this almost certainly indicates a user error.
+        node_list = self.walk(OMPDirective)
+        if not node_list:
+            # TODO #11 log a warning here so that the user can decide
+            # whether or not this is OK.
+            pass
+            # raise GenerationError("OpenMP parallel region does not enclose "
+            #                       "any OpenMP directives. This is probably "
+            #                       "not what you want.")
 
     @property
     def dag_name(self):
@@ -1861,6 +1891,7 @@ class OMPParallelDirective(OMPDirective):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
         from psyclone.f2pygen import AssignGen, UseGen, DeclGen
+        self.validate_global_constraints()
 
         private_list = self._get_private_list()
 
@@ -1874,15 +1905,6 @@ class OMPParallelDirective(OMPDirective):
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[thread_idx]))
         private_str = ",".join(private_list)
-
-        # We're not doing nested parallelism so make sure that this
-        # omp parallel region is not already within some parallel region
-        self._not_within_omp_parallel_region()
-
-        # Check that this OpenMP PARALLEL directive encloses other
-        # OpenMP directives. Although it is valid OpenMP if it doesn't,
-        # this almost certainly indicates a user error.
-        self._encloses_omp_directive()
 
         calls = self.reductions()
 
@@ -2033,28 +2055,6 @@ class OMPParallelDirective(OMPDirective):
         list_result = list(result)
         list_result.sort()
         return list_result
-
-    def _not_within_omp_parallel_region(self):
-        ''' Check that this Directive is not within any other
-            parallel region '''
-        if self.ancestor(OMPParallelDirective) is not None:
-            raise GenerationError("Cannot nest OpenMP parallel regions.")
-
-    def _encloses_omp_directive(self):
-        ''' Check that this Parallel region contains other OpenMP
-            directives. While it doesn't have to (in order to be valid
-            OpenMP), it is likely that an absence of directives
-            is an error on the part of the user. '''
-        # We need to recurse down through all our children and check
-        # whether any of them are an OMPDirective.
-        node_list = self.walk(OMPDirective)
-        if not node_list:
-            # TODO raise a warning here so that the user can decide
-            # whether or not this is OK.
-            pass
-            # raise GenerationError("OpenMP parallel region does not enclose "
-            #                       "any OpenMP directives. This is probably "
-            #                       "not what you want.")
 
     def update(self):
         '''
@@ -2247,6 +2247,35 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 parent=parent,
                                 omp_schedule=omp_schedule)
 
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this parallel do is nested within another \
+            parallel region, has more than one child or its child is not a \
+            loop.
+
+        '''
+        if self.ancestor(OMPParallelDirective):
+            raise GenerationError(
+                "Nested parallelism is not supported: an OpenMP parallel do "
+                "cannot be nested inside another OMP parallel region")
+
+        # Since this is an OpenMP (parallel) do, it can only be applied
+        # to a single loop.
+        if len(self.dir_body.children) != 1:
+            raise GenerationError(
+                "An OpenMP PARALLEL DO can only be applied to a single loop "
+                "but this Node has {0} children: {1}".
+                format(len(self.dir_body.children), self.dir_body.children))
+
+        if not isinstance(self.dir_body[0], Loop):
+            raise GenerationError(
+                "An OpenMP PARALLEL DO can only be applied to a loop but "
+                "found a node of type '{0}'".format(
+                    type(self.dir_body[0]).__name__))
+
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
@@ -2272,9 +2301,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We're not doing nested parallelism so make sure that this
-        # omp parallel do is not already within some parallel region
-        self._not_within_omp_parallel_region()
+        # Check any global constraints
+        self.validate_global_constraints()
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
@@ -2300,13 +2328,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                  correct structure to permit the insertion \
                                  of the OpenMP parallel do.
         '''
-        # Since this is an OpenMP (parallel) do, it can only be applied
-        # to a single loop.
-        if len(self.dir_body.children) != 1:
-            raise GenerationError(
-                "An OpenMP PARALLEL DO can only be applied to a single loop "
-                "but this Node has {0} children: {1}".
-                format(len(self.dir_body.children), self.dir_body.children))
+        self.validate_global_constraints()
 
         self._add_region(start_text=self.begin_string(),
                          end_text=self.end_string())

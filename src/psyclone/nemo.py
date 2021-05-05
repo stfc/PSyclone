@@ -100,55 +100,6 @@ class NemoFparser2Reader(Fparser2Reader):
         return loop
 
 
-def raise_psyir(psyir):
-    '''
-    Takes generic PSyIR and replaces recognised structures with
-    NEMO-specific PSyIR (in-place). Note that this may mean replacing
-    the top-level node itself and therefore this routine returns the
-    root of the modified tree.
-
-    :param psyir: the root node of the PSyIR tree to process.
-
-    :returns: root of the modified PSyIR tree.
-    :rtype: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    # Deal with Routines first. Have to take care of the case where the
-    # supplied top-level node is itself a Routine and must therefore be
-    # replaced.
-    root = psyir
-
-    for routine in psyir.walk(Routine):
-        new_node = NemoInvokeSchedule.create(routine.name,
-                                             routine.symbol_table,
-                                             routine.pop_all_children(),
-                                             is_program=routine.is_program)
-        if routine is not psyir:
-            routine.replace_with(new_node)
-        else:
-            # We need to replace the top node in the (possibly sub-) PSyIR
-            # tree that we've been passsed.
-            if psyir.parent:
-                psyir.replace_with(new_node)
-            root = new_node
-
-    # Reverse the result of the walk() so that we process loops depth-first.
-    # This permits the correct identification of NemoKern's.
-    for loop in reversed(root.walk(Loop)):
-        # Convert a generic loop into a NEMO Loop by creating a new
-        # NemoLoop object and inserting it into the PSyIR.
-        nodes = loop.pop_all_children()
-        new_loop = NemoLoop.create(loop.variable, nodes[0], nodes[1], nodes[2],
-                                   nodes[3].pop_all_children())
-        loop.replace_with(new_loop)
-        if NemoKern.match(new_loop.loop_body):
-            nemokern = NemoKern(new_loop.loop_body.pop_all_children(), None,
-                                parent=new_loop.loop_body)
-            new_loop.loop_body.addchild(nemokern)
-
-    return root
-
-
 class NemoInvoke(Invoke):
     '''
     Represents a NEMO 'Invoke' which, since NEMO is existing code, means
@@ -171,14 +122,14 @@ class NemoInvoke(Invoke):
         # NemoPSy). We have to import the transformation-related classes
         # here to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.transformations import TransformationError
-        from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
-        ktrans = CreateNemoKernelTrans()
-        for loop in self._schedule.walk(Loop):
-            try:
-                ktrans.apply(loop.loop_body)
-            except TransformationError:
-                pass
+        #from psyclone.transformations import TransformationError
+        #from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
+        #ktrans = CreateNemoKernelTrans()
+        #for loop in self._schedule.walk(Loop):
+        #    try:
+        #        ktrans.apply(loop.loop_body)
+        #    except TransformationError:
+        #        pass
         self._schedule.invoke = self
 
     def update(self):
@@ -211,7 +162,10 @@ class NemoInvokes(Invokes):
 
         processor = Fparser2Reader()
         psyir = processor.generate_psyir(ast)
-        self._container = raise_psyir(psyir)
+        # Transform the language-level PSyIR into NEMO-specific PSyIR
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
+        self._container, _ = CreateNemoPSyTrans().apply(psyir)
         routines = self._container.walk(Routine)
 
         # Create an Invoke for each routine we've found

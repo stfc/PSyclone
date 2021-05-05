@@ -429,7 +429,7 @@ def test_no_psydata_in_kernels(parser, monkeypatch):
     # that it does
     monkeypatch.setattr(ptrans, "validate", lambda x, y: None)
     ptrans.apply(assign)
-    # Check that an appropriate error is raised at code-generation time
+    # Check that an appropriate error is raised by the backend
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("Cannot include calls to PSyData routines within OpenACC "
