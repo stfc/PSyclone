@@ -198,7 +198,7 @@ def test_node_root():
     # Select a loop and the kernel inside
     ru_loop = ru_schedule.children[1]
     ru_kern = ru_loop.children[0]
-    # Assert that the absolute root is a Schedule
+    # Assert that the absolute root is a Container
     assert isinstance(ru_kern.root, Container)
 
 

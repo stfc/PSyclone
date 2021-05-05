@@ -60,8 +60,8 @@ class LFRicExtractTrans(ExtractTrans):
     >>> etrans = LFRicExtractTrans()
     >>>
     >>> # Apply LFRicExtractTrans transformation to selected Nodes
-    >>> newetrans.apply(schedule.children[0:3])
-    >>> newsched.view()
+    >>> etrans.apply(schedule.children[0:3])
+    >>> schedule.view()
     '''
 
     def validate(self, node_list, options=None):

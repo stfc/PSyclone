@@ -1284,7 +1284,9 @@ class GOKern(CodedKern):
         # TODO #1134: Explore removing unnecessary set_args calls.
         self.gen_ocl_set_args_call(parent)
 
-        # Create array for the global work size argument of the kernel
+        # Create array for the global work size argument of the kernel. Use the
+        # InvokeSchedule symbol table to share this symbols for all the kernels
+        # in the Invoke.
         symtab = self.ancestor(InvokeSchedule).symbol_table
         garg = self._arguments.find_grid_access()
         glob_size = symtab.new_symbol(
@@ -1531,7 +1533,7 @@ class GOKern(CodedKern):
         :param parent: Parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        # Get the root symbol table and the root f2pygen node
+        # Get the InvokeSchedule symbol table and the root f2pygen node
         symtab = self.ancestor(InvokeSchedule).symbol_table
         module = parent
         while module.parent:
@@ -1585,7 +1587,7 @@ class GOKern(CodedKern):
         :param parent: parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        symtab = self.ancestor(InvokeSchedule).symbol_table
+        symtab = self.scope.symbol_table
         there_is_a_grid_buffer = False
         for arg in self._arguments.args:
             if arg.argument_type == "field":
@@ -1617,7 +1619,7 @@ class GOKern(CodedKern):
 
         '''
         # Retrieve symbol table and kernel name
-        symtab = self.ancestor(InvokeSchedule).symbol_table
+        symtab = self.scope.symbol_table
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
 
         # Find the symbol that defines each boundary for this kernel.

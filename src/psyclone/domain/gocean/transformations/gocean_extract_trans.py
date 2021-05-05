@@ -60,8 +60,8 @@ class GOceanExtractTrans(ExtractTrans):
     >>> etrans = GOceanExtractTrans()
     >>>
     >>> # Apply GOceanExtractTrans transformation to selected Nodes
-    >>> newetrans.apply(schedule.children[0])
-    >>> newsched.view()
+    >>> etrans.apply(schedule.children[0])
+    >>> schedule.view()
     '''
 
     def __init__(self):

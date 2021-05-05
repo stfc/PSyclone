@@ -972,8 +972,8 @@ class KernelModuleInlineTrans(KernelTrans):
     >>>
     >>> inline_trans = KernelModuleInlineTrans()
     >>>
-    >>> iinline_trans.apply(schedule.children[0].loop_body[0])
-    >>> ischedule.view()
+    >>> inline_trans.apply(schedule.children[0].loop_body[0])
+    >>> schedule.view()
 
     .. warning ::
         For this transformation to work correctly, the Kernel subroutine

@@ -5405,6 +5405,8 @@ class DynGlobalSum(GlobalSum):
 
         '''
         name = self._scalar.name
+        # Use InvokeSchedule SymbolTable to share the same symbol for all
+        # GlobalSums in the Invoke.
         sum_name = self.ancestor(InvokeSchedule).symbol_table.\
             symbol_from_tag("global_sum").name
         parent.add(UseGen(parent, name="scalar_mod", only=True,
@@ -6778,6 +6780,8 @@ class DynLoop(Loop):
             raise GenerationError(
                 "Unsupported lower bound name '{0}' "
                 "found".format(self._lower_bound_name))
+        # Use InvokeSchedule SymbolTable to share the same symbol for all
+        # Loops in the Invoke.
         mesh_obj_name = self.ancestor(InvokeSchedule).symbol_table.\
             symbol_from_tag("mesh").name
         return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
@@ -6809,6 +6813,8 @@ class DynLoop(Loop):
         else:
             # It's not an inter-grid kernel so there's only one mesh
             mesh_name = "mesh"
+        # Use InvokeSchedule SymbolTable to share the same symbol for all
+        # Loops in the Invoke.
         mesh = self.ancestor(InvokeSchedule).symbol_table.\
             symbol_from_tag(mesh_name).name
 
@@ -7495,7 +7501,8 @@ class DynKern(CodedKern):
 
             qr_arg = args[idx]
 
-            # Use the symbol_table to create a unique symbol name.
+            # Use the InvokeSchedule symbol_table to create a unique symbol
+            # name for the whole Invoke.
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
                 qr_name = self.ancestor(InvokeSchedule).symbol_table.\

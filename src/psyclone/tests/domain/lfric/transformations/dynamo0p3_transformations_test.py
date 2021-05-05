@@ -1120,7 +1120,6 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
     otrans.apply(schedule.children[index])
 
     code = str(psy.gen)
-    print(code)
 
     # Check generated code
     omp_para_idx = -1

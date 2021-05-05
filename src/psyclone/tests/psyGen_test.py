@@ -1031,16 +1031,17 @@ def test_call_multi_reduction_error(monkeypatch):
             "or builtin" in str(err.value))
 
 
-def test_invokes_wrong_schedule_gen_code(tmpdir):
-    ''' Check that a CodedKern with module-inline gets copied into the
-    local module appropriately when the PSy-layer is generated'''
+def test_invokes_wrong_schedule_gen_code():
+    ''' Check that the invoke.schedule reference points to a InvokeSchedule
+    when using the gen_code. Otherwise rise and error. '''
     # Use LFRic example with a repeated CodedKern
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    psy.invokes.invoke_list[0].schedule = Node()
 
+    # Set the invoke.schedule to something else other than a InvokeSchedule
+    psy.invokes.invoke_list[0].schedule = Node()
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("An invoke.schedule element of the invoke_list is a 'Node', "

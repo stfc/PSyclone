@@ -65,6 +65,7 @@ def trans(psy):
                not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
                and child.iteration_space == "cell_column":
                 ctrans.apply(child)
+        # Then apply OpenMP to each of the colour loops
         for child in schedule.children:
             if isinstance(child, Loop):
                 if child.loop_type == "colours":

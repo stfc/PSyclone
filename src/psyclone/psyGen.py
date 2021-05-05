@@ -357,7 +357,7 @@ class Invokes(object):
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
 
-        :raises GenerationError: if an invoke_list schdedule is not an \
+        :raises GenerationError: if an invoke_list schedule is not an \
             InvokeSchedule.
         '''
         def raise_unmatching_options(option_name):
