@@ -45,6 +45,7 @@ import sys
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.generator import write_unicode_file
+from psyclone.psyad import generate
 
 
 def main(args):
@@ -107,7 +108,7 @@ def main_str(tl_fortran_str):
     logging.debug("\n".join(output))
 
     # TL to AD translation
-    ad_psyir = psyad(tl_psyir)
+    ad_psyir = generate(tl_psyir)
 
     # AD Fortran code
     writer = FortranWriter()
@@ -116,31 +117,6 @@ def main_str(tl_fortran_str):
 
     return adjoint_fortran_str
 
-
-def psyad(tl_psyir):
-    '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
-    and returns its adjoint represented in language-level PSyIR.
-
-    :param tl_psyir: language-level PSyIR containing the LFRic \
-        tangent-linear kernel.
-    :type tl_psyir: :py:class:`psyclone.psyir.Node`
-
-    :returns: language-level PSyIR containing the adjoint of the \
-        supplied tangent-linear kernel.
-    :rtype: :py:class:`psyclone.psyir.Node`
-
-    '''
-    # TL LFRic-specific PSyIR
-    logging.debug(
-        "Translation from generic PSyIR to LFRic-specific PSyIR should be "
-        "done now.")
-
-    # Transform from TL to AD
-    logging.debug("Transformation from TL to AD should be done now.")
-    ad_psyir = tl_psyir
-
-    return ad_psyir
-    
 
 class Capturing(list):
     '''Utility to capture stdout from a function.'''
@@ -153,4 +129,4 @@ class Capturing(list):
         sys.stdout = self._stdout
 
 
-__all__ = [main, psyad]
+__all__ = [main, main_str]

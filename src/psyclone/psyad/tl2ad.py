@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,9 +33,33 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''PSyAD, the PSyclone adjoint generation module.'''
+'''The implementation of PSyAD : the PSyclone Adjoint
+support. Transforms an LFRic tangent linear kernel to its adjoint.
 
-from psyclone.psyad.tl2ad import generate
-from psyclone.psyad.main import main, main_str
+'''
+import logging
 
-__all__ = [main, main_str, generate]
+
+def generate(tl_psyir):
+    '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
+    and returns its adjoint represented in language-level PSyIR.
+
+    :param tl_psyir: language-level PSyIR containing the LFRic \
+        tangent-linear kernel.
+    :type tl_psyir: :py:class:`psyclone.psyir.Node`
+
+    :returns: language-level PSyIR containing the adjoint of the \
+        supplied tangent-linear kernel.
+    :rtype: :py:class:`psyclone.psyir.Node`
+
+    '''
+    # TL LFRic-specific PSyIR
+    logging.debug(
+        "Translation from generic PSyIR to LFRic-specific PSyIR should be "
+        "done now.")
+
+    # Transform from TL to AD
+    logging.debug("Transformation from TL to AD should be done now.")
+    ad_psyir = tl_psyir
+
+    return ad_psyir
