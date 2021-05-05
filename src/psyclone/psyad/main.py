@@ -42,12 +42,8 @@ import logging
 from io import StringIO 
 import sys
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
-
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import LocalInterface
 from psyclone.generator import write_unicode_file
 
 
@@ -79,7 +75,7 @@ def main(args):
     with open(filename) as my_file:
         tl_fortran_str = my_file.read()
 
-    ad_fortran_str = psyad(tl_fortran_str)
+    ad_fortran_str = main_str(tl_fortran_str)
 
     # AD Fortran code
     if args.oad:
@@ -89,9 +85,9 @@ def main(args):
         print(ad_fortran_str)
 
 
-def psyad(tl_fortran_str):
-    '''Takes an LFRic tangent-linear kernel as input and returns its
-    adjoint.
+def main_str(tl_fortran_str):
+    '''Takes an LFRic tangent-linear kernel encoded as a string as input
+    and returns its adjoint encoded as a string.
 
     :param str tl_fortran_str: a string containing the LFRic \
         tangent-linear kernel.
@@ -103,34 +99,48 @@ def psyad(tl_fortran_str):
     '''
     logging.debug(tl_fortran_str)
 
-    # TL fparser parse tree
-    reader = FortranStringReader(tl_fortran_str, ignore_comments=False)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(reader)
-    logging.debug(repr(parse_tree))
-
     # TL Language-level PSyIR
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
+    reader = FortranReader()
+    tl_psyir = reader.psyir_from_source(tl_fortran_str)
     with Capturing() as output:
-        psyir.view()
+        tl_psyir.view()
     logging.debug("\n".join(output))
 
+    # TL to AD translation
+    ad_psyir = psyad(tl_psyir)
+
+    # AD Fortran code
+    writer = FortranWriter()
+    adjoint_fortran_str = writer(ad_psyir)
+    logging.debug(adjoint_fortran_str)
+
+    return adjoint_fortran_str
+
+
+def psyad(tl_psyir):
+    '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
+    and returns its adjoint represented in language-level PSyIR.
+
+    :param tl_psyir: language-level PSyIR containing the LFRic \
+        tangent-linear kernel.
+    :type tl_psyir: :py:class:`psyclone.psyir.Node`
+
+    :returns: language-level PSyIR containing the adjoint of the \
+        supplied tangent-linear kernel.
+    :rtype: :py:class:`psyclone.psyir.Node`
+
+    '''
     # TL LFRic-specific PSyIR
     logging.debug(
         "Translation from generic PSyIR to LFRic-specific PSyIR should be "
         "done now.")
 
     # Transform from TL to AD
-    logging.debug("Transformation from TL to AD should be done now")
+    logging.debug("Transformation from TL to AD should be done now.")
+    ad_psyir = tl_psyir
 
-    # AD Fortran code
-    writer = FortranWriter()
-    adjoint_str = writer(psyir)
-    logging.debug(adjoint_str)
-
-    return adjoint_str
-
+    return ad_psyir
+    
 
 class Capturing(list):
     '''Utility to capture stdout from a function.'''
