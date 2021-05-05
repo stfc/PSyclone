@@ -52,31 +52,12 @@ class NanTestNode(PSyDataNode):
     NAN-checking using the NanTestTrans transformation. The Nodes
     marked for checking become children of (the Schedule of) a NanTestNode.
 
-    :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
-    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param options: a dictionary with options provided via transformations.
-    :type options: dictionary of string:values or None
-    :param str options["prefix"]: a prefix to use for the PSyData module name \
-        (``prefix_psy_data_mod``) and the PSyDataType (``prefix_PSyDataType``)\
-        - a "_" will be added automatically. It defaults to "``nan_test_``", \
-        which means the module name used will be ``nan_test_psy_data_mode``, \
-        and the data type ``nan_test_PSyDataType``.
-
     '''
     # Textual description of the node.
     _text_name = "NanTest"
     _colour = "green"
-
-    def __init__(self, ast=None, options=None):
-        if options:
-            my_options = options.copy()
-        else:
-            my_options = {}
-        # If there is no value specified in the constructor, default
-        # to the "nan_test" class.
-        my_options["prefix"] = my_options.get("prefix", "nan_test")
-        super(NanTestNode, self).__init__(ast=ast, options=my_options)
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = "nan_test"
 
     @property
     def nan_test_body(self):

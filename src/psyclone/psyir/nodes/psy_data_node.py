@@ -74,6 +74,10 @@ class PSyDataNode(Statement):
     :param ast: reference into the fparser2 parse tree corresponding to \
                 this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
+    :param children: the PSyIR nodes that are children of this node.
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
     :param str options["prefix"]: a prefix to use for the PSyData module name \
@@ -97,18 +101,20 @@ class PSyDataNode(Statement):
     _children_valid_format = "Schedule"
     _text_name = "PSyData"
     _colour = "green"
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = ""
 
-    def __init__(self, ast=None, options=None):
+    def __init__(self, ast=None, children=None, parent=None, options=None):
 
-        super(PSyDataNode, self).__init__(ast=ast)
-
+        super(PSyDataNode, self).__init__(ast=ast, children=children,
+                                          parent=parent)
         if not options:
             options = {}
 
         # This string stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
         # method 'add_psydata_class_prefix'.
-        prefix = options.get("prefix", "")
+        prefix = options.get("prefix", self._default_prefix)
         if not prefix:
             self._class_string = ""
         else:

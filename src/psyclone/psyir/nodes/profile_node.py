@@ -50,33 +50,11 @@ from psyclone.psyir.nodes.routine import Routine
 class ProfileNode(PSyDataNode):
     '''This class can be inserted into a schedule to create profiling code.
 
-    :param ast: reference into the fparser2 parse tree corresponding to \
-        this node.
-    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param options: a dictionary with options for transformations.
-    :type options: dictionary of string:values or None
-    :param str options["prefix"]: The PSyData prefix to use. This string \
-        is a prefix attached to all PSyData-related symbols. Defaults \
-        to "profile".
-    :param (str,str) options["region_name"]: an optional name for this \
-        profile region provided as a 2-tuple containing a module name \
-        followed by a local name. The pair of strings should uniquely \
-        identify a region unless aggregate information is required.
-
     '''
     _text_name = "Profile"
     _colour = "green"
-
-    def __init__(self, ast=None, options=None):
-        if options:
-            my_options = options.copy()
-        else:
-            my_options = {}
-        # If there is no value specified in the constructor, default
-        # to the "profile" prefix.
-        my_options["prefix"] = my_options.get("prefix", "profile")
-
-        super(ProfileNode, self).__init__(ast=ast, options=my_options)
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = "profile"
 
     # -------------------------------------------------------------------------
     def __str__(self):

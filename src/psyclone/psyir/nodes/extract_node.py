@@ -62,6 +62,10 @@ class ExtractNode(PSyDataNode):
     :param ast: reference into the fparser2 parse tree corresponding to \
                 this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
+    :param children: the PSyIR nodes that are children of this node.
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options provided via transformations.
     :type options: dictionary of string:values or None
     :param str options["prefix"]: a prefix to use for the PSyData module name \
@@ -74,16 +78,13 @@ class ExtractNode(PSyDataNode):
     # Textual description of the node.
     _text_name = "Extract"
     _colour = "green"
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = "extract"
 
-    def __init__(self, ast=None, options=None):
-        if not options:
-            options = {}
-        # If there is no value specified by in the constructor, default
-        # to the "extract" class.
-        my_options = options.copy()
-        my_options["prefix"] = options.get("prefix", "extract")
+    def __init__(self, ast=None, children=None, parent=None, options=None):
 
-        super(ExtractNode, self).__init__(ast=ast, options=my_options)
+        super(ExtractNode, self).__init__(ast=ast, children=children,
+                                          parent=parent, options=options)
 
         # Define a postfix that will be added to variable that are
         # modified to make sure the names can be distinguished between pre-

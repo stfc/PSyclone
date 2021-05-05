@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''
@@ -55,6 +56,10 @@ class GOceanExtractNode(ExtractNode):
     :param ast: reference into the fparser2 parse tree corresponding to \
         this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
+    :param children: the PSyIR nodes that are children of this node.
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
     :param bool options["create-driver"]: whether or not to create a driver \
@@ -69,9 +74,9 @@ class GOceanExtractNode(ExtractNode):
         not overwritten in the options dictionary.
 
     '''
-    def __init__(self, ast=None, options=None):
-        super(GOceanExtractNode, self).__init__(ast=ast, options=options)
-
+    def __init__(self, ast=None, children=None, parent=None, options=None):
+        super(GOceanExtractNode, self).__init__(ast=ast, children=children,
+                                                parent=parent, options=options)
         if options:
             self._create_driver = options.get("create_driver", False)
         else:
