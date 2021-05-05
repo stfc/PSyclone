@@ -32,40 +32,40 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
 
 '''
-Module providing a transformation from a generic PSyIR Schedule into a
-NEMO Kernel.
+Module providing a transformation from a generic PSyIR routine into a
+NEMO InvokeSchedule.
 '''
 
 from psyclone.transformations import Transformation, TransformationError
-from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.nemo import NemoKern
+from psyclone.psyir.nodes import Routine
+from psyclone.nemo import NemoInvokeSchedule
 
 
-class CreateNemoKernelTrans(Transformation):
+class CreateNemoInvokeScheduleTrans(Transformation):
     """
-    Transform a generic PSyIR Schedule representing a loop body into a NEMO
-    Kernel. For example:
+    Transform a generic PSyIR Routine into a NEMO InvokeSchedule.
+    For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
+    >>> from psyclone.domain.nemo.transformations import \
+    CreateNemoInvokeScheduleTrans
     >>> code = '''
     ... subroutine sub()
-    ...   integer :: ji, tmp(10)
+    ...   integer :: ji
+    ...   real :: tmp(10)
     ...   do ji=1, 10
-    ...     tmp(ji) = 2*ji
+    ...     tmp(ji) = 2.0*ji
     ...   end do
     ... end subroutine sub'''
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
-    >>> trans = CreateNemoKernelTrans()
-    >>> trans.apply(loop.loop_body)
-    >>> psyir.view()
-    Routine[name:'sub']
+    >>> trans = CreateNemoInvokeScheduleTrans()
+    >>> sched, _ = trans.apply(psyir)
+    >>> sched.view()
+    NemoInvokeSchedule[name:'sub']
         0: Loop[type='None', field_space='None', it_space='None']
             Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
             Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
@@ -80,8 +80,8 @@ class CreateNemoKernelTrans(Transformation):
                                 Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
                                 Reference[name:'ji']
 
-    The resulting Schedule contains a NemoKern (displayed as an
-    'InlinedKern' by the view() method).
+    The root node of this example has been transformed from a Routine into a
+    NemoInvokeSchedule.
 
     """
     @property
@@ -90,7 +90,7 @@ class CreateNemoKernelTrans(Transformation):
         :returns: the name of the transformation.
         :rtype: str
 
-        TODO #1214 - replace this method with Transformation.name()
+        TODO #1214 remove this method.
 
         '''
         return type(self).__name__
@@ -107,61 +107,54 @@ class CreateNemoKernelTrans(Transformation):
             to None.
         :type options: dict of string:values or None
 
-        :raises TransformationError: if the supplied node is not a Schedule, \
-            is not within a loop or cannot be represented as a Kernel.
+        :raises TransformationError: if the supplied node is not a Routine.
 
         '''
-        super(CreateNemoKernelTrans, self).validate(node, options=options)
+        super(CreateNemoInvokeScheduleTrans, self).validate(node,
+                                                            options=options)
 
-        if not isinstance(node, Schedule):
+        if not isinstance(node, Routine):
             raise TransformationError(
-                "Error in NemoKernelTrans transformation. The supplied node "
-                "should be a PSyIR Schedule but found '{0}'".format(
+                "Error in NemoInvokeTrans transformation. The supplied node "
+                "should be a PSyIR Routine but found '{0}'".format(
                     type(node).__name__))
 
-        # A Kernel must be within a Loop
-        if not isinstance(node.parent, Loop):
-            raise TransformationError(
-                "Error in NemoKernelTrans transformation. The supplied "
-                "Schedule must be within a Loop.")
-
-        # Check for array assignments
-        nodes = [assign for assign in node.walk(Assignment)
-                 if assign.is_array_range]
-        if nodes:
-            fwriter = FortranWriter()
-            raise TransformationError(
-                "A NEMO Kernel cannot contain array assignments but found: "
-                "{0}".format([fwriter(node).rstrip("\n") for node in nodes]))
-
-        # A kernel cannot contain loops, calls or unrecognised code (including
-        # IO operations. So if there is any node in the result of
-        # the walk, this node cannot be represented as a NEMO kernel.
-        nodes = node.walk((CodeBlock, Loop, Call))
-        if nodes:
-            raise TransformationError(
-                "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
-                " contain nodes of type: {0}".format(
-                    [type(node).__name__ for node in nodes]))
-
-    def apply(self, sched, options=None):
+    def apply(self, routine, options=None):
         '''
-        Takes a generic PSyIR Schedule and replaces it with a NEMO Kernel.
+        Takes a generic PSyIR Routine and replaces it with a
+        NemoInvokeSchedule (in-place). Note that this may mean replacing
+        the top-level node itself and therefore this routine returns the
+        root of the modified tree.
 
-        :param sched: the Schedule node to be transformed.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param routine: the routine node to be transformed.
+        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for \
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: dict of str:values or None
+
+        TODO #595 - transformation should return nothing.
+
+        :returns: 2-tuple containing the root node of the modified PSyIR tree \
+            and None.
+        :rtype: (:py:class:`psyclone.nemo.NemoInvokeSchedule`, NoneType)
 
         '''
-        self.validate(sched, options=options)
+        self.validate(routine, options=options)
 
-        nemokern = NemoKern(sched.pop_all_children(), parent=sched)
-        sched.addchild(nemokern)
+        new_node = NemoInvokeSchedule.create(routine.name,
+                                             routine.symbol_table,
+                                             routine.pop_all_children(),
+                                             is_program=routine.is_program)
+
+        # We need to replace the top node in the (possibly sub-) PSyIR
+        # tree that we've been passed.
+        if routine.parent:
+            routine.replace_with(new_node)
+
+        return (new_node.root, None)
 
 
 # For AutoAPI documentation generation
-__all__ = ['CreateNemoKernelTrans']
+__all__ = ['CreateNemoInvokeScheduleTrans']

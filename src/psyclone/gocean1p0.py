@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
 
@@ -51,9 +51,8 @@ from __future__ import print_function
 import re
 import six
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config, ConfigurationError
+from psyclone.core import Signature
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
@@ -69,6 +68,7 @@ from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, \
     REAL_TYPE, UnknownFortranType, LocalInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
@@ -718,10 +718,6 @@ class GOLoop(Loop):
                                              "space. But got "
                                              "{0}".format(bracket_expr))
 
-        # Test if a loop with the given boundaries can actually be parsed.
-        # Necessary to setup the parser
-        ParserFactory().create(std="f2003")
-
         # Test both the outer loop indices (index 3 and 4) and inner
         # indices (index 5 and 6):
         for bound in data[3:7]:
@@ -1157,8 +1153,8 @@ class GOKern(CodedKern):
                 for current_depth in range(1, depth+1):
                     i_expr = GOKern._format_access("i", i, current_depth)
                     j_expr = GOKern._format_access("j", j, current_depth)
-                    var_accesses.add_access(var_name, arg.access, self,
-                                            [i_expr, j_expr])
+                    var_accesses.add_access(Signature(var_name), arg.access,
+                                            self, [i_expr, j_expr])
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -1185,18 +1181,20 @@ class GOKern(CodedKern):
             if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
-                    var_accesses.add_access(var_name, arg.access, self)
+                    var_accesses.add_access(Signature(var_name), arg.access,
+                                            self)
             else:
                 if arg.argument_type == "field":
                     # Now add 'artificial' accesses to this field depending
                     # on meta-data (access-mode and stencil information):
-                    self._record_stencil_accesses(var_name, arg, var_accesses)
+                    self._record_stencil_accesses(var_name, arg,
+                                                  var_accesses)
                 else:
                     # In case of an array for now add an arbitrary array
                     # reference to (i,j) so it is properly recognised as
                     # an array access.
-                    var_accesses.add_access(var_name, arg.access, self,
-                                            ["i", "j"])
+                    var_accesses.add_access(Signature(var_name), arg.access,
+                                            self, ["i", "j"])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 
@@ -1758,13 +1756,8 @@ class GOKern(CodedKern):
         code += "end subroutine write_device_grid"
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1837,13 +1830,8 @@ class GOKern(CodedKern):
         '''.format(num_x, num_y, host_buff, read_fp, write_fp)
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1932,13 +1920,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2027,13 +2010,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2122,13 +2100,8 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        subroutine = fortran_reader.psyir_from_source(code)
         # Rename subroutine
         subroutine.name = subroutine_name
 

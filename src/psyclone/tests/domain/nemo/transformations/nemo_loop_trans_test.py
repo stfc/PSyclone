@@ -41,6 +41,7 @@ from importlib import import_module
 import pytest
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import LoopTrans
+from psyclone.domain.nemo.transformations import NemoLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
 
 
@@ -65,8 +66,15 @@ def test_all_nemo_loop_trans_base_validate(monkeypatch):
     for name, cls_type in all_trans_classes:
         trans = cls_type()
         if isinstance(trans, LoopTrans):
-            with pytest.raises(NotImplementedError) as err:
-                trans.validate(loop)
+            # The Loop fuse validation function requires two
+            # parameters (the two loops to fuse), so it needs
+            # to be tested separately:
+            if isinstance(trans, NemoLoopFuseTrans):
+                with pytest.raises(NotImplementedError) as err:
+                    trans.validate(loop, node2=loop)
+            else:
+                with pytest.raises(NotImplementedError) as err:
+                    trans.validate(loop)
             assert "validate test exception" in str(err.value), \
                 "{0}.validate() does not call LoopTrans.validate()".format(
                     name)
