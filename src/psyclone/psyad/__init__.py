@@ -38,4 +38,4 @@
 from psyclone.psyad.tl2ad import generate
 from psyclone.psyad.main import main, main_str
 
-__all__ = [main, main_str, generate]
+__all__ = ["main", "main_str", "generate"]

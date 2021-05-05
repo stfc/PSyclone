@@ -39,7 +39,7 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 '''
 import argparse
 import logging
-from io import StringIO 
+from io import StringIO
 import sys
 
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -69,10 +69,10 @@ def main(args):
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
-        
+
     # TL Fortran code
     filename = args.filename
-    logging.info("Reading file {0}".format(filename))
+    logging.info("Reading file %s", filename)
     with open(filename) as my_file:
         tl_fortran_str = my_file.read()
 
@@ -80,7 +80,7 @@ def main(args):
 
     # AD Fortran code
     if args.oad:
-        logging.info("Writing file {0}".format(args.oad))
+        logging.info("Writing file %s", args.oad)
         write_unicode_file(ad_fortran_str, args.oad)
     else:
         print(ad_fortran_str)
@@ -120,13 +120,19 @@ def main_str(tl_fortran_str):
 
 class Capturing(list):
     '''Utility to capture stdout from a function.'''
+    def __init__(self):
+        super(Capturing, self).__init__()
+        self._stdout = None
+        self._stringio = StringIO()
+
     def __enter__(self):
         self._stdout = sys.stdout
-        sys.stdout = self._stringio = StringIO()
+        sys.stdout = self._stringio
         return self
+
     def __exit__(self, *args):
         self.extend(self._stringio.getvalue().splitlines())
         sys.stdout = self._stdout
 
 
-__all__ = [main, main_str]
+__all__ = ["main", "main_str"]

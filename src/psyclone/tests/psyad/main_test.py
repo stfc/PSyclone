@@ -37,8 +37,8 @@
 within the psyad directory.
 
 '''
-import pytest
 import logging
+import pytest
 from psyclone.psyad import main, main_str
 from psyclone.psyad.main import Capturing
 
@@ -56,7 +56,8 @@ def test_main_h_option(capsys):
     assert error == ""
     expected = (
         "usage: pytest [-h] [-v] [-oad OAD] filename\n\n"
-        "Run the PSyclone adjoint code generator on an LFRic tangent-linear kernel file\n\n"
+        "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
+        "kernel file\n\n"
         "positional arguments:\n"
         "  filename       LFRic tangent-linear source code\n\n"
         "optional arguments:\n"
@@ -223,6 +224,5 @@ def test_capturing(caplog):
     '''Test that the utility Capturing class behaves as expected.'''
 
     with Capturing() as output:
-        print ("hello")
+        print("hello")
     assert "hello" in output
-

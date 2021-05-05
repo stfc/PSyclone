@@ -37,15 +37,12 @@
 within the psyad directory.
 
 '''
-#import pytest
-#import logging
-#from psyclone.psyad import main, main_str
-#from psyclone.psyad.main import Capturing
 import logging
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyad import generate
+
 
 # 1: generate function
 def test_generate(caplog):
@@ -85,5 +82,3 @@ def test_generate(caplog):
         "done now." in caplog.text)
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
-
-    

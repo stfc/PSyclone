@@ -63,3 +63,6 @@ def generate(tl_psyir):
     ad_psyir = tl_psyir
 
     return ad_psyir
+
+
+__all__ = ["generate"]
