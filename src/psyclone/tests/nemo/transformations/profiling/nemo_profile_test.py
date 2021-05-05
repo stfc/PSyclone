@@ -474,21 +474,16 @@ def test_profiling_mod_name_clash(parser):
                                       "  real :: my_array(3,3)\n"
                                       "  my_array(:,:) = 0.0\n"
                                       "end program profile_psy_data_mod\n")
-    # TODO #435 once the NEMO API is fully working with the PSyIR, this
-    # transformation should fail at the validation stage. (Currently it
-    # does not because the 'name' of the root Routine node is not set.)
-    PTRANS.apply(schedule.children[0])
-    with pytest.raises(NotImplementedError) as err:
-        _ = psy.gen
-    assert ("Cannot add PSyData calls to 'profile_psy_data_mod' because it "
-            "already contains symbols that potentially clash with the "
-            "variables we will insert" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        PTRANS.apply(schedule.children[0])
+    assert ("Cannot add PSyData calls because there is already a symbol "
+            "named 'profile_psy_data_mod' which clashes " in str(err.value))
 
 
 def test_profiling_symbol_clash(parser, monkeypatch):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with any of the symbols we 'use' from profile_mode. '''
-    for sym in PSyDataNode.symbols:
+    for sym in PSyDataNode.reserved_symbols:
         psy, schedule = get_nemo_schedule(
             parser,
             "program my_test\n"

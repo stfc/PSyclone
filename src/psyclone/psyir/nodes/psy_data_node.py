@@ -35,10 +35,10 @@
 # Modified: A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
-''' This module implementes a PSyData node, i.e.a node that at code
+''' This module implements a PSyData node, i.e. a node that at code
 creation time will create callbacks according to the PSyData API.
 This is the base class for nodes that e.g. create kernel extraction
-or profiling.'''
+or profiling. '''
 
 from __future__ import absolute_import, print_function
 from collections import namedtuple
@@ -46,6 +46,7 @@ from fparser.common.sourceinfo import FortranFormat
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.node import Node
@@ -91,17 +92,20 @@ class PSyDataNode(Statement):
         uniquely identify a region unless aggregate information is required \
         (and is supported by the runtime library).
 
+    :raises InternalError: if a prefix is specified that is not listed in the \
+        configuration file.
+
     '''
-    # PSyData interface Fortran module
+    #: PSyData interface Fortran module
     fortran_module = "psy_data_mod"
-    # The symbols we import from the PSyData Fortran module
     _PSyDataSymbol = namedtuple("_PSyDataSymbol", "name symbol_type")
-    symbols = [_PSyDataSymbol("PSyDataType", TypeSymbol)]
-    # Textual description of the node.
+    #: The symbols we import from the PSyData Fortran module
+    reserved_symbols = [_PSyDataSymbol("PSyDataType", TypeSymbol)]
+    #: Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "PSyData"
     _colour = "green"
-    # The default prefix to add to the PSyData module name and PSyDataType
+    #: The default prefix to add to the PSyData module name and PSyDataType
     _default_prefix = ""
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
@@ -111,10 +115,16 @@ class PSyDataNode(Statement):
         if not options:
             options = {}
 
-        # This string stores a prefix to be used with all external PSyData
+        # _class_string stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
         # method 'add_psydata_class_prefix'.
         prefix = options.get("prefix", self._default_prefix)
+        if prefix and prefix not in Config.get().valid_psy_data_prefixes:
+            raise InternalError(
+                "Invalid 'prefix' parameter: found '{0}', expected one of {1} "
+                "as defined in {2}".format(
+                    prefix, Config.get().valid_psy_data_prefixes,
+                    Config.get().filename))
         if not prefix:
             self._class_string = ""
         else:
@@ -248,13 +258,13 @@ class PSyDataNode(Statement):
         # in a NotImplementedError at code-generation time.
         # TODO #435 remove this when removing the update() method
         names = [data_node.add_psydata_class_prefix(symbol.name) for symbol in
-                 PSyDataNode.symbols]
+                 cls.reserved_symbols]
         data_node.use_stmt = "use {0}, only: "\
             .format(fortran_module) + ", ".join(names)
         # Add the symbols that will be imported from the module. Use the
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
-        for sym in PSyDataNode.symbols:
+        for sym in cls.reserved_symbols:
             sym_name = data_node.add_psydata_class_prefix(sym.name)
             symbol_table.symbol_from_tag(sym_name, symbol_type=sym.symbol_type,
                                          interface=GlobalInterface(csym),
@@ -429,7 +439,7 @@ class PSyDataNode(Statement):
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
         symbols = [self.add_psydata_class_prefix(symbol.name)
-                   for symbol in PSyDataNode.symbols]
+                   for symbol in self.reserved_symbols]
         fortran_module = self.add_psydata_class_prefix(self.fortran_module)
         use = UseGen(parent, fortran_module, only=True,
                      funcnames=symbols)
@@ -610,7 +620,7 @@ class PSyDataNode(Statement):
                 if isinstance(node, Fortran2003.Name):
                     text = str(node).lower()
                     # Check for the symbols we import from the PSyData module
-                    for symbol in self.symbols:
+                    for symbol in self.reserved_symbols:
                         if text == symbol.name.lower():
                             raise NotImplementedError(
                                 "Cannot add PSyData calls to '{0}' because it "

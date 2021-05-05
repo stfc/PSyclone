@@ -59,8 +59,8 @@ def test_psy_data_node_constructor():
     assert psy_node._module_name is None
     assert psy_node._region_name is None
     assert psy_node.use_stmt == ""
-    psy_node = PSyDataNode(options={"prefix": "something"})
-    assert psy_node._class_string == "something_"
+    psy_node = PSyDataNode(options={"prefix": "profile"})
+    assert psy_node._class_string == "profile_"
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
@@ -75,6 +75,12 @@ def test_psy_data_node_constructor():
         PSyDataNode(options={"region_name": 1})
     assert ("The name must be a tuple containing two non-empty strings." in
             str(error.value))
+
+    # Invalid prefix
+    with pytest.raises(InternalError) as err:
+        PSyDataNode(options={"prefix": "not-a-valid-prefix"})
+    assert ("Invalid 'prefix' parameter: found 'not-a-valid-prefix', "
+            "expected" in str(err.value))
 
 
 # -----------------------------------------------------------------------------

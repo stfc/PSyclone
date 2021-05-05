@@ -179,7 +179,7 @@ class PSyDataTrans(RegionTrans):
         # order to find out what module name it will use.
         psy_data_node = self._node_class(options=options)
         table = node_list[0].scope.symbol_table
-        for name in ([sym.name for sym in PSyDataNode.symbols] +
+        for name in ([sym.name for sym in psy_data_node.reserved_symbols] +
                      [PSyDataNode.fortran_module]):
             sym_name = psy_data_node.add_psydata_class_prefix(name)
             try:
