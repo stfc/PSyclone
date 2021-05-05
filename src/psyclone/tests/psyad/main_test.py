@@ -167,16 +167,17 @@ def test_main_verbose(tmpdir, capsys, caplog):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(tl_code)
-    with caplog.at_level(logging.DEBUG):
-        main([filename_in, "-v", "-oad", filename_out])
-        output, error = capsys.readouterr()
-        assert error == ""
-        assert output == ""
-        assert "INFO     root:main.py:75 Reading file /" in caplog.text
-        assert "/tl.f90" in caplog.text
-        assert "/tl.f90" in caplog.text
-        assert "INFO     root:main.py:83 Writing file /" in caplog.text
-        assert "/ad.f90" in caplog.text
+    caplog.set_level(logging.DEBUG)
+    #with caplog.at_level(logging.DEBUG):
+    main([filename_in, "-v", "-oad", filename_out])
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert output == ""
+    assert "INFO     root:main.py:75 Reading file /" in caplog.text
+    assert "/tl.f90" in caplog.text
+    assert "/tl.f90" in caplog.text
+    assert "INFO     root:main.py:83 Writing file /" in caplog.text
+    assert "/ad.f90" in caplog.text
 
 
 # 2: main_str function
@@ -198,25 +199,27 @@ def test_main_str(caplog):
         "  integer :: a\n\n"
         "  a = 0.0\n\n"
         "end program test\n")
-    with caplog.at_level(logging.INFO):
-        result = main_str(tl_code)
-        assert caplog.text == ""
-        assert expected in result
+    caplog.set_level(logging.INFO)
+    #with caplog.at_level(logging.INFO):
+    result = main_str(tl_code)
+    assert caplog.text == ""
+    assert expected in result
 
-    with caplog.at_level(logging.DEBUG):
-        result = main_str(tl_code)
-        assert "DEBUG    root:main.py:101" in caplog.text
-        assert tl_code in caplog.text
-        assert "DEBUG    root:main.py:108" in caplog.text
-        assert (
-            "Routine[name:'test']\n"
-            "    0: Assignment[]\n"
-            "        Reference[name:'a']\n"
-            "        Literal[value:'0.0', Scalar<REAL, UNDEFINED>]\n"
-            in caplog.text)
-        assert "DEBUG    root:main.py:116" in caplog.text
-        assert expected in caplog.text
-        assert expected in result
+    caplog.set_level(logging.DEBUG)
+    #with caplog.at_level(logging.DEBUG):
+    result = main_str(tl_code)
+    assert "DEBUG    root:main.py:101" in caplog.text
+    assert tl_code in caplog.text
+    assert "DEBUG    root:main.py:108" in caplog.text
+    assert (
+        "Routine[name:'test']\n"
+        "    0: Assignment[]\n"
+        "        Reference[name:'a']\n"
+        "        Literal[value:'0.0', Scalar<REAL, UNDEFINED>]\n"
+        in caplog.text)
+    assert "DEBUG    root:main.py:116" in caplog.text
+    assert expected in caplog.text
+    assert expected in result
 
 
 # Capturing

@@ -71,14 +71,15 @@ def test_generate(caplog):
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
 
-    with caplog.at_level(logging.DEBUG):
-        ad_psyir = generate(tl_psyir)
-        assert (
-            "DEBUG    root:tl2ad.py:57 Translation from generic PSyIR to "
-            "LFRic-specific PSyIR should be done now." in caplog.text)
-        assert (
-            "DEBUG    root:tl2ad.py:62 Transformation from TL to AD should be "
-            "done now." in caplog.text)
+    caplog.set_level(logging.DEBUG)
+    #with caplog.at_level(logging.DEBUG):
+    ad_psyir = generate(tl_psyir)
+    assert (
+        "DEBUG    root:tl2ad.py:57 Translation from generic PSyIR to "
+        "LFRic-specific PSyIR should be done now." in caplog.text)
+    assert (
+        "DEBUG    root:tl2ad.py:62 Transformation from TL to AD should be "
+        "done now." in caplog.text)
 
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
