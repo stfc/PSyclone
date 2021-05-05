@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,8 @@ class AccessType(Enum):
         :return: API name for this string.
         :rtype: str
         '''
-        return self.name
+        # pylint complains without str() that the return type is not a str
+        return str(self.name)
 
     def api_specific_name(self):
         '''This convenience function returns the name of the type in the
@@ -78,6 +79,7 @@ class AccessType(Enum):
     def from_string(access_string):
         '''Convert a string (e.g. "read") into the corresponding
         AccessType enum value (AccessType.READ).
+
         :param str access_string: Access type as string.
         :returns: Corresponding AccessType enum.
         :Raises: ValueError if access_string is not a valid access type.
@@ -123,3 +125,9 @@ class AccessType(Enum):
         '''
         return [access.api_specific_name() for access in
                 AccessType.get_valid_reduction_modes()]
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ["AccessType"]
