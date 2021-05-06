@@ -37,7 +37,9 @@
 within the psyad directory.
 
 '''
+from __future__ import print_function, absolute_import
 import logging
+import six
 import pytest
 from psyclone.psyad import main, main_str
 from psyclone.psyad.main import Capturing
@@ -54,8 +56,9 @@ def test_main_h_option(capsys):
     assert str(info.value) == "0"
     output, error = capsys.readouterr()
     assert error == ""
-    expected = (
-        "usage: pytest [-h] [-v] [-oad OAD] filename\n\n"
+    expected1 = "usage: "
+    expected2 = (
+        "[-h] [-v] [-oad OAD] filename\n\n"
         "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
@@ -64,7 +67,8 @@ def test_main_h_option(capsys):
         "  -h, --help     show this help message and exit\n"
         "  -v, --verbose  increase the verbosity of the output\n"
         "  -oad OAD       filename for the transformed code\n")
-    assert expected in output
+    assert expected1 in output
+    assert expected2 in output
 
 
 # no filename
@@ -78,10 +82,18 @@ def test_main_no_filename(capsys):
     assert str(info.value) == "2"
     output, error = capsys.readouterr()
     assert output == ""
-    expected = (
-        "usage: pytest [-h] [-v] [-oad OAD] filename\npytest: error: the "
-        "following arguments are required: filename\n")
-    assert expected in error
+    # Python2 returns a different message to Python3. Also, the name
+    # of the executable is replaced with either pytest or -c in the
+    # tests, therefore we split the test into sections.
+    expected1 = "usage: "
+    expected2 = "[-h] [-v] [-oad OAD] filename"
+    if six.PY2:
+        expected3 = "error: too few arguments\n"
+    else:
+        expected3 = "error: the following arguments are required: filename\n"
+    assert expected1 in error
+    assert expected2 in error
+    assert expected3 in error
 
 
 # invalid filename
@@ -90,6 +102,11 @@ def test_main_invalid_filename():
     filename does not exist.
 
     '''
+    # FileNotFoundError does not exist in Python2
+    try:
+        FileNotFoundError
+    except NameError:
+        FileNotFoundError = IOError
     with pytest.raises(FileNotFoundError) as info:
         main(["does_not_exist.f90"])
     assert ("[Errno 2] No such file or directory: 'does_not_exist.f90'"
@@ -112,7 +129,7 @@ def test_main_stdout(tmpdir, capsys):
         "  integer :: a\n\n"
         "  a = 0.0\n\n"
         "end program test\n")
-    filename = str(tmpdir.join("tl.f90"))
+    filename = six.text_type(tmpdir.join("tl.f90"))
     with open(filename, "a") as my_file:
         my_file.write(tl_code)
     main([filename])
@@ -152,7 +169,7 @@ def test_main_fileout(tmpdir, capsys):
 
 # -v output
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions", strict=False)
+                   "github actions and some flavours of Python", strict=False)
 def test_main_verbose(tmpdir, capsys, caplog):
     '''Test that the the main() function outputs additional information if
     the -v flag is set. Actually -v seems to have no effect here as
@@ -187,7 +204,7 @@ def test_main_verbose(tmpdir, capsys, caplog):
 
 # expected output
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions", strict=False)
+                   "github actions and some flavours of Python", strict=False)
 def test_main_str(caplog):
     '''Test that the main_str() function works as expected including
     logging.
@@ -231,6 +248,11 @@ def test_main_str(caplog):
 def test_capturing():
     '''Test that the utility Capturing class behaves as expected.'''
 
+    string = six.text_type("hello")
     with Capturing() as output:
-        print(u"hello")
-    assert "hello" in output
+        print(string)
+    if six.PY2:
+        expected = "[u'hello']"
+    else:
+        expected = "hello"
+    assert expected in "".join(output)

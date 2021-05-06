@@ -37,6 +37,7 @@
 within the psyad directory.
 
 '''
+from __future__ import print_function, absolute_import
 import logging
 import pytest
 
@@ -47,7 +48,7 @@ from psyclone.psyad import generate
 
 # 1: generate function
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions", strict=False)
+                   "github actions and some flavours of Python", strict=False)
 def test_generate(caplog):
     '''Test that the generate() function works as expected including
     logging.

@@ -37,10 +37,13 @@
 support. Transforms an LFRic tangent linear kernel to its adjoint.
 
 '''
+from __future__ import absolute_import
 import argparse
 import logging
 from io import StringIO
 import sys
+
+import six
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -75,6 +78,7 @@ def main(args):
     logging.info("Reading file %s", filename)
     with open(filename) as my_file:
         tl_fortran_str = my_file.read()
+        tl_fortran_str = six.text_type(tl_fortran_str)
 
     ad_fortran_str = main_str(tl_fortran_str)
 
@@ -131,7 +135,8 @@ class Capturing(list):
         return self
 
     def __exit__(self, *args):
-        self.extend(self._stringio.getvalue().splitlines())
+        value = six.text_type(self._stringio.getvalue())
+        self.extend(six.text_type(value.splitlines()))
         sys.stdout = self._stdout
 
 
