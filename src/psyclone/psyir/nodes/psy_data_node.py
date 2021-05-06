@@ -73,9 +73,10 @@ class PSyDataNode(Statement):
     (prefix_PSyDataType).
 
     :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
+        this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: the PSyIR nodes that are children of this node.
+    :param children: the PSyIR nodes that are children of this node. These \
+        will be made children of the child Schedule of this PSyDataNode.
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
