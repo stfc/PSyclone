@@ -96,11 +96,12 @@ class PSyDataNode(Statement):
         configuration file.
 
     '''
-    #: PSyData interface Fortran module
-    fortran_module = "psy_data_mod"
-    _PSyDataSymbol = namedtuple("_PSyDataSymbol", "name symbol_type")
-    #: The symbols we import from the PSyData Fortran module
-    reserved_symbols = [_PSyDataSymbol("PSyDataType", TypeSymbol)]
+    #: Name of the PSyData interface Fortran module. Will have an optional
+    #: prefix (e.g. "profile_") prepended.
+    _psydata_fortran_module = "psy_data_mod"
+    #: The symbols we import from the PSyData Fortran module. The names
+    #: specified here will have an optional prefix prepended to them.
+    _psydata_symbols = [("PSyDataType", TypeSymbol)]
     #: Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "PSyData"
@@ -129,6 +130,20 @@ class PSyDataNode(Statement):
             self._class_string = ""
         else:
             self._class_string = prefix + "_"
+
+        # Store the full name of the PSyData Fortran module from which symbols
+        # will be imported.
+        self.fortran_module = self.add_psydata_class_prefix(
+            self._psydata_fortran_module)
+        # Create the list of reserved symbols that will be imported from
+        # the PSyData Fortran module. We use a namedtuple to improve
+        # readability.
+        _PSyDataSymbol = namedtuple("_PSyDataSymbol", "name symbol_type")
+        self.reserved_symbols = []
+        for name, symbol_type in self._psydata_symbols:
+            self.reserved_symbols.append(
+                _PSyDataSymbol(self.add_psydata_class_prefix(name),
+                               symbol_type))
 
         # Root of the name to use for variables associated with
         # PSyData regions
@@ -236,15 +251,13 @@ class PSyDataNode(Statement):
         data_node = cls(ast=ast, options=options)
 
         # Ensure that we have a container symbol for the API access
-        fortran_module = data_node.add_psydata_class_prefix(
-            data_node.fortran_module)
         try:
-            csym = symbol_table.lookup_with_tag(fortran_module)
+            csym = symbol_table.lookup_with_tag(data_node.fortran_module)
         except KeyError:
             # The tag doesn't exist which means that we haven't already added
             # this Container as part of a PSyData transformation.
-            csym = ContainerSymbol(fortran_module)
-            symbol_table.add(csym, tag=fortran_module)
+            csym = ContainerSymbol(data_node.fortran_module)
+            symbol_table.add(csym, tag=data_node.fortran_module)
 
         # A PSyData node always contains a Schedule
         # TODO 435 we can probably get rid of _insert_schedule() once we
@@ -257,16 +270,14 @@ class PSyDataNode(Statement):
         # use of a module of the same name that doesn't match this will result
         # in a NotImplementedError at code-generation time.
         # TODO #435 remove this when removing the update() method
-        names = [data_node.add_psydata_class_prefix(symbol.name) for symbol in
-                 cls.reserved_symbols]
-        data_node.use_stmt = "use {0}, only: "\
-            .format(fortran_module) + ", ".join(names)
+        data_node.use_stmt = "use {0}, only: ".format(
+            data_node.fortran_module) + ", ".join(symbol.name for symbol in
+                                                  data_node.reserved_symbols)
         # Add the symbols that will be imported from the module. Use the
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
-        for sym in cls.reserved_symbols:
-            sym_name = data_node.add_psydata_class_prefix(sym.name)
-            symbol_table.symbol_from_tag(sym_name, symbol_type=sym.symbol_type,
+        for sym in data_node.reserved_symbols:
+            symbol_table.symbol_from_tag(sym.name, symbol_type=sym.symbol_type,
                                          interface=GlobalInterface(csym),
                                          datatype=DeferredType())
 
@@ -438,11 +449,8 @@ class PSyDataNode(Statement):
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
-        symbols = [self.add_psydata_class_prefix(symbol.name)
-                   for symbol in self.reserved_symbols]
-        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
-        use = UseGen(parent, fortran_module, only=True,
-                     funcnames=symbols)
+        use = UseGen(parent, self.fortran_module, only=True,
+                     funcnames=[sym.name for sym in self.reserved_symbols])
         parent.add(use)
         var_decl = TypeDeclGen(parent,
                                datatype=self.add_psydata_class_prefix
@@ -579,10 +587,9 @@ class PSyDataNode(Statement):
         # aborting.
         # Get the existing use statements
         found = False
-        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
         for node in node_list[:]:
             if isinstance(node, Fortran2003.Use_Stmt) and \
-               fortran_module == str(node.items[2]).lower():
+               self.fortran_module == str(node.items[2]).lower():
                 # Check that the use statement matches the one we would
                 # insert (i.e. the code doesn't already contain a module
                 # with the same name as that used by the PSyData API)
@@ -590,7 +597,7 @@ class PSyDataNode(Statement):
                     raise NotImplementedError(
                         "Cannot add PSyData calls to '{0}' because it "
                         "already 'uses' a module named '{1}'".format(
-                            routine_name, fortran_module))
+                            routine_name, self.fortran_module))
                 found = True
                 # To make our check on name clashes below easier, remove
                 # the Name nodes associated with this use from our
@@ -627,7 +634,7 @@ class PSyDataNode(Statement):
                                 "already contains a symbol that clashes with "
                                 "one of those ('{1}') that must be imported "
                                 "from the PSyclone PSyData module.".
-                                format(routine_name, symbol))
+                                format(routine_name, symbol.name))
                     # Check for the name of the PSyData module itself
                     if text == self.fortran_module:
                         raise NotImplementedError(
@@ -635,7 +642,7 @@ class PSyDataNode(Statement):
                             "already contains a symbol that clashes with the "
                             "name of the PSyclone PSyData module "
                             "('{1}')". format(routine_name,
-                                              fortran_module))
+                                              self.fortran_module))
                     # Check for the names of PSyData variables
                     if text.startswith(self._psy_data_symbol_with_prefix):
                         raise NotImplementedError(
