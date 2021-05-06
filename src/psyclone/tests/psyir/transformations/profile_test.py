@@ -726,7 +726,6 @@ def test_multi_prefix_profile(monkeypatch):
     _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
                            "dynamo0.3", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
-    schedule.view()
     prt = ProfileTrans()
     config = Config.get()
     # Monkeypatch the list of recognised PSyData prefixes
@@ -738,8 +737,9 @@ def test_multi_prefix_profile(monkeypatch):
     _ = prt.apply(schedule[1:3])
     result = str(invoke.gen())
 
-    assert ("      USE profile_psy_data_mod, ONLY: profile_PSyDataType\n"
-            "      USE tool1_psy_data_mod, ONLY: tool1_PSyDataType" in result)
+    assert ("      USE profile_psy_data_mod, ONLY: profile_PSyDataType\n" in
+            result)
+    assert "      USE tool1_psy_data_mod, ONLY: tool1_PSyDataType" in result
     assert ("      TYPE(profile_PSyDataType), target, save :: "
             "profile_psy_data\n"
             "      TYPE(tool1_PSyDataType), target, save :: tool1_psy_data"
