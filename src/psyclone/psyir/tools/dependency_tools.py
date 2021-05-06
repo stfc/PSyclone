@@ -153,7 +153,7 @@ class DependencyTools(object):
         :return: whether the variable can be used in parallel.
         :rtype: bool
         '''
-
+        # pylint: disable=too-many-locals
         # If a variable is read-only, it can be parallelised
         if var_info.is_read_only():
             return True
@@ -164,42 +164,51 @@ class DependencyTools(object):
         # a(i,j) and a(j+2, i-1) in one loop:
         # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
         # be accessed. Since the variable is written somewhere (read-only
-        # was tested above), the variable can not be used in parallel.
+        # was tested above), the variable cannot be used in parallel.
         # Additionally, collect all indices that are actually used, since
         # they are needed in a test further down.
-        found_dimension_index = -1
+        found_dimension_index = (-1, -1)
         all_indices = []
 
         # Loop over all the accesses of this variable
         for access in var_info.all_accesses:
             list_of_indices = access.indices
+
             # Now determine all dimensions that depend
-            # on the parallel variable:
-            for dimension_index, index_expressions in \
+            # on the parallel variable. This outer loop is over
+            # the indices used for each component, e.g.
+            # a(i,j)%b(k) it would first handle `(i,j)`, then
+            # `(k)`.
+            for component_index, index_expressions in \
                     enumerate(list_of_indices):
-                accesses = VariablesAccessInfo()
 
-                if Signature(loop_variable) not in accesses:
-                    continue
-
-                # Add all the indices used:
-                for index_expression in index_expressions:
+                # This inner loop loop over all indices for the
+                # current component, i.e. `[i, j]` for the first
+                # component above, then `[k]`.
+                for dimension_index, index_expression in \
+                        enumerate(index_expressions):
+                    # Add all the variables used in the index expression
+                    accesses = VariablesAccessInfo()
                     index_expression.reference_accesses(accesses)
+                    if Signature(loop_variable) not in accesses:
+                        continue
 
-                # if a previously identified index location does not match
-                # the current index location (e.g. a(i,j), and a(j,i) ), then
-                # the loop can not be parallelised
-                if found_dimension_index > -1 and \
-                        found_dimension_index != dimension_index:
-                    self._add_warning("Variable '{0}' is using loop "
-                                      "variable {1} in index {2} and {3}."
-                                      .format(var_info.var_string,
-                                              loop_variable,
-                                              found_dimension_index,
-                                              dimension_index))
-                    return False
-                found_dimension_index = dimension_index
-                all_indices.append(index_expressions)
+                    # if a previously identified index location does not match
+                    # the current index location (e.g. a(i,j), and a(j,i) ),
+                    # then the loop can not be parallelised
+                    ind_pair = (component_index, dimension_index)
+                    if found_dimension_index[0] > -1 and \
+                            found_dimension_index != ind_pair:
+                        self._add_warning("Variable '{0}' is using loop "
+                                          "variable '{1}' in index '{2}'' "
+                                          "and '{3}'."
+                                          .format(var_info.var_name,
+                                                  loop_variable,
+                                                  found_dimension_index,
+                                                  ind_pair))
+                        return False
+                    found_dimension_index = ind_pair
+                    all_indices.append(index_expression)
 
         if not all_indices:
             # An array is used that is not actually dependent on the parallel

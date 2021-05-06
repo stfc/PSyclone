@@ -180,8 +180,8 @@ def test_arrays_parallelise(parser):
     # Use parallel loop variable in more than one dimension
     parallel = dep_tools.can_loop_be_parallelised(loops[2], "jj")
     assert not parallel
-    assert "Variable 'mask' is using loop variable jj in index 0 and 1" in \
-        dep_tools.get_all_messages()[0]
+    assert "Variable 'mask' is using loop variable 'jj' in index '(0, 0)'' " \
+        "and '(0, 1)'" in dep_tools.get_all_messages()[0]
 
     # Use a stencil access (with write), which prevents parallelisation
     parallel = dep_tools.can_loop_be_parallelised(loops[3], "jj")
@@ -288,7 +288,6 @@ def test_derived_type(parser):
     assert not parallel
     # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
-    print(dep_tools.get_all_messages())
 
     # Test that variables are ignored as expected.
     parallel = dep_tools.\
@@ -296,7 +295,6 @@ def test_derived_type(parser):
                                  signatures_to_ignore=[Signature(("a", "b"))])
     assert not parallel
     assert len(dep_tools.get_all_messages()) == 1
-    print(dep_tools.get_all_messages())
 
     # If both derived types are ignored, the loop should be marked
     # to be parallelisable
