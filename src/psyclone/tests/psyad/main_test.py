@@ -56,6 +56,8 @@ def test_main_h_option(capsys):
     assert str(info.value) == "0"
     output, error = capsys.readouterr()
     assert error == ""
+    # The name of the executable is replaced with either pytest or -c
+    # when using pytest, therefore we split this test into sections.
     expected1 = "usage: "
     expected2 = (
         "[-h] [-v] [-oad OAD] filename\n\n"
@@ -83,8 +85,8 @@ def test_main_no_filename(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     # Python2 returns a different message to Python3. Also, the name
-    # of the executable is replaced with either pytest or -c in the
-    # tests, therefore we split the test into sections.
+    # of the executable is replaced with either pytest or -c when
+    # using pytest, therefore we split the test into sections.
     expected1 = "usage: "
     expected2 = "[-h] [-v] [-oad OAD] filename"
     if six.PY2:

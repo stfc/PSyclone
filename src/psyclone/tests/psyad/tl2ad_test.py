@@ -46,14 +46,34 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyad import generate
 
 
-# 1: generate function
+# generate function
+def test_generate():
+    '''Test that the generate() function works as expected.'''
+
+    tl_fortran_str = (
+        "program test\n"
+        "integer :: a\n"
+        "a = 0.0\n"
+        "end program test\n")
+    expected_ad_fortran_str = (
+        "program test\n"
+        "  integer :: a\n\n"
+        "  a = 0.0\n\n"
+        "end program test\n")
+    reader = FortranReader()
+    tl_psyir = reader.psyir_from_source(tl_fortran_str)
+
+    writer = FortranWriter()
+    ad_fortran_str = writer(ad_psyir)
+    assert expected_ad_fortran_str in ad_fortran_str
+
+
+# generate function logging
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions and some flavours of Python", strict=False)
 def test_generate(caplog):
-    '''Test that the generate() function works as expected including
-    logging.
+    '''Test that logging works as expected in the generate() function.'''
 
-    '''
     tl_fortran_str = (
         "program test\n"
         "integer :: a\n"
