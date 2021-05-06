@@ -232,5 +232,5 @@ def test_capturing():
     '''Test that the utility Capturing class behaves as expected.'''
 
     with Capturing() as output:
-        print("hello")
+        print(u"hello")
     assert "hello" in output
