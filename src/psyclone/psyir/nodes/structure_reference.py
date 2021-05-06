@@ -40,7 +40,7 @@
 from __future__ import absolute_import
 import six
 
-from psyclone.core import AccessType, Signature
+from psyclone.core import Signature
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
@@ -228,37 +228,20 @@ class StructureReference(Reference):
                     type(self).__name__, self.children))
         return self.children[0]
 
-    def get_signature(self):
-        ''':returns: the Signature of this structure reference.
-        :rtype: :py:class:`psyclone.core.Signature
-
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this structure reference, and \
+            a list of the indices used for each component (empty list \
+            if an access is not an array).
+        :rtype: tuple(:py:class:`psyclone.core.Signature, list of \
+            list of indices)
         '''
-        components = [self.name]
-        current = self
-        while current.children:
-            current = current.children[0]
-            # Array members have other references as children,
-            # which are not be part of this signature, so only
-            # add actual members
-            if isinstance(current, Member):
-                components.append(current.name)
-
-        return Signature(tuple(components))
-
-    def reference_accesses(self, var_accesses):
-        '''
-        TODO #1028 dependency analysis for structures needs to be
-        implemented.
-
-        Get all variable access information. All variables used as indices
-        in the access of the array will be added as READ.
-
-        :param var_accesses: variable access information.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        var_accesses.add_access(self.get_signature(), AccessType.READ, self)
+        # Get the signature of self:
+        my_sig, my_index = \
+            super(StructureReference, self).get_signature_and_indices()
+        # The the sub-signature of the member, and indices used:
+        sub_sig, indices = self.children[0].get_signature_and_indices()
+        # Combine signature and indices
+        return (Signature(my_sig, sub_sig), my_index + indices)
 
 
 # For AutoAPI documentation generation

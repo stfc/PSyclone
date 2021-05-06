@@ -38,6 +38,8 @@
 ''' This module contains the implementation of the Member node.'''
 
 from __future__ import absolute_import
+
+from psyclone.core import Signature
 from psyclone.psyir.nodes.node import Node
 
 
@@ -102,6 +104,15 @@ class Member(Node):
 
     def __str__(self):
         return self.node_str(False)
+
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this structure reference, and \
+            a list of the indices used for each component (empty list \
+            if an access is not an array).
+        :rtype: tuple(:py:class:`psyclone.core.Signature, list of \
+            list of indices)
+        '''
+        return (Signature(self.name), [[]])
 
 
 # For Sphinx AutoAPI documentation generation

@@ -40,8 +40,11 @@
     ArrayOfStructuresMixin. '''
 
 from __future__ import absolute_import
+
 import abc
 import six
+
+from psyclone.core import Signature
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.datanode import DataNode
@@ -102,6 +105,18 @@ class ArrayOfStructuresMixin(ArrayMixin):
                     "'{2}' instead of psyir.nodes.DataNode or Range".format(
                         type(self).__name__, idx, type(child).__name__))
         return self._children[1:]
+
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this structure reference, and \
+            a list of the indices used for each component (empty list \
+            if an access is not an array).
+        :rtype: tuple(:py:class:`psyclone.core.Signature, list of \
+            list of indices)
+        '''
+
+        sub_sig, indices = self.children[0].get_signature_and_indices()
+        sig = Signature(self.name)
+        return (Signature(sig, sub_sig), [self.indices]+indices)
 
 
 # For AutoAPI documentation generation

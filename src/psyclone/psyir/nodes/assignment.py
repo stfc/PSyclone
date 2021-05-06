@@ -148,7 +148,7 @@ class Assignment(Statement):
         accesses_left = VariablesAccessInfo()
         self.lhs.reference_accesses(accesses_left)
         # Now change the (one) access to the assigned variable to be WRITE:
-        sig = self.lhs.get_signature()
+        sig, _ = self.lhs.get_signature_and_indices()
         var_info = accesses_left[sig]
         try:
             var_info.change_read_to_write()

@@ -175,13 +175,16 @@ class DependencyTools(object):
             list_of_indices = access.indices
             # Now determine all dimensions that depend
             # on the parallel variable:
-            for dimension_index, index_expression in \
+            for dimension_index, index_expressions in \
                     enumerate(list_of_indices):
                 accesses = VariablesAccessInfo()
 
-                index_expression.reference_accesses(accesses)
                 if Signature(loop_variable) not in accesses:
                     continue
+
+                # Add all the indices used:
+                for index_expression in index_expressions:
+                    index_expression.reference_accesses(accesses)
 
                 # if a previously identified index location does not match
                 # the current index location (e.g. a(i,j), and a(j,i) ), then
@@ -190,13 +193,13 @@ class DependencyTools(object):
                         found_dimension_index != dimension_index:
                     self._add_warning("Variable '{0}' is using loop "
                                       "variable {1} in index {2} and {3}."
-                                      .format(var_info.var_name,
+                                      .format(var_info.var_string,
                                               loop_variable,
                                               found_dimension_index,
                                               dimension_index))
                     return False
                 found_dimension_index = dimension_index
-                all_indices.append(index_expression)
+                all_indices.append(index_expressions)
 
         if not all_indices:
             # An array is used that is not actually dependent on the parallel
@@ -349,14 +352,19 @@ class DependencyTools(object):
         result = True
         # Now check all variables used in the loop
         for signature in var_accesses.all_signatures:
+            # This string contains derived type information, e.g.
+            # "a%b"
+            var_string = str(signature)
             # Ignore all loop variables - they look like reductions because of
             # the write-read access in the loop:
-            var_name = str(signature)
-            if var_name in loop_vars:
+            if var_string in loop_vars:
                 continue
             if signature in signatures_to_ignore:
                 continue
 
+            # This returns the first component of the signature,
+            # i.e. in case of "a%b" it will only return "a"
+            var_name = signature.var_name
             var_info = var_accesses[signature]
             symbol_table = loop.scope.symbol_table
             if var_name not in symbol_table:

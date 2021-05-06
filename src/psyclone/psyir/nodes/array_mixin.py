@@ -39,16 +39,17 @@
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
 from __future__ import absolute_import
+
 import abc
 import six
-from psyclone.core import Signature
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.ranges import Range
-from psyclone.psyir.nodes.operation import BinaryOperation
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols.datatypes import ScalarType
+
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols.datatypes import ScalarType
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -72,30 +73,15 @@ class ArrayMixin(object):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All variables used as indices
-        in the access of the array will be added as READ.
-
-        :param var_accesses: variable access information.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this structure reference, and \
+            a list of the indices used for each component (empty list \
+            if an access is not an array).
+        :rtype: tuple(:py:class:`psyclone.core.Signature, list of \
+            list of indices)
         '''
-        # This will set the array-name as READ
-        super(ArrayMixin, self).reference_accesses(var_accesses)
-        # Now add all children: Note that the class Reference
-        # does not recurse to the children (which store the indices), so at
-        # this stage no index information has been stored:
-        list_indices = []
-        for child in self.children:
-            child.reference_accesses(var_accesses)
-            list_indices.append(child)
-
-        if list_indices:
-            var_info = var_accesses[Signature(self.name)]
-            # The last entry in all_accesses is the one added above
-            # in super(ArrayReference...). Add the indices to that entry.
-            var_info.all_accesses[-1].indices = list_indices
+        sig, _ = super(ArrayMixin, self).get_signature_and_indices()
+        return (sig, [self.indices])
 
     def _validate_index(self, index):
         '''Utility function that checks that the supplied index is an integer

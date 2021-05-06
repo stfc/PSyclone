@@ -327,15 +327,46 @@ def test_derived_type_scalar():
     assert isinstance(node1, Assignment)
     assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"
 
+
 # -----------------------------------------------------------------------------
-@pytest.mark.parametrize("array", ["a%b%c", "a(i)%b%c",
-                                   "a%b(j)%c", "a(i)%b(j)%c",
-                                   "a%b%c(k)", "a(i)%b%c(k)",
-                                   "a%b(j)%c(k)", "a(i)%b(j)%c(k)"])
-def test_derived_type_array(array):
-    '''This function tests the handling of derived array types.
+def to_fortran(writer, index_expression):
+    '''A small helper function that converts index information from an
+    AccessInfo object to a list of list of strings. For example, an access
+    like `a(i)%b%c(j,k)` will have an index expression of
+    `[ [i], [], [j, k]]`, where `i`, `j`, and `k` are the PSyIR representation
+    of the indices. This function will convert each PSyIR node to a string,
+    returning in the example: `[ ["i"], [], ["j", "k"]]`
+
+    :param writer: a FortranWriter object.
+    :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
+    :param expression: a Fortran PSyIR node with the index expression to \
+        convert.
+    :type index_expression: list of list of :py:class:`psyclone.psyir.node`s
+
+    :return: list of list of corresponding Fortran code, each as string.
+    :rtype: list of list of str
     '''
 
+    result = []
+    for indices in index_expression:
+        result.append([writer(index) for index in indices])
+    return result
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("array, indices",
+                         [("a%b%c", [[], [], []]),
+                          ("a%b%c(i)", [[], [], ["i"]]),
+                          ("a%b(j)%c", [[], ["j"], []]),
+                          ("a%b(j)%c(i)", [[], ["j"], ["i"]]),
+                          ("a(k)%b%c", [["k"], [], []]),
+                          ("a(k)%b%c(i)", [["k"], [], ["i"]]),
+                          ("a(k)%b(j)%c", [["k"], ["j"], []]),
+                          ("a(k)%b(j)%c(i)", [["k"], ["j"], ["i"]])
+                          ])
+def test_derived_type_array(array, indices, fort_writer):
+    '''This function tests the handling of derived array types.
+    '''
     code = '''module test
         contains
         subroutine tmp()
@@ -352,3 +383,9 @@ def test_derived_type_array(array):
     vai1 = VariablesAccessInfo(node1)
     assert isinstance(node1, Assignment)
     assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
+
+    # Verify that the index expression is correct. Convert the index
+    # expression to a list of list of strings to make this easier:
+    sig = Signature(("a", "b", "c"))
+    access = vai1[sig][0]
+    assert to_fortran(fort_writer, access.indices) == indices

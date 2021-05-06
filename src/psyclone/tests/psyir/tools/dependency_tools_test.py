@@ -274,7 +274,6 @@ def test_derived_type(parser):
     parallel = dep_tools.can_loop_be_parallelised(loops[0], "jj")
     assert not parallel
     # TODO #1028 - arrays not yet working
-    print(dep_tools.get_all_messages())
 
     # Test that testing is stopped with the first unparallelisable statement
     parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
@@ -283,7 +282,6 @@ def test_derived_type(parser):
     # Test that only one message is stored, i.e. no message for the
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
-    print(dep_tools.get_all_messages())
 
     parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj",
                                                   test_all_variables=True)

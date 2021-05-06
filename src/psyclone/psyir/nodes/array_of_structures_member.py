@@ -58,6 +58,7 @@ class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
     _children_valid_format = "Member, [DataNode | Range]+"
     _text_name = "ArrayOfStructuresMember"
 
+    # pylint: disable=arguments-differ
     @staticmethod
     def create(member_name, indices, inner_member):
         '''
@@ -99,9 +100,7 @@ class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        #print("array of structures_member")
         for child in self._children:
-            #print("  asm type -->", type(child))
             child.reference_accesses(var_accesses)
 
 

@@ -88,20 +88,6 @@ class ArrayMember(ArrayMixin, Member):
             obj.addchild(child)
         return obj
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. We cannot call this function
-        in ArrayMixin (which would be called by default) since with an access
-        like `a%b(i)` this would try to add an access to `b`.
-
-        :param var_accesses: Stores the output results.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
-        print("REF ACCESS, array member")
-        for child in self._children:
-            print("  am type -->", type(child))
-            child.reference_accesses(var_accesses)
-
 
 # For AutoAPI documentation generation
 __all__ = ['ArrayMember']

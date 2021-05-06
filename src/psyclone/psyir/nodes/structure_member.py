@@ -37,6 +37,7 @@
 ''' This module contains the implementation of the StructureMember node.'''
 
 from __future__ import absolute_import
+from psyclone.core import Signature
 from psyclone.psyir.nodes.member import Member
 from psyclone.errors import InternalError
 
@@ -116,6 +117,16 @@ class StructureMember(Member):
                 "must be an instance of Member, but found '{1}'".format(
                     type(self).__name__, type(self.children[0]).__name__))
         return self.children[0]
+
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this structure reference, and \
+            a list of the indices used for each component (empty list \
+            if an access is not an array).
+        :rtype: tuple(:py:class:`psyclone.core.Signature, list of \
+            list of indices)
+        '''
+        sub_sig, indices = self.children[0].get_signature_and_indices()
+        return (Signature(self.name, sub_sig), [[]]+indices)
 
 
 # For Sphinx AutoAPI documentation generation
