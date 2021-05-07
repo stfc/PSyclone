@@ -47,12 +47,13 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Loop
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import lfric_builtins
 from psyclone.domain.lfric.lfric_builtins import (
-    VALID_BUILTIN_ARG_TYPES, LFRicBuiltInCallFactory, LFRicBuiltIn)
+    VALID_BUILTIN_ARG_TYPES, LFRicBuiltInCallFactory)
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -552,6 +553,32 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert ("do df = 1, undf_aspc1_f2, 1\n"
                 "  f2_proxy%data(df) = a + f1_proxy%data(df)\n"
                 "enddo" in code)
+
+        # Repeat but test the case where the symbol for the scalar argument
+        # has not already been created.
+        psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+        _ = psy.gen
+        loop = psy.invokes.invoke_list[0].schedule[0]
+
+        # We cannot use table.remove() as that does not support DataSymbols.
+        # Therefore we monkeypatch the table.lookup() method to make it appear
+        # that the scalar symbol does not exist.
+
+        def fake_lookup(name):
+            raise KeyError("For testing")
+        monkeypatch.setattr(loop.loop_body.symbol_table, "lookup", fake_lookup)
+        # This time, the lowering should cause a new symbol to be created for
+        # the scalar argument.
+        loop.loop_body[0].lower_to_language_level()
+        monkeypatch.undo()
+
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f2, 1\n"
+                "  f2_proxy%data(df) = a_1 + f1_proxy%data(df)\n"
+                "enddo" in code)
+        scalar = loop.loop_body[0].scope.symbol_table.lookup("a_1")
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
     else:
         output_dm_2 = (
             "      !\n"
