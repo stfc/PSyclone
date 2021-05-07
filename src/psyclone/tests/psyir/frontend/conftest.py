@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,38 +31,21 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, STFC Daresbury Lab
-#          A. R. Porter, STFC Daresbury Lab
+# Author S. Siso, STFC Daresbury Lab
 
-'''Transformations module for NEMO.
-'''
 
-from psyclone.domain.nemo.transformations.create_nemo_invoke_schedule_trans \
-    import CreateNemoInvokeScheduleTrans
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
-    import CreateNemoKernelTrans
-from psyclone.domain.nemo.transformations.create_nemo_loop_trans \
-    import CreateNemoLoopTrans
-from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
-    import CreateNemoPSyTrans
-from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
-    import NemoAllArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
-    import NemoArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_loop_fuse \
-    import NemoLoopFuseTrans
-from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
-    import NemoOuterArrayRange2LoopTrans
+''' Common pytest fixtures for the frontend directory '''
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
+from __future__ import absolute_import
+import pytest
+from fparser.two.parser import ParserFactory
 
-__all__ = ['CreateNemoInvokeScheduleTrans',
-           'CreateNemoKernelTrans',
-           'CreateNemoLoopTrans',
-           'CreateNemoPSyTrans',
-           'NemoAllArrayRange2LoopTrans',
-           'NemoArrayRange2LoopTrans',
-           'NemoLoopFuseTrans',
-           'NemoOuterArrayRange2LoopTrans']
+
+# This is similar to the top-level pytest 'parse' fixture but that one has
+# a deprecation notice. However it is appropriate to use it inside the Fortran
+# frontend tests because the fparser dependency should be encapsulated inside
+# this module and the fixture won't go away.
+@pytest.fixture(scope="session", name="f2008_parser")
+def fixture_f2008_parser():
+    ''' Initialise fparser2 with Fortran2008 standard. '''
+    return ParserFactory().create(std="f2008")
