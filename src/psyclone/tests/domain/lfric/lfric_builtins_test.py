@@ -340,36 +340,6 @@ def test_invalid_builtin_kernel():
             "recognised built-in" in str(excinfo.value))
 
 
-def test_lfricbuiltin_str(dist_mem):
-    ''' Check that we raise an error if we attempt to call the __str__
-    method on the parent LFRicBuiltIn class. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.12.3_single_pointwise_builtin.f90"),
-        api=API)
-    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    with pytest.raises(NotImplementedError) as excinfo:
-        LFRicBuiltIn.__str__(kern)
-    assert "LFRicBuiltIn.__str__ must be overridden" in str(excinfo.value)
-
-
-def test_lfricbuiltin_gen_code(dist_mem):
-    ''' Check that we raise an error if we attempt to call the gen_code()
-    method on the parent LFRicBuiltIn class. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.12.3_single_pointwise_builtin.f90"),
-        api=API)
-    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    with pytest.raises(NotImplementedError) as excinfo:
-        LFRicBuiltIn.gen_code(kern, None)
-    assert "LFRicBuiltIn.gen_code must be overridden" in str(excinfo.value)
-
-
 def test_lfricbuiltin_cma(dist_mem):
     ''' Check that an LFRicBuiltIn returns None for CMA type (because
     built-ins don't work with CMA operators). '''
@@ -477,11 +447,12 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm_2 in code
 
 
-def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     X = X + Y where X and Y are real-valued fields. Test with and without
     annexed dofs being computed as this affects the generated code.
+    Also test the lower_to_language_level() method for this builtin.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -511,6 +482,15 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lowering to language-level PSyIR
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output = (
             "      ! Call kernels and communication routines\n"

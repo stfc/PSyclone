@@ -41,6 +41,8 @@
     a given built-in call. '''
 
 from __future__ import absolute_import
+import abc
+import six
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.symbols import ContainerSymbol, TypeSymbol, DeferredType,\
@@ -146,10 +148,11 @@ class LFRicBuiltInCallFactory(object):
         return dofloop
 
 
-# TODO #1140 'LFRicBuiltIn' should be an abstract class.
+@six.add_metaclass(abc.ABCMeta)
 class LFRicBuiltIn(BuiltIn):
     '''
-    Parent class for a call to an LFRic Built-in.
+    Abstract base class for a node representing a call to an LFRic Built-in.
+
     '''
     def __init__(self):
         # Builtins do not accept quadrature
@@ -158,9 +161,9 @@ class LFRicBuiltIn(BuiltIn):
         self.mesh = None
         super(LFRicBuiltIn, self).__init__()
 
+    @abc.abstractmethod
     def __str__(self):
-        ''' :raises NotImplementedError: if the method is called. '''
-        raise NotImplementedError("LFRicBuiltIn.__str__ must be overridden")
+        ''' Must be overridden by sub class. '''
 
     def load(self, call, parent=None):
         '''
@@ -300,8 +303,10 @@ class LFRicBuiltIn(BuiltIn):
         '''
         return None
 
+    @abc.abstractmethod
     def gen_code(self, parent):
-        raise NotImplementedError("LFRicBuiltIn.gen_code must be overridden")
+        ''' Must be implemented in sub-class. Will generate the f2pygen AST
+        for this builtin. '''
 
     def cma_operation(self):
         '''
@@ -312,7 +317,6 @@ class LFRicBuiltIn(BuiltIn):
         :rtype: NoneType
 
         '''
-
         return None
 
     @property
@@ -336,6 +340,48 @@ class LFRicBuiltIn(BuiltIn):
         '''
         return self._fs_descriptors
 
+    def get_field_proxy_type_symbol(self):
+        '''
+        Finds or creates the field_mod Container from which the
+        field_proxy_type is imported.
+
+        :returns: the symbol for the field_mod module.
+        :rtype: :py:class:`psyclone.psyir.nodes.ContainerSymbol`
+
+        '''
+        table = self.scope.symbol_table
+        # Find or create the Container from which the field_proxy_type is
+        # imported.
+        try:
+            fld_mod_container = table.lookup("field_mod")
+        except KeyError:
+            fld_mod_container = ContainerSymbol("field_mod")
+            table.add(fld_mod_container)
+        # Find or create the TypeSymbol for the field_proxy_type.
+        try:
+            fld_proxy_type = table.lookup("field_proxy_type")
+        except KeyError:
+            fld_proxy_type = TypeSymbol(
+                "field_proxy_type", DeferredType(),
+                interface=GlobalInterface(fld_mod_container))
+            table.add(fld_proxy_type)
+        return fld_proxy_type
+
+    def get_dof_loop_index(self):
+        '''
+        Finds or creates the symbol representing the index in any loops
+        over dofs.
+
+        :returns: symbol representing the dof loop index.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        table = self.scope.symbol_table
+        # The symbol representing the loop index is created in the DynLoop
+        # constructor.
+        return table.symbol_from_tag(tag="dof_loop_idx", root_name="df",
+                                     symbol_type=DataSymbol,
+                                     datatype=INTEGER_SINGLE_TYPE)
 
 # ******************************************************************* #
 # ************** Built-ins for real-valued fields ******************* #
@@ -380,19 +426,8 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         table = self.scope.symbol_table
         # Find or create the Container from which the field_proxy_type is
         # imported.
-        try:
-            fld_mod_container = table.lookup("field_mod")
-        except KeyError:
-            fld_mod_container = ContainerSymbol("field_mod")
-            table.add(fld_mod_container)
-        # Find or create the TypeSymbol for the field_proxy_type.
-        try:
-            fld_proxy_type = table.lookup("field_proxy_type")
-        except KeyError:
-            fld_proxy_type = TypeSymbol(
-                "field_proxy_type", DeferredType(),
-                interface=GlobalInterface(fld_mod_container))
-            table.add(fld_proxy_type)
+        fld_proxy_type = self.get_field_proxy_type_symbol()
+
         # Get symbols for each of the field (proxy) arguments.
         arg_symbols = []
         for arg in self._arguments.args[0:3]:
@@ -402,11 +437,9 @@ class LFRicXPlusYKern(LFRicBuiltIn):
                 sym = table.new_symbol(arg.proxy_name, symbol_type=DataSymbol,
                                        datatype=fld_proxy_type)
             arg_symbols.append(sym)
-        # The symbol representing the loop index is created in the DynLoop
-        # constructor.
-        idx_sym = table.symbol_from_tag(tag="dof_loop_idx", root_name="df",
-                                        symbol_type=DataSymbol,
-                                        datatype=INTEGER_SINGLE_TYPE)
+
+        idx_sym = self.get_dof_loop_index()
+
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
         lhs = StructureReference.create(arg_symbols[0],
@@ -443,6 +476,41 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name1,
                              rhs=field_name1 + " + " + field_name2))
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        table = self.scope.symbol_table
+        # Find or create the Container from which the field_proxy_type is
+        # imported.
+        fld_proxy_type = self.get_field_proxy_type_symbol()
+
+        # Get symbols for both of the field (proxy) arguments.
+        arg_symbols = []
+        for arg in self._arguments.args[0:2]:
+            try:
+                sym = table.lookup(arg.proxy_name)
+            except KeyError:
+                sym = table.new_symbol(arg.proxy_name, symbol_type=DataSymbol,
+                                       datatype=fld_proxy_type)
+            arg_symbols.append(sym)
+
+        idx_sym = self.get_dof_loop_index()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy0%data(df) + proxy1%data(df)
+        lhs = StructureReference.create(arg_symbols[0],
+                                        [("data", [Reference(idx_sym)])])
+        arg2 = StructureReference.create(arg_symbols[1],
+                                         [("data", [Reference(idx_sym)])])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, lhs.copy(),
+                                     arg2)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicAPlusXKern(LFRicBuiltIn):
