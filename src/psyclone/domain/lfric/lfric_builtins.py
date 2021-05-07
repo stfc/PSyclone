@@ -46,7 +46,7 @@ import six
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.symbols import ContainerSymbol, TypeSymbol, DeferredType,\
-    GlobalInterface, DataSymbol, INTEGER_SINGLE_TYPE, REAL_DOUBLE_TYPE
+    GlobalInterface, DataSymbol, INTEGER_SINGLE_TYPE, ScalarType
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
     BinaryOperation
 from psyclone.parse.utils import ParseError
@@ -154,6 +154,9 @@ class LFRicBuiltIn(BuiltIn):
     Abstract base class for a node representing a call to an LFRic Built-in.
 
     '''
+    #: The default KIND of Fortran arguments to this kernel
+    default_kind = "r_def"
+
     def __init__(self):
         # Builtins do not accept quadrature
         self.qr_rules = {}
@@ -367,7 +370,32 @@ class LFRicBuiltIn(BuiltIn):
             table.add(fld_proxy_type)
         return fld_proxy_type
 
-    def get_dof_loop_index(self):
+    def get_kind_symbol(self, name):
+        '''
+        Finds or creates a Symbol for the specified kind parameter.
+
+        :param str name: the name of the required kind symbol.
+
+        :returns: a symbol for the specified kind parameter.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        table = self.scope.symbol_table
+        try:
+            constants_container = table.lookup("constants_mod")
+        except KeyError:
+            constants_container = ContainerSymbol("constants_mod")
+            table.add(constants_container)
+        try:
+            kind_symbol = table.lookup(name)
+        except KeyError:
+            kind_symbol = DataSymbol(
+                name, INTEGER_SINGLE_TYPE,
+                interface=GlobalInterface(constants_container))
+            table.add(kind_symbol)
+        return kind_symbol
+
+    def get_dof_loop_index_symbol(self):
         '''
         Finds or creates the symbol representing the index in any loops
         over dofs.
@@ -388,6 +416,9 @@ class LFRicBuiltIn(BuiltIn):
         Finds or creates the symbols representing the arguments to this
         Builtin kernel.
 
+        :returns: a symbol for each kernel argument.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+
         '''
         table = self.scope.symbol_table
         fld_proxy_type = self.get_field_proxy_type_symbol()
@@ -395,14 +426,23 @@ class LFRicBuiltIn(BuiltIn):
         arg_symbols = []
         for arg in self._arguments.args:
             if arg.is_scalar:
-                scalar_name = self._arguments.args[1].name
                 try:
-                    scalar_sym = table.lookup(scalar_name)
+                    scalar_sym = table.lookup(arg.name)
                 except KeyError:
-                    # The scalar argument to this builtin is double precision
-                    scalar_sym = table.new_symbol(scalar_name,
+                    kind = self.get_kind_symbol(self.default_kind)
+                    if arg.intrinsic_type == 'real':
+                        prim_type = ScalarType.Intrinsic.REAL
+                    elif arg.intrinsic_type == 'integer':
+                        prim_type = ScalarType.Intrinsic.INTEGER
+                    else:
+                        raise NotImplementedError(
+                            "Unsupported scalar type '{0}'".format(
+                                arg.intrinsic_type))
+                    dtype = ScalarType(prim_type, kind)
+
+                    scalar_sym = table.new_symbol(arg.name,
                                                   symbol_type=DataSymbol,
-                                                  datatype=REAL_DOUBLE_TYPE)
+                                                  datatype=dtype)
                 arg_symbols.append(scalar_sym)
 
             elif arg.is_field:
@@ -415,7 +455,8 @@ class LFRicBuiltIn(BuiltIn):
                 arg_symbols.append(sym)
 
             else:
-                raise NotImplementedError("blah")
+                raise NotImplementedError(
+                    "Unsupported Builtin argument type: '{0}'".format(str(arg))
         return arg_symbols
 
 # ******************************************************************* #
@@ -461,7 +502,7 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         # Get symbols for each of the field (proxy) arguments.
         arg_symbols = self.get_argument_symbols()
 
-        idx_sym = self.get_dof_loop_index()
+        idx_sym = self.get_dof_loop_index_symbol()
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
@@ -506,22 +547,10 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        table = self.scope.symbol_table
-        # Find or create the Container from which the field_proxy_type is
-        # imported.
-        fld_proxy_type = self.get_field_proxy_type_symbol()
-
         # Get symbols for both of the field (proxy) arguments.
-        arg_symbols = []
-        for arg in self._arguments.args[0:2]:
-            try:
-                sym = table.lookup(arg.proxy_name)
-            except KeyError:
-                sym = table.new_symbol(arg.proxy_name, symbol_type=DataSymbol,
-                                       datatype=fld_proxy_type)
-            arg_symbols.append(sym)
+        arg_symbols = self.get_argument_symbols()
 
-        idx_sym = self.get_dof_loop_index()
+        idx_sym = self.get_dof_loop_index_symbol()
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy0%data(df) + proxy1%data(df)
@@ -570,7 +599,7 @@ class LFRicAPlusXKern(LFRicBuiltIn):
         # Get symbols for each of the kernel arguments.
         arg_symbols = self.get_argument_symbols()
 
-        idx_sym = self.get_dof_loop_index()
+        idx_sym = self.get_dof_loop_index_symbol()
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar + proxy1%data(df)
@@ -1511,6 +1540,8 @@ class LFRicIntAPlusXKern(LFRicAPlusXKern):
     equivalent `LFRicAPlusXKern`.
 
     '''
+    default_kind = "i_def"
+
     def __str__(self):
         return "Built-in: int_a_plus_X (integer-valued fields)"
 
