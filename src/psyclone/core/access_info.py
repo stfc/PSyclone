@@ -116,6 +116,19 @@ class AccessInfo(object):
         '''
         self._indices = indices[:]
 
+    def is_array(self):
+        '''Test if any of the components has an index. E.g. an access like
+        a(i)%b would still be considered an array.
+
+        :returns: if any of the variable components uses an index, i.e.\
+            the variable is an array.
+        :rtype: bool
+        '''
+        for list_of_indices in self._indices:
+            if list_of_indices != []:
+                return True
+        return False
+
     @property
     def access_type(self):
         ''':returns: the access type.
