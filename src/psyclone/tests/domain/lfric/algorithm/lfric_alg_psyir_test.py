@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the LFRicAlgorithmInvokeCall,
 LFRicBuiltinFunctor and LFRicKernelFunctor LFRic
@@ -43,10 +44,7 @@ PSyIR.
 from __future__ import absolute_import
 import pytest
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
-
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Node, Reference
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType
@@ -67,13 +65,8 @@ def create_alg_psyir(code):
     :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
-
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
-
+    fortran_reader = FortranReader()
+    psyir = fortran_reader.psyir_from_source(code)
     alg_trans = LFRicAlgTrans()
     alg_trans.apply(psyir)
 
