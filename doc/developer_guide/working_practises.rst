@@ -232,12 +232,22 @@ being sufficiently isolated from one another.
 
 Gotchas
 -------
+The test utility ``pytest`` will only discover files that either start
+or end with "test". The PSyclone convention is to have all files ending
+with "_test.py", e.g. ``constants_test.py``. A name using "tests"
+(plural) will not be automatically discovered or executed by ``pytest``!
 
 Note that pytest will not complain if two tests (within a module) have
 the same name - it will just silently ignore one of them! The best way
 of checking for this is to run pylint on any modified test modules.
 (This needs to be done anyway as one of the requirements of the
 :ref:`code-review` is that all new code be pylint-clean.)
+
+.. note::
+    You can use ``pytest --collect-only``
+    to check the names of the files and tests that would be executed,
+    without actually executing the tests.
+
 
 .. _compilation_testing:
 
