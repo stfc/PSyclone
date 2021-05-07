@@ -97,12 +97,6 @@ class PSyDataNode(Statement):
         configuration file.
 
     '''
-    #: Name of the PSyData interface Fortran module. Will have an optional
-    #: prefix (e.g. "profile_") prepended.
-    _psydata_fortran_module = "psy_data_mod"
-    #: The symbols we import from the PSyData Fortran module. The names
-    #: specified here will have an optional prefix prepended to them.
-    _psydata_symbols = [("PSyDataType", TypeSymbol)]
     #: Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "PSyData"
@@ -117,10 +111,15 @@ class PSyDataNode(Statement):
         if not options:
             options = {}
 
-        # _class_string stores a prefix to be used with all external PSyData
+        # _prefix stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
         # method 'add_psydata_class_prefix'.
         prefix = options.get("prefix", self._default_prefix)
+        # Check that the prefix is one of those listed as being supported
+        # in the configuration file. If it *is* listed then it is assumed
+        # that a matching PSyData wrapper library is available at compile time.
+        # See the User Guide for more information:
+        # https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psy-data
         if prefix and prefix not in Config.get().valid_psy_data_prefixes:
             raise InternalError(
                 "Invalid 'prefix' parameter: found '{0}', expected one of {1} "
@@ -128,45 +127,33 @@ class PSyDataNode(Statement):
                     prefix, Config.get().valid_psy_data_prefixes,
                     Config.get().filename))
         if not prefix:
-            self._class_string = ""
+            self._prefix = ""
         else:
-            self._class_string = prefix + "_"
+            self._prefix = prefix + "_"
 
-        # Store the full name of the PSyData Fortran module from which symbols
-        # will be imported.
-        self.fortran_module = self.add_psydata_class_prefix(
-            self._psydata_fortran_module)
-        # Create the list of reserved symbols that will be imported from
+        # Create the list of symbol names that will be imported from
         # the PSyData Fortran module. We use a namedtuple to improve
-        # readability.
+        # readability. Currently there is only one imported symbol (the
+        # name of the PSyData derived type) but we keep a list for future
+        # extensibility.
         _PSyDataSymbol = namedtuple("_PSyDataSymbol", "name symbol_type")
-        self.reserved_symbols = []
-        for name, symbol_type in self._psydata_symbols:
-            self.reserved_symbols.append(
-                _PSyDataSymbol(self.add_psydata_class_prefix(name),
-                               symbol_type))
+        self.imported_symbols = [_PSyDataSymbol(self.type_name, TypeSymbol)]
 
         # Root of the name to use for variables associated with
         # PSyData regions
         self._psy_data_symbol_with_prefix = \
             self.add_psydata_class_prefix("psy_data")
 
-        self._region_identifier = ("", "")
-        # Name of the region.
-        self._module_name = None
-        self._region_name = None
-
         # The name of the PSyData variable that is used for this PSyDataNode
         self._var_name = ""
 
         # The region identifier caches the computed module- and region-name
         # as a tuple of strings. This is required so that a derived class can
-        # query the actual name of region (e.g. during generation of a driver
+        # query the actual name of a region (e.g. during generation of a driver
         # for an extract node). If the user does not define a name, i.e.
         # module_name and region_name are empty, a unique name will be
-        # computed in gen_code() or lower_to_language_level(). If this name
-        # would then be stored in
-        # module_name and region_name, and gen() is called again, the
+        # computed in gen_code() or lower_to_language_level(). If this name was
+        # stored in module_name and region_name, and gen() is called again, the
         # names would not be computed again, since the code detects already
         # defined module and region names. This can then result in duplicated
         # region names: The test 'test_region' in profile_test triggers this.
@@ -179,6 +166,10 @@ class PSyDataNode(Statement):
         # So in order to guarantee that the computed module and region names
         # are unique when gen_code is called more than once, we
         # cannot store a computed name in module_name and region_name.
+        self._region_identifier = ("", "")
+        # Name of the region.
+        self._module_name = None
+        self._region_name = None
 
         name = options.get("region_name", None)
 
@@ -273,11 +264,11 @@ class PSyDataNode(Statement):
         # TODO #435 remove this when removing the update() method
         data_node.use_stmt = "use {0}, only: ".format(
             data_node.fortran_module) + ", ".join(symbol.name for symbol in
-                                                  data_node.reserved_symbols)
+                                                  data_node.imported_symbols)
         # Add the symbols that will be imported from the module. Use the
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
-        for sym in data_node.reserved_symbols:
+        for sym in data_node.imported_symbols:
             symbol_table.symbol_from_tag(sym.name, symbol_type=sym.symbol_type,
                                          interface=GlobalInterface(csym),
                                          datatype=DeferredType())
@@ -288,9 +279,8 @@ class PSyDataNode(Statement):
         # being changed every time gen() is called).
         data_node._var_name = symbol_table.next_available_name(
             data_node._psy_data_symbol_with_prefix)
-        type_name = data_node.add_psydata_class_prefix("PSyDataType")
         psydata_type = UnknownFortranType(
-            "type({0}), save, target :: {1}".format(type_name,
+            "type({0}), save, target :: {1}".format(data_node.type_name,
                                                     data_node._var_name))
         symbol_table.new_symbol(data_node._var_name, symbol_type=DataSymbol,
                                 datatype=psydata_type)
@@ -311,18 +301,18 @@ class PSyDataNode(Statement):
 
     # -------------------------------------------------------------------------
     def add_psydata_class_prefix(self, symbol):
-        '''Returns a string with the class-string as prefix, e.g. if the
-        class string is "profile", then the symbol "PSyDataType" will
-        become "profilePSyDataType". Typically the class_string will
+        '''Returns a string prefixed with the class-specific prefix, e.g. if
+        the prefix string is "profile_", then the symbol "PSyDataType" will
+        become "profile_PSyDataType". Typically the _prefix will
         contain a trailing "_".
 
-        :param str symbol: the symbol name to prefix with the class string.
+        :param str symbol: the symbol name to add the prefix to.
 
         :returns: the symbol name with the class string as prefix.
         :rtype: str
 
         '''
-        return self._class_string + symbol
+        return self._prefix + symbol
 
     # -------------------------------------------------------------------------
     @property
@@ -354,6 +344,25 @@ class PSyDataNode(Statement):
             ["{0}End[var={1}]".format(self._text_name, self._var_name)]
 
         return "\n".join(return_list)
+
+    # -------------------------------------------------------------------------
+    @property
+    def type_name(self):
+        '''
+        :returns: the name of the Fortran derived type associated with this \
+                  PSyData object.
+        :rtype: str
+        '''
+        return self.add_psydata_class_prefix("PSyDataType")
+
+    # -------------------------------------------------------------------------
+    @property
+    def fortran_module(self):
+        '''
+        returns: name of the PSyData interface Fortran module.
+        :rtype: str
+        '''
+        return self.add_psydata_class_prefix("psy_data_mod")
 
     # -------------------------------------------------------------------------
     @property
@@ -451,11 +460,10 @@ class PSyDataNode(Statement):
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
         use = UseGen(parent, self.fortran_module, only=True,
-                     funcnames=[sym.name for sym in self.reserved_symbols])
+                     funcnames=[sym.name for sym in self.imported_symbols])
         parent.add(use)
         var_decl = TypeDeclGen(parent,
-                               datatype=self.add_psydata_class_prefix
-                               ("PSyDataType"),
+                               datatype=self.type_name,
                                entity_decls=[self._var_name],
                                save=True, target=True)
         parent.add(var_decl)
@@ -613,7 +621,7 @@ class PSyDataNode(Statement):
             reader = FortranStringReader(
                 "use {0}, only: {1}"
                 .format(self.add_psydata_class_prefix("psy_data_mod"),
-                        self.add_psydata_class_prefix("PSyDataType")))
+                        self.type_name))
             # Tell the reader that the source is free format
             reader.set_format(FortranFormat(True, False))
             use = Fortran2003.Use_Stmt(reader)
@@ -628,7 +636,7 @@ class PSyDataNode(Statement):
                 if isinstance(node, Fortran2003.Name):
                     text = str(node).lower()
                     # Check for the symbols we import from the PSyData module
-                    for symbol in self.reserved_symbols:
+                    for symbol in self.imported_symbols:
                         if text == symbol.name.lower():
                             raise NotImplementedError(
                                 "Cannot add PSyData calls to '{0}' because it "
@@ -677,8 +685,7 @@ class PSyDataNode(Statement):
 
         # Create a variable for this PSyData region
         reader = FortranStringReader(
-            "type({0}), target, save :: {1}"
-            .format(self.add_psydata_class_prefix("PSyDataType"), var_name))
+            "type({0}), target, save :: {1}".format(self.type_name, var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         decln = Fortran2003.Type_Declaration_Stmt(reader)

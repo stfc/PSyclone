@@ -54,13 +54,13 @@ def test_psy_data_node_constructor():
     ''' Check that we can construct a PSyDataNode and that any options are
     picked up correctly. '''
     psy_node = PSyDataNode()
-    assert psy_node._class_string == ""
+    assert psy_node._prefix == ""
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
     assert psy_node.use_stmt == ""
     psy_node = PSyDataNode(options={"prefix": "profile"})
-    assert psy_node._class_string == "profile_"
+    assert psy_node._prefix == "profile_"
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None

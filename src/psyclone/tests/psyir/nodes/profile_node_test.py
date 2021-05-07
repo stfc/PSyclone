@@ -60,7 +60,7 @@ def teardown_function():
 def test_profile_node_constructor():
     ''' Basic checks for the ProfileNode constructor. '''
     pnode = ProfileNode()
-    assert pnode._class_string == "profile_"
+    assert pnode._prefix == "profile_"
     assert pnode._psy_data_symbol_with_prefix == "profile_psy_data"
 
 

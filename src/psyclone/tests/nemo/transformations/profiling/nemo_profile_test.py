@@ -483,19 +483,19 @@ def test_profiling_mod_name_clash(parser):
 def test_profiling_symbol_clash(parser, monkeypatch):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with any of the symbols we 'use' from profile_mode. '''
-    for sym in PSyDataNode._psydata_symbols:
+    for sym in ["PSyDataType", "psy_data_mod"]:
         psy, schedule = get_nemo_schedule(
             parser,
             "program my_test\n"
             "  real :: my_array(3,3)\n"
             "  integer :: {0}\n"
             "  my_array(:,:) = 0.0\n"
-            "end program my_test\n".format("profile_"+sym[0]))
+            "end program my_test\n".format("profile_"+sym))
         with pytest.raises(TransformationError) as err:
             PTRANS.apply(schedule.children[0])
         assert ("Cannot add PSyData calls because there is already "
                 "a symbol named '{0}' which clashes with one of those used "
-                "by the PSyclone PSyData API.".format("profile_"+sym[0])
+                "by the PSyclone PSyData API.".format("profile_"+sym)
                 in str(err.value))
 
 
