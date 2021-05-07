@@ -41,6 +41,7 @@ from __future__ import absolute_import
 import re
 import pytest
 from psyclone.errors import InternalError, GenerationError
+from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
@@ -61,6 +62,8 @@ def test_psy_data_node_constructor():
     assert psy_node.use_stmt == ""
     psy_node = PSyDataNode(options={"prefix": "profile"})
     assert psy_node._prefix == "profile_"
+    assert psy_node.fortran_module == "profile_psy_data_mod"
+    assert psy_node.type_name == "profile_PSyDataType"
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
@@ -271,7 +274,6 @@ def test_psy_data_node_options():
     data_node = schedule[0].loop_body[0]
     assert isinstance(data_node, PSyDataNode)
 
-    from psyclone.f2pygen import ModuleGen
     # 1) Test that the listed variables will appear in the list
     # ---------------------------------------------------------
     mod = ModuleGen(None, "test")

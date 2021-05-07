@@ -453,13 +453,13 @@ def test_profiling_missing_end(parser):
 def test_profiling_mod_use_clash(parser):
     ''' Check that we abort cleanly if we encounter a 'use' of a module that
     clashes with the one we would 'use' for the profiling API. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program the_clash\n"
-                                      "  use profile_psy_data_mod, only: "
-                                      "some_var\n"
-                                      "  real :: my_array(20,10)\n"
-                                      "  my_array(:,:) = 0.0\n"
-                                      "end program the_clash\n")
+    _, schedule = get_nemo_schedule(parser,
+                                    "program the_clash\n"
+                                    "  use profile_psy_data_mod, only: "
+                                    "some_var\n"
+                                    "  real :: my_array(20,10)\n"
+                                    "  my_array(:,:) = 0.0\n"
+                                    "end program the_clash\n")
     with pytest.raises(TransformationError) as err:
         PTRANS.apply(schedule.children[0])
     assert ("Cannot add PSyData calls because there is already a symbol "
@@ -469,22 +469,22 @@ def test_profiling_mod_use_clash(parser):
 def test_profiling_mod_name_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with the name of the profiling API module. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program profile_psy_data_mod\n"
-                                      "  real :: my_array(3,3)\n"
-                                      "  my_array(:,:) = 0.0\n"
-                                      "end program profile_psy_data_mod\n")
+    _, schedule = get_nemo_schedule(parser,
+                                    "program profile_psy_data_mod\n"
+                                    "  real :: my_array(3,3)\n"
+                                    "  my_array(:,:) = 0.0\n"
+                                    "end program profile_psy_data_mod\n")
     with pytest.raises(TransformationError) as err:
         PTRANS.apply(schedule.children[0])
     assert ("Cannot add PSyData calls because there is already a symbol "
             "named 'profile_psy_data_mod' which clashes " in str(err.value))
 
 
-def test_profiling_symbol_clash(parser, monkeypatch):
+def test_profiling_symbol_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with any of the symbols we 'use' from profile_mode. '''
     for sym in ["PSyDataType", "psy_data_mod"]:
-        psy, schedule = get_nemo_schedule(
+        _, schedule = get_nemo_schedule(
             parser,
             "program my_test\n"
             "  real :: my_array(3,3)\n"

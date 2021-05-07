@@ -302,8 +302,8 @@ class PSyDataNode(Statement):
     # -------------------------------------------------------------------------
     def add_psydata_class_prefix(self, symbol):
         '''Returns a string prefixed with the class-specific prefix, e.g. if
-        the prefix string is "profile_", then the symbol "PSyDataType" will
-        become "profile_PSyDataType". Typically the _prefix will
+        the prefix string is "profile", then the symbol "PSyDataType" will
+        become "profilePSyDataType". Typically the _prefix will
         contain a trailing "_".
 
         :param str symbol: the symbol name to add the prefix to.
@@ -359,7 +359,7 @@ class PSyDataNode(Statement):
     @property
     def fortran_module(self):
         '''
-        returns: name of the PSyData interface Fortran module.
+        :returns: name of the PSyData interface Fortran module.
         :rtype: str
         '''
         return self.add_psydata_class_prefix("psy_data_mod")
