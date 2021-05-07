@@ -42,9 +42,10 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.configuration import Config
+from psyclone.psyir.symbols import DeferredType
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -187,12 +188,13 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIntAPlusXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = a + X where 'a' is an integer scalar and X and Y
     are integer-valued fields. Test with and without annexed dofs being
     computed as this affects the generated code.
+    Also tests the lower_to_language_level() method.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -204,7 +206,7 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
+    kern = first_invoke.schedule[0].loop_body[0]
     assert str(kern) == "Built-in: int_a_plus_X (integer-valued fields)"
     # Test code generation
     code = str(psy.gen)
@@ -221,6 +223,17 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        # Check the type of the scalar - it will be of DeferredType
+        loop = first_invoke.schedule[0]
+        scalar = loop.scope.symbol_table.lookup("a")
+        assert isinstance(scalar.datatype, DeferredType)
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f2, 1\n"
+                "  f2_proxy%data(df) = a + f1_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output_dm_2 = (
             "      !\n"

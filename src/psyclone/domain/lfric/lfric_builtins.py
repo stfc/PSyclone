@@ -500,7 +500,7 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # Get symbols for each of the field (proxy) arguments.
+        # Get symbols for each of the arguments.
         arg_symbols = self.get_argument_symbols()
 
         idx_sym = self.get_dof_loop_index_symbol()
@@ -1541,6 +1541,8 @@ class LFRicIntAPlusXKern(LFRicAPlusXKern):
     equivalent `LFRicAPlusXKern`.
 
     '''
+    #: Override the default kind to use for the kernel arguments. This
+    #: allows the base lower_to_language_level() method to be reused.
     default_kind = "i_def"
 
     def __str__(self):
