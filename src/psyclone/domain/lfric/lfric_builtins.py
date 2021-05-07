@@ -46,7 +46,7 @@ import six
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.symbols import ContainerSymbol, TypeSymbol, DeferredType,\
-    GlobalInterface, DataSymbol, INTEGER_SINGLE_TYPE
+    GlobalInterface, DataSymbol, INTEGER_SINGLE_TYPE, REAL_DOUBLE_TYPE
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
     BinaryOperation
 from psyclone.parse.utils import ParseError
@@ -342,11 +342,11 @@ class LFRicBuiltIn(BuiltIn):
 
     def get_field_proxy_type_symbol(self):
         '''
-        Finds or creates the field_mod Container from which the
-        field_proxy_type is imported.
+        Finds or creates the get_field_proxy_type_symbol. This is imported
+        from the field_mod Container.
 
-        :returns: the symbol for the field_mod module.
-        :rtype: :py:class:`psyclone.psyir.nodes.ContainerSymbol`
+        :returns: the symbol for the field_proxy_type.
+        :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
 
         '''
         table = self.scope.symbol_table
@@ -382,6 +382,41 @@ class LFRicBuiltIn(BuiltIn):
         return table.symbol_from_tag(tag="dof_loop_idx", root_name="df",
                                      symbol_type=DataSymbol,
                                      datatype=INTEGER_SINGLE_TYPE)
+
+    def get_argument_symbols(self):
+        '''
+        Finds or creates the symbols representing the arguments to this
+        Builtin kernel.
+
+        '''
+        table = self.scope.symbol_table
+        fld_proxy_type = self.get_field_proxy_type_symbol()
+
+        arg_symbols = []
+        for arg in self._arguments.args:
+            if arg.is_scalar:
+                scalar_name = self._arguments.args[1].name
+                try:
+                    scalar_sym = table.lookup(scalar_name)
+                except KeyError:
+                    # The scalar argument to this builtin is double precision
+                    scalar_sym = table.new_symbol(scalar_name,
+                                                  symbol_type=DataSymbol,
+                                                  datatype=REAL_DOUBLE_TYPE)
+                arg_symbols.append(scalar_sym)
+
+            elif arg.is_field:
+                try:
+                    sym = table.lookup(arg.proxy_name)
+                except KeyError:
+                    sym = table.new_symbol(arg.proxy_name,
+                                           symbol_type=DataSymbol,
+                                           datatype=fld_proxy_type)
+                arg_symbols.append(sym)
+
+            else:
+                raise NotImplementedError("blah")
+        return arg_symbols
 
 # ******************************************************************* #
 # ************** Built-ins for real-valued fields ******************* #
@@ -423,20 +458,8 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        table = self.scope.symbol_table
-        # Find or create the Container from which the field_proxy_type is
-        # imported.
-        fld_proxy_type = self.get_field_proxy_type_symbol()
-
         # Get symbols for each of the field (proxy) arguments.
-        arg_symbols = []
-        for arg in self._arguments.args[0:3]:
-            try:
-                sym = table.lookup(arg.proxy_name)
-            except KeyError:
-                sym = table.new_symbol(arg.proxy_name, symbol_type=DataSymbol,
-                                       datatype=fld_proxy_type)
-            arg_symbols.append(sym)
+        arg_symbols = self.get_argument_symbols()
 
         idx_sym = self.get_dof_loop_index()
 
@@ -537,6 +560,29 @@ class LFRicAPlusXKern(LFRicBuiltIn):
         field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name2,
                              rhs=scalar_name + " + " + field_name1))
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get symbols for each of the kernel arguments.
+        arg_symbols = self.get_argument_symbols()
+
+        idx_sym = self.get_dof_loop_index()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar + proxy1%data(df)
+        lhs = StructureReference.create(arg_symbols[0],
+                                        [("data", [Reference(idx_sym)])])
+        arg2 = StructureReference.create(arg_symbols[2],
+                                         [("data", [Reference(idx_sym)])])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     Reference(arg_symbols[1]), arg2)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncAPlusXKern(LFRicBuiltIn):
