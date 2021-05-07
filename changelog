@@ -6,6 +6,10 @@
         Signature rather than just the symbol name (in preparation for
         supporting derived types/structures).
 
+        3) PR #1216 for #1188. Adds a FortranReader PSyIR frontend.
+
+        4) PR #1217 towards #1210. Adds raising transformations for NEMO.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

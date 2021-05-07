@@ -986,7 +986,7 @@ class InvokeSchedule(Routine):
         :rtype: str
         '''
         return "{0}[invoke='{1}']".format(
-            self.coloured_name(colour), self.invoke.name)
+            self.coloured_name(colour), self.name)
 
     def __str__(self):
         result = self.coloured_name(False) + ":\n"
@@ -3129,8 +3129,8 @@ class CodedKern(Kern):
             return self._fp2_ast
         # Use the fparser1 AST to generate Fortran source
         fortran = self._module_code.tofortran()
-        # Create an fparser2 Fortran2003 parser
-        my_parser = parser.ParserFactory().create()
+        # Create an fparser2 Fortran2008 parser
+        my_parser = parser.ParserFactory().create(std="f2008")
         # Parse that Fortran using our parser
         reader = FortranStringReader(fortran)
         self._fp2_ast = my_parser(reader)

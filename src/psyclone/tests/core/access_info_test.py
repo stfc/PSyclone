@@ -44,7 +44,6 @@ from psyclone.core import AccessInfo, Signature, SingleVariableAccessInfo, \
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node
-from psyclone.tests.utilities import create_schedule
 
 
 def test_access_info():
@@ -270,10 +269,9 @@ def test_variables_access_info_merge():
 
 
 # -----------------------------------------------------------------------------
-def test_constructor():
+def test_constructor(fortran_reader):
     '''Test the optional constructor parameter (single node and list
     of nodes).'''
-
     code = '''module test
         contains
         subroutine tmp()
@@ -282,7 +280,7 @@ def test_constructor():
           c = a*b
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
+    schedule = fortran_reader.psyir_from_source(code).children[0]
     node1 = schedule[0]
     node2 = schedule[1]
     vai1 = VariablesAccessInfo(node1)
@@ -307,7 +305,7 @@ def test_constructor():
 
 
 # -----------------------------------------------------------------------------
-def test_derived_type_scalar():
+def test_derived_type_scalar(fortran_reader):
     '''This function tests the handling of derived scalartypes.
     '''
 
@@ -321,7 +319,7 @@ def test_derived_type_scalar():
           a%b = b%c/c%d%e
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
+    schedule = fortran_reader.psyir_from_source(code).children[0]
     node1 = schedule[0]
     vai1 = VariablesAccessInfo(node1)
     assert isinstance(node1, Assignment)
@@ -364,7 +362,7 @@ def to_fortran(writer, index_expression):
                           ("a(k)%b(j)%c", [["k"], ["j"], []]),
                           ("a(k)%b(j)%c(i)", [["k"], ["j"], ["i"]])
                           ])
-def test_derived_type_array(array, indices, fort_writer):
+def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
     '''This function tests the handling of derived array types.
     '''
     code = '''module test
@@ -378,7 +376,7 @@ def test_derived_type_array(array, indices, fort_writer):
         end subroutine tmp
         end module test'''.format(array)
 
-    schedule = create_schedule(code, "tmp")
+    schedule = fortran_reader.psyir_from_source(code).children[0]
     node1 = schedule[0]
     vai1 = VariablesAccessInfo(node1)
     assert isinstance(node1, Assignment)
@@ -388,4 +386,4 @@ def test_derived_type_array(array, indices, fort_writer):
     # expression to a list of list of strings to make this easier:
     sig = Signature(("a", "b", "c"))
     access = vai1[sig][0]
-    assert to_fortran(fort_writer, access.indices) == indices
+    assert to_fortran(fortran_writer, access.indices) == indices
