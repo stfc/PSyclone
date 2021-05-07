@@ -46,6 +46,7 @@ import pytest
 
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes import Loop
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
@@ -393,11 +394,15 @@ def test_lfricbuiltfactory_str():
 # ------------- Adding (scaled) real fields --------------------------------- #
 
 
-def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicXPlusYKern returns the expected
-    string and 2) we generate correct code for the built-in Z = X + Y
-    where X and Y are real-valued fields. Also check that we generate correct
-    bounds when Config.api_conf(API)._compute_annexed_dofs is False and True.
+def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that:
+    1) the str method of LFRicXPlusYKern returns the expected
+       string;
+    2) we generate correct code for the built-in Z = X + Y
+       where X and Y are real-valued fields;
+    3) that we generate correct bounds when
+       Config.api_conf(API)._compute_annexed_dofs is False and True;
+    4) that the lower_to_language_level() method works as expected.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -411,6 +416,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Add real-valued fields"
+
     # Test code generation
     code = str(psy.gen)
 
@@ -441,6 +447,15 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower-to-language method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f3, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      !\n"

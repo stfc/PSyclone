@@ -43,6 +43,10 @@
 from __future__ import absolute_import
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
+from psyclone.psyir.symbols import ContainerSymbol, TypeSymbol, DeferredType,\
+    GlobalInterface, DataSymbol, INTEGER_SINGLE_TYPE
+from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
+    BinaryOperation
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.f2pygen import AssignGen
@@ -366,6 +370,55 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name3,
                              rhs=field_name1 + " + " + field_name2))
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        table = self.scope.symbol_table
+        # Find or create the Container from which the field_proxy_type is
+        # imported.
+        try:
+            fld_mod_container = table.lookup("field_mod")
+        except KeyError:
+            fld_mod_container = ContainerSymbol("field_mod")
+            table.add(fld_mod_container)
+        # Find or create the TypeSymbol for the field_proxy_type.
+        try:
+            fld_proxy_type = table.lookup("field_proxy_type")
+        except KeyError:
+            fld_proxy_type = TypeSymbol(
+                "field_proxy_type", DeferredType(),
+                interface=GlobalInterface(fld_mod_container))
+            table.add(fld_proxy_type)
+        # Get symbols for each of the field (proxy) arguments.
+        arg_symbols = []
+        for arg in self._arguments.args[0:3]:
+            try:
+                sym = table.lookup(arg.proxy_name)
+            except KeyError:
+                sym = table.new_symbol(arg.proxy_name, symbol_type=DataSymbol,
+                                       datatype=fld_proxy_type)
+            arg_symbols.append(sym)
+        # The symbol representing the loop index is created in the DynLoop
+        # constructor.
+        idx_sym = table.symbol_from_tag(tag="dof_loop_idx", root_name="df",
+                                        symbol_type=DataSymbol,
+                                        datatype=INTEGER_SINGLE_TYPE)
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
+        lhs = StructureReference.create(arg_symbols[0],
+                                        [("data", [Reference(idx_sym)])])
+        arg1 = StructureReference.create(arg_symbols[1],
+                                         [("data", [Reference(idx_sym)])])
+        arg2 = StructureReference.create(arg_symbols[2],
+                                         [("data", [Reference(idx_sym)])])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, arg1, arg2)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncXPlusYKern(LFRicBuiltIn):
@@ -1425,7 +1478,7 @@ class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
 
 class LFRicIntATimesXKern(LFRicATimesXKern):
     ''' Multiply each element of the first, integer-valued, field, `X`,
-     by an integer scalar, `a`, and return the result as a second,
+    by an integer scalar, `a`, and return the result as a second,
     integer-valued, field `Y` (`Y = a*X`).
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `LFRicATimesXKern`.
@@ -1616,3 +1669,56 @@ BUILTIN_MAP_CAPITALISED.update(INT_BUILTIN_MAP_CAPITALISED)
 # comparison purposes. This does not enforce case sensitivity to Fortran
 # built-in names.
 BUILTIN_MAP = get_lowercase_builtin_map(BUILTIN_MAP_CAPITALISED)
+
+
+# For AutoAPI documentation generation.
+__all__ = ['LFRicBuiltInCallFactory',
+           'LFRicBuiltIn',
+           'LFRicXPlusYKern',
+           'LFRicIncXPlusYKern',
+           'LFRicAPlusXKern',
+           'LFRicIncAPlusXKern',
+           'LFRicAXPlusYKern',
+           'LFRicIncAXPlusYKern',
+           'LFRicIncXPlusBYKern',
+           'LFRicAXPlusBYKern',
+           'LFRicIncAXPlusBYKern',
+           'LFRicAXPlusAYKern',
+           'LFRicXMinusYKern',
+           'LFRicIncXMinusYKern',
+           'LFRicAXMinusYKern',
+           'LFRicXMinusBYKern',
+           'LFRicIncXMinusBYKern',
+           'LFRicAXMinusBYKern',
+           'LFRicXTimesYKern',
+           'LFRicIncXTimesYKern',
+           'LFRicIncAXTimesYKern',
+           'LFRicATimesXKern',
+           'LFRicIncATimesXKern',
+           'LFRicXDividebyYKern',
+           'LFRicIncXDividebyYKern',
+           'LFRicADividebyXKern',
+           'LFRicIncADividebyXKern',
+           'LFRicIncXPowrealAKern',
+           'LFRicIncXPowintNKern',
+           'LFRicSetvalCKern',
+           'LFRicSetvalXKern',
+           'LFRicXInnerproductYKern',
+           'LFRicXInnerproductXKern',
+           'LFRicSumXKern',
+           'LFRicSignXKern',
+           'LFRicIntXKern',
+           'LFRicIntXPlusYKern',
+           'LFRicIntIncXPlusYKern',
+           'LFRicIntAPlusXKern',
+           'LFRicIntIncAPlusXKern',
+           'LFRicIntXMinusYKern',
+           'LFRicIntIncXMinusYKern',
+           'LFRicIntXTimesYKern',
+           'LFRicIntIncXTimesYKern',
+           'LFRicIntATimesXKern',
+           'LFRicIntIncATimesXKern',
+           'LFRicIntSetvalCKern',
+           'LFRicIntSetvalXKern',
+           'LFRicIntSignXKern',
+           'LFRicRealXKern']
