@@ -1224,7 +1224,8 @@ class Directive(Statement):
     @property
     def dag_name(self):
         ''' return the base dag name for this node '''
-        return "directive_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "directive_" + str(position)
 
     def _add_region(self, start_text, end_text=None, data_movement=None):
         '''
@@ -1364,7 +1365,8 @@ class ACCDirective(Directive):
         :returns: Name of corresponding node in DAG
         :rtype: str
         '''
-        return "ACC_directive_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_directive_" + str(position)
 
     def validate_global_constraints(self):
         '''
@@ -1426,7 +1428,8 @@ class ACCEnterDataDirective(ACCDirective):
         :returns: the name to use for this Node in a DAG
         :rtype: str
         '''
-        return "ACC_data_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_data_" + str(position)
 
     def gen_code(self, parent):
         '''Generate the elements of the f2pygen AST for this Node in the
@@ -1512,7 +1515,8 @@ class ACCParallelDirective(ACCDirective):
         :returns: the name to use for this Node in a DAG
         :rtype: str
         '''
-        return "ACC_parallel_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_parallel_" + str(position)
 
     def validate_global_constraints(self):
         '''
@@ -1681,7 +1685,8 @@ class ACCLoopDirective(ACCDirective):
         :returns: the name to use for this Node in a DAG
         :rtype: str
         '''
-        return "ACC_loop_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_loop_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -1812,7 +1817,8 @@ class OMPDirective(Directive):
         :returns: the name to use in a dag for this node
         :rtype: str
         '''
-        return "OMP_directive_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_directive_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -1854,7 +1860,8 @@ class OMPParallelDirective(OMPDirective):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        return "OMP_parallel_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_parallel_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -2111,7 +2118,8 @@ class OMPDoDirective(OMPDirective):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        return "OMP_do_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_do_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -2259,7 +2267,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        return "OMP_parallel_do_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_parallel_do_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -2959,8 +2968,8 @@ class CodedKern(Kern):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        return "kernel_{0}_{1}".format(self.name,
-                                       str(self.abs_position_in_routine))
+        _, position = self._find_position(self.ancestor(Routine))
+        return "kernel_{0}_{1}".format(self.name, str(position))
 
     @property
     def module_inline(self):
@@ -3546,8 +3555,8 @@ class BuiltIn(Kern):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        return "builtin_{0}_".format(self.name) + \
-            str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "builtin_{0}_{1}".format(self.name, str(position))
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
@@ -4464,7 +4473,8 @@ class ACCKernelsDirective(ACCDirective):
         :returns: the name to use for this node in a dag.
         :rtype: str
         '''
-        return "ACC_kernels_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_kernels_" + str(position)
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -4575,7 +4585,8 @@ class ACCDataDirective(ACCDirective):
         :returns: the name to use in a dag for this node.
         :rtype: str
         '''
-        return "ACC_data_" + str(self.abs_position_in_routine)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_data_" + str(position)
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes

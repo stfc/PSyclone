@@ -41,6 +41,7 @@
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.node import colored
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
@@ -299,11 +300,12 @@ class Loop(Statement):
         :rtype: string
 
         '''
+        _, position = self._find_position(self.ancestor(Routine))
+
         if self.loop_type:
-            name = "loop_[{0}]_".format(self.loop_type) + \
-                   str(self.abs_position_in_routine)
+            name = "loop_[{0}]_{1}".format(self.loop_type, str(position))
         else:
-            name = "loop_" + str(self.abs_position_in_routine)
+            name = "loop_" + str(position)
         return name
 
     @property

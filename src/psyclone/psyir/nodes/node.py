@@ -622,7 +622,7 @@ class Node(object):
     @property
     def dag_name(self):
         '''Return the base dag name for this node.'''
-        return "node_" + str(self.abs_position_in_routine)
+        return "node_" + str(self.abs_position)
 
     @property
     def args(self):
@@ -897,52 +897,44 @@ class Node(object):
     @property
     def abs_position(self):
         '''
-        Find a Node's absolute position in the tree (starting with
-        START_POSITION if it is the root). Needs to be computed dynamically
-        from the root as its position may change.
+        Find a Node's absolute position in the tree (starting with 0 if
+        it is the root). Needs to be computed dynamically from the
+        starting position (0) as its position may change.
 
-        :returns: absolute position of a Node in the tree.
+        :returns: absolute position of a Node in the tree
         :rtype: int
 
+        :raises InternalError: if the absolute position cannot be found
         '''
-        if self.root == self:
+        from psyclone.psyir.nodes import Schedule
+        if self.root == self and isinstance(self.root, Schedule):
             return self.START_POSITION
-        _, position = self._find_position(self.root.children,
-                                          self.START_POSITION)
+        found, position = self._find_position(self.root.children,
+                                              self.START_POSITION)
+        if not found:
+            raise InternalError("Error in search for Node position "
+                                "in the tree")
         return position
 
-    @property
-    def abs_position_in_routine(self):
-        '''
-        Find a Node's absolute position in the routine it belongs (starting
-        with START_POSITION if it is the routine node). Needs to be computed
-        dynamically from the ancestor routine as its position may change.
-
-        :returns: absolute position of a Node in a Routine.
-        :rtype: int
-
-        '''
-        # Import outside top-level to avoid circular dependencies.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.routine import Routine
-
-        parent_routine = self.ancestor(Routine)
-        if parent_routine:
-            return self.abs_position - parent_routine.abs_position
-
-        return self.abs_position
-
-    def _find_position(self, children, position):
+    def _find_position(self, children, position=None):
         '''
         Recurse through the tree depth first returning position of
         a Node if found.
-        :param children: list of Nodes which are children of this Node
+
+        :param children: list of Nodes which are children of this Node.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :returns: position of the Node in the tree
-        :rtype: int
-        :raises InternalError: if the starting position is < 0
+        :param int position: start counting from this position. Defaults to \
+            START_POSITION.
+
+        :returns: if the self has been found in the provided children list \
+            and its relative position.
+        :rtype: bool, int
+
+        :raises InternalError: if the starting position is < 0.
         '''
-        if position < self.START_POSITION:
+        if position is None:
+            position = self.START_POSITION
+        elif position < self.START_POSITION:
             raise InternalError(
                 "Search for Node position started from {0} "
                 "instead of {1}.".format(position, self.START_POSITION))

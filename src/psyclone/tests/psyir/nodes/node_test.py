@@ -148,9 +148,9 @@ def test_node_depth():
 
 def test_node_position():
     '''
-    Test that the Node class position, abs_position and abs_position_in_routine
-    methods return the correct value for a Node in a tree. The start position
-    is set to 0. Relative position starts from 0 and absolute from 1.
+    Test that the Node class position and abs_position methods return the
+    correct value for a Node in a tree. The start position is set to 0.
+    Relative position starts from 0 and absolute from 1.
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
@@ -166,7 +166,6 @@ def test_node_position():
     # Assert that relative and absolute positions return correct values
     assert child.position == 6
     assert child.abs_position == 7
-    assert child.abs_position_in_routine == 7
     # Insert two more levels of nodes in top of the root
     previous_root = child.root
     container1 = Container("test1")
@@ -177,7 +176,6 @@ def test_node_position():
     # the absolute position should increase by 2.
     assert child.position == 6
     assert child.abs_position == 9
-    assert child.abs_position_in_routine == 7
     # Test InternalError for _find_position with an incorrect position
     with pytest.raises(InternalError) as excinfo:
         _, _ = child._find_position(child.root.children, -2)
