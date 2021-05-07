@@ -442,9 +442,9 @@ class Loop(Statement):
         # will automatically declare the loop variables to be private
         # (write access before read)
         var_accesses.add_access(Signature(self.variable.name),
-                                AccessType.WRITE, self)
+                                AccessType.WRITE, self, [[]])
         var_accesses.add_access(Signature(self.variable.name),
-                                AccessType.READ, self)
+                                AccessType.READ, self, [[]])
 
         # Accesses of the start/stop/step expressions
         self.start_expr.reference_accesses(var_accesses)
