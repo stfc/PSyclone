@@ -235,11 +235,11 @@ class PSyDataTrans(RegionTrans):
         # Get useful references
         parent = node_list[0].parent
         position = node_list[0].position
-        schedule = node_list[0].root
+        root = node_list[0].root
 
-        # create a memento of the schedule and the proposed
+        # create a memento of the root and the proposed
         # transformation
-        keep = Memento(schedule, self)
+        keep = Memento(root, self)
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
@@ -258,4 +258,4 @@ class PSyDataTrans(RegionTrans):
                                          options=options)
         parent.addchild(psy_data_node, position)
 
-        return schedule, keep
+        return root, keep

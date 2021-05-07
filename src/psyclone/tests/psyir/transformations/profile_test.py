@@ -707,7 +707,7 @@ def test_region():
     prt.apply(schedule[1].profile_body[1])
     prt.apply(schedule)
     result = str(invoke.gen())
-    return  # FIXME
+    print(result)
     assert ("CALL profile_psy_data_3%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r0\", 0, 0)" in result)
     assert ("CALL profile_psy_data%PreStart(\"multi_functions_multi_"

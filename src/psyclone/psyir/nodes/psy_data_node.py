@@ -45,6 +45,7 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (SymbolTable, TypeSymbol, DataSymbol,
                                     ContainerSymbol, DeferredType,
                                     UnknownFortranType, GlobalInterface)
@@ -133,8 +134,8 @@ class PSyDataNode(Statement):
 
         # Get or create a symbol table so we can avoid name clashes
         # when creating variables
-        if parent and hasattr(self.scope, 'symbol_table'):
-            symtab = self.scope.symbol_table
+        if parent and self.ancestor(Routine):
+            symtab = self.ancestor(Routine).symbol_table
         else:
             # FIXME: This may not be a good solution
             symtab = SymbolTable()
