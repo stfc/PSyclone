@@ -811,11 +811,10 @@ class Node(object):
         if not isinstance(self.parent, Schedule) or index is None:
             result = "{0}{1}".format(self.indent(indent),
                                      self.node_str(colour=True))
-            print(six.text_type(result))
         else:
             result = "{0}{1}: {2}".format(self.indent(indent), index,
                                           self.node_str(colour=True))
-            print(six.text_type(result))
+        print(six.text_type(result))
         for idx, entity in enumerate(self._children):
             entity.view(indent=indent + 1, index=idx)
 

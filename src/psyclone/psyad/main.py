@@ -37,10 +37,9 @@
 support. Transforms an LFRic tangent linear kernel to its adjoint.
 
 '''
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import argparse
 import logging
-from io import StringIO
 import sys
 
 import six
@@ -48,7 +47,7 @@ import six
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.generator import write_unicode_file
-from psyclone.psyad import generate
+from psyclone.psyad import generate_adjoint
 
 
 def main(args):
@@ -59,6 +58,8 @@ def main(args):
                       been invoked with.
 
     '''
+    logger = logging.getLogger(__name__)
+
     parser = argparse.ArgumentParser(
         description="Run the PSyclone adjoint code generator on an LFRic "
         "tangent-linear kernel file")
@@ -66,7 +67,7 @@ def main(args):
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
     parser.add_argument('-oad', help='filename for the transformed code')
-    parser.add_argument('filename', help='LFRic tangent-linear source code')
+    parser.add_argument('filename', help='LFRic tangent-linear kernel source')
 
     args = parser.parse_args(args)
 
@@ -75,7 +76,7 @@ def main(args):
 
     # TL Fortran code
     filename = args.filename
-    logging.info("Reading file %s", filename)
+    logger.info("Reading kernel file %s", filename)
     with open(filename) as my_file:
         tl_fortran_str = my_file.read()
         tl_fortran_str = six.text_type(tl_fortran_str)
@@ -84,60 +85,45 @@ def main(args):
 
     # AD Fortran code
     if args.oad:
-        logging.info("Writing file %s", args.oad)
+        logger.info("Writing adjoint of kernel to file %s", args.oad)
         write_unicode_file(ad_fortran_str, args.oad)
     else:
-        print(ad_fortran_str)
+        print(ad_fortran_str, file=sys.stdout)
 
 
 def main_str(tl_fortran_str):
     '''Takes an LFRic tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string.
 
-    :param str tl_fortran_str: a string containing the LFRic \
+    :param str tl_fortran_str: Fortran implementation of an LFRic \
         tangent-linear kernel.
 
-    :returns: a string containing the adjoint of the supplied \
-        tangent-linear kernel.
+    :returns: a string containing the Fortran implementation of the \
+        supplied tangent-linear kernel.
+
     :rtype: str
 
     '''
-    logging.debug(tl_fortran_str)
+    logger = logging.getLogger(__name__)
+    logger.debug(tl_fortran_str)
 
     # TL Language-level PSyIR
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
-    with Capturing() as output:
-        tl_psyir.view()
-    logging.debug("\n".join(output))
+
+    # Addressing issue #1238 will allow the view() method to be output
+    # to the logger.
+    # logger.debug(tl_psyir.view())
 
     # TL to AD translation
-    ad_psyir = generate(tl_psyir)
+    ad_psyir = generate_adjoint(tl_psyir)
 
     # AD Fortran code
     writer = FortranWriter()
     adjoint_fortran_str = writer(ad_psyir)
-    logging.debug(adjoint_fortran_str)
+    logger.debug(adjoint_fortran_str)
 
     return adjoint_fortran_str
-
-
-class Capturing(list):
-    '''Utility to capture stdout from a function.'''
-    def __init__(self):
-        super(Capturing, self).__init__()
-        self._stdout = None
-        self._stringio = StringIO()
-
-    def __enter__(self):
-        self._stdout = sys.stdout
-        sys.stdout = self._stringio
-        return self
-
-    def __exit__(self, *args):
-        value = six.text_type(self._stringio.getvalue())
-        self.extend(six.text_type(value.splitlines()))
-        sys.stdout = self._stdout
 
 
 __all__ = ["main", "main_str"]

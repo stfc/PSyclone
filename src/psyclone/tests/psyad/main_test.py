@@ -42,7 +42,6 @@ import logging
 import six
 import pytest
 from psyclone.psyad import main, main_str
-from psyclone.psyad.main import Capturing
 
 # 1: main function
 
@@ -64,7 +63,7 @@ def test_main_h_option(capsys):
         "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
-        "  filename       LFRic tangent-linear source code\n\n"
+        "  filename       LFRic tangent-linear kernel source\n\n"
         "optional arguments:\n"
         "  -h, --help     show this help message and exit\n"
         "  -v, --verbose  increase the verbosity of the output\n"
@@ -108,6 +107,7 @@ def test_main_invalid_filename():
     try:
         FileNotFoundError
     except NameError:
+        # pylint: disable=redefined-builtin
         FileNotFoundError = IOError
     with pytest.raises(FileNotFoundError) as info:
         main(["does_not_exist.f90"])
@@ -170,8 +170,8 @@ def test_main_fileout(tmpdir, capsys):
 
 
 # -v output
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions and some flavours of Python", strict=False)
+#  @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+#                     "github actions and some flavours of Python", strict=False)
 def test_main_verbose(tmpdir, capsys, caplog):
     '''Test that the the main() function outputs additional information if
     the -v flag is set. Actually -v seems to have no effect here as
@@ -194,10 +194,12 @@ def test_main_verbose(tmpdir, capsys, caplog):
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
-    assert "INFO     root:main.py:75 Reading file /" in caplog.text
+    assert ("INFO     psyclone.psyad.main:main.py:80 Reading kernel file /"
+            in caplog.text)
     assert "/tl.f90" in caplog.text
     assert "/tl.f90" in caplog.text
-    assert "INFO     root:main.py:83 Writing file /" in caplog.text
+    assert ("INFO     psyclone.psyad.main:main.py:89 Writing adjoint of "
+            "kernel to file /" in caplog.text)
     assert "/ad.f90" in caplog.text
 
 
@@ -205,8 +207,9 @@ def test_main_verbose(tmpdir, capsys, caplog):
 
 
 # expected output
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions and some flavours of Python", strict=False)
+#  @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+#                     "github actions and some flavours of Python", strict=False)
+
 def test_main_str(caplog):
     '''Test that the main_str() function works as expected including
     logging.
@@ -232,29 +235,8 @@ def test_main_str(caplog):
     with caplog.at_level(logging.DEBUG):
         result = main_str(tl_code)
 
-    assert "DEBUG    root:main.py:101" in caplog.text
+    assert "DEBUG    psyclone.psyad.main:main.py:111" in caplog.text
     assert tl_code in caplog.text
-    assert "DEBUG    root:main.py:108" in caplog.text
-    assert (
-        "Routine[name:'test']\n"
-        "    0: Assignment[]\n"
-        "        Reference[name:'a']\n"
-        "        Literal[value:'0.0', Scalar<REAL, UNDEFINED>]\n"
-        in caplog.text)
-    assert "DEBUG    root:main.py:116" in caplog.text
+    assert "DEBUG    psyclone.psyad.main:main.py:127" in caplog.text
     assert expected in caplog.text
     assert expected in result
-
-
-# Capturing
-def test_capturing():
-    '''Test that the utility Capturing class behaves as expected.'''
-
-    string = six.text_type("hello")
-    with Capturing() as output:
-        print(string)
-    if six.PY2:
-        expected = "[u'hello']"
-    else:
-        expected = "hello"
-    assert expected in "".join(output)

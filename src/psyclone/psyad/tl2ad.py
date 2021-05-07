@@ -40,7 +40,7 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 import logging
 
 
-def generate(tl_psyir):
+def generate_adjoint(tl_psyir):
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
@@ -53,16 +53,18 @@ def generate(tl_psyir):
     :rtype: :py:class:`psyclone.psyir.Node`
 
     '''
+    logger = logging.getLogger(__name__)
+
     # TL LFRic-specific PSyIR
-    logging.debug(
+    logger.debug(
         "Translation from generic PSyIR to LFRic-specific PSyIR should be "
         "done now.")
 
     # Transform from TL to AD
-    logging.debug("Transformation from TL to AD should be done now.")
+    logger.debug("Transformation from TL to AD should be done now.")
     ad_psyir = tl_psyir
 
     return ad_psyir
 
 
-__all__ = ["generate"]
+__all__ = ["generate_adjoint"]

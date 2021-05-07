@@ -39,16 +39,16 @@ within the psyad directory.
 '''
 from __future__ import print_function, absolute_import
 import logging
-import pytest
+import six
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyad import generate
+from psyclone.psyad import generate_adjoint
 
 
-# generate function
-def test_generate():
-    '''Test that the generate() function works as expected.'''
+# generate_adjoint function
+def test_generate_adjoint():
+    '''Test that the generate_adjoint() function works as expected.'''
 
     tl_fortran_str = (
         "program test\n"
@@ -63,17 +63,22 @@ def test_generate():
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
+    ad_psyir = generate_adjoint(tl_psyir)
+
     writer = FortranWriter()
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
 
 
-# generate function logging
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions and some flavours of Python", strict=False)
-def test_generate(caplog):
-    '''Test that logging works as expected in the generate() function.'''
+# generate_adjoint function logging
+#  @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+#                     "github actions and some flavours of Python", strict=False)
 
+def test_generate_adjoint_logging(caplog):
+    '''Test that logging works as expected in the generate_adjoint()
+    function.
+
+    '''
     tl_fortran_str = (
         "program test\n"
         "integer :: a\n"
@@ -88,7 +93,7 @@ def test_generate(caplog):
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
     with caplog.at_level(logging.INFO):
-        ad_psyir = generate(tl_psyir)
+        ad_psyir = generate_adjoint(tl_psyir)
         assert caplog.text == ""
 
     writer = FortranWriter()
@@ -96,13 +101,19 @@ def test_generate(caplog):
     assert expected_ad_fortran_str in ad_fortran_str
 
     with caplog.at_level(logging.DEBUG):
-        ad_psyir = generate(tl_psyir)
+        ad_psyir = generate_adjoint(tl_psyir)
+    # Python2 and 3 report different line numbers
+    if six.PY2:
+        line_number = 60
+    else:
+        line_number = 59
     assert (
-        "DEBUG    root:tl2ad.py:57 Translation from generic PSyIR to "
-        "LFRic-specific PSyIR should be done now." in caplog.text)
+        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:{0} Translation from generic "
+        "PSyIR to LFRic-specific PSyIR should be done now.".format(line_number)
+        in caplog.text)
     assert (
-        "DEBUG    root:tl2ad.py:62 Transformation from TL to AD should be "
-        "done now." in caplog.text)
+        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:64 Transformation from TL to "
+        "AD should be done now." in caplog.text)
 
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
