@@ -345,7 +345,7 @@ class LFRicBuiltIn(BuiltIn):
 
     def get_field_proxy_type_symbol(self):
         '''
-        Finds or creates the get_field_proxy_type_symbol. This is imported
+        Finds or creates the field_proxy_type symbol. This is imported
         from the field_mod Container.
 
         :returns: the symbol for the field_proxy_type.
@@ -456,7 +456,8 @@ class LFRicBuiltIn(BuiltIn):
 
             else:
                 raise NotImplementedError(
-                    "Unsupported Builtin argument type: '{0}'".format(str(arg))
+                    "Unsupported Builtin argument type: '{0}'".format(
+                        str(arg)))
         return arg_symbols
 
 # ******************************************************************* #
