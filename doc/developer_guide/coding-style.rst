@@ -118,7 +118,7 @@ Additional rules that apply:
      the import statements must be sorted alphabetically. If a
      module cannot be import at the top of a file due to a circular
      dependency, a comment must be added to the local import statement,
-     and the corresponding ``pylint`` warning must be disabled, e.g.::
+     and the corresponding pylint warning must be disabled, e.g.::
 
          def my_function():
              ...

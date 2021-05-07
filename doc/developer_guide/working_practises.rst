@@ -232,10 +232,10 @@ being sufficiently isolated from one another.
 
 Gotchas
 -------
-The test utility ``pytest`` will only discover files that either start
+The test utility pytest will only discover files that either start
 or end with "test". The PSyclone convention is to have all files ending
 with "_test.py", e.g. ``constants_test.py``. A name using "tests"
-(plural) will not be automatically discovered or executed by ``pytest``!
+(plural) will not be automatically discovered or executed by pytest!
 
 Note that pytest will not complain if two tests (within a module) have
 the same name - it will just silently ignore one of them! The best way
