@@ -45,7 +45,7 @@ import re
 import pytest
 from psyclone.psyir.nodes.node import (ChildrenList, Node,
                                        _graphviz_digraph_class)
-from psyclone.psyir.nodes import Schedule, Reference, Container, \
+from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     INTEGER_TYPE, REAL_TYPE, SymbolTable
@@ -148,9 +148,9 @@ def test_node_depth():
 
 def test_node_position():
     '''
-    Test that the Node class position and abs_position methods return the
-    correct value for a Node in a tree. The start position is set to 0.
-    Relative position starts from 0 and absolute from 1.
+    Test that the Node class position and abs_position methods return
+    the correct value for a Node in a tree. The start position is
+    set to 0. Relative position starts from 0 and absolute from 1.
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
@@ -166,16 +166,27 @@ def test_node_position():
     # Assert that relative and absolute positions return correct values
     assert child.position == 6
     assert child.abs_position == 7
+
     # Insert two more levels of nodes in top of the root
     previous_root = child.root
     container1 = Container("test1")
     container2 = Container("test2")
     container2.addchild(previous_root)
     container1.addchild(container2)
-    # The relative and absolute_in_routine should still be the same but
-    # the absolute position should increase by 2.
+    # The relative position should still be the same but the absolute position
+    # should increase by 2.
     assert child.position == 6
     assert child.abs_position == 9
+
+    # Check that the _find_position returns the correct distance between itself
+    # and the provided ancestor.
+    _, position = child._find_position(child.ancestor(Routine), 0)
+    assert position == 7
+
+    # If no starting position is provided it starts with START_POSITION=0
+    _, same_position = child._find_position(child.ancestor(Routine))
+    assert same_position == position
+
     # Test InternalError for _find_position with an incorrect position
     with pytest.raises(InternalError) as excinfo:
         _, _ = child._find_position(child.root.children, -2)
