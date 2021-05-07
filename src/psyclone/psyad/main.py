@@ -44,10 +44,8 @@ import sys
 
 import six
 
-from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.generator import write_unicode_file
-from psyclone.psyad import generate_adjoint
+from psyclone.psyad import generate_adjoint_str
 
 
 def main(args):
@@ -81,7 +79,7 @@ def main(args):
         tl_fortran_str = my_file.read()
         tl_fortran_str = six.text_type(tl_fortran_str)
 
-    ad_fortran_str = main_str(tl_fortran_str)
+    ad_fortran_str = generate_adjoint_str(tl_fortran_str)
 
     # AD Fortran code
     if args.oad:
@@ -91,39 +89,4 @@ def main(args):
         print(ad_fortran_str, file=sys.stdout)
 
 
-def main_str(tl_fortran_str):
-    '''Takes an LFRic tangent-linear kernel encoded as a string as input
-    and returns its adjoint encoded as a string.
-
-    :param str tl_fortran_str: Fortran implementation of an LFRic \
-        tangent-linear kernel.
-
-    :returns: a string containing the Fortran implementation of the \
-        supplied tangent-linear kernel.
-
-    :rtype: str
-
-    '''
-    logger = logging.getLogger(__name__)
-    logger.debug(tl_fortran_str)
-
-    # TL Language-level PSyIR
-    reader = FortranReader()
-    tl_psyir = reader.psyir_from_source(tl_fortran_str)
-
-    # Addressing issue #1238 will allow the view() method to be output
-    # to the logger.
-    # logger.debug(tl_psyir.view())
-
-    # TL to AD translation
-    ad_psyir = generate_adjoint(tl_psyir)
-
-    # AD Fortran code
-    writer = FortranWriter()
-    adjoint_fortran_str = writer(ad_psyir)
-    logger.debug(adjoint_fortran_str)
-
-    return adjoint_fortran_str
-
-
-__all__ = ["main", "main_str"]
+__all__ = ["main"]

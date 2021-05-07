@@ -38,6 +38,42 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 
 '''
 import logging
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.backend.fortran import FortranWriter
+
+
+def generate_adjoint_str(tl_fortran_str):
+    '''Takes an LFRic tangent-linear kernel encoded as a string as input
+    and returns its adjoint encoded as a string.
+
+    :param str tl_fortran_str: Fortran implementation of an LFRic \
+        tangent-linear kernel.
+
+    :returns: a string containing the Fortran implementation of the \
+        supplied tangent-linear kernel.
+    :rtype: str
+
+    '''
+    logger = logging.getLogger(__name__)
+    logger.debug(tl_fortran_str)
+
+    # TL Language-level PSyIR
+    reader = FortranReader()
+    tl_psyir = reader.psyir_from_source(tl_fortran_str)
+
+    # Addressing issue #1238 will allow the view() method to be output
+    # to the logger.
+    # logger.debug(tl_psyir.view())
+
+    # TL to AD translation
+    ad_psyir = generate_adjoint(tl_psyir)
+
+    # AD Fortran code
+    writer = FortranWriter()
+    adjoint_fortran_str = writer(ad_psyir)
+    logger.debug(adjoint_fortran_str)
+
+    return adjoint_fortran_str
 
 
 def generate_adjoint(tl_psyir):
@@ -67,4 +103,4 @@ def generate_adjoint(tl_psyir):
     return ad_psyir
 
 
-__all__ = ["generate_adjoint"]
+__all__ = ["generate_adjoint_str", "generate_adjoint"]

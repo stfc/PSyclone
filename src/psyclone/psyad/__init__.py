@@ -35,7 +35,7 @@
 
 '''PSyAD, the PSyclone adjoint generation module.'''
 
-from psyclone.psyad.tl2ad import generate_adjoint
-from psyclone.psyad.main import main, main_str
+from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint
+from psyclone.psyad.main import main
 
-__all__ = ["main", "main_str", "generate_adjoint"]
+__all__ = ["main", "generate_adjoint_str", "generate_adjoint"]

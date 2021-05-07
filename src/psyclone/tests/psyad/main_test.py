@@ -41,9 +41,9 @@ from __future__ import print_function, absolute_import
 import logging
 import six
 import pytest
-from psyclone.psyad import main, main_str
+from psyclone.psyad import main
 
-# 1: main function
+# main function
 
 
 # -h description
@@ -170,8 +170,8 @@ def test_main_fileout(tmpdir, capsys):
 
 
 # -v output
-#  @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-#                     "github actions and some flavours of Python", strict=False)
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
 def test_main_verbose(tmpdir, capsys, caplog):
     '''Test that the the main() function outputs additional information if
     the -v flag is set. Actually -v seems to have no effect here as
@@ -194,49 +194,10 @@ def test_main_verbose(tmpdir, capsys, caplog):
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
-    assert ("INFO     psyclone.psyad.main:main.py:80 Reading kernel file /"
+    assert ("INFO     psyclone.psyad.main:main.py:77 Reading kernel file /"
             in caplog.text)
     assert "/tl.f90" in caplog.text
     assert "/tl.f90" in caplog.text
-    assert ("INFO     psyclone.psyad.main:main.py:89 Writing adjoint of "
+    assert ("INFO     psyclone.psyad.main:main.py:86 Writing adjoint of "
             "kernel to file /" in caplog.text)
     assert "/ad.f90" in caplog.text
-
-
-# 2: main_str function
-
-
-# expected output
-#  @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-#                     "github actions and some flavours of Python", strict=False)
-
-def test_main_str(caplog):
-    '''Test that the main_str() function works as expected including
-    logging.
-
-    '''
-    tl_code = (
-        "program test\n"
-        "integer :: a\n"
-        "a = 0.0\n"
-        "end program test\n")
-    expected = (
-        "program test\n"
-        "  integer :: a\n\n"
-        "  a = 0.0\n\n"
-        "end program test\n")
-
-    with caplog.at_level(logging.INFO):
-        result = main_str(tl_code)
-
-    assert caplog.text == ""
-    assert expected in result
-
-    with caplog.at_level(logging.DEBUG):
-        result = main_str(tl_code)
-
-    assert "DEBUG    psyclone.psyad.main:main.py:111" in caplog.text
-    assert tl_code in caplog.text
-    assert "DEBUG    psyclone.psyad.main:main.py:127" in caplog.text
-    assert expected in caplog.text
-    assert expected in result

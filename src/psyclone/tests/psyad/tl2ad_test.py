@@ -39,14 +39,52 @@ within the psyad directory.
 '''
 from __future__ import print_function, absolute_import
 import logging
+import pytest
 import six
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyad import generate_adjoint
+from psyclone.psyad import generate_adjoint_str, generate_adjoint
 
 
-# generate_adjoint function
+# 1: generate_adjoint_str function
+
+# expected output
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
+def test_generate_adjoint_str(caplog):
+    '''Test that the generate_adjoint_str() function works as expected
+    including logging.
+
+    '''
+    tl_code = (
+        "program test\n"
+        "integer :: a\n"
+        "a = 0.0\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  integer :: a\n\n"
+        "  a = 0.0\n\n"
+        "end program test\n")
+
+    with caplog.at_level(logging.INFO):
+        result = generate_adjoint_str(tl_code)
+
+    assert caplog.text == ""
+    assert expected in result
+
+    with caplog.at_level(logging.DEBUG):
+        result = generate_adjoint_str(tl_code)
+
+    assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:58" in caplog.text
+    assert tl_code in caplog.text
+    assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:74" in caplog.text
+    assert expected in caplog.text
+    assert expected in result
+
+
+# 2: generate_adjoint function
 def test_generate_adjoint():
     '''Test that the generate_adjoint() function works as expected.'''
 
@@ -71,9 +109,8 @@ def test_generate_adjoint():
 
 
 # generate_adjoint function logging
-#  @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-#                     "github actions and some flavours of Python", strict=False)
-
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
 def test_generate_adjoint_logging(caplog):
     '''Test that logging works as expected in the generate_adjoint()
     function.
@@ -94,7 +131,7 @@ def test_generate_adjoint_logging(caplog):
 
     with caplog.at_level(logging.INFO):
         ad_psyir = generate_adjoint(tl_psyir)
-        assert caplog.text == ""
+    assert caplog.text == ""
 
     writer = FortranWriter()
     ad_fortran_str = writer(ad_psyir)
@@ -104,15 +141,15 @@ def test_generate_adjoint_logging(caplog):
         ad_psyir = generate_adjoint(tl_psyir)
     # Python2 and 3 report different line numbers
     if six.PY2:
-        line_number = 60
+        line_number = 96
     else:
-        line_number = 59
+        line_number = 95
     assert (
         "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:{0} Translation from generic "
         "PSyIR to LFRic-specific PSyIR should be done now.".format(line_number)
         in caplog.text)
     assert (
-        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:64 Transformation from TL to "
+        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:100 Transformation from TL to "
         "AD should be done now." in caplog.text)
 
     ad_fortran_str = writer(ad_psyir)
