@@ -203,39 +203,50 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         # they are needed in a test further down.
         all_accesses = var_info1.all_accesses + var_info2.all_accesses
 
-        found_dimension_index = -1
+        found_dimension_index = (-1, -1)
         all_indices = []
 
         # Loop over all the accesses of this variable
         for access in all_accesses:
             list_of_indices = access.indices
+
             # Now determine all dimensions that depend
-            # on the loop variable:
-            for dimension_index, index_expression in \
+            # on the loop variable. This outer loop is over
+            # the indices used for each component, e.g.
+            # a(i,j)%b(k) it would first handle `(i,j)`, then
+            # `(k)`.
+            for component_index, index_expressions in \
                     enumerate(list_of_indices):
-                accesses = VariablesAccessInfo()
 
-                index_expression.reference_accesses(accesses)
-                if Signature(loop_variable.name) not in accesses:
-                    continue
+                # This inner loop loop over all indices for the
+                # current component, i.e. `[i, j]` for the first
+                # component above, then `[k]`.
+                for dimension_index, index_expression in \
+                        enumerate(index_expressions):
+                    accesses = VariablesAccessInfo()
 
-                # If a previously identified index location does not match
-                # the current index location (e.g. a(i,j), and a(j,i) ), then
-                # the loop in general cannot be fused.
-                if found_dimension_index > -1 and \
-                        found_dimension_index != dimension_index:
-                    raise TransformationError(
-                        "Variable '{0}' is written to in one or both of the "
-                        "loops and the loop variable {1} is used in "
-                        "different index locations ({2} and {3}) when "
-                        "accessing it."
-                        .format(var_info1.var_name,
-                                loop_variable.name,
-                                found_dimension_index,
-                                dimension_index))
+                    index_expression.reference_accesses(accesses)
+                    if Signature(loop_variable.name) not in accesses:
+                        continue
 
-                found_dimension_index = dimension_index
-                all_indices.append(index_expression)
+                    # If a previously identified index location does not match
+                    # the current index location (e.g. a(i,j), and a(j,i) ),
+                    # then the loop in general cannot be fused.
+                    ind_pair = (component_index, dimension_index)
+                    if found_dimension_index[0] > -1 and \
+                            found_dimension_index != ind_pair:
+                        raise TransformationError(
+                            "Variable '{0}' is written to in one or both of "
+                            "the loops and the loop variable {1} is used in "
+                            "different index locations ({2} and {3}) when "
+                            "accessing it."
+                            .format(var_info1.var_name,
+                                    loop_variable.name,
+                                    found_dimension_index,
+                                    ind_pair))
+
+                    found_dimension_index = ind_pair
+                    all_indices.append(index_expression)
 
         if not all_indices:
             # An array is used that is not actually dependent on the

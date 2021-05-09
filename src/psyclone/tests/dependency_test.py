@@ -299,7 +299,7 @@ def test_goloop_field_accesses():
     cu_fld = var_accesses[Signature("cu_fld")]
     assert len(cu_fld.all_accesses) == 1
     assert cu_fld.all_accesses[0].access_type == AccessType.WRITE
-    assert cu_fld.all_accesses[0].indices == ["i", "j"]
+    assert cu_fld.all_accesses[0].indices == [["i", "j"]]
 
     # The stencil is defined to be GO_STENCIL(123,110,100)) for
     # p_fld. Make sure that these 9 accesses are indeed reported:
@@ -312,7 +312,7 @@ def test_goloop_field_accesses():
                        ["i-1", "j"],
                        ["i", "j"],
                        ["i-1", "j-1"]]:
-        assert test_index in all_indices
+        assert [test_index] in all_indices
 
     # Since we have 9 different indices found (above), the following
     # test guarantees that we don't get any invalid accesses reported.

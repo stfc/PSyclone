@@ -705,7 +705,7 @@ class KernCallArgList(ArgOrdering):
                                         self._kern)
                 var_accesses.add_access(Signature(self._kern.colourmap),
                                         AccessType.READ,
-                                        self._kern, ["colour", "cell"])
+                                        self._kern, [["colour", "cell"]])
             return self._kern.colourmap + "(colour, cell)"
 
         if var_accesses is not None:

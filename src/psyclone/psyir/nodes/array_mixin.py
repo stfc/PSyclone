@@ -81,7 +81,7 @@ class ArrayMixin(object):
             list of indices)
         '''
         sig, _ = super(ArrayMixin, self).get_signature_and_indices()
-        return (sig, [self.indices])
+        return (sig, [self.indices[:]])
 
     def _validate_index(self, index):
         '''Utility function that checks that the supplied index is an integer

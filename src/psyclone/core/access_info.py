@@ -62,22 +62,32 @@ class AccessInfo(object):
     :param access: the access type.
     :type access_type: :py:class:`psyclone.core.access_type.AccessType`
     :param int location: a number used in ordering the accesses.
-    :param indices: indices used in the access, defaults to None
-    :type indices: list of :py:class:`psyclone.psyir.nodes.Node` \
+    :param indices_list: indices used in the access, defaults to None
+    :type indices_list: list of list of :py:class:`psyclone.psyir.nodes.Node`\
         (e.g. Reference, ...)
     :param node: Node in PSyIR in which the access happens, defaults to None.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, access_type, location, node, indices=None):
+    def __init__(self, access_type, location, node, indices_list=None):
         self._location = location
         self._access_type = access_type
         self._node = node
-        # Create a copy of the list of indices
-        if indices:
-            self._indices = indices[:]
+        if indices_list:
+            if not isinstance(indices_list, list):
+                raise InternalError("Indices_list in add_access must be a "
+                                    "list or None, got '{0}'".
+                                    format(indices_list))
+            for indices in indices_list:
+                if not isinstance(indices, list):
+                    raise InternalError("Indices_list in add_access must be "
+                                        "a list of lists, or None, got '{0}'".
+                                        format(indices_list))
+
+            # Create a copy of the list of indices
+            self._indices = indices_list[:]
         else:
-            self._indices = None
+            self._indices = [[]]
 
     def __str__(self):
         '''Returns a string representating showing the access mode
@@ -114,6 +124,7 @@ class AccessInfo(object):
         :param indices: list of indices used in the access.
         :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
         '''
+        print("SETTING INDICES from ", self._indices, "to", indices)
         self._indices = indices[:]
 
     def is_array(self):
@@ -364,7 +375,7 @@ class VariablesAccessInfo(dict):
         '''Increases the location number.'''
         self._location = self._location + 1
 
-    def add_access(self, signature, access_type, node, indices=None):
+    def add_access(self, signature, access_type, node, indices_list=None):
         '''Adds access information for the variable with the given signature.
 
         :param signature: the signature of the variable.
@@ -373,9 +384,11 @@ class VariablesAccessInfo(dict):
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node` instance
-        :param indices: indices used in the access (None if the variable \
-            is not an array). Defaults to None.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param indices_list: list of list of indices used in the access, one \
+            list for each component. None if the variable is not an array. \
+            Defaults to None, which is then converted to [[]].
+        :type indices_list: list of list of \
+            :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         if not isinstance(signature, Signature):
@@ -383,14 +396,17 @@ class VariablesAccessInfo(dict):
                                 "be of type psyclone.core.Signature."
                                 .format(signature, type(signature).__name__))
 
+        if indices_list is None:
+            indices_list = [[]]
+
         if signature in self:
             self[signature].add_access_with_location(access_type,
                                                      self._location, node,
-                                                     indices)
+                                                     indices_list)
         else:
             var_info = SingleVariableAccessInfo(signature)
             var_info.add_access_with_location(access_type, self._location,
-                                              node, indices)
+                                              node, indices_list)
             self[signature] = var_info
 
     @property

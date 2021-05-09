@@ -53,7 +53,7 @@ def test_access_info():
     access_info = AccessInfo(AccessType.READ, location, Node())
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
-    assert access_info.indices is None
+    assert access_info.indices == [[]]
     assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
     assert str(access_info) == "WRITE(12)"
@@ -69,12 +69,13 @@ def test_access_info():
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node())
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.indices is None
+    assert access_info.indices == [[]]
 
-    access_info = AccessInfo(AccessType.UNKNOWN, location, Node(), ["i", "j"])
+    access_info = AccessInfo(AccessType.UNKNOWN, location, Node(),
+                             [["i", "j"]])
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.indices == ["i", "j"]
+    assert access_info.indices == [["i", "j"]]
 
 
 # -----------------------------------------------------------------------------

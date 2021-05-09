@@ -417,8 +417,8 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
     assert "Variable 's' is written to in one or both of the loops and the "\
-        "loop variable jj is used in different index locations (1 and 0) "\
-        "when accessing it." in str(err.value)
+        "loop variable jj is used in different index locations ((0, 1) and "\
+        "(0, 0)) when accessing it." in str(err.value)
 
     # This cannot be fused, since 's' is read in the
     # first iteration and written in the second with
@@ -441,8 +441,8 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
     assert "Variable 's' is written to in one or both of the loops and the " \
-           "loop variable jj is used in different index locations (0 and 1) " \
-           "when accessing it." in str(err.value)
+           "loop variable jj is used in different index locations ((0, 0) "\
+           "and (0, 1)) when accessing it." in str(err.value)
 
 
 # ----------------------------------------------------------------------------
