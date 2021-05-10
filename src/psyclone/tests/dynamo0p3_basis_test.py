@@ -44,7 +44,9 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import FunctionSpace
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynBasisFunctions
+from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -52,6 +54,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import print_diffs
+
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1504,8 +1507,9 @@ def test_basis_unsupported_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
+    const = LFRicConstants()
     assert ("Unsupported space for basis function, expecting one of " +
-            str(FunctionSpace.VALID_FUNCTION_SPACES) + " but found " +
+            str(const.VALID_FUNCTION_SPACES) + " but found " +
             "'any_space_1'" in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
@@ -1972,8 +1976,9 @@ def test_diff_basis_unsupp_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
+    const = LFRicConstants()
     assert ("Unsupported space for differential basis function, expecting one "
-            "of " + str(FunctionSpace.VALID_FUNCTION_SPACES) + " but found "
+            "of " + str(const.VALID_FUNCTION_SPACES) + " but found "
             "'any_space_1'" in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = DIFF_BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
@@ -1994,8 +1999,6 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     ''' Check that the expected error is raised in
     DynBasisFunctions._stub_declarations() if an un-supported quadrature
     shape is encountered. '''
-    from psyclone.dynamo0p3 import DynBasisFunctions
-    from psyclone.f2pygen import ModuleGen
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -2013,7 +2016,6 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
 def test_dynbasisfns_declns(monkeypatch):
     ''' Check the various internal errors that
     DynBasisFunctions._basis_fn_declns can raise. '''
-    from psyclone.dynamo0p3 import DynBasisFunctions
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()

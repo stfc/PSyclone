@@ -48,13 +48,15 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynKernelArguments, DynKernMetadata, DynStencils
 from psyclone.errors import GenerationError, InternalError
+from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -114,7 +116,8 @@ def test_stencil_metadata():
 
 def test_valid_stencil_types():
     ''' Check that we successfully parse all valid stencil types. '''
-    for stencil_type in LFRicArgDescriptor.VALID_STENCIL_TYPES:
+    const = LFRicConstants()
+    for stencil_type in const.VALID_STENCIL_TYPES:
         result = STENCIL_CODE.replace("stencil(cross)",
                                       "stencil(" + stencil_type + ")", 1)
         ast = fpapi.parse(result, ignore_comments=False)
@@ -1600,7 +1603,6 @@ def test_stencil_extent_specified():
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1
-    from psyclone.dynamo0p3 import DynStencils
     stencils = DynStencils(psy.invokes.invoke_list[0])
     with pytest.raises(GenerationError) as err:
         stencils.stencil_unique_str(stencil_arg, "")
@@ -1790,7 +1792,6 @@ def test_dynkernargs_unexpect_stencil_extent():
     # to be passed so an associated error will be raised)
     del call.args[2]
     # finally call our object to raise the error
-    from psyclone.dynamo0p3 import DynKernelArguments
     with pytest.raises(GenerationError) as err:
         _ = DynKernelArguments(call, None)
     assert "extent metadata not yet supported" in str(err.value)
@@ -1799,7 +1800,6 @@ def test_dynkernargs_unexpect_stencil_extent():
 def test_dynstencils_extent_vars_err(monkeypatch):
     ''' Check that the _unique_extent_vars method of DynStencils raises
     the expected internal error. '''
-    from psyclone.dynamo0p3 import DynStencils
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
@@ -1813,11 +1813,10 @@ def test_dynstencils_extent_vars_err(monkeypatch):
             in str(err.value))
 
 
-def test_dynstencils_initialise_err():
-    ''' Check that DynStencils.initialise raises the expected InternalError
-    if an unsupported stencil type is encountered. '''
-    from psyclone.f2pygen import ModuleGen
-    from psyclone.dynamo0p3 import DynStencils
+def test_dynstencils_err():
+    ''' Check that DynStencils.initialise and DynStencils._declare_maps_invoke
+    raises the expected InternalError if an unsupported stencil type is
+    encountered. '''
     _, info = parse(os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
@@ -1828,3 +1827,7 @@ def test_dynstencils_initialise_err():
     with pytest.raises(GenerationError) as err:
         stencils.initialise(ModuleGen(name="testmodule"))
     assert "Unsupported stencil type 'not-a-type' supplied." in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        stencils._declare_maps_invoke(ModuleGen(name="testmodule"))
+    assert "Unsupported stencil type 'not-a-type' supplied. Supported " \
+        "mappings are" in str(err.value)

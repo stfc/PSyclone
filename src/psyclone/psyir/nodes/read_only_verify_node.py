@@ -55,33 +55,13 @@ class ReadOnlyVerifyNode(PSyDataNode):
     This class can be inserted into a Schedule to mark Nodes for
     read-only-verification. By applying the ReadOnlyVerifyTrans
     transformation, the Nodes marked for extraction become
-    children of (the Schedule of) an ReadOnlyVerifyNode.
-
-    :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
-    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dictionary with options provided via transformations.
-    :type options: dict of string:values or NoneType
+    children of (the Schedule of) a ReadOnlyVerifyNode.
 
     '''
-    def __init__(self, ast=None, children=None, parent=None, options=None):
-        if options:
-            my_options = options.copy()
-        else:
-            my_options = {}
-
-        # If there is no value passed to the constructor, default
-        # to the "read_only_verify" prefix.
-        my_options["prefix"] = my_options.get("prefix", "read_only_verify")
-        super(ReadOnlyVerifyNode, self).__init__(ast=ast, children=children,
-                                                 parent=parent,
-                                                 options=my_options)
-        self._text_name = "ReadOnlyVerify"
-        self._colour = "green"
+    _text_name = "ReadOnlyVerify"
+    _colour = "green"
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = "read_only_verify"
 
     @property
     def read_only_verify_body(self):

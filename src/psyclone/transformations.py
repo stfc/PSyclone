@@ -41,29 +41,32 @@
     checks before calling the base class for the actual transformation. '''
 
 from __future__ import absolute_import, print_function
+
 import abc
 import six
+
 from fparser.two.utils import walk
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Subroutine_Subprogram, \
     Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
     Implicit_Part, Comment
+
 from psyclone import psyGen
+from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.errors import InternalError
+from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule, \
     ACCLoopDirective, OMPDoDirective
-from psyclone.errors import InternalError
 from psyclone.psyir import nodes
-from psyclone.configuration import Config
-from psyclone.undoredo import Memento
-from psyclone.domain.lfric import FunctionSpace
-from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
-    TransformationError
+from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
-from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
-from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
+    TransformationError
+from psyclone.undoredo import Memento
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.gocean1p0 import GOLoop, GOInvokeSchedule
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -725,8 +728,9 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # it should be. If the field space is discontinuous (including
         # any_discontinuous_space) then we don't need to worry about
         # colouring.
+        const = LFRicConstants()
         if node.field_space.orig_name not in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+           const.VALID_DISCONTINUOUS_NAMES:
             if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
@@ -1105,8 +1109,9 @@ class Dynamo0p3ColourTrans(ColourTrans):
         super(Dynamo0p3ColourTrans, self).validate(node, options=options)
 
         # Check we need colouring
+        const = LFRicConstants()
         if node.field_space.orig_name in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+           const.VALID_DISCONTINUOUS_NAMES:
             raise TransformationError(
                 "Error in DynamoColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
@@ -1717,17 +1722,16 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 "method the loop type must be one of '' (cell-columns), 'dof' "
                 "or 'colour', but found '{0}'".format(node.loop_type))
 
-        from psyclone.dynamo0p3 import HALO_ACCESS_LOOP_BOUNDS
-
         # We don't currently support the application of transformations to
         # loops containing inter-grid kernels
         check_intergrid(node)
+        const = LFRicConstants()
 
         if not options:
             options = {}
         depth = options.get("depth")
         if depth is None:
-            if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if not node.upper_bound_halo_depth:
                     raise TransformationError(
                         "In the Dynamo0p3RedundantComputation transformation "
@@ -1754,7 +1758,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method the supplied depth is less than 1")
 
-            if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if node.upper_bound_halo_depth:
                     if node.upper_bound_halo_depth >= depth:
                         raise TransformationError(
@@ -2381,12 +2385,13 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     "Support is currently limited to 'xyoz' quadrature but "
                     "found {0}.".format(kernel.eval_shapes))
 
+        const = LFRicConstants()
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
                 if (info.function_space.lower() in
-                        (FunctionSpace.VALID_ANY_SPACE_NAMES +
-                         FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
+                        (const.VALID_ANY_SPACE_NAMES +
+                         const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
                          ["any_w2"])):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(

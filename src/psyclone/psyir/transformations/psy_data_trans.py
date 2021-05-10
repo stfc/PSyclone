@@ -173,6 +173,27 @@ class PSyDataTrans(RegionTrans):
                         .format(prefix, Config.get().valid_psy_data_prefixes,
                                 Config.get().filename))
 
+        # We have to create an instance of the node that will be inserted in
+        # order to find out what module name it will use.
+        pdata_node = self._node_class(options=options)
+        table = node_list[0].scope.symbol_table
+        for name in ([sym.name for sym in pdata_node.imported_symbols] +
+                     [pdata_node.fortran_module]):
+            try:
+                _ = table.lookup_with_tag(name)
+            except KeyError:
+                # The tag doesn't exist which means that we haven't already
+                # added this symbol as part of a PSyData transformation. Check
+                # for any clashes with existing symbols.
+                try:
+                    _ = table.lookup(name)
+                    raise TransformationError(
+                        "Cannot add PSyData calls because there is already a "
+                        "symbol named '{0}' which clashes with one of those "
+                        "used by the PSyclone PSyData API. ".format(name))
+                except KeyError:
+                    pass
+
         super(PSyDataTrans, self).validate(node_list, options)
 
     def apply(self, nodes, options=None):
@@ -212,25 +233,30 @@ class PSyDataTrans(RegionTrans):
         position = node_list[0].position
         schedule = node_list[0].root
 
+        # We always use the outermost symbol table so that any name clashes
+        # due to multiple applications of this transformation are handled
+        # automatically.
+        table = parent.root.symbol_table
+
         # create a memento of the schedule and the proposed
         # transformation
         keep = Memento(schedule, self)
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
-        # GOceanExtractNode. The base constructor of the extraction node
-        # will insert the node into the PSyIR between the
-        # nodes to be extracted and their parent. The nodes to
-        # be extracted will become children of the extraction node.
-        # We also pass the user-specified options to the constructor,
-        # so that the behaviour of the code extraction can be controlled.
-        # An example use case of this is the 'create_driver' flag, where
-        # the calling program can control if a stand-alone driver program
-        # should be created or not.
+        # GOceanExtractNode. We pass the user-specified options to the
+        # create() method.  An example use case for this is the
+        # 'create_driver' flag, where the calling program can control if
+        # a stand-alone driver program should be created or not (when
+        # performing kernel extraction).
         for node in node_list:
             node.detach()
-        psy_data_node = self._node_class(parent=parent, children=node_list,
-                                         options=options)
+        psy_data_node = self._node_class.create(
+            node_list, symbol_table=table, options=options)
         parent.addchild(psy_data_node, position)
 
         return schedule, keep
+
+
+# For AutoAPI documentation generation
+__all__ = ['PSyDataTrans']
