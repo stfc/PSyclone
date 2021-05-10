@@ -43,6 +43,7 @@ from __future__ import absolute_import
 import re
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
@@ -714,6 +715,48 @@ def test_region():
             "invokes_psy\", \"invoke_0:r2\", 0, 0)" in result)
     assert ("CALL profile_psy_data_2%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:testkern_code:r3\", 0, 0)" in result)
+
+
+# -----------------------------------------------------------------------------
+def test_multi_prefix_profile(monkeypatch):
+    ''' Tests that the profiling transform works correctly when we use two
+    different profiling tools in the same invoke.
+
+    '''
+    _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
+                           "dynamo0.3", name="invoke_0", dist_mem=True)
+    schedule = invoke.schedule
+    prt = ProfileTrans()
+    config = Config.get()
+    # Monkeypatch the list of recognised PSyData prefixes
+    monkeypatch.setattr(config, "_valid_psy_data_prefixes",
+                        ["profile", "tool1"])
+    # Use the 'tool1' prefix for the region around the halo exchanges.
+    _ = prt.apply(schedule[0:4], options={"prefix": "tool1"})
+    # Use the default prefix for the two loops.
+    _ = prt.apply(schedule[1:3])
+    result = str(invoke.gen())
+
+    assert ("      USE profile_psy_data_mod, ONLY: profile_PSyDataType\n" in
+            result)
+    assert "      USE tool1_psy_data_mod, ONLY: tool1_PSyDataType" in result
+    assert ("      TYPE(profile_PSyDataType), target, save :: "
+            "profile_psy_data\n"
+            "      TYPE(tool1_PSyDataType), target, save :: tool1_psy_data"
+            in result)
+    assert ("      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      CALL tool1_psy_data%PreStart(\"multi_functions_multi_"
+            "invokes_psy\", \"invoke_0:r0\", 0, 0)\n"
+            "      IF (f1_proxy%is_dirty(depth=1)) THEN\n" in result)
+    assert ("      CALL tool1_psy_data%PostEnd\n"
+            "      CALL profile_psy_data%PreStart(\"multi_functions_multi_"
+            "invokes_psy\", \"invoke_0:r1\", 0, 0)\n"
+            "      DO cell=1,mesh%get_last_halo_cell(1)" in result)
+    assert ("      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      CALL profile_psy_data%PostEnd\n"
+            "      DO cell=1,mesh%get_last_halo_cell(1)" in result)
 
 
 # -----------------------------------------------------------------------------
