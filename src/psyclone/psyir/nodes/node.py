@@ -901,10 +901,11 @@ class Node(object):
         it is the root). Needs to be computed dynamically from the
         starting position (0) as its position may change.
 
-        :returns: absolute position of a Node in the tree
+        :returns: absolute position of a Node in the tree.
         :rtype: int
 
-        :raises InternalError: if the absolute position cannot be found
+        :raises InternalError: if the absolute position cannot be found.
+
         '''
         from psyclone.psyir.nodes import Schedule
         if self.root == self and isinstance(self.root, Schedule):
@@ -931,6 +932,7 @@ class Node(object):
         :rtype: bool, int
 
         :raises InternalError: if the starting position is < 0.
+
         '''
         if position is None:
             position = self.START_POSITION

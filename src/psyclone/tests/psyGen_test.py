@@ -1032,8 +1032,8 @@ def test_call_multi_reduction_error(monkeypatch):
 
 
 def test_invokes_wrong_schedule_gen_code():
-    ''' Check that the invoke.schedule reference points to a InvokeSchedule
-    when using the gen_code. Otherwise rise and error. '''
+    ''' Check that the invoke.schedule reference points to an InvokeSchedule
+    when using the gen_code. Otherwise rise an error. '''
     # Use LFRic example with a repeated CodedKern
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),

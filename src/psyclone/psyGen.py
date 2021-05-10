@@ -1026,8 +1026,10 @@ class InvokeSchedule(Routine):
         # original symbol table is restored.
         symbol_table_before_gen = self.symbol_table
         psy_symbol_table_before_gen = self.parent.symbol_table
+        # pylint: disable=protected-access
         self._symbol_table = self.symbol_table.shallow_copy()
         self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
+        # pylint: enable=protected-access
 
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
@@ -1133,9 +1135,11 @@ class InvokeSchedule(Routine):
                               rhs="clFinish({0}({1}))".format(qlist,
                                                               queue_number)))
 
-        # Restore symbol table
+        # Restore symbol table (with a protected access attribute change)
+        # pylint: disable=protected-access
         self._symbol_table = symbol_table_before_gen
         self.parent._symbol_table = psy_symbol_table_before_gen
+        # pylint: enable=protected-access
 
     @property
     def opencl(self):
@@ -1223,7 +1227,10 @@ class Directive(Statement):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         _, position = self._find_position(self.ancestor(Routine))
         return "directive_" + str(position)
 
@@ -1859,7 +1866,10 @@ class OMPParallelDirective(OMPDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_parallel_" + str(position)
 
@@ -2117,7 +2127,10 @@ class OMPDoDirective(OMPDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_do_" + str(position)
 
@@ -2266,7 +2279,10 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_parallel_do_" + str(position)
 
@@ -2362,7 +2378,10 @@ class GlobalSum(Statement):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         return "globalsum({0})_".format(self._scalar.name) + str(self.position)
 
     @property
@@ -2967,7 +2986,10 @@ class CodedKern(Kern):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         _, position = self._find_position(self.ancestor(Routine))
         return "kernel_{0}_{1}".format(self.name, str(position))
 
@@ -3554,7 +3576,10 @@ class BuiltIn(Kern):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         _, position = self._find_position(self.ancestor(Routine))
         return "builtin_{0}_{1}".format(self.name, str(position))
 
