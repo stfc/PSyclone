@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
-# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Author R. W. Ford STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by S. Siso, STFC Daresbury Lab
@@ -54,7 +54,7 @@ import pytest
 import six
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.generator import generate, main, write_unicode_file
 from psyclone.parse.algorithm import parse
@@ -551,8 +551,12 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     ''' Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
     function. '''
+
+    # Make sure the attribute VALID_ARG_TYPE_NAMES exist
+    # before we modify it.
+    _ = LFRicConstants()
     # sabotage the code so one of our constant lists is now an int
-    monkeypatch.setattr(LFRicArgDescriptor, "VALID_ARG_TYPE_NAMES",
+    monkeypatch.setattr(LFRicConstants, "VALID_ARG_TYPE_NAMES",
                         value=1)
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",

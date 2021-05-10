@@ -454,54 +454,50 @@ def test_profiling_missing_end(parser):
 def test_profiling_mod_use_clash(parser):
     ''' Check that we abort cleanly if we encounter a 'use' of a module that
     clashes with the one we would 'use' for the profiling API. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program the_clash\n"
-                                      "  use profile_psy_data_mod, only: "
-                                      "some_var\n"
-                                      "  real :: my_array(20,10)\n"
-                                      "  my_array(:,:) = 0.0\n"
-                                      "end program the_clash\n")
-    PTRANS.apply(schedule.children[0])
-    schedule.view()
-    with pytest.raises(NotImplementedError) as err:
-        _ = psy.gen
-    assert ("Cannot add PSyData calls to 'the_clash' because it already "
-            "'uses' a module named 'profile_psy_data_mod'" in str(err.value))
+    _, schedule = get_nemo_schedule(parser,
+                                    "program the_clash\n"
+                                    "  use profile_psy_data_mod, only: "
+                                    "some_var\n"
+                                    "  real :: my_array(20,10)\n"
+                                    "  my_array(:,:) = 0.0\n"
+                                    "end program the_clash\n")
+    with pytest.raises(TransformationError) as err:
+        PTRANS.apply(schedule.children[0])
+    assert ("Cannot add PSyData calls because there is already a symbol "
+            "named 'profile_psy_data_mod' which clashes" in str(err.value))
 
 
 def test_profiling_mod_name_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with the name of the profiling API module. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program psy_data_mod\n"
-                                      "  real :: my_array(3,3)\n"
-                                      "  my_array(:,:) = 0.0\n"
-                                      "end program psy_data_mod\n")
-    PTRANS.apply(schedule.children[0])
-    with pytest.raises(NotImplementedError) as err:
-        _ = psy.gen
-    assert ("Cannot add PSyData calls to 'psy_data_mod' because it already "
-            "contains a symbol that clashes with the name of the PSyclone "
-            "PSyData module" in str(err.value))
+    _, schedule = get_nemo_schedule(parser,
+                                    "program profile_psy_data_mod\n"
+                                    "  real :: my_array(3,3)\n"
+                                    "  my_array(:,:) = 0.0\n"
+                                    "end program profile_psy_data_mod\n")
+    with pytest.raises(TransformationError) as err:
+        PTRANS.apply(schedule.children[0])
+    assert ("Cannot add PSyData calls because there is already a symbol "
+            "named 'profile_psy_data_mod' which clashes " in str(err.value))
 
 
 def test_profiling_symbol_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with any of the symbols we 'use' from profile_mode. '''
-    for var_name in PSyDataNode.symbols:
-        psy, schedule = get_nemo_schedule(
+    for sym in ["PSyDataType", "psy_data_mod"]:
+        _, schedule = get_nemo_schedule(
             parser,
             "program my_test\n"
             "  real :: my_array(3,3)\n"
             "  integer :: {0}\n"
             "  my_array(:,:) = 0.0\n"
-            "end program my_test\n".format(var_name))
-        PTRANS.apply(schedule.children[0])
-        with pytest.raises(NotImplementedError) as err:
-            _ = psy.gen
-        assert ("Cannot add PSyData calls to 'my_test' because it already "
-                "contains a symbol that clashes with one of those ('{0}')"
-                " that must be".format(var_name) in str(err.value))
+            "end program my_test\n".format("profile_"+sym))
+        with pytest.raises(TransformationError) as err:
+            PTRANS.apply(schedule.children[0])
+        assert ("Cannot add PSyData calls because there is already "
+                "a symbol named '{0}' which clashes with one of those used "
+                "by the PSyclone PSyData API.".format("profile_"+sym)
+                in str(err.value))
 
 
 def test_profiling_var_clash(parser):

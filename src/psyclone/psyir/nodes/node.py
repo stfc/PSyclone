@@ -40,6 +40,8 @@
 This module contains the abstract Node implementation.
 
 '''
+from __future__ import print_function
+
 import copy
 import six
 from psyclone.psyir.symbols import SymbolError
@@ -810,11 +812,12 @@ class Node(object):
         '''
         from psyclone.psyir.nodes import Schedule
         if not isinstance(self.parent, Schedule) or index is None:
-            print("{0}{1}".format(self.indent(indent),
-                                  self.node_str(colour=True)))
+            result = "{0}{1}".format(self.indent(indent),
+                                     self.node_str(colour=True))
         else:
-            print("{0}{1}: {2}".format(self.indent(indent), index,
-                                       self.node_str(colour=True)))
+            result = "{0}{1}: {2}".format(self.indent(indent), index,
+                                          self.node_str(colour=True))
+        print(six.text_type(result))
         for idx, entity in enumerate(self._children):
             entity.view(indent=indent + 1, index=idx)
 
