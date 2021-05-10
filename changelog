@@ -10,6 +10,9 @@
 
         4) PR #1217 towards #1210. Adds raising transformations for NEMO.
 
+        5) PR #1222 for #1171. Adds a new class to encapsulate all constants
+        related to the LFRic API.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. Ford and A. R. Porter, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 
 ''' File containing a PSyclone transformation script for the Dynamo0p3
@@ -42,7 +43,7 @@ from __future__ import print_function, absolute_import
 from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans
 from psyclone.psyir.nodes import Loop
-from psyclone.domain.lfric.function_space import FunctionSpace
+from psyclone.domain.lfric import LFRicConstants
 
 
 def trans(psy):
@@ -50,6 +51,7 @@ def trans(psy):
     colouring and OpenMP generically.'''
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
+    const = LFRicConstants()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -63,7 +65,7 @@ def trans(psy):
         for child in schedule.children:
             if isinstance(child, Loop) \
                and child.field_space.orig_name \
-               not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
+               not in const.VALID_DISCONTINUOUS_NAMES \
                and child.iteration_space == "cell_column":
                 cschedule, _ = ctrans.apply(child)
         # Then apply OpenMP to each of the colour loops
