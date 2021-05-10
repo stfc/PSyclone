@@ -46,7 +46,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.domain.lfric import FunctionSpace
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import colored, ExtractNode, Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.lfric_build import LFRicBuild
@@ -619,6 +619,7 @@ def test_extract_colouring_omp_dynamo0p3():
     colouring and OpenMP optimisations produces the correct result
     in Dynamo0.3 API. '''
 
+    const = LFRicConstants()
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
@@ -632,7 +633,7 @@ def test_extract_colouring_omp_dynamo0p3():
     cschedule = schedule
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
-           not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
+           not in const.VALID_DISCONTINUOUS_NAMES \
            and child.iteration_space == "cell_column":
             cschedule, _ = ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops

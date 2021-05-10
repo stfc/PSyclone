@@ -40,8 +40,7 @@
 '''
 
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import FunctionSpace
-from psyclone.psyGen import VALID_SCALAR_NAMES
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 from psyclone.transformations import check_intergrid
 
@@ -141,8 +140,9 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         node1_fs_name = node1.field_space.orig_name
         node2_fs_name = node2.field_space.orig_name
         # 2.1) Check that both function spaces are valid
-        if not (node1_fs_name in FunctionSpace.VALID_FUNCTION_SPACE_NAMES and
-                node2_fs_name in FunctionSpace.VALID_FUNCTION_SPACE_NAMES):
+        const = LFRicConstants()
+        if not (node1_fs_name in const.VALID_FUNCTION_SPACE_NAMES and
+                node2_fs_name in const.VALID_FUNCTION_SPACE_NAMES):
             raise TransformationError(
                 "Error in {0} transformation: One or both function "
                 "spaces '{1}' and '{2}' have invalid names.".
@@ -150,8 +150,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # Check whether any of the spaces is ANY_SPACE. Loop fusion over
         # ANY_SPACE is allowed only when the 'same_space' flag is set
         node_on_any_space = node1_fs_name in \
-            FunctionSpace.VALID_ANY_SPACE_NAMES or \
-            node2_fs_name in FunctionSpace.VALID_ANY_SPACE_NAMES
+            const.VALID_ANY_SPACE_NAMES or \
+            node2_fs_name in const.VALID_ANY_SPACE_NAMES
         # 2.2) If 'same_space' is true check that both function spaces are
         # the same or that at least one of the nodes is on ANY_SPACE. The
         # former case is convenient when loop fusion is applied generically.
@@ -182,9 +182,9 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             # loop bounds are the same (checked further below).
             if node1_fs_name != node2_fs_name:
                 if not (node1_fs_name in
-                        FunctionSpace.VALID_DISCONTINUOUS_NAMES and
+                        const.VALID_DISCONTINUOUS_NAMES and
                         node2_fs_name in
-                        FunctionSpace.VALID_DISCONTINUOUS_NAMES):
+                        const.VALID_DISCONTINUOUS_NAMES):
                     raise TransformationError(
                         "Error in {0} transformation: Cannot fuse loops "
                         "that are over different spaces '{1}' and '{2}' "
@@ -209,7 +209,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                        node2.upper_bound_halo_depth))
 
         # 5) Check for reductions
-        arg_types = VALID_SCALAR_NAMES
+        arg_types = const.VALID_SCALAR_NAMES
         all_reductions = AccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=all_reductions)

@@ -39,17 +39,21 @@
 
 # imports
 from __future__ import absolute_import, print_function
+
 import os
+from subprocess import Popen, PIPE, STDOUT
 import pytest
+
 import fparser
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicScalarArgs
-from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.errors import GenerationError, InternalError
-from psyclone.parse.utils import ParseError
-from psyclone.gen_kernel_stub import generate
 from psyclone.f2pygen import ModuleGen
+from psyclone.gen_kernel_stub import generate
+from psyclone.parse.utils import ParseError
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -102,9 +106,10 @@ def test_lfricscalars_stub_err():
     arg.descriptor._data_type = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
+    const = LFRicConstants()
     assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
             "scalar argument 'iscalar_2'. Supported types are {0}.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES)
+            format(const.VALID_SCALAR_DATA_TYPES)
             in str(err.value))
 
 
@@ -248,8 +253,9 @@ def test_load_meta_wrong_type():
     metadata.arg_descriptors[0]._argument_type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
+    const = LFRicConstants()
     assert ("DynKern.load_meta() expected one of {0} but found "
-            "'gh_hedge'".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            "'gh_hedge'".format(const.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
 
@@ -738,7 +744,6 @@ def test_sub_name():
 def test_kernel_stub_usage():
     ''' Check that the kernel-stub generator prints a usage message
     if no arguments are supplied '''
-    from subprocess import Popen, STDOUT, PIPE
 
     usage_msg = (
         "usage: genkernelstub [-h] [-o OUTFILE] [-api API] [-l] filename\n"
@@ -755,7 +760,6 @@ def test_kernel_stub_usage():
 def test_kernel_stub_gen_cmd_line():
     ''' Check that we can call the kernel-stub generator from the
     command line '''
-    from subprocess import Popen, PIPE
     # We use the Popen constructor here rather than check_output because
     # the latter is only available in Python 2.7 onwards.
     out = Popen(["genkernelstub",
