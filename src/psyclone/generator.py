@@ -66,6 +66,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.symbols import LocalInterface
+from fparser.two.Fortran2003 import Use_Stmt, Main_Program, Module, \
+    Subroutine_Subprogram, Function_Subprogram
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
@@ -239,10 +241,40 @@ def generate(filename, api="", kernel_path="", script_name=None,
             Profiler.add_profile_nodes(invoke.schedule, Loop)
 
         if api not in API_WITHOUT_ALGORITHM:
-            if api == "gocean1.0":
+            if api == "gocean1.0" or api == "dynamo0.3":
+                if api == "dynamo0.3":
+                    # The LFRic algorithm layer may contain builtins
+                    # and these are not declared which will cause the
+                    # PSyIR to raise an exception. To fix this, we add
+                    # a dummy 'use intrinsics_mod' to the fparser2
+                    # ast. The 'proper' fix would be for the LFRic
+                    # code to be modified, but that is a big
+                    # job. Note, this will mask any other undeclared
+                    # variables as the PSyIR will assume they might be
+                    # declared in this module.
+                    container_nodes = (
+                        Main_Program, Module, Subroutine_Subprogram,
+                        Function_Subprogram)
+                    parent_prog_statement = None
+                    if isinstance(ast, container_nodes):
+                        parent_prog_statement = ast
+                    else:
+                        for child in ast.children:
+                            if isinstance(child, container_nodes):
+                                parent_prog_statement = child
+                                break
+                    if not parent_prog_statement:
+                        raise GenerationError("XXX")
+                    use = Use_Stmt("use intrinsics_mod")
+                    spec_part = parent_prog_statement.content[1]
+                    spec_part.content.insert(0, use)
+
                 # Create language-level PSyIR from fparser2 ast
                 psyir_reader = Fparser2Reader()
                 psyir = psyir_reader.generate_psyir(ast)
+
+                psyir.view()
+                exit(1)
 
                 # Raise to Algorithm PSyIR
                 alg_trans = AlgTrans()
