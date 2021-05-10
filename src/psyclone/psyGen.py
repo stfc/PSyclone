@@ -49,12 +49,12 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
+    Routine, Call, StructureReference, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, PSyDataNode, Call, StructureReference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -1350,20 +1350,21 @@ class ACCDirective(Directive):
         Perform validation checks for any global constraints. This can only
         be done at code-generation time.
 
-        :raises GenerationError: if this ACCDirective encloses any form of \
-            PSyData node since calls to PSyData routines within OpenACC \
-            regions are not supported.
+        :raises GenerationError: if this ACCDirective encloses any CodeBlocks.\
+            Although the various transformations will reject CodeBlocks, the \
+            lowering of any PSyData nodes will result in new ones being \
+            created.
 
         '''
         super(ACCDirective, self).validate_global_constraints()
 
-        data_nodes = self.walk(PSyDataNode)
-        if data_nodes:
+        cblocks = self.walk(CodeBlock)
+        if cblocks:
             raise GenerationError(
-                "Cannot include calls to PSyData routines within OpenACC "
+                "Cannot include CodeBlocks within OpenACC "
                 "regions but found {0} within a region enclosed "
                 "by an '{1}'".format(
-                    [type(node).__name__ for node in data_nodes],
+                    [str(node.ast) for node in cblocks],
                     type(self).__name__))
 
 
