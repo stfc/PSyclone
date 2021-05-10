@@ -56,7 +56,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError
-from psyclone.gocean1p0 import GOLoop
+from psyclone.gocean1p0 import GOLoop, GOInvokeSchedule
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule, \
     ACCLoopDirective, OMPDoDirective
 from psyclone.psyir import nodes

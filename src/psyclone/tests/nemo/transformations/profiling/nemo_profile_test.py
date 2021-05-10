@@ -209,7 +209,7 @@ def test_profile_codeblock(parser):
     assert (
         "  call profile_psy_data % prestart('cb_test', 'r0', 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
-        "    write(*, fmt = *) sto_tmp2(ji)\n"
+        "    write(*, *) sto_tmp2(ji)\n"
         "  enddo\n"
         "  call profile_psy_data % postend\n" in code)
 
@@ -293,7 +293,7 @@ def test_profile_single_line_if(parser):
     assert (
         "  call profile_psy_data % prestart('one_line_if_test', 'r0', 0, 0)\n"
         "  if (do_this) then\n"
-        "    write(*, fmt = *) sto_tmp2(ji)\n"
+        "    write(*, *) sto_tmp2(ji)\n"
         "  end if\n"
         "  call profile_psy_data % postend\n" in gen_code)
 
@@ -461,9 +461,9 @@ def test_profiling_symbol_clash(parser):
 
 
 def test_profiling_var_clash(parser):
-    ''' Check that we abort cleanly if we encounter code that has a potential
-    name clash with the variables we will introduce for each profiling
-    region. '''
+    ''' Check that we generate the expected code if we encounter code that has
+    a potential name clash with the variables we will introduce for each
+    profiling region. '''
     psy, schedule = get_nemo_schedule(
         parser,
         "program my_test\n"
@@ -472,11 +472,10 @@ def test_profiling_var_clash(parser):
         "  my_array(:,:) = 0.0\n"
         "end program my_test\n")
     PTRANS.apply(schedule.children[0])
-    with pytest.raises(NotImplementedError) as err:
-        _ = psy.gen
-    assert ("Cannot add PSyData calls to 'my_test' because it already "
-            "contains symbols that potentially clash with the variables "
-            "we will " in str(err.value))
+    code = str(psy.gen).lower()
+    assert ("  integer :: profile_psy_data\n"
+            "  type(profile_psydatatype), save, target :: profile_psy_data_1"
+            in code)
 
 
 def test_only_profile():
