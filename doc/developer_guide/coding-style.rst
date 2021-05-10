@@ -114,6 +114,19 @@ Additional rules that apply:
   #) Any new line of code must be covered by at least one test case,
      see :ref:`test_suite` and especially :ref:`test_coverage`.
 
+  #) Importing other modules should be done at the top of a file, and
+     the import statements must be sorted alphabetically. If a
+     module cannot be import at the top of a file due to a circular
+     dependency, a comment must be added to the local import statement,
+     and the corresponding pylint warning must be disabled, e.g.::
+
+         def my_function():
+             ...
+             # Avoid circular import
+             # pylint: disable=import-outside-toplevel
+             from psyclone.core.access_type import AccessType
+
+
 Exceptions
 ----------
 

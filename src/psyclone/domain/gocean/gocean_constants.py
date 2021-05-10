@@ -33,13 +33,43 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Module for the GOcean domain.
+'''
+This module provides a class with all GOcean related constants.
 '''
 
-from psyclone.domain.gocean.gocean_constants import GOceanConstants
+# Imports
+from __future__ import print_function, absolute_import
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.gocean import GOceanConstants
 
+# pylint: disable=too-few-public-methods
+class GOceanConstants(object):
+    '''This class stores all GOcean constants.
+    It stores all values in class variables (to avoid re-evaluating them).
+    At this stage it only contains the variables that might be used in
+    psyGen.
+    # TODO #1223 - Add more constants into this object.
+   '''
+
+    HAS_BEEN_INITIALISED = False
+
+    def __init__(self):
+        if GOceanConstants.HAS_BEEN_INITIALISED:
+            return
+
+        GOceanConstants.HAS_BEEN_INITIALISED = True
+
+        # Valid intrinsic types of kernel argument data, used in psyGen.
+        # Not actually used in GOcean
+        GOceanConstants.VALID_INTRINSIC_TYPES = []
+
+        # psyGen argument types
+        GOceanConstants.VALID_ARG_TYPE_NAMES = []
+
+        # psyGen names of internal scalar argument types.
+        GOceanConstants.VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
+
+
+# =============================================================================
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
 __all__ = ['GOceanConstants']

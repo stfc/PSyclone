@@ -130,8 +130,9 @@ and add the following code within the invoke for loop after the
 existing "OpenMP" loop in the script - that should remain.)
 
 ```python
+        const = LFRicConstants()
         for loop in schedule.loops():
-            if loop.field_space.orig_name not in FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+            if loop.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
                 ctrans.apply(loop)
 ```
 
@@ -155,8 +156,9 @@ sure we only colour loops which iterate over cells. Replace the
 existing loop containing `ctrans.apply` with this one:
 
 ```python
+        const = LFRicConstants()
         for loop in schedule.walk(Loop):
-            if loop.field_space.orig_name not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
+            if loop.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES \
                and loop.iteration_space == "cell_column":
                 ctrans.apply(loop)
 ```
