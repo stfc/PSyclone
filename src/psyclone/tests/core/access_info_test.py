@@ -54,6 +54,7 @@ def test_access_info():
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
     assert access_info.indices == [[]]
+    assert not access_info.is_array()
     assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
     assert str(access_info) == "WRITE(12)"
@@ -63,8 +64,9 @@ def test_access_info():
     assert "Trying to change variable to 'WRITE' which does not have "\
         "'READ' access." in str(err.value)
 
-    access_info.indices = ["i"]
-    assert access_info.indices == ["i"]
+    access_info.indices = [["i"]]
+    assert access_info.indices == [["i"]]
+    assert access_info.is_array()
 
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node())
     assert access_info.access_type == AccessType.UNKNOWN
@@ -76,6 +78,24 @@ def test_access_info():
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
     assert access_info.indices == [["i", "j"]]
+
+
+# -----------------------------------------------------------------------------
+def test_access_info_exceptions():
+    '''Test that the right exceptions are raised.
+    '''
+    location = 12
+    with pytest.raises(InternalError) as err:
+        _ = AccessInfo(AccessType.READ, location, Node(),
+                       indices_list=123)
+    assert "Indices_list in add_access must be a list or None, got '123'" \
+        in str(err.value)
+
+    with pytest.raises(InternalError) as err:
+        _ = AccessInfo(AccessType.READ, location, Node(),
+                       indices_list=[[], 123])
+    assert "Indices_list in add_access must be a list of lists, or None, "\
+        "got '[[], 123]'" in str(err.value)
 
 
 # -----------------------------------------------------------------------------

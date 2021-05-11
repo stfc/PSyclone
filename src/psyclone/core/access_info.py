@@ -73,21 +73,7 @@ class AccessInfo(object):
         self._location = location
         self._access_type = access_type
         self._node = node
-        if indices_list:
-            if not isinstance(indices_list, list):
-                raise InternalError("Indices_list in add_access must be a "
-                                    "list or None, got '{0}'".
-                                    format(indices_list))
-            for indices in indices_list:
-                if not isinstance(indices, list):
-                    raise InternalError("Indices_list in add_access must be "
-                                        "a list of lists, or None, got '{0}'".
-                                        format(indices_list))
-
-            # Create a copy of the list of indices
-            self._indices = indices_list[:]
-        else:
-            self._indices = [[]]
+        self.indices = indices_list
 
     def __str__(self):
         '''Returns a string representating showing the access mode
@@ -118,14 +104,30 @@ class AccessInfo(object):
         return self._indices
 
     @indices.setter
-    def indices(self, indices):
+    def indices(self, indices_list):
         '''Sets the indices for this AccessInfo instance.
 
-        :param indices: list of indices used in the access.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param indices_list: list of indices used in the access.
+        :type indices_list: list of list of \
+            py:class:`psyclone.psyir.nodes.Node`
+
+        :raises InternalError: if the indices_list is not a list of lists.
+
         '''
-        print("SETTING INDICES from ", self._indices, "to", indices)
-        self._indices = indices[:]
+        print("INDICES", indices_list)
+        if indices_list:
+            if not isinstance(indices_list, list):
+                raise InternalError("Indices_list in add_access must be a "
+                                    "list or None, got '{0}'".
+                                    format(indices_list))
+            for indices in indices_list:
+                if not isinstance(indices, list):
+                    raise InternalError("Indices_list in add_access must be "
+                                        "a list of lists, or None, got '{0}'".
+                                        format(indices_list))
+            self._indices = indices_list[:]
+        else:
+            self._indices = [[]]
 
     def is_array(self):
         '''Test if any of the components has an index. E.g. an access like
