@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic,    Met Office
 #          C.M. Maynard, Met Office / University of Reading
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -67,18 +68,6 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # directives exists in psyGen.py so this mapping should not be
 # overidden.
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
-
-# Names of internal scalar argument types. Can be overridden in
-# domain-specific modules.
-VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
-
-# Valid types of argument to a kernel call. Can be overridden in
-# domain-specific modules.
-VALID_ARG_TYPE_NAMES = []
-
-# Valid intrinsic types of kernel argument data. Can be
-# overridden in domain-specific modules.
-VALID_INTRINSIC_TYPES = []
 
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
@@ -664,12 +653,13 @@ class Invoke(object):
 
         '''
         # First check for invalid argument types, access and intrinsic type
-        if any(argtype not in VALID_ARG_TYPE_NAMES for
+        const = Config.get().api_conf().get_constants()
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declarations() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
+                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
@@ -678,12 +668,12 @@ class Invoke(object):
                 format(str(access)))
 
         if (intrinsic_type and intrinsic_type not in
-                VALID_INTRINSIC_TYPES):
+                const.VALID_INTRINSIC_TYPES):
             raise InternalError(
                 "Invoke.unique_declarations() called with an invalid "
                 "intrinsic argument data type. Expected one of {0} but "
                 "found '{1}'.".
-                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
+                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # Initialise dictionary of kernel arguments to get the
         # argument list from
@@ -732,20 +722,21 @@ class Invoke(object):
 
         '''
         # First check for invalid argument types and intrinsic type
-        if any(argtype not in VALID_ARG_TYPE_NAMES for
+        const = Config.get().api_conf().get_constants()
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
+                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         if (intrinsic_type and intrinsic_type not in
-                VALID_INTRINSIC_TYPES):
+                const.VALID_INTRINSIC_TYPES):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with an invalid "
                 "intrinsic argument data type. Expected one of {0} but "
                 "found '{1}'.".
-                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
+                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent
@@ -1828,9 +1819,10 @@ class OMPDirective(Directive):
 
         '''
         result = []
+        const = Config.get().api_conf().get_constants()
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.argument_type in VALID_SCALAR_NAMES:
+                if arg.argument_type in const.VALID_SCALAR_NAMES:
                     if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
@@ -2575,8 +2567,9 @@ class Kern(Statement):
 
         # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
+        const = Config.get().api_conf().get_constants()
         args = args_filter(self._arguments.args,
-                           arg_types=VALID_SCALAR_NAMES,
+                           arg_types=const.VALID_SCALAR_NAMES,
                            arg_accesses=reduction_modes)
         if args:
             self._reduction = True
