@@ -1429,6 +1429,72 @@ class Fparser2Reader(object):
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))
 
+    def _process_type_spec(self, parent, type_spec):
+        '''
+        Processes the fparser2 parse tree of a type specification in order to
+        extract the type and precision that are specified.
+
+        :param parent: the parent of the current PSyIR node under construction.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param type_spec: the fparser2 parse tree of the type specification.
+        :type type_spec: \
+            :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec`
+
+        :returns: 2-tuple of the type and precision requested by the type-spec.
+        :rtype: 2-tuple of :py:class:`psyclone.psyir.symbols.ScalarType` or \
+            :py:class:`psyclone.psyir.symbols.TypeSymbol` and \
+            :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
+            :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
+        '''
+        base_type = None
+        precision = None
+
+        if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+            fort_type = str(type_spec.items[0]).lower()
+            try:
+                data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
+            except KeyError:
+                raise NotImplementedError(
+                    "Could not process {0}. Only 'real', 'double "
+                    "precision', 'integer', 'logical' and 'character' "
+                    "intrinsic types are supported."
+                    "".format(str(type_spec)))
+            if fort_type == "double precision":
+                # Fortran double precision is equivalent to a REAL
+                # intrinsic with precision DOUBLE in the PSyIR.
+                precision = ScalarType.Precision.DOUBLE
+            else:
+                # Check for precision being specified.
+                precision = self._process_precision(type_spec, parent)
+            if not precision:
+                precision = default_precision(data_name)
+            base_type = ScalarType(data_name, precision)
+        elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
+            # This is a variable of derived type
+            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
+            # Do we already have a Symbol for this derived type?
+            type_symbol = _find_or_create_imported_symbol(parent, type_name)
+            # pylint: disable=unidiomatic-typecheck
+            if type(type_symbol) == Symbol:
+                # We do but we didn't know what kind of symbol it was. Create
+                # a TypeSymbol to replace it.
+                new_symbol = TypeSymbol(type_name, DeferredType(),
+                                        interface=type_symbol.interface)
+                table = type_symbol.find_symbol_table(parent)
+                table.swap(type_symbol, new_symbol)
+                type_symbol = new_symbol
+            elif not isinstance(type_symbol, TypeSymbol):
+                raise SymbolError(
+                    "Search for a TypeSymbol named '{0}' (required by "
+                    "specification '{1}') found a '{2}' instead.".format(
+                        type_name, str(type_spec), type(type_symbol).__name__))
+            base_type = type_symbol
+        else:
+            # Not a supported type specification.
+            raise NotImplementedError()
+
+        return base_type, precision
+
     def _process_decln(self, parent, symbol_table, decl, default_visibility,
                        visibility_map=None):
         '''
@@ -1477,55 +1543,8 @@ class Fparser2Reader(object):
         '''
         (type_spec, attr_specs, entities) = decl.items
 
-        base_type = None
-        precision = None
-
         # Parse the type_spec
-
-        if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
-            fort_type = str(type_spec.items[0]).lower()
-            try:
-                data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
-            except KeyError:
-                raise NotImplementedError(
-                    "Could not process {0}. Only 'real', 'double "
-                    "precision', 'integer', 'logical' and 'character' "
-                    "intrinsic types are supported."
-                    "".format(str(decl.items)))
-            if fort_type == "double precision":
-                # Fortran double precision is equivalent to a REAL
-                # intrinsic with precision DOUBLE in the PSyIR.
-                precision = ScalarType.Precision.DOUBLE
-            else:
-                # Check for precision being specified.
-                precision = self._process_precision(type_spec, parent)
-            if not precision:
-                precision = default_precision(data_name)
-            base_type = ScalarType(data_name, precision)
-        elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
-            # This is a variable of derived type
-            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
-            # Do we already have a Symbol for this derived type?
-            type_symbol = _find_or_create_imported_symbol(parent, type_name)
-            # pylint: disable=unidiomatic-typecheck
-            if type(type_symbol) == Symbol:
-                # We do but we didn't know what kind of symbol it was. Create
-                # a TypeSymbol to replace it.
-                new_symbol = TypeSymbol(type_name, DeferredType(),
-                                        interface=type_symbol.interface)
-                table = type_symbol.find_symbol_table(parent)
-                table.swap(type_symbol, new_symbol)
-                type_symbol = new_symbol
-            elif not isinstance(type_symbol, TypeSymbol):
-                raise SymbolError(
-                    "Search for a TypeSymbol named '{0}' (required by "
-                    "declaration '{1}') found a '{2}' instead.".format(
-                        type_name, str(decl), type(type_symbol).__name__))
-            base_type = type_symbol
-        else:
-            # Not a supported declaration. This will result in a symbol of
-            # UnknownFortranType.
-            raise NotImplementedError()
+        base_type, precision = self._process_type_spec(parent, type_spec)
 
         # Parse declaration attributes:
         # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -1989,7 +2008,8 @@ class Fparser2Reader(object):
         kind=KIND(x).
 
         :param type_spec: the fparser2 parse tree of the type specification.
-        :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
+        :type type_spec: \
+            :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec`
         :param psyir_parent: the parent PSyIR node where the new node \
             will be attached.
         :type psyir_parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -3400,7 +3420,8 @@ class Fparser2Reader(object):
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
             # Dummy_Arg_List, even if there's only one of them.
-            if isinstance(node, Fortran2003.Subroutine_Subprogram) and \
+            if isinstance(node, (Fortran2003.Subroutine_Subprogram,
+                                 Fortran2003.Function_Subprogram)) and \
                isinstance(node.children[0].children[2],
                           Fortran2003.Dummy_Arg_List):
                 arg_list = node.children[0].children[2].children
@@ -3417,6 +3438,18 @@ class Fparser2Reader(object):
 
         # If this is a function then work out the return type
         if isinstance(node, Fortran2003.Function_Subprogram):
+            # Check whether the function-stmt has a prefix specifying the
+            # return type.
+            prefix = node.children[0].children[0]
+            if prefix:
+                # If there is anything else in the prefix (PURE, ELEMENTAL or
+                # RECURSIVE) then this will cause a NotImplementedError and we
+                # will get a CodeBlock for this function.
+                base_type, precision = self._process_type_spec(
+                    parent, prefix.children[0])
+            else:
+                base_type = None
+
             # Check whether the function-stmt has a suffix containing
             # 'RETURNS'
             suffix = node.children[0].children[3]
@@ -3426,11 +3459,28 @@ class Fparser2Reader(object):
                 # Otherwise, the return value of the function is given by
                 # a symbol of the same name.
                 return_name = name
+
+            # If, after processing the declarations, the symbol table still
+            # contains a RoutineSymbol for the function name (rather than a
+            # DataSymbol) then there is no explicit declaration within the
+            # function of the variable used to hold the return value.
+            symbol = routine.symbol_table.lookup(return_name)
+            if isinstance(symbol, RoutineSymbol):
+                if not base_type:
+                    # The type of the return value was not specified in the
+                    # function prefix.
+                    raise NotImplementedError()
+                # Replace the RoutineSymbol with a DataSymbol
+                routine.symbol_table.remove(symbol)
+                routine.symbol_table.new_symbol(return_name,
+                                                symbol_type=DataSymbol,
+                                                datatype=base_type)
+            # Create a new Routine object with a return symbol to replace
+            # the one we used while processing the declarations. The symbol
+            # table of the original Routine is kept.
             return_sym = routine.symbol_table.lookup(return_name)
-            # Create a new Routine object with a return type to replace
-            # the one we used while processing the declarations.
             routine = Routine.create(name, routine.symbol_table, [],
-                                     return_type=return_sym.datatype)
+                                     return_symbol=return_sym)
 
         try:
             sub_exec = _first_type_match(node.content,

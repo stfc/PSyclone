@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -127,8 +127,9 @@ def test_function_handler(fortran_reader):
     assert isinstance(psyir, Container)
     routines = psyir.walk(Routine)
     assert len(routines) == 1
-    assert isinstance(routines[0].return_type, ScalarType)
-    assert routines[0].return_type.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(routines[0].return_symbol, DataSymbol)
+    assert (routines[0].return_symbol.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
     assert psyir.parent is None
     writer = FortranWriter()
     result = writer(psyir)
@@ -137,8 +138,8 @@ def test_function_handler(fortran_reader):
 
 def test_function_return_val(fortran_reader):
     '''
-    Test that we handle a function with the return value specified using the
-    'result()' prefix.
+    Test that we handle a Fortran function with the return value specified
+    using the 'result()' suffix.
 
     '''
     code = (
@@ -154,7 +155,13 @@ def test_function_return_val(fortran_reader):
     assert isinstance(psyir, Container)
     routines = psyir.walk(Routine)
     assert len(routines) == 1
+    assert (routines[0].return_symbol is
+            routines[0].symbol_table.lookup("my_val"))
     writer = FortranWriter()
     result = writer(psyir)
-    print(result)
-    assert 0
+    assert ("  function my_func() result(my_val)\n"
+            "    real :: my_val\n"
+            "\n"
+            "    my_val = 1.0\n"
+            "\n"
+            "  end function my_func\n" in result)
