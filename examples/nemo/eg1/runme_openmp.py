@@ -44,14 +44,12 @@ Once you have psyclone installed, this script may be run by doing:
 
 This should generate a lot of output, ending with generated
 Fortran.
-'''
 
+'''
 from __future__ import print_function
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.backend.fortran import FortranWriter
 
-FWRITER = FortranWriter()
 
 if __name__ == "__main__":
     from psyclone.nemo import NemoKern
