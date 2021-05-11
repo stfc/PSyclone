@@ -910,8 +910,7 @@ class Node(object):
         :raises InternalError: if the absolute position cannot be found.
 
         '''
-        from psyclone.psyir.nodes import Schedule
-        if self.root == self and isinstance(self.root, Schedule):
+        if self.root == self:
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)

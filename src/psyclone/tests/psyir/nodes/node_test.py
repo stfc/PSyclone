@@ -161,6 +161,7 @@ def test_node_position():
     child = schedule.children[6]
     # Assert that position of a Schedule (no parent Node) is 0
     assert schedule.position == 0
+    assert schedule.abs_position == 0
     # Assert that start_position of any Node is 0
     assert child.START_POSITION == 0
     # Assert that relative and absolute positions return correct values
@@ -191,6 +192,22 @@ def test_node_position():
     with pytest.raises(InternalError) as excinfo:
         _, _ = child._find_position(child.root.children, -2)
     assert "started from -2 instead of 0" in str(excinfo.value)
+
+
+def test_node_abs_position_error():
+    ''' Check that the abs_position method produces and internal error when
+    a node can be found as one of the children of its parent (this just
+    happens with inconsistent parent-child connections). '''
+
+    parent = Schedule()
+    node1 = Statement()
+    # Manually connect the _parent attribute which won't make a consistent
+    # two-way relationship
+    node1._parent = parent
+
+    with pytest.raises(InternalError) as err:
+        _ = node1.abs_position
+    assert "Error in search for Node position in the tree" in str(err.value)
 
 
 def test_node_root():

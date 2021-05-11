@@ -376,6 +376,27 @@ def test_invokeschedule_can_be_printed():
     assert "InvokeSchedule:\n" in output
 
 
+def test_invokeschedule_gen_code_with_preexisting_globals():
+    ''' Check the InvokeSchedule gen_code adds pre-existing SymbolTable global
+    variables into the generated f2pygen code. Multiple globals imported from
+    the same module will be part of a single USE statement.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # Add some globals into the SymbolTable before calling gen_code()
+    schedule = psy.invokes.invoke_list[0].schedule
+    my_mod = ContainerSymbol("my_mod")
+    schedule.symbol_table.add(my_mod)
+    global1 = DataSymbol('gvar1', REAL_TYPE, interface=GlobalInterface(my_mod))
+    global2 = DataSymbol('gvar2', REAL_TYPE, interface=GlobalInterface(my_mod))
+    schedule.symbol_table.add(global1)
+    schedule.symbol_table.add(global2)
+
+    assert "USE my_mod, ONLY: gvar1, gvar2" in str(psy.gen)
+
+
 # Kern class test
 
 def test_kern_get_kernel_schedule():
