@@ -748,6 +748,7 @@ class Fparser2Reader(object):
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Data_Ref: self._data_ref_handler,
+            Fortran2003.Function_Subprogram: self._subroutine_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
             Fortran2003.Part_Ref: self._part_ref_handler,
@@ -3375,11 +3376,12 @@ class Fparser2Reader(object):
         return call
 
     def _subroutine_handler(self, node, parent):
-        '''Transforms an fparser2 Subroutine_Subprogram statement into a PSyIR
-        Routine node.
+        '''Transforms an fparser2 Subroutine_Subprogram or Function_Subprogram
+        statement into a PSyIR Routine node.
 
         :param node: node in fparser2 parse tree.
-        :type node: :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram`
+        :type node: :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` \
+            or :py:class:`fparser.two.Fortran2003.Function_Subprogram`
         :param parent: parent node of the PSyIR node being constructed.
         :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
@@ -3390,6 +3392,7 @@ class Fparser2Reader(object):
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
 
+        # Deal with any arguments
         try:
             sub_spec = _first_type_match(node.content,
                                          Fortran2003.Specification_Part)
@@ -3411,6 +3414,23 @@ class Fparser2Reader(object):
             arg_list = []
         finally:
             self.process_declarations(routine, decl_list, arg_list)
+
+        # If this is a function then work out the return type
+        if isinstance(node, Fortran2003.Function_Subprogram):
+            # Check whether the function-stmt has a suffix containing
+            # 'RETURNS'
+            suffix = node.children[0].children[3]
+            if suffix:
+                return_name = suffix.children[0].string
+            else:
+                # Otherwise, the return value of the function is given by
+                # a symbol of the same name.
+                return_name = name
+            return_sym = routine.symbol_table.lookup(return_name)
+            # Create a new Routine object with a return type to replace
+            # the one we used while processing the declarations.
+            routine = Routine.create(name, routine.symbol_table, [],
+                                     return_type=return_sym.datatype)
 
         try:
             sub_exec = _first_type_match(node.content,

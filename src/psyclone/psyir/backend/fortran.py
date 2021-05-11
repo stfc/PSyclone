@@ -758,9 +758,14 @@ class FortranWriter(PSyIRVisitor):
             result = ("{0}program {1}\n".format(self._nindent, node.name))
         else:
             args = [symbol.name for symbol in node.symbol_table.argument_list]
+            if node.return_type:
+                # This Routine has a return value and is therefore a Function
+                routine_type = "function"
+            else:
+                routine_type = "subroutine"
             result = (
-                "{0}subroutine {1}({2})\n"
-                "".format(self._nindent, node.name, ", ".join(args)))
+                "{0}{1} {2}({3})\n".format(self._nindent, routine_type,
+                                           node.name, ", ".join(args)))
 
         self._depth += 1
 
@@ -801,7 +806,7 @@ class FortranWriter(PSyIRVisitor):
         if node.is_program:
             keyword = "program"
         else:
-            keyword = "subroutine"
+            keyword = routine_type
         result += (
             "{0}end {1} {2}\n"
             "".format(self._nindent, keyword, node.name))

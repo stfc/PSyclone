@@ -42,7 +42,8 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -93,3 +94,67 @@ def test_subroutine_handler(parser, code, expected):
     writer = FortranWriter()
     result = writer(psyir)
     assert expected == result
+
+
+def test_function_handler(fortran_reader):
+    '''Test that subroutine_handler correctly handles a function defined
+    within a module.
+
+    '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func()\n"
+        "    integer :: my_func\n"
+        "    my_func = 1\n"
+        "  end function my_func\n"
+        "end module\n")
+    expected = (
+        "module a\n"
+        "  implicit none\n\n"
+        "  public :: my_func\n\n"
+        "  contains\n"
+        "  function my_func()\n"
+        "    integer :: my_func\n"
+        "\n"
+        "    my_func = 1\n"
+        "\n"
+        "  end function my_func\n"
+        "\n"
+        "end module a\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # Check PSyIR nodes are being created
+    assert isinstance(psyir, Container)
+    routines = psyir.walk(Routine)
+    assert len(routines) == 1
+    assert isinstance(routines[0].return_type, ScalarType)
+    assert routines[0].return_type.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert psyir.parent is None
+    writer = FortranWriter()
+    result = writer(psyir)
+    assert result == expected
+
+
+def test_function_return_val(fortran_reader):
+    '''
+    Test that we handle a function with the return value specified using the
+    'result()' prefix.
+
+    '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func() result(my_val)\n"
+        "    real :: my_val\n"
+        "    my_val = 1.0\n"
+        "  end function my_func\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # Check PSyIR nodes are being created
+    assert isinstance(psyir, Container)
+    routines = psyir.walk(Routine)
+    assert len(routines) == 1
+    writer = FortranWriter()
+    result = writer(psyir)
+    print(result)
+    assert 0
