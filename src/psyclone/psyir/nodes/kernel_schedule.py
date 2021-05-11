@@ -55,7 +55,6 @@ class KernelSchedule(Routine):
     def __init__(self, name, parent=None):
         # A kernel does not return anything and is not a main program
         super(KernelSchedule, self).__init__(name, is_program=False,
-                                             return_type=None,
                                              parent=parent)
 
     @classmethod
@@ -78,8 +77,7 @@ class KernelSchedule(Routine):
 
         '''
         return super(cls, KernelSchedule).create(name, symbol_table, children,
-                                                 is_program=False,
-                                                 return_type=None)
+                                                 is_program=False)
 
 
 # For automatic documentation generation

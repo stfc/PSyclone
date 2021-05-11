@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
-from psyclone.psyir.symbols import (INTEGER_TYPE, REAL_TYPE, DataSymbol,
+from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links
 
@@ -52,9 +52,6 @@ def test_routine_constructor():
     with pytest.raises(TypeError) as err:
         Routine("hello", is_program=1)
     assert "'is_program' must be a bool" in str(err.value)
-    with pytest.raises(TypeError) as err:
-        Routine("hello", return_type=1)
-    assert "'return_type' must be of type DataType" in str(err.value)
     node = Routine("hello")
     assert node._name == "hello"
 
@@ -63,23 +60,20 @@ def test_routine_properties():
     ''' Check the various properties of the Routine class. '''
     node1 = Routine("hello")
     assert node1.dag_name == "routine_hello_0"
-    assert node1.return_type is None
+    assert node1.return_symbol is None
     assert node1.is_program is False
     assert node1.name == "hello"
     # Give the Routine a child to get full coverage of __str__ method
     node1.addchild(Assignment())
     assert "Routine[name:'hello']:\nAssignment" in str(node1)
 
-    node2 = Routine("bonjour", return_type=INTEGER_TYPE)
-    assert node2.return_type == INTEGER_TYPE
+    node2 = Routine("bonjour")
     assert node2.is_program is False
 
     node3 = Routine("gutentag", is_program=True)
-    assert node3.return_type is None
     assert node3.is_program
 
-    node4 = Routine("welcome", is_program=True, return_type=INTEGER_TYPE)
-    assert node4.return_type == INTEGER_TYPE
+    node4 = Routine("welcome", is_program=True)
     assert node4.is_program
 
 
@@ -152,10 +146,9 @@ def test_routine_create():
     assignment = Assignment.create(Reference(symbol),
                                    Literal("0.0", REAL_TYPE))
     kschedule = Routine.create("mod_name", symbol_table, [assignment],
-                               is_program=True, return_type=INTEGER_TYPE)
+                               is_program=True, return_symbol=symbol)
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
     assert kschedule.is_program
-    assert kschedule.return_type == INTEGER_TYPE
-    # TODO #910 test the Fortran backend for the Routine node.
+    assert kschedule.return_symbol is symbol
