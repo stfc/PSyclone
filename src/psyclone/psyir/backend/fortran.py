@@ -46,7 +46,8 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
+    ContainerSymbol, ScalarType, ArrayType, UnknownType, DeferredType, \
+    UnknownFortranType, \
     SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Routine, Reference, Literal, DataNode, CodeBlock, Member, Range, Schedule
@@ -437,6 +438,12 @@ class FortranWriter(PSyIRVisitor):
                 "The Fortran backend cannot handle the declaration of a "
                 "symbol of '{0}' type.".format(type(symbol.datatype).__name__))
 
+        if isinstance(symbol.datatype, DeferredType):
+            # We assume that a symbol of DeferredType is being imported from
+            # a container and doesn't need a declaration.
+            # TODO #11 Log the fact that symbol.name is of DeferredType
+            return ""
+
         datatype = gen_datatype(symbol.datatype, symbol.name)
         result = "{0}{1}".format(self._nindent, datatype)
 
@@ -703,7 +710,8 @@ class FortranWriter(PSyIRVisitor):
         if not all([isinstance(child, Routine) for child in node.children]):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
-                "to be a sub-class of Routine.")
+                "to be a sub-class of Routine but found: {0}.".format(
+                    [type(child).__name__ for child in node.children]))
 
         result = "{0}module {1}\n".format(self._nindent, node.name)
 

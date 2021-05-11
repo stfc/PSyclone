@@ -117,19 +117,6 @@ class NemoInvoke(Invoke):
         self._invokes = invokes
         self._schedule = sched
         self._name = name
-
-        # TODO #737 this 'raising' should be done somewhere else (perhaps
-        # NemoPSy). We have to import the transformation-related classes
-        # here to avoid circular dependencies.
-        # pylint: disable=import-outside-toplevel
-        #from psyclone.transformations import TransformationError
-        #from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
-        #ktrans = CreateNemoKernelTrans()
-        #for loop in self._schedule.walk(Loop):
-        #    try:
-        #        ktrans.apply(loop.loop_body)
-        #    except TransformationError:
-        #        pass
         self._schedule.invoke = self
 
     def update(self):
@@ -191,8 +178,6 @@ class NemoPSy(PSy):
     '''
     The NEMO-specific PSy class. This creates a NEMO-specific
     invokes object (which controls all the required invocation calls).
-    Also overrides the PSy gen() method so that we update and then
-    return the fparser2 AST for the (transformed) PSy layer.
 
     :param ast: the fparser2 AST for this PSy layer (i.e. NEMO routine)
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
