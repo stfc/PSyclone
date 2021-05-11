@@ -295,6 +295,23 @@ class DependencyTools(object):
         return False
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def is_variable_array(var_name, symbol_table):
+        '''This function uses the symbol table to identify if a given
+        variable access is an array.
+
+        :param str var_name: name of the variable.
+        :param symbol_table: the symbol table to use for the lookup.
+
+        :returns: if the variable is an array.
+        :rtype bool:
+
+        '''
+        # Find the symbol for this variable
+        symbol = symbol_table.lookup(var_name)
+        return symbol.is_array
+
+    # -------------------------------------------------------------------------
     def can_loop_be_parallelised(self, loop, loop_variable=None,
                                  only_nested_loops=True,
                                  test_all_variables=False,
@@ -375,18 +392,14 @@ class DependencyTools(object):
             # i.e. in case of "a%b" it will only return "a"
             var_name = signature.var_name
             var_info = var_accesses[signature]
-            symbol_table = loop.scope.symbol_table
-            if var_name not in symbol_table:
-                # TODO #845: Once we have symbol tables, any variable should
-                # be in a symbol table, so we have to raise an exception here.
-                # We need to fall-back to the old-style test, since we do not
-                # have information in a symbol table. So check if the access
-                # information stored an index:
-                is_array = var_info[0].indices is not None
-            else:
-                # Find the symbol for this variable
-                symbol = symbol_table.lookup(var_name)
-                is_array = symbol.is_array
+            is_array = var_info[0].is_array()
+            if not is_array:
+                # We might have an array expression (a=b+1), which the
+                # variable usage cannot detect as being an array. In this
+                # case, use the symbol table to find more details:
+                symbol_table = loop.scope.symbol_table
+                is_array = DependencyTools.is_variable_array(var_name,
+                                                             symbol_table)
 
             if is_array:
                 # Handle arrays

@@ -192,35 +192,57 @@ def test_arrays_parallelise(parser):
 
 
 # -----------------------------------------------------------------------------
-def test_scalar_parallelise(parser):
-    '''Tests the scalar checks of can_loop_be_parallelised.
+@pytest.mark.parametrize("declaration, variable",
+                         [("integer :: a", "a"),
+                          ("type(my_type) :: a", "a%scalar"),
+                          ("type(my_type) :: a", "a%sub%scalar")])
+def test_scalar_parallelise(declaration, variable, parser):
+    '''Tests that scalar variables are correctly handled. It tests for
+    'normal' scalar variables ('b') as well as scalar variables in derived
+    types ('b%b').
+
+    :param str declaration: the declaration of the variable (e.g. \
+        'integer :: b', or 'type(my_type) :: b'')
+    :param str variable: the variable (e.g. 'b', or 'b%b')
+
     '''
     reader = FortranStringReader('''program test
-                                 integer :: ji, jj, b
+                                 implicit none
+                                 type :: my_sub_type
+                                    integer :: scalar
+                                 end type my_sub_type
+                                 type :: my_type
+                                    integer :: scalar
+                                    type(my_sub_type) :: sub
+                                 end type my_type
+
+                                 {0}  ! Declaration of variable here
+                                 integer :: ji, jj
                                  integer, parameter :: jpi=7, jpj=9
-                                 integer, dimension(jpi,jpj) :: a, c
+                                 integer, dimension(jpi,jpj) :: b, c
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
-                                       a(ji, jj) = b
+                                       b(ji, jj) = {1}
                                      end do
                                  end do
                                  do jj = 1, jpj   ! loop 1
                                     do ji = 1, jpi
-                                       b = a(ji, jj)
+                                       {1} = b(ji, jj)
                                      end do
                                  end do
                                  do jj = 1, jpj   ! loop 2
                                     do ji = 1, jpi
-                                       b = a(ji, jj)
-                                       c(ji, jj) = b*b
+                                       {1} = b(ji, jj)
+                                       c(ji, jj) = {1}*{1}
                                      end do
                                  end do
                                  do jj = 1, jpj   ! loop 3
                                     do ji = 1, jpi
-                                       b = b + a(ji, jj)
+                                       {1} = {1} + b(ji, jj)
                                      end do
                                  end do
-                                 end program test''')
+                                 end program test'''.format(declaration,
+                                                            variable))
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     loops = psy.invokes.get("test").schedule
@@ -233,7 +255,7 @@ def test_scalar_parallelise(parser):
     # Write only scalar variable: a(ji, jj) = b
     parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
     assert not parallel
-    assert "Scalar variable 'b' is only written once" \
+    assert "Scalar variable '{0}' is only written once".format(variable) \
         in dep_tools.get_all_messages()[0]
 
     # Write to scalar variable happens first
@@ -243,8 +265,8 @@ def test_scalar_parallelise(parser):
     # Reduction operation on scalar variable
     parallel = dep_tools.can_loop_be_parallelised(loops[3], "jj")
     assert not parallel
-    assert "Variable 'b' is read first, which indicates a reduction."\
-        in dep_tools.get_all_messages()[0]
+    assert "Variable '{0}' is read first, which indicates a reduction."\
+        .format(variable) in dep_tools.get_all_messages()[0]
 
 
 # -----------------------------------------------------------------------------
@@ -256,13 +278,13 @@ def test_derived_type(parser):
                                  integer :: ji, jj, jpi, jpj
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
-                                       a%b(ji, jj) = 0
+                                       a%b(ji, jj) = a%b(ji, jj-1)+1
                                      end do
                                  end do
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
-                                       a%b(ji, jj) = 0
-                                       b%b(ji, jj) = 0
+                                       a%b(ji, jj) = a%b(ji, jj-1)+1
+                                       b%b(ji, jj) = b%b(ji, jj-1)+1
                                      end do
                                  end do
                                  end program test''')
@@ -273,12 +295,10 @@ def test_derived_type(parser):
 
     parallel = dep_tools.can_loop_be_parallelised(loops[0], "jj")
     assert not parallel
-    # TODO #1028 - arrays not yet working
 
     # Test that testing is stopped with the first unparallelisable statement
     parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
     assert not parallel
-    # TODO #1028 arrays not yet working
     # Test that only one message is stored, i.e. no message for the
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
