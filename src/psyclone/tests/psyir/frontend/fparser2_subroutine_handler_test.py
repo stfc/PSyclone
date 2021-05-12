@@ -142,18 +142,26 @@ FN1_IN = ("  function my_func() result(my_val)\n"
           "    real :: my_val\n"
           "    my_val = 1.0\n"
           "  end function my_func\n")
+FN2_IN = ("  real function my_func() result(my_val)\n"
+          "    my_val = 1.0\n"
+          "  end function my_func\n")
+FN3_IN = ("  real(wp) function my_func() result(my_val)\n"
+          "    my_val = 1.0\n"
+          "  end function my_func\n")
 EXPECTED_FN_OUT = ("  function my_func() result(my_val)\n"
                    "    real :: my_val\n\n"
                    "    my_val = 1.0\n\n"
                    "  end function my_func\n")
-FN2_IN = ("  real function my_func() result(my_val)\n"
-          "    my_val = 1.0\n"
-          "  end function my_func\n")
+EXPECTED_FN3_OUT = ("  function my_func() result(my_val)\n"
+                    "    real(kind=wp) :: my_val\n\n"
+                    "    my_val = 1.0\n\n"
+                    "  end function my_func\n")
 
 
 @pytest.mark.parametrize("code,expected",
                          [(FN1_IN, EXPECTED_FN_OUT),
-                          (FN2_IN, EXPECTED_FN_OUT)])
+                          (FN2_IN, EXPECTED_FN_OUT),
+                          (FN3_IN, EXPECTED_FN3_OUT)])
 def test_function_result_suffix(fortran_reader, code, expected):
     '''
     Test that we handle a Fortran function with the return value specified
@@ -164,6 +172,7 @@ def test_function_result_suffix(fortran_reader, code, expected):
     '''
     code = (
         "module a\n"
+        "use kind_params, only: wp\n"
         "contains\n"
         "{0}end module\n".format(code))
     psyir = fortran_reader.psyir_from_source(code)

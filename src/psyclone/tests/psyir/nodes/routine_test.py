@@ -73,9 +73,6 @@ def test_routine_properties():
     node3 = Routine("gutentag", is_program=True)
     assert node3.is_program
 
-    node4 = Routine("welcome", is_program=True)
-    assert node4.is_program
-
 
 def test_routine_name_setter():
     ''' Check the name setter property of the Routine class updates its

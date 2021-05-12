@@ -1440,11 +1440,12 @@ class Fparser2Reader(object):
         :type type_spec: \
             :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec`
 
-        :returns: 2-tuple of the type and precision requested by the type-spec.
+        :returns: the type and precision specified by the type-spec.
         :rtype: 2-tuple of :py:class:`psyclone.psyir.symbols.ScalarType` or \
             :py:class:`psyclone.psyir.symbols.TypeSymbol` and \
             :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
             :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
+
         '''
         base_type = None
         precision = None
@@ -3446,8 +3447,8 @@ class Fparser2Reader(object):
                 # RECURSIVE) then we will create a CodeBlock for this function.
                 if len(prefix.children) > 1:
                     raise NotImplementedError()
-                base_type, precision = self._process_type_spec(
-                    parent, prefix.children[0])
+                base_type, _ = self._process_type_spec(parent,
+                                                       prefix.children[0])
             else:
                 base_type = None
 
@@ -3477,10 +3478,11 @@ class Fparser2Reader(object):
                 if isinstance(symbol, RoutineSymbol):
                     if not base_type:
                         # The type of the return value was not specified in the
-                        # function prefix.
+                        # function prefix either therefore we have no explicit
+                        # type information for it.
                         raise NotImplementedError()
                     # Remove the RoutineSymbol ready to replace it with a
-                    # DataSymbol
+                    # DataSymbol.
                     routine.symbol_table.remove(symbol)
 
             if return_name not in routine.symbol_table:

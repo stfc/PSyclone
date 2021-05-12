@@ -756,6 +756,7 @@ class FortranWriter(PSyIRVisitor):
 
         if node.is_program:
             result = ("{0}program {1}\n".format(self._nindent, node.name))
+            routine_type = "program"
         else:
             args = [symbol.name for symbol in node.symbol_table.argument_list]
             suffix = ""
@@ -806,13 +807,9 @@ class FortranWriter(PSyIRVisitor):
             "".format(imports, declarations, exec_statements))
 
         self._depth -= 1
-        if node.is_program:
-            keyword = "program"
-        else:
-            keyword = routine_type
         result += (
             "{0}end {1} {2}\n"
-            "".format(self._nindent, keyword, node.name))
+            "".format(self._nindent, routine_type, node.name))
 
         return result
 
