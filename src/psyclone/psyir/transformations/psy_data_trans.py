@@ -263,7 +263,7 @@ class PSyDataTrans(RegionTrans):
         # automatically.
         table = parent.root.symbol_table
 
-        # transformation
+        # Create a memento of the tree root and the proposed transformation
         keep = Memento(root, self)
 
         # Create an instance of the required class that implements

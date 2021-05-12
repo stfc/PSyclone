@@ -52,7 +52,6 @@ from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (SymbolTable, TypeSymbol, DataSymbol,
                                     ContainerSymbol, DeferredType,
                                     UnknownFortranType, GlobalInterface)
