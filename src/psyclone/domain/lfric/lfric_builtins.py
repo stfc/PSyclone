@@ -419,6 +419,10 @@ class LFRicBuiltIn(BuiltIn):
         :returns: a symbol for each kernel argument.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
+        :raises NotImplementedError: if a scalar argument that is not of real \
+                                     or integer type is encountered.
+        :raises NotImplementedError: if an argument that is not a field or a \
+                                     scalar is encountered.
         '''
         table = self.scope.symbol_table
         fld_proxy_type = self.get_field_proxy_type_symbol()
@@ -456,8 +460,8 @@ class LFRicBuiltIn(BuiltIn):
 
             else:
                 raise NotImplementedError(
-                    "Unsupported Builtin argument type: '{0}'".format(
-                        str(arg)))
+                    "Unsupported Builtin argument type: '{0}' is of type "
+                    "'{1}'".format(arg.name, arg.argument_type))
         return arg_symbols
 
 # ******************************************************************* #

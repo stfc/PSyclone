@@ -47,13 +47,14 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import ScalarType, TypeSymbol, DeferredType, \
+    DataSymbol
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import lfric_builtins
 from psyclone.domain.lfric.lfric_builtins import (
-    VALID_BUILTIN_ARG_TYPES, LFRicBuiltInCallFactory)
+    VALID_BUILTIN_ARG_TYPES, LFRicBuiltInCallFactory, LFRicArgDescriptor)
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -362,6 +363,79 @@ def test_lfricbuiltfactory_str():
     assert "Factory for a call to an LFRic built-in." in str(factory)
 
 
+def test_get_argument_symbols(monkeypatch):
+    ''' Test the LFRicBuiltIn.get_argument_symbols() method.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.8_a_plus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    symbols = loop.loop_body[0].get_argument_symbols()
+    for sym in symbols:
+        assert isinstance(sym, DataSymbol)
+        if sym.name == "a":
+            # We should have a symbol of DeferredType for the scalar
+            assert isinstance(sym.datatype, DeferredType)
+        else:
+            assert isinstance(sym.datatype, TypeSymbol)
+            assert sym.datatype.name == "field_proxy_type"
+
+    # Repeat but test the case where the symbol for the scalar argument
+    # has not already been created.
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+
+    # We cannot use table.remove() as that does not support DataSymbols.
+    # Therefore we monkeypatch the table.lookup() method to make it appear
+    # that the scalar symbol does not exist.
+
+    def fake_lookup(name):
+        raise KeyError("For testing")
+    monkeypatch.setattr(loop.loop_body.symbol_table, "lookup", fake_lookup)
+    # This time, the lowering should cause a new symbol to be created for
+    # the scalar argument.
+    symbols = loop.loop_body[0].get_argument_symbols()
+    monkeypatch.undo()
+    for sym in symbols:
+        if sym.name == "a_1":
+            scalar = sym
+            break
+    else:
+        assert 0, "No symbol named a_1 created"
+    assert isinstance(scalar.datatype, ScalarType)
+    assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
+
+    # Repeat but test the case where the the scalar argument is of an
+    # unsupported type.
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    kern = loop.loop_body[0]
+    # Monkeypatch the scalar argument so that it appears to be of type bool
+    monkeypatch.setattr(kern._arguments.args[1], "_intrinsic_type", "bool")
+    # Force the creation of a new symbol
+    monkeypatch.setattr(loop.loop_body.symbol_table, "lookup", fake_lookup)
+    with pytest.raises(NotImplementedError) as err:
+        kern.get_argument_symbols()
+    assert "Unsupported scalar type 'bool'" in str(err.value)
+
+    # Repeat but for an argument that is neither a field or a scalar.
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    kern = loop.loop_body[0]
+    # Monkeypatch the scalar argument so that it appears to be an operator.
+    monkeypatch.setattr(kern._arguments.args[1], "_argument_type",
+                        LFRicArgDescriptor.VALID_OPERATOR_NAMES[0])
+    # Force the creation of a new symbol
+    monkeypatch.setattr(loop.loop_body.symbol_table, "lookup", fake_lookup)
+    with pytest.raises(NotImplementedError) as err:
+        kern.get_argument_symbols()
+    assert ("Unsupported Builtin argument type: 'a' is of type "
+            "'{0}'".format(LFRicArgDescriptor.VALID_OPERATOR_NAMES[0]) in
+            str(err.value))
+
+
 # ------------- Adding (scaled) real fields --------------------------------- #
 
 
@@ -510,7 +584,7 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output in code
 
 
-def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of LFRicAPlusXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = a + X where 'a' is a real scalar and X and Y
@@ -545,40 +619,6 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
-
-        # Test the lower_to_language_level method.
-        kern.lower_to_language_level()
-        loop = first_invoke.schedule[0]
-        code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
-                "  f2_proxy%data(df) = a + f1_proxy%data(df)\n"
-                "enddo" in code)
-
-        # Repeat but test the case where the symbol for the scalar argument
-        # has not already been created.
-        psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-        _ = psy.gen
-        loop = psy.invokes.invoke_list[0].schedule[0]
-
-        # We cannot use table.remove() as that does not support DataSymbols.
-        # Therefore we monkeypatch the table.lookup() method to make it appear
-        # that the scalar symbol does not exist.
-
-        def fake_lookup(name):
-            raise KeyError("For testing")
-        monkeypatch.setattr(loop.loop_body.symbol_table, "lookup", fake_lookup)
-        # This time, the lowering should cause a new symbol to be created for
-        # the scalar argument.
-        loop.loop_body[0].lower_to_language_level()
-        monkeypatch.undo()
-
-        code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
-                "  f2_proxy%data(df) = a_1 + f1_proxy%data(df)\n"
-                "enddo" in code)
-        scalar = loop.loop_body[0].scope.symbol_table.lookup("a_1")
-        assert isinstance(scalar.datatype, ScalarType)
-        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
     else:
         output_dm_2 = (
             "      !\n"
