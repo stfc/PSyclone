@@ -137,6 +137,12 @@ def test_routine_create_invalid():
         "child of children argument in create method of Routine class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
+    # return_symbol is not a Symbol
+    with pytest.raises(TypeError) as excinfo:
+        _ = Routine.create("mod_name", symbol_table, [], return_symbol="wrong")
+    assert ("return_symbol argument should be a DataSymbol but found 'str'"
+            in str(excinfo.value))
+
 
 def test_routine_create():
     '''Test that the create method correctly creates a Routine instance. '''

@@ -3443,8 +3443,9 @@ class Fparser2Reader(object):
             prefix = node.children[0].children[0]
             if prefix:
                 # If there is anything else in the prefix (PURE, ELEMENTAL or
-                # RECURSIVE) then this will cause a NotImplementedError and we
-                # will get a CodeBlock for this function.
+                # RECURSIVE) then we will create a CodeBlock for this function.
+                if len(prefix.children) > 1:
+                    raise NotImplementedError()
                 base_type, precision = self._process_type_spec(
                     parent, prefix.children[0])
             else:
@@ -3454,27 +3455,46 @@ class Fparser2Reader(object):
             # 'RETURNS'
             suffix = node.children[0].children[3]
             if suffix:
+                # Although the suffix can, in principle, contain a proc-
+                # language-binding-spec (e.g. BIND(C, "some_name")), this is
+                # only valid in an interface block and we are dealing with a
+                # function-subprogram here.
                 return_name = suffix.children[0].string
             else:
                 # Otherwise, the return value of the function is given by
                 # a symbol of the same name.
                 return_name = name
 
-            # If, after processing the declarations, the symbol table still
-            # contains a RoutineSymbol for the function name (rather than a
-            # DataSymbol) then there is no explicit declaration within the
-            # function of the variable used to hold the return value.
-            symbol = routine.symbol_table.lookup(return_name)
-            if isinstance(symbol, RoutineSymbol):
-                if not base_type:
-                    # The type of the return value was not specified in the
-                    # function prefix.
-                    raise NotImplementedError()
-                # Replace the RoutineSymbol with a DataSymbol
-                routine.symbol_table.remove(symbol)
+            # Ensure that we have an explicit declaration for the symbol
+            # returned by the function.
+            if return_name in routine.symbol_table:
+                symbol = routine.symbol_table.lookup(return_name)
+                # If the symbol table still contains a RoutineSymbol
+                # for the function name (rather than a DataSymbol)
+                # then there is no explicit declaration within the
+                # function of the variable used to hold the return
+                # value.
+                if isinstance(symbol, RoutineSymbol):
+                    if not base_type:
+                        # The type of the return value was not specified in the
+                        # function prefix.
+                        raise NotImplementedError()
+                    # Remove the RoutineSymbol ready to replace it with a
+                    # DataSymbol
+                    routine.symbol_table.remove(symbol)
+
+            if return_name not in routine.symbol_table:
+                # There is no existing declaration for the symbol returned by
+                # the function (because it is specified by the prefix and
+                # suffix of the function declaration). We add one rather than
+                # attempt to recreate the prefix. We have to set shadowing to
+                # True as there is likely to be a RoutineSymbol for this
+                # function in any enclosing Container.
                 routine.symbol_table.new_symbol(return_name,
                                                 symbol_type=DataSymbol,
-                                                datatype=base_type)
+                                                datatype=base_type,
+                                                shadowing=True)
+
             # Create a new Routine object with a return symbol to replace
             # the one we used while processing the declarations. The symbol
             # table of the original Routine is kept.
