@@ -114,7 +114,6 @@ class AccessInfo(object):
         :raises InternalError: if the indices_list is not a list of lists.
 
         '''
-        print("INDICES", indices_list)
         if indices_list:
             if not isinstance(indices_list, list):
                 raise InternalError("Indices_list in add_access must be a "
@@ -283,6 +282,14 @@ class SingleVariableAccessInfo(object):
                                 .format(self._signature))
 
         self._accesses[0].change_read_to_write()
+
+    def is_array(self):
+        ''':returns: true if there is at least one access to this variable
+        that uses an index.
+        :rtype: str
+
+        '''
+        return any(access_info.is_array() for access_info in self._accesses)
 
 
 # =============================================================================

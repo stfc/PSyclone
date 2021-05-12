@@ -100,8 +100,8 @@ def test_access_info_exceptions():
 
 # -----------------------------------------------------------------------------
 def test_variable_access_info():
-    '''Test the VariableAccesInfo class, i.e. the class that manages a list
-    of VariableInfo instances for one variable
+    '''Test the SingleVariableAccesInfo class, i.e. the class that manages a
+    list of VariableInfo instances for one variable
     '''
 
     vai = SingleVariableAccessInfo("var_name")
@@ -142,6 +142,21 @@ def test_variable_access_info():
     # And make sure the variable is not read_only if a write is added
     vai.add_access_with_location(AccessType.WRITE, 3, Node())
     assert vai.is_read_only() is False
+
+
+# -----------------------------------------------------------------------------
+def test_variable_access_info_is_array():
+    '''Test that the SingleVariableAccesInfo class handles arrays as expected.
+
+    '''
+
+    vai = SingleVariableAccessInfo("var_name")
+    # Add non array-like access:
+    vai.add_access_with_location(AccessType.READ, 1, Node())
+    assert not vai.is_array()
+    # Add array access:
+    vai.add_access_with_location(AccessType.READ, 1, Node(), [[Node()]])
+    assert vai.is_array()
 
 
 # -----------------------------------------------------------------------------
