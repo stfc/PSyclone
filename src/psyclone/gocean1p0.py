@@ -1325,11 +1325,25 @@ class GOKern(CodedKern):
         qlist = symtab.lookup_with_tag("opencl_cmd_queues").name
         flag = symtab.lookup_with_tag("opencl_error").name
 
-        # Then we call clEnqueueNDRangeKernel
-        parent.add(CommentGen(parent, " Launch the kernel"))
-        cnull = "C_NULL_PTR"
+        # Choose the command queue number to where to dispatch this kernel. We
+        # have do deal with possible dependencies to kernels dispatched in
+        # different command queues as the order in not guaranteed.
         queue_number = self._opencl_options['queue_number']
         cmd_queue = qlist + "({0})".format(queue_number)
+        outer_loop = self.parent.parent.parent.parent
+        dependency = outer_loop.backward_dependence()
+        if dependency:
+            dependent_kernel = dependency.coded_kernels()[0]
+            previous_queue = dependent_kernel._opencl_options['queue_number']
+            if previous_queue != queue_number:
+                # If the backward dependency is being executed in another queue
+                # we add a barrier to make sure the previous kernel has
+                # finished before this one is starts.
+                parent.add(AssignGen(
+                    parent,
+                    lhs=flag,
+                    rhs="clFinish({0}({1}))".format(
+                        qlist, str(previous_queue))))
 
         if api_config.debug_mode:
             # Check that everything has succeeded before the kernel launch,
@@ -1342,6 +1356,9 @@ class GOKern(CodedKern):
                 parent, "check_status",
                 ["'Errors before {0} launch'".format(self.name), flag]))
 
+        # Then we call clEnqueueNDRangeKernel
+        parent.add(CommentGen(parent, " Launch the kernel"))
+        cnull = "C_NULL_PTR"
         args = ", ".join([
             # OpenCL Command Queue
             cmd_queue,
