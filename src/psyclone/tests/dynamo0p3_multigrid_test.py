@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
@@ -610,7 +610,7 @@ def test_fine_halo_read():
     schedule = psy.invokes.invoke_list[0].schedule
     hexch = schedule.children[5]
     assert isinstance(hexch, DynHaloExchange)
-    assert hexch.depth == 2
+    assert hexch._compute_halo_depth() == '2'
     call = schedule.children[6]
     field = call.args[1]
     hra = HaloReadAccess(field)

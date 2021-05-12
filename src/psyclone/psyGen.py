@@ -345,6 +345,9 @@ class Invokes(object):
 
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
+
+        :raises GenerationError: if an invoke_list schedule is not an \
+            InvokeSchedule.
         '''
         def raise_unmatching_options(option_name):
             ''' Create unmatching OpenCL options error message.
@@ -363,6 +366,12 @@ class Invokes(object):
         ocl_enable_profiling = None
         ocl_out_of_order = None
         for invoke in self.invoke_list:
+            if not isinstance(invoke.schedule, InvokeSchedule):
+                raise GenerationError(
+                    "An invoke.schedule element of the invoke_list "
+                    "is a '{0}', but it should be an 'InvokeSchedule'."
+                    "".format(type(invoke.schedule).__name__))
+
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
             # calls. We do it here as this enables us to prevent
@@ -551,9 +560,9 @@ class Invoke(object):
         self._schedule = schedule_class(self._name, alg_invocation.kcalls,
                                         reserved_names)
 
-        # TODO #1170: Must be fixed before uncommenting the code below
-        # if self.invokes:
-        #     self.invokes.psy.container.addchild(self._schedule)
+        # Add the new Schedule in a top-level PSy Container
+        if self.invokes:
+            self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -1007,7 +1016,11 @@ class InvokeSchedule(Routine):
         # during the whole gen_code() chain, but at the end of this method the
         # original symbol table is restored.
         symbol_table_before_gen = self.symbol_table
+        psy_symbol_table_before_gen = self.parent.symbol_table
+        # pylint: disable=protected-access
         self._symbol_table = self.symbol_table.shallow_copy()
+        self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
+        # pylint: enable=protected-access
 
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
@@ -1046,10 +1059,10 @@ class InvokeSchedule(Routine):
             flag = self.symbol_table.new_symbol(
                 "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_error").name
-            self.root.symbol_table.new_symbol(
+            self.symbol_table.new_symbol(
                 "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_bytes")
-            self.root.symbol_table.new_symbol(
+            self.symbol_table.new_symbol(
                 "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_wevent")
 
@@ -1113,8 +1126,11 @@ class InvokeSchedule(Routine):
                               rhs="clFinish({0}({1}))".format(qlist,
                                                               queue_number)))
 
-        # Restore symbol table
+        # Restore symbol table (with a protected access attribute change)
+        # pylint: disable=protected-access
         self._symbol_table = symbol_table_before_gen
+        self.parent._symbol_table = psy_symbol_table_before_gen
+        # pylint: enable=protected-access
 
     @property
     def opencl(self):
@@ -1202,8 +1218,12 @@ class Directive(Statement):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
-        return "directive_" + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "directive_" + str(position)
 
     def _add_region(self, start_text, end_text=None, data_movement=None):
         '''
@@ -1343,7 +1363,8 @@ class ACCDirective(Directive):
         :returns: Name of corresponding node in DAG
         :rtype: str
         '''
-        return "ACC_directive_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_directive_" + str(position)
 
     def validate_global_constraints(self):
         '''
@@ -1405,7 +1426,8 @@ class ACCEnterDataDirective(ACCDirective):
         :returns: the name to use for this Node in a DAG
         :rtype: str
         '''
-        return "ACC_data_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_data_" + str(position)
 
     def gen_code(self, parent):
         '''Generate the elements of the f2pygen AST for this Node in the
@@ -1424,8 +1446,8 @@ class ACCEnterDataDirective(ACCDirective):
         # directive)
         # 1. Find all parallel and kernels directives. We store this list for
         #    later use in any sub-class.
-        self._acc_dirs = self.root.walk((ACCParallelDirective,
-                                         ACCKernelsDirective))
+        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                (ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -1491,7 +1513,8 @@ class ACCParallelDirective(ACCDirective):
         :returns: the name to use for this Node in a DAG
         :rtype: str
         '''
-        return "ACC_parallel_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_parallel_" + str(position)
 
     def validate_global_constraints(self):
         '''
@@ -1660,7 +1683,8 @@ class ACCLoopDirective(ACCDirective):
         :returns: the name to use for this Node in a DAG
         :rtype: str
         '''
-        return "ACC_loop_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_loop_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -1791,7 +1815,8 @@ class OMPDirective(Directive):
         :returns: the name to use in a dag for this node
         :rtype: str
         '''
-        return "OMP_directive_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_directive_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -1833,8 +1858,12 @@ class OMPParallelDirective(OMPDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "OMP_parallel_" + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_parallel_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -1858,8 +1887,8 @@ class OMPParallelDirective(OMPDirective):
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
             # we will use a private thread index variable
-            thread_idx = \
-                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
+            thread_idx = self.scope.symbol_table.\
+                lookup_with_tag("omp_thread_index").name
             private_list.append(thread_idx)
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
@@ -2090,8 +2119,12 @@ class OMPDoDirective(OMPDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "OMP_do_" + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_do_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -2238,8 +2271,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "OMP_parallel_do_" + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_parallel_do_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -2333,7 +2370,10 @@ class GlobalSum(Statement):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         return "globalsum({0})_".format(self._scalar.name) + str(self.position)
 
     @property
@@ -2643,7 +2683,8 @@ class Kern(Statement):
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
         tag = self._reduction_arg.name
-        name = self.root.symbol_table.symbol_from_tag(tag, "l_" + tag).name
+        name = self.ancestor(InvokeSchedule).symbol_table.\
+            symbol_from_tag(tag, "l_" + tag).name
         return name
 
     def zero_reduction_variable(self, parent, position=None):
@@ -2690,7 +2731,7 @@ class Kern(Statement):
                                allocatable=True, kind=kind_type,
                                dimension=":,:"))
             nthreads = \
-                self.root.symbol_table.lookup_with_tag("omp_num_threads").name
+                self.scope.symbol_table.lookup_with_tag("omp_num_threads").name
             if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
@@ -2748,11 +2789,10 @@ class Kern(Statement):
         :param str name: original name of the variable to be reduced.
 
         '''
+        symtab = self.scope.symbol_table
         if self.reprod_reduction:
-            idx_name = \
-                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
-            local_name = \
-                self.root.symbol_table.symbol_from_tag(name, "l_" + name).name
+            idx_name = symtab.lookup_with_tag("omp_thread_index").name
+            local_name = symtab.symbol_from_tag(name, "l_" + name).name
             return local_name + "(1," + idx_name + ")"
         return name
 
@@ -2939,8 +2979,12 @@ class CodedKern(Kern):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "kernel_{0}_{1}".format(self.name, str(self.abs_position))
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "kernel_{0}_{1}".format(self.name, str(position))
 
     @property
     def module_inline(self):
@@ -3525,8 +3569,12 @@ class BuiltIn(Kern):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "builtin_{0}_".format(self.name) + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "builtin_{0}_{1}".format(self.name, str(position))
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
@@ -4443,7 +4491,8 @@ class ACCKernelsDirective(ACCDirective):
         :returns: the name to use for this node in a dag.
         :rtype: str
         '''
-        return "ACC_kernels_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_kernels_" + str(position)
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -4554,7 +4603,8 @@ class ACCDataDirective(ACCDirective):
         :returns: the name to use in a dag for this node.
         :rtype: str
         '''
-        return "ACC_data_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_data_" + str(position)
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
