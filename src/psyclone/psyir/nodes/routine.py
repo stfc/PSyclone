@@ -92,7 +92,7 @@ class Routine(Schedule):
         :param bool is_program: whether this Routine represents the entry \
             point into a program (i.e. Fortran Program or C main()).
         :param return_symbol: the Symbol that holds the return value of this \
-            routine (if any).
+            routine (if any). Must be present in the supplied symbol_table.
         :type return_symbol: :py:class:`psyclone.psyir.symbols.DataType` or \
             NoneType
 
@@ -132,10 +132,11 @@ class Routine(Schedule):
         kern = cls(name)
         # pylint: disable=protected-access
         kern._is_program = is_program
-        kern._return_symbol = return_symbol
         kern._symbol_table = symbol_table
         symbol_table._node = kern
         kern.children = children
+        if return_symbol:
+            kern.return_symbol = return_symbol
         return kern
 
     def node_str(self, colour=True):
@@ -212,6 +213,29 @@ class Routine(Schedule):
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol` or NoneType
         '''
         return self._return_symbol
+
+    @return_symbol.setter
+    def return_symbol(self, value):
+        '''
+        Setter for the return-symbol of this Routine node.
+
+        :param value: the symbol holding the value that the routine returns.
+        :type value: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the supplied value is not a DataSymbol.
+        :raises KeyError: if the supplied symbol is not a local entry in the \
+                          symbol table of this Routine.
+        '''
+        if not isinstance(value, DataSymbol):
+            raise TypeError("Routine return-symbol should be a DataSymbol "
+                            "but found '{0}'".format(
+                                type(value).__name__))
+        if value not in self.symbol_table.local_datasymbols:
+            raise KeyError(
+                "For a symbol to be a return-symbol, it must be present in "
+                "the symbol table of the Routine but '{0}' is not.".format(
+                    value.name))
+        self._return_symbol = value
 
 
 # For automatic documentation generation

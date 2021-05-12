@@ -98,6 +98,28 @@ def test_routine_name_setter():
         "goodbye"
 
 
+def test_routine_return_symbol_setter():
+    ''' Check that the return_symbol setter works correctly and rejects invalid
+    values.
+
+    '''
+    node = Routine("hello")
+    assert node.return_symbol is None
+    with pytest.raises(TypeError) as err:
+        node.return_symbol = "wrong"
+    assert ("Routine return-symbol should be a DataSymbol but found 'str'" in
+            str(err.value))
+    sym = DataSymbol("result", REAL_TYPE)
+    with pytest.raises(KeyError) as err:
+        node.return_symbol = sym
+    assert ("For a symbol to be a return-symbol, it must be present in the "
+            "symbol table of the Routine but 'result' is not." in
+            str(err.value))
+    node.symbol_table.add(sym)
+    node.return_symbol = sym
+    assert node.return_symbol is sym
+
+
 def test_routine_create_invalid():
     '''Test that the create method in the Routine class raises the
     expected exceptions if the provided input is invalid.

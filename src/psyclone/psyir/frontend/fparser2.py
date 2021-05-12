@@ -3497,12 +3497,8 @@ class Fparser2Reader(object):
                                                 datatype=base_type,
                                                 shadowing=True)
 
-            # Create a new Routine object with a return symbol to replace
-            # the one we used while processing the declarations. The symbol
-            # table of the original Routine is kept.
-            return_sym = routine.symbol_table.lookup(return_name)
-            routine = Routine.create(name, routine.symbol_table, [],
-                                     return_symbol=return_sym)
+            # Update the Routine object with the return symbol.
+            routine.return_symbol = routine.symbol_table.lookup(return_name)
 
         try:
             sub_exec = _first_type_match(node.content,
