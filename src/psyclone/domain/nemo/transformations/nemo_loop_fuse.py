@@ -179,9 +179,11 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         variable).
 
         :param var_info1: access information for variable in the first loop.
-        :type var_info1: :py:class:`psyclone.core.var_info.VariableAccessInfo`
+        :type var_info1: \
+            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
         :param var_info2: access information for variable in the second loop.
-        :type var_info2: :py:class:`psyclone.core.var_info.VariableAccessInfo`
+        :type var_info2: \
+            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
         :param loop_variable: symbol of the variable associated with the \
             loops being fused.
         :type loop_variable: \
