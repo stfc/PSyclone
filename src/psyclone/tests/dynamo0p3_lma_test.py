@@ -40,17 +40,22 @@ using pytest. '''
 
 # imports
 from __future__ import absolute_import, print_function
+
+import copy
 import os
 import pytest
+
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
+from psyclone.dynamo0p3 import (DynFuncDescriptor03, DynKernMetadata,
+                                DynKern, FunctionSpace)
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError, InternalError
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -127,10 +132,10 @@ def test_ad_op_type_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("'meta_arg' entry must have 5 arguments if its first "
             "argument is an operator (one of {0})".
-            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES) in
-            str(excinfo.value))
+            format(const.VALID_OPERATOR_NAMES) in str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -216,10 +221,11 @@ def test_ad_op_type_init_wrong_data_type():
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             op_arg, metadata.iterates_over)._init_operator(op_arg)
+    const = LFRicConstants()
     assert ("In the LFRic API the permitted data types for operator "
             "arguments are one of {0}, but found 'gh_integer' in "
             "'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'.".
-            format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
+            format(const.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 
 
@@ -298,7 +304,6 @@ def test_fs_descriptor_wrong_type():
     assert ("'meta_funcs' metadata must consist of an array of structure "
             "constructors, all of type 'func_type'" in str(excinfo.value))
     # Check that the DynFuncDescriptor03 rejects it too
-    from psyclone.dynamo0p3 import DynFuncDescriptor03
 
     class FakeCls(object):
         ''' Class that just has a name property (which is not "func_type") '''
@@ -759,7 +764,6 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
 def test_operator_bc_kernel_multi_args_err(dist_mem):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if it has more than one argument '''
-    import copy
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)

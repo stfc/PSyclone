@@ -34,6 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
@@ -47,14 +48,13 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.symbols import ScalarType, TypeSymbol, DeferredType, \
-    DataSymbol
+from psyclone.psyir.symbols import ScalarType, TypeSymbol, DataSymbol
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
-from psyclone.domain.lfric import lfric_builtins
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import (
-    VALID_BUILTIN_ARG_TYPES, LFRicBuiltInCallFactory, LFRicArgDescriptor)
+    LFRicBuiltInCallFactory, LFRicBuiltIn)
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -245,9 +245,10 @@ def test_builtin_operator_arg():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
+    const = LFRicConstants()
     assert ("In the LFRic API an argument to a built-in kernel must be one "
             "of {0} but kernel '{1}' has an argument of type 'gh_operator'.".
-            format(VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
+            format(const.VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
             in str(excinfo.value))
 
 

@@ -46,10 +46,8 @@ from fparser import api as fpapi
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Schedule
-from psyclone.domain.lfric import FunctionSpace
-from psyclone import dynamo0p3
-from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata, \
-    VALID_LOOP_TYPES
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
 from psyclone.tests.lfric_build import LFRicBuild
@@ -67,11 +65,12 @@ def test_constructor_invalid_loop_type(monkeypatch):
     # An invalid type should be caught by the setter in the base Loop class.
     with pytest.raises(GenerationError) as err:
         DynLoop(loop_type="wrong")
+    const = LFRicConstants()
     assert ("Error, loop_type value (wrong) is invalid. Must be one of {0}."
-            .format(VALID_LOOP_TYPES) in str(err.value))
+            .format(const.VALID_LOOP_TYPES) in str(err.value))
     # Monkeypatch the list of valid loop types so as to reach the code
     # that attempts to set the loop variable.
-    monkeypatch.setattr(dynamo0p3, "VALID_LOOP_TYPES", ["wrong"])
+    monkeypatch.setattr(LFRicConstants, "VALID_LOOP_TYPES", ["wrong"])
     with pytest.raises(InternalError) as err:
         DynLoop(loop_type="wrong")
     assert ("Unsupported loop type 'wrong' found when creating loop variable."
@@ -242,8 +241,9 @@ def test_dynloop_load_unexpected_func_space():
     # We can now raise the exception.
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
+    const = LFRicConstants()
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of " + str(FunctionSpace.VALID_FUNCTION_SPACES) +
+            "one of " + str(const.VALID_FUNCTION_SPACES) +
             " but found 'broken'" in str(err.value))
 
 

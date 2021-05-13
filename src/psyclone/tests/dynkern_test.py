@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 # Modified I. Kavcic Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module tests the DynKern class within dynamo0p3 using
 pytest. A the moment the tests here do not fully cover DynKern as
@@ -51,7 +52,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.errors import InternalError, GenerationError
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE
 from psyclone.psyir.nodes import KernelSchedule, Reference
@@ -105,9 +106,10 @@ def test_scalar_kernel_load_meta_err():
     scalar_arg._data_type = "gh_triple"
     with pytest.raises(InternalError) as err:
         kernel.load_meta(metadata)
+    const = LFRicConstants()
     assert ("Expected one of {0} data types for "
             "a scalar argument but found 'gh_triple'.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
+            format(const.VALID_SCALAR_DATA_TYPES) in
             str(err.value))
 
 

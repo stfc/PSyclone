@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code using the OpenACC data directive.
@@ -81,7 +81,7 @@ def test_explicit(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
 
     assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
@@ -111,7 +111,7 @@ def test_data_no_gen_code():
     _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:2])
+    acc_trans.apply(schedule.children[0:2])
     with pytest.raises(InternalError) as err:
         schedule.children[0].gen_code(schedule)
     assert ("ACCDataDirective.gen_code should not have "
@@ -124,7 +124,7 @@ def test_add_region_invalid_data_move():
     _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    acc_trans.apply(schedule.children)
     datadir = schedule.children[0]
     with pytest.raises(InternalError) as err:
         datadir._add_region("DATA", "END DATA", data_movement="invalid")
@@ -140,7 +140,7 @@ def test_add_region(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    acc_trans.apply(schedule.children)
     datadir = schedule.children[0]
     datadir._add_region("data", "end data")
     assert isinstance(datadir._ast, Fortran2003.Comment)
@@ -157,7 +157,7 @@ def test_add_region_comment_err(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    acc_trans.apply(schedule.children)
     datadir = schedule.children[0]
     with pytest.raises(InternalError) as err:
         datadir._add_region("!data", "!end data")
@@ -176,7 +176,7 @@ def test_data_view(parser, capsys):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    acc_trans.apply(schedule.children)
     schedule.view()
     output, _ = capsys.readouterr()
     assert "[ACC DATA]" in output
@@ -193,9 +193,9 @@ def test_explicit_directive(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children, {"default_present": True})
+    acc_trans.apply(schedule.children, {"default_present": True})
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
 
     assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
@@ -216,8 +216,8 @@ def test_array_syntax():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # We do not permit arbitrary code blocks to be included in data
     # regions so just put two of the loops into regions.
-    schedule, _ = acc_trans.apply([schedule.children[0]])
-    schedule, _ = acc_trans.apply([schedule.children[-1]])
+    acc_trans.apply([schedule.children[0]])
+    acc_trans.apply([schedule.children[-1]])
     gen_code = str(psy.gen)
 
     assert ("  REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdit, zdjt, "
@@ -236,8 +236,8 @@ def test_multi_data():
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0].loop_body[0:2])
-    schedule, _ = acc_trans.apply(schedule.children[0].loop_body[1:3])
+    acc_trans.apply(schedule.children[0].loop_body[0:2])
+    acc_trans.apply(schedule.children[0].loop_body[1:3])
     gen_code = str(psy.gen)
 
     assert ("  DO jk = 1, jpkm1\n"
@@ -271,8 +271,8 @@ def test_replicated_loop(parser, tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('replicate').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1])
-    schedule, _ = acc_trans.apply(schedule.children[1:2])
+    acc_trans.apply(schedule.children[0:1])
+    acc_trans.apply(schedule.children[1:2])
     gen_code = str(psy.gen)
 
     assert ("  !$ACC DATA COPYOUT(zwx)\n"
@@ -303,7 +303,7 @@ END subroutine data_ref
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
     assert "!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)" in gen_code
 
@@ -325,7 +325,7 @@ def test_no_data_ref_read(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    acc_trans.apply(schedule.children)
     with pytest.raises(NotImplementedError) as err:
         _ = str(psy.gen)
     assert ("derived-type references on the RHS of assignments are not yet "
@@ -339,7 +339,7 @@ def test_array_section():
     psy, invoke_info = get_invoke("array_section.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
     assert "!$ACC DATA COPYIN(b,c) COPYOUT(a)" in gen_code
 
@@ -358,7 +358,7 @@ def test_kind_parameter(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1])
+    acc_trans.apply(schedule.children[0:1])
     gen_code = str(psy.gen)
 
     assert "copyin(wp)" not in gen_code.lower()
@@ -381,7 +381,7 @@ def test_no_copyin_intrinsics(parser):
         code = parser(reader)
         psy = PSyFactory(API, distributed_memory=False).create(code)
         schedule = psy.invokes.invoke_list[0].schedule
-        schedule, _ = acc_trans.apply(schedule.children[0:1])
+        acc_trans.apply(schedule.children[0:1])
         gen_code = str(psy.gen)
         idx = intrinsic.index("(")
         assert "copyin({0})".format(intrinsic[0:idx]) not in gen_code.lower()
@@ -429,9 +429,8 @@ def test_kernels_in_data_region(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_dtrans = TransInfo().get_trans_name('ACCDataTrans')
     acc_ktrans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_ktrans.apply(schedule.children[:],
-                                   {"default_present": True})
-    schedule, _ = acc_dtrans.apply(schedule.children[:])
+    acc_ktrans.apply(schedule.children[:], {"default_present": True})
+    acc_dtrans.apply(schedule.children[:])
     new_code = str(psy.gen)
     assert ("  !$ACC DATA COPYOUT(sto_tmp)\n"
             "  !$ACC KERNELS DEFAULT(PRESENT)\n"
