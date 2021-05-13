@@ -376,64 +376,12 @@ def test_get_argument_symbols(monkeypatch):
     for sym in symbols:
         assert isinstance(sym, DataSymbol)
         if sym.name == "a":
-            # We should have a symbol of DeferredType for the scalar
-            assert isinstance(sym.datatype, DeferredType)
+            # We should have a symbol of ScalarType for the scalar
+            assert isinstance(sym.datatype, ScalarType)
+            assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
         else:
             assert isinstance(sym.datatype, TypeSymbol)
             assert sym.datatype.name == "field_proxy_type"
-
-    # Repeat but test the case where the symbol for the scalar argument
-    # has not already been created.
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    loop = psy.invokes.invoke_list[0].schedule[0]
-
-    # We cannot use table.remove() as that does not support DataSymbols.
-    # Therefore we monkeypatch the table.lookup() method to make it appear
-    # that the scalar symbol does not exist.
-
-    def fake_lookup(name):
-        raise KeyError("For testing")
-    monkeypatch.setattr(loop.loop_body.symbol_table, "lookup", fake_lookup)
-    # This time, the lowering should cause a new symbol to be created for
-    # the scalar argument.
-    symbols = loop.loop_body[0].get_argument_symbols()
-    monkeypatch.undo()
-    for sym in symbols:
-        if sym.name == "a_1":
-            scalar = sym
-            break
-    else:
-        assert 0, "No symbol named a_1 created"
-    assert isinstance(scalar.datatype, ScalarType)
-    assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
-
-    # Repeat but test the case where the the scalar argument is of an
-    # unsupported type.
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    loop = psy.invokes.invoke_list[0].schedule[0]
-    kern = loop.loop_body[0]
-    # Monkeypatch the scalar argument so that it appears to be of type bool
-    monkeypatch.setattr(kern._arguments.args[1], "_intrinsic_type", "bool")
-    # Force the creation of a new symbol
-    monkeypatch.setattr(loop.loop_body.symbol_table, "lookup", fake_lookup)
-    with pytest.raises(NotImplementedError) as err:
-        kern.get_argument_symbols()
-    assert "Unsupported scalar type 'bool'" in str(err.value)
-
-    # Repeat but for an argument that is neither a field or a scalar.
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    loop = psy.invokes.invoke_list[0].schedule[0]
-    kern = loop.loop_body[0]
-    # Monkeypatch the scalar argument so that it appears to be an operator.
-    monkeypatch.setattr(kern._arguments.args[1], "_argument_type",
-                        LFRicArgDescriptor.VALID_OPERATOR_NAMES[0])
-    # Force the creation of a new symbol
-    monkeypatch.setattr(loop.loop_body.symbol_table, "lookup", fake_lookup)
-    with pytest.raises(NotImplementedError) as err:
-        kern.get_argument_symbols()
-    assert ("Unsupported Builtin argument type: 'a' is of type "
-            "'{0}'".format(LFRicArgDescriptor.VALID_OPERATOR_NAMES[0]) in
-            str(err.value))
 
 
 # ------------- Adding (scaled) real fields --------------------------------- #

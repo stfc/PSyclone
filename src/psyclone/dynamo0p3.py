@@ -67,7 +67,9 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              Arguments, KernelArgument, HaloExchange,
                              GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
                              CodedKern, ACCEnterDataDirective)
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
+from psyclone.psyir.symbols import (
+    INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
+    DeferredType, TypeSymbol, ContainerSymbol, GlobalInterface)
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DirectiveGen, DoGen,
                               IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
@@ -8468,7 +8470,6 @@ class DynKernelArgument(KernelArgument):
 
     '''
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
-        KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
@@ -8506,18 +8507,19 @@ class DynKernelArgument(KernelArgument):
         # the argument descriptor.
         try:
             self._intrinsic_type = MAPPING_DATA_TYPES[
-                self.descriptor.data_type]
+                arg_meta_data.data_type]
         except KeyError:
             raise InternalError(
                 "DynKernelArgument.__init__(): Found unsupported data "
                 "type '{0}' in the kernel argument descriptor '{1}'.".
-                format(self.descriptor.data_type, self.descriptor))
+                format(arg_meta_data.data_type, arg_meta_data))
 
         # Addressing issue #753 will allow us to perform static checks
         # for consistency between the algorithm and the kernel
         # metadata. This will include checking that a field on a read
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
+        KernelArgument.__init__(self, arg_meta_data, arg_info, call)
 
     def ref_name(self, function_space=None):
         '''
@@ -8831,6 +8833,68 @@ class DynKernelArgument(KernelArgument):
 
         '''
         self._stencil = value
+
+    def infer_datatype(self, symbol_table):
+        '''
+        Infer the datatype of this argument using the LFRic API rules.
+
+        :param symbol_table: symbol table from which to access e.g. kind \
+            symbols required for this argument.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :returns: the datatype of this argument.
+        :rtype: :py:class::`psyclone.psyir.symbols.DataType`
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if self.is_scalar:
+            if self.intrinsic_type == 'real':
+                kind_name = api_config.default_kind["real"]
+                prim_type = ScalarType.Intrinsic.REAL
+            elif self.intrinsic_type == 'integer':
+                kind_name = api_config.default_kind["integer"]
+                prim_type = ScalarType.Intrinsic.INTEGER
+            elif self.intrinsic_type == 'logical':
+                kind_name = api_config.default_kind["logical"]
+                prim_type = ScalarType.Intrinsic.BOOLEAN
+            else:
+                raise NotImplementedError(
+                    "Unsupported scalar type '{0}'".format(
+                        self.intrinsic_type))
+            try:
+                kind_symbol = symbol_table.lookup(kind_name)
+            except KeyError:
+                try:
+                    constants_container = symbol_table.lookup(
+                        "constants_mod")
+                except KeyError:
+                    constants_container = ContainerSymbol("constants_mod")
+                    symbol_table.add(constants_container)
+                kind_symbol = DataSymbol(
+                        kind_name, INTEGER_SINGLE_TYPE,
+                        interface=GlobalInterface(constants_container))
+                symbol_table.add(kind_symbol)
+            return ScalarType(prim_type, kind_symbol)
+
+        elif self.is_field:
+            # Find or create the TypeSymbol for the field_proxy_type.
+            try:
+                fld_type = symbol_table.lookup("field_type")
+            except KeyError:
+                try:
+                    fld_mod_container = symbol_table.lookup("field_mod")
+                except KeyError:
+                    fld_mod_container = ContainerSymbol("field_mod")
+                    symbol_table.add(fld_mod_container)
+                fld_type = TypeSymbol(
+                    "field_type", DeferredType(),
+                    interface=GlobalInterface(fld_mod_container))
+                symbol_table.add(fld_type)
+            return fld_type
+
+        else:
+            return DeferredType()
 
 
 class DynKernCallFactory(object):

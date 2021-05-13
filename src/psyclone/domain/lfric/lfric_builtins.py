@@ -450,6 +450,8 @@ class LFRicBuiltIn(BuiltIn):
                 arg_symbols.append(scalar_sym)
 
             elif arg.is_field:
+                # Although the argument to a Kernel is a field, the kernel
+                # itself accesses the data through a field_proxy.
                 try:
                     sym = table.lookup(arg.proxy_name)
                 except KeyError:

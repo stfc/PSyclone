@@ -226,40 +226,15 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
         # Test the lower_to_language_level() method
         kern.lower_to_language_level()
-        # Check the type of the scalar - it will be of DeferredType
+        # Check the type of the scalar
         loop = first_invoke.schedule[0]
         scalar = loop.scope.symbol_table.lookup("a")
-        assert isinstance(scalar.datatype, DeferredType)
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
         code = fortran_writer(loop)
         assert ("do df = 1, undf_aspc1_f2, 1\n"
                 "  f2_proxy%data(df) = a + f1_proxy%data(df)\n"
                 "enddo" in code)
-
-        # Repeat but test the case where the symbol for the scalar argument
-        # has not already been created.
-        psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-        _ = psy.gen
-        loop = psy.invokes.invoke_list[0].schedule[0]
-
-        # We cannot use table.remove() as that does not support DataSymbols.
-        # Therefore we monkeypatch the table.lookup() method to make it appear
-        # that the scalar symbol does not exist.
-
-        def fake_lookup(name):
-            raise KeyError("For testing")
-        monkeypatch.setattr(loop.loop_body.symbol_table, "lookup", fake_lookup)
-        # This time, the lowering should cause a new symbol to be created for
-        # the scalar argument.
-        loop.loop_body[0].lower_to_language_level()
-        monkeypatch.undo()
-
-        code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
-                "  f2_proxy%data(df) = a_1 + f1_proxy%data(df)\n"
-                "enddo" in code)
-        scalar = loop.loop_body[0].scope.symbol_table.lookup("a_1")
-        assert isinstance(scalar.datatype, ScalarType)
-        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     else:
         output_dm_2 = (
             "      !\n"

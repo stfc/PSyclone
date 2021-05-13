@@ -3804,9 +3804,11 @@ class DataAccess(object):
 
 
 class Argument(object):
-    ''' Argument base class
+    '''
+    Argument base class. Captures information on an argument that is passed
+    to a Kernel from an Invoke.
 
-    :param call: the call that this argument is associated with.
+    :param call: the kernel call that this argument is associated with.
     :type call: :py:class:`psyclone.psyGen.Kern`
     :param arg_info: Information about this argument collected by \
                      the parser.
@@ -3863,7 +3865,7 @@ class Argument(object):
                 # Find the tag or create a new symbol with expected attributes
                 new_argument = symtab.symbol_from_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
-                    datatype=self.infer_datatype(),
+                    datatype=self.infer_datatype(symtab),
                     interface=ArgumentInterface(argument_access))
                 self._name = new_argument.name
 
@@ -3881,13 +3883,17 @@ class Argument(object):
 
         '''
 
-    def infer_datatype(self):
+    def infer_datatype(self, symbol_table):
         ''' Infer the datatype of this argument using the API rules. If no
         specialisation of this method has been provided make the type
         DeferredType for now (it may be provided later in the execution).
 
+        :param symbol_table: symbol table from which to access e.g. kind \
+            symbols required for this argument.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         :returns: the datatype of this argument.
-        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+        :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         '''
         # pylint: disable=no-self-use
