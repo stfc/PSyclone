@@ -64,10 +64,12 @@ from psyclone.configuration import Config, ConfigurationError
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.symbols import LocalInterface
 from fparser.two.Fortran2003 import Use_Stmt, Main_Program, Module, \
-    Subroutine_Subprogram, Function_Subprogram
+    Subroutine_Subprogram, Function_Subprogram, Specification_Part
+from fparser.common.readfortran import FortranStringReader
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
@@ -265,19 +267,27 @@ def generate(filename, api="", kernel_path="", script_name=None,
                                 break
                     if not parent_prog_statement:
                         raise GenerationError("XXX")
-                    use = Use_Stmt("use intrinsics_mod")
-                    spec_part = parent_prog_statement.content[1]
-                    spec_part.content.insert(0, use)
+                    if not(isinstance(parent_prog_statement.content[1],
+                                      Specification_Part)):
+                        # There is no Specification_Part so we need to make one
+                        reader = FortranStringReader("use intrinsics_mod")
+                        parent_prog_statement.content.insert(
+                            1, Specification_Part(reader))
+                    else:
+                        # Add the use statement to the Specification_Part
+                        use = Use_Stmt("use intrinsics_mod")
+                        spec_part = parent_prog_statement.content[1]
+                        spec_part.content.insert(0, use)
 
                 # Create language-level PSyIR from fparser2 ast
                 psyir_reader = Fparser2Reader()
                 psyir = psyir_reader.generate_psyir(ast)
 
-                psyir.view()
-                exit(1)
-
                 # Raise to Algorithm PSyIR
-                alg_trans = AlgTrans()
+                if api == "dynamo0.3":
+                    alg_trans = LFRicAlgTrans()
+                else:
+                    alg_trans = AlgTrans()
                 alg_trans.apply(psyir)
 
                 # issue #753

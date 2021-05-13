@@ -39,7 +39,7 @@
 import six
 
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
-    ArrayReference, Routine
+    ArrayReference, Routine, CodeBlock
 from psyclone.psyir.symbols import TypeSymbol, ContainerSymbol, \
     GlobalInterface, RoutineSymbol
 from psyclone.errors import GenerationError
@@ -233,6 +233,14 @@ class AlgorithmInvokeCall(Call):
                     if str(arg).lower() not in arguments_str:
                         arguments_str.append(str(arg).lower())
                         arguments.append(arg.copy())
+                elif isinstance(arg, CodeBlock):
+                    from fparser.two.Fortran2003 import Proc_Component_Ref
+                    if not (len(arg._fp2_nodes) == 1 and isinstance(arg._fp2_nodes[0], Proc_Component_Ref)):
+                        raise GenerationError("Unexpected code block content found for argument. Found '{0}'.".format(str(arg._fp2_nodes[0])))
+                    # Need to check for equivalence with some sort of
+                    # "str" test, or recognise this particular type of
+                    # codeblock and deal with it.
+                    arguments.append(arg.copy())
                 else:
                     raise GenerationError(
                         "Expected Algorithm-layer kernel arguments to be "
