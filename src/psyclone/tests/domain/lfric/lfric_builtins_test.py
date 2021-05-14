@@ -53,8 +53,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
-from psyclone.domain.lfric.lfric_builtins import (
-    LFRicBuiltInCallFactory, LFRicBuiltIn)
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -373,7 +372,8 @@ def test_get_argument_symbols(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     loop = psy.invokes.invoke_list[0].schedule[0]
-    symbols = loop.loop_body[0].get_argument_symbols()
+    kern = loop.loop_body[0]
+    symbols = kern.get_argument_symbols()
     for sym in symbols:
         assert isinstance(sym, DataSymbol)
         if sym.name == "a":
@@ -383,7 +383,23 @@ def test_get_argument_symbols(monkeypatch):
         else:
             assert isinstance(sym.datatype, TypeSymbol)
             assert sym.datatype.name == "field_proxy_type"
-
+    # Repeat but force the symbol for the scalar arg to be created
+    del loop.parent.symbol_table._symbols["a"]
+    symbols = kern.get_argument_symbols()
+    for sym in symbols:
+        if sym.name == "a":
+            # We should have a symbol of ScalarType for the scalar
+            assert isinstance(sym.datatype, ScalarType)
+            assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+            break
+    # Monkeypatch the scalar argument so that it appears to be an operator.
+    monkeypatch.setattr(kern._arguments.args[1], "_argument_type",
+                        LFRicConstants().VALID_OPERATOR_NAMES[0])
+    with pytest.raises(NotImplementedError) as err:
+        kern.get_argument_symbols()
+    assert ("Unsupported Builtin argument type: 'a' is of type "
+            "'{0}'".format(LFRicConstants().VALID_OPERATOR_NAMES[0]) in
+            str(err.value))
 
 # ------------- Adding (scaled) real fields --------------------------------- #
 

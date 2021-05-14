@@ -342,58 +342,6 @@ class LFRicBuiltIn(BuiltIn):
         '''
         return self._fs_descriptors
 
-    def get_field_proxy_type_symbol(self):
-        '''
-        Finds or creates the field_proxy_type symbol. This is imported
-        from the field_mod Container.
-
-        :returns: the symbol for the field_proxy_type.
-        :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
-
-        '''
-        table = self.scope.symbol_table
-        # Find or create the Container from which the field_proxy_type is
-        # imported.
-        try:
-            fld_mod_container = table.lookup("field_mod")
-        except KeyError:
-            fld_mod_container = ContainerSymbol("field_mod")
-            table.add(fld_mod_container)
-        # Find or create the TypeSymbol for the field_proxy_type.
-        try:
-            fld_proxy_type = table.lookup("field_proxy_type")
-        except KeyError:
-            fld_proxy_type = TypeSymbol(
-                "field_proxy_type", DeferredType(),
-                interface=GlobalInterface(fld_mod_container))
-            table.add(fld_proxy_type)
-        return fld_proxy_type
-
-    def get_kind_symbol(self, name):
-        '''
-        Finds or creates a Symbol for the specified kind parameter.
-
-        :param str name: the name of the required kind symbol.
-
-        :returns: a symbol for the specified kind parameter.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        '''
-        table = self.scope.symbol_table
-        try:
-            constants_container = table.lookup("constants_mod")
-        except KeyError:
-            constants_container = ContainerSymbol("constants_mod")
-            table.add(constants_container)
-        try:
-            kind_symbol = table.lookup(name)
-        except KeyError:
-            kind_symbol = DataSymbol(
-                name, INTEGER_SINGLE_TYPE,
-                interface=GlobalInterface(constants_container))
-            table.add(kind_symbol)
-        return kind_symbol
-
     def get_dof_loop_index_symbol(self):
         '''
         Finds or creates the symbol representing the index in any loops
@@ -418,13 +366,10 @@ class LFRicBuiltIn(BuiltIn):
         :returns: a symbol for each kernel argument.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises NotImplementedError: if a scalar argument that is not of real \
-                                     or integer type is encountered.
         :raises NotImplementedError: if an argument that is not a field or a \
                                      scalar is encountered.
         '''
         table = self.scope.symbol_table
-        fld_proxy_type = self.get_field_proxy_type_symbol()
 
         arg_symbols = []
         for arg in self._arguments.args:
@@ -432,31 +377,21 @@ class LFRicBuiltIn(BuiltIn):
                 try:
                     scalar_sym = table.lookup(arg.name)
                 except KeyError:
-                    kind = self.get_kind_symbol(self.default_kind)
-                    if arg.intrinsic_type == 'real':
-                        prim_type = ScalarType.Intrinsic.REAL
-                    elif arg.intrinsic_type == 'integer':
-                        prim_type = ScalarType.Intrinsic.INTEGER
-                    else:
-                        raise NotImplementedError(
-                            "Unsupported scalar type '{0}'".format(
-                                arg.intrinsic_type))
-                    dtype = ScalarType(prim_type, kind)
-
-                    scalar_sym = table.new_symbol(arg.name,
-                                                  symbol_type=DataSymbol,
-                                                  datatype=dtype)
+                    scalar_sym = table.new_symbol(
+                        arg.name, symbol_type=DataSymbol,
+                        datatype=arg.infer_datatype(table))
                 arg_symbols.append(scalar_sym)
 
             elif arg.is_field:
                 # Although the argument to a Kernel is a field, the kernel
-                # itself accesses the data through a field_proxy.
+                # itself accesses the data through a field_proxy because it is
+                # in-lined in the PSy layer.
                 try:
                     sym = table.lookup(arg.proxy_name)
                 except KeyError:
-                    sym = table.new_symbol(arg.proxy_name,
-                                           symbol_type=DataSymbol,
-                                           datatype=fld_proxy_type)
+                    sym = table.new_symbol(
+                        arg.proxy_name, symbol_type=DataSymbol,
+                        datatype=arg.infer_datatype(table, proxy=True))
                 arg_symbols.append(sym)
 
             else:

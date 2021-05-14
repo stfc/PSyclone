@@ -64,6 +64,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import colored
+from psyclone.psyir.symbols import ScalarType, DeferredType, TypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -1398,6 +1399,56 @@ def test_dynkernelargument_intent_invalid(dist_mem):
     assert ("In the LFRic API the argument access must be one of "
             "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
             "but found 'invalid'." in str(excinfo.value))
+
+
+@pytest.mark.parametrize("proxy", [True, False])
+def test_dynkernelargument_infer_type(monkeypatch, proxy):
+    '''
+    Tests for the DynKernelArgument.infer_type() method.
+
+    '''
+    if proxy:
+        proxy_str = "_proxy"
+    else:
+        proxy_str = ""
+
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    call = schedule[0].loop_body[0]
+    arg = call.arguments.args[0]
+    # Scalar argument.
+    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+    assert isinstance(dtype, ScalarType)
+    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    # Monkeypatch to check with an invalid type of scalar argument.
+    monkeypatch.setattr(arg, "_intrinsic_type", "foo")
+    with pytest.raises(NotImplementedError) as err:
+        arg.infer_datatype(call.scope.symbol_table, proxy)
+    assert "Unsupported scalar type 'foo'" in str(err.value)
+    # Field argument.
+    arg = call.arguments.args[1]
+    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+    assert isinstance(dtype, TypeSymbol)
+    assert dtype.name == "field{0}_type".format(proxy_str)
+    monkeypatch.setattr(arg, "_intrinsic_type", "foo")
+    with pytest.raises(NotImplementedError) as err:
+        arg.infer_datatype(call.scope.symbol_table, proxy)
+    assert ("Fields may only be of 'real' or 'integer' type but found 'foo'" in
+            str(err.value))
+    # Valid operator types
+    for op_name in ["gh_operator", "gh_columnwise_operator"]:
+        monkeypatch.setattr(arg, "_argument_type", op_name)
+        dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+        assert isinstance(dtype, TypeSymbol)
+        assert dtype.name == op_name[3:] + proxy_str + "_type"
+    # We should get a DeferredType for an unrecognised argument type
+    monkeypatch.setattr(arg, "_argument_type", "foo")
+    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+    assert isinstance(dtype, DeferredType)
 
 
 def test_arg_ref_name_method_error1():
