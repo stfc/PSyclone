@@ -217,10 +217,6 @@ class GOInvokes(Invokes):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
-            # TODO #1170: Remove the manual Container-InvokeSchedule connection
-            if not invoke.schedule.parent:
-                self.psy.container.addchild(invoke.schedule)
-
             # If the const_loop_bounds flag is True, we need to declare
             # and initialize the loop bounds variables.
             if invoke.schedule.const_loop_bounds:
@@ -261,7 +257,7 @@ class GOInvokes(Invokes):
                 invoke.schedule.children.insert(1, assign1)
                 invoke.schedule.children.insert(2, assign2)
 
-            invoke.schedule.lower_to_language_level()
+            invoke.schedule.root.lower_to_language_level()
             for child in invoke.schedule.root.children:
                 parent.add(PSyIRGen(parent, child))
 
@@ -1022,8 +1018,9 @@ class GOLoop(Loop):
 
         '''
         # Generate the upper and lower loop bounds
-        self.start_expr = self.lower_bound()
-        self.stop_expr = self.upper_bound()
+        if self.walk(GOKern):
+            self.start_expr = self.lower_bound()
+            self.stop_expr = self.upper_bound()
 
         return super(GOLoop, self).lower_to_language_level()
 
@@ -1037,8 +1034,9 @@ class GOLoop(Loop):
         :rtype: str
         '''
         # Generate the upper and lower loop bounds
-        self.start_expr = self.lower_bound()
-        self.stop_expr = self.upper_bound()
+        if self.walk(GOKern):
+            self.start_expr = self.lower_bound()
+            self.stop_expr = self.upper_bound()
 
         return super(GOLoop, self).node_str(colour)
 
@@ -1046,8 +1044,9 @@ class GOLoop(Loop):
         ''' Returns a string describing this Loop object '''
 
         # Generate the upper and lower loop bounds
-        self.start_expr = self.lower_bound()
-        self.stop_expr = self.upper_bound()
+        if self.walk(GOKern):
+            self.start_expr = self.lower_bound()
+            self.stop_expr = self.upper_bound()
 
         return super(GOLoop, self).__str__()
 
