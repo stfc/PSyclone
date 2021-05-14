@@ -157,8 +157,8 @@ def test_two_kernels(tmpdir, dist_mem):
         "        END DO\n"
         "      END DO\n")
     second_kernel = (
-        "      DO j = 1, size(uold_fld%data, 2), 1\n"
-        "        DO i_1 = 1, size(uold_fld%data, 1), 1\n"
+        "      DO j = 1, SIZE(uold_fld%data, 2), 1\n"
+        "        DO i_1 = 1, SIZE(uold_fld%data, 1), 1\n"
         "          CALL time_smooth_code(i_1, j, u_fld%data, unew_fld%data, "
         "uold_fld%data)\n"
         "        END DO\n"

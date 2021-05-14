@@ -1897,7 +1897,7 @@ class OMPParallelDirective(OMPDirective):
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
-        self._not_within_omp_parallel_region()
+        self.validate_global_constraints()
 
         # Check that this OpenMP PARALLEL directive encloses other
         # OpenMP directives. Although it is valid OpenMP if it doesn't,
@@ -2052,9 +2052,15 @@ class OMPParallelDirective(OMPDirective):
         list_result.sort()
         return list_result
 
-    def _not_within_omp_parallel_region(self):
-        ''' Check that this Directive is not within any other
-            parallel region '''
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPDoDirective is not enclosed \
+                            within some OpenMP parallel region.
+        '''
+
         if self.ancestor(OMPParallelDirective) is not None:
             raise GenerationError("Cannot nest OpenMP parallel regions.")
 
@@ -2294,7 +2300,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
-        self._not_within_omp_parallel_region()
+        self.validate_global_constraints()
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)

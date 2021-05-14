@@ -309,19 +309,19 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
     # The following assert checks that globals from the same module are
     # imported, since the kernels are marked as modified, new suffixes are
     # given in order to differentiate each of them.
-    assert "SUBROUTINE invoke_0(oldu_fld, cu_fld)\n" \
-           "      USE kernel_with_use_1_mod, ONLY: kernel_with_use_1_code\n" \
-           "      USE kernel_with_use2_0_mod, ONLY:" \
-           " kernel_with_use2_0_code\n" \
-           "      USE kernel_with_use_0_mod, ONLY:" \
-           " kernel_with_use_0_code\n" in generated_code
+    assert ("USE kernel_with_use_1_mod, ONLY: kernel_with_use_1_code\n"
+            in generated_code)
+    assert ("USE kernel_with_use2_0_mod, ONLY: kernel_with_use2_0_code\n"
+            in generated_code)
+    assert ("USE kernel_with_use_0_mod, ONLY: kernel_with_use_0_code\n"
+            in generated_code)
 
     # Check the kernel calls have the global passed as last argument
     assert "CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, " \
+    assert "CALL kernel_with_use_1_code(i_2, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, " \
+    assert "CALL kernel_with_use2_0_code(i_1, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
 
 
@@ -336,11 +336,20 @@ def test_globalstoarguments_noglobals():
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    kernel = invoke.schedule.coded_kernels()[0]
-    trans = KernelGlobalsToArguments()
     before_code = str(psy.gen)
+
+    # Parse the same file but this time apply the KernelGlobalsToArguments
+    _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    trans = KernelGlobalsToArguments()
+    kernel = invoke.schedule.coded_kernels()[0]
     trans.apply(kernel)
     after_code = str(psy.gen)
+
+    # Check that both are the same
     assert before_code == after_code
     # TODO #11: When support for logging is added, we could warn the user that
     # no globals were found.
