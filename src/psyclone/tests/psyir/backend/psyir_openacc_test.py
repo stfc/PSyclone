@@ -301,7 +301,7 @@ def test_gocean_acc_parallel():
     # node validation so as to avoid the need for a data region.
     fvisitor = FortranWriter(check_global_constraints=False)
     result = fvisitor(invoke.schedule[0])
-    correct = '''!$acc begin parallel default(present)
+    correct = '''!$acc parallel default(present)
 a = b
 !$acc end parallel'''
     assert correct in result

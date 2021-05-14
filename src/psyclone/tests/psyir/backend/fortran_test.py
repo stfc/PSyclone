@@ -856,7 +856,8 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(container)
     assert ("The Fortran back-end requires all children of a Container "
-            "to be a sub-class of Routine." in str(excinfo.value))
+            "to be a sub-class of Routine but found: ['Routine', 'Container']"
+            in str(excinfo.value))
 
 
 def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):
