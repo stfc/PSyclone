@@ -58,7 +58,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment, CodeBlock
+    Call, Assignment, CodeBlock, ExtractNode
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange
@@ -214,6 +214,10 @@ class GOInvokes(Invokes):
         for invoke in self.invoke_list:
 
             if invoke.schedule.opencl:
+                super(GOInvokes, self).gen_code(parent)
+                return
+
+            if invoke.schedule.root.walk(ExtractNode):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
