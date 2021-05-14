@@ -5301,6 +5301,9 @@ class DynInvokeSchedule(InvokeSchedule):
     :param reserved_names: optional list of names that are not allowed in the \
                            new InvokeSchedule SymbolTable.
     :type reserved_names: list of str
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
     '''
 
     def __init__(self, name, arg, reserved_names=None, parent=None):
@@ -8837,13 +8840,17 @@ class DynKernelArgument(KernelArgument):
     def infer_datatype(self, symbol_table, proxy=False):
         '''
         Infer the datatype of this kernel argument in the PSy layer using
-        the LFRic API rules.
+        the LFRic API rules. If any LFRic infrastructure modules are required
+        but are not already present then suitable ContainerSymbols are added
+        to the outermost symbol table. Similarly, TypeSymbols are added for
+        any required LFRic derived types that are not already in the symbol
+        table.
 
         :param symbol_table: symbol table from which to access e.g. kind \
             symbols required for this argument.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool proxy: whether or not we want the proxy object for this \
-            kernel argument.
+        :param bool proxy: whether or not we want the type of the proxy \
+            object for this kernel argument.
 
         :returns: the datatype of this argument.
         :rtype: :py:class::`psyclone.psyir.symbols.DataType`
@@ -8852,14 +8859,47 @@ class DynKernelArgument(KernelArgument):
             encountered for a scalar or field argument.
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
         root_table = symbol_table
         while root_table.parent_symbol_table():
             root_table = root_table.parent_symbol_table()
 
+        proxy_str = ""
+        if proxy:
+            proxy_str = "_proxy"
+
+        def _find_or_create_type(mod_name, type_name):
+            '''
+            Utility to find or create a TypeSymbol with the supplied name,
+            imported from the module of the supplied name.
+
+            :param str mod_name: the name of the module from which the \
+                                 TypeSymbol should be imported.
+            :param str type_name: the name of the derived type for which to \
+                                  create a TypeSymbol.
+
+            :returns: the symbol for the requested type.
+            :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
+
+            '''
+            try:
+                fld_type = symbol_table.lookup(type_name)
+            except KeyError:
+                try:
+                    fld_mod_container = symbol_table.lookup(mod_name)
+                except KeyError:
+                    fld_mod_container = ContainerSymbol(mod_name)
+                    root_table.add(fld_mod_container)
+                fld_type = TypeSymbol(
+                    type_name, DeferredType(),
+                    interface=GlobalInterface(fld_mod_container))
+                root_table.add(fld_type)
+            return fld_type
+
         if self.is_scalar:
+
+            api_config = Config.get().api_conf("dynamo0.3")
 
             if self.intrinsic_type == 'real':
                 kind_name = api_config.default_kind["real"]
@@ -8894,67 +8934,31 @@ class DynKernelArgument(KernelArgument):
             # Find or create the TypeSymbol for the appropriate field type.
             if self.intrinsic_type == 'real':
                 mod_name = "field_mod"
-                if proxy:
-                    type_name = "field_proxy_type"
-                else:
-                    type_name = "field_type"
+                type_name = "field{0}_type".format(proxy_str)
             elif self.intrinsic_type == 'integer':
                 mod_name = "integer_field_mod"
-                if proxy:
-                    type_name = "integer_field_proxy_type"
-                else:
-                    type_name = "integer_field_type"
+                type_name = "integer_field{0}_type".format(proxy_str)
             else:
                 raise NotImplementedError(
                     "Fields may only be of 'real' or 'integer' type but found "
                     "'{0}'".format(self.intrinsic_type))
 
-            try:
-                fld_type = symbol_table.lookup(type_name)
-            except KeyError:
-                try:
-                    fld_mod_container = symbol_table.lookup(mod_name)
-                except KeyError:
-                    fld_mod_container = ContainerSymbol(mod_name)
-                    root_table.add(fld_mod_container)
-                fld_type = TypeSymbol(
-                    type_name, DeferredType(),
-                    interface=GlobalInterface(fld_mod_container))
-                root_table.add(fld_type)
-            return fld_type
+            return _find_or_create_type(mod_name, type_name)
 
         elif self.is_operator:
 
-            mod_name = "operator_mod"
-
+            # Find or create the TypeSymbol for the appropriate operator type.
             if self.argument_type == "gh_operator":
-                if proxy:
-                    type_name = "operator_proxy_type"
-                else:
-                    type_name = "operator_type"
+                type_name = "operator{0}_type".format(proxy_str)
             elif self.argument_type == "gh_columnwise_operator":
-                if proxy:
-                    type_name = "columnwise_operator_proxy_type"
-                else:
-                    type_name = "columnwise_operator_type"
+                type_name = "columnwise_operator{0}_type".format(proxy_str)
             else:
                 raise NotImplementedError(
-                    "Operators may only be of 'gh_operator' or gh_columnwise_"
+                    "Operators may only be of 'gh_operator' or 'gh_columnwise_"
                     "operator' type but found '{0}'".format(
                         self.argument_type))
-            try:
-                op_type = symbol_table.lookup(type_name)
-            except KeyError:
-                try:
-                    op_mod_container = symbol_table.lookup(mod_name)
-                except KeyError:
-                    op_mod_container = ContainerSymbol(mod_name)
-                    root_table.add(op_mod_container)
-                op_type = TypeSymbol(
-                    type_name, DeferredType(),
-                    interface=GlobalInterface(op_mod_container))
-                root_table.add(op_type)
-            return op_type
+
+            return _find_or_create_type("operator_mod", type_name)
 
         else:
             return DeferredType()

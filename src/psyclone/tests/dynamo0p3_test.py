@@ -1424,6 +1424,12 @@ def test_dynkernelargument_infer_type(monkeypatch, proxy):
     dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    monkeypatch.setattr(arg, "_intrinsic_type", "integer")
+    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+    assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
+    monkeypatch.setattr(arg, "_intrinsic_type", "logical")
+    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+    assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     # Monkeypatch to check with an invalid type of scalar argument.
     monkeypatch.setattr(arg, "_intrinsic_type", "foo")
     with pytest.raises(NotImplementedError) as err:
@@ -1445,6 +1451,18 @@ def test_dynkernelargument_infer_type(monkeypatch, proxy):
         dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
         assert isinstance(dtype, TypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
+    # We need to monkeypatch the recognised list of operators in order to
+    # trigger the next exception. We have to ensure the LFRicConstants class
+    # has been initialised before we monkeypatch it.
+    _ = LFRicConstants()
+    monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
+                        ["gh_not_an_op"])
+    monkeypatch.setattr(arg, "_argument_type", "gh_not_an_op")
+    with pytest.raises(NotImplementedError) as err:
+        arg.infer_datatype(call.scope.symbol_table, proxy)
+    assert ("Operators may only be of 'gh_operator' or 'gh_columnwise_"
+            "operator' type but found 'gh_not_an_op'" in str(err.value))
+
     # We should get a DeferredType for an unrecognised argument type
     monkeypatch.setattr(arg, "_argument_type", "foo")
     dtype = arg.infer_datatype(call.scope.symbol_table, proxy)

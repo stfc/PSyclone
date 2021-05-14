@@ -150,9 +150,6 @@ class LFRicBuiltIn(BuiltIn):
     Abstract base class for a node representing a call to an LFRic Built-in.
 
     '''
-    #: The default KIND of Fortran arguments to this kernel
-    default_kind = "r_def"
-
     def __init__(self):
         # Builtins do not accept quadrature
         self.qr_rules = {}
@@ -1481,10 +1478,6 @@ class LFRicIntAPlusXKern(LFRicAPlusXKern):
     equivalent `LFRicAPlusXKern`.
 
     '''
-    #: Override the default kind to use for the kernel arguments. This
-    #: allows the base lower_to_language_level() method to be reused.
-    default_kind = "i_def"
-
     def __str__(self):
         return "Built-in: int_a_plus_X (integer-valued fields)"
 
