@@ -8847,6 +8847,8 @@ class DynKernelArgument(KernelArgument):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        # We want to put any Container symbols in the outermost scope so find
+        # the corresponding symbol table.
         root_table = symbol_table
         while root_table.parent_symbol_table():
             root_table = root_table.parent_symbol_table()
