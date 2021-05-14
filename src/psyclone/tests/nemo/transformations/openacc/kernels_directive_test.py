@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code using the OpenACC 'kernels' directive.
@@ -70,8 +70,7 @@ def test_kernels_view(parser, capsys):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children,
-                                  {"default_present": True})
+    acc_trans.apply(schedule.children, {"default_present": True})
     schedule.view()
     output, _ = capsys.readouterr()
     assert "[ACC Kernels]" in output
@@ -84,8 +83,7 @@ def test_kernels_dag_name(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children,
-                                  {"default_present": True})
+    acc_trans.apply(schedule.children, {"default_present": True})
     assert schedule.children[0].dag_name == "ACC_kernels_1"
 
 
@@ -154,8 +152,7 @@ def test_implicit_loop(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children[0:1],
-                                  {"default_present": True})
+    acc_trans.apply(schedule.children[0:1], {"default_present": True})
     gen_code = str(psy.gen).lower()
     assert ("  !$acc kernels default(present)\n"
             "  sto_tmp(:,:) = 0.0_wp\n"
@@ -184,8 +181,7 @@ def test_multikern_if(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children[0:1],
-                                  {"default_present": True})
+    acc_trans.apply(schedule.children[0:1], {"default_present": True})
     gen_code = str(psy.gen).lower()
     assert ("  !$acc kernels default(present)\n"
             "  if (do_this) then\n"
@@ -216,10 +212,8 @@ def test_kernels_within_if(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
 
-    schedule, _ = acc_trans.apply(schedule.children[0].if_body,
-                                  {"default_present": True})
-    schedule, _ = acc_trans.apply(schedule.children[0].else_body,
-                                  {"default_present": True})
+    acc_trans.apply(schedule.children[0].if_body, {"default_present": True})
+    acc_trans.apply(schedule.children[0].else_body, {"default_present": True})
     new_code = str(psy.gen).lower()
     assert ("  if (do_this) then\n"
             "    !$acc kernels default(present)\n"
@@ -280,9 +274,9 @@ def test_kernels_around_where_construct(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    sched, _ = acc_trans.apply(schedule)
-    assert isinstance(sched[0], ACCKernelsDirective)
-    assert isinstance(sched[0].dir_body[0], Loop)
+    acc_trans.apply(schedule)
+    assert isinstance(schedule[0], ACCKernelsDirective)
+    assert isinstance(schedule[0].dir_body[0], Loop)
     new_code = str(psy.gen)
     assert ("  !$acc kernels\n"
             "  do widx2 = 1, SIZE(a, 2), 1\n"

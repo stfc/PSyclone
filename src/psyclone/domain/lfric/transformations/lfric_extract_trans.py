@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by S. Siso, STFC Daresbury Lab
 
 '''This module contains the LFRic-specific implementation of the ExtractTrans
 transformation.
@@ -59,8 +60,8 @@ class LFRicExtractTrans(ExtractTrans):
     >>> etrans = LFRicExtractTrans()
     >>>
     >>> # Apply LFRicExtractTrans transformation to selected Nodes
-    >>> newsched, _ = etrans.apply(schedule.children[0:3])
-    >>> newsched.view()
+    >>> etrans.apply(schedule.children[0:3])
+    >>> schedule.view()
     '''
 
     def validate(self, node_list, options=None):

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
+# Modified by: S. Siso, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code to insert profiling calls.
@@ -103,7 +104,7 @@ def test_profile_single_loop(parser):
                                       "  sto_tmp(ji) = 1.0d0\n"
                                       "end do\n"
                                       "end program do_loop\n")
-    schedule, _ = PTRANS.apply(schedule.children[0])
+    PTRANS.apply(schedule.children[0])
     code = str(psy.gen).lower()
     assert (
         "  use kind_mod, only : wp\n"
@@ -138,7 +139,7 @@ def test_profile_single_loop_named(parser):
                                       "end do\n"
                                       "end program do_loop\n")
     options = {"region_name": ("my_routine", "my_region")}
-    schedule, _ = PTRANS.apply(schedule.children[0], options=options)
+    PTRANS.apply(schedule.children[0], options=options)
     code = str(psy.gen).lower()
     assert ("call profile_psy_data % prestart('my_routine', 'my_region', "
             "0, 0)" in code)
@@ -204,7 +205,7 @@ def test_profile_codeblock(parser):
                                       "  write(*,*) sto_tmp2(ji)\n"
                                       "end do\n"
                                       "end subroutine cb_test\n")
-    schedule, _ = PTRANS.apply(schedule.children[0])
+    PTRANS.apply(schedule.children[0])
     code = str(psy.gen).lower()
     assert (
         "  call profile_psy_data % prestart('cb_test', 'r0', 0, 0)\n"
@@ -232,7 +233,7 @@ def test_profile_inside_if1(parser):
         "  end do\n"
         "endif\n"
         "end subroutine inside_if_test\n")
-    schedule, _ = PTRANS.apply(schedule.children[0].if_body[0])
+    PTRANS.apply(schedule.children[0].if_body[0])
     gen_code = str(psy.gen).lower()
     assert ("  if (do_this) then\n"
             "    call profile_psy_data % prestart(" in gen_code)
@@ -257,7 +258,7 @@ def test_profile_inside_if2(parser):
         "  end do\n"
         "endif\n"
         "end subroutine inside_if_test\n")
-    schedule, _ = PTRANS.apply(schedule.children[0].if_body)
+    PTRANS.apply(schedule.children[0].if_body)
     gen_code = str(psy.gen).lower()
     assert ("  if (do_this) then\n"
             "    call profile_psy_data % prestart(" in gen_code)

@@ -548,8 +548,11 @@ class Node(object):
         edges (but their direction is reversed so the layout looks
         reasonable) and parent child dependencies are represented as
         blue edges.'''
-        # pylint: disable=too-many-branches
+        # Import outside top-level to avoid circular dependencies.
+        # pylint: disable=too-many-branches, import-outside-toplevel
         from psyclone.psyir.nodes.loop import Loop
+        from psyclone.psyir.nodes.routine import Routine
+
         # names to append to my default name to create start and end vertices
         start_postfix = "_start"
         end_postfix = "_end"
@@ -575,9 +578,9 @@ class Node(object):
                 remote_name += start_postfix
             # Create the forward dependence edge in green
             graph.edge(local_name, remote_name, color="green")
-        elif self.parent:
-            # this node is a child of another node and has no forward
-            # dependence. Therefore connect it to the the end vertex
+        elif not isinstance(self, Routine):
+            # If this node is not a Routine (where the DAG context finishes)
+            # and has no forward dependence, connect it to the end vertex
             # of its parent. Use blue to indicate a parent child
             # relationship.
             remote_name = self.parent.dag_name + end_postfix
@@ -601,9 +604,9 @@ class Node(object):
                 remote_name += end_postfix
             # Create the backward dependence edge in red.
             graph.edge(remote_name, local_name, color="red")
-        elif self.parent:
-            # this node has a parent and has no backward
-            # dependence. Therefore connect it to the the start vertex
+        elif not isinstance(self, Routine):
+            # If this node is not a Routine (where the DAG context finishes)
+            # and has no backward dependence, connect it to the start vertex
             # of its parent. Use blue to indicate a parent child
             # relationship.
             remote_name = self.parent.dag_name + start_postfix
@@ -658,9 +661,9 @@ class Node(object):
                 # the tree as me.
                 while node.depth > self.depth:
                     node = node.parent
-                if self.sameParent(node):
+                if self.sameParent(node) and node is not self:
                     # The remote node (or one of its ancestors) shares
-                    # the same parent as me
+                    # the same parent as me (but its not me)
                     if not dependence:
                         # this is the first dependence found so keep it
                         dependence = node
@@ -695,9 +698,9 @@ class Node(object):
                 # the tree as me.
                 while node.depth > self.depth:
                     node = node.parent
-                if self.sameParent(node):
+                if self.sameParent(node) and node is not self:
                     # The remote node (or one of its ancestors) shares
-                    # the same parent as me
+                    # the same parent as me (but its not me)
                     if not dependence:
                         # this is the first dependence found so keep it
                         dependence = node
@@ -901,13 +904,13 @@ class Node(object):
         it is the root). Needs to be computed dynamically from the
         starting position (0) as its position may change.
 
-        :returns: absolute position of a Node in the tree
+        :returns: absolute position of a Node in the tree.
         :rtype: int
 
-        :raises InternalError: if the absolute position cannot be found
+        :raises InternalError: if the absolute position cannot be found.
+
         '''
-        from psyclone.psyir.nodes import Schedule
-        if self.root == self and isinstance(self.root, Schedule):
+        if self.root == self:
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)
@@ -916,17 +919,26 @@ class Node(object):
                                 "in the tree")
         return position
 
-    def _find_position(self, children, position):
+    def _find_position(self, children, position=None):
         '''
         Recurse through the tree depth first returning position of
         a Node if found.
-        :param children: list of Nodes which are children of this Node
+
+        :param children: list of Nodes which are children of this Node.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :returns: position of the Node in the tree
-        :rtype: int
-        :raises InternalError: if the starting position is < 0
+        :param int position: start counting from this position. Defaults to \
+            START_POSITION.
+
+        :returns: if the self has been found in the provided children list \
+            and its relative position.
+        :rtype: bool, int
+
+        :raises InternalError: if the starting position is < 0.
+
         '''
-        if position < self.START_POSITION:
+        if position is None:
+            position = self.START_POSITION
+        elif position < self.START_POSITION:
             raise InternalError(
                 "Search for Node position started from {0} "
                 "instead of {1}.".format(position, self.START_POSITION))

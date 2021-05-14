@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # All rights reserved.
@@ -34,6 +34,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''A PSyclone transformation script which performs redundant
@@ -57,10 +58,10 @@ def trans(psy):
     schedule = invoke.schedule
 
     # redundant computation to remove grad_p halo exchanges
-    schedule, _ = rc_trans.apply(schedule.children[5], {"depth": 2})
-    schedule, _ = rc_trans.apply(schedule.children[0], {"depth": 2})
+    rc_trans.apply(schedule.children[5], {"depth": 2})
+    rc_trans.apply(schedule.children[0], {"depth": 2})
 
     # move remaining (potential) halo exchanges to start of the invoke
-    schedule, _ = m_trans.apply(schedule.children[0], schedule.children[4])
+    m_trans.apply(schedule.children[0], schedule.children[4])
 
     return psy

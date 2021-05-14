@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the support for OpenACC directives in the
@@ -288,24 +289,24 @@ def test_gocean_acc_parallel():
                            idx=0, dist_mem=False)
 
     ptrans = ACCParallelTrans()
-    sched, _ = ptrans.apply(invoke.schedule[0])
+    ptrans.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment
     # TODO: #440 tracks this
-    replace_child_with_assignment(sched[0].dir_body)
+    replace_child_with_assignment(invoke.schedule[0].dir_body)
 
     # omp_sched is a GOInvokeSchedule, which is not yet supported.
     # So only convert starting from the OMPParallelDirective. Also, disable
     # node validation so as to avoid the need for a data region.
     fvisitor = FortranWriter(check_global_constraints=False)
-    result = fvisitor(sched[0])
-    correct = '''!$acc parallel default(present)
+    result = fvisitor(invoke.schedule[0])
+    correct = '''!$acc begin parallel default(present)
 a = b
 !$acc end parallel'''
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
     with pytest.raises(VisitorError) as err:
-        _ = cvisitor(sched[0])
+        _ = cvisitor(invoke.schedule[0])
     assert "Unsupported node 'ACCParallelDirective' found" in str(err.value)

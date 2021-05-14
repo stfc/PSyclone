@@ -1,9 +1,3 @@
-# -------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# -------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -37,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Contains tests for transformations on the Dynamo 0.1 API '''
 
@@ -64,7 +58,7 @@ def test_openmp_region():
                              name="invoke_0_testkern_type")
     schedule = invoke.schedule
     rtrans = OMPParallelTrans()
-    invoke.schedule, _ = rtrans.apply(schedule.children[0])
+    rtrans.apply(schedule.children[0])
     gen = str(psy.gen)
 
     # Check that our list of private variables is correct

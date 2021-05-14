@@ -896,9 +896,9 @@ class ColourTrans(LoopTrans):
     >>>
     >>> # Colour all of the loops
     >>> for child in schedule.children:
-    >>>     cschedule, _ = ctrans.apply(child)
+    >>>     ctrans.apply(child)
     >>>
-    >>> csched.view()
+    >>> schedule.view()
 
     '''
     def __str__(self):
@@ -976,8 +976,8 @@ class KernelModuleInlineTrans(KernelTrans):
     >>>
     >>> inline_trans = KernelModuleInlineTrans()
     >>>
-    >>> ischedule, _ = inline_trans.apply(schedule.children[0].loop_body[0])
-    >>> ischedule.view()
+    >>> inline_trans.apply(schedule.children[0].loop_body[0])
+    >>> schedule.view()
 
     .. warning ::
         For this transformation to work correctly, the Kernel subroutine
@@ -1067,14 +1067,13 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>>
     >>> # Colour all of the loops
     >>> for child in schedule.children:
-    >>>     cschedule, _ = ctrans.apply(child)
+    >>>     ctrans.apply(child)
     >>>
     >>> # Then apply OpenMP to each of the colour loops
-    >>> schedule = cschedule
     >>> for child in schedule.children:
-    >>>     newsched, _ = otrans.apply(child.children[0])
+    >>>     otrans.apply(child.children[0])
     >>>
-    >>> newsched.view()
+    >>> schedule.view()
 
     Colouring in the Dynamo 0.3 API is subject to the following rules:
 
@@ -1275,18 +1274,16 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> new_schedule = schedule
     >>>
     >>> # Apply the OpenMP Loop transformation to *every* loop
     >>> # in the schedule
     >>> for child in schedule.children:
-    >>>     newschedule, memento = ltrans.apply(child)
-    >>>     schedule = newschedule
+    >>>     ltrans.apply(child)
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
-    >>> newschedule, _ = rtrans.apply(schedule.children)
-    >>> newschedule.view()
+    >>> rtrans.apply(schedule.children)
+    >>> schedule.view()
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1357,10 +1354,10 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose everything within a single OpenACC PARALLEL region
-    >>> newschedule, _ = ptrans.apply(schedule.children)
+    >>> ptrans.apply(schedule.children)
     >>> # Add an enter-data directive
-    >>> newschedule, _ = dtrans.apply(newschedule)
-    >>> newschedule.view()
+    >>> dtrans.apply(schedule)
+    >>> schedule.view()
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
@@ -1422,11 +1419,11 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> from psyclone.transformations import GOConstLoopBoundsTrans
     >>> clbtrans = GOConstLoopBoundsTrans()
     >>>
-    >>> newsched, _ = clbtrans.apply(schedule)
+    >>> clbtrans.apply(schedule)
     >>> # or, to turn off const. looop bounds:
-    >>> # newsched, _ = clbtrans.apply(schedule, const_bounds=False)
+    >>> # clbtrans.apply(schedule, const_bounds=False)
     >>>
-    >>> newsched.view()
+    >>> schedule.view()
 
     '''
 
@@ -1565,14 +1562,12 @@ class MoveTrans(Transformation):
 
         self.validate(node, location, options)
 
-        schedule = node.root
-
         if not options:
             options = {}
         position = options.get("position", "before")
 
         # Create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node, location])
+        keep = Memento(node.root, self, [node, location])
 
         parent = node.parent
 
@@ -1580,11 +1575,11 @@ class MoveTrans(Transformation):
 
         location_index = location.position
         if position == "before":
-            schedule.children.insert(location_index, my_node)
+            location.parent.children.insert(location_index, my_node)
         else:
-            schedule.children.insert(location_index+1, my_node)
+            location.parent.children.insert(location_index+1, my_node)
 
-        return schedule, keep
+        return node.root, keep
 
 
 class Dynamo0p3RedundantComputationTrans(LoopTrans):
@@ -1968,7 +1963,7 @@ class OCLTrans(Transformation):
     >>> schedule = invoke.schedule
     >>>
     >>> ocl_trans = OCLTrans()
-    >>> new_sched, _ = ocl_trans.apply(schedule)
+    >>> ocl_trans.apply(schedule)
 
     '''
     @property
@@ -2188,7 +2183,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
-    >>>     new_schedule, _ = trans.apply(kernel, number_of_layers=150)
+    >>>     trans.apply(kernel, number_of_layers=150)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
     >>>     kernel_schedule.symbol_table.view()
 
@@ -2521,8 +2516,8 @@ class ACCEnterDataTrans(Transformation):
     >>> schedule.view()
     >>>
     >>> # Add an enter-data directive
-    >>> newschedule, _ = dtrans.apply(schedule)
-    >>> newschedule.view()
+    >>> dtrans.apply(schedule)
+    >>> schedule.view()
 
     '''
     def __str__(self):
@@ -2776,7 +2771,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> schedule.view()
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Transform the kernel
-    >>> new_sched, _ = ktrans.apply(kernels)
+    >>> ktrans.apply(kernels)
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
@@ -2903,7 +2898,7 @@ class ACCDataTrans(RegionTrans):
     >>> schedule.view()
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Enclose the kernels
-    >>> new_sched, _ = dtrans.apply(kernels)
+    >>> dtrans.apply(kernels)
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
@@ -3031,11 +3026,12 @@ class KernelGlobalsToArguments(Transformation):
                 "nodes but found '{1}' instead.".
                 format(self.name, type(node).__name__))
 
-        if not isinstance(node.root, GOInvokeSchedule):
+        invoke_schedule = node.ancestor(InvokeSchedule)
+        if not isinstance(invoke_schedule, GOInvokeSchedule):
             raise TransformationError(
                 "The {0} transformation is currently only supported for the "
                 "GOcean API but got an InvokeSchedule of type: '{1}'".
-                format(self.name, type(node.root).__name__))
+                format(self.name, type(invoke_schedule).__name__))
 
         # Check that there are no unqualified imports or undeclared symbols
         try:

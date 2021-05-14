@@ -115,7 +115,7 @@ def test_gen_dims(fortran_writer):
                            [Reference(arg), 2, literal, arg_plus_1,
                             ArrayType.Extent.ATTRIBUTE])
     assert fortran_writer._gen_dims(array_type.shape) == ["arg", "2", "4",
-                                                       "arg + 1_4", ":"]
+                                                          "arg + 1_4", ":"]
 
 
 def test_gen_dims_error(monkeypatch, fortran_writer):
@@ -1023,7 +1023,8 @@ def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
 
 @pytest.mark.parametrize("binary_intrinsic", ["mod", "max", "min",
                                               "sign"])
-def test_fw_binaryoperator(fortran_writer, binary_intrinsic, tmpdir, fortran_reader):
+def test_fw_binaryoperator(fortran_writer, binary_intrinsic, tmpdir,
+                           fortran_reader):
     '''Check the FortranWriter class binary_operation method correctly
     prints out the Fortran representation of an intrinsic. Tests all
     of the binary operators, apart from sum (as it requires different
@@ -1099,7 +1100,8 @@ def test_fw_binaryoperator_matmul(fortran_writer, tmpdir, fortran_reader):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_binaryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
+def test_fw_binaryoperator_unknown(fortran_reader, fortran_writer,
+                                   monkeypatch):
     '''Check the FortranWriter class binary_operation method raises an
     exception if an unknown binary operator is found.
 

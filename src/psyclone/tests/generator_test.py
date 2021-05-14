@@ -35,7 +35,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 
 '''
@@ -341,8 +341,7 @@ def test_script_trans():
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
     trans = LoopFuseTrans()
-    schedule, _ = trans.apply(loop1, loop2)
-    invoke.schedule = schedule
+    trans.apply(loop1, loop2)
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="dynamo0.3",
