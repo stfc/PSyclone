@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 from __future__ import print_function
 from psyclone.parse.algorithm import parse
@@ -65,20 +66,16 @@ print(t.list)
 ol = t.get_trans_name('OMPParallelLoopTrans')
 
 # Apply it to the loop schedule of the selected invoke
-new_schedule, memento = ol.apply(schedule.children[0])
-new_schedule.view()
+ol.apply(schedule.children[0])
+schedule.view()
 
-# Replace the original loop schedule of the selected invoke
-# with the new, transformed schedule
-psy.invokes.get('invoke_0_v3_kernel_type').schedule = new_schedule
 # Generate the Fortran code for the new PSy layer
 print(psy.gen)
 
 schedule = psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
 schedule.view()
 
-new_schedule, memento = ol.apply(schedule.children[0])
-new_schedule.view()
+ol.apply(schedule.children[0])
+schedule.view()
 
-psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule = new_schedule
 print(psy.gen)

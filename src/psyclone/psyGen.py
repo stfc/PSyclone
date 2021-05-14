@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic,    Met Office
 #          C.M. Maynard, Met Office / University of Reading
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -47,7 +48,7 @@ import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
-from psyclone.core.access_info import VariablesAccessInfo, AccessType
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
@@ -67,18 +68,6 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # directives exists in psyGen.py so this mapping should not be
 # overidden.
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
-
-# Names of internal scalar argument types. Can be overridden in
-# domain-specific modules.
-VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
-
-# Valid types of argument to a kernel call. Can be overridden in
-# domain-specific modules.
-VALID_ARG_TYPE_NAMES = []
-
-# Valid intrinsic types of kernel argument data. Can be
-# overridden in domain-specific modules.
-VALID_INTRINSIC_TYPES = []
 
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
@@ -356,6 +345,9 @@ class Invokes(object):
 
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
+
+        :raises GenerationError: if an invoke_list schedule is not an \
+            InvokeSchedule.
         '''
         def raise_unmatching_options(option_name):
             ''' Create unmatching OpenCL options error message.
@@ -374,6 +366,12 @@ class Invokes(object):
         ocl_enable_profiling = None
         ocl_out_of_order = None
         for invoke in self.invoke_list:
+            if not isinstance(invoke.schedule, InvokeSchedule):
+                raise GenerationError(
+                    "An invoke.schedule element of the invoke_list "
+                    "is a '{0}', but it should be an 'InvokeSchedule'."
+                    "".format(type(invoke.schedule).__name__))
+
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
             # calls. We do it here as this enables us to prevent
@@ -562,9 +560,9 @@ class Invoke(object):
         self._schedule = schedule_class(self._name, alg_invocation.kcalls,
                                         reserved_names)
 
-        # TODO #1170: Must be fixed before uncommenting the code below
-        # if self.invokes:
-        #     self.invokes.psy.container.addchild(self._schedule)
+        # Add the new Schedule in a top-level PSy Container
+        if self.invokes:
+            self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -664,12 +662,13 @@ class Invoke(object):
 
         '''
         # First check for invalid argument types, access and intrinsic type
-        if any(argtype not in VALID_ARG_TYPE_NAMES for
+        const = Config.get().api_conf().get_constants()
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declarations() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
+                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
@@ -678,12 +677,12 @@ class Invoke(object):
                 format(str(access)))
 
         if (intrinsic_type and intrinsic_type not in
-                VALID_INTRINSIC_TYPES):
+                const.VALID_INTRINSIC_TYPES):
             raise InternalError(
                 "Invoke.unique_declarations() called with an invalid "
                 "intrinsic argument data type. Expected one of {0} but "
                 "found '{1}'.".
-                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
+                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # Initialise dictionary of kernel arguments to get the
         # argument list from
@@ -732,20 +731,21 @@ class Invoke(object):
 
         '''
         # First check for invalid argument types and intrinsic type
-        if any(argtype not in VALID_ARG_TYPE_NAMES for
+        const = Config.get().api_conf().get_constants()
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
+                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         if (intrinsic_type and intrinsic_type not in
-                VALID_INTRINSIC_TYPES):
+                const.VALID_INTRINSIC_TYPES):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with an invalid "
                 "intrinsic argument data type. Expected one of {0} but "
                 "found '{1}'.".
-                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
+                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent
@@ -986,7 +986,7 @@ class InvokeSchedule(Routine):
         :rtype: str
         '''
         return "{0}[invoke='{1}']".format(
-            self.coloured_name(colour), self.invoke.name)
+            self.coloured_name(colour), self.name)
 
     def __str__(self):
         result = self.coloured_name(False) + ":\n"
@@ -1016,7 +1016,11 @@ class InvokeSchedule(Routine):
         # during the whole gen_code() chain, but at the end of this method the
         # original symbol table is restored.
         symbol_table_before_gen = self.symbol_table
+        psy_symbol_table_before_gen = self.parent.symbol_table
+        # pylint: disable=protected-access
         self._symbol_table = self.symbol_table.shallow_copy()
+        self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
+        # pylint: enable=protected-access
 
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
@@ -1055,10 +1059,10 @@ class InvokeSchedule(Routine):
             flag = self.symbol_table.new_symbol(
                 "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_error").name
-            self.root.symbol_table.new_symbol(
+            self.symbol_table.new_symbol(
                 "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_bytes")
-            self.root.symbol_table.new_symbol(
+            self.symbol_table.new_symbol(
                 "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_wevent")
 
@@ -1122,8 +1126,11 @@ class InvokeSchedule(Routine):
                               rhs="clFinish({0}({1}))".format(qlist,
                                                               queue_number)))
 
-        # Restore symbol table
+        # Restore symbol table (with a protected access attribute change)
+        # pylint: disable=protected-access
         self._symbol_table = symbol_table_before_gen
+        self.parent._symbol_table = psy_symbol_table_before_gen
+        # pylint: enable=protected-access
 
     @property
     def opencl(self):
@@ -1211,8 +1218,12 @@ class Directive(Statement):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
-        return "directive_" + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "directive_" + str(position)
 
     def _add_region(self, start_text, end_text=None, data_movement=None):
         '''
@@ -1352,18 +1363,21 @@ class ACCDirective(Directive):
         :returns: Name of corresponding node in DAG
         :rtype: str
         '''
-        return "ACC_directive_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_directive_" + str(position)
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
-        Perform validation checks that can only be done at code-generation
-        time.
+        Perform validation checks for any global constraints. This can only
+        be done at code-generation time.
 
         :raises GenerationError: if this ACCDirective encloses any form of \
             PSyData node since calls to PSyData routines within OpenACC \
             regions are not supported.
 
         '''
+        super(ACCDirective, self).validate_global_constraints()
+
         data_nodes = self.walk(PSyDataNode)
         if data_nodes:
             raise GenerationError(
@@ -1412,7 +1426,8 @@ class ACCEnterDataDirective(ACCDirective):
         :returns: the name to use for this Node in a DAG
         :rtype: str
         '''
-        return "ACC_data_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_data_" + str(position)
 
     def gen_code(self, parent):
         '''Generate the elements of the f2pygen AST for this Node in the
@@ -1424,15 +1439,15 @@ class ACCEnterDataDirective(ACCDirective):
         :raises GenerationError: if no data is found to copy in.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel or kernels
         # directive)
         # 1. Find all parallel and kernels directives. We store this list for
         #    later use in any sub-class.
-        self._acc_dirs = self.root.walk((ACCParallelDirective,
-                                         ACCKernelsDirective))
+        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                (ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -1498,9 +1513,10 @@ class ACCParallelDirective(ACCDirective):
         :returns: the name to use for this Node in a DAG
         :rtype: str
         '''
-        return "ACC_parallel_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_parallel_" + str(position)
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
         Check that the PSyIR tree containing this node is valid. Since we
         use 'default(present)', this node must either be the child of an
@@ -1531,7 +1547,7 @@ class ACCParallelDirective(ACCDirective):
                 "enter data directive or enclosed within an ACC data region "
                 "but in '{0}' this is not the case.".format(routine.name))
 
-        super(ACCParallelDirective, self)._pre_gen_validate()
+        super(ACCParallelDirective, self).validate_global_constraints()
 
     def gen_code(self, parent):
         '''
@@ -1541,7 +1557,7 @@ class ACCParallelDirective(ACCDirective):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         parent.add(DirectiveGen(parent, *self.begin_string().split()))
 
@@ -1635,7 +1651,7 @@ class ACCParallelDirective(ACCDirective):
         Update the underlying fparser2 parse tree with nodes for the start
         and end of this parallel region.
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
         self._add_region(start_text="PARALLEL", end_text="END PARALLEL",
                          data_movement="present")
 
@@ -1667,7 +1683,8 @@ class ACCLoopDirective(ACCDirective):
         :returns: the name to use for this Node in a DAG
         :rtype: str
         '''
-        return "ACC_loop_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_loop_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -1690,10 +1707,10 @@ class ACCLoopDirective(ACCDirective):
         text += "]"
         return text
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
-        Perform validation checks that can only be done at code-generation
-        time.
+        Perform validation of those global constraints that can only be done
+        at code-generation time.
 
         :raises GenerationError: if this ACCLoopDirective is not enclosed \
                             within some OpenACC parallel or kernels region.
@@ -1708,7 +1725,7 @@ class ACCLoopDirective(ACCDirective):
                 "ACCLoopDirective must have an ACCParallelDirective or "
                 "ACCKernelsDirective as an ancestor in the Schedule")
 
-        super(ACCLoopDirective, self)._pre_gen_validate()
+        super(ACCLoopDirective, self).validate_global_constraints()
 
     def gen_code(self, parent):
         '''
@@ -1721,7 +1738,7 @@ class ACCLoopDirective(ACCDirective):
         :raises GenerationError: if this "!$acc loop" is not enclosed within \
                                  an ACC Parallel region.
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # Add any clauses to the directive. We use self.begin_string() to avoid
         # code duplication.
@@ -1738,7 +1755,7 @@ class ACCLoopDirective(ACCDirective):
         this ACC LOOP directive.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # Use begin_string() to avoid code duplication although we have to
         # put back the "loop" qualifier.
@@ -1798,7 +1815,8 @@ class OMPDirective(Directive):
         :returns: the name to use in a dag for this node
         :rtype: str
         '''
-        return "OMP_directive_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_directive_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -1826,9 +1844,10 @@ class OMPDirective(Directive):
 
         '''
         result = []
+        const = Config.get().api_conf().get_constants()
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.argument_type in VALID_SCALAR_NAMES:
+                if arg.argument_type in const.VALID_SCALAR_NAMES:
                     if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
@@ -1839,8 +1858,12 @@ class OMPParallelDirective(OMPDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "OMP_parallel_" + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_parallel_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -1864,8 +1887,8 @@ class OMPParallelDirective(OMPDirective):
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
             # we will use a private thread index variable
-            thread_idx = \
-                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
+            thread_idx = self.scope.symbol_table.\
+                lookup_with_tag("omp_thread_index").name
             private_list.append(thread_idx)
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
@@ -1986,8 +2009,8 @@ class OMPParallelDirective(OMPDirective):
         # Now determine scalar variables that must be private:
         var_accesses = VariablesAccessInfo()
         self.reference_accesses(var_accesses)
-        for var_name in var_accesses.all_vars:
-            accesses = var_accesses[var_name].all_accesses
+        for signature in var_accesses.all_signatures:
+            accesses = var_accesses[signature].all_accesses
             # Ignore variables that have indices, we only look at scalar
             if accesses[0].indices is not None:
                 continue
@@ -2021,7 +2044,7 @@ class OMPParallelDirective(OMPDirective):
                 if parent and isinstance(parent, Loop):
                     # The assignment to the variable is inside a loop, so
                     # declare it to be private
-                    result.add(var_name.lower())
+                    result.add(str(signature).lower())
 
         # Convert the set into a list and sort it, so that we get
         # reproducible results
@@ -2096,8 +2119,12 @@ class OMPDoDirective(OMPDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "OMP_do_" + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_do_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -2130,7 +2157,7 @@ class OMPDoDirective(OMPDirective):
         ''' returns whether reprod has been set for this object or not '''
         return self._reprod
 
-    def _pre_gen_validate(self):
+    def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
         time.
@@ -2149,6 +2176,8 @@ class OMPDoDirective(OMPDirective):
                 "OMPDoDirective must be inside an OMP parallel region but "
                 "could not find an ancestor OMPParallelDirective node")
 
+        super(OMPDoDirective, self).validate_global_constraints()
+
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenMP do
@@ -2161,7 +2190,7 @@ class OMPDoDirective(OMPDirective):
                                  an OMP Parallel region.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         if self._reprod:
             local_reduction_string = ""
@@ -2214,7 +2243,7 @@ class OMPDoDirective(OMPDirective):
                                  correct structure to permit the insertion \
                                  of the OpenMP parallel do.
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
@@ -2242,8 +2271,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "OMP_parallel_do_" + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_parallel_do_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -2359,7 +2392,10 @@ class GlobalSum(Statement):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         return "globalsum({0})_".format(self._scalar.name) + str(self.position)
 
     @property
@@ -2593,8 +2629,9 @@ class Kern(Statement):
 
         # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
+        const = Config.get().api_conf().get_constants()
         args = args_filter(self._arguments.args,
-                           arg_types=VALID_SCALAR_NAMES,
+                           arg_types=const.VALID_SCALAR_NAMES,
                            arg_accesses=reduction_modes)
         if args:
             self._reduction = True
@@ -2668,7 +2705,8 @@ class Kern(Statement):
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
         tag = self._reduction_arg.name
-        name = self.root.symbol_table.symbol_from_tag(tag, "l_" + tag).name
+        name = self.ancestor(InvokeSchedule).symbol_table.\
+            symbol_from_tag(tag, "l_" + tag).name
         return name
 
     def zero_reduction_variable(self, parent, position=None):
@@ -2715,7 +2753,7 @@ class Kern(Statement):
                                allocatable=True, kind=kind_type,
                                dimension=":,:"))
             nthreads = \
-                self.root.symbol_table.lookup_with_tag("omp_num_threads").name
+                self.scope.symbol_table.lookup_with_tag("omp_num_threads").name
             if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
@@ -2773,11 +2811,10 @@ class Kern(Statement):
         :param str name: original name of the variable to be reduced.
 
         '''
+        symtab = self.scope.symbol_table
         if self.reprod_reduction:
-            idx_name = \
-                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
-            local_name = \
-                self.root.symbol_table.symbol_from_tag(name, "l_" + name).name
+            idx_name = symtab.lookup_with_tag("omp_thread_index").name
+            local_name = symtab.symbol_from_tag(name, "l_" + name).name
             return local_name + "(1," + idx_name + ")"
         return name
 
@@ -2964,8 +3001,12 @@ class CodedKern(Kern):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "kernel_{0}_{1}".format(self.name, str(self.abs_position))
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "kernel_{0}_{1}".format(self.name, str(position))
 
     @property
     def module_inline(self):
@@ -3187,8 +3228,8 @@ class CodedKern(Kern):
             return self._fp2_ast
         # Use the fparser1 AST to generate Fortran source
         fortran = self._module_code.tofortran()
-        # Create an fparser2 Fortran2003 parser
-        my_parser = parser.ParserFactory().create()
+        # Create an fparser2 Fortran2008 parser
+        my_parser = parser.ParserFactory().create(std="f2008")
         # Parse that Fortran using our parser
         reader = FortranStringReader(fortran)
         self._fp2_ast = my_parser(reader)
@@ -3590,8 +3631,12 @@ class BuiltIn(Kern):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "builtin_{0}_".format(self.name) + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "builtin_{0}_{1}".format(self.name, str(position))
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
@@ -4502,7 +4547,8 @@ class ACCKernelsDirective(ACCDirective):
         :returns: the name to use for this node in a dag.
         :rtype: str
         '''
-        return "ACC_kernels_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_kernels_" + str(position)
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -4525,7 +4571,7 @@ class ACCKernelsDirective(ACCDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         # We re-use the 'begin_string' method but must skip the leading 'acc'
         # that it includes.
@@ -4592,7 +4638,7 @@ class ACCKernelsDirective(ACCDirective):
         PSyIR backend.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
 
         data_movement = None
         if self._default_present:
@@ -4613,7 +4659,8 @@ class ACCDataDirective(ACCDirective):
         :returns: the name to use in a dag for this node.
         :rtype: str
         '''
-        return "ACC_data_" + str(self.abs_position)
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_data_" + str(position)
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -4645,7 +4692,7 @@ class ACCDataDirective(ACCDirective):
         directive.
 
         '''
-        self._pre_gen_validate()
+        self.validate_global_constraints()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
 
@@ -4682,34 +4729,38 @@ class ACCDataDirective(ACCDirective):
         table = self.scope.symbol_table
         readers = set()
         writers = set()
-        for var in var_accesses.all_vars:
+        for signature in var_accesses.all_signatures:
+            var = str(signature)
             sym = table.lookup(var)
-            accesses = var_accesses[var]
+            accesses = var_accesses[signature]
             if not sym.is_array:
                 # We ignore scalars
                 continue
             if accesses.is_read():
-                readers.add(var)
+                readers.add(signature)
             if accesses.is_written():
-                writers.add(var)
+                writers.add(signature)
         readwrites = readers.intersection(writers)
         # Are any of the read-writes written before they are read?
-        for var in list(readwrites)[:]:
-            accesses = var_accesses[var]
+        for signature in list(readwrites)[:]:
+            accesses = var_accesses[signature]
             if accesses[0].access_type == AccessType.WRITE:
                 # First access is a write so treat as a write
-                writers.add(var)
-                readers.discard(var)
-                readwrites.discard(var)
+                writers.add(signature)
+                readers.discard(signature)
+                readwrites.discard(signature)
         readers_list = sorted(list(readers - readwrites))
         writers_list = sorted(list(writers - readwrites))
         readwrites_list = sorted(list(readwrites))
         if readers_list:
-            result += " copyin({0})".format(",".join(readers_list))
+            str_readers = [str(sig) for sig in readers_list]
+            result += " copyin({0})".format(",".join(str_readers))
         if writers_list:
-            result += " copyout({0})".format(",".join(writers_list))
+            str_writers = [str(sig) for sig in writers_list]
+            result += " copyout({0})".format(",".join(str_writers))
         if readwrites_list:
-            result += " copy({0})".format(",".join(readwrites_list))
+            str_readwrites = [str(sig) for sig in readwrites_list]
+            result += " copy({0})".format(",".join(str_readwrites))
 
         return result
 

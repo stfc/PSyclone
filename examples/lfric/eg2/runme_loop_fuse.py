@@ -53,8 +53,7 @@ print(t.list)
 lf = t.get_trans_name('LoopFuseTrans')
 
 schedule.view()
-new_schedule, memento = lf.apply(schedule.children[0], schedule.children[1])
-new_schedule.view()
+lf.apply(schedule.children[0], schedule.children[1])
+schedule.view()
 
-psy.invokes.get('invoke_0').schedule = new_schedule
 print(psy.gen)

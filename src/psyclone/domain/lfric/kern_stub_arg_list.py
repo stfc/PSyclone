@@ -41,7 +41,7 @@ for a kernel subroutine.
 
 from __future__ import print_function, absolute_import
 
-from psyclone.domain.lfric import ArgOrdering
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import SymbolTable
 
@@ -192,6 +192,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
@@ -209,6 +211,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.direction_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
@@ -227,6 +231,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._stub_symtab, arg)
         self.append(var_name, var_accesses)
@@ -238,10 +244,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional `VariableAccessInfo` instance to store \
-            the information about variable accesses.
+        :param var_accesses: optional `SingleVariableAccessInfo` \
+            instance to store the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariableAccessInfo`
+            :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         '''
         # The maximum branch extent is not specified in the metadata so pass
@@ -265,6 +271,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
@@ -347,10 +355,9 @@ class KernStubArgList(ArgOrdering):
         :raises InternalError: if the evaluator shape is not recognised.
 
         '''
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
-            VALID_QUADRATURE_SHAPES
+        const = LFRicConstants()
         for shape in self._kern.eval_shapes:
-            if shape in VALID_QUADRATURE_SHAPES:
+            if shape in const.VALID_QUADRATURE_SHAPES:
                 # A kernel stub won't have a name for the corresponding
                 # quadrature argument so we create one by appending the last
                 # part of the shape name to "qr_".
@@ -358,7 +365,7 @@ class KernStubArgList(ArgOrdering):
                     qr_var="qr_"+shape.split("_")[-1])
                 self.append(basis_name, var_accesses)
 
-            elif shape in VALID_EVALUATOR_SHAPES:
+            elif shape in const.VALID_EVALUATOR_SHAPES:
                 # Need a basis array for each target space upon which the basis
                 # functions have been evaluated. _kern.eval_targets is a dict
                 # where the values are 2-tuples of (FunctionSpace, argument).
@@ -369,7 +376,7 @@ class KernStubArgList(ArgOrdering):
             else:
                 raise InternalError(
                     "Unrecognised evaluator shape ('{0}'). Expected one of: "
-                    "{1}".format(shape, VALID_EVALUATOR_SHAPES))
+                    "{1}".format(shape, const.VALID_EVALUATOR_SHAPES))
 
     def diff_basis(self, function_space, var_accesses=None):
         '''Add differential basis information for the function space to the
@@ -387,10 +394,9 @@ class KernStubArgList(ArgOrdering):
         :raises InternalError: if the evaluator shape is not recognised.
 
         '''
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
-            VALID_QUADRATURE_SHAPES
+        const = LFRicConstants()
         for shape in self._kern.eval_shapes:
-            if shape in VALID_QUADRATURE_SHAPES:
+            if shape in const.VALID_QUADRATURE_SHAPES:
                 # We need differential basis functions for quadrature. A
                 # kernel stub won't have a name for the corresponding
                 # quadrature argument so we create one by appending the
@@ -399,7 +405,7 @@ class KernStubArgList(ArgOrdering):
                     qr_var="qr_"+shape.split("_")[-1])
                 self.append(diff_basis_name, var_accesses)
 
-            elif shape in VALID_EVALUATOR_SHAPES:
+            elif shape in const.VALID_EVALUATOR_SHAPES:
                 # We need differential basis functions for an evaluator,
                 # potentially for multiple target spaces. _kern.eval_targets is
                 # a dict where the values are 2-tuples of
@@ -411,7 +417,7 @@ class KernStubArgList(ArgOrdering):
             else:
                 raise InternalError("Unrecognised evaluator shape ('{0}'). "
                                     "Expected one of: {1}".format(
-                                        shape, VALID_EVALUATOR_SHAPES))
+                                        shape, const.VALID_EVALUATOR_SHAPES))
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Implement the boundary_dofs array fix for a field. If supplied it
@@ -457,6 +463,8 @@ class KernStubArgList(ArgOrdering):
 
         '''
         if self._kern.mesh.properties:
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import LFRicMeshProperties
             self.extend(LFRicMeshProperties(self._kern).
                         kern_args(stub=True, var_accesses=var_accesses))

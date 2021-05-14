@@ -46,7 +46,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.domain.lfric import FunctionSpace
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import colored, ExtractNode, Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.lfric_build import LFRicBuild
@@ -157,7 +157,7 @@ def test_repeat_extract():
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Apply Extract transformation
-    schedule, _ = etrans.apply(schedule.children[0])
+    etrans.apply(schedule.children[0])
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[0])
@@ -195,7 +195,7 @@ def test_loop_no_directive_dynamo0p3():
     schedule = invoke.schedule
     # Apply DynamoOMPParallelLoopTrans to the second Loop
     otrans = DynamoOMPParallelLoopTrans()
-    schedule, _ = otrans.apply(schedule[1])
+    otrans.apply(schedule[1])
     loop = schedule.children[1].dir_body[0]
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
@@ -219,10 +219,10 @@ def test_no_colours_loop_dynamo0p3():
 
     # Colour first loop that calls testkern_code (loop is over cells and
     # is not on a discontinuous space)
-    schedule, _ = ctrans.apply(schedule.children[0])
+    ctrans.apply(schedule.children[0])
     colour_loop = schedule.children[0].loop_body[0]
     # Apply OMP Parallel DO Directive to the colour Loop
-    schedule, _ = otrans.apply(colour_loop)
+    otrans.apply(colour_loop)
     directive = schedule[0].loop_body
     # Try to extract the region between the Loop over cells in a colour
     # and the exterior Loop over colours
@@ -254,7 +254,7 @@ def test_extract_node_position():
     children = schedule.children[pos:pos+3]
     abspos = children[0].abs_position
     dpth = children[0].depth
-    schedule, _ = dynetrans.apply(children)
+    dynetrans.apply(children)
     extract_node = schedule.walk(ExtractNode)
     # The result is only one ExtractNode in the list with position 0
     assert extract_node[0].position == pos
@@ -271,7 +271,7 @@ def test_extract_node_representation(capsys):
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
     children = schedule.children[1:3]
-    schedule, _ = etrans.apply(children)
+    etrans.apply(children)
 
     # Test view() method
     schedule.view()
@@ -306,7 +306,7 @@ def test_single_node_dynamo0p3():
                              idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    schedule, _ = etrans.apply(schedule.children[0])
+    etrans.apply(schedule.children[0])
     code = str(psy.gen)
     output = """      ! ExtractStart
       !
@@ -372,7 +372,7 @@ def test_node_list_dynamo0p3():
                              DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    schedule, _ = etrans.apply(schedule.children[0:3])
+    etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
     # This output is affected by #637 (builtin support), and needs to be
     # adjusted once this is fixed.
@@ -428,7 +428,7 @@ def test_dynamo0p3_builtin():
                              DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    schedule, _ = etrans.apply(schedule.children[0:3])
+    etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
 
     output = """! ExtractStart
@@ -486,7 +486,7 @@ def test_extract_single_builtin_dynamo0p3():
                              DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    schedule, _ = etrans.apply(schedule.children[1])
+    etrans.apply(schedule.children[1])
     code = str(psy.gen)
     output = """! ExtractStart
       !
@@ -511,8 +511,8 @@ def test_extract_single_builtin_dynamo0p3():
                              DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    schedule, _ = otrans.apply(schedule.children[1])
-    schedule, _ = etrans.apply(schedule.children[1])
+    otrans.apply(schedule.children[1])
+    etrans.apply(schedule.children[1])
     code_omp = str(psy.gen)
     output = """
       ! ExtractStart
@@ -558,7 +558,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
                              DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    schedule, _ = etrans.apply(schedule.children[1:3])
+    etrans.apply(schedule.children[1:3])
     code = str(psy.gen)
     output = """
       ! ExtractStart
@@ -619,6 +619,7 @@ def test_extract_colouring_omp_dynamo0p3():
     colouring and OpenMP optimisations produces the correct result
     in Dynamo0.3 API. '''
 
+    const = LFRicConstants()
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
@@ -629,25 +630,23 @@ def test_extract_colouring_omp_dynamo0p3():
 
     # First colour all of the loops over cells unless they are on
     # discontinuous spaces
-    cschedule = schedule
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
-           not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
+           not in const.VALID_DISCONTINUOUS_NAMES \
            and child.iteration_space == "cell_column":
-            cschedule, _ = ctrans.apply(child)
+            ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops
-    schedule = cschedule
     for child in schedule.children:
         if isinstance(child, Loop):
             if child.loop_type == "colours":
-                schedule, _ = otrans.apply(child.loop_body[0])
+                otrans.apply(child.loop_body[0])
             else:
-                schedule, _ = otrans.apply(child)
+                otrans.apply(child)
 
     # Extract the second instance of ru_kernel_type after colouring
     # and OpenMP are applied
     child = schedule.children[2]
-    schedule, _ = etrans.apply(child)
+    etrans.apply(child)
 
     code = str(psy.gen)
     output = ("""

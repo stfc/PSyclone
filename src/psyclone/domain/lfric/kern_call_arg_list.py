@@ -44,8 +44,8 @@ from __future__ import print_function, absolute_import
 from collections import namedtuple
 
 from psyclone import psyGen
-from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import (ArgOrdering, LFRicArgDescriptor)
+from psyclone.core import AccessType, Signature
+from psyclone.domain.lfric import (ArgOrdering, LFRicConstants)
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -69,6 +69,8 @@ class KernCallArgList(ArgOrdering):
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
+        # Keep a reference to the Invoke SymbolTable as a shortcut
+        self._symtab = self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
 
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
@@ -92,28 +94,27 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        symtab = self._kern.root.symbol_table
         cargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_coarse"])
         carg = cargs[0]
         fargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_fine"])
         farg = fargs[0]
         base_name = "cell_map_" + carg.name
-        map_name = symtab.symbol_from_tag(base_name).name
+        map_name = self._symtab.symbol_from_tag(base_name).name
         # Add the cell map to our argument list
         self.append("{0}(:,:,{1})".format(map_name,
                                           self._cell_ref_name(var_accesses)),
                     var_accesses=var_accesses)
         # No. of fine cells per coarse cell in x
         base_name = "ncpc_{0}_{1}_x".format(farg.name, carg.name)
-        ncellpercellx = symtab.symbol_from_tag(base_name).name
+        ncellpercellx = self._symtab.symbol_from_tag(base_name).name
         self.append(ncellpercellx, var_accesses)
         # No. of fine cells per coarse cell in y
         base_name = "ncpc_{0}_{1}_y".format(farg.name, carg.name)
-        ncellpercelly = symtab.symbol_from_tag(base_name).name
+        ncellpercelly = self._symtab.symbol_from_tag(base_name).name
         self.append(ncellpercelly, var_accesses)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
-        ncell_fine = symtab.symbol_from_tag(base_name).name
+        ncell_fine = self._symtab.symbol_from_tag(base_name).name
         self.append(ncell_fine, var_accesses)
 
     def mesh_height(self, var_accesses=None):
@@ -126,8 +127,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        nlayers_name = \
-            self._kern.root.symbol_table.symbol_from_tag("nlayers").name
+        nlayers_name = self._symtab.symbol_from_tag("nlayers").name
         self.append(nlayers_name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 
@@ -150,8 +150,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        ncell2d_name = \
-            self._kern.root.symbol_table.symbol_from_tag("ncell_2d").name
+        ncell2d_name = self._symtab.symbol_from_tag("ncell_2d").name
         self.append(ncell2d_name, var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
@@ -168,6 +167,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         components = ["matrix"]
+        # Avoid circular import:
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynCMAOperators
         if arg.function_space_to.orig_name != (arg.function_space_from.
                                                orig_name):
@@ -175,7 +176,7 @@ class KernCallArgList(ArgOrdering):
         else:
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
-            name = self._kern.root.symbol_table.symbol_from_tag(
+            name = self._symtab.symbol_from_tag(
                 arg.name + "_" + component).name
             # Matrix is an output parameter, the rest are input
             if component == "matrix":
@@ -205,7 +206,7 @@ class KernCallArgList(ArgOrdering):
             self.append(text)
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
-            var_accesses.add_access(argvect.name, argvect.access,
+            var_accesses.add_access(Signature(argvect.name), argvect.access,
                                     self._kern)
 
     def field(self, arg, var_accesses=None):
@@ -243,8 +244,7 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_size_name(self._kern.root.symbol_table,
-                                                arg)
+        var_name = DynStencils.dofmap_size_name(self._symtab, arg)
         name = "{0}({1})".format(var_name, self._cell_ref_name(var_accesses))
         self.append(name, var_accesses, var_access_name=var_name)
 
@@ -265,8 +265,7 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_size_name(self._kern.root.symbol_table,
-                                                arg)
+        var_name = DynStencils.dofmap_size_name(self._symtab, arg)
         name = "{0}(:,{1})".format(var_name,
                                    self._cell_ref_name(var_accesses))
         self.append(name, var_accesses, var_access_name=var_name)
@@ -278,10 +277,10 @@ class KernCallArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`pclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariableAccessInfo instance to store \
-            the information about variable accesses.
+        :param var_accesses: optional SingleVariableAccessInfo instance \
+            to store the information about variable accesses.
         :type var_accesses: \
-            :py:class:1psyclone.core.access_info.VariableAccessInfo`
+            :py:class:1psyclone.core.access_info.SingleVariableAccessInfo`
 
         '''
         # The maximum branch extent is not specified in the metadata so pass
@@ -289,8 +288,7 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.max_branch_length_name(
-            self._kern.root.symbol_table, arg)
+        name = DynStencils.max_branch_length_name(self._symtab, arg)
         self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -329,7 +327,7 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
+        var_name = DynStencils.dofmap_name(self._symtab, arg)
         name = "{0}(:,:,{1})".format(var_name,
                                      self._cell_ref_name(var_accesses))
         self.append(name, var_accesses, var_access_name=var_name)
@@ -358,7 +356,7 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
+        var_name = DynStencils.dofmap_name(self._symtab, arg)
         name = "{0}(:,:,:,{1})".format(var_name,
                                        self._cell_ref_name(var_accesses))
         self.append(name, var_accesses, var_access_name=var_name)
@@ -538,15 +536,16 @@ class KernCallArgList(ArgOrdering):
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
+        const = LFRicConstants()
         if not farg.is_field:
             raise GenerationError(
                 "Expected an argument of {0} type from which to look-up "
                 "boundary dofs for kernel {1} but got '{2}'".
-                format(LFRicArgDescriptor.VALID_FIELD_NAMES,
+                format(const.VALID_FIELD_NAMES,
                        self._kern.name, farg.argument_type))
 
         base_name = "boundary_dofs_" + farg.name
-        name = self._kern.root.symbol_table.symbol_from_tag(base_name).name
+        name = self._symtab.symbol_from_tag(base_name).name
         self.append(name, var_accesses)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
@@ -566,7 +565,7 @@ class KernCallArgList(ArgOrdering):
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
         base_name = "boundary_dofs_" + op_arg.name
-        name = self._kern.root.symbol_table.symbol_from_tag(base_name).name
+        name = self._symtab.symbol_from_tag(base_name).name
         self.append(name, var_accesses)
 
     def mesh_properties(self, var_accesses=None):
@@ -581,6 +580,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         if self._kern.mesh.properties:
+            # Avoid circular import:
+            # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import LFRicMeshProperties
             self.extend(LFRicMeshProperties(self._kern).
                         kern_args(stub=False, var_accesses=var_accesses))
@@ -695,14 +696,18 @@ class KernCallArgList(ArgOrdering):
         '''
         if self._kern.is_coloured():
             if var_accesses is not None:
-                var_accesses.add_access("colour", AccessType.READ, self._kern)
-                var_accesses.add_access("cell", AccessType.READ, self._kern)
-                var_accesses.add_access(self._kern.colourmap, AccessType.READ,
+                var_accesses.add_access(Signature("colour"), AccessType.READ,
+                                        self._kern)
+                var_accesses.add_access(Signature("cell"), AccessType.READ,
+                                        self._kern)
+                var_accesses.add_access(Signature(self._kern.colourmap),
+                                        AccessType.READ,
                                         self._kern, ["colour", "cell"])
             return self._kern.colourmap + "(colour, cell)"
 
         if var_accesses is not None:
-            var_accesses.add_access("cell", AccessType.READ, self._kern)
+            var_accesses.add_access(Signature("cell"), AccessType.READ,
+                                    self._kern)
 
         return "cell"
 

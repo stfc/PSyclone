@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 Working With PSyclone from GitHub
 #################################
@@ -140,8 +140,10 @@ annexed        	 Supplies a test with the various possible values of the LFRic
 dist_mem       	 Supplies a test with the various possible values of the
                  `distributed-memory` option (only applicable to the LFRic API
                  currently).
-f2008_parser     Creates an fparser2 parser for the Fortran2008 standard. This
-                 is only done once per test session.
+fortran_reader   Provides a Fortran PSyIR front-end object to convert Fortran
+                 code snippets into PSyIR.
+fortran_writer   Provides a Fortran PSyIR back-end object to convert PSyIR
+                 trees into Fortran code.
 have_graphviz  	 True if the Python bindings to the graphviz package (used when
                  generating DAG visualisations) are available. Does *not* check
                  that the underlying graphviz library is installed.
@@ -151,9 +153,9 @@ kernel_outputdir Sets the output directory used by PSyclone for transformed
                  kernels to be transformed needs to use this fixture in order
                  to avoid having unwanted files created within the git working
                  tree.
-parser           Creates an fparser2 parser for the Fortran2003 standard. This
+parser           Creates an fparser2 parser for the Fortran2008 standard. This
                  is an expensive operation so this fixture is only run once
-		 per test session.
+                 per test session.
 ================ ==============================================================
 
 In addition, there are two fixtures that are automatically run (just
@@ -230,12 +232,22 @@ being sufficiently isolated from one another.
 
 Gotchas
 -------
+The test utility pytest will only discover files that either start
+or end with "test". The PSyclone convention is to have all files ending
+with "_test.py", e.g. ``constants_test.py``. A name using "tests"
+(plural) will not be automatically discovered or executed by pytest!
 
 Note that pytest will not complain if two tests (within a module) have
 the same name - it will just silently ignore one of them! The best way
 of checking for this is to run pylint on any modified test modules.
 (This needs to be done anyway as one of the requirements of the
 :ref:`code-review` is that all new code be pylint-clean.)
+
+.. note::
+    You can use ``pytest --collect-only``
+    to check the names of the files and tests that would be executed,
+    without actually executing the tests.
+
 
 .. _compilation_testing:
 
