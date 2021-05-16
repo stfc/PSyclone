@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-
+# Modified by S. Siso, STFC Daresbury Lab
 
 '''
 An example of PSyclone transformation script to extract a list of Nodes from
@@ -84,7 +84,7 @@ def trans(psy):
     # Apply extract transformation to selected Nodes
     print("\nExtracting Nodes '[" + str(LBOUND) + ":" + str(UBOUND) +
           "]' from Invoke '" + invoke.name + "'\n")
-    schedule, _ = etrans.apply(schedule.children[LBOUND:UBOUND])
+    etrans.apply(schedule.children[LBOUND:UBOUND])
 
     # Take a look at the transformed Schedule
     schedule.view()

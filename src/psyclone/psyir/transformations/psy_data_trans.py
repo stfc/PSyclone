@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 '''Contains the PSyData transformation.
 '''
@@ -69,12 +69,12 @@ class PSyDataTrans(RegionTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose all children within a single PSyData region
-    >>> newschedule, _ = data_trans.apply(schedule.children)
-    >>> newschedule.view()
+    >>> data_trans.apply(schedule.children)
+    >>> schedule.view()
     >>> # Or to use a class-prefix string and different region name:
-    >>> newschedule, _ = data_trans.apply(schedule.children,
-    >>>                                   {"prefix": "my_prefix",
-    >>>                                    "region_name": ("module","region")})
+    >>> data_trans.apply(schedule.children,
+    >>>                  {"prefix": "my_prefix",
+    >>>                   "region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).
@@ -256,16 +256,15 @@ class PSyDataTrans(RegionTrans):
         # Get useful references
         parent = node_list[0].parent
         position = node_list[0].position
-        schedule = node_list[0].root
+        root = node_list[0].root
 
         # We always use the outermost symbol table so that any name clashes
         # due to multiple applications of this transformation are handled
         # automatically.
         table = parent.root.symbol_table
 
-        # create a memento of the schedule and the proposed
-        # transformation
-        keep = Memento(schedule, self)
+        # Create a memento of the tree root and the proposed transformation
+        keep = Memento(root, self)
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
@@ -280,7 +279,7 @@ class PSyDataTrans(RegionTrans):
             node_list, symbol_table=table, options=options)
         parent.addchild(psy_data_node, position)
 
-        return schedule, keep
+        return root, keep
 
 
 # For AutoAPI documentation generation

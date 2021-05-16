@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by S. Siso, STFC Daresbury Laboratory
 
 '''This module contains the GOcean-specific extract transformation.
 '''
@@ -59,8 +60,8 @@ class GOceanExtractTrans(ExtractTrans):
     >>> etrans = GOceanExtractTrans()
     >>>
     >>> # Apply GOceanExtractTrans transformation to selected Nodes
-    >>> newsched, _ = etrans.apply(schedule.children[0])
-    >>> newsched.view()
+    >>> etrans.apply(schedule.children[0])
+    >>> schedule.view()
     '''
 
     def __init__(self):

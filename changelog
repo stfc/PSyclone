@@ -18,6 +18,9 @@
 
         7) PR #1124 for #1185. Refactor PSyDataNode class and sub-classes.
 
+        8) PR #1229 for #1170. Adds a Container parent node above all
+        InvokeSchedule nodes.
+
 
 release 2.0.0 28th April 2021
 

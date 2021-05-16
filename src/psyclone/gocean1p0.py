@@ -1258,8 +1258,10 @@ class GOKern(CodedKern):
         # TODO #1134: Explore removing unnecessary set_args calls.
         self.gen_ocl_set_args_call(parent)
 
-        # Create array for the global work size argument of the kernel
-        symtab = self.root.symbol_table
+        # Create array for the global work size argument of the kernel. Use the
+        # InvokeSchedule symbol table to share this symbols for all the kernels
+        # in the Invoke.
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         garg = self._arguments.find_grid_access()
         glob_size = symtab.new_symbol(
             "globalsize", symbol_type=DataSymbol,
@@ -1506,8 +1508,8 @@ class GOKern(CodedKern):
         :param parent: Parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        # Get the root symbol table and the root f2pygen node
-        symtab = self.root.symbol_table
+        # Get the InvokeSchedule symbol table and the root f2pygen node
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         module = parent
         while module.parent:
             module = module.parent
@@ -1560,7 +1562,7 @@ class GOKern(CodedKern):
         :param parent: parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        symtab = self.root.symbol_table
+        symtab = self.scope.symbol_table
         there_is_a_grid_buffer = False
         for arg in self._arguments.args:
             if arg.argument_type == "field":
@@ -1593,7 +1595,7 @@ class GOKern(CodedKern):
         '''
         # pylint: disable=too-many-locals, too-many-branches
         # Retrieve symbol table and kernel name
-        symtab = self.root.symbol_table
+        symtab = self.scope.symbol_table
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
 
         # Find the symbol that defines each boundary for this kernel.
@@ -2484,7 +2486,7 @@ class GOKernelGridArgument(Argument):
         # Find field from which to access grid properties
         base_field = self._call.arguments.find_grid_access().name
         tag = "AlgArgs_" + base_field
-        symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+        symbol = self._call.scope.symbol_table.symbol_from_tag(tag)
 
         # Get aggregate grid type accessors without the base name
         access = self.dereference(base_field).split('%')[1:]
