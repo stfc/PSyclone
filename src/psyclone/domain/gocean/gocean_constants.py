@@ -47,9 +47,8 @@ class GOceanConstants(object):
     It stores all values in class variables (to avoid re-evaluating them).
     At this stage it only contains the variables that might be used in
     psyGen.
-    # TODO #1223 - Add more constants into this object.
-   '''
 
+    '''
     HAS_BEEN_INITIALISED = False
 
     def __init__(self):

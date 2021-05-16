@@ -449,17 +449,18 @@ class GOLoop(Loop):
         single loop information to the base class so it creates the one we
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
-        in the Dynamo api. '''
+        in the Dynamo api.
 
+        :param parent: optional parent node (default None).
+        :type parent: :py:class:`psyclone.psyGen.node`
+        :param str topology_name: optional opology of the loop (unused atm).
+        :param str loop_type: loop type - must be 'inner' or 'outer'.
+
+    '''
     _bounds_lookup = {}
 
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
-        '''Constructs a GOLoop instance.
-        :param parent: Optional parent node (default None).
-        :type parent: :py:class:`psyclone.psyGen.node`
-        :param str topology_name: Optional opology of the loop (unused atm).
-        :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
         # pylint: disable=unused-argument
         const = GOceanConstants()
         Loop.__init__(self, parent=parent,
@@ -706,10 +707,11 @@ class GOLoop(Loop):
             try:
                 _ = Nonlabel_Do_Stmt(do_string)
             except NoMatchError as err:
-                six.raise_from(ConfigurationError("Expression '{0}' is not a "
-                                         "valid do loop boundary. Error "
-                                         "message: '{1}'."
-                                         .format(bound, str(err))), err)
+                six.raise_from(
+                    ConfigurationError("Expression '{0}' is not a "
+                                       "valid do loop boundary. Error "
+                                       "message: '{1}'."
+                                       .format(bound, str(err))), err)
 
         # All tests successful, so add the new bounds:
         # --------------------------------------------
@@ -2454,10 +2456,11 @@ class GOKernelGridArgument(Argument):
             deref_name = api_config.grid_properties[arg.grid_prop].fortran
         except KeyError as err:
             all_keys = str(api_config.grid_properties.keys())
-            six.raise_from(GenerationError("Unrecognised grid property "
-                                  "specified. Expected one of {0} but found "
-                                  "'{1}'". format(all_keys, arg.grid_prop)),
-                           err)
+            six.raise_from(
+                GenerationError("Unrecognised grid property "
+                                "specified. Expected one of {0} but found "
+                                "'{1}'". format(all_keys, arg.grid_prop)),
+                err)
 
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
@@ -2890,10 +2893,11 @@ class GO1p0Descriptor(Descriptor):
             access_type = access_mapping[access]
         except KeyError as err:
             valid_names = api_config.get_valid_accesses_api()
-            six.raise_from(ParseError("Meta-data error in kernel {0}: "
-                             "argument access  is given as '{1}' but must be "
-                             "one of {2}".
-                             format(kernel_name, access, valid_names)), err)
+            six.raise_from(
+                ParseError("Meta-data error in kernel {0}: "
+                           "argument access  is given as '{1}' but must be "
+                           "one of {2}".
+                           format(kernel_name, access, valid_names)), err)
 
         # Finally we can call the __init__ method of our base class
         super(GO1p0Descriptor,
