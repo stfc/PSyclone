@@ -1491,6 +1491,13 @@ def test_fw_arrayofstructuresmember(fortran_writer):
     assert fortran_writer.structurereference_node(grid_ref) == "grid%levels"
 
 
+def test_fw_char_literal(fortran_writer):
+    ''' Test the FortranWriter support for character literals. '''
+    lit = Literal("hello", CHARACTER_TYPE)
+    result = fortran_writer(lit)
+    assert result == "'hello'"
+
+
 # literal is already checked within previous tests
 
 
