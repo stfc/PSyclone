@@ -87,8 +87,8 @@ def test_const_loop_bounds_not_schedule():
         _, _ = cbtrans.apply(schedule.children[0])
 
 
-def test_const_loop_bounds_toggle(tmpdir):
-    ''' Check that we can toggle constant loop bounds on and off and
+def test_const_loop_bounds_enabled_and_disabled(tmpdir):
+    ''' Check that we can turn the constant loop bounds on and off and
     that the default behaviour is "on" '''
     psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                              API, idx=0)
@@ -99,39 +99,36 @@ def test_const_loop_bounds_toggle(tmpdir):
     # bounds by default.
     assert schedule._const_loop_bounds is False
     gen = str(psy.gen)
-    assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
-    assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
-    assert "DO j=p_fld%whole%ystart,p_fld%whole%ystop" in gen
-    assert "DO i=p_fld%whole%xstart,p_fld%whole%xstop" in gen
+    assert "DO j = cv_fld%internal%ystart, cv_fld%internal%ystop" in gen
+    assert "DO i = cv_fld%internal%xstart, cv_fld%internal%xstop" in gen
+    assert "DO j = p_fld%whole%ystart, p_fld%whole%ystop" in gen
+    assert "DO i_1 = p_fld%whole%xstart, p_fld%whole%xstop" in gen
 
     # Next, check the generated code applying the constant loop-bounds
     # transformation.
+    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                             API, idx=0)
+    schedule = invoke.schedule
     cbtrans.apply(schedule)
     gen = str(psy.gen)
     assert schedule._const_loop_bounds is True
-    assert "INTEGER istop, jstop" in gen
+    assert "INTEGER istop" in gen
+    assert "INTEGER istop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j=2,jstop-1" in gen
-    assert "DO i=2,istop" in gen
+    assert "DO j = 2, jstop-1" in gen
+    assert "DO i = 2, istop" in gen
 
     # Next, check that applying the constant loop-bounds
     # transformation again has no effect.
     cbtrans.apply(schedule)
     gen = str(psy.gen)
-    assert "INTEGER istop, jstop" in gen
+    assert "INTEGER istop" in gen
+    assert "INTEGER jstop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j=2,jstop-1" in gen
-    assert "DO i=2,istop" in gen
-
-    # Finally, test that we can turn-off constant loop bounds.
-    cbtrans.apply(schedule, {"const_bounds": False})
-    gen = str(psy.gen)
-    assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
-    assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
-    assert "DO j=p_fld%whole%ystart,p_fld%whole%ystop" in gen
-    assert "DO i=p_fld%whole%xstart,p_fld%whole%xstop" in gen
+    assert "DO j = 2, jstop-1" in gen
+    assert "DO i = 2, istop" in gen
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -234,6 +231,10 @@ def test_omp_parallel_loop(tmpdir):
                 "      !$omp end parallel do")
     assert expected in gen
 
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+    omp.apply(schedule[0])
     cbtrans.apply(schedule, {"const_bounds": False})
     gen = str(psy.gen)
     gen = gen.lower()
@@ -1540,8 +1541,10 @@ def test_acc_parallel_trans(tmpdir):
     schedule = invoke.schedule
 
     acct = ACCParallelTrans()
-    # Apply the OpenACC Parallel transformation
-    # to the first loop of the schedule
+    accdt = ACCEnterDataTrans()
+
+    # Apply the OpenACC Parallel transformation to the first loop of the
+    # schedule
     acct.apply(schedule.children[0])
 
     with pytest.raises(GenerationError) as err:
@@ -1550,7 +1553,10 @@ def test_acc_parallel_trans(tmpdir):
             "data directive or enclosed within an ACC data region but in "
             "'invoke_0' this is not the case" in str(err.value))
 
-    accdt = ACCEnterDataTrans()
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+    acct.apply(schedule.children[0])
     accdt.apply(schedule)
     code = str(psy.gen)
 

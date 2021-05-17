@@ -1407,6 +1407,7 @@ class ACCEnterDataDirective(ACCDirective):
         super(ACCEnterDataDirective, self).__init__(children=children,
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
+        self._copy_vars = []  # This is computed dynamically
 
     def node_str(self, colour=True):
         '''
@@ -1475,6 +1476,52 @@ class ACCEnterDataDirective(ACCDirective):
         # additional declarations are required.
         self.data_on_device(parent)
         parent.add(CommentGen(parent, ""))
+
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of this directive concept into language level
+        PSyIR constructs.
+        '''
+        # We must generate a list of all of the fields accessed by
+        # OpenACC kernels (calls within an OpenACC parallel or kernels
+        # directive)
+        # 1. Find all parallel and kernels directives. We store this list for
+        #    later use in any sub-class.
+        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                (ACCParallelDirective, ACCKernelsDirective))
+        # 2. For each directive, loop over each of the fields used by
+        #    the kernels it contains (this list is given by var_list)
+        #    and add it to our list if we don't already have it
+        self._copy_vars = []
+        # TODO grid properties are effectively duplicated in this list (but
+        # the OpenACC deep-copy support should spot this).
+        for pdir in self._acc_dirs:
+            for var in pdir.ref_list:
+                if var not in self._copy_vars:
+                    self._copy_vars.append(var)
+        self._copy_vars = []
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive. The visitor is
+        responsible for adding the correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # 3. Convert this list of objects into a comma-delimited string
+        var_str = ",".join(self._copy_vars)
+        # 4. Add the enter data directive.
+        if var_str:
+            copy_in_str = "copyin("+var_str+")"
+        else:
+            # There should be at least one variable to copyin.
+            raise GenerationError(
+                "ACCEnterData directive did not find any data to copyin. "
+                "Perhaps there are no ACCParallel or ACCKernels directives "
+                "within the region.")
+
+        return "acc begin enter data " + copy_in_str
 
     @abc.abstractmethod
     def data_on_device(self, parent):

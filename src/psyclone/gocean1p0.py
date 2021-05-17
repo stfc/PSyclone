@@ -1021,12 +1021,21 @@ class GOLoop(Loop):
         expressions of the Loop contain the boundaries defined by the API.
 
         '''
-        # Generate the upper and lower loop bounds
-        if self.walk(GOKern):
-            self.start_expr = self.lower_bound()
-            self.stop_expr = self.upper_bound()
+        # Check that it is a properly formed GOLoop
+        self._validate_loop()
 
-        return super(GOLoop, self).lower_to_language_level()
+        # Generate the upper and lower loop bounds
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
+
+        # Once the bounds are set, lower the loops multiple children
+        for child in self.children:
+            child.lower_to_language_level()
+
+        # Finally, lose the DSL-level abstraction since the lower_bound() and
+        # upper_bound() methods will fail after lowering because they rely on
+        # a GOKern to be found inside the Loop, and this doesn't exist anymore
+        self.__class__ = Loop
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -1038,9 +1047,8 @@ class GOLoop(Loop):
         :rtype: str
         '''
         # Generate the upper and lower loop bounds
-        if self.walk(GOKern):
-            self.start_expr = self.lower_bound()
-            self.stop_expr = self.upper_bound()
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
 
         return super(GOLoop, self).node_str(colour)
 
@@ -1048,18 +1056,14 @@ class GOLoop(Loop):
         ''' Returns a string describing this Loop object '''
 
         # Generate the upper and lower loop bounds
-        if self.walk(GOKern):
-            self.start_expr = self.lower_bound()
-            self.stop_expr = self.upper_bound()
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
 
         return super(GOLoop, self).__str__()
 
-    def gen_code(self, parent):
-        ''' Create the f2pygen AST for this loop (and update the PSyIR
-        representing the loop bounds if necessary).
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+    def _validate_loop(self):
+        ''' Validate that the GOLoop has all necessary boundaries information
+        to lower or gen_code to f2pygen.
 
         :raises GenerationError: if we can't find an enclosing Schedule.
         :raises GenerationError: if this loop does not enclose a Kernel.
@@ -1100,6 +1104,17 @@ class GOLoop(Loop):
                                       format(kernel.name,
                                              kernel.index_offset,
                                              index_offset))
+
+    def gen_code(self, parent):
+        ''' Create the f2pygen AST for this loop (and update the PSyIR
+        representing the loop bounds if necessary).
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        # Check that it is a properly formed GOLoop
+        self._validate_loop()
 
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
