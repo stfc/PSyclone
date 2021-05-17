@@ -1159,13 +1159,6 @@ class Node(object):
         for child in self.children:
             child.lower_to_language_level()
 
-    def update(self):
-        ''' By default we assume there is no need to update the existing
-        fparser2 AST which this Node represents. We simply call the update()
-        method of any children. '''
-        for child in self._children:
-            child.update()
-
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The default implementation
         just recurses down to all children.

@@ -119,16 +119,6 @@ class NemoInvoke(Invoke):
         self._name = name
         self._schedule.invoke = self
 
-    def update(self):
-        '''
-        Updates the fparser2 parse tree associated with this schedule to
-        make it reflect any transformations that have been applied to
-        the PSyclone PSyIR.
-        '''
-        if not self._schedule:
-            return
-        self._schedule.update()
-
 
 class NemoInvokes(Invokes):
     '''
@@ -161,12 +151,6 @@ class NemoInvokes(Invokes):
             my_invoke = NemoInvoke(subroutine, subroutine.name, self)
             self.invoke_map[subroutine.name] = my_invoke
             self.invoke_list.append(my_invoke)
-
-    def update(self):
-        ''' Walk down the tree and update the underlying fparser2 AST
-        to reflect any transformations. '''
-        for invoke in self.invoke_list:
-            invoke.update()
 
     @property
     def container(self):

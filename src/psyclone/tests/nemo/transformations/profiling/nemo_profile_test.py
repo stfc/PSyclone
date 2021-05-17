@@ -479,23 +479,6 @@ def test_profiling_var_clash(parser):
             in code)
 
 
-def test_only_profile():
-    '''Test that the update function in PSyDataNode aborts if the node is not
-    a ProfileNode.
-    '''
-
-    class DummyNode(PSyDataNode):
-        '''Dummy class for testing.'''
-
-    node = DummyNode()
-    with pytest.raises(InternalError) as err:
-        node.update()
-    # Python 2 and 3 have slightly different messages to describe the type
-    correct_re = "PSyData.update is only supported for a ProfileNode, not " \
-        "for a node of type .*DummyNode'>."
-    assert re.search(correct_re, str(err.value))
-
-
 def test_no_return_in_profiling(parser):
     ''' Check that the transformation refuses to include a Return node within
     a profiled region. '''

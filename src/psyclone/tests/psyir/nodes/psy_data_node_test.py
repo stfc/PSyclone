@@ -59,7 +59,6 @@ def test_psy_data_node_constructor():
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
-    assert psy_node.use_stmt == ""
     psy_node = PSyDataNode(options={"prefix": "profile"})
     assert psy_node._prefix == "profile_"
     assert psy_node.fortran_module == "profile_psy_data_mod"

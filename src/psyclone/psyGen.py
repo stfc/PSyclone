@@ -4460,11 +4460,7 @@ class ACCDataDirective(ACCDirective):
         '''
         :raises InternalError: the ACC data directive is currently only \
                                supported for the NEMO API and that uses the \
-                               update() method to alter the underlying \
-                               fparser2 parse tree.
-
-        TODO #435 update above explanation when update() method is removed.
-
+                               PSyIR backend to generate code.
         '''
         raise InternalError(
             "ACCDataDirective.gen_code should not have been called.")

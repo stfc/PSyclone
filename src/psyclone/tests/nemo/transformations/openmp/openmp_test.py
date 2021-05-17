@@ -194,8 +194,8 @@ def test_omp_do_missing_region(parser):
             "not find an ancestor OMPParallelDirective" in str(err.value))
 
 
-def test_omp_do_update():
-    '''Check the OMPDoDirective update function.'''
+def test_omp_do_code_gen():
+    '''Check the OMPDoDirective generates the correct code.'''
     psy, invoke = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke.schedule
     par_trans = OMPParallelTrans()
