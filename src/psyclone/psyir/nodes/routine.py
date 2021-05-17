@@ -124,10 +124,6 @@ class Routine(Schedule):
                     "child of children argument in create method of "
                     "Routine class should be a PSyIR Node but "
                     "found '{0}'.".format(type(child).__name__))
-        if return_symbol and not isinstance(return_symbol, DataSymbol):
-            raise TypeError("return_symbol argument should be a DataSymbol "
-                            "but found '{0}'".format(
-                                type(return_symbol).__name__))
 
         kern = cls(name)
         # pylint: disable=protected-access
@@ -209,7 +205,8 @@ class Routine(Schedule):
     @property
     def return_symbol(self):
         '''
-        :returns: the symbol which will hold the return value of this Routine.
+        :returns: the symbol which will hold the return value of this Routine \
+                  or None if the Routine is not a function.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol` or NoneType
         '''
         return self._return_symbol

@@ -47,7 +47,6 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.nodes import Container, Routine, CodeBlock
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.backend.fortran import FortranWriter
 
 # subroutine no declarations
 SUB1_IN = (
@@ -82,7 +81,7 @@ SUB3_OUT = (
                          [(SUB1_IN, SUB1_OUT),
                           (SUB2_IN, SUB2_OUT),
                           (SUB3_IN, SUB3_OUT)])
-def test_subroutine_handler(parser, code, expected):
+def test_subroutine_handler(parser, fortran_writer, code, expected):
     '''Test that subroutine_handler handles valid Fortran subroutines.'''
 
     processor = Fparser2Reader()
@@ -93,12 +92,11 @@ def test_subroutine_handler(parser, code, expected):
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, Routine)
     assert psyir.parent is None
-    writer = FortranWriter()
-    result = writer(psyir)
+    result = fortran_writer(psyir)
     assert expected == result
 
 
-def test_function_handler(fortran_reader):
+def test_function_handler(fortran_reader, fortran_writer):
     '''Test that subroutine_handler correctly handles a function defined
     within a module.
 
@@ -130,11 +128,43 @@ def test_function_handler(fortran_reader):
     routines = psyir.walk(Routine)
     assert len(routines) == 1
     assert isinstance(routines[0].return_symbol, DataSymbol)
+    assert routines[0].return_symbol.name == "my_func"
     assert (routines[0].return_symbol.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
     assert psyir.parent is None
-    writer = FortranWriter()
-    result = writer(psyir)
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
+@pytest.mark.parametrize("basic_type", ["real", "integer"])
+def test_function_type_prefix(fortran_reader, fortran_writer, basic_type):
+    '''
+    Test the handler when the function definition has a type prefix but no
+    result suffix.
+
+    '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  {0} function my_func()\n"
+        "    my_func = 1\n"
+        "  end function my_func\n"
+        "end module\n".format(basic_type))
+    expected = (
+        "module a\n"
+        "  implicit none\n\n"
+        "  public :: my_func\n\n"
+        "  contains\n"
+        "  function my_func()\n"
+        "    {0} :: my_func\n"
+        "\n"
+        "    my_func = 1\n"
+        "\n"
+        "  end function my_func\n"
+        "\n"
+        "end module a\n".format(basic_type))
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir)
     assert result == expected
 
 
@@ -162,7 +192,8 @@ EXPECTED_FN3_OUT = ("  function my_func() result(my_val)\n"
                          [(FN1_IN, EXPECTED_FN_OUT),
                           (FN2_IN, EXPECTED_FN_OUT),
                           (FN3_IN, EXPECTED_FN3_OUT)])
-def test_function_result_suffix(fortran_reader, code, expected):
+def test_function_result_suffix(fortran_reader, fortran_writer,
+                                code, expected):
     '''
     Test that we handle a Fortran function with the return value specified
     using the 'result()' suffix. We test when the type is specified by a
@@ -182,15 +213,16 @@ def test_function_result_suffix(fortran_reader, code, expected):
     assert len(routines) == 1
     assert (routines[0].return_symbol is
             routines[0].symbol_table.lookup("my_val"))
-    writer = FortranWriter()
-    result = writer(psyir)
+    result = fortran_writer(psyir)
     assert expected in result
 
 
 def test_function_missing_return_type(fortran_reader):
     '''
-    Test that we reject a Fortran function if there is no explicit declaration
-    of its return type.
+    Test that we generate a CodeBlock for a Fortran function without an
+    explicit declaration of its return type (i.e. if it's relying on Fortran's
+    implicit typing).
+
     '''
     code = (
         "module a\n"
@@ -204,7 +236,7 @@ def test_function_missing_return_type(fortran_reader):
 
 
 @pytest.mark.parametrize("fn_prefix",
-                         ["pure real", "real pure", "recursive"])
+                         ["pure real", "real pure", "recursive", "elemental"])
 def test_unsupported_function_prefix(fortran_reader, fn_prefix):
     ''' Check that we get a CodeBlock if a Fortran function has an unsupported
     prefix. '''
