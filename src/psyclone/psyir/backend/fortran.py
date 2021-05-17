@@ -398,7 +398,9 @@ class FortranWriter(PSyIRVisitor):
 
     def gen_vardecl(self, symbol):
         '''Create and return the Fortran variable declaration for this Symbol
-        or derived-type member.
+        or derived-type member. If the Symbol is of DeferredType then it is
+        assumed to be brought into scope from a Container and an empty string
+        is returned.
 
         :param symbol: the symbol or member instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol` or \
@@ -423,11 +425,14 @@ class FortranWriter(PSyIRVisitor):
         else:
             array_shape = []
 
-        if is_symbol and not (symbol.is_local or symbol.is_argument):
-            raise VisitorError(
-                "gen_vardecl requires the symbol '{0}' to have a Local or "
-                "an Argument interface but found a '{1}' interface."
-                "".format(symbol.name, type(symbol.interface).__name__))
+        if is_symbol:
+            if isinstance(symbol.datatype, DeferredType):
+                return ""
+            if not (symbol.is_local or symbol.is_argument):
+                raise VisitorError(
+                    "gen_vardecl requires the symbol '{0}' to have a Local or "
+                    "an Argument interface but found a '{1}' interface."
+                    "".format(symbol.name, type(symbol.interface).__name__))
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):

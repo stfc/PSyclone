@@ -581,18 +581,15 @@ def test_fw_gen_vardecl(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
-    # Use statement
+    # Use statement - should get an empty string
     symbol = DataSymbol("dummy1", DeferredType(),
                         interface=GlobalInterface(
                             ContainerSymbol("my_module")))
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_vardecl(symbol)
-    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
-            "an Argument interface but found a 'GlobalInterface' interface."
-            in str(excinfo.value))
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == ""
 
-    # An unresolved symbol
-    symbol = DataSymbol("dummy1", DeferredType(),
+    # An unresolved symbol with a specific type
+    symbol = DataSymbol("dummy1", INTEGER_TYPE,
                         interface=UnresolvedInterface())
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
