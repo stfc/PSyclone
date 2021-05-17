@@ -2063,18 +2063,6 @@ class OMPParallelDirective(OMPDirective):
         list_result.sort()
         return list_result
 
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        parallel region.
-
-        '''
-        # TODO #435: Remove this function once this is fixed
-        self._add_region(
-            start_text="parallel default(shared), private({0})".format(
-                ",".join(self._get_private_list())),
-            end_text="end parallel")
-
 
 class OMPDoDirective(OMPDirective):
     '''
