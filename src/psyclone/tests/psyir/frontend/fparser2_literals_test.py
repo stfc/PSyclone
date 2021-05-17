@@ -51,6 +51,7 @@ from psyclone.errors import InternalError
 
 @pytest.mark.parametrize("code, dtype",
                          [("'hello'", ScalarType.Intrinsic.CHARACTER),
+                          ('"hello"', ScalarType.Intrinsic.CHARACTER),
                           ("1", ScalarType.Intrinsic.INTEGER),
                           ("1.0", ScalarType.Intrinsic.REAL),
                           (".tRue.", ScalarType.Intrinsic.BOOLEAN),
@@ -73,10 +74,11 @@ def test_handling_literal(code, dtype):
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.datatype.intrinsic == dtype
-    if dtype != ScalarType.Intrinsic.BOOLEAN:
-        assert literal.value == code
+    if dtype in [ScalarType.Intrinsic.BOOLEAN, ScalarType.Intrinsic.CHARACTER]:
+        # Remove wrapping dots or quotes
+        assert literal.value == code.lower()[1:-1]
     else:
-        assert literal.value == code.lower()[1:-1]  # Remove wrapping dots
+        assert literal.value == code
 
 
 @pytest.mark.parametrize("value,dprecision,intrinsic",
@@ -109,6 +111,8 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
     assert literal.datatype.intrinsic == intrinsic
     if intrinsic == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
+    elif intrinsic == ScalarType.Intrinsic.CHARACTER:
+        assert "'{0}'".format(literal.value) == value
     else:
         assert literal.value == value
     assert isinstance(literal.datatype.precision, DataSymbol)
@@ -125,13 +129,11 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
                           ("'hello'", 1, ScalarType.Intrinsic.CHARACTER),
                           (".tRue.", 4, ScalarType.Intrinsic.BOOLEAN),
                           (".false.", 8, ScalarType.Intrinsic.BOOLEAN)])
-@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_literal_precision_2(value, dprecision, intrinsic):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision value.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     if intrinsic == ScalarType.Intrinsic.CHARACTER:
         code = "x={0}_{1}".format(dprecision, value)
@@ -140,6 +142,9 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
+    # Ensure the symbol table has an entry for "x"
+    fake_parent.symbol_table.add(
+        DataSymbol("x", ScalarType(ScalarType.Intrinsic.INTEGER, 4)))
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -148,6 +153,8 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
     assert literal.datatype.intrinsic == intrinsic
     if intrinsic == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
+    elif intrinsic == ScalarType.Intrinsic.CHARACTER:
+        assert "'{0}'".format(literal.value) == value
     else:
         assert literal.value == value
     assert isinstance(literal.datatype.precision, int)
