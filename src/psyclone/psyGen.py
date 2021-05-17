@@ -1225,132 +1225,6 @@ class Directive(Statement):
         _, position = self._find_position(self.ancestor(Routine))
         return "directive_" + str(position)
 
-    def _add_region(self, start_text, end_text=None, data_movement=None):
-        '''
-        Modifies the underlying fparser2 parse tree to include a subset
-        of nodes within a region. (e.g. a 'kernels' or 'data' region.)
-
-        :param str start_text: the directive body to insert at the \
-                               beginning of the region. "!$"+self._PREFIX+" " \
-                               is prepended to the supplied text.
-        :param str end_text: the directive body to insert at the end of \
-                             the region (or None). "!$"+self._PREFIX+" " is \
-                             prepended to the supplied text.
-        :param str data_movement: whether to include data-movement clauses and\
-                               if so, whether to determine them by analysing \
-                               the code within the region ("analyse") or to \
-                               specify 'default(present)' ("present").
-
-        :raises InternalError: if either start_text or end_text already
-                               begin with '!'.
-        :raises InternalError: if data_movement is not None and not one of \
-                               "present" or "analyse".
-        :raises InternalError: if data_movement=="analyse" and this is an \
-                               OpenMP directive.
-        '''
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        valid_data_movement = ["present", "analyse"]
-
-        # Ensure the fparser2 AST is up-to-date for all of our children
-        Node.update(self)
-
-        # Check that we haven't already been called
-        if self.ast:
-            return
-
-        # Sanity check the supplied begin/end text
-        if start_text.lstrip()[0] == "!":
-            raise InternalError(
-                "_add_region: start_text must be a plain label without "
-                "directive or comment characters but got: '{0}'".
-                format(start_text))
-        if end_text and end_text.lstrip()[0] == "!":
-            raise InternalError(
-                "_add_region: end_text must be a plain label without directive"
-                " or comment characters but got: '{0}'".format(end_text))
-        # We only deal with data movement if this is an OpenACC directive
-        if data_movement and data_movement == "analyse" and \
-           not isinstance(self, ACCDirective):
-            raise InternalError(
-                "_add_region: the data_movement='analyse' option is only valid"
-                " for an OpenACC directive.")
-
-        # Find a reference to the fparser2 parse tree that belongs to
-        # the contents of this region. Then go back up one level in the
-        # parse tree to find the node to which we will add directives as
-        # children. (We do this because our parent PSyIR node may be a
-        # directive which has no associated entry in the fparser2 parse tree.)
-        first_child = self.children[0][0]
-        last_child = self.children[0][-1]
-        content_ast = first_child.ast
-        fp_parent = content_ast.parent
-
-        try:
-            # Find the location of the AST of our first child node in the
-            # list of child nodes of our parent in the fparser parse tree.
-            ast_start_index = object_index(fp_parent.content,
-                                           content_ast)
-            if end_text:
-                if last_child.ast_end:
-                    ast_end_index = object_index(fp_parent.content,
-                                                 last_child.ast_end)
-                else:
-                    ast_end_index = object_index(fp_parent.content,
-                                                 last_child.ast)
-
-                text = "!$" + self._PREFIX + " " + end_text
-                directive = Comment(FortranStringReader(text,
-                                                        ignore_comments=False))
-                directive.parent = fp_parent
-                fp_parent.content.insert(ast_end_index+1, directive)
-                # Ensure this end directive is included with the set of
-                # statements belonging to this PSyIR node.
-                self.ast_end = directive
-                self.dir_body.ast_end = directive
-        except (IndexError, ValueError):
-            raise InternalError("Failed to find locations to insert "
-                                "begin/end directives.")
-
-        text = "!$" + self._PREFIX + " " + start_text
-
-        if data_movement:
-            if data_movement == "analyse":
-                # Identify the inputs and outputs to the region (variables that
-                # are read and written).
-                processor = Fparser2Reader()
-                readers, writers, readwrites = processor.get_inputs_outputs(
-                    fp_parent.content[ast_start_index:ast_end_index+1])
-
-                if readers:
-                    text += " COPYIN({0})".format(",".join(readers))
-                if writers:
-                    text += " COPYOUT({0})".format(",".join(writers))
-                if readwrites:
-                    text += " COPY({0})".format(",".join(readwrites))
-
-            elif data_movement == "present":
-                text += " DEFAULT(PRESENT)"
-            else:
-                raise InternalError(
-                    "_add_region: the optional data_movement argument must be "
-                    "one of {0} but got '{1}'".format(valid_data_movement,
-                                                      data_movement))
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        directive.parent = fp_parent
-        fp_parent.content.insert(ast_start_index, directive)
-
-        self.ast = directive
-        self.dir_body.ast = directive
-        # If this is a directive applied to a Loop then update the ast_end
-        # for this Node to point to the parse tree for the loop. We have to
-        # do this because the loop is a sibling (rather than a child) of the
-        # directive in the parse tree.
-        if not end_text and isinstance(first_child, Loop):
-            self.ast_end = fp_parent.content[ast_start_index+1]
-
 
 class ACCDirective(Directive):
     ''' Base class for all OpenACC directive statements. '''
@@ -1647,15 +1521,6 @@ class ACCParallelDirective(ACCDirective):
                 if arg not in scalars:
                     scalars.append(arg)
         return scalars
-
-    def update(self):
-        '''
-        Update the underlying fparser2 parse tree with nodes for the start
-        and end of this parallel region.
-        '''
-        self.validate_global_constraints()
-        self._add_region(start_text="PARALLEL", end_text="END PARALLEL",
-                         data_movement="present")
 
 
 class ACCLoopDirective(ACCDirective):
@@ -2211,27 +2076,6 @@ class OMPDoDirective(OMPDirective):
         '''
         # pylint: disable=no-self-use
         return "omp end do"
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP do.
-
-        :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenMP parallel do.
-        '''
-        self.validate_global_constraints()
-
-        # Since this is an OpenMP do, it can only be applied
-        # to a single loop.
-        if len(self.dir_body.children) != 1:
-            raise GenerationError(
-                "An OpenMP DO can only be applied to a single loop "
-                "but this Node has {0} children: {1}".
-                format(len(self.dir_body.children), self.dir_body.children))
-
-        self._add_region(start_text="do schedule({0})".format(
-            self._omp_schedule), end_text="end do")
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
@@ -4585,23 +4429,6 @@ class ACCKernelsDirective(ACCDirective):
         # pylint: disable=no-self-use
         return "acc end kernels"
 
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this ACC kernels
-        directive.
-
-        TODO #435 remove this routine once the NEMO API is able to use the
-        PSyIR backend.
-
-        '''
-        self.validate_global_constraints()
-
-        data_movement = None
-        if self._default_present:
-            data_movement = "present"
-        self._add_region(start_text="KERNELS", end_text="END KERNELS",
-                         data_movement=data_movement)
-
 
 class ACCDataDirective(ACCDirective):
     '''
@@ -4641,16 +4468,6 @@ class ACCDataDirective(ACCDirective):
         '''
         raise InternalError(
             "ACCDataDirective.gen_code should not have been called.")
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenACC Data
-        directive.
-
-        '''
-        self.validate_global_constraints()
-        self._add_region(start_text="DATA", end_text="END DATA",
-                         data_movement="analyse")
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.

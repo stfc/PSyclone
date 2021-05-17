@@ -427,6 +427,8 @@ class FortranWriter(PSyIRVisitor):
 
         if is_symbol:
             if isinstance(symbol.datatype, DeferredType):
+                # We assume that a symbol of DeferredType is being imported
+                # from a container and doesn't need a declaration.
                 return ""
             if not (symbol.is_local or symbol.is_argument):
                 raise VisitorError(
@@ -442,12 +444,6 @@ class FortranWriter(PSyIRVisitor):
             raise VisitorError(
                 "The Fortran backend cannot handle the declaration of a "
                 "symbol of '{0}' type.".format(type(symbol.datatype).__name__))
-
-        if isinstance(symbol.datatype, DeferredType):
-            # We assume that a symbol of DeferredType is being imported from
-            # a container and doesn't need a declaration.
-            # TODO #11 Log the fact that symbol.name is of DeferredType
-            return ""
 
         datatype = gen_datatype(symbol.datatype, symbol.name)
         result = "{0}{1}".format(self._nindent, datatype)

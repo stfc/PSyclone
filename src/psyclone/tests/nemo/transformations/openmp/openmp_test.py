@@ -141,20 +141,6 @@ def test_omp_parallel():
             "  !$omp end parallel\n" in gen_code)
 
 
-def test_omp_add_region_invalid_data_move():
-    ''' Check that _add_region() raises the expected error if an invalid
-    value for data_movement is supplied. '''
-    otrans = OMPParallelTrans()
-    _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    otrans.apply([schedule[0]])
-    ompdir = schedule[0]
-    with pytest.raises(InternalError) as err:
-        ompdir._add_region("DATA", "END DATA", data_movement="analyse")
-    assert ("the data_movement='analyse' option is only valid for an "
-            "OpenACC directive" in str(err.value))
-
-
 def test_omp_parallel_multi():
     ''' Check insertion of an OpenMP parallel region containing more than
     one node. '''
