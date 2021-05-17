@@ -1751,21 +1751,6 @@ class ACCLoopDirective(ACCDirective):
         for child in self.children:
             child.gen_code(parent)
 
-    def update(self):
-        '''
-        Update the existing fparser2 parse tree with the code associated with
-        this ACC LOOP directive.
-
-        '''
-        self.validate_global_constraints()
-
-        # Use begin_string() to avoid code duplication although we have to
-        # put back the "loop" qualifier.
-        # TODO #435 remove this method altogether once the NEMO API is able to
-        # use the PSyIR backend.
-        self._add_region(
-            start_text="loop " + self.begin_string(leading_acc=False))
-
     def begin_string(self, leading_acc=True):
         ''' Returns the opening statement of this directive, i.e.
         "acc loop" plus any qualifiers. If `leading_acc` is False then
@@ -2348,20 +2333,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
                    position=["after", position])
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        parallel do.
-
-        :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenMP parallel do.
-        '''
-        self.validate_global_constraints()
-
-        self._add_region(start_text=self.begin_string(),
-                         end_text=self.end_string())
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
