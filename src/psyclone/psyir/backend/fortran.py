@@ -511,8 +511,8 @@ class FortranWriter(PSyIRVisitor):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                return "{0}{1}".format(self._nindent,
-                                       symbol.datatype.declaration)
+                return "{0}{1}\n".format(self._nindent,
+                                         symbol.datatype.declaration)
             raise VisitorError(
                 "Fortran backend cannot generate code for symbol '{0}' of "
                 "type '{1}'".format(symbol.name,
@@ -675,13 +675,14 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbol_table.argument_datasymbols:
             declarations += self.gen_vardecl(symbol)
 
-        # 2: Local variable declarations
-        for symbol in symbol_table.local_datasymbols:
-            declarations += self.gen_vardecl(symbol)
-
-        # 3: Derived-type declarations
+        # 2: Derived-type declarations. These must come before any declarations
+        #    of symbols of these types.
         for symbol in symbol_table.local_typesymbols:
             declarations += self.gen_typedecl(symbol)
+
+        # 3: Local variable declarations
+        for symbol in symbol_table.local_datasymbols:
+            declarations += self.gen_vardecl(symbol)
 
         return declarations
 
@@ -698,17 +699,18 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if the name attribute of the supplied \
-        node is empty or None.
+            node is empty or None.
         :raises VisitorError: if any of the children of the supplied \
-        Container node are not Routines.
+            Container node are not Routines or CodeBlocks.
 
         '''
         if not node.name:
             raise VisitorError("Expected Container node name to have a value.")
 
-        # All children must be Routine as modules within
+        # All children must be either Routines or CodeBlocks as modules within
         # modules are not supported.
-        if not all([isinstance(child, Routine) for child in node.children]):
+        if not all([isinstance(child, (Routine, CodeBlock)) for
+                    child in node.children]):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
                 "to be a sub-class of Routine but found: {0}.".format(
