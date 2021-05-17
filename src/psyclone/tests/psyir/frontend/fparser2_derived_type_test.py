@@ -278,6 +278,9 @@ def test_derived_type_ref(f2008_parser):
     assert isinstance(amem, ArrayOfStructuresMember)
     assert isinstance(amem.member, ArrayMember)
     assert isinstance(amem.member.indices[0], Range)
+    # TODO the Range node still contains references to the 'fake' symbol used
+    # while constructing the full reference.
+    assert amem.member.indices[0].children[0].children[0].symbol.name != "fake"
     assign = assignments[4]
     # var%region%subgrid(3)%data(var%start:var%stop)
     amem = assign.lhs.member.member.member
