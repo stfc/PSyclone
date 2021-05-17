@@ -889,6 +889,25 @@ def test_acc_dir_node_str():
         colored("Directive", colour) + "[ACC Loop, collapse=2, independent]")
 
 
+def test_no_nested_omp_parallel():
+    ''' Test that the validate_global_constraints() method forbids having one
+    parallel region nested within another. '''
+    accpt = OMPParallelTrans()
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
+    schedule = invoke.schedule
+    loops = schedule.walk(Loop)
+    # Parallel region around innermost loop
+    accpt.apply(loops[1])
+    # Parallel region around outermost loop
+    accpt.apply(loops[0])
+    schedule.view()
+    with pytest.raises(GenerationError) as err:
+        loops[0].loop_body[0].validate_global_constraints()
+    assert ("Nested parallelism is not supported: an OpenMP parallel region "
+            "cannot" in str(err.value))
+
+
 def test_haloexchange_unknown_halo_depth():
     '''test the case when the halo exchange base class is called without
     a halo depth'''
