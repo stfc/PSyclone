@@ -615,9 +615,6 @@ ystart - 1, ystop - 1)'''
 (mandatory in OpenCL < 2.0).", -1)
       END IF'''
 
-    expected += '''
-      ! Launch the kernel'''
-
     if debug_mode:
         # Check that there is no pending error in the queue before launching
         # the kernel
@@ -626,6 +623,7 @@ ystart - 1, ystop - 1)'''
       CALL check_status('Errors before compute_cu_code launch', ierr)'''
 
     expected += '''
+      ! Launch the kernel
       ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
 2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
 C_NULL_PTR)
