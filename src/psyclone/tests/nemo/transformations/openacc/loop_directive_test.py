@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code using the OpenACC loop directive.
@@ -67,7 +67,7 @@ def test_missing_enclosing_region(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
-    schedule, _ = acc_trans.apply(schedule[0])
+    acc_trans.apply(schedule[0])
     with pytest.raises(GenerationError) as err:
         str(psy.gen)
     assert ("ACCLoopDirective must have an ACCParallelDirective or "
@@ -94,9 +94,8 @@ def test_explicit_loop(parser):
     para_trans = TransInfo().get_trans_name('ACCParallelTrans')
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     para_trans.apply(schedule.children)
-    schedule, _ = acc_trans.apply(schedule[0].dir_body[0])
-    schedule, _ = acc_trans.apply(schedule[0].dir_body[1],
-                                  {"independent": False})
+    acc_trans.apply(schedule[0].dir_body[0])
+    acc_trans.apply(schedule[0].dir_body[1], {"independent": False})
     data_trans.apply(schedule)
 
     code = str(psy.gen).lower()
@@ -172,7 +171,7 @@ def test_collapse(parser):
     kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
-    schedule, _ = acc_trans.apply(loops[0], {"collapse": 2})
+    acc_trans.apply(loops[0], {"collapse": 2})
     code = str(psy.gen).lower()
     assert ("  real(kind = wp) :: sto_tmp(jpi, jpj)\n"
             "  !$acc kernels\n"

@@ -48,7 +48,7 @@ import six
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import LFRicScalarArgs, DynKernMetadata
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicScalarArgs, LFRicConstants
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -114,7 +114,8 @@ def test_ad_scalar_type_too_few_args():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+    const = LFRicConstants()
+    for argname in const.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + argname + ",   gh_real)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -130,7 +131,8 @@ def test_ad_scalar_type_too_many_args():
     metadata for a scalar has more than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+    const = LFRicConstants()
+    for argname in const.VALID_SCALAR_NAMES:
         code = CODE.replace(
             "arg_type(" + argname + ",   gh_integer, gh_read)",
             "arg_type(" + argname + ",   gh_integer, gh_read, w1)", 1)
@@ -168,16 +170,17 @@ def test_ad_scalar_init_wrong_data_type(monkeypatch):
     # Get a scalar argument descriptor and set a wrong data type
     scalar_arg = metadata._inits[0]
     scalar_arg.args[1].name = "gh_double"
+    const = LFRicConstants()
     # Now try to trip the error by making the initial test think
     # that 'gh_double' is actually a valid data type
     monkeypatch.setattr(
-        target=LFRicArgDescriptor, name="VALID_ARG_DATA_TYPES",
-        value=LFRicArgDescriptor.VALID_ARG_DATA_TYPES + ["gh_double"])
+        target=LFRicConstants, name="VALID_ARG_DATA_TYPES",
+        value=LFRicConstants.VALID_ARG_DATA_TYPES + ["gh_double"])
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             scalar_arg, metadata.iterates_over)._init_scalar(scalar_arg)
     assert ("Expected one of {0} as the scalar data type but got 'gh_double'.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
+            format(const.VALID_SCALAR_DATA_TYPES) in
             str(excinfo.value))
 
 
@@ -186,7 +189,8 @@ def test_ad_scalar_type_no_write():
     for a real or an integer scalar specifies 'GH_WRITE' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+    const = LFRicConstants()
+    for argname in const.VALID_SCALAR_NAMES:
         code = CODE.replace(
             "arg_type(" + argname + ",   gh_integer, gh_read)",
             "arg_type(" + argname + ",   gh_integer, gh_write)", 1)
@@ -203,7 +207,8 @@ def test_ad_scalar_type_no_inc():
     for a real or an integer scalar specifies 'GH_INC' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+    const = LFRicConstants()
+    for argname in const.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + argname + ",   gh_real, gh_inc)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -234,7 +239,8 @@ def test_no_vector_scalar():
     specifies a vector scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+    const = LFRicConstants()
+    for argname in const.VALID_SCALAR_NAMES:
         vectname = argname + " * 3"
         code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + vectname + ", gh_real, gh_read)", 1)
@@ -361,14 +367,15 @@ def test_scalar_invoke_uniq_declns_valid_intrinsic():
     invoke = psy.invokes.invoke_list[0]
 
     # Test 'real' scalars
+    const = LFRicConstants()
     scalars_real_args = invoke.unique_declarations(
-        LFRicArgDescriptor.VALID_SCALAR_NAMES, intrinsic_type="real")
+        const.VALID_SCALAR_NAMES, intrinsic_type="real")
     scalars_real = [arg.declaration_name for arg in scalars_real_args]
     assert scalars_real == ["a"]
 
     # Test 'integer' scalars
     scalars_int_args = invoke.unique_declarations(
-        LFRicArgDescriptor.VALID_SCALAR_NAMES, intrinsic_type="integer")
+        const.VALID_SCALAR_NAMES, intrinsic_type="integer")
     scalars_int = [arg.declaration_name for arg in scalars_int_args]
     assert scalars_int == ["istep"]
 
