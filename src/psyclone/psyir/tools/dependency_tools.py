@@ -42,7 +42,6 @@
 from __future__ import absolute_import, print_function
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -296,69 +295,6 @@ class DependencyTools(object):
         return False
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def is_variable_array(var_name, access_information=None, symbol_table=None,
-                          loop_variable=None):
-        '''This function detects if a variable is used as an array or not.
-        If available, it will use the access information, i.e. how the
-        variable is used (e.g. if it has indices somewhere, like `a(i)%b`).
-        This can be incorrect in case of implicit loops (e.g. `a=b+1`,
-        where `a` and `b` are arrays), the variable usage information will
-        not have information about indices. If available, this function
-        will then fallback to use information from the symbol table. This
-        can cause significant slowdown if this symbol is imported from
-        a module, since then these modules need to be parsed.
-        If a `loop_variable` is specified, a variable access will only be
-        considered an array access, if the specified variable is used in
-        at least one of the indices. For example:
-        >>> do i=1, n
-        >>>     a(j) = 2
-
-        the access to `a` is not considered an array if `loop_variable` is
-        set to `i`. If `loop_variable` is specified, `access_information`
-        must be specified.
-
-        :param str var_name: name of the variable.
-        :param var_info: variable access information, optional.
-        :type access_infromation: \
-            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
-        :param symbol_table: the symbol table to use for the lookup, optional.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param str loop_variable: optional loop variable that is used to \
-            to determine if an access is an array access using this variable.
-
-        :returns: if the variable is an array.
-        :rtype bool:
-
-        :raises InternalError: if a loop_variable is specified, but no \
-            access information is given.
-
-        '''
-        if loop_variable and not access_information:
-            raise InternalError("is_variable_array: loop variable '{0}' "
-                                "specified, but no access information."
-                                .format(loop_variable))
-        is_array = access_information.is_array()
-
-        if is_array:
-            if not loop_variable:
-                # No special loop variable given, so no additional
-                # check required
-                return True
-            # Now test if the loop variable is used when accessing this field:
-            indices_list = access_information[0].indices
-            # check if loop_var is somewhere in the indices_list
-            return True
-
-        # We might have an array expression (a=b+1), which the
-        # variable usage cannot detect as being an array. In this
-        # case, use the symbol table to find more details:
-
-        # Find the symbol for this variable
-        symbol = symbol_table.lookup(var_name)
-        return symbol.is_array
-
-    # -------------------------------------------------------------------------
     def can_loop_be_parallelised(self, loop, loop_variable=None,
                                  only_nested_loops=True,
                                  test_all_variables=False,
@@ -440,9 +376,8 @@ class DependencyTools(object):
             var_name = signature.var_name
             var_info = var_accesses[signature]
             symbol_table = loop.scope.symbol_table
-            is_array = DependencyTools.is_variable_array(var_name,
-                                                         var_info,
-                                                         symbol_table)
+            symbol = symbol_table.lookup(var_name)
+            is_array = symbol.is_used_as_array(access_info=var_info)
 
             if is_array:
                 # Handle arrays

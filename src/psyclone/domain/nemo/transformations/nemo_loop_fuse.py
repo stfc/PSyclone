@@ -37,7 +37,6 @@
 '''
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import LoopFuseTrans
 
@@ -110,27 +109,8 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             if var_info1.is_read_only() and var_info2.is_read_only():
                 continue
 
-            # TODO #1213 - try to find symbol in case of 'wildcard' imports.
-            try:
-                # Find the symbol for this variable - the lookup function
-                # checks automatically in outer scopes.
-                symbol = symbol_table.lookup(var_name)
-                if isinstance(symbol, DataSymbol):
-                    is_array = symbol.is_array
-                else:
-                    # This typically indicates a symbol is used that we do
-                    # not have detailed information for, e.g. based on a
-                    # generic 'use some_mod' statement. In this case use
-                    # the information based on the access pattern, which
-                    # is at least better than having no information at all.
-                    is_array = var_info1[0].indices is not None
-            except KeyError:
-                # TODO #845: Once we have symbol tables, any variable should
-                # be in a symbol table, so we have to raise an exception here.
-                # We need to fall-back to the old-style test, since we do not
-                # have information in a symbol table. So check if the access
-                # information stored an index:
-                is_array = var_info1[0].indices is not None
+            symbol = symbol_table.lookup(var_name)
+            is_array = symbol.is_used_as_array(access_info=var_info1)
 
             if not is_array:
                 NemoLoopFuseTrans.validate_written_scalar(var_info1, var_info2)
@@ -156,7 +136,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         '''
         # If a scalar variable is first written in both loops, that pattern
         # is typically ok. Example:
-        # - inner loops (loop variable is written then read,
+        # - inner loops (loop variable is written then read),
         # - a=sqrt(j); b(j)=sin(a)*cos(a) - a scalar variable as 'constant'
         # TODO #641: atm the variable access information has no details
         # about a conditional access, so the test below could result in

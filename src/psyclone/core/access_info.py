@@ -283,13 +283,37 @@ class SingleVariableAccessInfo(object):
 
         self._accesses[0].change_read_to_write()
 
-    def is_array(self):
-        ''':returns: true if there is at least one access to this variable
-        that uses an index.
-        :rtype: str
+    def is_array(self, index_variable=None):
+        '''Checks if the variable is used as an array, i.e. if it has
+        an index expression. If the optional `index_variable` is specified,
+        this variable must be used in (at least one) index access in order
+        for this variable to be considered as an array.
+
+        :returns: true if there is at least one access to this variable \
+            that uses an index.
+        :rtype: bool
 
         '''
-        return any(access_info.is_array() for access_info in self._accesses)
+        is_array = any(access_info.is_array() for
+                       access_info in self._accesses)
+
+        # If there is no access information using an index, or there is no
+        # index variable specified, return the current result:
+        if not is_array or index_variable is None:
+            return is_array
+
+        # Now test if the loop variable is used when accessing this array:
+        for access_info in self._accesses:
+            indices_list = access_info.indices
+            for index_group in indices_list:
+                for index_expression in index_group:
+                    accesses = VariablesAccessInfo()
+                    index_expression.reference_accesses(accesses)
+                    if Signature(index_variable) in accesses:
+                        return True
+
+        # The index variable is not used in any index in any access:
+        return False
 
 
 # =============================================================================

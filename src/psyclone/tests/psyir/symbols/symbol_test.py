@@ -47,13 +47,15 @@ is not tested here.
 
 from __future__ import absolute_import
 import pytest
+
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import Symbol, LocalInterface, GlobalInterface, \
                                    ArgumentInterface, UnresolvedInterface, \
                                    ContainerSymbol, DataSymbol, SymbolError, \
                                    SymbolTable, INTEGER_SINGLE_TYPE, \
                                    RoutineSymbol
 from psyclone.psyir.symbols.symbol import SymbolInterface
-from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 
 
 def test_symbol_initialisation():
@@ -375,3 +377,25 @@ def test_symbol_resolve_deferred(monkeypatch):
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert new_sym.is_global
+
+
+def test_symbol_array_handling(fortran_reader):
+    '''Verifies the handling of arrays together with access information.
+
+    '''
+    # Make sure that a normal `Symbol` raises an exception if it is tested
+    # if it is an array. A `Symbol` is only used if there is no type
+    # information is available, e.g. because it is imported from another
+    # module:
+    asym = Symbol("a")
+    with pytest.raises(ValueError) as error:
+        _ = asym.is_array
+    assert "No array information is available for the symbol 'a'." \
+        in str(error.value)
+
+    # Import additional tests from access_info_test to reach 100% coverage
+    # for the is_used_as_array function. Import these tests locally only.
+    # pylint: disable=import-outside-toplevel
+    from psyclone.tests.core.access_info_test import \
+        test_symbol_array_detection
+    test_symbol_array_detection(fortran_reader)

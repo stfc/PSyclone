@@ -640,31 +640,8 @@ def test_fuse_no_symbol(fortran_reader, fortran_writer):
     enddo
   enddo""" in out
 
-    # Case 2: remove the symbol table, which means that not
-    # even a Symbol instance is returned. This should then look
-    # up the information in the variable access information
-    # to determine which variables are an array
-    loop = psyir.children[0]
-
-    # Remove the symbol 't' from the symbol table to
-    # trigger using the variable accesses to determine the type
-    symbol_table = loop.scope.symbol_table
-    symbol_table.remove(symbol_table.lookup("t"))
-
     fuse = NemoLoopFuseTrans()
-    # Since the psyir has already the fused outer loop, fuse the inner
-    # loops now:
-    fuse.apply(loop.loop_body.children[0], loop.loop_body.children[1])
-
-    out = fortran_writer(psyir)
-    assert """  do jj = 1, n, 1
-    do ji = 1, 10, 1
-      s(ji,jj) = t(ji,jj) + 1
-      t(ji,jj) = s(ji,jj) + t(ji,jj)
-    enddo
-  enddo""" in out
-
-    # Case 3: Symbol 't' is defined in outer module:
+    # Case 2: Symbol 't' is defined in outer module:
     code = '''
     module mymod
         integer, dimension(10, 10) :: t

@@ -423,3 +423,62 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
     sig = Signature(("a", "b", "c"))
     access = vai1[sig][0]
     assert to_fortran(fortran_writer, access.indices) == indices
+
+
+# -----------------------------------------------------------------------------
+def test_symbol_array_detection(fortran_reader):
+    '''Verifies the handling of arrays together with access information.
+    '''
+
+    code = '''program test_prog
+              use some_mod
+              real, dimension(5,5) :: b, c
+              integer :: i
+              a = b(i) + c
+              end program test_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    scalar_assignment = psyir.children[0]
+    symbol_table = scalar_assignment.scope.symbol_table
+    sym_a = symbol_table.lookup("a")
+    with pytest.raises(InternalError) as error:
+        sym_a.is_used_as_array(index_variable="j")
+    assert "In Symbol.is_used_as_array: index variable 'j' specified, but " \
+           "no access information given." in str(error.value)
+
+    vai = VariablesAccessInfo()
+    scalar_assignment.reference_accesses(vai)
+
+    # For 'a' we don't have access information, nor symbol table information
+    access_info_a = vai[Signature("a")]
+    with pytest.raises(ValueError) as error:
+        sym_a.is_used_as_array(access_info=access_info_a)
+    assert "No array information is available for the symbol 'a'" \
+        in str(error.value)
+
+    # For the access to 'b' we will find array access information:
+    access_info_b = vai[Signature("b")]
+    sym_b = symbol_table.lookup("b")
+    b_is_array = sym_b.is_used_as_array(access_info=access_info_b)
+    assert b_is_array
+
+    # For the access to 'c' we don't have access information, but
+    # have symbol table information.
+    access_info_c = vai[Signature("c")]
+    sym_c = symbol_table.lookup("c")
+    c_is_array = sym_c.is_used_as_array(access_info=access_info_c)
+    assert c_is_array
+
+    # Test specifying the index variable. The access to 'b' is
+    # considered an array access when ysing the index variable 'i'.
+    access_info_b = vai[Signature("b")]
+    sym_b = symbol_table.lookup("b")
+    b_is_array = sym_b.is_used_as_array(access_info=access_info_b,
+                                        index_variable="i")
+    assert b_is_array
+
+    # Verify that the access to 'b' is not considered to be an
+    # array access regarding the loop variable 'j' (the access
+    # is loop independent):
+    b_is_array = sym_b.is_used_as_array(access_info=access_info_b,
+                                        index_variable="j")
+    assert not b_is_array
