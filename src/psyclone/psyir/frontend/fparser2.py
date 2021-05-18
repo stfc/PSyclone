@@ -2888,6 +2888,33 @@ class Fparser2Reader(object):
         :raises NotImplementedError: if the parse tree contains unsupported \
                                      elements.
         '''
+        if isinstance(node.children[0], Fortran2003.Name):
+            # Base of reference is a scalar entity and must be a DataSymbol.
+            base_sym = _find_or_create_imported_symbol(
+                parent, node.children[0].string.lower(),
+                symbol_type=DataSymbol, datatype=DeferredType())
+            base_ref = StructureReference
+        elif isinstance(node.children[0], Fortran2003.Part_Ref):
+            # Base of reference is an array access. Lookup the corresponding
+            # symbol.
+            part_ref = node.children[0]
+            base_sym = _find_or_create_imported_symbol(
+                parent, part_ref.children[0].string.lower(),
+                symbol_type=DataSymbol, datatype=DeferredType())
+            # Processing the array-index expressions requires access to the
+            # symbol table so create a fake ArrayReference node.
+            sched = parent.ancestor(Schedule, include_self=True)
+            fake_parent = ArrayReference(parent=sched,
+                                         symbol=Symbol("fake"))
+            # The children of the fake node represent the indices of the
+            # ArrayOfStructuresReference.
+            self.process_nodes(parent=fake_parent,
+                               nodes=part_ref.children[1].children)
+            base_indices = fake_parent.pop_all_children()
+            base_ref = ArrayOfStructuresReference
+        else:
+            raise NotImplementedError(str(node))
+
         # First we construct the full list of 'members' making up the
         # derived-type reference. e.g. for "var%region(1)%start" this
         # will be [("region", [Literal("1")]), "start"].
@@ -2901,12 +2928,43 @@ class Fparser2Reader(object):
                 # through which we can access the symbol table. This is
                 # because array-index expressions must refer to symbols.
                 sched = parent.ancestor(Schedule, include_self=True)
-                fake_parent = ArrayReference(parent=sched,
-                                             symbol=Symbol("fake"))
+                fake_sym = Symbol("fake")
+                fake_parent = ArrayReference(parent=sched, symbol=fake_sym)
                 array_name = child.children[0].string
                 subscript_list = child.children[1].children
                 self.process_nodes(parent=fake_parent, nodes=subscript_list)
-                members.append((array_name, fake_parent.pop_all_children()))
+                # If the children of this array reference involve any
+                # references to the array (e.g. for a Range) then they will
+                # need correcting.
+                wrong_nodes = []
+                # Find all references to the fake symbol
+                for kid in fake_parent.children:
+                    for rnode in kid.walk(Reference):
+                        if rnode.symbol is fake_sym:
+                            wrong_nodes.append(rnode)
+                # Replace each of these references with the correct one
+                if wrong_nodes:
+                    #import pdb; pdb.set_trace()
+                    new_members = []
+                    for member in members:
+                        if isinstance(member, six.string_types):
+                            new_members.append(member)
+                        if isinstance(member, tuple):
+                            new_members.append(
+                                (member[0], [kid.copy() for kid in member[1]]))
+                    new_members.append(array_name)
+                    if base_ref is StructureReference:
+                        new_ref = base_ref.create(base_sym, new_members)
+                    elif base_ref is ArrayOfStructuresReference:
+                        new_ref = base_ref.create(
+                            base_sym, [idx.copy() for idx in base_indices],
+                            new_members)
+
+                    for bad_node in wrong_nodes:
+                        bad_node.replace_with(new_ref.copy())
+
+                children = fake_parent.pop_all_children()
+                members.append((array_name, children))
             else:
                 # Found an unsupported entry in the parse tree. This will
                 # result in a CodeBlock.
@@ -2915,31 +2973,15 @@ class Fparser2Reader(object):
         # Now we have the list of members, use the `create()` method of the
         # appropriate Reference subclass.
         if isinstance(node.children[0], Fortran2003.Name):
-            # Base of reference is a scalar entity and must be a DataSymbol.
-            sym = _find_or_create_imported_symbol(
-                parent, node.children[0].string.lower(),
-                symbol_type=DataSymbol, datatype=DeferredType())
-            return StructureReference.create(sym, members=members,
+            return StructureReference.create(base_sym, members=members,
                                              parent=parent)
 
         if isinstance(node.children[0], Fortran2003.Part_Ref):
             # Base of reference is an array access. Lookup the corresponding
             # symbol.
             part_ref = node.children[0]
-            sym = _find_or_create_imported_symbol(
-                parent, part_ref.children[0].string.lower(),
-                symbol_type=DataSymbol, datatype=DeferredType())
-            # Processing the array-index expressions requires access to the
-            # symbol table so create a fake ArrayReference node.
-            sched = parent.ancestor(Schedule, include_self=True)
-            fake_parent = ArrayReference(parent=sched,
-                                         symbol=Symbol("fake"))
-            # The children of the fake node represent the indices of the
-            # ArrayOfStructuresReference.
-            self.process_nodes(parent=fake_parent,
-                               nodes=part_ref.children[1].children)
             ref = ArrayOfStructuresReference.create(
-                sym, fake_parent.pop_all_children(), members)
+                base_sym, base_indices, members)
             return ref
 
         # Not a Part_Ref or a Name so this will result in a CodeBlock.
