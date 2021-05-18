@@ -45,76 +45,6 @@ from psyclone.psyir.symbols.symbol import SymbolInterface
 from psyclone.configuration import Config
 
 
-class ContainerSymbol(Symbol):
-    ''' Symbol that represents a reference to a Container. The reference
-    is lazy evaluated, this means that the Symbol will be created without
-    parsing and importing the referenced container, but this can be imported
-    when needed.
-
-    :param str name: name of the symbol.
-    :param visibility: the visibility of the symbol.
-    :type scope: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-
-    '''
-    def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY):
-        # At the moment we just have one ContainerSymbol interface, so we
-        # always assign this interface to all ContainerSymbols. We will
-        # pass the interface as a parameter when we have more than one.
-        super(ContainerSymbol, self).__init__(
-            name, visibility=visibility, interface=FortranModuleInterface())
-
-        self._reference = None
-        # Whether or not there is a wildcard import of all public symbols
-        # from this container (e.g. an unqualified USE of a module in Fortran).
-        self._has_wildcard_import = False
-
-    @property
-    def container(self):
-        ''' Returns the referenced container. If it is not available, use
-        the interface to import the container
-
-        :returns: referenced container.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
-        '''
-        if not self._reference:
-            self._reference = self._interface.import_container(self._name)
-        return self._reference
-
-    def __str__(self):
-        string = self._name + ": <"
-        if self._reference:
-            string += "linked>"
-        else:
-            string += "not linked>"
-        return string
-
-    @property
-    def wildcard_import(self):
-        '''
-        :returns: whether or not there is a wildcard import of all public \
-                  symbols from this Container.
-        :rtype: bool
-
-        '''
-        return self._has_wildcard_import
-
-    @wildcard_import.setter
-    def wildcard_import(self, value):
-        '''
-        Set whether or not there is a wildcard import of all public symbols
-        from this Container symbol.
-
-        :param bool value: whether there is or is not a wildcard import.
-
-        :raises TypeError: if the supplied `value` is not a bool.
-
-        '''
-        if not isinstance(value, bool):
-            raise TypeError("wildcard_import must be a bool but got: '{0}'".
-                            format(type(value).__name__))
-        self._has_wildcard_import = value
-
-
 class ContainerSymbolInterface(SymbolInterface):
     ''' Abstract implementation of the ContainerSymbol Interface '''
 
@@ -173,6 +103,80 @@ class FortranModuleInterface(ContainerSymbolInterface):
             "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
             " any of the include_paths directories {1}."
             "".format(name, Config.get().include_paths))
+
+
+default_interface = FortranModuleInterface()
+
+
+class ContainerSymbol(Symbol):
+    ''' Symbol that represents a reference to a Container. The reference
+    is lazy evaluated, this means that the Symbol will be created without
+    parsing and importing the referenced container, but this can be imported
+    when needed.
+
+    :param str name: name of the symbol.
+    :param visibility: the visibility of the symbol.
+    :type scope: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+    '''
+    def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY,
+                 interface=default_interface):
+        # At the moment we just have one ContainerSymbol interface, so we
+        # always assign this interface to all ContainerSymbols. We will
+        # pass the interface as a parameter when we have more than one.
+        super(ContainerSymbol, self).__init__(
+            name, visibility=visibility, interface=interface)
+
+        self._reference = None
+        # Whether or not there is a wildcard import of all public symbols
+        # from this container (e.g. an unqualified USE of a module in Fortran).
+        self._has_wildcard_import = False
+
+    @property
+    def container(self):
+        ''' Returns the referenced container. If it is not available, use
+        the interface to import the container
+
+        :returns: referenced container.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        '''
+        if not self._reference:
+            self._reference = self._interface.import_container(self._name)
+        return self._reference
+
+    def __str__(self):
+        string = self._name + ": <"
+        if self._reference:
+            string += "linked>"
+        else:
+            string += "not linked>"
+        return string
+
+    @property
+    def wildcard_import(self):
+        '''
+        :returns: whether or not there is a wildcard import of all public \
+                  symbols from this Container.
+        :rtype: bool
+
+        '''
+        return self._has_wildcard_import
+
+    @wildcard_import.setter
+    def wildcard_import(self, value):
+        '''
+        Set whether or not there is a wildcard import of all public symbols
+        from this Container symbol.
+
+        :param bool value: whether there is or is not a wildcard import.
+
+        :raises TypeError: if the supplied `value` is not a bool.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError("wildcard_import must be a bool but got: '{0}'".
+                            format(type(value).__name__))
+        self._has_wildcard_import = value
 
 
 # For Sphinx AutoAPI documentation generation
