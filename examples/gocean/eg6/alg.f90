@@ -29,7 +29,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter and S. Siso STFC Daresbury Lab
+! Author: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 program alg
   use kind_params_mod, only: go_wp

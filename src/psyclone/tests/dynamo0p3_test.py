@@ -40,6 +40,8 @@
 
 # imports
 from __future__ import absolute_import, print_function
+
+import copy
 import os
 import sys
 import pytest
@@ -47,21 +49,23 @@ import pytest
 import fparser
 from fparser import api as fpapi
 
+from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import FunctionSpace
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import FunctionSpace, LFRicArgDescriptor, \
+    LFRicConstants
+from psyclone.dynamo0p3 import DynACCEnterDataDirective, \
+    DynBoundaryConditions, DynCellIterators, DynGlobalSum, DynKern, \
+    DynKernelArguments, DynKernMetadata, DynLoop, DynProxies, \
+    HaloReadAccess, KernCallArgList
+from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
+from psyclone.f2pygen import ModuleGen
+from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
-from psyclone.errors import GenerationError, InternalError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
-    DynLoop, DynGlobalSum, HaloReadAccess, \
-    KernCallArgList, DynACCEnterDataDirective, VALID_INTRINSIC_TYPES
-
-from psyclone.gen_kernel_stub import generate
-from psyclone.configuration import Config
-from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.psyir.nodes import colored
 from psyclone.psyir.transformations import LoopFuseTrans
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -137,9 +141,10 @@ def test_ad_invalid_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("the 1st argument of a 'meta_arg' entry should be a valid "
             "argument type (one of {0}), but found 'gh_operato'".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            format(const.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
     # Check other type of expression (here array Slicing)
@@ -150,7 +155,7 @@ def test_ad_invalid_type():
         _ = DynKernMetadata(ast, name=name)
     assert ("the 1st argument of a 'meta_arg' entry should be a valid "
             "argument type (one of {0}), but found ':'".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            format(const.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
 
@@ -504,9 +509,10 @@ def test_invoke_uniq_declns_invalid_argtype():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations(["not_a_type"])
+    const = LFRicConstants()
     assert ("Invoke.unique_declarations() called with at least one invalid "
             "argument type. Expected one of {0} but found ['not_a_type'].".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
+            format(const.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
 
 
@@ -535,9 +541,10 @@ def test_invoke_uniq_declns_invalid_intrinsic():
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations(
             ["gh_scalar"], intrinsic_type="double")
+    const = LFRicConstants()
     assert ("Invoke.unique_declarations() called with an invalid intrinsic "
             "argument data type. Expected one of {0} but found 'double'.".
-            format(VALID_INTRINSIC_TYPES) in str(excinfo.value))
+            format(const.VALID_INTRINSIC_TYPES) in str(excinfo.value))
 
 
 def test_invoke_uniq_declns_valid_access():
@@ -591,8 +598,9 @@ def test_invoke_uniq_proxy_declns():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(["not_a_type"])
+    const = LFRicConstants()
     assert ("Expected one of {0} as a valid argument type but found "
-            "['not_a_type'].".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            "['not_a_type'].".format(const.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
 
@@ -623,9 +631,32 @@ def test_uniq_proxy_declns_invalid_intrinsic_type():
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             ["gh_field"], intrinsic_type="not_intrinsic_type")
+    const = LFRicConstants()
     assert ("Expected one of {0} as a valid intrinsic type but found "
-            "'not_intrinsic_type'.".format(VALID_INTRINSIC_TYPES)
+            "'not_intrinsic_type'.".format(const.VALID_INTRINSIC_TYPES)
             in str(excinfo.value))
+
+
+def test_uniq_proxy_declns_valid_parameters():
+    ''' Tests that valid intrinsic_type and access are accepted,
+    and will be correctly handled.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
+        ["gh_field"], intrinsic_type="integer")
+    assert decl == []
+    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
+        ["gh_field"], intrinsic_type="real")
+    assert decl == ['f1_proxy', 'f2_proxy', 'm1_proxy', 'm2_proxy']
+
+    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
+        ["gh_field"], access=AccessType.READ)
+    assert decl == ['f2_proxy', 'm1_proxy', 'm2_proxy']
+    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
+        ["gh_field"], access=AccessType.WRITE)
+    assert decl == []
 
 
 def test_dyninvoke_first_access():
@@ -650,9 +681,10 @@ def test_dyninvoke_uniq_declns_intent_inv_argtype():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_invalid"])
+    const = LFRicConstants()
     assert ("Invoke.unique_declns_by_intent() called with at least one invalid"
             " argument type. Expected one of {0} but found ['gh_invalid'].".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
+            format(const.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
 
 
@@ -666,9 +698,10 @@ def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent(
             ["gh_scalar"], intrinsic_type="triple")
+    const = LFRicConstants()
     assert ("Invoke.unique_declns_by_intent() called with an invalid "
             "intrinsic argument data type. Expected one of {0} but "
-            "found 'triple'.".format(VALID_INTRINSIC_TYPES)
+            "found 'triple'.".format(const.VALID_INTRINSIC_TYPES)
             in str(excinfo.value))
 
 
@@ -883,9 +916,10 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
                         lambda function_space=None: "vspace")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
+    const = LFRicConstants()
     assert ("Expected an argument of {0} type from which to look-up "
             "boundary dofs for kernel enforce_bc_code but got "
-            "'gh_operator'".format(LFRicArgDescriptor.VALID_FIELD_NAMES)
+            "'gh_operator'".format(const.VALID_FIELD_NAMES)
             in str(excinfo.value))
 
 
@@ -894,7 +928,6 @@ def test_bc_kernel_anyspace1_only():
     if its argument is not specified as being on ANY_SPACE_1.
 
     '''
-    from psyclone.dynamo0p3 import DynBoundaryConditions
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
@@ -916,7 +949,6 @@ def test_bc_op_kernel_wrong_args():
     rejected if it does not have exactly one argument.
 
     '''
-    from psyclone.dynamo0p3 import DynBoundaryConditions
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)
@@ -1118,8 +1150,7 @@ def test_loopfuse(dist_mem, tmpdir):
     loop1 = schedule.children[index]
     loop2 = schedule.children[index+1]
     trans = LoopFuseTrans()
-    schedule, _ = trans.apply(loop1, loop2)
-    invoke.schedule = schedule
+    trans.apply(loop1, loop2)
     generated_code = psy.gen
     # only one loop
     assert str(generated_code).count("DO cell") == 1
@@ -1430,7 +1461,6 @@ def test_arg_intrinsic_type_error():
     passed from the LFRicArgDescriptor class.
 
     '''
-    from psyclone.dynamo0p3 import DynKernelArguments
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     call = invoke_info.calls[0].kcalls[0]
@@ -1457,7 +1487,6 @@ def test_no_arg_on_space(monkeypatch):
     ''' Tests that DynKernelArguments.get_arg_on_space[,_name] raise
     the appropriate error when there is no kernel argument on the
     supplied space. '''
-    from psyclone.psyGen import FieldNotFoundError
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -1478,7 +1507,6 @@ def test_no_arg_on_space(monkeypatch):
     assert arg.name == "f2"
     # Copy of the function space object so that we get a new one whose state
     # we can monkeypatch
-    import copy
     fspace = copy.copy(arg.function_space)
     monkeypatch.setattr(fspace, "_mangled_name", "not_a_space_name")
     with pytest.raises(FieldNotFoundError) as excinfo:
@@ -1558,8 +1586,9 @@ def test_unrecognised_fspace_error():
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace("not_a_space", first_kernel.arguments)
+    const = LFRicConstants()
     assert ("Unrecognised function space 'not_a_space'. The supported spaces "
-            "are {0}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES) in
+            "are {0}".format(const.VALID_FUNCTION_SPACE_NAMES) in
             str(excinfo.value))
 
 
@@ -1568,7 +1597,6 @@ def test_mangle_no_space_error():
     none of the provided kernel arguments are on the specified space.
 
     '''
-    from psyclone.psyGen import FieldNotFoundError
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -1633,16 +1661,17 @@ def test_no_mangle_specified_function_space():
     # than any_*_space name (not allowed)
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace(fs_name, first_kernel.arguments)._mangle_fs_name()
+    const = LFRicConstants()
     assert ("_mangle_fs_name: function space '{0}' is not one of {1} or {2} "
-            "spaces.".format(fs_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
-                             FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
+            "spaces.".format(fs_name, const.VALID_ANY_SPACE_NAMES,
+                             const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
             in str(excinfo.value))
     # Try to create a short name for this function space (not allowed)
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace(fs_name, first_kernel.arguments)._shorten_fs_name()
     assert ("_shorten_fs_name: function space '{0}' is not one of {1} or {2} "
-            "spaces.".format(fs_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
-                             FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
+            "spaces.".format(fs_name, const.VALID_ANY_SPACE_NAMES,
+                             const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
             in str(excinfo.value))
 
 
@@ -1678,9 +1707,10 @@ def test_arg_descriptor_init_error(monkeypatch):
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
     # that 'GH_INVALID' is actually valid
+    const = LFRicConstants()
     monkeypatch.setattr(
-        target=LFRicArgDescriptor, name="VALID_ARG_TYPE_NAMES",
-        value=LFRicArgDescriptor.VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
+        target=LFRicConstants, name="VALID_ARG_TYPE_NAMES",
+        value=const.VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, metadata.iterates_over)
@@ -1726,8 +1756,9 @@ def test_dynkern_arg_for_fs():
     first_invoke = psy.invokes.invoke_list[0]
     with pytest.raises(InternalError) as err:
         _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
+    const = LFRicConstants()
     assert ("Unrecognised function space 'waah'. The supported spaces are "
-            "{0}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES) in
+            "{0}".format(const.VALID_FUNCTION_SPACE_NAMES) in
             str(err.value))
 
 
@@ -2084,7 +2115,6 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
 
 def test_halo_exchange_view(capsys):
     ''' Test that the halo exchange view method returns what we expect. '''
-    from psyclone.psyir.nodes.node import colored
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -2427,7 +2457,6 @@ def test_kernel_args_has_op():
         api=TEST_API)
     # Find the parsed code's Call class
     call = invoke_info.calls[0].kcalls[0]
-    from psyclone.dynamo0p3 import DynKernelArguments
     dka = DynKernelArguments(call, None)
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
@@ -2725,6 +2754,7 @@ def test_halo_ex_back_dep_no_call(monkeypatch):
 
 
 def test_HaloReadAccess_input_field():
+    # pylint: disable=invalid-name
     '''The HaloReadAccess class expects a DynKernelArgument or equivalent
     object as input. If this is not the case an exception is raised. This
     test checks that this exception is raised correctly.'''
@@ -2737,6 +2767,7 @@ def test_HaloReadAccess_input_field():
 
 
 def test_HaloReadAccess_field_in_call():
+    # pylint: disable=invalid-name
     ''' The field passed to HaloReadAccess should be within a kernel or
     builtin. If it is not then an exception is raised. This test
     checks that this exception is raised correctly.
@@ -2756,6 +2787,7 @@ def test_HaloReadAccess_field_in_call():
 
 
 def test_HaloReadAccess_field_not_reader():
+    # pylint: disable=invalid-name
     ''' The field passed to HaloReadAccess should be read within its
     associated kernel or builtin. If it is not then an exception is raised.
     This test checks that this exception is raised correctly
@@ -2778,6 +2810,7 @@ def test_HaloReadAccess_field_not_reader():
 
 
 def test_HaloRead_inv_loop_upper(monkeypatch):
+    # pylint: disable=invalid-name
     '''The upper bound of a loop in the compute_halo_read_info method within
     the HaloReadAccesss class should be recognised by the logic. If not an
     exception is raised and this test checks that this exception is
@@ -2800,6 +2833,7 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
 
 
 def test_HaloReadAccess_discontinuous_field(tmpdir):
+    # pylint: disable=invalid-name
     ''' When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
     checks that HaloReadAccess works correctly in this situation '''
@@ -3030,7 +3064,6 @@ def test_haloex_not_required(monkeypatch):
 def test_dyncollection_err1():
     ''' Check that the DynCollection constructor raises the expected
     error if it is not provided with a DynKern or DynInvoke. '''
-    from psyclone.dynamo0p3 import DynProxies
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
@@ -3043,8 +3076,6 @@ def test_dyncollection_err1():
 def test_dyncollection_err2(monkeypatch):
     ''' Check that the DynCollection constructor raises the expected
     error if it is not provided with a DynKern or DynInvoke. '''
-    from psyclone.dynamo0p3 import DynProxies
-    from psyclone.f2pygen import ModuleGen
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
@@ -3061,7 +3092,6 @@ def test_dyncollection_err2(monkeypatch):
 def test_dyncelliterators_err(monkeypatch):
     ''' Check that the DynCellIterators constructor raises the expected
     error if it fails to find any field or operator arguments. '''
-    from psyclone.dynamo0p3 import DynCellIterators
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)

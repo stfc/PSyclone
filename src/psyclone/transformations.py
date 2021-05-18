@@ -41,29 +41,32 @@
     checks before calling the base class for the actual transformation. '''
 
 from __future__ import absolute_import, print_function
+
 import abc
 import six
+
 from fparser.two.utils import walk
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Subroutine_Subprogram, \
     Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
     Implicit_Part, Comment
+
 from psyclone import psyGen
+from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.errors import InternalError
+from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule, \
     ACCLoopDirective, OMPDoDirective
-from psyclone.errors import InternalError
 from psyclone.psyir import nodes
-from psyclone.configuration import Config
-from psyclone.undoredo import Memento
-from psyclone.domain.lfric import FunctionSpace
-from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
-    TransformationError
+from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
-from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
-from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
+    TransformationError
+from psyclone.undoredo import Memento
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.gocean1p0 import GOLoop
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -725,8 +728,9 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # it should be. If the field space is discontinuous (including
         # any_discontinuous_space) then we don't need to worry about
         # colouring.
+        const = LFRicConstants()
         if node.field_space.orig_name not in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+           const.VALID_DISCONTINUOUS_NAMES:
             if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
@@ -892,9 +896,9 @@ class ColourTrans(LoopTrans):
     >>>
     >>> # Colour all of the loops
     >>> for child in schedule.children:
-    >>>     cschedule, _ = ctrans.apply(child)
+    >>>     ctrans.apply(child)
     >>>
-    >>> csched.view()
+    >>> schedule.view()
 
     '''
     def __str__(self):
@@ -972,8 +976,8 @@ class KernelModuleInlineTrans(KernelTrans):
     >>>
     >>> inline_trans = KernelModuleInlineTrans()
     >>>
-    >>> ischedule, _ = inline_trans.apply(schedule.children[0].loop_body[0])
-    >>> ischedule.view()
+    >>> inline_trans.apply(schedule.children[0].loop_body[0])
+    >>> schedule.view()
 
     .. warning ::
         For this transformation to work correctly, the Kernel subroutine
@@ -1063,14 +1067,13 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>>
     >>> # Colour all of the loops
     >>> for child in schedule.children:
-    >>>     cschedule, _ = ctrans.apply(child)
+    >>>     ctrans.apply(child)
     >>>
     >>> # Then apply OpenMP to each of the colour loops
-    >>> schedule = cschedule
     >>> for child in schedule.children:
-    >>>     newsched, _ = otrans.apply(child.children[0])
+    >>>     otrans.apply(child.children[0])
     >>>
-    >>> newsched.view()
+    >>> schedule.view()
 
     Colouring in the Dynamo 0.3 API is subject to the following rules:
 
@@ -1105,8 +1108,9 @@ class Dynamo0p3ColourTrans(ColourTrans):
         super(Dynamo0p3ColourTrans, self).validate(node, options=options)
 
         # Check we need colouring
+        const = LFRicConstants()
         if node.field_space.orig_name in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+           const.VALID_DISCONTINUOUS_NAMES:
             raise TransformationError(
                 "Error in DynamoColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
@@ -1270,18 +1274,16 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> new_schedule = schedule
     >>>
     >>> # Apply the OpenMP Loop transformation to *every* loop
     >>> # in the schedule
     >>> for child in schedule.children:
-    >>>     newschedule, memento = ltrans.apply(child)
-    >>>     schedule = newschedule
+    >>>     ltrans.apply(child)
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
-    >>> newschedule, _ = rtrans.apply(schedule.children)
-    >>> newschedule.view()
+    >>> rtrans.apply(schedule.children)
+    >>> schedule.view()
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1352,10 +1354,10 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose everything within a single OpenACC PARALLEL region
-    >>> newschedule, _ = ptrans.apply(schedule.children)
+    >>> ptrans.apply(schedule.children)
     >>> # Add an enter-data directive
-    >>> newschedule, _ = dtrans.apply(newschedule)
-    >>> newschedule.view()
+    >>> dtrans.apply(schedule)
+    >>> schedule.view()
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
@@ -1417,11 +1419,11 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> from psyclone.transformations import GOConstLoopBoundsTrans
     >>> clbtrans = GOConstLoopBoundsTrans()
     >>>
-    >>> newsched, _ = clbtrans.apply(schedule)
+    >>> clbtrans.apply(schedule)
     >>> # or, to turn off const. looop bounds:
-    >>> # newsched, _ = clbtrans.apply(schedule, const_bounds=False)
+    >>> # clbtrans.apply(schedule, const_bounds=False)
     >>>
-    >>> newsched.view()
+    >>> schedule.view()
 
     '''
 
@@ -1560,14 +1562,12 @@ class MoveTrans(Transformation):
 
         self.validate(node, location, options)
 
-        schedule = node.root
-
         if not options:
             options = {}
         position = options.get("position", "before")
 
         # Create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node, location])
+        keep = Memento(node.root, self, [node, location])
 
         parent = node.parent
 
@@ -1575,11 +1575,11 @@ class MoveTrans(Transformation):
 
         location_index = location.position
         if position == "before":
-            schedule.children.insert(location_index, my_node)
+            location.parent.children.insert(location_index, my_node)
         else:
-            schedule.children.insert(location_index+1, my_node)
+            location.parent.children.insert(location_index+1, my_node)
 
-        return schedule, keep
+        return node.root, keep
 
 
 class Dynamo0p3RedundantComputationTrans(LoopTrans):
@@ -1717,17 +1717,16 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 "method the loop type must be one of '' (cell-columns), 'dof' "
                 "or 'colour', but found '{0}'".format(node.loop_type))
 
-        from psyclone.dynamo0p3 import HALO_ACCESS_LOOP_BOUNDS
-
         # We don't currently support the application of transformations to
         # loops containing inter-grid kernels
         check_intergrid(node)
+        const = LFRicConstants()
 
         if not options:
             options = {}
         depth = options.get("depth")
         if depth is None:
-            if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if not node.upper_bound_halo_depth:
                     raise TransformationError(
                         "In the Dynamo0p3RedundantComputation transformation "
@@ -1754,7 +1753,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method the supplied depth is less than 1")
 
-            if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if node.upper_bound_halo_depth:
                     if node.upper_bound_halo_depth >= depth:
                         raise TransformationError(
@@ -1964,7 +1963,7 @@ class OCLTrans(Transformation):
     >>> schedule = invoke.schedule
     >>>
     >>> ocl_trans = OCLTrans()
-    >>> new_sched, _ = ocl_trans.apply(schedule)
+    >>> ocl_trans.apply(schedule)
 
     '''
     @property
@@ -2184,7 +2183,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
-    >>>     new_schedule, _ = trans.apply(kernel, number_of_layers=150)
+    >>>     trans.apply(kernel, number_of_layers=150)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
     >>>     kernel_schedule.symbol_table.view()
 
@@ -2381,12 +2380,13 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     "Support is currently limited to 'xyoz' quadrature but "
                     "found {0}.".format(kernel.eval_shapes))
 
+        const = LFRicConstants()
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
                 if (info.function_space.lower() in
-                        (FunctionSpace.VALID_ANY_SPACE_NAMES +
-                         FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
+                        (const.VALID_ANY_SPACE_NAMES +
+                         const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
                          ["any_w2"])):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(
@@ -2516,8 +2516,8 @@ class ACCEnterDataTrans(Transformation):
     >>> schedule.view()
     >>>
     >>> # Add an enter-data directive
-    >>> newschedule, _ = dtrans.apply(schedule)
-    >>> newschedule.view()
+    >>> dtrans.apply(schedule)
+    >>> schedule.view()
 
     '''
     def __str__(self):
@@ -2771,7 +2771,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> schedule.view()
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Transform the kernel
-    >>> new_sched, _ = ktrans.apply(kernels)
+    >>> ktrans.apply(kernels)
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
@@ -2894,7 +2894,7 @@ class ACCDataTrans(RegionTrans):
     >>> schedule.view()
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Enclose the kernels
-    >>> new_sched, _ = dtrans.apply(kernels)
+    >>> dtrans.apply(kernels)
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
@@ -3022,11 +3022,12 @@ class KernelGlobalsToArguments(Transformation):
                 "nodes but found '{1}' instead.".
                 format(self.name, type(node).__name__))
 
-        if not isinstance(node.root, GOInvokeSchedule):
+        invoke_schedule = node.ancestor(InvokeSchedule)
+        if not isinstance(invoke_schedule, GOInvokeSchedule):
             raise TransformationError(
                 "The {0} transformation is currently only supported for the "
                 "GOcean API but got an InvokeSchedule of type: '{1}'".
-                format(self.name, type(node.root).__name__))
+                format(self.name, type(invoke_schedule).__name__))
 
         # Check that there are no unqualified imports or undeclared symbols
         try:

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Authors: R. W. Ford, A. R. Porter, S. Siso, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
@@ -60,20 +60,19 @@ def trans(psy):
        config.distributed_memory:
         # We can't loop fuse as the loop bounds differ so add
         # OpenMP parallel do directives to the loops
-        schedule, _ = otrans.apply(schedule.children[0])
-        schedule, _ = otrans.apply(schedule.children[1])
+        otrans.apply(schedule.children[0])
+        otrans.apply(schedule.children[1])
     else:
         # Loop fuse the two built-in kernels. The 'same_space' flag needs to
         # be set as built-ins are over ANY_SPACE.
-        schedule, _ = ftrans.apply(schedule[0], schedule[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule[0], schedule[1], {"same_space": True})
 
         # Add an OpenMP do directive to the resultant loop-fused loop,
         # specifying that we want reproducible reductions
-        schedule, _ = ltrans.apply(schedule.children[0], {"reprod": True})
+        ltrans.apply(schedule.children[0], {"reprod": True})
 
         # Add an OpenMP parallel directive around the OpenMP do directive
-        schedule, _ = otrans.apply(schedule.children[0])
+        otrans.apply(schedule.children[0])
 
     # take a look at what we've done
     schedule.view()
