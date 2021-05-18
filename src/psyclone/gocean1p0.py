@@ -1319,8 +1319,8 @@ class GOKern(CodedKern):
         # different command queue (other dependencies already deal with
         # synchronisation themself e.g. HaloExchange)
         if dependency and dependency.coded_kernels():
-            for kernel in dependency.coded_kernels():
-                previous_queue = kernel._opencl_options['queue_number']
+            for kernel_dep in dependency.coded_kernels():
+                previous_queue = kernel_dep._opencl_options['queue_number']
                 if previous_queue != queue_number:
                     # If the backward dependency is being executed in another
                     # queue we add a barrier to make sure the previous kernel
