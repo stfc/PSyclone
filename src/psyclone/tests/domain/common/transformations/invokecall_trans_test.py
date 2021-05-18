@@ -51,7 +51,7 @@ from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, Symbol, \
     StructureType
 
 from psyclone.domain.common.algorithm import \
-    AlgorithmInvokeCall, KernelFunctor
+    AlgorithmInvokeCall, KernelFunctor, VariableArg, LiteralArg
 from psyclone.domain.common.transformations import InvokeCallTrans
 
 
@@ -72,8 +72,9 @@ def check_reference(klr, name, arg_name):
     assert klr.symbol.name == name
     assert len(klr.children) == 1
     arg = klr.children[0]
-    assert isinstance(arg, Reference)
-    assert arg.symbol.name == arg_name
+    assert isinstance(arg, VariableArg)
+    assert isinstance(arg._node, Reference)
+    assert arg._node.symbol.name == arg_name
 
 
 def check_literal(klr, name, arg_value):
@@ -91,8 +92,9 @@ def check_literal(klr, name, arg_value):
     assert klr.symbol.name == name
     assert len(klr.children) == 1
     arg = klr.children[0]
-    assert isinstance(arg, Literal)
-    assert arg.value == arg_value
+    assert isinstance(arg, LiteralArg)
+    assert isinstance(arg._node, Literal)
+    assert arg._node.value == arg_value
 
 
 def create_psyir(code):
@@ -179,6 +181,38 @@ def test_specialise_symbol():
     InvokeCallTrans._specialise_symbol(test)
     assert isinstance(test, str)
     assert test == "hello"
+
+
+def test_transform_arg():
+    '''Test that the transform arg function works as expected. There are 3
+    cases. 1) matching a literal, 2) matching and variable and 3)
+    failing to match.
+
+    '''
+    from psyclone.psyir.symbols import REAL_TYPE, DataSymbol
+    from psyclone.psyir.nodes import BinaryOperation
+
+    # Matching a literal (which could be a literal expression)
+    literal_node = Literal("1.0", REAL_TYPE)
+    result = InvokeCallTrans._transform_arg(literal_node)
+    assert isinstance(result, LiteralArg)
+    assert result._node is literal_node
+
+    # Matching a variable (which could be indexed etc)
+    variable_node = Reference(DataSymbol("domino", REAL_TYPE))
+    result = InvokeCallTrans._transform_arg(variable_node)
+    assert isinstance(result, VariableArg)
+    assert result._node is variable_node
+
+    # No match (variable expression not supported as it does computation)
+    expression = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, variable_node, literal_node)
+    with pytest.raises(TransformationError) as info:
+        InvokeCallTrans._transform_arg(expression)
+    assert (
+        "Unsupported kernel argument found 'BinaryOperation[operator:'ADD']\\n"
+        "Reference[name:'domino']\\nLiteral[value:'1.0', Scalar<REAL, "
+        "UNDEFINED>]'." in str(info.value))
 
 
 def test_structure_contructor():
@@ -475,46 +509,47 @@ def test_apply_mixed():
     check_literal(invoke.children[3], "kern", "2.0")
 
 
-def test_apply_expr():
-    '''Test that an invoke with a mixture of code block and array
-    reference arguments as expressions is transformed into PSyclone-specific
-    AlgorithmInvokeCall and KernelFunctor classes.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod, only: kern\n"
-        "  use field_mod, only: r2d_field\n"
-        "  type(r2d_field) :: field\n"
-        "  call invoke(kern((field+field)/2), kern((field+field)/2,1.0))\n"
-        "end subroutine alg\n")
-
-    psyir = create_psyir(code)
-    assert len(psyir[0].children) == 2
-    assert isinstance(psyir[0].children[0], ArrayReference)
-    assert isinstance(psyir[0].children[1], CodeBlock)
-
-    invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0], 5)
-
-    invoke = psyir.children[0]
-    assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._index == 5
-    assert len(invoke.children) == 2
-
-    klr = invoke.children[0]
-    assert isinstance(klr, KernelFunctor)
-    assert klr.symbol.name == "kern"
-    assert len(klr.children) == 1
-    arg = klr.children[0]
-    assert isinstance(arg, BinaryOperation)
-
-    klr = invoke.children[1]
-    assert isinstance(klr, KernelFunctor)
-    assert klr.symbol.name == "kern"
-    assert len(klr.children) == 2
-    arg = klr.children[0]
-    assert isinstance(arg, BinaryOperation)
+# XXXXXXXXXXXX
+#def test_apply_expr():
+#    '''Test that an invoke with a mixture of code block and array
+#    reference arguments as expressions is transformed into PSyclone-specific
+#    AlgorithmInvokeCall and KernelFunctor classes.
+#
+#    '''
+#    code = (
+#        "subroutine alg()\n"
+#        "  use kern_mod, only: kern\n"
+#        "  use field_mod, only: r2d_field\n"
+#        "  type(r2d_field) :: field\n"
+#        "  call invoke(kern((field+field)/2), kern((field+field)/2,1.0))\n"
+#        "end subroutine alg\n")
+#
+#    psyir = create_psyir(code)
+#    assert len(psyir[0].children) == 2
+#    assert isinstance(psyir[0].children[0], ArrayReference)
+#    assert isinstance(psyir[0].children[1], CodeBlock)
+#
+#    invoke_trans = InvokeCallTrans()
+#    invoke_trans.apply(psyir[0], 5)
+#
+#    invoke = psyir.children[0]
+#    assert isinstance(invoke, AlgorithmInvokeCall)
+#    assert invoke._index == 5
+#    assert len(invoke.children) == 2
+#
+#    klr = invoke.children[0]
+#    assert isinstance(klr, KernelFunctor)
+#    assert klr.symbol.name == "kern"
+#    assert len(klr.children) == 1
+#    arg = klr.children[0]
+#    assert isinstance(arg, BinaryOperation)
+#
+#    klr = invoke.children[1]
+#    assert isinstance(klr, KernelFunctor)
+#    assert klr.symbol.name == "kern"
+#    assert len(klr.children) == 2
+#    arg = klr.children[0]
+#    assert isinstance(arg, BinaryOperation)
 
 
 def test_multi_description():

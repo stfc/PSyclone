@@ -39,7 +39,7 @@
 import six
 
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
-    ArrayReference, Routine, CodeBlock
+    ArrayReference, Routine, CodeBlock, Node, Operation
 from psyclone.psyir.symbols import TypeSymbol, ContainerSymbol, \
     GlobalInterface, RoutineSymbol
 from psyclone.errors import GenerationError
@@ -225,35 +225,31 @@ class AlgorithmInvokeCall(Call):
         arguments_str = []
         for kern in self.children:
             for arg in kern.children:
-                if isinstance(arg, Literal):
+                if isinstance(arg, LiteralArg):
                     # Literals are not passed by argument.
                     pass
-                elif isinstance(arg, (Reference, ArrayReference)):
-                    # TODO #753 use a better check for equivalence (math_equal)
+                elif isinstance(arg, VariableArg):
+                    # TODO #753 use a better check for equivalence (math_equal?)
                     if str(arg).lower() not in arguments_str:
                         arguments_str.append(str(arg).lower())
                         arguments.append(arg.copy())
-                elif isinstance(arg, CodeBlock):
-                    from fparser.two.Fortran2003 import Proc_Component_Ref
-                    if not (len(arg._fp2_nodes) == 1 and isinstance(arg._fp2_nodes[0], Proc_Component_Ref)):
-                        raise GenerationError("Unexpected code block content found for argument. Found '{0}'.".format(str(arg._fp2_nodes[0])))
-                    # Need to check for equivalence with some sort of
-                    # "str" test, or recognise this particular type of
-                    # codeblock and deal with it.
-                    arguments.append(arg.copy())
                 else:
-                    raise GenerationError(
-                        "Expected Algorithm-layer kernel arguments to be "
-                        "a literal, reference or array reference, but "
-                        "found '{0}'.".format(type(arg).__name__))
+                    raise InternalError(
+                        "Algorithm-layer kernel arguments should be of type "
+                        "LiteralArg or VariableArg but found '{0}'."
+                        "".format(type(arg).__name__))
 
         symbol_table = self.scope.symbol_table
         routine_symbol = self.psylayer_routine_symbol
         container_symbol = routine_symbol.interface.container_symbol
         symbol_table.add(container_symbol)
         symbol_table.add(routine_symbol)
+
         call = Call.create(routine_symbol, arguments)
+        for child in call.children:
+            child.lower_to_language_level()
         self.replace_with(call)
+
 
 
 class KernelFunctor(Reference):
@@ -335,6 +331,84 @@ class KernelFunctor(Reference):
             self.coloured_name(colour), self.symbol.name)
 
 
+class KernelFunctorArg(DataNode):
+    '''Baseclass describing an argument to a KernelFunctor.
+
+    :param arg_node: xxx
+    :type arg_node: Node
+
+    '''
+    _children_valid_format = "[Node]*"
+    _colour = "red"
+
+    def __init__(self, arg_node):
+        super(KernelFunctorArg, self).__init__()
+        self._node = arg_node.detach()
+
+    def lower_to_language_level(self):
+        '''Return the original PSyIR representation of this node.
+
+        '''
+        self.replace_with(self._node)
+
+class LiteralArg(KernelFunctorArg):
+    '''A Literal KernelFunctor argument.
+
+    :param arg_node: xxx
+    :type arg_node: Node
+
+    '''
+    _text_name = "LiteralArg"
+
+    def __init__(self, arg_node):
+        # Check arg_node is a literal or literal expression
+        for node in arg_node.walk(Node):
+            if not isinstance(node, (Literal, Operation)):
+                raise TypeError("The arg_node argument is not a Literal.")
+        super(LiteralArg, self).__init__(arg_node)
+
+
+class VariableArg(KernelFunctorArg):
+    '''A variable KernelFunctor argument.
+
+    :param arg_node: xxx
+    :type arg_node: Node
+
+    '''
+    _text_name = "VariableArg"
+
+    def __init__(self, arg_node):
+        # Check arg_node is a supported argument
+        if not isinstance(arg_node, Reference):
+            print ("NOT YET SUPPORTED" + type(arg_node))
+            exit(1)
+            raise TypeError("The arg_node argument is not a variable.")
+        super(VariableArg, self).__init__(arg_node)
+        #        elif isinstance(arg, (Reference, ArrayReference)):
+        #            # TODO #753 use a better check for equivalence (math_equal)
+        #            if str(arg).lower() not in arguments_str:
+        #                arguments_str.append(str(arg).lower())
+        #                arguments.append(arg.copy())
+        #        elif isinstance(arg, CodeBlock):
+        #            from fparser.two.Fortran2003 import Proc_Component_Ref
+        #            if not (len(arg._fp2_nodes) == 1 and isinstance(arg._fp2_nodes[0], Proc_Component_Ref)):
+        #                raise GenerationError("Unexpected code block content found for argument. Found '{0}'.".format(str(arg._fp2_nodes[0])))
+        #            # Need to check for equivalence with some sort of
+        #            # "str" test, or recognise this particular type of
+        #            # codeblock and deal with it.
+        #            arguments.append(arg.copy())
+
+    def __str__(self):
+        '''
+        :returns: a string representation of this node.
+        :rtype: str
+
+        '''
+        return VariableArg._text_name + str(self._node).lower()
+
+
 __all__ = [
     'AlgorithmInvokeCall',
-    'KernelFunctor']
+    'KernelFunctor',
+    'LiteralArg',
+    'VariableArg']

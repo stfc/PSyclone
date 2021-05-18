@@ -318,28 +318,6 @@ def test_aic_createpsylayersymbols_clash(monkeypatch):
     assert container_symbol.name == "psy_alg1_1"
 
 
-def test_aic_lowertolanguagelevel_error():
-    '''Check that the lower_to_language_level method raises the expected
-    exception when an unexpected argument is found.
-
-    '''
-    code = (
-        "subroutine alg1()\n"
-        "  use kern_mod\n"
-        "  use field_mod, only : field_type\n"
-        "  type(field_type) :: field\n"
-        "  call invoke(kern(field*1.0))\n"
-        "end subroutine alg1\n")
-
-    psyir = create_alg_psyir(code)
-    invoke = psyir.children[0]
-    with pytest.raises(GenerationError) as info:
-        invoke.lower_to_language_level()
-    assert ("Expected Algorithm-layer kernel arguments to be a literal, "
-            "reference or array reference, but found 'BinaryOperation'."
-            in str(info.value))
-
-
 @pytest.mark.xfail(reason="Issue #753: expression comparisons need improving")
 def test_aic_lowertolanguagelevel_expr():
     '''Check that the lower_to_language_level method deals correctly with
@@ -442,7 +420,14 @@ def test_aic_lowertolanguagelevel_multi():
                 (ArrayReference, "field2", ["j"]),
                 (ArrayReference, "field2", [BinaryOperation])])
 
-
+# literal not passed
+# reference and array reference passed
+# CodeBlock + Proc_Component_Ref passed
+# ? unary operation - what type????? (minus literal e.g. -1.0)
+# ? The name argument of rename_symbol() must not already exist in this symbol_table instance, but 'psy_advective_update_alg_1' does. ?????
+# ? Visitor Error: The Fortran back-end requires all children of a Container to be a sub-class of Routine. I think one is a codeblock. This should be allowed presumably???
+# ? IFDEF : why error here? ?
+# 
 def test_kernelfunctor():
     '''Check that an instance of KernelFunctor class can be created. Also
     check that the symbol method works as expected.

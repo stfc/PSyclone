@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock
 from psyclone.psyir.symbols import Symbol, TypeSymbol, StructureType, \
     RoutineSymbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
-    KernelFunctor
+    KernelFunctor, LiteralArg, VariableArg
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -123,6 +123,29 @@ class InvokeCallTrans(Transformation):
         if type(symbol) is Symbol:
             symbol.specialise(TypeSymbol)
             symbol.datatype = StructureType()
+
+    @staticmethod
+    def _transform_arg(arg):
+        '''Transform the language-level PSyIR kernel argument into a
+        domain-specific kernel argument.
+
+        :param arg: the PSyIR node that is being transformed to \
+            a domain-specific kernel-argument node.
+        :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
+
+        :raises TransformationError: if the supplied PSyIR node is not \
+            in a form supported by the domain.
+
+        '''
+        try:
+            return VariableArg(arg)
+        except TypeError:
+            pass
+        try:
+            return LiteralArg(arg)
+        except TypeError:
+            pass
+        raise TransformationError("Unsupported kernel argument found '{0}'.".format(str(arg)))
 
     def _validate_fp2_node(self, fp2_node):
         '''Validation routine for an fparser2 node within a code block.
@@ -243,10 +266,13 @@ class InvokeCallTrans(Transformation):
                             call, fp2_node)
                         args = InvokeCallTrans._parse_args(call_arg, fp2_node)
                         arg_info.append((type_symbol, args))
-
             for (type_symbol, args) in arg_info:
+                # Create domain-specific kernel arguments
+                domain_args = []
+                for arg in args:
+                    domain_args.append(InvokeCallTrans._transform_arg(arg))
                 self._specialise_symbol(type_symbol)
-                calls.append(KernelFunctor.create(type_symbol, args))
+                calls.append(KernelFunctor.create(type_symbol, domain_args))
 
         symbol = call.scope.symbol_table.lookup("invoke")
         from psyclone.psyir.symbols import UnresolvedInterface, LocalInterface

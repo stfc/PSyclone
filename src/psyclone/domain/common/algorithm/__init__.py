@@ -38,7 +38,7 @@ layer.
 
 '''
 from psyclone.domain.common.algorithm.psyir import \
-    AlgorithmInvokeCall, KernelFunctor
+    AlgorithmInvokeCall, KernelFunctor, LiteralArg, VariableArg
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
@@ -46,4 +46,6 @@ from psyclone.domain.common.algorithm.psyir import \
 
 __all__ = [
     'AlgorithmInvokeCall',
-    'KernelFunctor']
+    'KernelFunctor',
+    'LiteralArg',
+    'VariableArg']
