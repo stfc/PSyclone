@@ -1408,6 +1408,7 @@ class ACCEnterDataDirective(ACCDirective):
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
         self._copy_vars = []  # This is computed dynamically
+        self._lowered_clauses = False
 
     def node_str(self, colour=True):
         '''
@@ -1482,24 +1483,27 @@ class ACCEnterDataDirective(ACCDirective):
         In-place replacement of this directive concept into language level
         PSyIR constructs.
         '''
-        # We must generate a list of all of the fields accessed by
-        # OpenACC kernels (calls within an OpenACC parallel or kernels
-        # directive)
-        # 1. Find all parallel and kernels directives. We store this list for
-        #    later use in any sub-class.
-        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
-                (ACCParallelDirective, ACCKernelsDirective))
-        # 2. For each directive, loop over each of the fields used by
-        #    the kernels it contains (this list is given by var_list)
-        #    and add it to our list if we don't already have it
-        self._copy_vars = []
-        # TODO grid properties are effectively duplicated in this list (but
-        # the OpenACC deep-copy support should spot this).
-        for pdir in self._acc_dirs:
-            for var in pdir.ref_list:
-                if var not in self._copy_vars:
-                    self._copy_vars.append(var)
-        self._copy_vars = []
+        if not self._lowered_clauses:
+            # We must generate a list of all of the fields accessed by
+            # OpenACC kernels (calls within an OpenACC parallel or kernels
+            # directive)
+            # 1. Find all parallel and kernels directives. We store this list for
+            #    later use in any sub-class.
+            self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                    (ACCParallelDirective, ACCKernelsDirective))
+            # 2. For each directive, loop over each of the fields used by
+            #    the kernels it contains (this list is given by var_list)
+            #    and add it to our list if we don't already have it
+            self._copy_vars = []
+            # TODO grid properties are effectively duplicated in this list (but
+            # the OpenACC deep-copy support should spot this).
+            for pdir in self._acc_dirs:
+                for var in pdir.ref_list:
+                    if var not in self._copy_vars:
+                        self._copy_vars.append(var)
+            self._lowered_clauses = True
+
+        super(ACCEnterDataDirective, self).lower_to_language_level()
 
     def begin_string(self):
         '''Returns the beginning statement of this directive. The visitor is
@@ -1521,7 +1525,15 @@ class ACCEnterDataDirective(ACCDirective):
                 "Perhaps there are no ACCParallel or ACCKernels directives "
                 "within the region.")
 
-        return "acc begin enter data " + copy_in_str
+        return "acc enter data " + copy_in_str
+
+    def end_string(self):
+        '''
+        :returns: the closing statement for this directive.
+        :rtype: str
+        '''
+        # pylint: disable=no-self-use
+        return ""
 
     @abc.abstractmethod
     def data_on_device(self, parent):
@@ -1616,7 +1628,7 @@ class ACCParallelDirective(ACCDirective):
     def begin_string(self):
         '''
         Returns the beginning statement of this directive, i.e.
-        "acc begin parallel" plus any qualifiers. The backend is responsible
+        "acc parallel" plus any qualifiers. The backend is responsible
         for adding the correct characters to mark this as a directive (e.g.
         "!$").
 
@@ -1629,7 +1641,7 @@ class ACCParallelDirective(ACCDirective):
         # all data required by the parallel region is already present
         # on the device. If we've made a mistake and it isn't present
         # then we'll get a run-time error.
-        return "acc begin parallel default(present)"
+        return "acc parallel default(present)"
 
     def end_string(self):
         '''

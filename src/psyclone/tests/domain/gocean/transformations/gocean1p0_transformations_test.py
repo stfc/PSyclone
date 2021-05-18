@@ -1771,7 +1771,7 @@ def test_accloop(tmpdir):
                              dist_mem=False)
     schedule = invoke.schedule
     # This test expects constant loop bounds
-    _, _ = cbtrans.apply(schedule, {"const_bounds": True})
+    cbtrans.apply(schedule, {"const_bounds": True})
 
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)

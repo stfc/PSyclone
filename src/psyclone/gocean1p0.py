@@ -61,12 +61,13 @@ from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     Call, Assignment, CodeBlock, ExtractNode
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, ACCEnterDataDirective, HaloExchange
+    AccessType, ACCEnterDataDirective, HaloExchange, ACCParallelDirective, \
+    ACCKernelsDirective
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
     ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, \
-    UnknownFortranType, LocalInterface
+    UnknownFortranType, LocalInterface, BOOLEAN_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 import psyclone.expression as expr
@@ -3133,6 +3134,24 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                                          lhs=var+"%data_on_device",
                                          rhs=".true."))
                     obj_list.append(var)
+
+    def lower_to_language_level(self):
+        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                (ACCParallelDirective, ACCKernelsDirective))
+        obj_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.fields:
+                if var not in obj_list:
+                    obj_list.append(var)
+
+        for var in obj_list:
+            symbol = self.scope.symbol_table.lookup(var)
+            assignment = Assignment.create(
+                StructureReference.create(symbol, ['data_on_device']),
+                Literal("true", BOOLEAN_TYPE))
+            self.parent.children.insert(self.position, assignment)
+
+        super(GOACCEnterDataDirective, self).lower_to_language_level()
 
 
 class GOSymbolTable(SymbolTable):
