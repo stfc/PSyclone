@@ -452,9 +452,7 @@ def test_no_enter_data(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # We don't yet support ACCEnterDataTrans for the NEMO API (Issue 310)
     # so manually insert a GOACCEnterDataDirective in the Schedule.
-    # pylint: disable=abstract-class-instantiated
     directive = GOACCEnterDataDirective(children=[])
-    # pylint: enable=abstract-class-instantiated
     schedule.children.insert(0, directive)
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)

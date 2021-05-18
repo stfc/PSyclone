@@ -34,6 +34,7 @@
 # Author S. Siso, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
 #             A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 '''Perform py.test tests on the psygen.psyir.symbols.symbol module.
@@ -48,14 +49,13 @@ is not tested here.
 from __future__ import absolute_import
 import pytest
 
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
-from psyclone.psyir.symbols import Symbol, LocalInterface, GlobalInterface, \
-                                   ArgumentInterface, UnresolvedInterface, \
-                                   ContainerSymbol, DataSymbol, SymbolError, \
-                                   SymbolTable, INTEGER_SINGLE_TYPE, \
-                                   RoutineSymbol
-from psyclone.psyir.symbols.symbol import SymbolInterface
+from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
+                                   DataSymbol, GlobalInterface, \
+                                   INTEGER_SINGLE_TYPE, LocalInterface, \
+                                   RoutineSymbol, Symbol, SymbolError, \
+                                   SymbolInterface, SymbolTable, \
+                                   UnresolvedInterface
 
 
 def test_symbol_initialisation():
