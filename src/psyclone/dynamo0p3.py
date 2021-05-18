@@ -5366,7 +5366,10 @@ class DynGlobalSum(GlobalSum):
 
         '''
         name = self._scalar.name
-        sum_name = self.root.symbol_table.symbol_from_tag("global_sum").name
+        # Use InvokeSchedule SymbolTable to share the same symbol for all
+        # GlobalSums in the Invoke.
+        sum_name = self.ancestor(InvokeSchedule).symbol_table.\
+            symbol_from_tag("global_sum").name
         parent.add(UseGen(parent, name="scalar_mod", only=True,
                           funcnames=["scalar_type"]))
         parent.add(TypeDeclGen(parent, datatype="scalar_type",
@@ -6752,7 +6755,10 @@ class DynLoop(Loop):
             raise GenerationError(
                 "Unsupported lower bound name '{0}' "
                 "found".format(self._lower_bound_name))
-        mesh_obj_name = self.root.symbol_table.symbol_from_tag("mesh").name
+        # Use InvokeSchedule SymbolTable to share the same symbol for all
+        # Loops in the Invoke.
+        mesh_obj_name = self.ancestor(InvokeSchedule).symbol_table.\
+            symbol_from_tag("mesh").name
         return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
             + prev_space_index_str + ")+1"
 
@@ -6783,7 +6789,10 @@ class DynLoop(Loop):
         else:
             # It's not an inter-grid kernel so there's only one mesh
             mesh_name = "mesh"
-        mesh = self.root.symbol_table.symbol_from_tag(mesh_name).name
+        # Use InvokeSchedule SymbolTable to share the same symbol for all
+        # Loops in the Invoke.
+        mesh = self.ancestor(InvokeSchedule).symbol_table.\
+            symbol_from_tag(mesh_name).name
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -7470,11 +7479,12 @@ class DynKern(CodedKern):
 
             qr_arg = args[idx]
 
-            # Use the symbol_table to create a unique symbol name.
+            # Use the InvokeSchedule symbol_table to create a unique symbol
+            # name for the whole Invoke.
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
-                qr_name = self.root.symbol_table.symbol_from_tag(
-                    tag, qr_arg.varname).name
+                qr_name = self.ancestor(InvokeSchedule).symbol_table.\
+                    symbol_from_tag(tag, qr_arg.varname).name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
@@ -7566,14 +7576,14 @@ class DynKern(CodedKern):
             raise InternalError("Kernel '{0}' is not inside a coloured "
                                 "loop.".format(self.name))
         if self._is_intergrid:
-            invoke = self.root.invoke
+            invoke = self.ancestor(InvokeSchedule).invoke
             if self.name not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
             cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
         else:
-            cmap = self.root.symbol_table.lookup_with_tag("cmap").name
+            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
         return cmap
 
     @property
@@ -7591,14 +7601,14 @@ class DynKern(CodedKern):
             raise InternalError("Kernel '{0}' is not inside a coloured "
                                 "loop.".format(self.name))
         if self._is_intergrid:
-            invoke = self.root.invoke
+            invoke = self.ancestor(InvokeSchedule).invoke
             if self.name not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
             ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
         else:
-            ncols = self.root.symbol_table.lookup_with_tag("ncolour").name
+            ncols = self.scope.symbol_table.lookup_with_tag("ncolour").name
         return ncols
 
     @property

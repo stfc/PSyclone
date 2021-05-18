@@ -34,6 +34,7 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by S. Siso, STFC Daresbury Lab
 
 
 '''
@@ -55,6 +56,5 @@ def trans(psy):
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
     transform = LoopFuseTrans()
-    schedule, _ = transform.apply(loop1, loop2)
-    invoke.schedule = schedule
+    transform.apply(loop1, loop2)
     return psy
