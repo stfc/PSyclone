@@ -110,7 +110,7 @@ class Signature(object):
     @property
     def var_name(self):
         ''':returns: the actual variable name, i.e. the first component of
-        the signature.
+            the signature.
         :rtype: str
         '''
         return self._signature[0]
