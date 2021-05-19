@@ -302,9 +302,10 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
             ":UBOUND(vars(1)%region%subgrid(3)%data, 1))")
     # vars(:)%region%subgrid(3)%xstop
     assign = assignments[6]
-    amem = assign.lhs#.member.member.member
+    amem = assign.lhs
     gen = fortran_writer(amem)
-    assert gen == "hello"
+    assert (gen == "vars(LBOUND(vars, 1):UBOUND(vars, 1))%region%subgrid(3)%"
+            "xstop")
 
 
 def test_array_of_derived_type_ref(f2008_parser):

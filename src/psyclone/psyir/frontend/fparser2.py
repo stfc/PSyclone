@@ -53,7 +53,8 @@ from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, SymbolTable
+    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, SymbolTable,\
+    INTEGER_TYPE
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -2888,12 +2889,62 @@ class Fparser2Reader(object):
         :raises NotImplementedError: if the parse tree contains unsupported \
                                      elements.
         '''
+        def _create_struct_reference(parent, base_ref, base_symbol, members,
+                                     indices):
+            '''
+            Creates a StructureReference or ArrayOfStructuresReference. Any
+            PSyIR nodes in the supplied lists of members and indices are copied
+            when making the new node.
+
+            :param parent: Parent node of the PSyIR node we are constructing.
+            :type parent: :py:class:`psyclone.psyir.nodes.Node`
+            :param type base_ref: the type of Reference to create.
+            :param base_symbol: the Symbol that the reference is to.
+            :type base_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+            :param members: the component(s) of the structure that are being \
+                accessed. Any components that are array references must \
+                provide the name of the array and a list of DataNodes \
+                describing which part of it is accessed.
+            :type members: list of str or 2-tuples containing (str, \
+                list of nodes describing array access)
+            :param indices: a list of Nodes describing the array indices for \
+                the base reference (if any).
+            :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
+
+            :raises NotImplementedError: if `base_ref` is not a \
+                StructureReference or an ArrayOfStructuresReference. 
+            '''
+            # Ensure we create a copy of any References within the list of
+            # members making up this structure access.
+            new_members = []
+            for member in members:
+                if isinstance(member, six.string_types):
+                    new_members.append(member)
+                if isinstance(member, tuple):
+                    # Second member of the tuple is a list of index expressions
+                    new_members.append(
+                        (member[0], [kid.copy() for kid in member[1]]))
+            if base_ref is StructureReference:
+                return base_ref.create(base_symbol, new_members, parent=parent)
+            elif base_ref is ArrayOfStructuresReference:
+                return base_ref.create(
+                    base_symbol, [idx.copy() for idx in indices],
+                    new_members, parent=parent)
+
+            raise NotImplementedError("Cannot create structure reference for "
+                                      "type '{0}'".format(base_ref))
+
+        # If we encounter array ranges while processing this derived-type
+        # access then we will need the symbol being referred to so we create
+        # that first.
         if isinstance(node.children[0], Fortran2003.Name):
             # Base of reference is a scalar entity and must be a DataSymbol.
             base_sym = _find_or_create_imported_symbol(
                 parent, node.children[0].string.lower(),
                 symbol_type=DataSymbol, datatype=DeferredType())
+            base_indices = []
             base_ref = StructureReference
+
         elif isinstance(node.children[0], Fortran2003.Part_Ref):
             # Base of reference is an array access. Lookup the corresponding
             # symbol.
@@ -2902,20 +2953,20 @@ class Fparser2Reader(object):
                 parent, part_ref.children[0].string.lower(),
                 symbol_type=DataSymbol, datatype=DeferredType())
             # Processing the array-index expressions requires access to the
-            # symbol table so create a fake ArrayReference node.
+            # symbol table so create an ArrayReference node.
             sched = parent.ancestor(Schedule, include_self=True)
-            fake_parent = ArrayReference(parent=sched,
-                                         symbol=Symbol("fake"))
-            # The children of the fake node represent the indices of the
+            aref = ArrayReference(parent=sched, symbol=base_sym)
+            # The children of this node will represent the indices of the
             # ArrayOfStructuresReference.
-            self.process_nodes(parent=fake_parent,
+            self.process_nodes(parent=aref,
                                nodes=part_ref.children[1].children)
-            base_indices = fake_parent.pop_all_children()
+            base_indices = aref.pop_all_children()
             base_ref = ArrayOfStructuresReference
+
         else:
             raise NotImplementedError(str(node))
 
-        # First we construct the full list of 'members' making up the
+        # Now construct the full list of 'members' making up the
         # derived-type reference. e.g. for "var%region(1)%start" this
         # will be [("region", [Literal("1")]), "start"].
         members = []
@@ -2924,46 +2975,34 @@ class Fparser2Reader(object):
                 # Members of a structure do not refer to symbols
                 members.append(child.string)
             elif isinstance(child, Fortran2003.Part_Ref):
-                # In order to use process_nodes() we need a fake parent node
+                # In order to use process_nodes() we need a parent node
                 # through which we can access the symbol table. This is
                 # because array-index expressions must refer to symbols.
                 sched = parent.ancestor(Schedule, include_self=True)
-                fake_sym = Symbol("fake")
-                fake_parent = ArrayReference(parent=sched, symbol=fake_sym)
+                # Since the index expressions may refer to the parent
+                # reference we construct a full reference to the current
+                # member of the derived type. We include a fake array index
+                # to ensure that the innermost member is an ArrayMember
+                # that can accept the real array-index expressions generated
+                # by process_nodes().
                 array_name = child.children[0].string
-                subscript_list = child.children[1].children
-                self.process_nodes(parent=fake_parent, nodes=subscript_list)
-                # If the children of this array reference involve any
-                # references to the array (e.g. for a Range) then they will
-                # need correcting.
-                wrong_nodes = []
-                # Find all references to the fake symbol
-                for kid in fake_parent.children:
-                    for rnode in kid.walk(Reference):
-                        if rnode.symbol is fake_sym:
-                            wrong_nodes.append(rnode)
-                # Replace each of these references with the correct one
-                if wrong_nodes:
-                    #import pdb; pdb.set_trace()
-                    new_members = []
-                    for member in members:
-                        if isinstance(member, six.string_types):
-                            new_members.append(member)
-                        if isinstance(member, tuple):
-                            new_members.append(
-                                (member[0], [kid.copy() for kid in member[1]]))
-                    new_members.append(array_name)
-                    if base_ref is StructureReference:
-                        new_ref = base_ref.create(base_sym, new_members)
-                    elif base_ref is ArrayOfStructuresReference:
-                        new_ref = base_ref.create(
-                            base_sym, [idx.copy() for idx in base_indices],
-                            new_members)
-
-                    for bad_node in wrong_nodes:
-                        bad_node.replace_with(new_ref.copy())
-
-                children = fake_parent.pop_all_children()
+                new_ref = _create_struct_reference(
+                    sched, base_ref, base_sym,
+                    members + [(array_name, [Literal("1", INTEGER_TYPE)])],
+                    base_indices)
+                # 'Chase the pointer' all the way to the bottom of the
+                # derived-type reference
+                current_ref = new_ref
+                while hasattr(current_ref, "member"):
+                    current_ref = current_ref.member
+                # Remove the fake array index
+                current_ref.pop_all_children()
+                # We can now process the child index expressions
+                self.process_nodes(parent=current_ref,
+                                   nodes=child.children[1].children)
+                # The resulting children will become part of the structure
+                # access expression
+                children = current_ref.pop_all_children()
                 members.append((array_name, children))
             else:
                 # Found an unsupported entry in the parse tree. This will
@@ -2972,20 +3011,8 @@ class Fparser2Reader(object):
 
         # Now we have the list of members, use the `create()` method of the
         # appropriate Reference subclass.
-        if isinstance(node.children[0], Fortran2003.Name):
-            return StructureReference.create(base_sym, members=members,
-                                             parent=parent)
-
-        if isinstance(node.children[0], Fortran2003.Part_Ref):
-            # Base of reference is an array access. Lookup the corresponding
-            # symbol.
-            part_ref = node.children[0]
-            ref = ArrayOfStructuresReference.create(
-                base_sym, base_indices, members)
-            return ref
-
-        # Not a Part_Ref or a Name so this will result in a CodeBlock.
-        raise NotImplementedError(str(node))
+        return _create_struct_reference(parent, base_ref, base_sym,
+                                        members, base_indices)
 
     def _unary_op_handler(self, node, parent):
         '''
@@ -3239,6 +3266,32 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         '''
+        def get_parent_reference(node):
+            '''
+            Creates a new Reference to the symbol that is referred to by the
+            parent of the supplied node.
+
+            :param node: the Reference or Member for which to find the parent \
+                reference.
+
+            :returns: a new Reference to the symbol of the parent Reference.
+            :rtype: :py:class:`psyclone.psyir.nodes.Reference`
+
+            :raises NotImplementedError: if no parent Reference is found.
+
+            '''
+            if isinstance(node, Reference):
+                return Reference(node.symbol)
+            else:
+                current = node
+                while current:
+                    current = current.parent
+                    if isinstance(current, Reference):
+                        return current.copy()
+
+            raise NotImplementedError(
+                "Failed to find a parent Reference")
+
         # The PSyIR stores array dimension information for the ArrayReference
         # class in an ordered list. As we are processing the
         # dimensions in order, the number of children already added to
@@ -3259,8 +3312,11 @@ class Fparser2Reader(object):
             # supported in the PSyIR so we create the equivalent code
             # by using the PSyIR lbound function:
             # a(:...) becomes a(lbound(a,1):...)
+            # We have to take care with derived types:
+            # grid(1)%data(:...) becomes
+            # grid(1)%data(lbound(grid(1)%data,1):...)
             lbound = BinaryOperation.create(
-                BinaryOperation.Operator.LBOUND, Reference(parent.symbol),
+                BinaryOperation.Operator.LBOUND, get_parent_reference(parent),
                 Literal(dimension, integer_type))
             my_range.children.append(lbound)
         if node.children[1]:
@@ -3271,7 +3327,7 @@ class Fparser2Reader(object):
             # by using the PSyIR ubound function:
             # a(...:) becomes a(...:ubound(a,1))
             ubound = BinaryOperation.create(
-                BinaryOperation.Operator.UBOUND, Reference(parent.symbol),
+                BinaryOperation.Operator.UBOUND, get_parent_reference(parent),
                 Literal(dimension, integer_type))
             my_range.children.append(ubound)
         if node.children[2]:
