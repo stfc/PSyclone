@@ -104,19 +104,6 @@ class Member(Node):
     def __str__(self):
         return self.node_str(False)
 
-    @property
-    def parent_reference(self):
-        '''
-        :returns: the Reference of which this Member is a child or None if
-                  there is no parent.
-        :rtype: :py:class:`psyclone.psyir.nodes.Reference` or NoneType
-
-        '''
-        current = self.parent
-        while current and not isinstance(current, Reference):
-            current = current.parent
-        return current
-
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['Member']

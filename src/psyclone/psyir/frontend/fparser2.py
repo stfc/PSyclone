@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine
+    Call, Routine, Member
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -3265,46 +3265,35 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
+        :raises InternalError: if the supplied parent node is not a sub-class \
+                               of either Reference or Member.
         '''
-        def get_parent_reference(node):
-            '''
-            Creates a new Reference to the symbol that is referred to by the
-            parent of the supplied node.
-
-            :param node: the Reference or Member for which to find the parent \
-                reference.
-
-            :returns: a new Reference to the symbol of the parent Reference.
-            :rtype: :py:class:`psyclone.psyir.nodes.Reference`
-
-            :raises NotImplementedError: if no parent Reference is found.
-
-            '''
-            if isinstance(node, Reference):
-                return Reference(node.symbol)
-            else:
-                current = node
-                while current:
-                    current = current.parent
-                    if isinstance(current, Reference):
-                        return current.copy()
-
-            raise NotImplementedError(
-                "Failed to find a parent Reference")
-
-        # The PSyIR stores array dimension information for the ArrayReference
+        # The PSyIR stores array dimension information for the ArrayMixin
         # class in an ordered list. As we are processing the
         # dimensions in order, the number of children already added to
-        # our parent indicates the current array dimension being
-        # processed (with 0 being the first dimension, 1 being the
-        # second etc). Fortran specifies the 1st dimension as being 1,
-        # the second dimension being 2, etc.). We therefore add 1 to
-        # the number of children added to out parent to determine the
-        # Fortran dimension value.
+        # our parent indicates the current array dimension being processed
+        # (with 0 being the first dimension, 1 being the second etc). Fortran
+        # specifies the 1st dimension as being 1, the second dimension being
+        # 2, etc.). We therefore add 1 to the number of children already added
+        # to our parent to determine the Fortran dimension value. However, we
+        # do have to take care in case the parent is a member of a structure
+        # rather than a plain array reference.
+        if isinstance(parent, Reference):
+            parent_ref = Reference(parent.symbol)
+            dimension = str(len(parent.children)+1)
+        elif isinstance(parent, Member):
+            parent_ref = parent.ancestor(Reference, include_self=True)
+            dimension = str(len([kid for kid in parent.children if
+                                 not isinstance(kid, Member)]) + 1)
+        else:
+            raise InternalError(
+                "Expected parent PSyIR node to be either a Reference or a "
+                "Member but got '{0}'".format(type(parent).__name__))
+
         integer_type = default_integer_type()
-        dimension = str(len(parent.children)+1)
         my_range = Range(parent=parent)
         my_range.children = []
+
         if node.children[0]:
             self.process_nodes(parent=my_range, nodes=[node.children[0]])
         else:
@@ -3316,7 +3305,7 @@ class Fparser2Reader(object):
             # grid(1)%data(:...) becomes
             # grid(1)%data(lbound(grid(1)%data,1):...)
             lbound = BinaryOperation.create(
-                BinaryOperation.Operator.LBOUND, get_parent_reference(parent),
+                BinaryOperation.Operator.LBOUND, parent_ref.copy(),
                 Literal(dimension, integer_type))
             my_range.children.append(lbound)
         if node.children[1]:
@@ -3327,7 +3316,7 @@ class Fparser2Reader(object):
             # by using the PSyIR ubound function:
             # a(...:) becomes a(...:ubound(a,1))
             ubound = BinaryOperation.create(
-                BinaryOperation.Operator.UBOUND, get_parent_reference(parent),
+                BinaryOperation.Operator.UBOUND, parent_ref.copy(),
                 Literal(dimension, integer_type))
             my_range.children.append(ubound)
         if node.children[2]:

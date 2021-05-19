@@ -179,7 +179,7 @@ class ArrayMember(ArrayMixin, Member):
 
         # This node is at the 'bottom' of the structure access so we
         # need to get the parent Reference.
-        parent_member = self.parent_reference
+        parent_member = self.ancestor(Reference)
         current_member = node
 
         if type(current_member) != type(parent_member):
