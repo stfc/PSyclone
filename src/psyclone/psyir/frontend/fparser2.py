@@ -678,6 +678,66 @@ def _process_routine_symbols(module_ast, symbol_table,
         symbol_table.add(rsymbol)
 
 
+def _create_struct_reference(parent, base_ref, base_symbol, members,
+                             indices):
+    '''
+    Utility to create a StructureReference or ArrayOfStructuresReference. Any
+    PSyIR nodes in the supplied lists of members and indices are copied
+    when making the new node.
+
+    :param parent: Parent node of the PSyIR node we are constructing.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param type base_ref: the type of Reference to create.
+    :param base_symbol: the Symbol that the reference is to.
+    :type base_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+    :param members: the component(s) of the structure that are being accessed.\
+        Any components that are array references must provide the name of the \
+        array and a list of DataNodes describing which part of it is accessed.
+    :type members: list of str or 2-tuples containing (str, \
+        list of nodes describing array access)
+    :param indices: a list of Nodes describing the array indices for \
+        the base reference (if any).
+    :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
+
+    :raises InternalError: if any element in the `members` list is not a \
+        str or tuple or if `indices` are supplied for a StructureReference \
+        or *not* supplied for an ArrayOfStructuresReference.
+    :raises NotImplementedError: if `base_ref` is not a StructureReference or \
+        an ArrayOfStructuresReference.
+
+    '''
+    # Ensure we create a copy of any References within the list of
+    # members making up this structure access.
+    new_members = []
+    for member in members:
+        if isinstance(member, six.string_types):
+            new_members.append(member)
+        elif isinstance(member, tuple):
+            # Second member of the tuple is a list of index expressions
+            new_members.append((member[0], [kid.copy() for kid in member[1]]))
+        else:
+            raise InternalError(
+                "List of members must contain only strings or tuples "
+                "but found entry of type '{0}'".format(type(member).__name__))
+    if base_ref is StructureReference:
+        if indices:
+            raise InternalError(
+                "Creating a StructureReference but array indices have been "
+                "supplied ({0}) which makes no sense.".format(indices))
+        return base_ref.create(base_symbol, new_members, parent=parent)
+    if base_ref is ArrayOfStructuresReference:
+        if not indices:
+            raise InternalError(
+                "Cannot create an ArrayOfStructuresReference without one or "
+                "more index expressions but the 'indices' argument is empty.")
+        return base_ref.create(base_symbol, [idx.copy() for idx in indices],
+                               new_members, parent=parent)
+
+    raise NotImplementedError(
+        "Cannot create structure reference for type '{0}' - expected either "
+        "StructureReference or ArrayOfStructuresReference.".format(base_ref))
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -2889,51 +2949,6 @@ class Fparser2Reader(object):
         :raises NotImplementedError: if the parse tree contains unsupported \
                                      elements.
         '''
-        def _create_struct_reference(parent, base_ref, base_symbol, members,
-                                     indices):
-            '''
-            Creates a StructureReference or ArrayOfStructuresReference. Any
-            PSyIR nodes in the supplied lists of members and indices are copied
-            when making the new node.
-
-            :param parent: Parent node of the PSyIR node we are constructing.
-            :type parent: :py:class:`psyclone.psyir.nodes.Node`
-            :param type base_ref: the type of Reference to create.
-            :param base_symbol: the Symbol that the reference is to.
-            :type base_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-            :param members: the component(s) of the structure that are being \
-                accessed. Any components that are array references must \
-                provide the name of the array and a list of DataNodes \
-                describing which part of it is accessed.
-            :type members: list of str or 2-tuples containing (str, \
-                list of nodes describing array access)
-            :param indices: a list of Nodes describing the array indices for \
-                the base reference (if any).
-            :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
-
-            :raises NotImplementedError: if `base_ref` is not a \
-                StructureReference or an ArrayOfStructuresReference. 
-            '''
-            # Ensure we create a copy of any References within the list of
-            # members making up this structure access.
-            new_members = []
-            for member in members:
-                if isinstance(member, six.string_types):
-                    new_members.append(member)
-                if isinstance(member, tuple):
-                    # Second member of the tuple is a list of index expressions
-                    new_members.append(
-                        (member[0], [kid.copy() for kid in member[1]]))
-            if base_ref is StructureReference:
-                return base_ref.create(base_symbol, new_members, parent=parent)
-            elif base_ref is ArrayOfStructuresReference:
-                return base_ref.create(
-                    base_symbol, [idx.copy() for idx in indices],
-                    new_members, parent=parent)
-
-            raise NotImplementedError("Cannot create structure reference for "
-                                      "type '{0}'".format(base_ref))
-
         # If we encounter array ranges while processing this derived-type
         # access then we will need the symbol being referred to so we create
         # that first.
@@ -3288,7 +3303,8 @@ class Fparser2Reader(object):
         else:
             raise InternalError(
                 "Expected parent PSyIR node to be either a Reference or a "
-                "Member but got '{0}'".format(type(parent).__name__))
+                "Member but got '{0}' when processing '{1}'".format(
+                    type(parent).__name__, str(node)))
 
         integer_type = default_integer_type()
         my_range = Range(parent=parent)

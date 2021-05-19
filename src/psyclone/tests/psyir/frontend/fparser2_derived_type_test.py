@@ -39,16 +39,65 @@
 
 from __future__ import absolute_import
 import pytest
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
     ArrayOfStructuresMember, ArrayMember, Literal, Reference, Range, \
     BinaryOperation
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
-    UnknownFortranType
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    UnknownFortranType, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    _create_struct_reference
 from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
+
+
+def test_create_struct_reference():
+    ''' Tests for the _create_struct_reference() utility. '''
+    one = Literal("1", INTEGER_TYPE)
+    with pytest.raises(InternalError) as err:
+        _create_struct_reference(None, StructureReference, Symbol("fake"),
+                                 ["hello", 1], [])
+    assert ("List of members must contain only strings or tuples but found "
+            "entry of type 'int'" in str(err.value))
+    with pytest.raises(NotImplementedError) as err:
+        _create_struct_reference(None, StructureType, Symbol("fake"),
+                                 ["hello"], [])
+    assert "Cannot create structure reference for type '" in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _create_struct_reference(None, StructureReference,
+                                 DataSymbol("fake", DeferredType()),
+                                 ["hello"], [one.copy()])
+    assert ("Creating a StructureReference but array indices have been "
+            "supplied" in str(err.value))
+    with pytest.raises(InternalError) as err:
+        _create_struct_reference(None, ArrayOfStructuresReference,
+                                 DataSymbol("fake", DeferredType()),
+                                 ["hello"], [])
+    assert ("Cannot create an ArrayOfStructuresReference without one or more "
+            "index expressions" in str(err.value))
+    ref = _create_struct_reference(None, StructureReference,
+                                   DataSymbol("fake", DeferredType()),
+                                   ["hello"], [])
+    assert isinstance(ref, StructureReference)
+    assert isinstance(ref.member, Member)
+    assert ref.member.name == "hello"
+    # Check that we can create an ArrayOfStructuresReference and that any
+    # PSyIR nodes are copied.
+    idx_var = one.copy()
+    idx_var2 = one.copy()
+    aref = _create_struct_reference(None, ArrayOfStructuresReference,
+                                    DataSymbol("fake", DeferredType()),
+                                    ["a", ("b", [idx_var2])], [idx_var])
+    assert isinstance(aref, ArrayOfStructuresReference)
+    assert isinstance(aref.member, StructureMember)
+    assert aref.member.name == "a"
+    assert aref.member.member.name == "b"
+    assert len(aref.member.member.indices) == 1
+    assert aref.member.member.indices[0] is not idx_var2
+    assert len(aref.indices) == 1
+    assert aref.indices[0] is not idx_var
 
 
 @pytest.mark.usefixtures("f2008_parser")
