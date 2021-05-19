@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the ArrayOfStructuresMember
@@ -91,17 +92,6 @@ class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
         for child in indices:
             obj.addchild(child)
         return obj
-
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. The default implementation
-        just recurses down to all children.
-
-        :param var_accesses: Stores the output results.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
-        for child in self._children:
-            child.reference_accesses(var_accesses)
 
 
 # For AutoAPI automatic documentation generation
