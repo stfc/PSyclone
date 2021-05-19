@@ -509,7 +509,7 @@ class Symbol(object):
         will then fallback to use information available for this symbol.
         This can cause significant slowdown if this symbol is imported
         from a module, since then these modules need to be parsed.
-        # TODO #1213 Parsing modules is not yet supported.
+        # TODO #1213: Parsing modules is not yet supported.
 
         If a `loop_variable` is specified, a variable access will only be
         considered an array access if the specified variable is used in
@@ -541,6 +541,10 @@ class Symbol(object):
                                 "'{0}' specified, but no access information "
                                 "given."
                                 .format(index_variable))
+
+        # TODO #1244: If as a result of 1244 we have more reliable
+        # information in the symbol table, the implementation here might
+        # be changed.
 
         # Prioritise access information, since this can take the index
         # variable into account, and avoids potentially parsing other
