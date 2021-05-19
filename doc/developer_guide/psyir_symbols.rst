@@ -392,9 +392,12 @@ of a PSyIR node or a list of nodes can be gathered by creating an object of
 type `psyclone.core.access_info.VariablesAccessInfo`.
 This class uses a `Signature` object to keep track of the variables used.
 A signature can be thought of as a tuple that consists of the variable name
-and structure members used in an access. For example, an access like
-`a(1)%b(k)%c(i,j)` would be stored with a signature `(a, b, c)`.
-And a simple variable `a` is stored as a one-element tuple `(a, )`.
+and structure members used in an access - called components. For example,
+an access like
+`a(1)%b(k)%c(i,j)` would be stored with a signature `(a, b, c)`, giving
+three components `a`, `b`, and `c`.
+And a simple variable `a` is stored as a one-element tuple `(a, )`, having
+a single component.
 
 .. autoclass:: psyclone.core.access_info.Signature
     :members:
@@ -428,6 +431,47 @@ instances:
 
 .. autoclass:: psyclone.core.access_info.AccessInfo
     :members:
+
+Indices
+-------
+The `AccessInfo` class stores the original PSyIR node that contains the
+access, but it also stores the indices used in a simplified form, which
+makes it easier to analyse dependencies without having
+to analyse a PSyIR tree for details. Using the `indices_groups` property of
+an `AccessInfo` object returns a list containing the indices used for
+each component. For example, an access like `a(i)%b(j,k)%c(l)` would
+return the list `[ [i], [j,k], [l] ]`. In case of non-array accesses,
+the corresponding index list will be empty, e.g. `a%b(j)%c` will
+have the indices groups `[ [], [j], [] ]`, and a scalar `a` will just
+return `[ [] ]`.
+
+Each entry in this list of lists is still a PSyIR node for each index
+expressions used. To find out details about an index expression, you can
+either analyse the tree, or use the variable access functionality again.
+Below an example that shows how this is done to determine if an array expression
+contains a reference to a given variable `index_variable`. The variable
+`access_info` is an instance of `AccessInfo` and contains the information
+about one reference. The outer loop is over the indices used for each component,
+i.e. in case of `a(i)%b(j,k)%c(l)` it would loop over the three
+members of the list `[ [i], [j,k], [l] ]`. The inner loop then
+tests each index used, e.g. it would be `[i]` for the first index group,
+then `[j, k]` etc. Then the function `reference_accesses` is used to
+analyse the index expression.
+
+.. code-block:: python
+
+  for index_group in access_info.indices:
+      for index_expression in index_group:
+        # Create an access info object to collect the accesses
+        # in the index expression
+          accesses = VariablesAccessInfo()
+          index_expression.reference_accesses(accesses)
+          # Then test if the index variable is used. Note that
+          # the key of `access` is a signature
+          if Signature(index_variable) in accesses:
+              # The index variable is used as an index somewhere
+              return True
+
 
 Access Location
 ---------------
@@ -487,31 +531,14 @@ variables that must be declared as thread-private::
   self.reference_accesses(var_accesses)
   for signature in var_accesses.all_signatures:
       var_name = str(signature)
-      accesses = var_accesses[signature].all_accesses
-      # Ignore variables that are arrays, we only look at scalar ones.
-      # If we do have a symbol table, use the shape of the variable
-      # to determine if the variable is scalar or not
+      access_info = var_accesses[signature]
+      symbol = symbol_table.lookup(var_name)
 
-      try:
-          # Find the symbol for this variable. We only need to check
-          # one symboltable.
-          symbol = symbol_table.lookup(var_name)
-          if isinstance(symbol, DataSymbol):
-              is_array = symbol.is_array
-          else:
-              # This typically indicates a symbol is used that we do
-              # not have detailled information for, e.g. based on a
-              # generic 'use some_mod' statement. In thise case use
-              # the information based on the access pattern, which
-              # is at least better than having no information at all.
-              is_array = accesses[0].indices is not None
-      except KeyError:
-          # TODO #845: Once we have symbol tables, any variable should
-          # be in a symbol table, so we have to raise an exception here.
-          # We need to fall-back to the old-style test, since we do not
-          # have information in a symbol table. So check if the access
-          # information stored an index:
-          is_array = accesses[0].indices is not None
+      # Ignore variables that are arrays, we only look at scalar ones.
+      # The `is_used_as_array` function will take information from
+      # the access information as well as from the symbol table
+      # into account.
+      is_array = symbol.is_used_as_array(access_info=acess_info)
 
        if is_array:
           # It's not a scalar variable, so it will not be private
@@ -519,6 +546,7 @@ variables that must be declared as thread-private::
 
       # If a scalar variable is only accessed once, it is either a coding
       # error or a shared variable - anyway it is not private
+      accesses = var_accesses[signature].all_accesses
       if len(accesses) == 1:
           continue
 
@@ -553,7 +581,7 @@ until we find accesses that would prevent parallelisation::
 .. note:: There is a certain overlap in the dependency analysis code
           and the variable access API. More work on unifying those two
           approaches will be undertaken in the future. Also, when calling
-          `reference_accesses()` for a Dynamo or GOcean kernel, the 
+          `reference_accesses()` for a Dynamo or GOcean kernel, the
           variable access mode for parameters is taken
           from the kernel metadata, not from the actual kernel source 
           code.

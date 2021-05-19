@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureMember node.'''
@@ -122,7 +123,7 @@ class StructureMember(Member):
         ''':returns: the Signature of this structure reference, and \
             a list of the indices used for each component (empty list \
             if an access is not an array).
-        :rtype: tuple(:py:class:`psyclone.core.Signature, list of \
+        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             list of indices)
         '''
         sub_sig, indices = self.children[0].get_signature_and_indices()

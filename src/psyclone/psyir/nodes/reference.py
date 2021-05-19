@@ -128,7 +128,7 @@ class Reference(DataNode):
         ''':returns: the Signature of this structure reference, and \
             a list of the indices used for each component (empty list \
             if an access is not an array).
-        :rtype: tuple(:py:class:`psyclone.core.Signature, list of \
+        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             list of indices)
         '''
         return (Signature(self.name), [[]])
