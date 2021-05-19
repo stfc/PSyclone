@@ -284,8 +284,7 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert isinstance(amem.member.indices[0].children[0], BinaryOperation)
     assert amem.member.indices[0].children[0].children[0].symbol.name == "var"
     gen = fortran_writer(amem)
-    assert (gen == "subgrid(3)%data(LBOUND(var%region%subgrid(3)%data, 1):"
-            "UBOUND(var%region%subgrid(3)%data, 1))")
+    assert (gen == "subgrid(3)%data(:)")
     # var%region%subgrid(3)%data(var%start:var%stop)
     assign = assignments[4]
     amem = assign.lhs.member.member.member
@@ -296,16 +295,14 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert amem.indices[0].children[0].member.name == "start"
     # vars(1)%region%subgrid(3)%data(:) = 1.0
     assign = assignments[5]
-    amem = assign.lhs.member.member
+    amem = assign.lhs
     gen = fortran_writer(amem)
-    assert (gen == "subgrid(3)%data(LBOUND(vars(1)%region%subgrid(3)%data, 1)"
-            ":UBOUND(vars(1)%region%subgrid(3)%data, 1))")
+    assert (gen == "vars(1)%region%subgrid(3)%data(:)")
     # vars(:)%region%subgrid(3)%xstop
     assign = assignments[6]
     amem = assign.lhs
     gen = fortran_writer(amem)
-    assert (gen == "vars(LBOUND(vars, 1):UBOUND(vars, 1))%region%subgrid(3)%"
-            "xstop")
+    assert (gen == "vars(:)%region%subgrid(3)%xstop")
 
 
 def test_array_of_derived_type_ref(f2008_parser):
