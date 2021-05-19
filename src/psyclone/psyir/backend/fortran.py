@@ -675,13 +675,21 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbol_table.argument_datasymbols:
             declarations += self.gen_vardecl(symbol)
 
-        # 2: Derived-type declarations. These must come before any declarations
+        # 2: Local constants.
+        local_constants = [sym for sym in symbol_table.local_datasymbols if
+                           sym.is_constant]
+        for symbol in local_constants:
+            declarations += self.gen_vardecl(symbol)
+
+        # 3: Derived-type declarations. These must come before any declarations
         #    of symbols of these types.
         for symbol in symbol_table.local_typesymbols:
             declarations += self.gen_typedecl(symbol)
 
-        # 3: Local variable declarations
-        for symbol in symbol_table.local_datasymbols:
+        # 4: Local variable declarations.
+        local_vars = [sym for sym in symbol_table.local_datasymbols if not
+                      sym.is_constant]
+        for symbol in local_vars:
             declarations += self.gen_vardecl(symbol)
 
         return declarations
