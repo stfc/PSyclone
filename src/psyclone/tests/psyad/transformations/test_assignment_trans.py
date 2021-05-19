@@ -83,8 +83,22 @@ def test_zero():
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
-# a=b
-# def test_single_assign():
+
+def test_single_assign():
+    '''Test that the adjoint transformation works for the following case:
+
+    A=B -> B*=B*+A*;A*=0.0
+
+    '''
+    tl_fortran = (
+        "  real :: a,b\n"
+        "  a = b\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real :: a\n  real :: b\n\n"
+        "  b = b + a\n"
+        "  a = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 # a=xb
 def test_single_valued_assign():
@@ -98,7 +112,7 @@ def test_single_valued_assign():
         "  a = 3*n*b\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real :: a\n  real :: b\n  real :: n\n"
+        "  real :: a\n  real :: b\n  real :: n\n\n"
         "  b = b + 3 * n * a\n"
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)

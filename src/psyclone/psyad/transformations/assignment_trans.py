@@ -40,7 +40,7 @@ from __future__ import absolute_import
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Literal
-from psyclone.psyir.symbols import REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 # make abstract
 class AdjointTransformation(Transformation):
@@ -54,23 +54,56 @@ class AdjointTransformation(Transformation):
 class AssignmentTrans(AdjointTransformation):
     ''' xxx '''
 
-    @staticmethod
-    def _process(rhs_node, lhs_node):
+    def _process(self, rhs_node, lhs_node):
         if (isinstance(rhs_node, BinaryOperation)) and \
            (rhs_node.operator == BinaryOperation.Operator.ADD):
-            new_node_list = AssignmentTrans._process(
+            new_node_list = self._process(
                 rhs_node.children[0], lhs_node)
             new_node_list.extend(
-                AssignmentTrans._process(rhs_node.children[1], lhs_node))
+                self._process(rhs_node.children[1], lhs_node))
             return new_node_list
         else:
+            if isinstance(rhs_node, Literal):
+                # There is no active variable
+                return []
+            elif isinstance(rhs_node, BinaryOperation) and \
+                 (rhs_node.operator == BinaryOperation.Operator.MUL):
+                # Find the active variable and remove it from the constant
+                constant = rhs_node.copy()
+                # To ensure constant has a parent to support replacement.
+                for node in constant.walk(Reference):
+                    if node.symbol in self._active_variables:
+                        active_var = node.copy()
+                        mult = node.parent
+                        if mult.children[0] is node:
+                            keep = mult.children[1]
+                        else:
+                            keep = mult.children[0]
+                        keep.detach()
+                        if mult.parent:
+                            mult.replace_with(keep)
+                        else:
+                            constant = keep
+                        break
+            elif isinstance(rhs_node, Reference):
+                constant = None
+                active_var = rhs_node.copy()
+            else:
+                print ("UNSUPPORTED NODE TYPE FOUND")
+                print (type(rhs_node).__name__)
+                exit(1)
             # Adjoint is rhs_node = rhs_node + constant * lhs_node
-            # *** Assuming no constant for the moment ***
-            new_lhs = rhs_node.copy()
+            new_lhs = active_var.copy()
+            if constant:
+                new_rhs_part = BinaryOperation.create(
+                    BinaryOperation.Operator.MUL, constant, lhs_node.copy())
+            else:
+                new_rhs_part = lhs_node.copy()
             new_rhs = BinaryOperation.create(
-                BinaryOperation.Operator.ADD, rhs_node.copy(), lhs_node.copy())
+                BinaryOperation.Operator.ADD, active_var.copy(), new_rhs_part)
             new_assignment = Assignment.create(new_lhs, new_rhs)
             return [new_assignment]
+
 
     def apply(self, node, options=None):
         ''' xxx '''
@@ -79,7 +112,7 @@ class AssignmentTrans(AdjointTransformation):
         parent = node.parent
 
         # Create a list of adjoint assignments from the rhs terms
-        adjoint_assignment_list = AssignmentTrans._process(node.rhs, node.lhs)
+        adjoint_assignment_list = self._process(node.rhs, node.lhs)
 
         # Deal with the adjoint wrt the lhs
         increment_node = None
