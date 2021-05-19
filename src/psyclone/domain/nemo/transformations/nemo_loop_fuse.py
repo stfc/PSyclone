@@ -190,7 +190,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
         # Loop over all the accesses of this variable
         for access in all_accesses:
-            list_of_indices = access.indices
+            indices_groups = access.indices_groups
 
             # Now determine all dimensions that depend
             # on the loop variable. This outer loop is over
@@ -198,7 +198,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             # a(i,j)%b(k) it would first handle `(i,j)`, then
             # `(k)`.
             for component_index, index_expressions in \
-                    enumerate(list_of_indices):
+                    enumerate(indices_groups):
 
                 # This inner loop loop over all indices for the
                 # current component, i.e. `[i, j]` for the first

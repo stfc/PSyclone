@@ -62,18 +62,18 @@ class AccessInfo(object):
     :param access: the access type.
     :type access_type: :py:class:`psyclone.core.access_type.AccessType`
     :param int location: a number used in ordering the accesses.
-    :param indices_list: indices used in the access, defaults to None
-    :type indices_list: list of list of :py:class:`psyclone.psyir.nodes.Node`\
-        (e.g. Reference, ...)
+    :param indices_groups: indices used in the access, defaults to None
+    :type indices_groups: list of list of
+        :py:class:`psyclone.psyir.nodes.Node` (e.g. Reference, ...)
     :param node: Node in PSyIR in which the access happens, defaults to None.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, access_type, location, node, indices_list=None):
+    def __init__(self, access_type, location, node, indices_groups=None):
         self._location = location
         self._access_type = access_type
         self._node = node
-        self.indices = indices_list
+        self.indices_groups = indices_groups
 
     def __str__(self):
         '''Returns a string representating showing the access mode
@@ -96,37 +96,42 @@ class AccessInfo(object):
         self._access_type = AccessType.WRITE
 
     @property
-    def indices(self):
+    def indices_groups(self):
         '''
-        :returns: the indices used in this access. Can be None.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`, or None
+        This function returns the list of accesses used for each component,
+        e.g. `a(i)%b(j,k)%c` will return `[ [i], [j, k], [] ]`. Especially
+        in case of a simple scalar variable `a` this function will still
+        return `[ [] ]`. Each entry in this list of lists will be a PSyIR
+        node of the index expression used.
+        :returns: the indices used in this access for each component.
+        :rtype: list of list of :py:class:`psyclone.psyir.nodes.Node`
         '''
-        return self._indices
+        return self._indices_groups
 
-    @indices.setter
-    def indices(self, indices_list):
+    @indices_groups.setter
+    def indices_groups(self, indices_groups):
         '''Sets the indices for this AccessInfo instance.
 
-        :param indices_list: list of indices used in the access.
-        :type indices_list: list of list of \
+        :param indices_groups: list of indices used in the access.
+        :type indices_groups: list of list of \
             py:class:`psyclone.psyir.nodes.Node`
 
-        :raises InternalError: if the indices_list is not a list of lists.
+        :raises InternalError: if the indices_groups is not a list of lists.
 
         '''
-        if indices_list:
-            if not isinstance(indices_list, list):
-                raise InternalError("Indices_list in add_access must be a "
+        if indices_groups:
+            if not isinstance(indices_groups, list):
+                raise InternalError("Indices_groups in add_access must be a "
                                     "list or None, got '{0}'".
-                                    format(indices_list))
-            for indices in indices_list:
+                                    format(indices_groups))
+            for indices in indices_groups:
                 if not isinstance(indices, list):
-                    raise InternalError("Indices_list in add_access must be "
+                    raise InternalError("Indices_groups in add_access must be "
                                         "a list of lists, or None, got '{0}'".
-                                        format(indices_list))
-            self._indices = indices_list[:]
+                                        format(indices_groups))
+            self._indices_groups = indices_groups[:]
         else:
-            self._indices = [[]]
+            self._indices_groups = [[]]
 
     def is_array(self):
         '''Test if any of the components has an index. E.g. an access like
@@ -136,7 +141,7 @@ class AccessInfo(object):
             the variable is an array.
         :rtype: bool
         '''
-        for list_of_indices in self._indices:
+        for list_of_indices in self._indices_groups:
             if list_of_indices != []:
                 return True
         return False
@@ -246,7 +251,7 @@ class SingleVariableAccessInfo(object):
         return self._accesses
 
     def add_access_with_location(self, access_type, location, node,
-                                 indices=None):
+                                 indices_groups=None):
         '''Adds access information to this variable.
 
         :param access_type: the type of access (READ, WRITE, ....)
@@ -254,13 +259,14 @@ class SingleVariableAccessInfo(object):
             :py:class:`psyclone.core.access_type.AccessType`
         :param location: location information
         :type location: int
-        :param indicies: indices used in the access (None if the variable \
-            is not an array). Defaults to None
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param indicies_groups: indices used in the access (None if the \
+            variable is not an array). Defaults to None
+        :type indices_groups: list of :py:class:`psyclone.psyir.nodes.Node`
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         '''
-        self._accesses.append(AccessInfo(access_type, location, node, indices))
+        self._accesses.append(AccessInfo(access_type, location, node,
+                                         indices_groups))
 
     def change_read_to_write(self):
         '''This function is only used when analysing an assignment statement.
@@ -304,7 +310,7 @@ class SingleVariableAccessInfo(object):
 
         # Now test if the loop variable is used when accessing this array:
         for access_info in self._accesses:
-            indices_list = access_info.indices
+            indices_list = access_info.indices_groups
             for index_group in indices_list:
                 for index_expression in index_group:
                     accesses = VariablesAccessInfo()
@@ -482,7 +488,7 @@ class VariablesAccessInfo(dict):
                 var_info.add_access_with_location(access_info.access_type,
                                                   new_location,
                                                   access_info.node,
-                                                  access_info.indices)
+                                                  access_info.indices_groups)
         # Increase the current location of this instance by the amount of
         # locations just merged in
         self._location = self._location + max_new_location
