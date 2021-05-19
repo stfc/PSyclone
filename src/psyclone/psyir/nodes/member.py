@@ -39,7 +39,6 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.reference import Reference
 
 
 class Member(Node):
