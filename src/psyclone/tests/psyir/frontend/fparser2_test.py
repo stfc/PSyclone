@@ -1113,7 +1113,7 @@ def test_process_save_attribute_declarations(parser):
         "integer, save :: var3\n"
         "end subroutine name")
     fparser2spec = parser(reader).content[0].content[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert isinstance(fake_parent.symbol_table.lookup("var3").datatype,
                       UnknownFortranType)
 
@@ -1123,7 +1123,7 @@ def test_process_save_attribute_declarations(parser):
         "integer, save :: var4\n"
         "end module modulename")
     fparser2spec = parser(reader).content[0].content[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, fparser2spec.children, [])
     var4 = fake_parent.symbol_table.lookup("var4")
     assert var4.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
@@ -1199,7 +1199,7 @@ def test_process_declarations_kind_new_param():
     # Change the variable name too to prevent a clash
     fp2spec[0].children[2].children[0].items[0].string = "var3"
     processor = Fparser2Reader()
-    processor.process_declarations(fake_parent, fp2spec[0], [])
+    processor.process_declarations(fake_parent, [fp2spec[0]], [])
     sym = fake_parent.symbol_table.lookup("var3")
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, UnknownFortranType)
@@ -1356,6 +1356,22 @@ def test_process_declarations_stmt_functions():
     assert "'. Symbol 'b' is in the SymbolTable but it is not an array as " \
         "expected, so it can not be recovered as an array assignment." \
         in str(error.value)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_unsupported_node():
+    ''' Check that process_declarations raises the expected error if it
+    encounters an unsupported fparser2 node. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
+                                 "real(kind=r_def) :: var2")
+    fparser2spec = Specification_Part(reader)
+    # Append an fparser2 node that is not a valid/supported declaration
+    fparser2spec.content.append(Fortran2003.Name("wrong"))
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert "fparser2 node of type 'Name' not supported" in str(err.value)
 
 
 @pytest.mark.usefixtures("f2008_parser")
