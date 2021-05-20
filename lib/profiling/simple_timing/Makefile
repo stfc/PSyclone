@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,32 +32,41 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?=
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./../..
+# -----------------------------------------------------------------------------
 
-F90?=gfortran
-F90FLAGS?=
+PSYDATA_LIB_NAME = simple_timing
+PSYDATA_LIB := lib$(PSYDATA_LIB_NAME).a
 
-name=simple_timing
-libname:=lib$(name).a
-OBJS = $(name).o psy_data_base.o
+OBJS = $(PSYDATA_LIB_NAME).o psy_data_base.o
+
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS=$$(../../get_python.sh) ../../process.py
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-.PHONY: default
+.PHONY: default clean allclean
 
-default: $(libname)
+default: $(PSYDATA_LIB)
 
-$(libname): $(OBJS)
+$(PSYDATA_LIB): $(OBJS)
 	ar rs $@ $(OBJS)
 
-$(name).o:	psy_data_base.o
+$(PSYDATA_LIB_NAME).o:	psy_data_base.o
 
-psy_data_base.f90: ../../psy_data_base.jinja
+psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod psy_data_base.f90 psy_data_base_mod.mod
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.*
 
+allclean: clean

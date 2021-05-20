@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -77,18 +77,14 @@ class ExtractNode(PSyDataNode):
     '''
     # Textual description of the node.
     _text_name = "Extract"
-    _colour_key = "Extract"
+    _colour = "green"
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = "extract"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
-        if options:
-            my_options = options.copy()
-        else:
-            my_options = {}
-        # If there is no value specified by in the constructor, default
-        # to the "extract" class.
-        my_options["prefix"] = my_options.get("prefix", "extract")
+
         super(ExtractNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=my_options)
+                                          parent=parent, options=options)
 
         # Define a postfix that will be added to variable that are
         # modified to make sure the names can be distinguished between pre-
@@ -183,3 +179,7 @@ class ExtractNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
+
+
+# For AutoAPI documentation generation
+__all__ = ['ExtractNode']

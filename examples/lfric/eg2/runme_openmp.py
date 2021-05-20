@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Example script showing how to apply OpenMP transformations to
 dynamo code'''
@@ -50,33 +50,27 @@ print(PSY.invokes.names)
 TRANS = TransInfo()
 print(TRANS.list)
 
-LOOP_FUSE = TRANS.get_trans_name('LoopFuse')
+LOOP_FUSE = TRANS.get_trans_name('LoopFuseTrans')
 OMP_PAR = TRANS.get_trans_name('OMPParallelLoopTrans')
 
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
 SCHEDULE.view()
 
-FUSE_SCHEDULE, _ = LOOP_FUSE.apply(SCHEDULE.children[0], SCHEDULE.children[1])
-FUSE_SCHEDULE.view()
-OMP_SCHEDULE, _ = OMP_PAR.apply(FUSE_SCHEDULE.children[0])
-OMP_SCHEDULE.view()
-
-PSY.invokes.get('invoke_0').schedule = OMP_SCHEDULE
+LOOP_FUSE.apply(SCHEDULE.children[0], SCHEDULE.children[1])
+SCHEDULE.view()
+OMP_PAR.apply(SCHEDULE.children[0])
+SCHEDULE.view()
 
 SCHEDULE = PSY.invokes.get('invoke_1_v2_kernel_type').schedule
 SCHEDULE.view()
 
-OMP_SCHEDULE, _ = OMP_PAR.apply(SCHEDULE.children[0])
-OMP_SCHEDULE.view()
-
-PSY.invokes.get('invoke_1_v2_kernel_type').schedule = OMP_SCHEDULE
+OMP_PAR.apply(SCHEDULE.children[0])
+SCHEDULE.view()
 
 SCHEDULE = PSY.invokes.get('invoke_2_v1_kernel_type').schedule
 SCHEDULE.view()
 
-OMP_SCHEDULE, _ = OMP_PAR.apply(SCHEDULE.children[0])
-OMP_SCHEDULE.view()
-
-PSY.invokes.get('invoke_2_v1_kernel_type').schedule = OMP_SCHEDULE
+OMP_PAR.apply(SCHEDULE.children[0])
+SCHEDULE.view()
 
 print(PSY.gen)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,8 @@
 
 ''' Module containing the definition of the Range node. '''
 
-from psyclone.psyir.nodes import Node, Literal
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
 
@@ -90,7 +91,7 @@ class Range(Node):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode"
     _text_name = "Range"
-    _colour_key = "Range"
+    _colour = "white"
 
     @staticmethod
     def _validate_child(position, child):
@@ -106,7 +107,7 @@ class Range(Node):
         return position < 3 and isinstance(child, DataNode)
 
     @staticmethod
-    def create(start, stop, step=None, parent=None):
+    def create(start, stop, step=None):
         '''
         Create an internally-consistent Range object. If no step
         is provided then it defaults to an integer Literal with value 1.
@@ -124,17 +125,14 @@ class Range(Node):
         :rtype: :py:class:`psyclone.psyir.nodes.ranges.Range`
 
         '''
-        erange = Range(parent=parent)
+        erange = Range()
         erange.start = start
-        start.parent = erange
         erange.stop = stop
-        stop.parent = erange
         if step:
             erange.step = step
-            step.parent = erange
         else:
             # No step supplied so default to a value of 1
-            erange.step = Literal("1", INTEGER_TYPE, parent=erange)
+            erange.step = Literal("1", INTEGER_TYPE)
         return erange
 
     @staticmethod
@@ -213,7 +211,7 @@ class Range(Node):
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         self._check_completeness()
-        return self._children[1]
+        return self.children[1]
 
     @stop.setter
     def stop(self, value):
@@ -230,7 +228,7 @@ class Range(Node):
         if len(self.children) == 1:
             self.children.append(value)
         else:
-            self._children[1] = value
+            self.children[1] = value
 
     @property
     def step(self):
@@ -242,7 +240,7 @@ class Range(Node):
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         self._check_completeness()
-        return self._children[2]
+        return self.children[2]
 
     @step.setter
     def step(self, value):

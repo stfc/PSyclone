@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,9 +38,11 @@
 ! -----------------------------------------------------------------------------
 module setval_field_w3_kernel_mod
 
-  use argument_mod,      only: arg_type,          &
-                               GH_FIELD, GH_REAL, &
-                               GH_WRITE, GH_READ, CELLS
+  use argument_mod,      only: arg_type,            &
+                               GH_FIELD, GH_SCALAR, &
+                               GH_REAL,             &
+                               GH_WRITE, GH_READ,   &
+                               CELL_COLUMN
   use fs_continuity_mod, only: W3
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
@@ -55,11 +57,11 @@ module setval_field_w3_kernel_mod
   !-----------------------------------------------------------------------------
   type, public, extends(kernel_type) :: setval_field_w3_kernel_type
     private
-    type(arg_type), dimension(2) :: meta_args = (/ &
-         arg_type(GH_FIELD, GH_WRITE, W3),         &
-         arg_type(GH_REAL,  GH_READ)               &
+    type(arg_type), dimension(2) :: meta_args = (/   &
+         arg_type(GH_FIELD,  GH_REAL, GH_WRITE, W3), &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ)       &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: setval_field_w3_code
   end type setval_field_w3_kernel_type
@@ -89,7 +91,7 @@ module setval_field_w3_kernel_mod
     integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def), intent(in) :: rscalar_2
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field_1_w3
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field_1_w3
 
     ! Internal variables
     integer(kind=i_def) :: k, df

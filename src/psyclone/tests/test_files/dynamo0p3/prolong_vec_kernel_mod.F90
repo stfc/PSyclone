@@ -2,7 +2,7 @@
 !
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2020, Science and Technology Facilities Council
+! Copyright (c) 2018-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -48,9 +48,9 @@ module prolong_vec_kernel_mod
 
   type, public, extends(kernel_type) :: prolong_vec_kernel_type
      private
-     type(arg_type), dimension(2) :: meta_args = (/             &
-          arg_type(GH_FIELD*3, GH_INC,  W1, mesh_arg=GH_FINE),  &
-          arg_type(GH_FIELD*3, GH_READ, W2, mesh_arg=GH_COARSE) &
+     type(arg_type), dimension(2) :: meta_args = (/                      &
+          arg_type(GH_FIELD*3, GH_REAL, GH_INC,  W1, mesh_arg=GH_FINE),  &
+          arg_type(GH_FIELD*3, GH_REAL, GH_READ, W2, mesh_arg=GH_COARSE) &
           /)
      integer :: operates_on = CELL_COLUMN
    contains
@@ -63,7 +63,8 @@ contains
 
   subroutine prolong_vec_kernel_code(nlayers,                      &
                                      cell_map,                     &
-                                     ncell_f_per_c,                &
+                                     ncell_f_per_c_x,              &
+                                     ncell_f_per_c_y,              &
                                      ncell_f,                      &
                                      fine_1, fine_2, fine_3,       &
                                      coarse_1, coarse_2, coarse_3, &
@@ -73,8 +74,9 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ncell_f_per_c
-    integer(kind=i_def), dimension(ncell_f_per_c), intent(in) :: cell_map
+    integer(kind=i_def), intent(in) :: ncell_f_per_c_x, ncell_f_per_c_y
+    integer(kind=i_def), dimension(ncell_f_per_c_x, ncell_f_per_c_y), &
+                         intent(in) :: cell_map
     integer(kind=i_def), intent(in) :: ncell_f
     integer(kind=i_def), intent(in) :: ndf_w1, undf_w1, undf_w2
     integer(kind=i_def), dimension(ndf_w1, ncell_f), intent(in) :: dofmap_w1

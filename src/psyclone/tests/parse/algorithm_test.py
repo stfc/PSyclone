@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,17 +38,23 @@ file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
 from __future__ import absolute_import
+import six
 
 import pytest
 
-from fparser.two.Fortran2003 import Part_Ref
-
+from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor, \
+    Data_Ref, Proc_Component_Ref, Name, Call_Stmt, Use_Stmt, \
+    Actual_Arg_Spec
+from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
-
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
 
+
+# This ParserFactory call needs to happen at the top-level in order for the
+# fparser.two.Fortran2003 import to work as expected.
+ParserFactory().create(std="f2008")
 
 # class parser() tests
 
@@ -68,14 +74,32 @@ def test_parser_parse(tmpdir):
     assert ("Program, module, function or subroutine not found in parse tree "
             "for file") in str(excinfo.value)
 
+# create_invoke_call tests
 
-def test_parser_createinvokecall(parser):
+
+def test_parser_createinvokecall():
+    '''Test that valid invoke calls are created without an
+    exception. Limit this to builtins as kernel calls fail as there is
+    no associated use statement declared. Test with names, real
+    scalars, integer scalars and structure references, including ones
+    to self, as the parser represents these in different ways so the
+    create_invoke_call needs to deal with the different
+    representations.
+
+    '''
+    statement = Call_Stmt(
+        "call invoke(name=\"dummy\", setval_c(a,1.0), setval_c(a,1), "
+        "setval_c(a,b), setval_c(a%c, b), setval_c(self%a, 1.0), "
+        "setval_c(self%a, b))")
+    parse = Parser()
+    _ = parse.create_invoke_call(statement)
+
+
+def test_parser_createinvokecall_error():
     '''Test that if an argument to an invoke call is not what is expected
     then the appropriate exception is raised.
 
     '''
-    # pylint: disable=unused-argument
-    from fparser.two.Fortran2003 import Call_Stmt
     statement = Call_Stmt("call invoke(0.0)")
     tmp = Parser()
     with pytest.raises(ParseError) as excinfo:
@@ -101,11 +125,8 @@ def test_parser_caseinsensitive1():
     statement is case insensitive.
 
     '''
-    from fparser.two import Fortran2003 as f2003
-    from fparser.two.parser import ParserFactory
-    ParserFactory().create(std="f2003")
     parser = Parser()
-    use = f2003.Use_Stmt("use my_mod, only : SETVAL_X")
+    use = Use_Stmt("use my_mod, only : SETVAL_X")
     parser.update_arg_to_module_map(use)
     with pytest.raises(ParseError) as excinfo:
         parser.create_builtin_kernel_call("SetVal_X", None)
@@ -124,15 +145,11 @@ def test_parser_caseinsensitive2(monkeypatch):
         raise an exception.
 
         '''
-        # pylint: disable=unused-argument
         raise NotImplementedError("test_parser_caseinsensitive2")
 
     monkeypatch.setattr("psyclone.parse.kernel.get_kernel_ast", dummy_func)
-    from fparser.two import Fortran2003 as f2003
-    from fparser.two.parser import ParserFactory
-    ParserFactory().create(std="f2003")
     parser = Parser()
-    use = f2003.Use_Stmt("use my_mod, only : MY_KERN")
+    use = Use_Stmt("use my_mod, only : MY_KERN")
     parser.update_arg_to_module_map(use)
     with pytest.raises(NotImplementedError) as excinfo:
         # We have monkeypatched the function 'get_kernel_ast' to
@@ -161,7 +178,7 @@ def test_getinvokelabel_invalid_tree():
         "of") in str(excinfo.value)
 
 
-def test_getinvokelabel_invalid_items(parser, monkeypatch):
+def test_getinvokelabel_invalid_items(monkeypatch):
     '''Test that if the parse tree argument is an Actual_Arg_Spec but does
     not contain two items then an exception is raised in the expected
     way. Create the parse_tree in-place rather than running
@@ -169,8 +186,6 @@ def test_getinvokelabel_invalid_items(parser, monkeypatch):
     monkeypatch.
 
     '''
-    # pylint: disable=unused-argument
-    from fparser.two.Fortran2003 import Actual_Arg_Spec
     parse_tree = Actual_Arg_Spec("name='myname'")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
@@ -190,28 +205,29 @@ def test_getkernel_invalid_tree():
     with pytest.raises(InternalError) as excinfo:
         _ = get_kernel("invalid", "dummy.f90")
     assert (
-        "Expected a parse tree (type Part_Ref) but found instance of ") \
-        in str(excinfo.value)
+        "Expected a parse tree (type Part_Ref or Structure_Constructor) but "
+        "found instance of ") in str(excinfo.value)
 
 
-def test_getkernel_invalid_children(parser, monkeypatch):
-    '''Test that if the get_kernel function finds Part_Ref as the top
-    level of the parse tree but this does not have two children then
-    it raises an exception in the expected way. Create the parse_tree
-    in-place rather than running PSyclone. Once created make the
-    parse_tree content invalid using monkeypatch.
+@pytest.mark.parametrize("cls", [Part_Ref, Structure_Constructor])
+def test_getkernel_invalid_children(cls, monkeypatch):
+    '''Test that if the get_kernel function finds Part_Ref or
+    Structure_Constructor as the top level of the parse tree but this
+    does not have two children then it raises an exception in the
+    expected way. Create the parse_tree in-place rather than running
+    PSyclone. Once created make the parse_tree content invalid using
+    monkeypatch.
 
     '''
-    # pylint: disable=unused-argument
-    parse_tree = Part_Ref("kernel(arg)")
+    parse_tree = cls("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
         _ = get_kernel(parse_tree, "dummy.f90")
-    assert "Expected Part_Ref to have 2 children but found 3." \
-        in str(excinfo.value)
+    assert ("Expected Part_Ref or Structure_Constructor to have 2 children "
+            "but found 3.") in str(excinfo.value)
 
 
-def test_getkernel_invalid_arg(parser, monkeypatch):
+def test_getkernel_invalid_arg(monkeypatch):
     '''Test that if the get_kernel function does not recognise the type of
     argument inside a kernel passed to it, then it raises an exception
     in the expected way. Create the parse_tree in-place rather than
@@ -219,7 +235,6 @@ def test_getkernel_invalid_arg(parser, monkeypatch):
     using monkeypatch.
 
     '''
-    # pylint: disable=unused-argument
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, "invalid"])
     with pytest.raises(InternalError) as excinfo:
@@ -234,13 +249,12 @@ def test_getkernel_invalid_arg(parser, monkeypatch):
 @pytest.mark.parametrize('content',
                          ["1.0", "1.0_r_def", "1_i_def", "- 1.0", "- 1",
                           "1.0 * 1.0", "(1.0 * 1.0)"])
-def test_getkernel_isliteral(parser, content):
+def test_getkernel_isliteral(content):
     '''Test that the get_kernel function recognises the possible forms of
     literal argument and returns them correctly.
 
     '''
-    # pylint: disable=unused-argument
-    tree = Part_Ref("sub({0})".format(content))
+    tree = Structure_Constructor("sub({0})".format(content))
     kern_name, args = get_kernel(tree, "dummy.f90")
     assert kern_name == "sub"
     assert len(args) == 1
@@ -254,12 +268,11 @@ def test_getkernel_isliteral(parser, content):
 @pytest.mark.parametrize('content',
                          ["a_rg", "a_rg(n)", "a % rg", "a % rg(n)",
                           "a % rg()"])
-def test_getkernel_isarg(parser, content):
+def test_getkernel_isarg(content):
     '''Test that the get_kernel function recognises standard arguments,
     including a function reference, and returns them correctly
 
     '''
-    # pylint: disable=unused-argument
     tree = Part_Ref("sub({0})".format(content))
     kern_name, args = get_kernel(tree, "dummy.f90")
     assert kern_name == "sub"
@@ -274,13 +287,12 @@ def test_getkernel_isarg(parser, content):
 @pytest.mark.parametrize('content',
                          ["- arg", "1.0 * arg", "(1.0 * arg)",
                           "1.0 * (1.0 * arg)", "arg1*arg2"])
-def test_getkernel_noexpr(parser, content):
+def test_getkernel_noexpr(content):
     '''Test that the get_kernel function recognises an expression
     containing a variable and raises an exception (as this is not
     currently supported).
 
     '''
-    # pylint: disable=unused-argument
     tree = Part_Ref("sub({0})".format(content))
     with pytest.raises(NotImplementedError) as excinfo:
         _, _ = get_kernel(tree, "dummy.f90")
@@ -288,12 +300,11 @@ def test_getkernel_noexpr(parser, content):
         in str(excinfo.value)
 
 
-def test_getkernel_argerror(monkeypatch, parser):
+def test_getkernel_argerror(monkeypatch):
     '''Test that the get_kernel function raises an exception if it does
     not recognise the fparser2 parse tree for an argument.
 
     '''
-    # pylint: disable=unused-argument
     tree = Part_Ref("sub(dummy)")
     monkeypatch.setattr(tree, "items", ["sub", None])
     with pytest.raises(InternalError) as excinfo:
@@ -303,15 +314,49 @@ def test_getkernel_argerror(monkeypatch, parser):
 # function create_var_name() tests
 
 
-def test_createvarname_unknown_content():
+def test_createvarname_error1():
     '''Test that if the create_var_name function does not recognise
     content within the parse tree passed to it, then it raises an
     exception in the expected way.
 
     '''
+    name = "class"
+    if six.PY2:
+        name = "type"
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name("invalid")
-    assert "unrecognised structure" in str(excinfo.value)
+    assert ("algorithm.py:create_var_name unrecognised structure "
+            "'<{0} 'str'>'".format(name) in str(excinfo.value))
+
+
+def test_createvarname_error2(monkeypatch):
+    '''Test that if the create_var_name function does not recognise
+    content within a Data_Ref passed to it, then it raises an
+    exception in the expected way.
+
+    '''
+    name = "class"
+    if six.PY2:
+        name = "type"
+    content = Data_Ref("a%b")
+    monkeypatch.setattr(content, "items", ["invalid", "invalid"])
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_var_name(content)
+    assert ("algorithm.py:create_var_name unrecognised structure "
+            "'<{0} 'str'>' in '<class 'fparser.two.Fortran2003."
+            "Data_Ref'>'".format(name) in str(excinfo.value))
+
+
+@pytest.mark.parametrize("expression,expected", [
+    (Name("a"), "a"), (Part_Ref("a"), "a"), (Part_Ref("a(1,n)"), "a"),
+    (Data_Ref("c%b%a"), "c_b_a"), (Data_Ref("c(0)%b%a(1,n)"), "c_b_a"),
+    (Proc_Component_Ref("self%a"), "self_a")])
+def test_createvarname(expression, expected):
+    '''Test that create var name works as expected (for cases with Name,
+    Part_Ref, Data_Ref and Proc_Component_Ref).
+
+    '''
+    assert create_var_name(expression) == expected
 
 # class KernelCall() tests
 

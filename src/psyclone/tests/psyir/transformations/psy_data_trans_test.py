@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modifications: R. W. Ford, STFC Daresbury Lab
 #                A. R. Porter, STFC Daresbury Lab
+#                S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -41,10 +42,11 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.nodes import colored, PSyDataNode, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes import colored, PSyDataNode, Schedule
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyGen import Loop
 from psyclone.tests.utilities import get_invoke
+from psyclone.gocean1p0 import GOInvokeSchedule
 
 
 # -----------------------------------------------------------------------------
@@ -78,8 +80,8 @@ def test_psy_data_trans_basic(capsys):
     schedule.view()
     out, _ = capsys.readouterr()
 
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    gsched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
+    sched = colored("Schedule", Schedule._colour)
     loop = Loop().coloured_name(True)
     data = invoke.schedule[0].coloured_name(True)
 
@@ -96,10 +98,9 @@ def test_psy_data_trans_basic(capsys):
     # Insert a DataTrans call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    new_sched, _ = data_trans.apply(invoke.schedule[0].psy_data_body[0]
-                                    .loop_body[0])
+    data_trans.apply(invoke.schedule[0].psy_data_body[0].loop_body[0])
 
-    new_sched_str = str(new_sched)
+    new_sched_str = str(invoke.schedule)
     correct = ("""GOInvokeSchedule[invoke='invoke_0', \
 Constant loop bounds=True]:
 PSyDataStart[var=psy_data]

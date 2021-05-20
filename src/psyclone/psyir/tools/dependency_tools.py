@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,7 @@
 
 from __future__ import absolute_import, print_function
 
-from psyclone.core.access_info import VariablesAccessInfo
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -149,7 +148,7 @@ class DependencyTools(object):
         :param str loop_variable: name of the variable that is parallelised.
         :param var_info: access information for this variable.
         :type var_info: \
-            :py:class:`psyclone.core.access_info.VariableAccessInfo`
+            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
 
         :return: whether the variable can be used in parallel.
         :rtype: bool
@@ -180,15 +179,8 @@ class DependencyTools(object):
                     enumerate(list_of_indices):
                 accesses = VariablesAccessInfo()
 
-                # TODO #363: derived types are not supported, which
-                # atm have an index_expression of type str
-                if isinstance(index_expression, str):
-                    var_string = var_info.var_name + index_expression
-                    self._add_warning("Assignment to derived type '{0}' is "
-                                      "not supported yet.".format(var_string))
-                    return False
                 index_expression.reference_accesses(accesses)
-                if loop_variable not in accesses:
+                if Signature(loop_variable) not in accesses:
                     continue
 
                 # if a previously identified index location does not match
@@ -297,6 +289,7 @@ class DependencyTools(object):
                                  variables_to_ignore=None,
                                  var_accesses=None):
         # pylint: disable=too-many-arguments, too-many-branches
+        # pylint: disable=too-many-locals
         '''This function analyses a loop in the PsyIR to see if
         it can be safely parallelised over the specified variable.
 
@@ -355,15 +348,16 @@ class DependencyTools(object):
 
         result = True
         # Now check all variables used in the loop
-        for var_name in var_accesses.all_vars:
+        for signature in var_accesses.all_signatures:
             # Ignore all loop variables - they look like reductions because of
             # the write-read access in the loop:
+            var_name = str(signature)
             if var_name in loop_vars:
                 continue
             if var_name in variables_to_ignore:
                 continue
 
-            var_info = var_accesses[var_name]
+            var_info = var_accesses[signature]
             symbol_table = loop.scope.symbol_table
             if var_name not in symbol_table:
                 # TODO #845: Once we have symbol tables, any variable should
@@ -374,7 +368,7 @@ class DependencyTools(object):
                 is_array = var_info[0].indices is not None
             else:
                 # Find the symbol for this variable
-                symbol = loop.find_or_create_symbol(var_name)
+                symbol = symbol_table.lookup(var_name)
                 is_array = symbol.is_array
 
             if is_array:
@@ -416,15 +410,15 @@ class DependencyTools(object):
             variables_info = VariablesAccessInfo(node_list)
 
         input_list = []
-        for var_name in variables_info.all_vars:
+        for signature in variables_info.all_signatures:
             # Take the first access (index 0) of this variable. Note that
             # loop variables have a WRITE before a READ access, so they
             # will be ignored
-            first_access = variables_info[var_name][0]
+            first_access = variables_info[signature][0]
             # If the first access is a write, the variable is not an input
             # parameter and does not need to be saved.
             if first_access.access_type != AccessType.WRITE:
-                input_list.append(var_name)
+                input_list.append(str(signature))
 
         return input_list
 
@@ -449,8 +443,8 @@ class DependencyTools(object):
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list)
 
-        return [var_name for var_name in variables_info.all_vars
-                if variables_info.is_written(var_name)]
+        return [str(signature) for signature in variables_info.all_signatures
+                if variables_info.is_written(signature)]
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list):

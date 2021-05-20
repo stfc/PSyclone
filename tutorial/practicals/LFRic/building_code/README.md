@@ -41,6 +41,20 @@ be used throughout the model, including the kernels. The information in this
 tutorial is read from an input namelist file and accessed by kernels and
 algorithms that need to be completed to propagate the field.
 
+### [Tutorial 4: Using PSyData transformation](4_psydata)
+
+This tutorial uses the previous [Time Evolution](#tutorial-3-time-evolution)
+example to show the usage of various
+PSyData transformations. [Kernel Extraction](
+https://psyclone.readthedocs.io/en/latest/psyke.html)
+is the first transformation
+introduced, followed by [NAN verification](
+https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-nan-test)
+and [read-only-variable verification](
+https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification).
+All these examples are executable, and incorrect code can be uncommented to
+trigger the error checks enabled by some PSyData transformations.
+
 ## Hands-on tutorial structure
 
 In order to illustrate the [*separation of concerns*](
@@ -71,7 +85,7 @@ Each tutorial directory contains `Makefile`s to build and run the
 code once that the kernel and algorithm code is completed. There are
 tree targets to the `make` process:
 
-* `make test` calls PSyclone with the prescribed command-line options
+* `make transform` calls PSyclone with the prescribed command-line options
   to generate the processed [Algorithm](
   background/LFRic_structure.md#algorithm-layer) and [PSy](
   background/LFRic_structure.md#psy-layer) layer;
@@ -84,7 +98,7 @@ tree targets to the `make` process:
 ---
 **NOTE**
 
-It is advisable to run `make test` whilst completing the kernel and
+It is advisable to run `make transform` whilst completing the kernel and
 and algorithm code to ensure that the code is correct. PSyclone checks
 that the source is syntactically correct and that it abides by the
 PSyclone [LFRIC (Dynamo 0.3) API](
@@ -95,9 +109,6 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) rules.
 The completed solutions are provided in the `solutions`
 subdirectories of each tutorial, together with `Makefile`s to build
 and run the code.
-
-Each of these tutorials also has a `solutions` subdirectory with the
-completed code that can be built and run as a reference.
 
 ### Use of PSyclone to process the algorithm code
 
@@ -111,7 +122,7 @@ algorithm module can be summarised as `<base_name>_alg_mod.x90`. The
 processed algorithm code is saved as `<base_name>_alg_mod.f90` and the
 generated PSy-layer code is saved as `<base_name>_alg_mod_psy.f90`.
 
-This process, set as the `make test` target (see above), is mimicked
+This process, set as the `make transform` target (see above), is mimicked
 in all tutorials. See, for instance, this code from the
 [built-ins example `Makefile`](2_built_ins/Makefile)
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -118,13 +118,13 @@ def test_kerntypefactory_create_broken_type():
 def test_broken_builtin_metadata():
     ''' Check that we raise an appropriate error if there is a problem
     with the meta-data describing the built-ins for a given API '''
-    from psyclone import dynamo0p3_builtins
+    from psyclone.domain.lfric import lfric_builtins
     # The file containing broken meta-data for the built-ins
     test_builtin_name = "aX_plus_Y"
     defs_file = os.path.join(TEST_PATH, "broken_builtins_mod.f90")
     factory = BuiltInKernelTypeFactory(api="dynamo0.3")
     with pytest.raises(ParseError) as excinfo:
-        _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
+        _ = factory.create(lfric_builtins.BUILTIN_MAP,
                            defs_file, name=test_builtin_name.lower())
     assert ("Failed to parse the meta-data for PSyclone built-ins in" in
             str(excinfo.value))
@@ -133,10 +133,10 @@ def test_broken_builtin_metadata():
 def test_unrecognised_builtin():
     ''' Check that we raise an error if we call the BuiltInKernelTypeFactory
     with an unrecognised built-in name '''
-    from psyclone import dynamo0p3_builtins
+    from psyclone.domain.lfric import lfric_builtins
     factory = BuiltInKernelTypeFactory()
     with pytest.raises(ParseError) as excinfo:
-        _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
+        _ = factory.create(lfric_builtins.BUILTIN_MAP,
                            None,
                            name="not_a_builtin")
     assert ("unrecognised built-in name. Got 'not_a_builtin' but"
@@ -255,9 +255,9 @@ def test_get_stencil():
 MDATA = '''
 module testkern_eval_mod
   type, extends(kernel_type) :: testkern_eval_type
-    type(arg_type) :: meta_args(2) = (/       &
-         arg_type(GH_FIELD,   GH_WRITE,  W0), &
-         arg_type(GH_FIELD,   GH_READ, W1)    &
+    type(arg_type) :: meta_args(2) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W0), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W1)  &
          /)
     type(func_type) :: meta_funcs(2) = (/     &
          func_type(W0, GH_BASIS),             &

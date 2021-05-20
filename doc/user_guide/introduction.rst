@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -58,9 +58,9 @@ parallel algorithms that will scale to millions of cores.
 The software infrastructure based on the GungHo project recommendations
 is now being developed in the
 `LFRic project <https://www.metoffice.gov.uk/research/modelling-systems/lfric>`_
-and is expected to be operational in 2022. Its development is led by the
-requirements to support multiple meshes and element types, thus allowing
-for future model development.
+and is expected to is expected to start preparations for operational
+deployment in 2025. Its development is led by the requirements to support
+multiple meshes and element types, thus allowing for future model development.
 
 GungHo also proposed a novel separation of concerns for the software
 implementation of the dynamical core. This approach distinguishes between

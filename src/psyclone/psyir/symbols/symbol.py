@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -254,6 +254,34 @@ class Symbol(object):
         # first positional argument.
         return type(self)(self.name, visibility=self.visibility,
                           interface=self.interface)
+
+    def specialise(self, subclass):
+        '''Specialise this symbol so that it becomes an instance of the class
+        provided in the subclass argument. This allows this instance
+        to become a subclass without any references to it becoming
+        invalid.
+
+        :param subclass: the class that this symbol will become.
+        :type subclass: type of sub-class of \
+            :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises TypeError: if subclass is not a sub-class of Symbol.
+
+        '''
+        try:
+            is_subclass = issubclass(subclass, self.__class__)
+        except TypeError as info:
+            message = ("The specialise method in '{0}' expects the "
+                       "subclass argument to be a class.".format(self.name))
+            six.raise_from(TypeError(message), info)
+        # pylint: disable = unidiomatic-typecheck
+        if not is_subclass or type(self) is subclass:
+            raise TypeError(
+                "The specialise method in '{0}', an instance of '{1}', "
+                "expects the subclass argument to be a subclass of '{1}', "
+                "but found '{2}'.".format(
+                    self.name, type(self).__name__, subclass.__name__))
+        self.__class__ = subclass
 
     def get_external_symbol(self):
         '''

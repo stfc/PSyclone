@@ -178,11 +178,10 @@ def test_cw_array():
         in str(excinfo.value)
 
     # Dimensions can be references, literals or operations
-    arr.addchild(Reference(DataSymbol('b', INTEGER_TYPE), parent=arr))
-    arr.addchild(Literal('1', INTEGER_TYPE, parent=arr))
+    arr.addchild(Reference(DataSymbol('b', INTEGER_TYPE)))
+    arr.addchild(Literal('1', INTEGER_TYPE))
     uop = UnaryOperation.create(UnaryOperation.Operator.MINUS,
                                 Literal('2', INTEGER_TYPE))
-    uop.parent = arr
     arr.addchild(uop)
 
     result = cwriter(assignment)
@@ -207,7 +206,7 @@ def test_cw_ifblock():
            "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
-    ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE), parent=ifblock))
+    ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE)))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
     assert("IfBlock malformed or incomplete. It should have "
@@ -222,7 +221,6 @@ def test_cw_ifblock():
     then_content = [Return()]
     else_content = [Return()]
     ifblock2 = IfBlock.create(condition, then_content, else_content)
-    ifblock2.parent = ifblock.if_body
     ifblock.else_body.addchild(ifblock2)
 
     result = cwriter(ifblock)
@@ -363,14 +361,12 @@ def test_cw_binaryoperator():
     assert "' operator." in str(err.value)
 
 
-def test_cw_loop():
+def test_cw_loop(fortran_reader):
     '''Tests writing out a Loop node in C. It parses Fortran code
     and outputs it as C. Note that this is atm a literal translation,
     the loops are not functionally identical to Fortran, see TODO #523.
 
     '''
-    from psyclone.tests.utilities import create_schedule
-
     # Generate PSyIR from Fortran code.
     code = '''
         module test
@@ -383,7 +379,7 @@ def test_cw_loop():
           enddo
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
+    schedule = fortran_reader.psyir_from_source(code).children[0]
 
     cvisitor = CWriter()
     result = cvisitor(schedule[0])

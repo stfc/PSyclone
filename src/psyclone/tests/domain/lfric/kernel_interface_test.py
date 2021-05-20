@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''Test that the expected kernel arguments, based on the kernel
 metadata, are created and declared within a symbol table using
@@ -49,7 +51,7 @@ from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
 from psyclone.errors import InternalError
-from psyclone.core.access_info import VariableAccessInfo, AccessType
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, os.pardir, "test_files", "dynamo0p3")
@@ -68,7 +70,7 @@ def test_init():
     assert kernel_interface._arglist == []
 
 
-@pytest.mark.parametrize("var_accesses", [None, VariableAccessInfo("test")])
+@pytest.mark.parametrize("var_accesses", [None, VariablesAccessInfo()])
 def test_generate(var_accesses):
     '''Test that the KernelInterface class generate method creates the
     expected symbols and adds them to the symbol table and its
@@ -128,20 +130,18 @@ def test_generate(var_accesses):
     if var_accesses:
         # Check that the names of variables and their intent has been
         # captured by the data dependence analysis
-        accesses = var_accesses.all_accesses
-        assert len(accesses) == 6
-        assert accesses[0].access_type == "nlayers"
-        assert accesses[0].location == AccessType.READ
-        assert accesses[1].access_type == "undf_w0"
-        assert accesses[1].location == AccessType.READ
-        assert accesses[2].access_type == "f1"
-        assert accesses[2].location == AccessType.READWRITE
-        assert accesses[3].access_type == "f2"
-        assert accesses[3].location == AccessType.READ
-        assert accesses[4].access_type == "ndf_w0"
-        assert accesses[4].location == AccessType.READ
-        assert accesses[5].access_type == "dofmap_w0"
-        assert accesses[5].location == AccessType.READ
+        assert len(var_accesses.all_signatures) == 6
+
+        # Test all read-only variables
+        for var in ["nlayers", "undf_w0", "f2", "ndf_w0", "dofmap_w0"]:
+            accesses = var_accesses[Signature(var)]
+            assert len(accesses.all_accesses) == 1
+            assert accesses[0].access_type == AccessType.READ
+
+        # Test the read-write variable
+        accesses = var_accesses[Signature("f1")]
+        assert len(accesses.all_accesses) == 1
+        assert accesses[0].access_type == AccessType.READWRITE
 
 
 def test_cell_position():
@@ -761,16 +761,6 @@ def test_diff_basis():
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
-def test_orientation():
-    '''Test that the KernelInterface class orientation method adds the
-    expected symbols to the symbol table and the _arglist list.
-
-    '''
-    kernel_interface = KernelInterface(None)
-    kernel_interface.orientation(None)
-
-
-@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_field_bcs_kernel():
     '''Test that the KernelInterface class field_bcs_kernel method adds the
     expected symbols to the symbol table and the _arglist list.
@@ -978,75 +968,6 @@ def test_quad_rule_error(monkeypatch):
     assert(
         "Unsupported quadrature shape 'invalid_shape' found in "
         "kernel_interface." in str(info.value))
-
-
-def test_create_symbol_tag():
-    '''Test that an existing symbol with a matching tag is returned'''
-    symbol1 = lfric_psyir.CellPositionDataSymbol("test")
-    kernel_interface = KernelInterface(None)
-    kernel_interface._symbol_table.add(symbol1, tag="test")
-    symbol2 = kernel_interface._create_symbol(
-        "test", lfric_psyir.CellPositionDataSymbol)
-    assert symbol2 is symbol1
-
-
-def test_create_symbol_tag_error():
-    '''Test that an existing symbol with the same tag as this raises an
-    exception if its type differs from the supplied type.
-
-    '''
-    symbol1 = lfric_psyir.CellPositionDataSymbol("test")
-    kernel_interface = KernelInterface(None)
-    kernel_interface._symbol_table.add(symbol1, tag="test")
-    with pytest.raises(InternalError) as info:
-        _ = kernel_interface._create_symbol(
-            "test", lfric_psyir.MeshHeightDataSymbol)
-    assert (
-        "Expected symbol with tag 'test' to be of type 'MeshHeightDataSymbol' "
-        "but found type 'CellPositionDataSymbol'." in str(info.value))
-
-
-def test_create_symbol_new():
-    '''Test that a new symbol is created correctly and added to the symbol
-    table succesfuly with the supplied tag and the default interface
-    if one is not supplied. Also check the symbol is returned from the
-    method.
-
-    '''
-    kernel_interface = KernelInterface(None)
-    symbol1 = kernel_interface._create_symbol(
-        "test", lfric_psyir.CellPositionDataSymbol)
-    symbol2 = kernel_interface._symbol_table.lookup_with_tag("test")
-    assert symbol2 is symbol1
-    assert isinstance(symbol1.interface, ArgumentInterface)
-    assert (symbol1.interface.access ==
-            kernel_interface._read_access.access)
-
-
-def test_create_symbol_args():
-    '''Test that a new symbol is created correctly and added to the symbol
-    table successfully when it makes use of the extra_args, dims and
-    interface optional arguments. We don't check or test for errors in
-    argument types and values as this is an internal method.
-
-    '''
-    kernel_interface = KernelInterface(None)
-    size_symbol = lfric_psyir.NumberOfUniqueDofsDataSymbol(
-        "ndofs", "w3",
-        interface=ArgumentInterface(ArgumentInterface.Access.READ))
-    symbol1 = kernel_interface._create_symbol(
-        "test", lfric_psyir.RealFieldDataDataSymbol, extra_args=["w3"],
-        dims=[Reference(size_symbol)],
-        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-
-    symbol2 = kernel_interface._symbol_table.lookup_with_tag("test")
-    assert symbol2 is symbol1
-    assert symbol1.fs == "w3"
-    assert len(symbol1.shape) == 1
-    assert isinstance(symbol1.shape[0], Reference)
-    assert symbol1.shape[0].symbol == size_symbol
-    assert isinstance(symbol1.interface, ArgumentInterface)
-    assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
 
 
 def test_create_basis_errors(monkeypatch):

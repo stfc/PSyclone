@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ module testkern_operator_nofield_scalar_mod
 
   type, extends(kernel_type) :: testkern_operator_nofield_scalar_type
      type(arg_type), dimension(2) :: meta_args =                  &
-          (/ arg_type(gh_operator,             gh_write, w2, w2), &
+          (/ arg_type(gh_operator, gh_real,    gh_write, w2, w2), &
              arg_type(gh_scalar,   gh_integer, gh_read)           &
           /)
      type(func_type) :: meta_funcs(1) =                           &
@@ -70,7 +70,7 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: box_b
     integer(kind=i_def), intent(in) :: np_xy, np_z
-    real(kind=r_def), intent(out), dimension(ndf_w2,ndf_w2,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(inout), dimension(ndf_w2,ndf_w2,ncell_3d) :: local_stencil
     real(kind=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) :: basis_w2
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
     real(kind=r_def), intent(in), dimension(np_z)  :: weights_z

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-#
-# psyclone documentation build configuration file, created by
-# sphinx-quickstart on Mon Jan 27 12:50:29 2014.
-#
+
+'''
+ PSyclone documentation build configuration file, created by
+ sphinx-quickstart on Mon Jan 27 12:50:29 2014.
+'''
+
 # This file is execfile()d with the current directory set to its
 # containing dir.
 #
@@ -12,7 +14,10 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
+# The names of the variables in this file are Sphinx keywords so
+# we can't make them uppercase as pylint demands.
+# pylint: disable=invalid-name
+
 import os
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -23,8 +28,8 @@ import os
 # -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-# We need version >= 1.5 for the "numref" feature.
-needs_sphinx = '1.5'
+# We need version >=  1.8 for the html_css_files feature.
+needs_sphinx = '1.8'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
@@ -32,6 +37,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
               'sphinxcontrib.bibtex']
+bibtex_bibfiles = ['../bibliography/references.bib']
 
 # Enable numbered referencing of figures (use with :numref:`my-fig-reference`)
 numfig = True
@@ -50,7 +56,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PSyclone'
-copyright = u'2017-2020, STFC Daresbury Laboratory'
+copyright = u'2017-2021, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -141,11 +147,9 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',  # override wide tables in RTD theme
-        ],
-     }
+# These paths are either relative to html_static_path
+# or fully qualified paths (eg. https://...)
+html_css_files = ['theme_overrides.css']  # override wide tables in RTD theme
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -294,7 +298,7 @@ epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and ' \
     'Sergi Siso'
 epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter ' \
     'and Sergi Siso'
-epub_copyright = u'2017-2020, STFC'
+epub_copyright = u'2017-2021, STFC'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

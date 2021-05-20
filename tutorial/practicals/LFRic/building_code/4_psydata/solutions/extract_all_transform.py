@@ -40,6 +40,8 @@ all invokes.
 
 from __future__ import print_function
 
+from psyclone.psyir.transformations import ExtractTrans
+
 
 def trans(psy):
     '''
@@ -52,21 +54,18 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.psyir.transformations import ExtractTrans
     extract = ExtractTrans()
 
-
     for invoke_name in psy.invokes.names:
-        print(invoke_name)
 
         invoke = psy.invokes.get(invoke_name)
 
         # Now get the schedule, to which we want to apply the transformation
         schedule = invoke.schedule
 
-
         # Apply the transformation
-        extract.apply(schedule, {"region_name": ("time_evolution", invoke_name)})
+        extract.apply(schedule, {"region_name": ("time_evolution",
+                                                 str(invoke_name))})
 
         # Just as feedback: show the modified schedule, which should have
         # a new node at the top:

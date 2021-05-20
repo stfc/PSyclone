@@ -1,6 +1,6 @@
 # PSyclone LFRic Examples
 
-## Examples 1 and 2 - dynamo 0.1 API
+## Examples 1 and 2: Dynamo 0.1 API
 
 The LFRic examples in the eg1 and eg2 directories below the one
 containing this README use the Dynamo 0.1 API. Those in eg3 - eg14 use
@@ -22,14 +22,14 @@ executing, e.g.
 python ./runme.py
 ```
 
-Examine the runme*.py scripts themselves for further details.
+Examine the ``runme*.py`` scripts themselves for further details.
 
-## Example 3
+## Example 3: Distributed and Shared Memory
 
 The third example can be used to demonstrate PSyclone:
 
 1. generating distributed memory parallel code
-```
+```sh
 cd eg3/
 psyclone solver_mod.x90
 # look for %set_dirty and %halo_exchange in the generated code
@@ -49,9 +49,9 @@ psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
 ```
 
 This example also demonstrates the use of `Wchi` function space metadata
-for coordinate fields in LFRic.
+for coordinate fields and the use of `integer`-valued fields in LFRic.
 
-## Example 4
+## Example 4: Multiple Built-in Calls and Named Invokes
 
 The fourth example illustrates the use of (multiple) calls to built-in
 operations within an invoke as well as the use of the name="..." argument.
@@ -61,8 +61,10 @@ boundary conditions.
 cd eg4/
 psyclone solver_mod.x90
 ```
+It also has the `backends` Makefile target to inform the development of
+PSy-layer code generation using the PSyIR backends.
 
-## Example 5
+## Example 5: Stencils
 
 The fifth example illustrates the use of stencils in kernels and the associated
 passing of extent and direction information (where appropriate) from the
@@ -72,7 +74,7 @@ cd eg5/
 psyclone alg.f90
 ```
 
-## Example 6
+## Example 6: Reductions
 
 The sixth example illustrates the use and implementation of
 reductions. It also demonstrates the generation of a schedule's
@@ -164,16 +166,16 @@ psyclone intergrid_3levels.x90
 This example also demonstrates the use of `ANY_DISCONTINUOUS_SPACE`
 function space metadata.
 
-## Example 11: Asynchronous halo exchanges
+## Example 11: Asynchronous Halo Exchanges
 
 This example shows how asynchronous halo exchange calls can be created
 and manipulated:
-```
+```sh
 cd eg11/
 psyclone -s ./async_script.py helmholtz_solver_alg_mod.x90
 ```
 
-## Example 12: Code extraction
+## Example 12: Code Extraction
 
 The twelfth example demonstrates how to apply code extraction to Nodes in
 an Invoke Schedule or to a Kernel in an Invoke. For now it only inserts an
@@ -272,7 +274,7 @@ cd eg14/
 psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 ```
 
-## Example 15: Optimise matvec kernel for CPU
+## Example 15: Optimise matvec Kernel for CPU
 
 This example shows how the LFRic matvec kernel can be optimised by
 PSyclone in the same way as it was hand optimised to run efficiently
@@ -284,24 +286,20 @@ psyclone -s ./matvec_opt.py \
 -oalg /dev/null -opsy /dev/null
 ```
 
-## Example 16: Generate LFRic code using LFRic PSyIR
+## Example 16: Generate LFRic Code Using LFRic PSyIR
 
 This example shows how LFRic-specific PSyIR can be used to create
 LFRic code. To run:
 ```sh
 cd eg16/
 python create.py
-
-## Example 17: Code Extraction
-The subdirectory ``full_example_extract`` contains a runnable example
-of LFRic code that creates a NetCDF file with the input and output
-parameters of a simple kernel. The requirements are listed in the README.md file.
-```sh
-cd full_example_extraction
-make
-./extract
-ncdump ./main-update.nc | less
 ```
+
+## Example 17: Runnable Examples
+
+This subdirectory contains three stand-alone and runnable examples of
+the LFRic code. For more details please refer to the relevant
+[eg17/README.md](./eg17) document.
 
 ## Code
 

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,11 +46,11 @@ module testkern_wtheta_mod
   ! Description: discontinuous field writer (wtheta) and reader
   ! (any_discontinuous_space_1)
   type, extends(kernel_type) :: testkern_wtheta_type
-     type(arg_type), dimension(2) :: meta_args = (/               &
-          arg_type(gh_field, gh_write, wtheta),                   &
-          arg_type(gh_field, gh_read,  any_discontinuous_space_1) &
+     type(arg_type), dimension(2) :: meta_args = (/                        &
+          arg_type(gh_field, gh_real, gh_write, wtheta),                   &
+          arg_type(gh_field, gh_real, gh_read,  any_discontinuous_space_1) &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_wtheta_code
   end type testkern_wtheta_type
@@ -70,8 +70,8 @@ contains
     integer(kind=i_def), intent(in) :: undf_adspc1
     integer(kind=i_def), intent(in), dimension(ndf_wtheta) :: map_wtheta
     integer(kind=i_def), intent(in), dimension(ndf_adspc1) :: map_adspc1
-    real(kind=r_def), intent(out), dimension(undf_wtheta) :: field1
-    real(kind=r_def), intent(in), dimension(undf_adspc1)  :: field2
+    real(kind=r_def), intent(inout), dimension(undf_wtheta) :: field1
+    real(kind=r_def), intent(in), dimension(undf_adspc1)    :: field2
 
   end subroutine testkern_wtheta_code
 

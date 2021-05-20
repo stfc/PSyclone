@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2020, Science and Technology Facilities Council.
+   Copyright (c) 2017-2021, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -43,12 +43,14 @@ or OpenCL). Until recently this back-end support has been implemented
 within the PSyIR `Node` classes themselves via various `gen*`
 methods. However, this approach is getting a little unwieldy.
 
-Therefore a `Visitor` pattern has been used in the latest back-end
-implementation (translating PSyIR kernel code to Fortran). This
-approach separates the code to traverse a tree from the tree being
-visited. It is expected that the existing back-ends will migrate to
-this new approach over time. The back-end visitor code is stored in
-`psyclone/psyir/backend`.
+Therefore PSyclone is transitioning into a `Visitor` pattern approach.
+Visitor backends are already being used in the back-end implementations
+that translate PSyIR kernel code. This approach separates the code to
+traverse a tree from the tree being visited. It is expected that the
+existing back-ends (used in the PSy-layer) will migrate to this new
+approach over time (more information about the PSy-layer migration
+can be found in :ref:`psy_layer_backends`). The back-end visitor code
+is stored in `psyclone/psyir/backend`.
 
 Visitor Base code
 =================
@@ -70,11 +72,11 @@ instance as an argument. Note the names are always translated to lower
 case. Therefore, a particular back-end needs to subclass
 `PSyIRVisitor`, provide a `loop_node` method (in this particular example) and
 this method would then be called when the visitor finds an instance of
-`Loop`. For example:
+`Loop`. For example::
 
-::
 
     from __future__ import print_function
+    from psyclone.psyir.visitor import PSyIRVisitor
     class TestVisitor(PSyIRVisitor):
         ''' Example implementation of a back-end visitor. '''
 
@@ -87,11 +89,11 @@ this method would then be called when the visitor finds an instance of
 
 It is up to the sub-class to call any children of the particular
 node. This approach was chosen as it allows the sub-class to control
-when and how to call children. For example:
+when and how to call children. For example::
 
-::
 
     from __future__ import print_function
+    from psyclone.psyir.visitor import PSyIRVisitor
     class TestVisitor(PSyIRVisitor):
         ''' Example implementation of a back-end visitor. '''
 
@@ -147,11 +149,10 @@ One example of the power of this approach makes use of the fact that
 all PSyIR nodes have `Node` as a parent class. Therefore, some base
 functionality can be added there and all nodes that do not have a
 specific method implemented will call this. To see the
-class hierarchy, the following code can be written:
+class hierarchy, the following code can be written::
 
-::
 
-   from __future__ import print_function
+    from __future__ import print_function
     class PrintHierarchy(PSyIRVisitor):
         ''' Example of a visitor that prints the PSyIR node hierarchy. '''
 
@@ -170,12 +171,11 @@ In the examples presented up to now, the information from a back-end
 has been printed. However, a back-end will generally not want to use
 print statements. Output from a `PSyIRVisitor` is supported by
 allowing each method call to return a string. Reimplementing the
-previous example using strings would give the following:
+previous example using strings would give the following::
 
-::
    
     from __future__ import print_function class
-    PrintHierarchy(PSyIRVisitor):
+    class PrintHierarchy(PSyIRVisitor):
         ''' Example of a visitor that prints the PSyIR node hierarchy'''
 
         def node_node(self, node):
@@ -197,21 +197,19 @@ indentation as a string and the indentation can be increased by
 increasing the value of the `self._depth` variable. The initial depth
 defaults to 0 and the initial indentation defaults to two
 spaces. These defaults can be changed when creating the back-end
-instance. For example:
+instance. For example::
 
-::
 
     print_hierarchy = PrintHierarchy(initial_indent_depth=2,
                                      indent_string="***")
 
 The `PrintHierarchy` example can be modified to support indenting by
-writing the following:
+writing the following::
 
-::
 
     from __future__ import print_function
     class PrintHierarchy(PSyIRVisitor):
-    ''' Example of a visitor that prints the PSyIR node hierarchy
+        ''' Example of a visitor that prints the PSyIR node hierarchy
         with indentation'''
 
         def node_node(self, node):
@@ -233,9 +231,8 @@ writing the following:
 As a visitor instance always calls the `_visit` method, an alternative
 (functor) implementation is provided via the `__call__` method in the
 base class. This allows the above example to be called in the
-following simplified way (as if it were a function):
+following simplified way (as if it were a function)::
 
-::
 
     print_hierarchy = PrintHierarchy()
     result = print_hierarchy(psyir_tree)
@@ -246,6 +243,31 @@ hide users from the use of the visitor pattern. This is the interface
 to expose to users (which is why `_visit` is used for the visitor
 method, rather than `visit`).
 
+PSyIR Validation
+================
+
+Although the validity of parent-child relationships is checked during the
+construction of a PSyIR tree (see e.g. :ref:`nodesinfo-label`), there are
+often constraints that can only be checked once the tree is complete i.e.
+at the point that a backend is used to generate code. One such example
+is that an OpenMP `do` directive must appear within an OpenMP `parallel`
+region.
+
+The base PSyVisitor class provides support for this validation by
+calling the `validate_global_constraints()` method of each Node that
+it visits. The `Node` base class contains an empty implementation of
+this method. Therefore, if a subclass of `Node` is subject to certain
+global constraints then it must override this method and implement the
+required checks. If those checks fail then the method should raise a
+`GenerationError`.
+
+Note that, if required, this validation may be disabled by passing
+`check_global_constraints=False` when constructing the PSyIRVisitor
+instance::
+
+    print_hierarchy = PrintHierarchy(check_global_constraints=False)
+
+ 
 Available back-ends
 ===================
 
@@ -321,4 +343,42 @@ as fields). A limitation of the current translation from PSyIR to SIR
 is that all PSyIR scalars are assumed to be local and all PSyIR arrays
 are assumed to be global, which may not be the case. This limitation
 is captured in issue #521.
+
+
+.. _psy_layer_backends:
+
+Back-ends for the PSy-layer
+===========================
+
+The additional complexity of the PSy-layer comes from the fact that it
+contains multiple domain-specific concepts and parallel concepts that are not
+part of the target languages. Instead of dealing with these concepts in the
+visitors we require that any domain-specific concept introduced on top
+of the core PSyIR constructs contains the logic to lower this concept
+into language level constructs. The reasons for choosing a method instead
+of a visitor for this transformation are:
+
+- Each concept introduced by the API-developer will need lowering instructions,
+  and this is better implied by an abstract class in the node that needs to
+  be filled.
+- The lowering is done in-place. A method fits better with modifying the AST
+  in-place because it can use and modify the nodes private fields.
+
+The current proposed solution is to create a 2-phase generation workflow where
+a domain-specific PSyIR is first lowered to a language-level version of the
+PSyIR using the ``lower_to_language_level`` node method and then processed by
+the Visitor to generate the target language.
+The language-level PSyIR is still the same IR but restricted to the subset
+of Nodes that have a direct translation into target language concepts.
+
+.. image:: 2level_psyir.png
+
+.. note::
+ Using the language backends to generate the PSy-layer code is still under
+ development and not used by PSyclone by default.
+ However, it is triggered manually by some PSyclone examples to inform
+ its development, these are:
+
+ - gocean/eg8
+ - lfric/eg4 (backends target)
 

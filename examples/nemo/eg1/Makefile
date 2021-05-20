@@ -32,13 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
 transform:
-	./runme_openmp.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ./runme_openmp.py
 
-compile:
+compile: transform
 	@echo "No compilation supported for nemo/eg1"
 
-all: transform compile
+run: compile
+	@echo "No run targets for nemo/eg1"

@@ -40,6 +40,8 @@ the 'invoke_propagate_perturbation' invoke.
 
 from __future__ import print_function
 
+from psyclone.psyir.transformations import ExtractTrans
+
 
 def trans(psy):
     '''
@@ -52,7 +54,6 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.psyir.transformations import ExtractTrans
     extract = ExtractTrans()
 
     invoke = psy.invokes.get("invoke_propagate_perturbation")

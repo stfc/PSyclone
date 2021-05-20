@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
 
 from __future__ import print_function
 from psyclone.parse.algorithm import parse
@@ -50,11 +50,10 @@ schedule.view()
 t = TransInfo()
 print(t.list)
 
-lf = t.get_trans_name('LoopFuse')
+lf = t.get_trans_name('LoopFuseTrans')
 
 schedule.view()
-new_schedule, memento = lf.apply(schedule.children[0], schedule.children[1])
-new_schedule.view()
+lf.apply(schedule.children[0], schedule.children[1])
+schedule.view()
 
-psy.invokes.get('invoke_0').schedule = new_schedule
 print(psy.gen)

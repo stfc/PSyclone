@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Laboratory
 
 '''Module providing a transformation from a PSyIR MATMUL operator to
 PSyIR code. This could be useful if the MATMUL operator is not
@@ -291,31 +292,32 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
         # Create new i and j loop iterators.
         symbol_table = node.scope.symbol_table
-        i_loop_name = symbol_table.new_symbol_name("i")
-        i_loop_symbol = DataSymbol(i_loop_name, INTEGER_TYPE)
-        symbol_table.add(i_loop_symbol)
-        j_loop_name = symbol_table.new_symbol_name("j")
-        j_loop_symbol = DataSymbol(j_loop_name, INTEGER_TYPE)
-        symbol_table.add(j_loop_symbol)
+        i_loop_symbol = symbol_table.new_symbol("i", symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE)
+        j_loop_symbol = symbol_table.new_symbol("j", symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE)
 
         # Create "result(i)"
         result_dims = [Reference(i_loop_symbol)]
         if len(result.children) > 1:
             # Add any additional dimensions (in case of an array slice)
-            result_dims.extend(result.children[1:])
-        result = ArrayReference.create(result_symbol, result_dims)
+            for child in result.children[1:]:
+                result_dims.append(child.copy())
+        result_ref = ArrayReference.create(result_symbol, result_dims)
         # Create "vector(j)"
         vector_dims = [Reference(j_loop_symbol)]
         if len(vector.children) > 1:
             # Add any additional dimensions (in case of an array slice)
-            vector_dims.extend(vector.children[1:])
+            for child in vector.children[1:]:
+                vector_dims.append(child.copy())
         vector_array_reference = ArrayReference.create(
             vector.symbol, vector_dims)
         # Create "matrix(i,j)"
         array_dims = [Reference(i_loop_symbol), Reference(j_loop_symbol)]
         if len(matrix.children) > 2:
             # Add any additional dimensions (in case of an array slice)
-            array_dims.extend(matrix.children[2:])
+            for child in matrix.children[2:]:
+                array_dims.append(child.copy())
         matrix_array_reference = ArrayReference.create(matrix.symbol,
                                                        array_dims)
         # Create "matrix(i,j) * vector(j)"
@@ -324,22 +326,22 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             vector_array_reference)
         # Create "result(i) + matrix(i,j) * vector(j)"
         rhs = BinaryOperation.create(
-            BinaryOperation.Operator.ADD, result, multiply)
+            BinaryOperation.Operator.ADD, result_ref, multiply)
         # Create "result(i) = result(i) + matrix(i,j) * vector(j)"
-        assign = Assignment.create(result, rhs)
+        assign = Assignment.create(result_ref.copy(), rhs)
         # Create j loop and add the above code as a child
         # Work out the bounds
         lower_bound, upper_bound, step = _get_array_bound(vector, 0)
         jloop = Loop.create(j_loop_symbol, lower_bound, upper_bound, step,
                             [assign])
         # Create "result(i) = 0.0"
-        assign = Assignment.create(result, Literal("0.0", REAL_TYPE))
+        assign = Assignment.create(result_ref.copy(),
+                                   Literal("0.0", REAL_TYPE))
         # Create i loop and add assigment and j loop as children
         lower_bound, upper_bound, step = _get_array_bound(matrix, 0)
         iloop = Loop.create(i_loop_symbol, lower_bound, upper_bound, step,
                             [assign, jloop])
         # Add the new code to the PSyIR
-        iloop.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, iloop)
         # remove the original matmul
         assignment.parent.children.remove(assignment)

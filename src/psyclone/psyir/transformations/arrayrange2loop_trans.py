@@ -250,9 +250,8 @@ class ArrayRange2LoopTrans(Transformation):
 
         parent = node.parent
         symbol_table = node.scope.symbol_table
-        loop_variable_name = symbol_table.new_symbol_name(root_name="idx")
-        loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
-        symbol_table.add(loop_variable_symbol)
+        loop_variable = symbol_table.new_symbol("idx", symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE)
 
         # Replace the rightmost range found in all arrays with the
         # iterator and use the range from the LHS range for the loop
@@ -264,16 +263,14 @@ class ArrayRange2LoopTrans(Transformation):
                         # Save this range to determine indexing
                         lhs_range = child
                     array.children[idx] = Reference(
-                        loop_variable_symbol, parent=array)
+                        loop_variable, parent=array)
                     break
         position = node.position
         # Issue #806: If Loop bounds were a Range we would just
         # need to provide the range node which would be simpler.
-        loop = Loop.create(loop_variable_symbol, lhs_range.children[0],
-                           lhs_range.children[1], lhs_range.children[2],
-                           [node])
-        parent.children[position] = loop
-        loop.parent = parent
+        start, stop, step = lhs_range.pop_all_children()
+        loop = Loop.create(loop_variable, start, stop, step, [node.detach()])
+        parent.children.insert(position, loop)
 
     def __str__(self):
         return ("Convert a PSyIR assignment to an array Range into a "

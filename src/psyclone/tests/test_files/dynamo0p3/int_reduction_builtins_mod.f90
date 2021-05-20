@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,14 +35,18 @@
 ! Modified I. Kavcic, Met Office
 !
 !> @brief Incorrect meta-data for the LFRic built-in operations.
-module dynamo0p3_builtins_mod
+module lfric_builtins_mod
+
+  use argument_mod
+  use kernel_mod
+
   !> Fake built-in that purports to do a reduction into an integer scalar
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
      type(arg_type) :: meta_args(3) = (/                            &
           arg_type(GH_SCALAR, GH_INTEGER, GH_SUM),                  &
-          arg_type(GH_FIELD,              GH_READ, ANY_SPACE_1),    &
-          arg_type(GH_FIELD,              GH_READ, ANY_SPACE_1)     &
+          arg_type(GH_FIELD,  GH_REAL,    GH_READ, ANY_SPACE_1),    &
+          arg_type(GH_FIELD,  GH_REAL,    GH_READ, ANY_SPACE_1)     &
           /)
      integer :: operates_on = DOF
    contains
@@ -54,4 +58,4 @@ contains
   subroutine X_innerproduct_Y_code()
   end subroutine X_innerproduct_Y_code
   
-end module dynamo0p3_builtins_mod
+end module lfric_builtins_mod

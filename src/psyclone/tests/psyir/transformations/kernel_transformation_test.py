@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab.
+# Modified by: R. W. Ford, STFC Daresbury Lab,
+#              I. Kavcic, Met Office.
 
 ''' Module containing tests for kernel transformations. '''
 
@@ -48,6 +49,7 @@ from psyclone.transformations import ACCRoutineTrans, \
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
+from psyclone.psyir.nodes import Container, Routine
 
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -157,10 +159,8 @@ def test_accroutine_empty_kernel():
     assert "!$acc routine\n  end subroutine testkern_code" in gen
 
 
-def test_new_kernel_file(kernel_outputdir, monkeypatch):
+def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     ''' Check that we write out the transformed kernel to the CWD. '''
-    from fparser.two import Fortran2003, parser
-    from fparser.common.readfortran import FortranFileReader
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "multiple")
@@ -182,17 +182,14 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch):
                             "continuity{0}_mod.f90".format(tag))
     assert os.path.isfile(filename)
     # Parse the new kernel file
-    f2003_parser = parser.ParserFactory().create()
-    reader = FortranFileReader(filename)
-    prog = f2003_parser(reader)
+    psyir = fortran_reader.psyir_from_file(filename)
     # Check that the module has the right name
-    modules = walk(prog.content, Fortran2003.Module_Stmt)
-    assert str(modules[0].items[1]) == "continuity{0}_mod".format(tag)
+    assert isinstance(psyir, Container)
+    assert psyir.name == "continuity{0}_mod".format(tag)
     # Check that the subroutine has the right name
-    subs = walk(prog.content, Fortran2003.Subroutine_Stmt)
     found = False
-    for sub in subs:
-        if str(sub.items[1]) == "continuity{0}_code".format(tag):
+    for sub in psyir.walk(Routine):
+        if sub.name == "continuity{0}_code".format(tag):
             found = True
             break
     assert found
@@ -410,11 +407,11 @@ def test_2kern_trans(kernel_outputdir):
 
 def test_builtin_no_trans():
     ''' Check that we reject attempts to transform built-in kernels. '''
-    from psyclone.dynamo0p3_builtins import DynBuiltIn
+    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90",
                            api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(DynBuiltIn)
+    kernels = sched.walk(LFRicBuiltIn)
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])

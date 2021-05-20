@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
+# Modified by: S. Siso, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code to insert profiling calls.
@@ -103,7 +104,7 @@ def test_profile_single_loop(parser):
                                       "  sto_tmp(ji) = 1.0d0\n"
                                       "end do\n"
                                       "end program do_loop\n")
-    schedule, _ = PTRANS.apply(schedule.children[0])
+    PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
         "  USE profile_psy_data_mod, ONLY: profile_PSyDataType\n"
@@ -136,7 +137,7 @@ def test_profile_single_loop_named(parser):
                                       "end do\n"
                                       "end program do_loop\n")
     options = {"region_name": ("my_routine", "my_region")}
-    schedule, _ = PTRANS.apply(schedule.children[0], options=options)
+    PTRANS.apply(schedule.children[0], options=options)
     code = str(psy.gen)
     assert ("CALL profile_psy_data0 % PreStart('my_routine', 'my_region', "
             "0, 0)" in code)
@@ -198,12 +199,12 @@ def test_profile_codeblock(parser):
                                       "  write(*,*) sto_tmp2(ji)\n"
                                       "end do\n"
                                       "end subroutine cb_test\n")
-    schedule, _ = PTRANS.apply(schedule.children[0])
+    PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
         "  CALL profile_psy_data0 % PreStart('cb_test', 'r0', 0, 0)\n"
         "  DO ji = 1, jpj\n"
-        "    WRITE(*, FMT = *) sto_tmp2(ji)\n"
+        "    WRITE(*, *) sto_tmp2(ji)\n"
         "  END DO\n"
         "  CALL profile_psy_data0 % PostEnd\n" in code)
 
@@ -226,7 +227,7 @@ def test_profile_inside_if1(parser):
         "  end do\n"
         "endif\n"
         "end subroutine inside_if_test\n")
-    schedule, _ = PTRANS.apply(schedule.children[0].if_body[0])
+    PTRANS.apply(schedule.children[0].if_body[0])
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
             "    CALL profile_psy_data0 % PreStart(" in gen_code)
@@ -251,7 +252,7 @@ def test_profile_inside_if2(parser):
         "  end do\n"
         "endif\n"
         "end subroutine inside_if_test\n")
-    schedule, _ = PTRANS.apply(schedule.children[0].if_body)
+    PTRANS.apply(schedule.children[0].if_body)
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
             "    CALL profile_psy_data0 % PreStart(" in gen_code)
@@ -286,7 +287,7 @@ def test_profile_single_line_if(parser):
     gen_code = str(psy.gen)
     assert (
         "  CALL profile_psy_data0 % PreStart('one_line_if_test', 'r0', 0, 0)\n"
-        "  IF (do_this) WRITE(*, FMT = *) sto_tmp2(ji)\n"
+        "  IF (do_this) WRITE(*, *) sto_tmp2(ji)\n"
         "  CALL profile_psy_data0 % PostEnd\n" in gen_code)
 
 
@@ -378,7 +379,9 @@ def test_profiling_case_loop(parser):
     ''' Check that we can put profiling around a CASE and a subsequent
     loop. '''
     code = ("subroutine my_test()\n"
+            "  use my_mod, only: a_type\n"
             "  integer :: igrd, ib, ii\n"
+            "  type(a_type) :: idx\n"
             "  real, dimension(:,:,:) :: pmask, tmask\n"
             "  real, dimension(:,:) :: bdypmask, bdytmask\n"
             "  select case(igrd)\n"
@@ -437,7 +440,7 @@ def test_profiling_missing_end(parser):
                                       "  sto_tmp(ji) = 1.0d0\n"
                                       "end do\n"
                                       "end program do_loop\n")
-    schedule, _ = PTRANS.apply(schedule.children[0])
+    PTRANS.apply(schedule.children[0])
     # Manually break the _ast_end property by making it point to the root
     # of the whole parse tree
     loops = schedule.walk(Loop)
@@ -451,54 +454,50 @@ def test_profiling_missing_end(parser):
 def test_profiling_mod_use_clash(parser):
     ''' Check that we abort cleanly if we encounter a 'use' of a module that
     clashes with the one we would 'use' for the profiling API. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program the_clash\n"
-                                      "  use profile_psy_data_mod, only: "
-                                      "some_var\n"
-                                      "  real :: my_array(20,10)\n"
-                                      "  my_array(:,:) = 0.0\n"
-                                      "end program the_clash\n")
-    PTRANS.apply(schedule.children[0])
-    schedule.view()
-    with pytest.raises(NotImplementedError) as err:
-        _ = psy.gen
-    assert ("Cannot add PSyData calls to 'the_clash' because it already "
-            "'uses' a module named 'profile_psy_data_mod'" in str(err.value))
+    _, schedule = get_nemo_schedule(parser,
+                                    "program the_clash\n"
+                                    "  use profile_psy_data_mod, only: "
+                                    "some_var\n"
+                                    "  real :: my_array(20,10)\n"
+                                    "  my_array(:,:) = 0.0\n"
+                                    "end program the_clash\n")
+    with pytest.raises(TransformationError) as err:
+        PTRANS.apply(schedule.children[0])
+    assert ("Cannot add PSyData calls because there is already a symbol "
+            "named 'profile_psy_data_mod' which clashes" in str(err.value))
 
 
 def test_profiling_mod_name_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with the name of the profiling API module. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program psy_data_mod\n"
-                                      "  real :: my_array(3,3)\n"
-                                      "  my_array(:,:) = 0.0\n"
-                                      "end program psy_data_mod\n")
-    PTRANS.apply(schedule.children[0])
-    with pytest.raises(NotImplementedError) as err:
-        _ = psy.gen
-    assert ("Cannot add PSyData calls to 'psy_data_mod' because it already "
-            "contains a symbol that clashes with the name of the PSyclone "
-            "PSyData module" in str(err.value))
+    _, schedule = get_nemo_schedule(parser,
+                                    "program profile_psy_data_mod\n"
+                                    "  real :: my_array(3,3)\n"
+                                    "  my_array(:,:) = 0.0\n"
+                                    "end program profile_psy_data_mod\n")
+    with pytest.raises(TransformationError) as err:
+        PTRANS.apply(schedule.children[0])
+    assert ("Cannot add PSyData calls because there is already a symbol "
+            "named 'profile_psy_data_mod' which clashes " in str(err.value))
 
 
 def test_profiling_symbol_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with any of the symbols we 'use' from profile_mode. '''
-    for var_name in PSyDataNode.symbols:
-        psy, schedule = get_nemo_schedule(
+    for sym in ["PSyDataType", "psy_data_mod"]:
+        _, schedule = get_nemo_schedule(
             parser,
             "program my_test\n"
             "  real :: my_array(3,3)\n"
             "  integer :: {0}\n"
             "  my_array(:,:) = 0.0\n"
-            "end program my_test\n".format(var_name))
-        PTRANS.apply(schedule.children[0])
-        with pytest.raises(NotImplementedError) as err:
-            _ = psy.gen
-        assert ("Cannot add PSyData calls to 'my_test' because it already "
-                "contains a symbol that clashes with one of those ('{0}')"
-                " that must be".format(var_name) in str(err.value))
+            "end program my_test\n".format("profile_"+sym))
+        with pytest.raises(TransformationError) as err:
+            PTRANS.apply(schedule.children[0])
+        assert ("Cannot add PSyData calls because there is already "
+                "a symbol named '{0}' which clashes with one of those used "
+                "by the PSyclone PSyData API.".format("profile_"+sym)
+                in str(err.value))
 
 
 def test_profiling_var_clash(parser):

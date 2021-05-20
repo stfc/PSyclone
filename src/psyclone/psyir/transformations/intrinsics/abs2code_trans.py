@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: A. R. Porter, STFC Daresbury Laboratory
+#           S. Siso, STFC Daresbury Laboratory
 
 '''Module providing a transformation from a PSyIR ABS operator to
 PSyIR code. This could be useful if the ABS operator is not supported
@@ -123,12 +124,10 @@ class Abs2CodeTrans(Operator2CodeTrans):
         # or there may be errors (arguments are of different types)
         # but this can't be checked as we don't have the appropriate
         # methods to query nodes (see #658).
-        res_var = symbol_table.new_symbol_name("res_abs")
-        symbol_res_var = DataSymbol(res_var, REAL_TYPE)
-        symbol_table.add(symbol_res_var)
-        tmp_var = symbol_table.new_symbol_name("tmp_abs")
-        symbol_tmp_var = DataSymbol(tmp_var, REAL_TYPE)
-        symbol_table.add(symbol_tmp_var)
+        symbol_res_var = symbol_table.new_symbol(
+            "res_abs", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        symbol_tmp_var = symbol_table.new_symbol(
+            "tmp_abs", symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operation with a temporary (res_X).
         oper_parent.children[node.position] = Reference(symbol_res_var,
@@ -136,9 +135,8 @@ class Abs2CodeTrans(Operator2CodeTrans):
 
         # tmp_var=X
         lhs = Reference(symbol_tmp_var)
-        rhs = node.children[0]
+        rhs = node.children[0].detach()
         new_assignment = Assignment.create(lhs, rhs)
-        new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # if condition: tmp_var>0.0
@@ -162,5 +160,4 @@ class Abs2CodeTrans(Operator2CodeTrans):
 
         # if [if_condition] then [then_body] else [else_body]
         if_stmt = IfBlock.create(if_condition, then_body, else_body)
-        if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)

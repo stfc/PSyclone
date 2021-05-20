@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,8 @@ kernel calls.
 from __future__ import print_function, absolute_import
 import abc
 
-from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.core import AccessType, Signature
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -92,10 +92,10 @@ class ArgOrdering(object):
         self._arglist.append(var_name)
         if var_accesses is not None:
             if var_access_name:
-                var_accesses.add_access(var_access_name, mode,
+                var_accesses.add_access(Signature(var_access_name), mode,
                                         self._kern)
             else:
-                var_accesses.add_access(var_name, mode,
+                var_accesses.add_access(Signature(var_name), mode,
                                         self._kern)
 
     def extend(self, list_var_name, var_accesses=None,
@@ -119,7 +119,7 @@ class ArgOrdering(object):
         self._arglist.extend(list_var_name)
         if var_accesses:
             for var_name in list_var_name:
-                var_accesses.add_access(var_name, mode, self._kern)
+                var_accesses.add_access(Signature(var_name), mode, self._kern)
 
     @property
     def num_args(self):
@@ -184,9 +184,11 @@ class ArgOrdering(object):
         # this quantity for *every* operator it encounters.
         # if self._kern.arguments.has_operator(op_type="gh_operator"):
         #     self.mesh_ncell3d()
-        # Pass the number of columns in the mesh if this kernel has a CMA
-        # operator argument
-        if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
+        # Pass the number of columns in the mesh if this kernel operates on
+        # the 'domain' or has a CMA operator argument
+        if (self._kern.iterates_over == "domain" or
+                self._kern.arguments.has_operator(
+                    op_type="gh_columnwise_operator")):
             self.mesh_ncell2d(var_accesses=var_accesses)
 
         if self._kern.is_intergrid:
@@ -201,7 +203,7 @@ class ArgOrdering(object):
         # scalar). If the argument is a field or field vector and also
         # has a stencil access then also call appropriate stencil
         # methods.
-
+        const = LFRicConstants()
         for arg in self._kern.arguments.args:
             if arg.is_field:
                 if arg.vector_size > 1:
@@ -248,7 +250,7 @@ class ArgOrdering(object):
                 raise GenerationError(
                     "ArgOrdering.generate(): Unexpected argument type found. "
                     "Expected one of '{0}' but found '{1}'".
-                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
+                    format(const.VALID_ARG_TYPE_NAMES,
                            arg.argument_type))
         # For each function space (in the order they appear in the
         # metadata arguments)
@@ -278,9 +280,8 @@ class ArgOrdering(object):
                                             var_accesses=var_accesses)
 
             # Provide any optional arguments. These arguments are
-            # associated with the keyword arguments (basis function,
-            # differential basis function and orientation) for a
-            # function space.
+            # associated with the keyword arguments (basis function
+            # and differential basis function) for a function space.
             if self._kern.fs_descriptors.exists(unique_fs):
                 descriptors = self._kern.fs_descriptors
                 descriptor = descriptors.get_descriptor(unique_fs)
@@ -288,8 +289,6 @@ class ArgOrdering(object):
                     self.basis(unique_fs, var_accesses=var_accesses)
                 if descriptor.requires_diff_basis:
                     self.diff_basis(unique_fs, var_accesses=var_accesses)
-                if descriptor.requires_orientation:
-                    self.orientation(unique_fs, var_accesses=var_accesses)
             # Fix for boundary_dofs array to the boundary condition
             # kernel (enforce_bc_kernel) arguments
             if self._kern.name.lower() == "enforce_bc_code" and \
@@ -548,10 +547,11 @@ class ArgOrdering(object):
         :raises InternalError: if the argument is not a recognised scalar type.
 
         '''
+        const = LFRicConstants()
         if not scalar_arg.is_scalar:
             raise InternalError(
                 "Expected argument type to be one of {0} but got '{1}'".
-                format(LFRicArgDescriptor.VALID_SCALAR_NAMES,
+                format(const.VALID_SCALAR_NAMES,
                        scalar_arg.argument_type))
 
         self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access)
@@ -632,22 +632,6 @@ class ArgOrdering(object):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-
-    def orientation(self, function_space, var_accesses=None):
-        '''Add orientation information for this function space to the
-        argument list. If supplied it also stores this access in
-        var_accesses.
-
-        :param function_space: the function space for which orientation \
-            information is added.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        self.append(function_space.orientation_name, var_accesses)
 
     @abc.abstractmethod
     def field_bcs_kernel(self, function_space, var_accesses=None):
@@ -752,6 +736,8 @@ class ArgOrdering(object):
 
         '''
         if self._kern.reference_element.properties:
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import DynReferenceElement
             refelem_args = DynReferenceElement(self._kern).kern_args()
             self.extend(refelem_args, var_accesses)

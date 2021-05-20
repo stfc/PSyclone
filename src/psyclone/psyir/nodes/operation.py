@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,10 +64,10 @@ class Operation(DataNode):
     '''
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
-    Operator = None
+    Operator = object
     # Textual description of the node.
     _text_name = "Operation"
-    _colour_key = "Operation"
+    _colour = "blue"
 
     def __init__(self, operator, parent=None):
         super(Operation, self).__init__(parent=parent)
@@ -127,7 +127,7 @@ class UnaryOperation(Operation):
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10',
+        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10', 'SUM',
         # Logical Operators
         'NOT',
         # Trigonometric Operators
@@ -175,7 +175,6 @@ class UnaryOperation(Operation):
 
         unary_op = UnaryOperation(oper)
         unary_op.children = [child]
-        child.parent = unary_op
         return unary_op
 
 
@@ -183,6 +182,7 @@ class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
+
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
@@ -193,7 +193,9 @@ class BinaryOperation(Operation):
         'AND', 'OR',
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
-        # Query Operators
+        # Casting operators
+        'REAL', 'INT', 'CAST',
+        # Array Query Operators
         'SIZE', 'LBOUND', 'UBOUND',
         # Matrix and Vector Operators
         'MATMUL'
@@ -204,7 +206,7 @@ class BinaryOperation(Operation):
 
        :returns: `arg0` raised to the power of `arg1`.
 
-    Query operators:
+    Array query operators:
 
     .. function:: SIZE(array, index) -> int
 
@@ -219,6 +221,23 @@ class BinaryOperation(Operation):
 
        :returns: the value of the upper bound of the `index` dimension of \
                  `array`.
+
+    Casting Operators:
+
+    .. function:: REAL(arg0, precision)
+
+       :returns: `arg0` converted to a floating point number of the \
+                 specified precision.
+
+    .. function:: INT(arg0, precision)
+
+       :returns: `arg0` converted to an integer number of the specified \
+                  precision.
+
+    .. function:: CAST(arg0, mold)
+
+       :returns: `arg0` with the same bitwise representation but interpreted \
+                 with the same type as the specified `mold` argument.
 
     Matrix and Vector Operators:
 
@@ -315,8 +334,6 @@ class BinaryOperation(Operation):
 
         binary_op = BinaryOperation(oper)
         binary_op.children = [lhs, rhs]
-        lhs.parent = binary_op
-        rhs.parent = binary_op
         return binary_op
 
 
@@ -380,6 +397,15 @@ class NaryOperation(Operation):
 
         nary_op = NaryOperation(oper)
         nary_op.children = children
-        for child in children:
-            child.parent = nary_op
         return nary_op
+
+
+# TODO #658 this can be removed once we have support for determining the
+# type of a PSyIR expression.
+#: Those operators that perform a reduction on an array.
+REDUCTION_OPERATORS = [UnaryOperation.Operator.SUM,
+                       BinaryOperation.Operator.SUM,
+                       NaryOperation.Operator.SUM]
+
+# For automatic API documentation generation
+__all__ = ["Operation", "UnaryOperation", "BinaryOperation", "NaryOperation"]

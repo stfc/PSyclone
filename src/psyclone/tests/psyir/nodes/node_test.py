@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,58 +45,68 @@ import re
 import pytest
 from psyclone.psyir.nodes.node import (ChildrenList, Node,
                                        _graphviz_digraph_class)
-from psyclone.psyir.nodes import Schedule, Reference, Container, \
+from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
-    INTEGER_TYPE, REAL_TYPE, SymbolTable, ContainerSymbol, \
-    UnresolvedInterface, ScalarType, DeferredType, Symbol
-from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
+    INTEGER_TYPE, REAL_TYPE, SymbolTable
+from psyclone.psyGen import PSyFactory, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
-from psyclone.transformations import DynamoLoopFuseTrans
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
+# pylint: disable=redefined-outer-name
+from psyclone.psyir.nodes.node import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 
 
-def test_node_abstract_methods():
-    ''' Tests that the abstract methods of the Node class raise appropriate
-    errors. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    sched = invoke.schedule
-    loop = sched.children[0].loop_body[0]
-    with pytest.raises(NotImplementedError) as err:
-        Node.gen_code(loop, parent=None)
-    assert "Please implement me" in str(err.value)
-
-
 def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
     # Node is an abstract class
     with pytest.raises(NotImplementedError) as err:
         tnode.node_str()
     assert ("_text_name is an abstract attribute which needs to be given a "
             "string value in the concrete class 'Node'." in str(err.value))
-
-    # Check that we can change the name of the Node and the colour associated
-    # with it
+    # Exception as _colour has not been set
     tnode._text_name = "ATest"
-    tnode._colour_key = "Schedule"
+    with pytest.raises(NotImplementedError) as err:
+        _ = tnode.coloured_name()
+    assert ("The _colour attribute is abstract so needs to be given a string "
+            "value in the concrete class 'Node'." in str(err.value))
+    # Valid values
+    tnode._colour = "white"
     assert tnode.coloured_name(False) == "ATest"
-    assert tnode.coloured_name(True) == colored(
-        "ATest", SCHEDULE_COLOUR_MAP["Schedule"])
-    # Check that an unrecognised colour-map entry gives us un-coloured text
-    tnode._colour_key = "not-recognised"
-    assert tnode.coloured_name(True) == "ATest"
+    assert tnode.coloured_name(True) == colored("ATest", "white")
+
+
+def test_node_coloured_name_exception(monkeypatch):
+    '''Test that the expected exception is raised if the colour provided
+    to the colored function is invalid. Note, an exception is only
+    raised if the termcolor package is installed. Therefore we
+    monkeypatch the function to force the exception whether termcolor
+    is installed or not.
+
+    '''
+    def dummy(_1, _2):
+        '''Utility used to raise the required exception.'''
+        raise KeyError()
+
+    monkeypatch.setattr(node, "colored", dummy)
+
+    tnode = Node()
+    tnode._text_name = "ATest"
+    tnode._colour = "invalid"
+    with pytest.raises(InternalError) as err:
+        _ = tnode.coloured_name()
+    assert ("The _colour attribute in class 'Node' has been set to a "
+            "colour ('invalid') that is not supported by the termcolor "
+            "package." in str(err.value))
 
 
 def test_node_str():
     ''' Tests for the Node.node_str method. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
     # Node is an abstract class
     with pytest.raises(NotImplementedError) as err:
@@ -104,14 +114,13 @@ def test_node_str():
     assert ("_text_name is an abstract attribute which needs to be given a "
             "string value in the concrete class 'Node'." in str(err.value))
 
-    # Manually set the _text_name and _colour_key for this node to something
-    # that will result in coloured output (if requested *and* termcolor is
-    # installed).
+    # Manually set the _text_name and _colour for this node to
+    # something that will result in coloured output (if requested
+    # *and* termcolor is installed).
     tnode._text_name = "FakeName"
-    tnode._colour_key = "Loop"
+    tnode._colour = "green"
     assert tnode.node_str(False) == "FakeName[]"
-    assert tnode.node_str(True) == colored("FakeName",
-                                           SCHEDULE_COLOUR_MAP["Loop"]) + "[]"
+    assert tnode.node_str(True) == colored("FakeName", "green") + "[]"
 
 
 def test_node_depth():
@@ -125,7 +134,7 @@ def test_node_depth():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    schedule = invoke.schedule.detach()
     # Assert that start_depth of any Node (including Schedule) is 0
     assert schedule.START_DEPTH == 0
     # Assert that Schedule depth is 1
@@ -148,26 +157,57 @@ def test_node_position():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    schedule = invoke.schedule.detach()
     child = schedule.children[6]
     # Assert that position of a Schedule (no parent Node) is 0
     assert schedule.position == 0
+    assert schedule.abs_position == 0
     # Assert that start_position of any Node is 0
     assert child.START_POSITION == 0
     # Assert that relative and absolute positions return correct values
     assert child.position == 6
     assert child.abs_position == 7
+
+    # Insert two more levels of nodes in top of the root
+    previous_root = child.root
+    container1 = Container("test1")
+    container2 = Container("test2")
+    container2.addchild(previous_root)
+    container1.addchild(container2)
+    # The relative position should still be the same but the absolute position
+    # should increase by 2.
+    assert child.position == 6
+    assert child.abs_position == 9
+
+    # Check that the _find_position returns the correct distance between itself
+    # and the provided ancestor.
+    _, position = child._find_position(child.ancestor(Routine), 0)
+    assert position == 7
+
+    # If no starting position is provided it starts with START_POSITION=0
+    _, same_position = child._find_position(child.ancestor(Routine))
+    assert same_position == position
+
     # Test InternalError for _find_position with an incorrect position
     with pytest.raises(InternalError) as excinfo:
         _, _ = child._find_position(child.root.children, -2)
     assert "started from -2 instead of 0" in str(excinfo.value)
-    # Test InternalError for abs_position with a Node that does
-    # not belong to the Schedule
-    ompdir = OMPDoDirective()
-    with pytest.raises(InternalError) as excinfo:
-        _ = ompdir.abs_position
-    assert ("PSyclone internal error: Error in search for Node position "
-            "in the tree") in str(excinfo.value)
+
+
+def test_node_abs_position_error():
+    ''' Check that the abs_position method produces and internal error when
+    a node can be found as one of the children of its parent (this just
+    happens with inconsistent parent-child connections). '''
+
+    parent = Schedule()
+    node1 = Statement()
+    # Manually connect the _parent attribute which won't make a consistent
+    # two-way relationship
+    node1._parent = parent
+
+    with pytest.raises(InternalError) as err:
+        _ = node1.abs_position
+    assert "Error in search for Node position in the tree" in str(err.value)
 
 
 def test_node_root():
@@ -184,8 +224,8 @@ def test_node_root():
     # Select a loop and the kernel inside
     ru_loop = ru_schedule.children[1]
     ru_kern = ru_loop.children[0]
-    # Assert that the absolute root is a Schedule
-    assert isinstance(ru_kern.root, Schedule)
+    # Assert that the absolute root is a Container
+    assert isinstance(ru_kern.root, Container)
 
 
 def test_node_annotations():
@@ -230,9 +270,8 @@ def test_node_args():
     for idx, arg in enumerate(kern2.arguments.args):
         assert arg == loop2_args[idx]
     # 4) Loop fuse
-    ftrans = DynamoLoopFuseTrans()
-    ftrans.same_space = True
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    ftrans = LFRicLoopFuseTrans()
+    ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]
     kern1 = loop.loop_body[0]
     kern2 = loop.loop_body[1]
@@ -462,8 +501,8 @@ def test_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    assert super(Schedule, schedule).dag_name == "node_0"
-    assert schedule.dag_name == "schedule_0"
+    assert super(Schedule, schedule).dag_name == "node_1"
+    assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
     assert schedule.children[4].dag_name == "loop_5"
     schedule.children[4].loop_type = "colour"
@@ -571,12 +610,12 @@ def test_node_dag_wrong_file_format(monkeypatch):
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    r"\s*schedule_0_start\n"
-    r"\s*schedule_0_end\n"
+    r"\s*routine_invoke_0_0_start\n"
+    r"\s*routine_invoke_0_0_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
     r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
-    r"\s*schedule_0_start -> loop_1_start \[color=blue\]\n"
+    r"\s*routine_invoke_0_0_start -> loop_1_start \[color=blue\]\n"
     r"\s*schedule_5_start\n"
     r"\s*schedule_5_end\n"
     r"\s*schedule_5_end -> loop_1_end \[color=blue\]\n"
@@ -586,7 +625,7 @@ EXPECTED2 = re.compile(
     r"\s*schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
     r"\s*loop_7_start\n"
     r"\s*loop_7_end\n"
-    r"\s*loop_7_end -> schedule_0_end \[color=blue\]\n"
+    r"\s*loop_7_end -> routine_invoke_0_0_end \[color=blue\]\n"
     r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
     r"\s*schedule_11_start\n"
     r"\s*schedule_11_end\n"
@@ -605,7 +644,6 @@ def test_node_dag(tmpdir, have_graphviz):
     if not have_graphviz:
         return
     # We may not have graphviz installed so disable pylint error
-    # pylint: disable=import-error
     # pylint: disable=import-outside-toplevel
     import graphviz
     _, invoke_info = parse(
@@ -623,8 +661,8 @@ def test_node_dag(tmpdir, have_graphviz):
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
-    for name in ["<title>schedule_0_start</title>",
-                 "<title>schedule_0_end</title>",
+    for name in ["<title>routine_invoke_0_0_start</title>",
+                 "<title>routine_invoke_0_0_end</title>",
                  "<title>loop_1_start</title>",
                  "<title>loop_1_end</title>",
                  "<title>kernel_testkern_qr_code_6</title>",
@@ -670,143 +708,6 @@ def test_scope():
             in str(excinfo.value))
 
 
-def test_find_or_create_symbol():
-    '''Test that the find_or_create_symbol method in a Node instance
-    returns the associated symbol if there is one and raises an
-    exception if not. Also test for an incorrect scope argument.
-
-    '''
-    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    kernel_schedule = kernels[0].get_kernel_schedule()
-    references = kernel_schedule.walk(Reference)
-
-    # Symbol in KernelSchedule SymbolTable
-    field_old = references[0]
-    assert field_old.name == "field_old"
-    assert isinstance(field_old.symbol, DataSymbol)
-    assert field_old.symbol in kernel_schedule.symbol_table.symbols
-
-    # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(field_old.find_or_create_symbol(
-        field_old.name, scope_limit=kernel_schedule), DataSymbol)
-    assert field_old.symbol.name == field_old.name
-
-    # Symbol in KernelSchedule SymbolTable with parent scope, so
-    # the symbol should not be found as we limit the scope to the
-    # immediate parent of the reference
-    with pytest.raises(SymbolError) as excinfo:
-        _ = field_old.find_or_create_symbol(field_old.name,
-                                            scope_limit=field_old.parent)
-    assert "No Symbol found for name 'field_old'." in str(excinfo.value)
-
-    # Symbol in Container SymbolTable
-    alpha = references[6]
-    assert alpha.name == "alpha"
-    assert isinstance(alpha.find_or_create_symbol(alpha.name), DataSymbol)
-    container = kernel_schedule.root
-    assert isinstance(container, Container)
-    assert (alpha.find_or_create_symbol(alpha.name) in
-            container.symbol_table.symbols)
-
-    # Symbol in Container SymbolTable with KernelSchedule scope, so
-    # the symbol should not be found as we limit the scope to the
-    # kernel so do not search the container symbol table.
-    with pytest.raises(SymbolError) as excinfo:
-        _ = alpha.find_or_create_symbol(alpha.name,
-                                        scope_limit=kernel_schedule)
-    assert "No Symbol found for name 'alpha'." in str(excinfo.value)
-
-    # Symbol in Container SymbolTable with Container scope
-    assert (alpha.find_or_create_symbol(
-        alpha.name, scope_limit=container).name == alpha.name)
-
-    # find_or_create_symbol method with invalid scope type
-    with pytest.raises(TypeError) as excinfo:
-        _ = alpha.find_or_create_symbol(alpha.name, scope_limit="hello")
-    assert ("The scope_limit argument 'hello' provided to the "
-            "find_or_create_symbol method, is not of type `Node`."
-            in str(excinfo.value))
-
-    # find_or_create_symbol method with invalid scope location
-    with pytest.raises(ValueError) as excinfo:
-        _ = alpha.find_or_create_symbol(alpha.name, scope_limit=alpha)
-    assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
-            "find_or_create_symbol method, is not an ancestor of this node "
-            "'Reference[name:'alpha']'." in str(excinfo.value))
-
-    # find_or_create_symbol method with invalid visibility
-    with pytest.raises(TypeError) as excinfo:
-        _ = alpha.find_or_create_symbol(alpha.name, visibility="hello")
-    assert ("visibility argument 'hello' provided to the find_or_create_symbol"
-            " method should be of `Symbol.Visibility` type but instead is: "
-            "'str'" in str(excinfo.value))
-
-    # With a valid visibility
-    sym = alpha.find_or_create_symbol("very_private",
-                                      visibility=Symbol.Visibility.PRIVATE)
-    assert sym.name == "very_private"
-    assert sym.visibility == Symbol.Visibility.PRIVATE
-    assert sym is container.symbol_table.lookup("very_private",
-                                                check_ancestors=False)
-
-
-def test_find_or_create_new_symbol():
-    ''' Check that the Node.find_or_create_symbol() method creates new
-    symbols when appropriate. '''
-    # Create some suitable PSyIR from scratch
-    symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", REAL_TYPE))
-    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
-    container = Container.create("container_name", symbol_table,
-                                 [kernel1])
-    xvar = DataSymbol("x", REAL_TYPE)
-    xref = Reference(xvar)
-    assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
-    kernel1.addchild(assign)
-    assign.parent = kernel1
-    # We have no wildcard imports so there can be no symbol named 'undefined'
-    with pytest.raises(SymbolError) as err:
-        _ = assign.find_or_create_symbol("undefined")
-    assert "No Symbol found for name 'undefined'" in str(err.value)
-    # We should be able to find the 'tmp' symbol in the parent Container
-    sym = assign.find_or_create_symbol("tmp")
-    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    # Add a wildcard import to the SymbolTable of the KernelSchedule
-    new_container = ContainerSymbol("some_mod")
-    new_container.wildcard_import = True
-    kernel1.symbol_table.add(new_container)
-    # Symbol not in any container but we do have wildcard imports so we
-    # get a new symbol back
-    new_symbol = assign.find_or_create_symbol("undefined")
-    assert new_symbol.name == "undefined"
-    assert isinstance(new_symbol.interface, UnresolvedInterface)
-    assert type(new_symbol) == Symbol
-    assert "undefined" not in container.symbol_table
-    assert kernel1.symbol_table.lookup("undefined") is new_symbol
-
-
-def test_nemo_find_container_symbol(parser):
-    ''' Check that find_or_create_symbol() works for the NEMO API when the
-    searched-for symbol is declared in the parent module. '''
-    from fparser.common.readfortran import FortranFileReader
-    from psyclone.psyir.nodes import BinaryOperation
-    reader = FortranFileReader(
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))),
-            "test_files", "gocean1p0", "kernel_with_global_mod.f90"))
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    # Get a node from the schedule
-    bops = psy._invokes.invoke_list[0].schedule.walk(BinaryOperation)
-    # Use it as the starting point for the search
-    symbol = bops[0].find_or_create_symbol("alpha")
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
-
-
 def test_children_validation():
     ''' Test that nodes are validated when inserted as children of other
     nodes. For simplicity we use Node subclasses to test this functionality
@@ -821,7 +722,7 @@ def test_children_validation():
 
     assert isinstance(assignment.children, (ChildrenList, list))
 
-    # Try adding a invalid child (e.g. a return_stmt into an assingment)
+    # Try adding a invalid child (e.g. a return_stmt into an assignment)
     with pytest.raises(GenerationError) as error:
         assignment.addchild(return_stmt)
     assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
@@ -875,8 +776,64 @@ def test_children_validation():
     assert loop.children[0].value == "2"
 
 
+def test_children_is_orphan_validation():
+    ''' Test that all kinds of children addition operations make sure that a
+    child is orphan before accepting it as its own child. '''
+    # Create 2 schedules and add a child in the first Schedule
+    schedule1 = Schedule()
+    schedule2 = Schedule()
+    statement = Return(parent=schedule1)
+    schedule1.addchild(statement)
+
+    # Try to move the child without removing the parent connection first
+    errmsg = ("Item 'Return' can't be added as child of 'Schedule' because "
+              "it is not an orphan. It already has a 'Schedule' as a parent.")
+    with pytest.raises(GenerationError) as error:
+        schedule2.addchild(statement)
+    assert errmsg in str(error.value)
+
+    with pytest.raises(GenerationError) as error:
+        schedule2.children.append(statement)
+    assert errmsg in str(error.value)
+
+    with pytest.raises(GenerationError) as error:
+        schedule2.children.insert(0, statement)
+    assert errmsg in str(error.value)
+
+    with pytest.raises(GenerationError) as error:
+        schedule2.children.extend([statement])
+    assert errmsg in str(error.value)
+
+    with pytest.raises(GenerationError) as error:
+        schedule2.children = [statement]
+    assert errmsg in str(error.value)
+
+    schedule2.addchild(Return())
+    with pytest.raises(GenerationError) as error:
+        schedule2.children[0] = statement
+    assert errmsg in str(error.value)
+
+    # It can be added when it has been detached from its previous parent
+    schedule2.addchild(statement.detach())
+
+
+def test_children_is_orphan_same_parent():
+    ''' Test children addition operations with a node that is not an orphan
+    and already belongs to the parent to which it is being added.'''
+    # Create 2 schedules and add a child in the first Schedule
+    schedule1 = Schedule()
+    statement = Return(parent=schedule1)
+    schedule1.addchild(statement)
+
+    with pytest.raises(GenerationError) as error:
+        schedule1.addchild(statement)
+    assert ("Item 'Return' can't be added as child of 'Schedule' because "
+            "it is not an orphan. It already has a 'Schedule' as a parent."
+            in str(error.value))
+
+
 def test_children_setter():
-    ''' Test that the children setter sets-up accepts lists or None or raises
+    ''' Test that the children setter sets-up accepts lists or raises
     the appropriate issue. '''
     testnode = Schedule()
 
@@ -884,15 +841,248 @@ def test_children_setter():
     assert isinstance(testnode.children, ChildrenList)
 
     # When is set up with a list, this becomes a ChildrenList
-    testnode.children = [Statement(), Statement()]
+    statement1 = Statement()
+    statement2 = Statement()
+    testnode.children = [statement1, statement2]
     assert isinstance(testnode.children, ChildrenList)
-
-    # It also accepts None
-    testnode.children = None
-    assert testnode.children is None
+    assert statement1.parent is testnode
+    assert statement2.parent is testnode
 
     # Other types are not accepted
     with pytest.raises(TypeError) as error:
         testnode.children = Node()
     assert "The 'my_children' parameter of the node.children setter must be" \
-           " a list or None." in str(error.value)
+           " a list." in str(error.value)
+
+    # If a children list is overwritten, it properly disconnects the previous
+    # children
+    testnode.children = []
+    assert statement1.parent is None
+    assert statement2.parent is None
+
+
+def test_lower_to_language_level(monkeypatch):
+    ''' Test that Node has a lower_to_language_level() method that \
+    recurses to the same method of its children. '''
+
+    # Monkeypatch the lower_to_language_level to just mark a flag
+    def visited(self):
+        self._visited_flag = True
+    monkeypatch.setattr(Statement, "lower_to_language_level", visited)
+
+    testnode = Schedule()
+    node1 = Statement()
+    node2 = Statement()
+    testnode.children = [node1, node2]
+
+    # Execute method
+    testnode.lower_to_language_level()
+
+    # Check all children have been visited
+    for child in testnode.children:
+        # This member only exists in the monkeypatched version
+        # pylint:disable=no-member
+        assert child._visited_flag
+
+
+def test_replace_with():
+    '''Check that the replace_with method behaves as expected.'''
+
+    parent_node = Schedule()
+    node1 = Statement()
+    node2 = Statement()
+    node3 = Statement()
+    parent_node.children = [node1, node2, node3]
+    new_node = Assignment()
+
+    node2.replace_with(new_node)
+
+    assert parent_node.children[1] is new_node
+    assert new_node.parent is parent_node
+    assert node2.parent is None
+
+
+def test_replace_with_error1():
+    '''Check that the replace_with method raises the expected exception if
+    the type of node is invalid for the location it is being added
+    to.
+
+    '''
+    iterator = DataSymbol("i", INTEGER_TYPE)
+    start = Literal("0", INTEGER_TYPE)
+    stop = Literal("1", INTEGER_TYPE)
+    step = Literal("1", INTEGER_TYPE)
+    loop = Loop.create(iterator, start, stop, step, [])
+    new_node = Assignment()
+    # The first child of a loop is the loop start value which should
+    # be a DataNode.
+    with pytest.raises(GenerationError) as info:
+        loop.children[0].replace_with(new_node)
+    assert("Item 'Assignment' can't be child 0 of 'Loop'. The valid "
+           "format is: 'DataNode, DataNode, DataNode, Schedule'"
+           in str(info.value))
+
+
+def test_replace_with_error2():
+    '''Check that the replace_with method raises the expected exceptions
+    if either node is invalid.
+
+    '''
+    parent = Schedule()
+    node1 = Statement()
+    node2 = Statement()
+
+    with pytest.raises(TypeError) as info:
+        node1.replace_with("hello")
+    assert("The argument node in method replace_with in the Node class "
+           "should be a Node but found 'str'." in str(info.value))
+
+    with pytest.raises(GenerationError) as info:
+        node1.replace_with(node2)
+    assert("This node should have a parent if its replace_with method "
+           "is called." in str(info.value))
+
+    parent.children = [node1, node2]
+    with pytest.raises(GenerationError) as info:
+        node1.replace_with(node2)
+    assert("The parent of argument node in method replace_with in the Node "
+           "class should be None but found 'Schedule'." in str(info.value))
+
+    node3 = Container("hello")
+    with pytest.raises(GenerationError) as info:
+        node1.replace_with(node3)
+        assert (
+            "Generation Error: Item 'Container' can't be child 0 of "
+            "'Schedule'. The valid format is: '[Statement]*'." in
+            str(info.value))
+
+
+def test_copy():
+    ''' Check that the copy method of a generic Node creates a duplicate of
+    the original node'''
+    tnode = Node()
+    duplicated_instance = tnode.copy()
+    assert isinstance(duplicated_instance, type(tnode))
+    assert duplicated_instance is not tnode
+    assert duplicated_instance.parent is None
+
+
+def test_pop_all_children():
+    ''' Check that the pop_all_children method removes the children nodes
+    from the children list and return them all in a list. '''
+
+    # Create a PSyIR tree
+    parent = Schedule()
+    node1 = Statement()
+    parent.addchild(node1)
+    node2 = Statement()
+    parent.addchild(node2)
+
+    # Execute pop_all_children method
+    result = parent.pop_all_children()
+
+    # Check the resulting nodes and connections are as expected
+    assert isinstance(result, list)
+    assert len(parent.children) == 0
+    assert node1.parent is None
+    assert node2.parent is None
+    assert result[0] is node1 and result[1] is node2
+
+
+def test_detach():
+    ''' Check that the detach method removes a node from its parent node. '''
+
+    # Create a PSyIR tree
+    parent = Schedule()
+    node1 = Statement()
+    parent.addchild(node1)
+    node2 = Statement()
+    parent.addchild(node2)
+
+    # Execute the detach method on node 1, it should return itself
+    assert node1.detach() is node1
+
+    # Check that the resulting nodes and connections are correct
+    assert node1.parent is None
+    assert len(parent.children) == 1
+    assert parent.children[0] is node2
+
+    # Executing it again still succeeds
+    assert node1.detach() is node1
+
+
+def test_parent_references_coherency():
+    ''' Check that the parent references keep updated with the children
+    node operations. '''
+    parent = Schedule()
+
+    # Children addition methods
+    node1 = Statement()
+    parent.addchild(node1)
+    assert node1.parent is parent
+
+    node2 = Statement()
+    parent.children.append(node2)
+    assert node2.parent is parent
+
+    node3 = Statement()
+    parent.children.extend([node3])
+    assert node3.parent is parent
+
+    node4 = Statement()
+    parent.children.insert(0, node4)
+    assert node4.parent is parent
+
+    # Node deletion
+    node = parent.children.pop()
+    assert node.parent is None
+    assert node is node3
+
+    del parent.children[0]
+    assert node4.parent is None
+
+    parent.children = []
+    assert node2.parent is None
+
+    # The insertion has deletions and additions
+    parent.addchild(node1)
+    parent.children[0] = node2
+    assert node1.parent is None
+    assert node2.parent is parent
+
+    # The assignment also deletes and adds nodes
+    parent.addchild(node1)
+    parent.children = parent.children + [node3]
+    assert node1.parent is parent
+    assert node2.parent is parent
+    assert node3.parent is parent
+
+
+def test_node_constructor_with_parent():
+    ''' Check that the node constructor parent parameter works as expected. '''
+    parent = Schedule()
+    wrong_parent = Schedule()
+
+    # By default no parent reference is given
+    node = Statement()
+    assert node.parent is None
+    assert node.has_constructor_parent is False
+
+    # The parent argument can predefine the parent reference
+    node = Return(parent=parent)
+    assert node.parent is parent
+    assert node.has_constructor_parent is True
+
+    # Then only an addition to this predefined parent is accepted
+    with pytest.raises(GenerationError) as err:
+        wrong_parent.addchild(node)
+    assert ("'Schedule' cannot be set as parent of 'Return' because its "
+            "constructor predefined the parent reference to a different "
+            "'Schedule' node." in str(err.value))
+
+    # Once given the proper parent, it can act as a regular node
+    parent.addchild(node)
+    assert node.parent is parent
+    assert node.has_constructor_parent is False
+    wrong_parent.addchild(node.detach())
+    assert node.parent is wrong_parent

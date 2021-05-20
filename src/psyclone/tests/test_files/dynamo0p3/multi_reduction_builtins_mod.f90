@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,12 +36,16 @@
 !
 !> @brief Meta-data for the LFRic built-in operations.
 !> @details This meta-data is broken for testing purposes.
-module dynamo0p3_builtins_mod
+module lfric_builtins_mod
+
+  use argument_mod
+  use kernel_mod
+
   !> Fake built-in that purports to do two reductions
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_SUM               ),        &
           arg_type(GH_SCALAR, GH_REAL, GH_SUM               )         &
           /)
@@ -55,4 +59,4 @@ contains
   subroutine setval_c_code()
   end subroutine setval_c_code
   
-end module dynamo0p3_builtins_mod
+end module lfric_builtins_mod

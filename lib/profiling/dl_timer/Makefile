@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,39 +31,50 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?=
+# Path to the 'apeg/dl_timer' installation. It defaults to the assumed
+# location of the apeg/dl_timer library next to a clone of PSyclone
+# repository. Overwrite for a custom location.
+DL_TIMER_ROOT ?= $(PSYDATA_LIB_DIR)/../../dl_timer
+# Path to the 'apeg/dl_timer' "include" files. Overwrite for a custom location.
+DL_TIMER_INCLUDE ?= $(DL_TIMER_ROOT)/src
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./../..
+# -----------------------------------------------------------------------------
 
-# Assume that apeg-dl_timer is 'next' to psyclone
-DL_TIMER_ROOT?=../../../../apeg-dl_timer
-
-DL_TIMER_INCLUDE?=$(DL_TIMER_ROOT)/src
-
-F90?=gfortran
-F90FLAGS?=
 F90FLAGS += -I$(DL_TIMER_INCLUDE)
 
+PSYDATA_LIB_NAME = dl_timer_psy
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
+
 OBJS = dl_timer.o psy_data_base.o
+
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS=$$(../../get_python.sh) ../../process.py
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-name=dl_timer_psy
-libname=lib$(name).a
+default: $(PSYDATA_LIB)
 
-default: $(libname)
+.PHONY: default clean allclean
 
-$(libname): $(OBJS)
-	ar rs $(libname) $(OBJS)
+$(PSYDATA_LIB): $(OBJS)
+	ar rs $(PSYDATA_LIB) $(OBJS)
 
 dl_timer.o:	psy_data_base.o
 
-psy_data_base.f90: ../../psy_data_base.jinja
+psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod \
-		psy_data_base_mod.mod psy_data_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.*
 
+allclean: clean

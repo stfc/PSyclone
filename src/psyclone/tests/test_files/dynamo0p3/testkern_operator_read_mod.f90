@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,14 +43,14 @@ module testkern_operator_read_mod
 
   type, extends(kernel_type) :: testkern_operator_read_type
      type(arg_type), dimension(3) :: meta_args =                  &
-          (/ arg_type(gh_operator,             gh_read,  w3, w3), &
-             arg_type(gh_field*3,              gh_write, w3),     &
+          (/ arg_type(gh_operator, gh_real,    gh_read,  w3, w3), &
+             arg_type(gh_field*3,  gh_real,    gh_write, w3),     &
              arg_type(gh_scalar,   gh_integer, gh_read)           &
           /)
      type(func_type) :: meta_funcs(1) =                           &
           (/ func_type(w3, gh_basis, gh_diff_basis)               &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_operator_read_code
@@ -76,9 +76,9 @@ contains
     integer(kind=i_def), intent(in) :: iscalar
     integer(kind=i_def), intent(in) :: np_xy, np_z
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    real(kind=r_def), intent(out), dimension(undf_w3) :: xdata
-    real(kind=r_def), intent(out), dimension(undf_w3) :: ydata
-    real(kind=r_def), intent(out), dimension(undf_w3) :: zdata
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: xdata
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: ydata
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: zdata
     real(kind=r_def), intent(in), dimension(ndf_w3,ndf_w3,ncell_3d) :: local_stencil
     real(kind=r_def), intent(in), dimension(1,ndf_w3,np_xy,np_z) :: basis_w3
     real(kind=r_def), intent(in), dimension(3,ndf_w3,np_xy,np_z) :: diff_basis_w3

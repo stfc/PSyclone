@@ -13,7 +13,7 @@ please see the [README](doc/README.md) file in the "doc" directory.
 Some of the examples are available as Jupyter notebooks. These may
 be launched using Binder from the links below. (Note that the first time
 this is done, Binder has to construct a Container and install the necessary
-software. This can  take serval minutes. You can track its progress
+software. This can  take several minutes. You can track its progress
 by clicking the 'show' link next to the 'Build logs' heading.)
 
  * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fnemo%2Feg4%2Fcopy_stencil.ipynb) Uses PSyclone's NEMO API to process some simple Fortran code, display the resulting PSyIR and then re-generate Fortran.

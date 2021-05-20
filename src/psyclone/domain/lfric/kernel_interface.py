@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 '''This module creates the expected arguments for an LFRic coded
 kernel based on the kernel metadata.
@@ -39,16 +40,16 @@ kernel based on the kernel metadata.
 '''
 from __future__ import absolute_import
 import six
-from psyclone.domain.lfric import ArgOrdering
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.errors import InternalError
-from psyclone.core.access_info import AccessType
+from psyclone.core import AccessType
 
 
-# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-public-methods, no-member
 class KernelInterface(ArgOrdering):
     '''Create the kernel arguments for the supplied kernel as specified by
     the associated kernel metadata and the kernel ordering rules
@@ -146,8 +147,9 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        symbol = self._create_symbol(
-            "cell", lfric_psyir.CellPositionDataSymbol)
+        symbol = self._symbol_table.symbol_from_tag(
+            "cell", symbol_type=lfric_psyir.CellPositionDataSymbol,
+            interface=self._read_access)
         self._arglist.append(symbol)
 
     def mesh_height(self, var_accesses=None):
@@ -160,8 +162,9 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        symbol = self._create_symbol(
-            "nlayers", lfric_psyir.MeshHeightDataSymbol)
+        symbol = self._symbol_table.symbol_from_tag(
+            "nlayers", symbol_type=lfric_psyir.MeshHeightDataSymbol,
+            interface=self._read_access)
         self._arglist.append(symbol)
 
     def mesh_ncell2d(self, var_accesses=None):
@@ -207,14 +210,11 @@ class KernelInterface(ArgOrdering):
             field is not supported.
 
         '''
-        # self._create_symbol(...) will create and add a undf symbol
-        # to the symbol table if one does not already exist or return
-        # the existing one if one does.
         fs_name = argvect.function_space.orig_name
-        undf_symbol = self._create_symbol(
-            "undf_{0}".format(fs_name),
-            lfric_psyir.NumberOfUniqueDofsDataSymbol,
-            extra_args=[fs_name])
+        undf_symbol = self._symbol_table.symbol_from_tag(
+            "undf_{0}".format(fs_name), fs=fs_name,
+            symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
+            interface=self._read_access)
 
         interface = ArgumentInterface(INTENT_MAPPING[argvect.intent])
         try:
@@ -226,9 +226,9 @@ class KernelInterface(ArgOrdering):
             six.raise_from(NotImplementedError(message), info)
         for idx in range(argvect.vector_size):
             tag = "{0}_v{1}".format(argvect.name, idx)
-            field_data_symbol = self._create_symbol(
-                tag, field_class, dims=[Reference(undf_symbol)],
-                extra_args=[fs_name], interface=interface)
+            field_data_symbol = self._symbol_table.symbol_from_tag(
+                tag, symbol_type=field_class, dims=[Reference(undf_symbol)],
+                fs=fs_name, interface=interface)
             self._arglist.append(field_data_symbol)
 
     def field(self, arg, var_accesses=None):
@@ -248,14 +248,11 @@ class KernelInterface(ArgOrdering):
             not supported.
 
         '''
-        # self._create_symbol(...) will create and add a undf symbol
-        # to the symbol table if one does not already exist or return
-        # the existing one if one does.
         fs_name = arg.function_space.orig_name
-        undf_symbol = self._create_symbol(
+        undf_symbol = self._symbol_table.symbol_from_tag(
             "undf_{0}".format(fs_name),
-            lfric_psyir.NumberOfUniqueDofsDataSymbol,
-            extra_args=[fs_name])
+            symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
+            fs=fs_name, interface=self._read_access)
 
         try:
             field_class = self.field_mapping[arg.intrinsic_type]
@@ -263,10 +260,9 @@ class KernelInterface(ArgOrdering):
             message = ("kernel interface does not support a field of type "
                        "'{0}'.".format(arg.intrinsic_type))
             six.raise_from(NotImplementedError(message), info)
-        field_data_symbol = self._create_symbol(
-            arg.name, field_class, dims=[Reference(undf_symbol)],
-            extra_args=[fs_name],
-            interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
+        field_data_symbol = self._symbol_table.symbol_from_tag(
+            arg.name, interface=ArgumentInterface(INTENT_MAPPING[arg.intent]),
+            symbol_type=field_class, dims=[Reference(undf_symbol)], fs=fs_name)
         self._arglist.append(field_data_symbol)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
@@ -332,28 +328,27 @@ class KernelInterface(ArgOrdering):
             not supported.
 
         '''
-        # The self._create_symbol(...) calls will create and add ndf
-        # symbols to the symbol table if they do not already exist or
-        # return the existing ones if they do.
         fs_from_name = arg.function_space_from.orig_name
-        ndf_symbol_from = self._create_symbol(
-            "ndf_{0}".format(fs_from_name), lfric_psyir.NumberOfDofsDataSymbol,
-            extra_args=[fs_from_name])
+        ndf_symbol_from = self._symbol_table.symbol_from_tag(
+            "ndf_{0}".format(fs_from_name), fs=fs_from_name,
+            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            interface=self._read_access)
         fs_to_name = arg.function_space_to.orig_name
-        ndf_symbol_to = self._create_symbol(
-            "ndf_{0}".format(fs_to_name), lfric_psyir.NumberOfDofsDataSymbol,
-            extra_args=[fs_to_name])
+        ndf_symbol_to = self._symbol_table.symbol_from_tag(
+            "ndf_{0}".format(fs_to_name), fs=fs_to_name,
+            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            interface=self._read_access)
 
         ncells = lfric_psyir.NumberOfCellsDataSymbol(
             "ncell_3d", interface=self._read_access)
         self._symbol_table.add(ncells)
         self._arglist.append(ncells)
 
-        op_arg_symbol = self._create_symbol(
-            arg.name, lfric_psyir.OperatorDataSymbol,
+        op_arg_symbol = self._symbol_table.symbol_from_tag(
+            arg.name, symbol_type=lfric_psyir.OperatorDataSymbol,
             dims=[Reference(ndf_symbol_from), Reference(ndf_symbol_to),
                   Reference(ncells)],
-            extra_args=[fs_from_name, fs_to_name],
+            fs_from=fs_from_name, fs_to=fs_to_name,
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
         self._arglist.append(op_arg_symbol)
 
@@ -392,8 +387,9 @@ class KernelInterface(ArgOrdering):
             "real": lfric_psyir.LfricRealScalarDataSymbol,
             "logical": lfric_psyir.LfricLogicalScalarDataSymbol}
         try:
-            symbol = self._create_symbol(
-                scalar_arg.name, mapping[scalar_arg.intrinsic_type],
+            symbol = self._symbol_table.symbol_from_tag(
+                scalar_arg.name,
+                symbol_type=mapping[scalar_arg.intrinsic_type],
                 interface=ArgumentInterface(INTENT_MAPPING[scalar_arg.intent]))
         except KeyError as info:
             message = (
@@ -417,9 +413,10 @@ class KernelInterface(ArgOrdering):
 
         '''
         fs_name = function_space.orig_name
-        ndf_symbol = self._create_symbol(
-            "ndf_{0}".format(fs_name), lfric_psyir.NumberOfDofsDataSymbol,
-            extra_args=[fs_name])
+        ndf_symbol = self._symbol_table.symbol_from_tag(
+            "ndf_{0}".format(fs_name), fs=fs_name,
+            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            interface=self._read_access)
         self._arglist.append(ndf_symbol)
 
     def fs_intergrid(self, function_space, var_accesses=None):
@@ -455,19 +452,22 @@ class KernelInterface(ArgOrdering):
 
         '''
         fs_name = function_space.orig_name
-        undf_symbol = self._create_symbol(
-            "undf_{0}".format(fs_name),
-            lfric_psyir.NumberOfUniqueDofsDataSymbol, extra_args=[fs_name])
+        undf_symbol = self._symbol_table.symbol_from_tag(
+            "undf_{0}".format(fs_name), fs=fs_name,
+            symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
+            interface=self._read_access)
         self._arglist.append(undf_symbol)
 
         fs_name = function_space.orig_name
-        ndf_symbol = self._create_symbol(
-            "ndf_{0}".format(fs_name), lfric_psyir.NumberOfDofsDataSymbol,
-            extra_args=[fs_name])
+        ndf_symbol = self._symbol_table.symbol_from_tag(
+            "ndf_{0}".format(fs_name), fs=fs_name,
+            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            interface=self._read_access)
 
-        dofmap_symbol = self._create_symbol(
-            "dofmap_{0}".format(fs_name), lfric_psyir.DofMapDataSymbol,
-            dims=[Reference(ndf_symbol)], extra_args=[fs_name])
+        dofmap_symbol = self._symbol_table.symbol_from_tag(
+            "dofmap_{0}".format(fs_name), fs=fs_name,
+            symbol_type=lfric_psyir.DofMapDataSymbol,
+            dims=[Reference(ndf_symbol)], interface=self._read_access)
         self._arglist.append(dofmap_symbol)
 
     def banded_dofmap(self, function_space, var_accesses=None):
@@ -544,21 +544,6 @@ class KernelInterface(ArgOrdering):
         self._create_basis(function_space, self.diff_basis_mapping,
                            basis_name_func, first_dim_value_func)
 
-    def orientation(self, function_space, var_accesses=None):
-        '''Not implemented.
-
-        :param function_space: the function space for orientation.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: an unused optional argument that stores \
-            information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        :raises NotImplementedError: as this method is not implemented.
-
-        '''
-        raise NotImplementedError("orientation not implemented")
-
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Not implemented.
 
@@ -629,101 +614,54 @@ class KernelInterface(ArgOrdering):
         # The kernel captures all the required quadrature shapes
         for shape in self._kern.qr_rules:
             if shape == "gh_quadrature_xyoz":
-                nqp_xy = self._create_symbol(
-                    "nqp_xy", lfric_psyir.NumberOfQrPointsInXyDataSymbol)
-                nqp_z = self._create_symbol(
-                    "nqp_z", lfric_psyir.NumberOfQrPointsInZDataSymbol)
-                weights_xy = self._create_symbol(
-                    "weights_xy", lfric_psyir.QrWeightsInXyDataSymbol,
-                    dims=[Reference(nqp_xy)])
-                weights_z = self._create_symbol(
-                    "weights_z", lfric_psyir.QrWeightsInZDataSymbol,
-                    dims=[Reference(nqp_z)])
+                nqp_xy = self._symbol_table.symbol_from_tag(
+                    "nqp_xy",
+                    symbol_type=lfric_psyir.NumberOfQrPointsInXyDataSymbol,
+                    interface=self._read_access)
+                nqp_z = self._symbol_table.symbol_from_tag(
+                    "nqp_z",
+                    symbol_type=lfric_psyir.NumberOfQrPointsInZDataSymbol,
+                    interface=self._read_access)
+                weights_xy = self._symbol_table.symbol_from_tag(
+                    "weights_xy",
+                    symbol_type=lfric_psyir.QrWeightsInXyDataSymbol,
+                    dims=[Reference(nqp_xy)], interface=self._read_access)
+                weights_z = self._symbol_table.symbol_from_tag(
+                    "weights_z",
+                    symbol_type=lfric_psyir.QrWeightsInZDataSymbol,
+                    dims=[Reference(nqp_z)], interface=self._read_access)
                 self._arglist.extend([nqp_xy, nqp_z, weights_xy, weights_z])
             elif shape == "gh_quadrature_face":
-                nfaces = self._create_symbol(
-                    "nfaces", lfric_psyir.NumberOfFacesDataSymbol)
-                nqp = self._create_symbol(
-                    "nqp_faces", lfric_psyir.NumberOfQrPointsInFacesDataSymbol)
-                weights = self._create_symbol(
-                    "weights_faces", lfric_psyir.QrWeightsInFacesDataSymbol,
-                    dims=[Reference(nqp)])
+                nfaces = self._symbol_table.symbol_from_tag(
+                    "nfaces",
+                    symbol_type=lfric_psyir.NumberOfFacesDataSymbol,
+                    interface=self._read_access)
+                nqp = self._symbol_table.symbol_from_tag(
+                    "nqp_faces",
+                    symbol_type=lfric_psyir.NumberOfQrPointsInFacesDataSymbol,
+                    interface=self._read_access)
+                weights = self._symbol_table.symbol_from_tag(
+                    "weights_faces",
+                    symbol_type=lfric_psyir.QrWeightsInFacesDataSymbol,
+                    dims=[Reference(nqp)], interface=self._read_access)
                 self._arglist.extend([nfaces, nqp, weights])
             elif shape == "gh_quadrature_edge":
-                nedges = self._create_symbol(
-                    "nedges", lfric_psyir.NumberOfEdgesDataSymbol)
-                nqp = self._create_symbol(
-                    "nqp_edges", lfric_psyir.NumberOfQrPointsInEdgesDataSymbol)
-                weights = self._create_symbol(
-                    "weights_edges", lfric_psyir.QrWeightsInEdgesDataSymbol,
-                    dims=[Reference(nqp)])
+                nedges = self._symbol_table.symbol_from_tag(
+                    "nedges",
+                    symbol_type=lfric_psyir.NumberOfEdgesDataSymbol,
+                    interface=self._read_access)
+                nqp = self._symbol_table.symbol_from_tag(
+                    "nqp_edges",
+                    symbol_type=lfric_psyir.NumberOfQrPointsInEdgesDataSymbol,
+                    interface=self._read_access)
+                weights = self._symbol_table.symbol_from_tag(
+                    "weights_edges",
+                    symbol_type=lfric_psyir.QrWeightsInEdgesDataSymbol,
+                    dims=[Reference(nqp)], interface=self._read_access)
                 self._arglist.extend([nedges, nqp, weights])
             else:
                 raise InternalError("Unsupported quadrature shape '{0}' "
                                     "found in kernel_interface.".format(shape))
-
-    # pylint: disable=too-many-arguments
-    def _create_symbol(self, tag, symbol_type, extra_args=None, dims=None,
-                       interface=None):
-        '''Internal utility to create a symbol. If a symbol is found in the
-        symbol table with the supplied tag then that symbol is
-        returned, otherwise a new symbol of type 'symbol_type' is
-        created and added to the symbol table with the supplied
-        tag. If the symbol requires any arguments then these are
-        supplied via the extra_args and dims arguments. The latter
-        specifies the dimensions of the symbol if it is an array. By
-        default it is assumed that the access to the symbol will be
-        read only; if the access is different to this then the
-        interface argument must be provided with the appropriate
-        access type.
-
-        As this is an internal utility, we assume that the argument
-        datatypes and content are correct.
-
-        :param str tag: the name to use as a tag in the symbol table \
-            and also as the base name when creating a new symbol name.
-        :param symbol_type: the symbol class that we are going to create.
-        :type symbol_type: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param extra_args: an optional list of strings specifying the \
-            values of any additional arguments to provide to the \
-            data_symbol class on creation or None if there are \
-            none. Defaults to None.
-        :type extra_args: list of str or NoneType
-        :param dims: an optional list of dimensions used to dimension \
-            the data_symbol class if it is an array, or None if it is \
-            not an array. Defaults to None.
-        :type dims: list of DataSymbol, int or ArrayType.Extent or NoneType
-        :param interface: an optional ArgumentInterface specifying the \
-            intent of the symbol, or None if the default is \
-            suitable. Defaults to read access.
-        :type interface: \
-            :py:class:`psyclone.psyir.symbols.ArgumentInterface` or \
-            NoneType
-
-        :returns: the appropriate symbol and properties as specified \
-            by this methods arguments.
-        :rtype: subclass of :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        '''
-        try:
-            symbol = self._symbol_table.lookup_with_tag(tag)
-            if not isinstance(symbol, symbol_type):
-                raise InternalError(
-                    "Expected symbol with tag '{0}' to be of type '{1}' but "
-                    "found type '{2}'.".format(
-                        tag, symbol_type.__name__, type(symbol).__name__))
-        except KeyError:
-            if interface is None:
-                interface = self._read_access
-            name = self._symbol_table.new_symbol_name(tag)
-            args = [name]
-            if dims:
-                args.append(dims)
-            if extra_args:
-                args.extend(extra_args)
-            symbol = symbol_type(*args, interface=interface)
-            self._symbol_table.add(symbol, tag=tag)
-        return symbol
 
     def _create_basis(self, function_space, mapping, basis_name_func,
                       first_dim_value_func):
@@ -760,53 +698,61 @@ class KernelInterface(ArgOrdering):
 
         '''
         # pylint: disable=too-many-locals
-        # This import must be placed here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES
+        const = LFRicConstants()
         for shape in self._kern.eval_shapes:
-            # self._create_symbol(...) will create and add an ndf
-            # symbol to the symbol table if one does not already exist
-            # or return the existing one if one does.
             fs_name = function_space.orig_name
-            ndf_symbol = self._create_symbol(
-                "ndf_{0}".format(fs_name), lfric_psyir.NumberOfDofsDataSymbol,
-                extra_args=[fs_name])
+            ndf_symbol = self._symbol_table.symbol_from_tag(
+                "ndf_{0}".format(fs_name),
+                symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+                fs=fs_name, interface=self._read_access)
 
             # Create the qr tag by appending the last part of the shape
             # name to "qr_".
             quad_name = shape.split("_")[-1]
             basis_tag = basis_name_func(qr_var="qr_"+quad_name)
             if shape == "gh_quadrature_xyoz":
-                nqp_xy = self._create_symbol(
-                    "nqp_xy", lfric_psyir.NumberOfQrPointsInXyDataSymbol)
-                nqp_z = self._create_symbol(
-                    "nqp_z", lfric_psyir.NumberOfQrPointsInZDataSymbol)
+                nqp_xy = self._symbol_table.symbol_from_tag(
+                    "nqp_xy",
+                    symbol_type=lfric_psyir.NumberOfQrPointsInXyDataSymbol,
+                    interface=self._read_access)
+                nqp_z = self._symbol_table.symbol_from_tag(
+                    "nqp_z",
+                    symbol_type=lfric_psyir.NumberOfQrPointsInZDataSymbol,
+                    interface=self._read_access)
                 arg = mapping["gh_quadrature_xyoz"](
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp_xy),
                                 Reference(nqp_z)],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_face":
-                nfaces = self._create_symbol(
-                    "nfaces", lfric_psyir.NumberOfFacesDataSymbol)
-                nqp = self._create_symbol(
-                    "nqp_faces", lfric_psyir.NumberOfQrPointsInFacesDataSymbol)
+                nfaces = self._symbol_table.symbol_from_tag(
+                    "nfaces",
+                    symbol_type=lfric_psyir.NumberOfFacesDataSymbol,
+                    interface=self._read_access)
+                nqp = self._symbol_table.symbol_from_tag(
+                    "nqp_faces",
+                    symbol_type=lfric_psyir.NumberOfQrPointsInFacesDataSymbol,
+                    interface=self._read_access)
                 arg = mapping["gh_quadrature_face"](
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp),
                                 Reference(nfaces)],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_edge":
-                nedges = self._create_symbol(
-                    "nedges", lfric_psyir.NumberOfEdgesDataSymbol)
-                nqp = self._create_symbol(
-                    "nqp_edges", lfric_psyir.NumberOfQrPointsInEdgesDataSymbol)
+                nedges = self._symbol_table.symbol_from_tag(
+                    "nedges",
+                    symbol_type=lfric_psyir.NumberOfEdgesDataSymbol,
+                    interface=self._read_access)
+                nqp = self._symbol_table.symbol_from_tag(
+                    "nqp_edges",
+                    symbol_type=lfric_psyir.NumberOfQrPointsInEdgesDataSymbol,
+                    interface=self._read_access)
                 arg = mapping["gh_quadrature_edge"](
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp),
                                 Reference(nedges)],
                     fs_name, interface=self._read_access)
-            elif shape in VALID_EVALUATOR_SHAPES:
+            elif shape in const.VALID_EVALUATOR_SHAPES:
                 # Need a (diff) basis array for each target space upon
                 # which the basis functions have been
                 # evaluated. _kern.eval_targets is a dict where the
@@ -819,6 +765,6 @@ class KernelInterface(ArgOrdering):
                 raise InternalError(
                     "Unrecognised quadrature or evaluator shape '{0}'. "
                     "Expected one of: {1}.".format(
-                        shape, VALID_EVALUATOR_SHAPES))
+                        shape, const.VALID_EVALUATOR_SHAPES))
             self._symbol_table.add(arg)
             self._arglist.append(arg)

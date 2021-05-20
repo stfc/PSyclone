@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,11 +46,11 @@ module testkern_write_op_and_fld_mod
 
   type, extends(kernel_type) :: testkern_write_op_and_fld_type
      type(arg_type), dimension(3) :: meta_args =                 &
-          (/ arg_type(gh_field*3,              gh_write, w3),    &
+          (/ arg_type(gh_field*3,  gh_real,    gh_write, w3),    &
              arg_type(gh_scalar,   gh_integer, gh_read),         &
-             arg_type(gh_operator,             gh_write, w0, w0) &
+             arg_type(gh_operator, gh_real,    gh_write, w0, w0) &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_write_op_and_fld_code
   end type testkern_write_op_and_fld_type
@@ -71,10 +71,10 @@ contains
     integer(kind=i_def), intent(in) :: ncell_3d
     integer(kind=i_def), intent(in) :: iscalar
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v1
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v2
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v3
-    real(kind=r_def), intent(out), dimension(ndf_w0,ndf_w0,ncell_3d) :: op
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v1
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v2
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v3
+    real(kind=r_def), intent(inout), dimension(ndf_w0,ndf_w0,ncell_3d) :: op
 
   end subroutine testkern_write_op_and_fld_code
 

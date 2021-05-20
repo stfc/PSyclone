@@ -885,7 +885,7 @@ the GOcean 1.0 API. For an overview of transformations in general see
 
 ####
 
-.. autoclass:: psyclone.transformations.GOceanLoopFuseTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOceanLoopFuseTrans
    :members:
    :noindex:
 
@@ -912,4 +912,10 @@ the GOcean 1.0 API. For an overview of transformations in general see
 .. autoclass:: psyclone.transformations.GOLoopSwapTrans
    :members:
    :noindex:
+
+####
+
+.. autoclass:: psyclone.domain.gocean.transformations.GOMoveIterationBoundariesInsideKernelTrans
+    :members:
+    :noindex:
 

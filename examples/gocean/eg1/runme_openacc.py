@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''A simple test script showing the introduction of OpenACC with PSyclone.
 In order to use it you must first install PSyclone like so:
@@ -87,38 +87,37 @@ if __name__ == "__main__":
 
     TRANS_INFO = TransInfo()
     print(TRANS_INFO.list)
-    FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
+    FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuseTrans')
     PTRANS = TRANS_INFO.get_trans_name('ACCParallelTrans')
     DTRANS = TRANS_INFO.get_trans_name('ACCEnterDataTrans')
     LTRANS = TRANS_INFO.get_trans_name('ACCLoopTrans')
 
     # invoke0
     # fuse all outer loops
-    LF1_SCHEDULE, _ = FUSE_TRANS.apply(SCHEDULE.children[0],
-                                       SCHEDULE.children[1])
-    LF2_SCHEDULE, _ = FUSE_TRANS.apply(LF1_SCHEDULE.children[0],
-                                       LF1_SCHEDULE.children[1])
-    LF3_SCHEDULE, _ = FUSE_TRANS.apply(LF2_SCHEDULE.children[0],
-                                       LF2_SCHEDULE.children[1])
-    LF3_SCHEDULE.view()
+    FUSE_TRANS.apply(SCHEDULE.children[0],
+                     SCHEDULE.children[1])
+    FUSE_TRANS.apply(SCHEDULE.children[0],
+                     SCHEDULE.children[1])
+    FUSE_TRANS.apply(SCHEDULE.children[0],
+                     SCHEDULE.children[1])
+    SCHEDULE.view()
 
     # fuse all inner loops
-    LF4_SCHEDULE, _ = FUSE_TRANS.apply(LF3_SCHEDULE.children[0].loop_body[0],
-                                       LF3_SCHEDULE.children[0].loop_body[1])
-    LF5_SCHEDULE, _ = FUSE_TRANS.apply(LF4_SCHEDULE.children[0].loop_body[0],
-                                       LF4_SCHEDULE.children[0].loop_body[1])
-    LF6_SCHEDULE, _ = FUSE_TRANS.apply(LF5_SCHEDULE.children[0].loop_body[0],
-                                       LF5_SCHEDULE.children[0].loop_body[1])
-    LF6_SCHEDULE.view()
+    FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
+                     SCHEDULE.children[0].loop_body[1])
+    FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
+                     SCHEDULE.children[0].loop_body[1])
+    FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
+                     SCHEDULE.children[0].loop_body[1])
+    SCHEDULE.view()
 
     # Apply an OpenACC loop directive to the loop
-    SCHED, _ = LTRANS.apply(LF6_SCHEDULE.children[0], {"collapse": 2})
+    LTRANS.apply(SCHEDULE.children[0], {"collapse": 2})
 
     # Create an OpenACC parallel region around the loop
-    OL_SCHEDULE, _ = PTRANS.apply(SCHED.children[0])
-    OL_SCHEDULE.view()
+    PTRANS.apply(SCHEDULE.children[0])
+    SCHEDULE.view()
 
     # Add an OpenACC enter-data directive
-    SCHED, _ = DTRANS.apply(OL_SCHEDULE)
-    PSY.invokes.get('invoke_0').schedule = SCHED
+    DTRANS.apply(SCHEDULE)
     print(PSY.gen)

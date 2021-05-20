@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2020, Science and Technology Facilities Council.
+! Copyright (c) 2019-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,10 +30,13 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module profile_psy_data_mod
-  use iso_c_binding, only: C_CHAR, C_INT, C_INT16_T, C_INT64_T, C_PTR, &
+
+  use iso_c_binding, only : C_CHAR, C_INT, C_INT16_T, C_INT64_T, C_PTR, &
        C_NULL_CHAR, C_LOC
+
   implicit none
 
   private
@@ -51,7 +54,8 @@ module profile_psy_data_mod
      character(kind=C_CHAR, len=256) :: name = ""
   contains
       ! The profiling API uses only the two following calls:
-      procedure :: PreStart, PostEnd
+      procedure :: PreStart
+      procedure :: PostEnd
   end type profile_PSyDataType
 
   ! The colour index of the last region created.
@@ -78,7 +82,7 @@ module profile_psy_data_mod
      integer(C_INT):: payloadType=0 !> NVTX_PAYLOAD_UNKNOWN = 0
      integer(C_INT):: reserved0
      integer(C_INT64_T):: payload   !> union uint,int,double
-     integer(C_INT):: messageType=1 !> NVTX_MESSAGE_TYPE_ASCII     = 1 
+     integer(C_INT):: messageType=1 !> NVTX_MESSAGE_TYPE_ASCII = 1
      type(C_PTR):: message          !> ASCII char
   end type nvtxEventAttributes
 
@@ -151,7 +155,7 @@ contains
   !> Starts a profiling area. The module and region name can be used to create
   !! a unique name for each region.
   !! Parameters:
-  !! @param[inout] this This PSyData instance.
+  !! @param[in,out] this This PSyData instance.
   !! @param[in] module_name Name of the module in which the region is
   !! @param[in] region_name Name of the region (could be name of an invoke, or
   !!            subroutine name).
@@ -162,14 +166,16 @@ contains
   !!            this region.
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                       num_post_vars)
+
     implicit none
+
     class(profile_PSyDataType), target, intent(inout) :: this
-    character*(*), intent(in) :: module_name, region_name
+    character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
     ! Locals
     type(nvtxEventAttributes) :: event
 
-    if(.not. this%initialised)then
+    if (.not. this%initialised) then
        ! This is the first time we've seen this region. Construct and
        ! save its name to save on future string operations.
        this%initialised = .true.
@@ -185,24 +191,25 @@ contains
        this%name = trim(module_name)//":"//trim(region_name) &
                            &   //C_NULL_CHAR
     end if
-    
+
     event%color = col(this%colour_index)
-    ! TODO: #698 This requires target attribute in the PSyData instances
-    ! in the calling program.
+
     event%message = c_loc(this%name)
-    
+
     call nvtxRangePushEx(event)
 
   end subroutine PreStart
 
   !> Ends a profiling area.
-  !! @param[inout] this: Persistent data, not used in this case.
+  !! @param[in,out] this: Persistent data, not used in this case.
   subroutine PostEnd(this)
+
     implicit none
+
     class(profile_PSyDataType), target :: this
-    
+
     call nvtxRangePop()
-    
+
   end subroutine PostEnd
 
   !> The finalise function would normally print the results. However, this

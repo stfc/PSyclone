@@ -33,7 +33,7 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-EXAMPLES=$(wildcard eg*)
+EXAMPLES=$(sort $(wildcard eg*))
 
 include ../top_level.mk
 

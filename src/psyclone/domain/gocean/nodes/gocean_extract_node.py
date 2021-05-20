@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''
@@ -73,11 +74,9 @@ class GOceanExtractNode(ExtractNode):
         not overwritten in the options dictionary.
 
     '''
-    def __init__(self, ast=None, children=None, parent=None,
-                 options=None):
+    def __init__(self, ast=None, children=None, parent=None, options=None):
         super(GOceanExtractNode, self).__init__(ast=ast, children=children,
-                                                parent=parent,
-                                                options=options)
+                                                parent=parent, options=options)
         if options:
             self._create_driver = options.get("create_driver", False)
         else:
@@ -176,9 +175,8 @@ class GOceanExtractNode(ExtractNode):
         sym = Symbol("PSyDataType")
         sym_table.add(sym)
 
-        psy_data = sym_table.new_symbol_name(self.add_psydata_class_prefix
-                                             ("psy_data"))
-        sym_table.add(Symbol(psy_data))
+        root_name = self.add_psydata_class_prefix("psy_data")
+        psy_data = sym_table.new_symbol(root_name).name
         var_decl = TypeDeclGen(prog, datatype=self.add_psydata_class_prefix
                                ("PSyDataType"),
                                entity_decls=[psy_data])
@@ -222,9 +220,8 @@ class GOceanExtractNode(ExtractNode):
                 # No derived type, so we can just use the
                 # variable name directly in the driver
                 local_name = var_name
-            unique_local_name = sym_table.new_symbol_name(local_name)
+            unique_local_name = sym_table.new_symbol(local_name).name
             rename_variable[local_name] = unique_local_name
-            sym_table.add(Symbol(unique_local_name))
             local_name = unique_local_name
 
             # TODO: #644 - we need to identify arrays!!
@@ -364,3 +361,7 @@ class GOceanExtractNode(ExtractNode):
         with open("driver-{0}-{1}.f90".
                   format(module_name, region_name), "w") as out:
             out.write(code)
+
+
+# For AutoAPI documentation generation
+__all__ = ['GOceanExtractNode']

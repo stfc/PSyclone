@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -48,40 +49,15 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 class NanTestNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for
-    NAN-checking using the NanTestTrans transformation. By
-    applying the transformation the Nodes marked for checking become
-    children of (the Schedule of) a NanTestNode.
-
-    :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
-    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dictionary with options provided via transformations.
-    :type options: dictionary of string:values or None
-    :param str options["prefix"]: a prefix to use for the PSyData module name \
-        (``prefix_psy_data_mod``) and the PSyDataType (``prefix_PSyDataType``)\
-        - a "_" will be added automatically. It defaults to "``nan_test_``", \
-        which means the module name used will be ``nan_test_psy_data_mode``, \
-        and the data type ``nan_test_PSyDataType``.
+    NAN-checking using the NanTestTrans transformation. The Nodes
+    marked for checking become children of (the Schedule of) a NanTestNode.
 
     '''
     # Textual description of the node.
     _text_name = "NanTest"
-    _colour_key = "NanTest"
-
-    def __init__(self, ast=None, children=None, parent=None, options=None):
-        if options:
-            my_options = options.copy()
-        else:
-            my_options = {}
-        # If there is no value specified in the constructor, default
-        # to the "nan_test" class.
-        my_options["prefix"] = my_options.get("prefix", "nan_test")
-        super(NanTestNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=my_options)
+    _colour = "green"
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = "nan_test"
 
     @property
     def nan_test_body(self):
@@ -142,3 +118,7 @@ class NanTestNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " NanTestEnd"))
         parent.add(CommentGen(parent, ""))
+
+
+# For AutoAPI documentation generation
+__all__ = ['NanTestNode']

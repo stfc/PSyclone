@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
-# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 
 '''
@@ -45,13 +45,25 @@ functions.
 '''
 
 from __future__ import absolute_import
+import io
 import os
 import re
+import stat
+from sys import modules
 import pytest
-from psyclone.generator import generate, main
-from psyclone.errors import GenerationError, InternalError
-from psyclone.parse.utils import ParseError
+import six
+
 from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.errors import GenerationError, InternalError
+from psyclone.generator import generate, main, write_unicode_file
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
+from psyclone.profiler import Profiler
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.transformations import LoopFuseTrans
+from psyclone.version import __VERSION__
+
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
@@ -65,7 +77,6 @@ def delete_module(modname):
     '''a function to remove a module from Python's internal modules
        list. This is useful as some tests affect others by importing
        modules.'''
-    from sys import modules
     del modules[modname]
     for mod in modules.values():
         try:
@@ -319,9 +330,6 @@ def test_script_trans():
         example.
 
     '''
-    from psyclone.parse.algorithm import parse
-    from psyclone.psyGen import PSyFactory
-    from psyclone.transformations import LoopFuseTrans
     root_path = os.path.dirname(os.path.abspath(__file__))
     base_path = os.path.join(root_path, "test_files", "dynamo0p3")
     # First loop fuse explicitly (without using generator.py)
@@ -333,8 +341,7 @@ def test_script_trans():
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
     trans = LoopFuseTrans()
-    schedule, _ = trans.apply(loop1, loop2)
-    invoke.schedule = schedule
+    trans.apply(loop1, loop2)
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="dynamo0.3",
@@ -402,7 +409,6 @@ def test_main_version(capsys):
     with pytest.raises(SystemExit):
         main(["-h"])
     output, _ = capsys.readouterr()
-    from psyclone.version import __VERSION__
     assert "Display version information ({0})".format(__VERSION__) in output
 
     # Now test -v, but it needs a filename for argparse to work. Just use
@@ -421,7 +427,6 @@ def test_main_profile(capsys):
                             "test_files", "gocean1p0",
                             "test27_loop_swap.f90")
 
-    from psyclone.profiler import Profiler
     options = ["-api", "gocean1.0"]
 
     # Check for invokes only parameter:
@@ -546,9 +551,12 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     ''' Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
     function. '''
+
+    # Make sure the attribute VALID_ARG_TYPE_NAMES exist
+    # before we modify it.
+    _ = LFRicConstants()
     # sabotage the code so one of our constant lists is now an int
-    from psyclone.domain.lfric import LFRicArgDescriptor
-    monkeypatch.setattr(LFRicArgDescriptor, "VALID_ARG_TYPE_NAMES",
+    monkeypatch.setattr(LFRicConstants, "VALID_ARG_TYPE_NAMES",
                         value=1)
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
@@ -709,7 +717,6 @@ def test_main_kern_output_no_dir(capsys):
 def test_main_kern_output_no_write(tmpdir, capsys):
     ''' Test for when the specified output directory (for transformed
     kernels) cannot be written to. '''
-    import stat
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
@@ -800,9 +807,6 @@ def test_main_include_path(capsys):
 
 def test_write_utf_file(tmpdir, monkeypatch):
     ''' Unit tests for the write_unicode_file utility routine. '''
-    import six
-    import io
-    from psyclone.generator import write_unicode_file
 
     # First for plain ASCII
     out_file1 = os.path.join(str(tmpdir), "out1.txt")
@@ -838,7 +842,6 @@ def test_write_utf_file(tmpdir, monkeypatch):
 def test_utf_char(tmpdir):
     ''' Test that the generate method works OK when both the Algorithm and
     Kernel code contain utf-encoded chars. '''
-    import io
     algfile = os.path.join(str(tmpdir), "alg.f90")
     main([os.path.join(BASE_PATH, "gocean1p0", "test29_utf_chars.f90"),
           "-api", "gocean1.0", "-oalg", algfile])

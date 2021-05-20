@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the Min2Code transformation.'''
 
@@ -80,17 +80,13 @@ def example_psyir_binary(create_expression):
 
     '''
     symbol_table = SymbolTable()
-    name1 = symbol_table.new_symbol_name("arg")
-    arg1 = DataSymbol(name1, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg1)
-    name2 = symbol_table.new_symbol_name("arg")
-    arg2 = DataSymbol(name2, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg2)
-    name3 = symbol_table.new_symbol_name()
-    arg3 = DataSymbol(name3, REAL_TYPE)
-    symbol_table.add(arg3)
+    arg1 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    arg2 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    arg3 = symbol_table.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE)
     symbol_table.specify_argument_list([arg1, arg2])
     var1 = Reference(arg1)
     var2 = Reference(arg2)
@@ -111,21 +107,16 @@ def example_psyir_nary():
 
     '''
     symbol_table = SymbolTable()
-    name1 = symbol_table.new_symbol_name("arg")
-    arg1 = DataSymbol(name1, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg1)
-    name2 = symbol_table.new_symbol_name("arg")
-    arg2 = DataSymbol(name2, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg2)
-    name3 = symbol_table.new_symbol_name("arg")
-    arg3 = DataSymbol(name3, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg3)
-    name4 = symbol_table.new_symbol_name()
-    arg4 = DataSymbol(name4, REAL_TYPE)
-    symbol_table.add(arg4)
+    arg1 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    arg2 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    arg3 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    arg4 = symbol_table.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE)
     symbol_table.specify_argument_list([arg1, arg2, arg3])
     var1 = Reference(arg1)
     var2 = Reference(arg2)
@@ -151,31 +142,32 @@ def test_correct_binary(func, output, tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir_binary(func)
+    root = operation.root
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine min_example(arg,arg_1)\n"
+        "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=MIN({0}, arg_1)\n\n"
+        "  psyir_tmp = MIN({0}, arg_1)\n\n"
         "end subroutine min_example\n".format(output)) in result
     trans = Min2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    result = writer(root)
     assert (
-        "subroutine min_example(arg,arg_1)\n"
+        "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
         "  real :: tmp_min\n\n"
-        "  res_min={0}\n"
-        "  tmp_min=arg_1\n"
+        "  res_min = {0}\n"
+        "  tmp_min = arg_1\n"
         "  if (tmp_min < res_min) then\n"
-        "    res_min=tmp_min\n"
+        "    res_min = tmp_min\n"
         "  end if\n"
-        "  psyir_tmp=res_min\n\n"
+        "  psyir_tmp = res_min\n\n"
         "end subroutine min_example\n".format(output)) in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
@@ -189,39 +181,40 @@ def test_correct_expr(tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir_binary(lambda arg: arg)
+    root = operation.root
     assignment = operation.parent
+    operation.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  op1, Literal("2.0", REAL_TYPE))
-    op2.parent = assignment
-    assignment.children[1] = op2
+    assignment.addchild(op2)
 
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine min_example(arg,arg_1)\n"
+        "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=1.0 + MIN(arg, arg_1) + 2.0\n\n"
+        "  psyir_tmp = 1.0 + MIN(arg, arg_1) + 2.0\n\n"
         "end subroutine min_example\n") in result
     trans = Min2CodeTrans()
     trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine min_example(arg,arg_1)\n"
+        "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
         "  real :: tmp_min\n\n"
-        "  res_min=arg\n"
-        "  tmp_min=arg_1\n"
+        "  res_min = arg\n"
+        "  tmp_min = arg_1\n"
         "  if (tmp_min < res_min) then\n"
-        "    res_min=tmp_min\n"
+        "    res_min = tmp_min\n"
         "  end if\n"
-        "  psyir_tmp=1.0 + res_min + 2.0\n\n"
+        "  psyir_tmp = 1.0 + res_min + 2.0\n\n"
         "end subroutine min_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
@@ -235,30 +228,31 @@ def test_correct_2min(tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir_binary(lambda arg: arg)
+    root = operation.root
     assignment = operation.parent
+    operation.detach()
     min_op = BinaryOperation.create(BinaryOperation.Operator.MIN,
                                     Literal("1.0", REAL_TYPE),
                                     Literal("2.0", REAL_TYPE))
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  min_op, operation)
-    op1.parent = assignment
-    assignment.children[1] = op1
+    assignment.addchild(op1)
 
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine min_example(arg,arg_1)\n"
+        "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=MIN(1.0, 2.0) + MIN(arg, arg_1)\n\n"
+        "  psyir_tmp = MIN(1.0, 2.0) + MIN(arg, arg_1)\n\n"
         "end subroutine min_example\n") in result
     trans = Min2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    trans.apply(min_op, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    trans.apply(min_op, root.symbol_table)
+    result = writer(root)
     assert (
-        "subroutine min_example(arg,arg_1)\n"
+        "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
@@ -266,17 +260,17 @@ def test_correct_2min(tmpdir):
         "  real :: tmp_min\n"
         "  real :: res_min_1\n"
         "  real :: tmp_min_1\n\n"
-        "  res_min=arg\n"
-        "  tmp_min=arg_1\n"
+        "  res_min = arg\n"
+        "  tmp_min = arg_1\n"
         "  if (tmp_min < res_min) then\n"
-        "    res_min=tmp_min\n"
+        "    res_min = tmp_min\n"
         "  end if\n"
-        "  res_min_1=1.0\n"
-        "  tmp_min_1=2.0\n"
+        "  res_min_1 = 1.0\n"
+        "  tmp_min_1 = 2.0\n"
         "  if (tmp_min_1 < res_min_1) then\n"
-        "    res_min_1=tmp_min_1\n"
+        "    res_min_1 = tmp_min_1\n"
         "  end if\n"
-        "  psyir_tmp=res_min_1 + res_min\n\n"
+        "  psyir_tmp = res_min_1 + res_min\n\n"
         "end subroutine min_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
@@ -290,37 +284,38 @@ def test_correct_nary(tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir_nary()
+    root = operation.root
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine min_example(arg,arg_1,arg_2)\n"
+        "subroutine min_example(arg, arg_1, arg_2)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real, intent(inout) :: arg_2\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=MIN(arg, arg_1, arg_2)\n\n"
+        "  psyir_tmp = MIN(arg, arg_1, arg_2)\n\n"
         "end subroutine min_example\n") in result
     trans = Min2CodeTrans()
     trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine min_example(arg,arg_1,arg_2)\n"
+        "subroutine min_example(arg, arg_1, arg_2)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real, intent(inout) :: arg_2\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
         "  real :: tmp_min\n\n"
-        "  res_min=arg\n"
-        "  tmp_min=arg_1\n"
+        "  res_min = arg\n"
+        "  tmp_min = arg_1\n"
         "  if (tmp_min < res_min) then\n"
-        "    res_min=tmp_min\n"
+        "    res_min = tmp_min\n"
         "  end if\n"
-        "  tmp_min=arg_2\n"
+        "  tmp_min = arg_2\n"
         "  if (tmp_min < res_min) then\n"
-        "    res_min=tmp_min\n"
+        "    res_min = tmp_min\n"
         "  end if\n"
-        "  psyir_tmp=res_min\n\n"
+        "  psyir_tmp = res_min\n\n"
         "end subroutine min_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance

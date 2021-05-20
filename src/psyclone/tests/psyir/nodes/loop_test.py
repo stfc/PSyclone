@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -112,9 +112,9 @@ def test_loop_navigation_properties():
         _ = loop.start_expr
     assert error_str in str(err.value)
 
-    loop.addchild(Literal("start", INTEGER_SINGLE_TYPE, parent=loop))
-    loop.addchild(Literal("stop", INTEGER_SINGLE_TYPE, parent=loop))
-    loop.addchild(Literal("step", INTEGER_SINGLE_TYPE, parent=loop))
+    loop.addchild(Literal("start", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("stop", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("step", INTEGER_SINGLE_TYPE))
 
     # If it's not fully complete, it still returns an error
     with pytest.raises(InternalError) as err:
@@ -130,13 +130,13 @@ def test_loop_navigation_properties():
         _ = loop.loop_body
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.start_expr = Literal("invalid", INTEGER_SINGLE_TYPE, parent=loop)
+        loop.start_expr = Literal("invalid", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.stop_expr = Literal("invalid", INTEGER_SINGLE_TYPE, parent=loop)
+        loop.stop_expr = Literal("invalid", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.step_expr = Literal("invalid", INTEGER_SINGLE_TYPE, parent=loop)
+        loop.step_expr = Literal("invalid", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
 
     # Check that Getters properties work
@@ -149,9 +149,9 @@ def test_loop_navigation_properties():
     assert isinstance(loop.loop_body[0], Return)
 
     # Test Setters
-    loop.start_expr = Literal("newstart", INTEGER_SINGLE_TYPE, parent=loop)
-    loop.stop_expr = Literal("newstop", INTEGER_SINGLE_TYPE, parent=loop)
-    loop.step_expr = Literal("newstep", INTEGER_SINGLE_TYPE, parent=loop)
+    loop.start_expr = Literal("newstart", INTEGER_SINGLE_TYPE)
+    loop.stop_expr = Literal("newstop", INTEGER_SINGLE_TYPE)
+    loop.step_expr = Literal("newstep", INTEGER_SINGLE_TYPE)
 
     assert loop.start_expr.value == "newstart"
     assert loop.stop_expr.value == "newstop"
@@ -186,7 +186,7 @@ def test_loop_gen_code():
 
     # Change step to 2
     loop = psy.invokes.get('invoke_important_invoke').schedule[4]
-    loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE, parent=loop)
+    loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE)
 
     # Now it is printed in the Fortran DO with the expression  ",2" at the end
     gen = str(psy.gen)
@@ -226,7 +226,7 @@ def test_loop_create():
     check_links(loop, [start, stop, step, schedule])
     check_links(schedule, [child_node])
     result = FortranWriter().loop_node(loop)
-    assert result == "do i = 0, 1, 1\n  tmp=i\nenddo\n"
+    assert result == "do i = 0, 1, 1\n  tmp = i\nenddo\n"
 
 
 def test_loop_create_invalid():
@@ -236,15 +236,15 @@ def test_loop_create_invalid():
     '''
     zero = Literal("0", INTEGER_SINGLE_TYPE)
     one = Literal("1", INTEGER_SINGLE_TYPE)
-    children = [Assignment.create(
+    children = Assignment.create(
         Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
-        one)]
+        one.copy())
 
     # invalid variable (test_check_variable tests check all ways a
     # variable could be invalid. Here we just check that the
     # _check_variable() method is called correctly)
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(1, zero, one, one, children)
+        _ = Loop.create(1, zero, one, one, [children.copy()])
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'int'.") in str(excinfo.value)
 
@@ -252,19 +252,19 @@ def test_loop_create_invalid():
 
     # start not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(variable, "invalid", one, one, children)
+        _ = Loop.create(variable, "invalid", one, one, [children.copy()])
     assert ("Item 'str' can't be child 0 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # stop not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(variable, zero, "invalid", one, children)
+        _ = Loop.create(variable, zero, "invalid", one, [children.copy()])
     assert ("Item 'str' can't be child 1 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # step not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(variable, zero, one, "invalid", children)
+        _ = Loop.create(variable, zero, one, "invalid", [children.copy()])
     assert ("Item 'str' can't be child 2 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
@@ -287,9 +287,9 @@ def test_loop_children_validation():
 
     '''
     loop = Loop()
-    datanode1 = Literal("1", INTEGER_SINGLE_TYPE, parent=loop)
-    datanode2 = Literal("2", INTEGER_SINGLE_TYPE, parent=loop)
-    datanode3 = Literal("3", INTEGER_SINGLE_TYPE, parent=loop)
+    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
+    datanode2 = Literal("2", INTEGER_SINGLE_TYPE)
+    datanode3 = Literal("3", INTEGER_SINGLE_TYPE)
     schedule = Schedule(parent=loop)
 
     # First child

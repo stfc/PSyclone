@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,9 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.configuration import Config
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
+from fparser.two.parser import ParserFactory
 
 
 # fixtures defined here are available to all tests
@@ -138,15 +141,12 @@ def parser():
     '''
     Creates and returns an fparser object. Since this is expensive we only
     do this once per test session (scope="session" above).
+
+    Note: If this fixture is not used to get the fparser parse tree but is
+    used as just a step in getting the PSyIR, use the fortran_reader fixture
+    below.
+
     '''
-    from fparser.two.parser import ParserFactory
-    return ParserFactory().create()
-
-
-@pytest.fixture(scope="session", name="f2008_parser")
-def fixture_f2008_parser():
-    ''' Initialise fparser2 with Fortran2008 standard. '''
-    from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
 
 
@@ -156,3 +156,15 @@ def kernel_outputdir(tmpdir, monkeypatch):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
     return tmpdir
+
+
+@pytest.fixture(scope="function", name="fortran_reader")
+def fixture_fortran_reader():
+    '''Create and return a FortranReader object with default settings.'''
+    return FortranReader()
+
+
+@pytest.fixture(scope="function", name="fortran_writer")
+def fixture_fortran_writer():
+    '''Create and return a FortranWriter object with default settings.'''
+    return FortranWriter()

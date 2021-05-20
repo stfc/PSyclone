@@ -751,6 +751,7 @@ contains
                             ! List of cells at the SW corner of the panels
     integer :: panel        ! panel number
     integer :: cell         ! starting point for num_cells_x calculation
+    integer :: cell_n       ! temporary variable to store next cell
     integer :: cell_next(4) ! The cells around the cell being queried
     integer :: num_cells_x  ! number of cells across a panel in x-direction
     integer :: num_cells_y  ! number of cells across a panel in y-direction
@@ -798,7 +799,8 @@ contains
       ! meshes to determine number of cells in the x direction
       do while (cell_next(E) /= cell .and. cell_next(E) /= -1)
         num_cells_x=num_cells_x+1
-        call global_mesh%get_cell_next(cell_next(E), cell_next)
+        cell_n = cell_next(E)
+        call global_mesh%get_cell_next(cell_n, cell_next)
       end do
 
       ! Infer num_cells_y from the total domin size and num_cells_x

@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,9 @@ module columnwise_op_asm_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                 &
                                     GH_OPERATOR, GH_COLUMNWISE_OPERATOR, &
-                                    GH_READ, GH_WRITE,                   &
+                                    GH_REAL, GH_READ, GH_WRITE,          &
                                     ANY_DISCONTINUOUS_SPACE_1,           &
                                     ANY_DISCONTINUOUS_SPACE_2,           &
-                                    GH_COLUMN_BANDED_DOFMAP,             &
                                     CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
@@ -63,11 +62,11 @@ private
 
 type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                         &
-       arg_type(GH_OPERATOR,            GH_READ,  ANY_DISCONTINUOUS_SPACE_1,  &
-                                                  ANY_DISCONTINUOUS_SPACE_2), &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1,  &
-                                                  ANY_DISCONTINUOUS_SPACE_2)  &
+  type(arg_type) :: meta_args(2) = (/                                  &
+       arg_type(GH_OPERATOR,            GH_REAL, GH_READ,              &
+                ANY_DISCONTINUOUS_SPACE_1, ANY_DISCONTINUOUS_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE,             &
+                ANY_DISCONTINUOUS_SPACE_1, ANY_DISCONTINUOUS_SPACE_2)  &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -83,7 +82,7 @@ contains
 
   !> @brief The subroutine which is called directly from the PSy layer and
   !> assembles the LMA into a CMA
-  !> @detail Given an LMA representation of the operator mapping between two
+  !> @details Given an LMA representation of the operator mapping between two
   !> horizontally discontinuous spaces, assemble the columnwise matrix
   !> representation of the operator.
   !>
@@ -133,7 +132,7 @@ contains
     integer(kind=i_def), dimension(ndf_to,nlayers), intent(in)   :: column_banded_dofmap_to
     integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
     real(kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in) :: local_stencil
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
+    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(inout) :: columnwise_matrix
 
     write(*,*) "Hello CMA World"
 

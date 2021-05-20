@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, BOOLEAN_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.psyir.nodes.node import colored
 
 
 def test_ifblock_invalid_annotation():
@@ -60,8 +61,7 @@ def test_ifblock_invalid_annotation():
 
 def test_ifblock_node_str():
     ''' Check the node_str method of the IfBlock class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
+    colouredif = colored("If", IfBlock._colour)
 
     ifblock = IfBlock()
     output = ifblock.node_str()
@@ -75,10 +75,9 @@ def test_ifblock_node_str():
 def test_ifblock_view_indices(capsys):
     ''' Check that the view method only displays indices on the nodes
     in the body (and else body) of an IfBlock. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
-    colouredreturn = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
-    colouredref = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
+    colouredif = colored("If", IfBlock._colour)
+    colouredreturn = colored("Return", Return._colour)
+    colouredref = colored("Reference", Reference._colour)
     condition = Reference(DataSymbol('condition1', REAL_SINGLE_TYPE))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)
@@ -122,9 +121,9 @@ def test_ifblock_properties():
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 1." in str(err.value))
 
-    sch = Schedule(parent=ifblock)
+    sch = Schedule()
     ifblock.addchild(sch)
-    ret = Return(parent=sch)
+    ret = Return()
     sch.addchild(ret)
 
     # Now we can retrieve the condition and the if_body, but else is empty
@@ -132,9 +131,9 @@ def test_ifblock_properties():
     assert ifblock.if_body[0] is ret
     assert not ifblock.else_body
 
-    sch2 = Schedule(parent=ifblock)
+    sch2 = Schedule()
     ifblock.addchild(sch2)
-    ret2 = Return(parent=sch2)
+    ret2 = Return()
     sch2.addchild(ret2)
 
     # Now we can retrieve else_body
@@ -161,11 +160,18 @@ def test_ifblock_create():
     check_links(if_schedule, if_body)
     result = FortranWriter().ifblock_node(ifblock)
     assert result == ("if (.true.) then\n"
-                      "  tmp=0.0\n"
-                      "  tmp2=1.0\n"
+                      "  tmp = 0.0\n"
+                      "  tmp2 = 1.0\n"
                       "end if\n")
 
     # With an else clause.
+    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_body = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)),
+               Assignment.create(
+                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                   Literal("1.0", REAL_SINGLE_TYPE))]
     else_body = [Assignment.create(Reference(DataSymbol("tmp",
                                                         REAL_SINGLE_TYPE)),
                                    Literal("1.0", REAL_SINGLE_TYPE)),
@@ -182,11 +188,11 @@ def test_ifblock_create():
     check_links(else_schedule, else_body)
     result = FortranWriter().ifblock_node(ifblock)
     assert result == ("if (.true.) then\n"
-                      "  tmp=0.0\n"
-                      "  tmp2=1.0\n"
+                      "  tmp = 0.0\n"
+                      "  tmp2 = 1.0\n"
                       "else\n"
-                      "  tmp=1.0\n"
-                      "  tmp2=0.0\n"
+                      "  tmp = 1.0\n"
+                      "  tmp2 = 0.0\n"
                       "end if\n")
 
 
@@ -226,6 +232,14 @@ def test_ifblock_create_invalid():
             "list.") in str(excinfo.value)
 
     # One of more of else_body not a Node.
+    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_body = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)),
+               Assignment.create(
+                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                   Literal("1.0", REAL_SINGLE_TYPE))]
+
     else_body_err = [Assignment.create(Reference(DataSymbol("tmp",
                                                             REAL_SINGLE_TYPE)),
                                        Literal("1.0", REAL_SINGLE_TYPE)),

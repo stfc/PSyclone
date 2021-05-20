@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2021, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,8 @@ use kernel_mod,              only : kernel_type
 use fs_continuity_mod,       only : W2V
 use argument_mod,            only : arg_type, func_type,              &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR, &
-                                    GH_READ, GH_WRITE, ANY_SPACE_2,   &
-                                    GH_COLUMN_INDIRECTION_DOFMAP,     &
-                                    CELL_COLUMN
+                                    GH_REAL, GH_READ, GH_WRITE,       &
+                                    ANY_SPACE_2, CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 
 implicit none
@@ -61,10 +60,10 @@ private
 
 type, public, extends(kernel_type) :: columnwise_op_app_w2v_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                               &
-       arg_type(GH_FIELD,               GH_WRITE, W2V),             &  
-       arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_2),     &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  W2V, ANY_SPACE_2) &
+  type(arg_type) :: meta_args(3) = (/                                        &
+       arg_type(GH_FIELD,               GH_REAL, GH_WRITE, W2V),             &
+       arg_type(GH_FIELD,               GH_REAL, GH_READ,  ANY_SPACE_2),     &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,  W2V, ANY_SPACE_2) &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -116,8 +115,8 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_aspc2) :: map_aspc2
     integer(kind=i_def), intent(in), dimension(cma_op_nrow) :: cma_indirection_map_w2v
     integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: cma_indirection_map_aspc2
-    real(kind=r_def), intent(out), dimension(undf_w2v)  :: field1
-    real(kind=r_def), intent(in), dimension(undf_aspc2) :: field2
+    real(kind=r_def), intent(inout), dimension(undf_w2v) :: field1
+    real(kind=r_def), intent(in), dimension(undf_aspc2)  :: field2
     real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
     write(*,*) "A kernel that applies CMA operator to a field on discontinuous space W2V"

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.psyir.nodes.node import colored
 
 
 # Test BinaryOperation class
@@ -73,14 +74,12 @@ def test_binaryoperation_operator():
 
 def test_binaryoperation_node_str():
     ''' Check the node_str method of the Binary Operation class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
-    coloredtext = colored("BinaryOperation",
-                          SCHEDULE_COLOUR_MAP["Operation"])
+    coloredtext = colored("BinaryOperation", BinaryOperation._colour)
     assert coloredtext+"[operator:'ADD']" in binary_operation.node_str()
 
 
@@ -89,8 +88,8 @@ def test_binaryoperation_can_be_printed():
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     assert "BinaryOperation[operator:'ADD']" in str(binary_operation)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
-    op2 = Literal("2", INTEGER_SINGLE_TYPE, parent=binary_operation)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("2", INTEGER_SINGLE_TYPE)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
@@ -193,12 +192,10 @@ def test_unaryoperation_operator():
 
 def test_unaryoperation_node_str():
     ''' Check the view method of the UnaryOperation class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     ref1 = Reference(DataSymbol("a", REAL_SINGLE_TYPE))
     unary_operation = UnaryOperation.create(UnaryOperation.Operator.MINUS,
                                             ref1)
-    coloredtext = colored("UnaryOperation",
-                          SCHEDULE_COLOUR_MAP["Operation"])
+    coloredtext = colored("UnaryOperation", UnaryOperation._colour)
     assert coloredtext+"[operator:'MINUS']" in unary_operation.node_str()
 
 
@@ -207,7 +204,7 @@ def test_unaryoperation_can_be_printed():
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert "UnaryOperation[operator:'MINUS']" in str(unary_operation)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=unary_operation)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
     unary_operation.addchild(op1)
     # Check the node children are also printed
     assert ("Literal[value:'1', Scalar<INTEGER, SINGLE>]"
@@ -268,17 +265,12 @@ def test_unaryoperation_children_validation():
 
 def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
 
-    coloredtext = colored("NaryOperation",
-                          SCHEDULE_COLOUR_MAP["Operation"])
+    coloredtext = colored("NaryOperation", NaryOperation._colour)
     assert coloredtext+"[operator:'MAX']" in nary_operation.node_str()
 
 
@@ -287,12 +279,9 @@ def test_naryoperation_can_be_printed():
     initialised fully)'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     assert "NaryOperation[operator:'MAX']" in str(nary_operation)
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
-    nary_operation.addchild(Literal("2", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
-    nary_operation.addchild(Literal("3", INTEGER_SINGLE_TYPE,
-                                    parent=nary_operation))
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    nary_operation.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    nary_operation.addchild(Literal("3", INTEGER_SINGLE_TYPE))
     # Check the node children are also printed
     assert ("Literal[value:'1', Scalar<INTEGER, SINGLE>]\n"
             in str(nary_operation))
@@ -357,3 +346,36 @@ def test_naryoperation_children_validation():
         nary.addchild(statement)
     assert ("Item 'Return' can't be child 3 of 'NaryOperation'. The valid "
             "format is: '[DataNode]+'.") in str(excinfo.value)
+
+
+def test_operations_can_be_copied():
+    ''' Test that an operation can be copied. '''
+
+    operands = [Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE)),
+                Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                Reference(DataSymbol("tmp3", REAL_SINGLE_TYPE))]
+    operation = NaryOperation.create(NaryOperation.Operator.MAX, operands)
+
+    operation1 = operation.copy()
+    assert isinstance(operation1, NaryOperation)
+    assert operation1 is not operation
+    assert operation1.operator is NaryOperation.Operator.MAX
+    assert operation1.children[0].symbol.name == "tmp1"
+    assert operation1.children[0] is not operands[0]
+    assert operation1.children[0].parent is operation1
+    assert operation1.children[1].symbol.name == "tmp2"
+    assert operation1.children[1] is not operands[1]
+    assert operation1.children[1].parent is operation1
+    assert operation1.children[2].symbol.name == "tmp3"
+    assert operation1.children[2] is not operands[2]
+    assert operation1.children[2].parent is operation1
+    assert len(operation1.children) == 3
+    assert len(operation.children) == 3
+
+    # Modifying the new operation does not affect the original
+    operation1._operator = NaryOperation.Operator.MIN
+    operation1.children.pop()
+    assert len(operation1.children) == 2
+    assert len(operation.children) == 3
+    assert operation1.operator is NaryOperation.Operator.MIN
+    assert operation.operator is NaryOperation.Operator.MAX

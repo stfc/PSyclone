@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,8 @@ module columnwise_op_app_anydspace_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                    &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR,       &
-                                    GH_READ, GH_WRITE,                      &
+                                    GH_REAL, GH_READ, GH_WRITE,             &
                                     ANY_DISCONTINUOUS_SPACE_1, ANY_SPACE_1, &
-                                    GH_COLUMN_INDIRECTION_DOFMAP,           &
                                     CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
@@ -63,11 +62,11 @@ private
 
 type, public, extends(kernel_type) :: columnwise_op_app_anydspace_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                         &
-       arg_type(GH_FIELD,               GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-       arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_1),               &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_DISCONTINUOUS_SPACE_1,  &
-                                                  ANY_SPACE_1)                &
+  type(arg_type) :: meta_args(3) = (/                                                  &
+       arg_type(GH_FIELD,               GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+       arg_type(GH_FIELD,               GH_REAL, GH_READ,  ANY_SPACE_1),               &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1,  &
+                                                           ANY_SPACE_1)                &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -120,8 +119,8 @@ contains
                                      cma_indirection_map_adspc1
     integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: &
                                      cma_indirection_map_aspc1
-    real(kind=r_def), intent(out), dimension(undf_adspc1) :: field1
-    real(kind=r_def), intent(in), dimension(undf_aspc1)   :: field2
+    real(kind=r_def), intent(inout), dimension(undf_adspc1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_aspc1)     :: field2
     real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
     write(*,*) "A kernel that applies CMA operator to a field on &

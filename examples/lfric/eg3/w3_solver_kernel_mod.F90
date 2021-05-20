@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -41,107 +41,124 @@
 !
 !-------------------------------------------------------------------------------
 
-!> @brief Kernel which computes LHS of Galerkin projection and solves equation in W3 space
-
+!> @brief Computes LHS of Galerkin projection and solves equation in W3 space.
+!>
 module w3_solver_kernel_mod
 
-use kernel_mod,              only : kernel_type
-use constants_mod,           only : r_def, i_def
-use fs_continuity_mod,       only : W3, Wchi
-use argument_mod,            only : arg_type, func_type,        &
-                                    GH_FIELD, GH_SCALAR,        &
-                                    GH_REAL, GH_READ, GH_WRITE, &
-                                    GH_BASIS, GH_DIFF_BASIS,    &
-                                    GH_QUADRATURE_XYoZ,         &
-                                    CELL_COLUMN
+  use argument_mod,      only : arg_type, func_type,     &
+                                GH_FIELD, CELL_COLUMN,   &
+                                GH_REAL, GH_INTEGER,     &
+                                GH_READ, GH_READWRITE,   &
+                                GH_BASIS, GH_DIFF_BASIS, &
+                                GH_QUADRATURE_XYoZ,      &
+                                ANY_DISCONTINUOUS_SPACE_3
+  use constants_mod,     only : r_def, i_def
+  use fs_continuity_mod, only : W3, Wchi
+  use kernel_mod,        only : kernel_type
 
-implicit none
+  implicit none
 
-private
-
-!-------------------------------------------------------------------------------
-! Public types
-!-------------------------------------------------------------------------------
-!> The type declaration for the kernel. Contains the metadata needed by the PSy layer
-type, public, extends(kernel_type) :: w3_solver_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                   &
-       arg_type(GH_FIELD,            GH_READWRITE, W3), &
-       arg_type(GH_FIELD,            GH_READ,  W3),     &
-       arg_type(GH_FIELD*3,          GH_READ,  Wchi),   &
-       arg_type(GH_SCALAR,  GH_REAL, GH_READ)           &
-       /)
-  type(func_type) :: meta_funcs(2) = (/                 &
-       func_type(W3,   GH_BASIS),                       &
-       func_type(Wchi, GH_DIFF_BASIS)                   &
-       /)
-  integer :: gh_shape = GH_QUADRATURE_XYoZ
-  integer :: operates_on = CELL_COLUMN
-contains
-  procedure, nopass :: solver_w3_code
-end type
 
-!-------------------------------------------------------------------------------
-! Contained functions/subroutines
-!-------------------------------------------------------------------------------
-public solver_w3_code
+  !---------------------------------------------------------------------------
+  ! Public types
+  !---------------------------------------------------------------------------
+  !> The type declaration for the kernel. Contains the metadata needed by the
+  !> Psy layer.
+  !>
+  type, public, extends(kernel_type) :: w3_solver_kernel_type
+    private
+    type(arg_type) :: meta_args(4) = (/                                           &
+        ! TODO: This access should be GH_WRITE (to be corrected in issue #1003)
+        arg_type(GH_FIELD,   GH_REAL,    GH_READWRITE, W3),                       &
+        arg_type(GH_FIELD,   GH_REAL,    GH_READ,      W3),                       &
+        arg_type(GH_FIELD*3, GH_REAL,    GH_READ,      Wchi),                     &
+        arg_type(GH_FIELD,   GH_INTEGER, GH_READ,      ANY_DISCONTINUOUS_SPACE_3) &
+        /)
+    type(func_type) :: meta_funcs(2) = (/                                         &
+        func_type(W3,   GH_BASIS),                                                &
+        func_type(Wchi, GH_BASIS, GH_DIFF_BASIS)                                  &
+        /)
+    integer :: operates_on = CELL_COLUMN
+    integer :: gh_shape = GH_QUADRATURE_XYoZ
+  contains
+    procedure, nopass :: solver_w3_code
+  end type
+
+  !---------------------------------------------------------------------------
+  ! Contained functions/subroutines
+  !---------------------------------------------------------------------------
+  public solver_w3_code
 
 contains
 
 !> @brief Invert and apply the W3 mass matrix
-!> @param[in] nlayers Number of layers
-!> @param[in,out] x Output vector
-!> @param[in] rhs Input vector
-!> @param[in] chi_1 X component of the chi coordinate field
-!> @param[in] chi_2 Y component of the chi coordinate field
-!> @param[in] chi_3 Z component of the chi coordinate field
-!> @param[in] ascalar Example of a real, scalar argument
-!> @param[in] ndf_w3 Number of degrees of freedom per cell for W3
-!> @param[in] undf_w3 Total number of degrees of freedom for W3
-!> @param[in] map_w3 Dofmap for the cell at the base of the column for W3
-!> @param[in] w3_basis Basis functions evaluated at gaussian quadrature points
-!> @param[in] ndf_chi Number of degrees of freedom per cell for Wchi
-!> @param[in] undf_chi Total number of degrees of freedom for Wchi
-!> @param[in] map_chi Dofmap for the cell at the base of the column for Wchi
-!> @param[in] chi_diff_basis Basis functions evaluated at gaussian quadrature points
-!> @param[in] nqp_h Number of horizontal quadrature points
-!> @param[in] nqp_v Number of vertical quadrature points
-!> @param[in] wqp_h Weights of the horizontal quadrature points
-!> @param[in] wqp_v Weights of the vertical quadrature points
-subroutine solver_w3_code(nlayers,                                        &
-                          x, rhs,                                         &
-                          chi_1, chi_2, chi_3, ascalar,                   &
-                          ndf_w3, undf_w3, map_w3, w3_basis,              &
-                          ndf_wchi, undf_wchi, map_wchi, wchi_diff_basis, &
-                          nqp_h, nqp_v, wqp_h, wqp_v                      &
+!! @param[in] nlayers Number of layers
+!! @param[in,out] x Output vector
+!! @param[in] rhs Input vector
+!! @param[in] chi_1 1st (spherical) coordinate field in Wchi
+!! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
+!! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
+!! @param[in] panel_id Field giving the ID for mesh panels
+!! @param[in] ndf_w3 Number of degrees of freedom per cell for W3
+!! @param[in] undf_w3 Total number of degrees of freedom for W3
+!! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
+!! @param[in] w3_basis Basis functions evaluated at gaussian quadrature points
+!! @param[in] ndf_wchi Number of degrees of freedom per cell for Wchi
+!! @param[in] undf_wchi Total number of degrees of freedom for Wchi
+!! @param[in] map_wchi Dofmap for the cell at the base of the column for Wchi
+!! @param[in] chi_basis Wchi basis functions evaluated at gaussian quadrature points
+!! @param[in] chi_diff_basis Derivatives of Wchi basis functions
+!!                           evaluated at gaussian quadrature points
+!! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
+!! @param[in] undf_pid Number of unique degrees of freedom for panel_id
+!! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id
+!! @param[in] nqp_h Number of horizontal quadrature points
+!! @param[in] nqp_v Number of vertical quadrature points
+!! @param[in] wqp_h Weights of the horizontal quadrature points
+!! @param[in] wqp_v Weights of the vertical quadrature points
+subroutine solver_w3_code(nlayers,                           &
+                          x, rhs,                            &
+                          chi_1, chi_2, chi_3, panel_id,     &
+                          ndf_w3, undf_w3, map_w3, w3_basis, &
+                          ndf_wchi, undf_wchi, map_wchi,     &
+                          chi_basis, chi_diff_basis,         &
+                          ndf_pid, undf_pid, map_pid,        &
+                          nqp_h, nqp_v, wqp_h, wqp_v         &
                          )
 
   use matrix_invert_mod,       only : matrix_invert
   use coordinate_jacobian_mod, only : coordinate_jacobian
 
+  implicit none
+
   ! Needs to compute the integral of rho_df * P
   ! P_analytic over a single column
 
-  implicit none
-
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers, nqp_h, nqp_v
-  integer(kind=i_def), intent(in) :: ndf_w3, undf_w3, ndf_wchi, undf_wchi
+  integer(kind=i_def), intent(in) :: ndf_w3, undf_w3
+  integer(kind=i_def), intent(in) :: ndf_wchi, undf_wchi
+  integer(kind=i_def), intent(in) :: ndf_pid, undf_pid
   integer(kind=i_def), dimension(ndf_w3),   intent(in) :: map_w3
   integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
+  integer(kind=i_def), dimension(ndf_pid),  intent(in) :: map_pid
 
-  real(kind=r_def), intent(in) :: ascalar
-  real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v),   intent(in) :: w3_basis
-  real(kind=r_def), dimension(3,ndf_wchi,nqp_h,nqp_v), intent(in) :: wchi_diff_basis
-  real(kind=r_def), dimension(undf_w3),   intent(inout) :: x
-  real(kind=r_def), dimension(undf_w3),   intent(in)    :: rhs
-  real(kind=r_def), dimension(undf_wchi), intent(in)    :: chi_1, chi_2, chi_3
-  real(kind=r_def), dimension(nqp_h),     intent(in)    ::  wqp_h
-  real(kind=r_def), dimension(nqp_v),     intent(in)    ::  wqp_v
+  real(kind=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v)   :: w3_basis
+  real(kind=r_def), intent(in), dimension(1,ndf_wchi,nqp_h,nqp_v) :: chi_basis
+  real(kind=r_def), intent(in), dimension(3,ndf_wchi,nqp_h,nqp_v) :: chi_diff_basis
+  real(kind=r_def),    dimension(undf_w3),   intent(inout) :: x
+  real(kind=r_def),    dimension(undf_w3),   intent(in)    :: rhs
+  real(kind=r_def),    dimension(undf_wchi), intent(in)    :: chi_1, chi_2, chi_3
+  integer(kind=i_def), dimension(undf_pid),  intent(in)    :: panel_id
+
+  real(kind=r_def), dimension(nqp_h), intent(in)           :: wqp_h
+  real(kind=r_def), dimension(nqp_v), intent(in)           :: wqp_v
 
   ! Internal variables
   integer(kind=i_def) :: df1, df2, k
   integer(kind=i_def) :: qp1, qp2
+  integer(kind=i_def) :: ipanel
 
   real(kind=r_def) :: x_e(ndf_w3), rhs_e(ndf_w3)
   real(kind=r_def) :: integrand
@@ -150,6 +167,8 @@ subroutine solver_w3_code(nlayers,                                        &
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
   real(kind=r_def), dimension(ndf_wchi)        :: chi_1_e, chi_2_e, chi_3_e
 
+  ipanel = panel_id(map_pid(1))
+
   ! Compute the LHS integrated over one cell and solve
   do k = 0, nlayers-1
     do df1 = 1, ndf_wchi
@@ -157,7 +176,10 @@ subroutine solver_w3_code(nlayers,                                        &
       chi_2_e(df1) = chi_2( map_wchi(df1) + k)
       chi_3_e(df1) = chi_3( map_wchi(df1) + k)
     end do
-    call coordinate_jacobian(ndf_wchi, nqp_h, nqp_v, chi_1_e, chi_2_e, chi_3_e, wchi_diff_basis, jac, dj)
+
+    call coordinate_jacobian(ndf_wchi, nqp_h, nqp_v, chi_1_e, chi_2_e, chi_3_e, &
+                             ipanel, chi_basis, chi_diff_basis, jac, dj)
+
     do df1 = 1, ndf_w3
        do df2 = 1, ndf_w3
           mass_matrix_w3(df1,df2) = 0.0_r_def
