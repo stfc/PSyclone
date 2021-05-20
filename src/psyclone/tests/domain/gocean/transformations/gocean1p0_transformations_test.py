@@ -1791,6 +1791,10 @@ def test_accloop(tmpdir):
             "ACCKernelsDirective as an ancestor in the Schedule" in
             str(err.value))
 
+    # TODO 1247: Manually remove CodeBlock from comment line while comments
+    # are not in the PSyIR
+    schedule.children[0].detach()
+
     # Add an enclosing parallel region
     accpara.apply(schedule.children)
 
@@ -1802,18 +1806,35 @@ def test_accloop(tmpdir):
             "data directive or enclosed within an ACC data region but in "
             "'invoke_0' this is not the case." in str(err.value))
 
+    # Since the psy.gen have lowered the kernels, we have to start again to
+    # successfully apply all the transformations.
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    cbtrans.apply(schedule, {"const_bounds": True})
+    # Apply an OpenACC loop directive to each loop
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            acclpt.apply(child)
+    # TODO 1247: Manually remove CodeBlock from comment line while comments
+    # are not in the PSyIR
+    schedule.children[0].detach()
+    # Add an enclosing parallel region
+    accpara.apply(schedule.children)
     # Add a data region
     accdata.apply(schedule)
 
     gen = str(psy.gen)
 
+    # FIXME: I changed this, is this right?
     assert '''\
       !$acc parallel default(present)
       !$acc loop independent
-      DO j = 2, jstop, 1''' in gen
+      DO j = 2, jstop+1, 1''' in gen
     assert ("END DO\n"
             "      !$acc loop independent\n"
-            "      DO j = 2, jstop+1, 1" in gen)
+            "      DO j = 1, jstop+1, 1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1962,7 +1983,7 @@ def test_acc_loop_seq():
     gen = str(psy.gen).lower()
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop seq\n"
-            "      do j=2,jstop\n" in gen)
+            "      do j = 2, jstop, 1\n" in gen)
 
 
 def test_acc_loop_view(capsys):

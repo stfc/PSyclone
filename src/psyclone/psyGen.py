@@ -1618,7 +1618,8 @@ class ACCParallelDirective(ACCDirective):
         '''
         self.validate_global_constraints()
 
-        parent.add(DirectiveGen(parent, *self.begin_string().split()))
+        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
+                                "default(present)"))
 
         for child in self.children:
             child.gen_code(parent)

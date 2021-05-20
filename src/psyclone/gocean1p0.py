@@ -58,7 +58,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment, CodeBlock, ExtractNode
+    Call, Assignment, CodeBlock, PSyDataNode
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange, ACCParallelDirective, \
@@ -214,11 +214,15 @@ class GOInvokes(Invokes):
         from fparser.two.Fortran2003 import Comment
         for invoke in self.invoke_list:
 
+            # TODO 1134: The opencl path is still largely implemented using
+            # the f2pygen and cannot be processed by the backend yet.
             if invoke.schedule.opencl:
                 super(GOInvokes, self).gen_code(parent)
                 return
 
-            if invoke.schedule.root.walk(ExtractNode):
+            # PSyDataNodes and ExtractNodes are not supported by the
+            # backend yet.
+            if invoke.schedule.root.walk(PSyDataNode):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
