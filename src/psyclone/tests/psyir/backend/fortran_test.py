@@ -754,29 +754,29 @@ def test_gen_decls_routine(fortran_writer):
     assert result == ""
 
 
-def test_gen_routine_access_stmts(fortran_writer):
+def test_gen_access_stmts(fortran_writer):
     '''
-    Tests for the gen_routine_access_stmts method of FortranWriter.
+    Tests for the gen_access_stmts method of FortranWriter.
     '''
     symbol_table = SymbolTable()
     symbol_table.add(RoutineSymbol("my_sub1",
                                    visibility=Symbol.Visibility.PUBLIC))
-    code = fortran_writer.gen_routine_access_stmts(symbol_table)
+    code = fortran_writer.gen_access_stmts(symbol_table)
     assert "public :: my_sub1" in code
     sub2 = RoutineSymbol("my_sub2", visibility=Symbol.Visibility.PRIVATE)
     symbol_table.add(sub2)
-    code = fortran_writer.gen_routine_access_stmts(symbol_table)
+    code = fortran_writer.gen_access_stmts(symbol_table)
     assert "public :: my_sub1\nprivate :: my_sub2\n" in code
     # Check that the interface of the symbol does not matter
     symbol_table.add(
         RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
                       interface=GlobalInterface(ContainerSymbol("some_mod"))))
-    code = fortran_writer.gen_routine_access_stmts(symbol_table)
+    code = fortran_writer.gen_access_stmts(symbol_table)
     assert "public :: my_sub1\nprivate :: my_sub2, used_sub\n" in code
     # Break the visibility of the second symbol
     sub2._visibility = "broken"
     with pytest.raises(InternalError) as err:
-        fortran_writer.gen_routine_access_stmts(symbol_table)
+        fortran_writer.gen_access_stmts(symbol_table)
     assert ("Unrecognised visibility ('broken') found for symbol 'my_sub2'"
             in str(err.value))
 
@@ -1898,24 +1898,3 @@ def test_fw_call_node(fortran_writer):
     result = fortran_writer(schedule)
     expected = "  call my_sub(a * b, MAX(a, b))\n"
     assert expected in result
-
-
-def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
-    ''' Check that the FortranWriter raises the expected error if it
-    encounters an UnknownType that is not an UnknownFortranType. '''
-    # We can't create an UnknownType() object directly as it is abstract.
-    # Therefore we create a symbol of UnknownFortranType and then
-    # monkeypatch it.
-    sym = DataSymbol("b", UnknownFortranType("int b;"))
-    monkeypatch.setattr(sym.datatype, "__class__", UnknownType)
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.gen_vardecl(sym)
-    assert ("cannot handle the declaration of a symbol of 'UnknownType'" in
-            str(err.value))
-
-
-def test_fw_unknown_decln(fortran_writer):
-    ''' Check that the FortranWriter recreates a declaration that is of
-    UnknownFortranType. '''
-    sym = DataSymbol("b", UnknownFortranType("integer, value :: b"))
-    assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)

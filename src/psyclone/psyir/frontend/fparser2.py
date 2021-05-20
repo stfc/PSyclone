@@ -55,26 +55,30 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
     UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, SymbolTable
 
-# The list of Fortran instrinsic functions that we know about (and can
-# therefore distinguish from array accesses). These are taken from
-# fparser.
+#: The list of Fortran instrinsic functions that we know about (and can
+#: therefore distinguish from array accesses). These are taken from
+#: fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
-# Mapping from Fortran data types to PSyIR types
+#: Mapping from Fortran data types to PSyIR types
 TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Intrinsic.INTEGER,
                          "character": ScalarType.Intrinsic.CHARACTER,
                          "logical": ScalarType.Intrinsic.BOOLEAN,
                          "real": ScalarType.Intrinsic.REAL,
                          "double precision": ScalarType.Intrinsic.REAL}
 
-# Mapping from fparser2 Fortran Literal types to PSyIR types
+#: Mapping from Fortran access specifiers to PSyIR visibilities
+VISIBILITY_MAP_FROM_FORTRAN = {"public": Symbol.Visibility.PUBLIC,
+                               "private": Symbol.Visibility.PRIVATE}
+
+#: Mapping from fparser2 Fortran Literal types to PSyIR types
 CONSTANT_TYPE_MAP = {
     Fortran2003.Real_Literal_Constant: ScalarType.Intrinsic.REAL,
     Fortran2003.Logical_Literal_Constant: ScalarType.Intrinsic.BOOLEAN,
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
     Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
-# Mapping from Fortran intent to PSyIR access type
+#: Mapping from Fortran intent to PSyIR access type
 INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "out": ArgumentInterface.Access.WRITE,
                   "inout": ArgumentInterface.Access.READWRITE}
@@ -1428,6 +1432,25 @@ class Fparser2Reader(object):
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))
 
+    def _process_access_spec(self, attr):
+        '''
+        Converts from an fparser2 Access_Spec node to a PSyIR visibility.
+
+        :param attr: the fparser2 AST node to process.
+        :type attr: :py:class:`fparser.two.Fortran2003.Access_Spec`
+
+        :return: the PSyIR visibility corresponding to the access spec.
+        :rtype: :py:class:`psyclone.psyir.Symbol.Visibility`
+
+        :raises InternalError: if an invalid access specification is found.
+
+        '''
+        try:
+            return VISIBILITY_MAP_FROM_FORTRAN[attr.string.lower()]
+        except KeyError:
+            raise InternalError(
+                "Unexpected Access Spec attribute '{0}'.".format(str(attr)))
+
     def _process_decln(self, parent, symbol_table, decl, default_visibility,
                        visibility_map=None):
         '''
@@ -1590,15 +1613,12 @@ class Fparser2Reader(object):
                     attribute_shape = \
                         self._parse_dimensions(attr, symbol_table)
                 elif isinstance(attr, Fortran2003.Access_Spec):
-                    if attr.string.lower() == 'public':
-                        decln_access_spec = Symbol.Visibility.PUBLIC
-                    elif attr.string.lower() == 'private':
-                        decln_access_spec = Symbol.Visibility.PRIVATE
-                    else:
-                        raise InternalError(
-                            "Could not process '{0}'. Unexpected Access "
-                            "Spec attribute '{1}'.".format(decl.items,
-                                                           str(attr)))
+                    try:
+                        decln_access_spec = self._process_access_spec(attr)
+                    except InternalError as err:
+                        six.raise_from(err, InternalError(
+                            "Could not process '{0}': {1}".format(
+                                decl.items, str(err.value))))
                 else:
                     raise NotImplementedError(
                         "Could not process declaration: '{0}'. "
@@ -1885,9 +1905,8 @@ class Fparser2Reader(object):
                                visibility=vis))
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
-                decl = node
                 try:
-                    self._process_decln(parent, parent.symbol_table, decl,
+                    self._process_decln(parent, parent.symbol_table, node,
                                         default_visibility,
                                         visibility_map)
                 except NotImplementedError:
@@ -1896,12 +1915,18 @@ class Fparser2Reader(object):
                     # declared. Currently this means that any symbols that come
                     # after an unsupported declaration will also have
                     # UnknownType. This is the subject of Issue #791.
-                    orig_children = list(decl.children[2].children[:])
+                    specs = walk(node, Fortran2003.Access_Spec)
+                    if specs:
+                        vis = self._process_access_spec(specs[0])
+                    else:
+                        vis = default_visibility
+
+                    orig_children = list(node.children[2].children[:])
                     for child in orig_children:
                         # Modify the fparser2 parse tree so that it only
                         # declares the current entity. `items` is a tuple and
                         # thus immutable so we create a new one.
-                        decl.children[2].items = (child,)
+                        node.children[2].items = (child,)
                         symbol_name = str(child.children[0])
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed
@@ -1909,16 +1934,17 @@ class Fparser2Reader(object):
                         try:
                             parent.symbol_table.add(
                                 DataSymbol(symbol_name,
-                                           UnknownFortranType(str(decl))))
+                                           UnknownFortranType(str(node)),
+                                           visibility=vis))
                         except KeyError:
                             if len(orig_children) == 1:
                                 raise SymbolError(
                                     "Error while processing unsupported "
                                     "declaration ('{0}'). An entry for symbol "
                                     "'{1}' is already in the symbol table.".
-                                    format(str(decl), symbol_name))
+                                    format(str(node), symbol_name))
                     # Restore the fparser2 parse tree
-                    decl.children[2].items = tuple(orig_children)
+                    node.children[2].items = tuple(orig_children)
 
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Derived_Type_Def,

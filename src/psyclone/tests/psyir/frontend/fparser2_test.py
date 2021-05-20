@@ -1547,16 +1547,32 @@ def test_use_stmt_error(monkeypatch):
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_unrecognised_attribute():
     ''' Check that a declaration with an unrecognised attribute results in
-    a symbol with UnknownFortranType. '''
+    a symbol with UnknownFortranType and the correct visibility. '''
     fake_parent = KernelSchedule("dummy")
     processor = Fparser2Reader()
-    reader = FortranStringReader("integer, private :: idx1\n")
+    reader = FortranStringReader("integer, private, target :: idx1\n")
     fparser2spec = Specification_Part(reader)
-    # Replace the Attr_Spec with a str
-    fparser2spec.children[0].children[1].items = ("not-a-spec",)
     processor.process_declarations(fake_parent, fparser2spec.children, [])
-    assert isinstance(fake_parent.symbol_table.lookup("idx1").datatype,
-                      UnknownFortranType)
+    sym = fake_parent.symbol_table.lookup("idx1")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.visibility == Symbol.Visibility.PRIVATE
+    # No access statement so should be public (the default in Fortran)
+    reader = FortranStringReader("integer, target :: idx2\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.children, [])
+    sym = fake_parent.symbol_table.lookup("idx2")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.visibility == Symbol.Visibility.PUBLIC
+    # No access statement so should pick up the default visibility supplied
+    # to the process_declarations call.
+    reader = FortranStringReader("integer, target :: idx3\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(
+        fake_parent, fparser2spec.children, [],
+        default_visibility=Symbol.Visibility.PRIVATE)
+    sym = fake_parent.symbol_table.lookup("idx3")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.visibility == Symbol.Visibility.PRIVATE
 
 
 @pytest.mark.usefixtures("f2008_parser")
