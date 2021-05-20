@@ -81,6 +81,7 @@ if __name__ == "__main__":
     PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
     print(PSY.gen)
 
+    PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
     print(PSY.invokes.names)
     SCHEDULE = PSY.invokes.get('invoke_0').schedule
     SCHEDULE.view()
