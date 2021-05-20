@@ -777,6 +777,29 @@ def test_opencl_options_effects():
     assert "ierr = clFinish(cmd_queues(2))" not in generated_code
 
 
+@pytest.mark.parametrize("dist_mem", [True, False])
+def test_multiple_command_queues(kernel_outputdir, dist_mem):
+    ''' Check that '''
+    psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
+                        dist_mem=dist_mem)
+    sched = psy.invokes.invoke_list[0].schedule
+
+    # Set the boundaries inside the kernel and each kernel in a different
+    # OpenCL queue
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for idx, kernel in enumerate(sched.coded_kernels()):
+        trans.apply(kernel)
+        kernel.set_opencl_options({'queue_number': idx+1})
+
+    # Apply OpenCL transformation
+    otrans = OCLTrans()
+    otrans.apply(sched)
+
+    generated_code = str(psy.gen)
+    print(generated_code)
+    assert False
+
+
 def test_set_kern_args(kernel_outputdir):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
