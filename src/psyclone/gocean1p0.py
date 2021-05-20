@@ -2460,7 +2460,8 @@ class GOKernelArgument(KernelArgument):
         '''
         # If the argument name is just a number (e.g. '0') if returns a
         # constant Literal expression
-        if self.name.isnumeric():
+        # six.text_type is needed in Python2 to use the isnumeric method
+        if six.text_type(self.name).isnumeric():
             return Literal(self.name, INTEGER_TYPE)
 
         # Otherwise its some form of Reference
