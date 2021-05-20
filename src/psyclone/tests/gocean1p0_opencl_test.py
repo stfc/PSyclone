@@ -778,26 +778,43 @@ def test_opencl_options_effects():
 
 
 @pytest.mark.parametrize("dist_mem", [True, False])
-def test_multiple_command_queues(kernel_outputdir, dist_mem):
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_multiple_command_queues(dist_mem):
     ''' Check that '''
-    psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
+    psy, _ = get_invoke("single_invoke_two_identical_kernels.f90", API, idx=0,
                         dist_mem=dist_mem)
     sched = psy.invokes.invoke_list[0].schedule
 
     # Set the boundaries inside the kernel and each kernel in a different
-    # OpenCL queue
+    # OpenCL queue (kernel1 in queue 2, kernel2 in queue3)
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for idx, kernel in enumerate(sched.coded_kernels()):
         trans.apply(kernel)
-        kernel.set_opencl_options({'queue_number': idx+1})
+        kernel.set_opencl_options({'queue_number': idx+2})
 
     # Apply OpenCL transformation
     otrans = OCLTrans()
     otrans.apply(sched)
 
     generated_code = str(psy.gen)
-    print(generated_code)
-    assert False
+
+    kernelbarrier = '''
+      ierr = clFinish(cmd_queues(2))
+      ! Launch the kernel'''
+
+    haloexbarrier = '''
+      ierr = clFinish(cmd_queues(2))
+      CALL cu_fld%halo_exchange(depth=1)'''
+
+    if dist_mem:
+        # In distributed memory the command_queue synchronisation happens
+        # before the HaloExchange (so it is not necessary before the kernel)
+        assert kernelbarrier not in generated_code
+        assert haloexbarrier in generated_code
+    else:
+        # Without distributed memory we need a barrier for the first
+        # command queue before launching the second kernel
+        assert kernelbarrier in generated_code
 
 
 def test_set_kern_args(kernel_outputdir):

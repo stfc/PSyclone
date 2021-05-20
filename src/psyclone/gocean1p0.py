@@ -1315,10 +1315,9 @@ class GOKern(CodedKern):
         cmd_queue = qlist + "({0})".format(queue_number)
         outer_loop = self.parent.parent.parent.parent
         dependency = outer_loop.backward_dependence()
-        # If the dependency is a Kernel check if that one was dispatched in a
-        # different command queue (other dependencies already deal with
-        # synchronisation themself e.g. HaloExchange)
-        import pdb; pdb.set_trace()
+
+        # If the dependency is a Kernel add a barrier if the previous kernels
+        # was dispatched in a different command queue
         if dependency and dependency.coded_kernels():
             for kernel_dep in dependency.coded_kernels():
                 previous_queue = kernel_dep._opencl_options['queue_number']
@@ -1331,6 +1330,15 @@ class GOKern(CodedKern):
                         lhs=flag,
                         rhs="clFinish({0}({1}))".format(
                             qlist, str(previous_queue))))
+
+        # If the dependency is something other than a kernel, currently we
+        # dispatch everything else to queue 1, so add a barrier if this kernel
+        # is not on queue number 1.
+        if dependency and not dependency.coded_kernels() and queue_number != 1:
+            parent.add(AssignGen(
+                parent,
+                lhs=flag,
+                rhs="clFinish({0}({1}))".format(qlist, str(1))))
 
         if api_config.debug_mode:
             # Check that everything has succeeded before the kernel launch,
@@ -3162,6 +3170,27 @@ class GOHaloExchange(HaloExchange):
 
         # TODO 886: Currently only stencils of depth 1 are accepted by this
         # API, so the HaloExchange is hardcoded to depth 1.
+
+        if self.ancestor(InvokeSchedule).opencl:
+            # If the dependency is a Kernel add a barrier if the previous
+            # kernels was dispatched in a different command queue
+            dependency = self.backward_dependence()
+            if dependency and dependency.coded_kernels():
+                for kernel_dep in dependency.coded_kernels():
+                    previous_queue = kernel_dep._opencl_options['queue_number']
+                    if previous_queue != 1:
+                        # If the backward dependency is being executed in
+                        # another queue we add a barrier to make sure the
+                        # previous kernel has finished.
+                        stab = self.scope.symbol_table
+                        qlist = stab.lookup_with_tag("opencl_cmd_queues").name
+                        flag = stab.lookup_with_tag("opencl_error").name
+                        parent.add(AssignGen(
+                            parent,
+                            lhs=flag,
+                            rhs="clFinish({0}({1}))".format(
+                                qlist, str(previous_queue))))
+
         parent.add(
             CallGen(
                 parent, name=self._field.name +
