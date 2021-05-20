@@ -81,6 +81,7 @@ if __name__ == "__main__":
     PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
     print(PSY.gen)
 
+    # To apply more transformations after a PSY.gen we need to restart
     PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
     print(PSY.invokes.names)
     SCHEDULE = PSY.invokes.get('invoke_0').schedule

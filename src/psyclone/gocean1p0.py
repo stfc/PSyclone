@@ -3136,6 +3136,11 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                     obj_list.append(var)
 
     def lower_to_language_level(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs.
+
+        '''
         self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                 (ACCParallelDirective, ACCKernelsDirective))
         obj_list = []
@@ -3248,7 +3253,7 @@ class GOHaloExchange(HaloExchange):
         '''
         In-place replacement of DSL or high-level concepts into generic
         PSyIR constructs. A GOHaloExchange is replaced by a call to the
-        dl_esm_inf method
+        appropriate library method.
 
         '''
         rsymbol = RoutineSymbol(self.field.name + "%" +
