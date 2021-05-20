@@ -68,7 +68,7 @@ def test_fw_unknown_decln(fortran_writer):
 
 
 def test_fw_unknown_interface_decln(fortran_writer):
-    ''' Check that the frontend recreates an interface declaration stored as
+    ''' Check that the backend recreates an interface declaration stored as
     an unknown type and adds an appropriate access statement. '''
     container = Container("my_mod")
     interface_code = ("interface eos\n"

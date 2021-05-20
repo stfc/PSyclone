@@ -681,6 +681,26 @@ def _process_routine_symbols(module_ast, symbol_table,
         symbol_table.add(rsymbol)
 
 
+def _process_access_spec(attr):
+    '''
+    Converts from an fparser2 Access_Spec node to a PSyIR visibility.
+
+    :param attr: the fparser2 AST node to process.
+    :type attr: :py:class:`fparser.two.Fortran2003.Access_Spec`
+
+    :return: the PSyIR visibility corresponding to the access spec.
+    :rtype: :py:class:`psyclone.psyir.Symbol.Visibility`
+
+    :raises InternalError: if an invalid access specification is found.
+
+    '''
+    try:
+        return VISIBILITY_MAP_FROM_FORTRAN[attr.string.lower()]
+    except KeyError as err:
+        six.raise_from(InternalError("Unexpected Access Spec attribute '{0}'.".
+                                     format(str(attr))), err)
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -1432,25 +1452,6 @@ class Fparser2Reader(object):
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))
 
-    def _process_access_spec(self, attr):
-        '''
-        Converts from an fparser2 Access_Spec node to a PSyIR visibility.
-
-        :param attr: the fparser2 AST node to process.
-        :type attr: :py:class:`fparser.two.Fortran2003.Access_Spec`
-
-        :return: the PSyIR visibility corresponding to the access spec.
-        :rtype: :py:class:`psyclone.psyir.Symbol.Visibility`
-
-        :raises InternalError: if an invalid access specification is found.
-
-        '''
-        try:
-            return VISIBILITY_MAP_FROM_FORTRAN[attr.string.lower()]
-        except KeyError:
-            raise InternalError(
-                "Unexpected Access Spec attribute '{0}'.".format(str(attr)))
-
     def _process_decln(self, parent, symbol_table, decl, default_visibility,
                        visibility_map=None):
         '''
@@ -1614,11 +1615,11 @@ class Fparser2Reader(object):
                         self._parse_dimensions(attr, symbol_table)
                 elif isinstance(attr, Fortran2003.Access_Spec):
                     try:
-                        decln_access_spec = self._process_access_spec(attr)
+                        decln_access_spec = _process_access_spec(attr)
                     except InternalError as err:
-                        six.raise_from(err, InternalError(
+                        six.raise_from(InternalError(
                             "Could not process '{0}': {1}".format(
-                                decl.items, str(err.value))))
+                                decl.items, str(err.value))), err)
                 else:
                     raise NotImplementedError(
                         "Could not process declaration: '{0}'. "
@@ -1917,7 +1918,7 @@ class Fparser2Reader(object):
                     # UnknownType. This is the subject of Issue #791.
                     specs = walk(node, Fortran2003.Access_Spec)
                     if specs:
-                        vis = self._process_access_spec(specs[0])
+                        vis = _process_access_spec(specs[0])
                     else:
                         vis = default_visibility
 
@@ -1936,13 +1937,13 @@ class Fparser2Reader(object):
                                 DataSymbol(symbol_name,
                                            UnknownFortranType(str(node)),
                                            visibility=vis))
-                        except KeyError:
+                        except KeyError as err:
                             if len(orig_children) == 1:
-                                raise SymbolError(
+                                six.raise_from(SymbolError(
                                     "Error while processing unsupported "
                                     "declaration ('{0}'). An entry for symbol "
                                     "'{1}' is already in the symbol table.".
-                                    format(str(node), symbol_name))
+                                    format(str(node), symbol_name)), err)
                     # Restore the fparser2 parse tree
                     node.children[2].items = tuple(orig_children)
 

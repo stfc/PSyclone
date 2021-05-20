@@ -42,7 +42,7 @@ from psyclone.psyir.nodes import Container, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, Symbol, UnknownFortranType
 
 
-def test_named_interface(fortran_reader, fortran_writer):
+def test_named_interface(fortran_reader):
     ''' Test that the frontend creates a symbol of UnknownFortranType for
         a named interface block.'''
     dummy_module = '''
