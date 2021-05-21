@@ -47,7 +47,7 @@ from __future__ import print_function, absolute_import
 import abc
 import os
 from enum import Enum
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict, namedtuple, Counter
 import six
 import fparser
 
@@ -3191,15 +3191,17 @@ class LFRicScalarArgs(DynCollection):
     def __init__(self, node):
         super(LFRicScalarArgs, self).__init__(node)
 
-        # Initialise dictionaries of real and integer scalar
-        # arguments by data type and intent
+        # Initialise dictionaries of real, integer and logical
+        # scalar arguments by data type and intent
         self._scalar_args = {}
         self._real_scalars = {}
-        self._int_scalars = {}
+        self._integer_scalars = {}
+        self._logical_scalars = {}
         for intent in FORTRAN_INTENT_NAMES:
             self._scalar_args[intent] = []
             self._real_scalars[intent] = []
-            self._int_scalars[intent] = []
+            self._integer_scalars[intent] = []
+            self._logical_scalars[intent] = []
 
     def _invoke_declarations(self, parent):
         '''
@@ -3224,34 +3226,42 @@ class LFRicScalarArgs(DynCollection):
         self._real_scalars = self._invoke.unique_declns_by_intent(
             const.VALID_SCALAR_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        self._int_scalars = self._invoke.unique_declns_by_intent(
+        self._integer_scalars = self._invoke.unique_declns_by_intent(
             const.VALID_SCALAR_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
+        self._logical_scalars = self._invoke.unique_declns_by_intent(
+            const.VALID_SCALAR_NAMES,
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
 
         for intent in FORTRAN_INTENT_NAMES:
             scal = [arg.declaration_name for arg in self._scalar_args[intent]]
             rscal = [arg.declaration_name for
                      arg in self._real_scalars[intent]]
             iscal = [arg.declaration_name for
-                     arg in self._int_scalars[intent]]
+                     arg in self._integer_scalars[intent]]
+            lscal = [arg.declaration_name for
+                     arg in self._logical_scalars[intent]]
+            # Add real, integer and logical scalar lists for checks
+            decl_scal = rscal + iscal + lscal
             # Check for unsupported intrinsic types
-            scal_inv = set(scal) - set(rscal).union(set(iscal))
+            scal_inv = sorted(set(scal) - set(decl_scal))
             if scal_inv:
                 raise InternalError(
                     "Found unsupported intrinsic types for the scalar "
                     "arguments {0} to Invoke '{1}'. Supported types are {2}.".
-                    format(list(scal_inv), self._invoke.name,
+                    format(scal_inv, self._invoke.name,
                            const.VALID_INTRINSIC_TYPES))
-            # Check that the same scalar name is not found in both real and
-            # integer scalar lists (for instance if passed to one kernel as
-            # a real and to another kernel as an integer scalar)
-            scal_multi_type = set(rscal).intersection(set(iscal))
+            # Check that the same scalar name is not found in either of real,
+            # integer or logical scalar lists (for instance if passed to one
+            # kernel as a real and to another kernel as an integer scalar)
+            scal_multi_type = [item for item, count in
+                               Counter(decl_scal).items() if count > 1]
             if scal_multi_type:
                 raise GenerationError(
                     "Scalar argument(s) {0} in Invoke '{1}' have different "
                     "metadata for data type ({2}) in different kernels. "
                     "This is invalid.".
-                    format(list(scal_multi_type), self._invoke.name,
+                    format(scal_multi_type, self._invoke.name,
                            list(const.MAPPING_DATA_TYPES.keys())))
 
         # Create declarations
@@ -3281,7 +3291,9 @@ class LFRicScalarArgs(DynCollection):
                 if arg.descriptor.data_type == "gh_real":
                     self._real_scalars[intent].append(arg)
                 elif arg.descriptor.data_type == "gh_integer":
-                    self._int_scalars[intent].append(arg)
+                    self._integer_scalars[intent].append(arg)
+                elif arg.descriptor.data_type == "gh_logical":
+                    self._logical_scalars[intent].append(arg)
                 else:
                     raise InternalError(
                         "Found an unsupported data type '{0}' for the "
@@ -3318,13 +3330,25 @@ class LFRicScalarArgs(DynCollection):
         # Integer scalar arguments
         dtype = const.MAPPING_DATA_TYPES["gh_integer"]
         for intent in FORTRAN_INTENT_NAMES:
-            if self._int_scalars[intent]:
-                int_scalar_names = [arg.declaration_name for arg
-                                    in self._int_scalars[intent]]
+            if self._integer_scalars[intent]:
+                integer_scalar_names = [arg.declaration_name for arg
+                                        in self._integer_scalars[intent]]
                 parent.add(
                     DeclGen(parent, datatype=dtype,
                             kind=api_config.default_kind[dtype],
-                            entity_decls=int_scalar_names,
+                            entity_decls=integer_scalar_names,
+                            intent=intent))
+
+        # Logical scalar arguments
+        dtype = const.MAPPING_DATA_TYPES["gh_logical"]
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._logical_scalars[intent]:
+                logical_scalar_names = [arg.declaration_name for arg
+                                        in self._logical_scalars[intent]]
+                parent.add(
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
+                            entity_decls=logical_scalar_names,
                             intent=intent))
 
 
@@ -7368,6 +7392,8 @@ class DynKern(CodedKern):
                     pre = "rscalar_"
                 elif descriptor.data_type.lower() == "gh_integer":
                     pre = "iscalar_"
+                elif descriptor.data_type.lower() == "gh_logical":
+                    pre = "lscalar_"
                 else:
                     raise InternalError(
                         "Expected one of {0} data types for a scalar "
