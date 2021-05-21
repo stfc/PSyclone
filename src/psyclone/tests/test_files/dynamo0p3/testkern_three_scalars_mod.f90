@@ -31,11 +31,11 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author R. W. Ford STFC Daresbury Lab
-!        C. M. Maynard Met Office/University of Reading
-! Modified I. Kavcic Met Office
+! Author: R. W. Ford, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
+!           C. M. Maynard, Met Office/University of Reading
 
-module testkern_two_scalars_mod
+module testkern_three_scalars_mod
 
   use argument_mod
   use fs_continuity_mod
@@ -44,33 +44,37 @@ module testkern_two_scalars_mod
 
   implicit none
   
-  type, extends(kernel_type) :: testkern_two_scalars_type
-     type(arg_type), dimension(6) :: meta_args =           &
+  type, extends(kernel_type) :: testkern_three_scalars_type
+     type(arg_type), dimension(7) :: meta_args =           &
           (/ arg_type(gh_scalar, gh_real,    gh_read    ), &
              arg_type(gh_field,  gh_real,    gh_inc,  w1), &
              arg_type(gh_field,  gh_real,    gh_read, w2), &
              arg_type(gh_field,  gh_real,    gh_read, w2), &
              arg_type(gh_field,  gh_real,    gh_read, w3), &
+             arg_type(gh_scalar, gh_logical, gh_read    ), &
              arg_type(gh_scalar, gh_integer, gh_read    )  &
            /)
      integer :: operates_on = cell_column
    contains
-     procedure, nopass :: code => testkern_two_scalars_code
-  end type testkern_two_scalars_type
+     procedure, nopass :: code => testkern_three_scalars_code
+  end type testkern_three_scalars_type
 
 contains
 
-  subroutine testkern_two_scalars_code(nlayers, a, f1data, f2data, &
-                                       m1data, m2data, istep,      &
-                                       ndf_w1, undf_w1, map_w1,    &
-                                       ndf_w2, undf_w2, map_w2,    &
-                                       ndf_w3, undf_w3, map_w3)
+  subroutine testkern_three_scalars_code(nlayers, a, f1data,      &
+                                         f2data, m1data, m2data,  &
+                                         lswitch, istep,          &
+                                         ndf_w1, undf_w1, map_w1, &
+                                         ndf_w2, undf_w2, map_w2, &
+                                         ndf_w3, undf_w3, map_w3)
+
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w1, undf_w1
     integer(kind=i_def), intent(in) :: ndf_w2, undf_w2
     integer(kind=i_def), intent(in) :: ndf_w3, undf_w3
+    logical(kind=l_def), intent(in) :: lswitch
     integer(kind=i_def), intent(in) :: istep
     integer(kind=i_def), dimension(ndf_w1),  intent(in)    :: map_w1
     integer(kind=i_def), dimension(ndf_w2),  intent(in)    :: map_w2
@@ -81,6 +85,6 @@ contains
     real(kind=r_def),    dimension(undf_w2), intent(in)    :: m1data
     real(kind=r_def),    dimension(undf_w3), intent(in)    :: m2data
 
-  end subroutine testkern_two_scalars_code
+  end subroutine testkern_three_scalars_code
 
-end module testkern_two_scalars_mod
+end module testkern_three_scalars_mod
