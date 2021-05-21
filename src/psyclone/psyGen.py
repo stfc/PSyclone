@@ -47,7 +47,8 @@ import abc
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.f2pygen import DirectiveGen, CommentGen
+from psyclone.f2pygen import DirectiveGen, CommentGen, CallGen, PSyIRGen, \
+    UseGen
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
@@ -1407,7 +1408,10 @@ class ACCEnterDataDirective(ACCDirective):
         super(ACCEnterDataDirective, self).__init__(children=children,
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
-        self._copy_vars = []  # This is computed dynamically
+
+        # The _copy_vars are computed dynamically until the _lowered_clauses
+        # flag is set to True, after that re-use the stored ones.
+        self._copy_vars = []
         self._lowered_clauses = False
 
     def node_str(self, colour=True):
@@ -1482,13 +1486,14 @@ class ACCEnterDataDirective(ACCDirective):
         '''
         In-place replacement of this directive concept into language level
         PSyIR constructs.
+
         '''
         if not self._lowered_clauses:
             # We must generate a list of all of the fields accessed by
             # OpenACC kernels (calls within an OpenACC parallel or kernels
             # directive)
-            # 1. Find all parallel and kernels directives. We store this list for
-            #    later use in any sub-class.
+            # 1. Find all parallel and kernels directives. We store this list
+            # for later use in any sub-class.
             self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                     (ACCParallelDirective, ACCKernelsDirective))
             # 2. For each directive, loop over each of the fields used by
@@ -1513,9 +1518,8 @@ class ACCEnterDataDirective(ACCDirective):
         :rtype: str
 
         '''
-        # 3. Convert this list of objects into a comma-delimited string
+        # The enter data clauses are computed from the current copy_vars values
         var_str = ",".join(self._copy_vars)
-        # 4. Add the enter data directive.
         if var_str:
             copy_in_str = "copyin("+var_str+")"
         else:
@@ -3126,7 +3130,7 @@ class CodedKern(Kern):
             self.rename_and_write()
         else:
             # Inline the kernel subroutine
-            self.insert_module_inlined_kernel()
+            self._insert_module_inlined_kernel()
 
         # Create the appropriate symbols
         symtab = self.ancestor(InvokeSchedule).symbol_table
@@ -3153,8 +3157,20 @@ class CodedKern(Kern):
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
 
-    def insert_module_inlined_kernel(self):
+    def _insert_module_inlined_kernel(self, f2pygen_parent=None):
+        ''' Module-inline this kernel into the tree if it hasn't been inlined
+        previously yet. Currently this needs to be done for the PSyIR tree and
+        the f2pygen tree. If the f2pygen_parent argument is None it will be
+        inlined in the PSyIR tree, otherwise it will be inlined in the provided
+        parent
 
+        :param parent: The parent of this kernel call in the f2pygen AST.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen` or NoneType
+
+        :raises NotImplementedError: if there is a name clash that prevents \
+            the kernel from being module-inlined without changing its name.
+
+        '''
         # Check for name clashes
         try:
             existing_symbol = self.scope.symbol_table.lookup(self._name)
@@ -3165,9 +3181,19 @@ class CodedKern(Kern):
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
             self.root.symbol_table.add(RoutineSymbol(self._name))
-            # 2) Converting the PSyIR kernel into a f2pygen node (of
-            # PSyIRGen kind) under the PSy-layer f2pygen module.
-            self.root.addchild(self.get_kernel_schedule().detach())
+            # 2) Insert the relevant code into the tree.
+            inlined_code = self.get_kernel_schedule()
+            if f2pygen_parent:
+                # If we are building a f2pygen tree add it to a PSyIRGen node
+                # under the PSy-layer f2pygen module.
+                module = f2pygen_parent
+                while module.parent:
+                    module = module.parent
+                module.add(PSyIRGen(module, inlined_code))
+            else:
+                # Otherwise just add it to the current PSyIR tree
+                self.root.addchild(inlined_code.detach())
+
         else:
             # If the symbol already exists, make sure it refers
             # to the exact same subroutine.
@@ -3178,6 +3204,28 @@ class CodedKern(Kern):
                     " names of module-inlined subroutines is not "
                     "implemented yet.".format(self._name, existing_symbol))
 
+            # Make sure the generated code is an exact match by creating
+            # the f2pygen node (which in turn creates the fparser1) of the
+            # kernel_schedule and then compare it to the fparser1 trees of
+            # the PSyIRGen f2pygen nodes children of module.
+            if f2pygen_parent:
+                module = f2pygen_parent
+                while module.parent:
+                    module = module.parent
+                search = PSyIRGen(module, self.get_kernel_schedule()).root
+                for child in module.children:
+                    if isinstance(child, PSyIRGen):
+                        if child.root == search:
+                            # If there is an exact match (the implementation is
+                            # the same), it is safe to continue.
+                            break
+                else:
+                    raise NotImplementedError(
+                        "Can not inline subroutine '{0}' because another "
+                        "subroutine with the same name already exists and"
+                        " versioning of module-inlined subroutines is not"
+                        " implemented yet.".format(self._name))
+
     def gen_code(self, parent):
         '''
         Generates the f2pygen AST of the Fortran for this kernel call and
@@ -3186,11 +3234,7 @@ class CodedKern(Kern):
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
-        :raises NotImplementedError: if there is a name clash that prevents \
-            the kernel from being module-inlined without changing its name.
         '''
-        from psyclone.f2pygen import CallGen, UseGen, PSyIRGen
-
         # If the kernel has been transformed then we rename it. If it
         # is *not* being module inlined then we also write it to file.
         self.rename_and_write()
@@ -3205,51 +3249,7 @@ class CodedKern(Kern):
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
         else:
-            # Find the root f2pygen module
-            module = parent
-            while module.parent:
-                module = module.parent
-
-            # Check for name clashes
-            try:
-                existing_symbol = self.scope.symbol_table.lookup(self._name)
-            except KeyError:
-                existing_symbol = None
-
-            if not existing_symbol:
-                # If it doesn't exist already, module-inline the subroutine by:
-                # 1) Registering the subroutine symbol in the Container
-                self.root.symbol_table.add(RoutineSymbol(self._name))
-                # 2) Converting the PSyIR kernel into a f2pygen node (of
-                # PSyIRGen kind) under the PSy-layer f2pygen module.
-                module.add(PSyIRGen(module, self.get_kernel_schedule()))
-            else:
-                # If the symbol already exists, make sure it refers
-                # to the exact same subroutine.
-                if not isinstance(existing_symbol, RoutineSymbol):
-                    raise NotImplementedError(
-                        "Can not module-inline subroutine '{0}' because symbol"
-                        "'{1}' with the same name already exists and changing"
-                        " names of module-inlined subroutines is not "
-                        "implemented yet.".format(self._name, existing_symbol))
-
-                # Make sure the generated code is an exact match by creating
-                # the f2pygen node (which in turn creates the fparser1) of the
-                # kernel_schedule and then compare it to the fparser1 trees of
-                # the PSyIRGen f2pygen nodes children of module.
-                search = PSyIRGen(module, self.get_kernel_schedule()).root
-                for child in module.children:
-                    if isinstance(child, PSyIRGen):
-                        if child.root == search:
-                            # If there is an exact match (the implementation is
-                            # the same), it is safe to continue.
-                            break
-                else:
-                    raise NotImplementedError(
-                        "Can not inline subroutine '{0}' because another "
-                        "subroutine with the same name already exists and"
-                        " versioning of module-inlined subroutines is not"
-                        " implemented yet.".format(self._name))
+            self._insert_module_inlined_kernel(parent)
 
     def gen_arg_setter_code(self, parent):
         '''
