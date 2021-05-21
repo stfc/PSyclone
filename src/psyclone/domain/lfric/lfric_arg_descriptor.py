@@ -583,7 +583,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._nargs != nargs_scalar:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have {0} "
-                "arguments if its first argument is 'gh_{{r,i}}scalar', but "
+                "arguments if its first argument is 'gh_scalar', but "
                 "found {1} in '{2}'.".
                 format(nargs_scalar, self._nargs, arg_type))
 
