@@ -53,6 +53,8 @@ from psyclone.domain.nemo.transformations.nemo_loop_fuse \
     import NemoLoopFuseTrans
 from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
     import NemoOuterArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_arrayaccess2loop_trans \
+    import NemoArrayAccess2LoopTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
@@ -65,4 +67,5 @@ __all__ = ['CreateNemoInvokeScheduleTrans',
            'NemoAllArrayRange2LoopTrans',
            'NemoArrayRange2LoopTrans',
            'NemoLoopFuseTrans',
-           'NemoOuterArrayRange2LoopTrans']
+           'NemoOuterArrayRange2LoopTrans',
+           'NemoArrayAccess2LoopTrans']
