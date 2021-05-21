@@ -104,7 +104,7 @@ SIMPLE_WITH_SCALARS = (
     "    CONTAINS\n"
     "    SUBROUTINE simple_with_scalars_code(nlayers, rscalar_1, field_2_w1, "
     "iscalar_3, lscalar_4, ndf_w1, undf_w1, map_w1)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
+    "      USE constants_mod, ONLY: r_def, l_def, i_def\n"
     "      IMPLICIT NONE\n"
     "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
     "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
@@ -124,4 +124,5 @@ def test_stub_generate_with_scalars():
     the kernel has scalar arguments '''
     result = generate(os.path.join(BASE_PATH, "simple_with_scalars.f90"),
                       api=TEST_API)
+    print(str(result))
     assert SIMPLE_WITH_SCALARS in str(result)

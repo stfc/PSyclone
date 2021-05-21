@@ -1017,9 +1017,10 @@ class DynamoPSy(PSy):
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls, self)
-        self._infrastructure_modules = self._initialise_infmod_dict()
+        # Initialise dictionaries for infrastructure modules
+        self._initialise_infrastructure_modules()
 
-    def _initialise_infmod_dict(self):
+    def _initialise_infrastructure_modules(self):
         '''
         Initialise the dictionary that holds the names of the required
          LFRic constants, data structures and data structure proxies for
@@ -1031,21 +1032,24 @@ class DynamoPSy(PSy):
         :rtype: dict of odicts
 
         '''
-        inf_mods = {"constants": OrderedDict(), "data_struct": OrderedDict()}
+        self._infrastructure_modules = {"constants": OrderedDict(),
+                                        "data_struct": OrderedDict()}
 
         # Sub-dictionary for constants (only "constants_mod" for now)
         const_list = ["constants_mod"]
-        inf_mods["constants"] = OrderedDict((k, set()) for k in const_list)
+        self._infrastructure_modules["constants"] = OrderedDict(
+            (k, set()) for k in const_list)
+        # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
-        inf_mods["constants"]["constants_mod"] = set(
+        # Start with 'real' and 'integer' kinds
+        self._infrastructure_modules["constants"]["constants_mod"] = set(
             [api_config.default_kind["real"],
              api_config.default_kind["integer"]])
 
         # Sub-dictionary for data structures
         data_struct_list = ["field_mod", "integer_field_mod", "operator_mod"]
-        inf_mods["data_struct"] = OrderedDict(
+        self._infrastructure_modules["data_struct"] = OrderedDict(
             (k, set()) for k in data_struct_list)
-        return inf_mods
 
     @property
     def name(self):
@@ -1070,9 +1074,9 @@ class DynamoPSy(PSy):
     @property
     def infrastructure_modules(self):
         '''
-        :returns: the dictionary that holds the names of required \
-                  LFRic data structures and their proxies to create \
-                  "use" statements in the PSy-layer modules.
+        :returns: the dictionary that holds the names of the required \
+                  LFRic infrastructure modules to create "use" \
+                  statements in the PSy-layer modules.
         :rtype: dict of odicts
 
         '''
@@ -3371,6 +3375,8 @@ class LFRicScalarArgs(DynCollection):
                 (self._invoke.invokes.psy.
                  infrastructure_modules["constants"]["constants_mod"].
                  add(dkind))
+            if self._kernel:
+                (self._kernel.argument_kinds.add(dkind))
             for intent in FORTRAN_INTENT_NAMES:
                 if self._logical_scalars[intent]:
                     logical_scalar_names = [arg.declaration_name for arg
@@ -7352,6 +7358,8 @@ class DynKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
+        # Initialise kinds (precisions) of all kernel arguments
+        self._initialise_argument_kinds()
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -7588,6 +7596,25 @@ class DynKern(CodedKern):
         # Properties of the mesh required by this kernel
         self._mesh_properties = ktype.mesh
 
+    def _initialise_argument_kinds(self):
+        '''
+        Initialise the set that holds kinds (precisions) for all
+        arguments in a kernel required for the "use" statements in
+        kernel stub generator. The set contains kinds for 'real'
+        and 'integer'-valued arguments (the kind for 'logical'
+        arguments is added in the data structure classes if required).
+
+        :returns: kinds (precisions) for 'real' and 'integer'-valued
+                  kernel arguments.
+        :rtype: set
+
+        '''
+        # Get configuration for valid argument kinds
+        api_config = Config.get().api_conf("dynamo0.3")
+        # Start with 'real' and 'integer' kinds
+        self._argument_kinds = set([api_config.default_kind["real"],
+                                    api_config.default_kind["integer"]])
+
     @property
     def qr_rules(self):
         '''
@@ -7733,6 +7760,15 @@ class DynKern(CodedKern):
         return self._base_name
 
     @property
+    def argument_kinds(self):
+        '''
+        :returns: kinds (precisions) for all arguments in a kernel.
+        :rtype: set
+
+        '''
+        return self._argument_kinds
+
+    @property
     def gen_stub(self):
         '''
         Create the fparser1 AST for a kernel stub.
@@ -7758,20 +7794,12 @@ class DynKern(CodedKern):
                 "in kernel '{2}'.".format(supported_operates_on,
                                           self.iterates_over, self.name))
 
-        # Get configuration for valid argument kinds
-        api_config = Config.get().api_conf("dynamo0.3")
-
         # Create an empty PSy layer module
         psy_module = ModuleGen(self._base_name+"_mod")
 
         # Create the subroutine
         sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
-        sub_stub.add(
-            UseGen(sub_stub, name="constants_mod", only=True,
-                   funcnames=[api_config.default_kind["real"],
-                              api_config.default_kind["integer"],
-                              api_config.default_kind["logical"]]))
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
@@ -7780,6 +7808,11 @@ class DynKern(CodedKern):
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
+
+        # Add "use" statement with kinds (precisions) of all arguments
+        sub_stub.add(
+            UseGen(sub_stub, name="constants_mod", only=True,
+                   funcnames=sorted(list(self._argument_kinds), reverse=True)))
 
         # Create the arglist
         create_arg_list = KernStubArgList(self)
