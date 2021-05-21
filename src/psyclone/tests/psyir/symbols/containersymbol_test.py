@@ -85,6 +85,21 @@ def test_containersymbol_initialisation():
     assert "ContainerSymbol 'name' attribute should be of type 'str'" \
         in str(error.value)
 
+    with pytest.raises(TypeError) as error:
+        sym = ContainerSymbol("name", interface="interface")
+    assert ("A ContinerSymbol interface must be of type "
+            "'FortranModuleInterface' but found 'str'" in str(error.value))
+
+
+def test_containersymbol_can_be_copied():
+    '''Test that a ContainerSymbol instance can be copied. '''
+    symbol = ContainerSymbol("my_mod")
+    new_symbol = symbol.copy()
+
+    assert new_symbol is not symbol
+    assert new_symbol.name == "my_mod"
+    assert isinstance(new_symbol._interface, FortranModuleInterface)
+
 
 def test_containersymbol_str():
     '''Test that a ContainerSymbol instance can be stringified'''

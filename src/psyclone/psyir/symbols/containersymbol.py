@@ -66,11 +66,15 @@ class ContainerSymbol(Symbol):
                  interface=None):
         super(ContainerSymbol, self).__init__(name, visibility=visibility)
 
-        if interface:
-            self.interface = interface
-        else:
+        if interface is None:
             # By default it is a FortranModuleInterface
             self.interface = FortranModuleInterface()
+        elif isinstance(interface, FortranModuleInterface):
+            self.interface = interface
+        else:
+            raise TypeError("A ContinerSymbol interface must be of type '"
+                            "FortranModuleInterface' but found '{0}'"
+                            "".format(type(interface).__name__))
 
         self._reference = None
         # Whether or not there is a wildcard import of all public symbols
