@@ -1438,13 +1438,20 @@ class Fparser2Reader(object):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param type_spec: the fparser2 parse tree of the type specification.
         :type type_spec: \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec`
+            :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec` or \
+            :py:class:`fparser.two.Fortran2003.Declaration_Type_Spec`
 
         :returns: the type and precision specified by the type-spec.
         :rtype: 2-tuple of :py:class:`psyclone.psyir.symbols.ScalarType` or \
             :py:class:`psyclone.psyir.symbols.TypeSymbol` and \
             :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
             :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
+
+        :raises NotImplementedError: if an unsupported intrinsic type is found.
+        :raises SymbolError: if a symbol already exists for the name of a \
+            derived type but is not a TypeSymbol.
+        :raises NotImplementedError: if the supplied type specification is \
+            not for an intrinsic type or a derived type.
 
         '''
         base_type = None
@@ -1454,12 +1461,12 @@ class Fparser2Reader(object):
             fort_type = str(type_spec.items[0]).lower()
             try:
                 data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
-            except KeyError:
-                raise NotImplementedError(
+            except KeyError as err:
+                six.raise_from(NotImplementedError(
                     "Could not process {0}. Only 'real', 'double "
                     "precision', 'integer', 'logical' and 'character' "
                     "intrinsic types are supported."
-                    "".format(str(type_spec)))
+                    "".format(str(type_spec))), err)
             if fort_type == "double precision":
                 # Fortran double precision is equivalent to a REAL
                 # intrinsic with precision DOUBLE in the PSyIR.
@@ -1470,6 +1477,7 @@ class Fparser2Reader(object):
             if not precision:
                 precision = default_precision(data_name)
             base_type = ScalarType(data_name, precision)
+
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
             type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
@@ -1490,8 +1498,10 @@ class Fparser2Reader(object):
                     "specification '{1}') found a '{2}' instead.".format(
                         type_name, str(type_spec), type(type_symbol).__name__))
             base_type = type_symbol
+
         else:
-            # Not a supported type specification.
+            # Not a supported type specification. This will result in a
+            # CodeBlock or UnknownFortranType, depending on the context.
             raise NotImplementedError()
 
         return base_type, precision
@@ -1518,28 +1528,25 @@ class Fparser2Reader(object):
         :type visibility_map: dict with str keys and \
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
-        :raises NotImplementedError: if an unsupported intrinsic type is found.
-        :raises NotImplementedError: if the declaration is not of an \
-                                     intrinsic type.
-        :raises NotImplementedError: if the save attribute is encountered on a\
-                                     declaration that is not within a module.
+        :raises NotImplementedError: if the save attribute is encountered on \
+            a declaration that is not within a module.
         :raises NotImplementedError: if an unsupported attribute is found.
         :raises NotImplementedError: if an unsupported intent attribute is \
-                                     found.
+            found.
         :raises NotImplementedError: if an unsupported access-spec attribute \
-                                     is found.
+            is found.
         :raises NotImplementedError: if the allocatable attribute is found on \
-                                     a non-array declaration.
+            a non-array declaration.
         :raises InternalError: if an array with defined extent has the \
-                               allocatable attribute.
+            allocatable attribute.
         :raises NotImplementedError: if an initialisation expression is found \
-                                     for a variable declaration.
+            for a variable declaration.
         :raises NotImplementedError: if an unsupported initialisation \
-                expression is found for a parameter declaration.
+            expression is found for a parameter declaration.
         :raises NotImplementedError: if a character-length specification is \
-                                     found.
+            found.
         :raises SymbolError: if a declaration is found for a symbol that is \
-                already present in the symbol table with a defined interface.
+            already present in the symbol table with a defined interface.
 
         '''
         (type_spec, attr_specs, entities) = decl.items

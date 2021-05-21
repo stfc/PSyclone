@@ -741,14 +741,14 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when a Routine node is found in
         the PSyIR tree.
 
-        :param node: a KernelSchedule PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :param node: a Routine PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
 
-        :returns: the Fortran code as a string.
+        :returns: the Fortran code for this node.
         :rtype: str
 
         :raises VisitorError: if the name attribute of the supplied \
-        node is empty or None.
+                              node is empty or None.
 
         '''
         if not node.name:

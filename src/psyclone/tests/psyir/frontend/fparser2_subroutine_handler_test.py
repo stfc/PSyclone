@@ -164,6 +164,14 @@ def test_function_type_prefix(fortran_reader, fortran_writer, basic_type):
         "\n"
         "end module a\n".format(basic_type))
     psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir, Container)
+    assert isinstance(psyir.children[0], Routine)
+    return_sym = psyir.children[0].return_symbol
+    assert isinstance(return_sym, DataSymbol)
+    if basic_type == "real":
+        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    else:
+        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     result = fortran_writer(psyir)
     assert result == expected
 
