@@ -1826,8 +1826,6 @@ def test_accloop(tmpdir):
     accdata.apply(schedule)
 
     gen = str(psy.gen)
-
-    # FIXME: I changed this, is this right?
     assert '''\
       !$acc parallel default(present)
       !$acc loop independent
