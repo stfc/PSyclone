@@ -50,7 +50,8 @@
 from __future__ import print_function
 import re
 import six
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, Comment
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
 from psyclone.domain.gocean import GOceanConstants
@@ -178,14 +179,18 @@ class GOInvokes(Invokes):
 
     def gen_code(self, parent):
         '''
-        Create the f2pygen AST for each Invoke in the PSy layer.
+        GOcean redefines the Invokes.gen_code() to start using the PSyIR
+        backend when possible. In cases where the backend can not be used yet
+        (e.g. OpenCL and ExtractorNode) the parent class will be called. This
+        is temporally done here to avoid modifying the generator file while
+        other APIs still use the f2pygen.
+        Once the PSyIR backend has generated an output, this is added into a
+        f2pygen PSyIRGen block into the f2pygen AST for each Invoke in the
+        PSy layer.
 
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
-        from psyclone.f2pygen import PSyIRGen
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
         for invoke in self.invoke_list:
 
             # TODO 1134: The opencl path is still largely implemented using
@@ -194,14 +199,16 @@ class GOInvokes(Invokes):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
-            # PSyDataNodes and ExtractNodes are not supported by the
-            # backend yet.
+            # TODO 1168: PSyDataNodes and ExtractNodes are not supported by
+            # the backend yet.
             if invoke.schedule.root.walk(PSyDataNode):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
             # If the const_loop_bounds flag is True, we need to declare
             # and initialize the loop bounds variables.
+            # TODO 1256: The code below should be moved to the
+            # const_loop_bounds transformation itself.
             if invoke.schedule.const_loop_bounds:
                 i_stop = invoke.schedule.symbol_table.new_symbol(
                     invoke.schedule.iloop_stop, symbol_type=DataSymbol,
@@ -3138,7 +3145,9 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
     def lower_to_language_level(self):
         '''
         In-place replacement of DSL or high-level concepts into generic
-        PSyIR constructs.
+        PSyIR constructs. In addition to call its parent logic, the
+        GOACCEnterDataDirective sets up the 'data_on_device' flag for
+        each of the fields accessed.
 
         '''
         self._acc_dirs = self.ancestor(InvokeSchedule).walk(
