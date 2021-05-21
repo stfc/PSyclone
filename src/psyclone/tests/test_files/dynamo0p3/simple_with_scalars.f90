@@ -42,10 +42,11 @@ module simple_with_scalars_mod
   implicit none
 
   type, extends(kernel_type) :: simple_with_scalars_type
-    type(arg_type), dimension(3) :: meta_args =          &
+    type(arg_type), dimension(4) :: meta_args =          &
          (/ arg_type(gh_scalar, gh_real,    gh_read),    &
             arg_type(gh_field,  gh_real,    gh_inc, w1), &
-            arg_type(gh_scalar, gh_integer, gh_read) /)
+            arg_type(gh_scalar, gh_integer, gh_read),    &
+            arg_type(gh_scalar, gh_logical, gh_read) /)
     integer :: operates_on = cell_column
   contains
     procedure, nopass :: code => simple_with_scalars_code
