@@ -1573,6 +1573,17 @@ def test_process_declarations_unrecognised_attribute():
     sym = fake_parent.symbol_table.lookup("idx3")
     assert isinstance(sym.datatype, UnknownFortranType)
     assert sym.visibility == Symbol.Visibility.PRIVATE
+    # No access statement but visibility provided in visibility_map argument
+    # to process_declarations()
+    reader = FortranStringReader("integer, target :: idx4\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(
+        fake_parent, fparser2spec.children, [],
+        visibility_map={"idx4": Symbol.Visibility.PUBLIC},
+        default_visibility=Symbol.Visibility.PRIVATE)
+    sym = fake_parent.symbol_table.lookup("idx4")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.visibility == Symbol.Visibility.PUBLIC
 
 
 @pytest.mark.usefixtures("f2008_parser")

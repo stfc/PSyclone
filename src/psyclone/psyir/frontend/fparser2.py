@@ -1872,6 +1872,8 @@ class Fparser2Reader(object):
                 # In case the caller has provided a visibility map but
                 # omitted the default visibility, we use the Fortran default.
                 default_visibility = Symbol.Visibility.PUBLIC
+        if visibility_map is None:
+            visibility_map = {}
 
         # Look at any USE statements
         self._process_use_stmts(parent, nodes)
@@ -1918,9 +1920,9 @@ class Fparser2Reader(object):
                     # UnknownType. This is the subject of Issue #791.
                     specs = walk(node, Fortran2003.Access_Spec)
                     if specs:
-                        vis = _process_access_spec(specs[0])
+                        decln_vis = _process_access_spec(specs[0])
                     else:
-                        vis = default_visibility
+                        decln_vis = default_visibility
 
                     orig_children = list(node.children[2].children[:])
                     for child in orig_children:
@@ -1929,6 +1931,7 @@ class Fparser2Reader(object):
                         # thus immutable so we create a new one.
                         node.children[2].items = (child,)
                         symbol_name = str(child.children[0])
+                        vis = visibility_map.get(symbol_name, decln_vis)
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed
                         # successfully and thus be in the symbol table.
