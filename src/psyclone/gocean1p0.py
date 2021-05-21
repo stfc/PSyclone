@@ -351,7 +351,6 @@ class GOInvoke(Invoke):
             '''
             arg_symbols = []
             local_symbols = []
-            other_symbols = []
             symtab = self.schedule.symbol_table
             for name in symbol_names:
                 interface = symtab.lookup(name).interface
@@ -359,9 +358,8 @@ class GOInvoke(Invoke):
                     local_symbols.append(name)
                 elif isinstance(interface, ArgumentInterface):
                     arg_symbols.append(name)
-                else:
-                    other_symbols.append(name)
-            return arg_symbols, local_symbols, other_symbols
+                # Other symbols are ignored
+            return arg_symbols, local_symbols
 
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
@@ -391,7 +389,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_arrays)
 
         # Add the subroutine argument declarations for real scalars
-        r_args, _, _ = sort_by_interface(self.unique_args_rscalars)
+        r_args, _ = sort_by_interface(self.unique_args_rscalars)
         if r_args:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
@@ -399,7 +397,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_rscalars)
 
         # Add the subroutine declarations for integer scalars
-        int_args, int_locals, _ = sort_by_interface(self.unique_args_iscalars)
+        int_args, int_locals = sort_by_interface(self.unique_args_iscalars)
         if int_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
