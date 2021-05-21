@@ -124,6 +124,10 @@ class LFRicConstants(object):
         LFRicConstants.VALID_INTRINSIC_TYPES = \
             list(LFRicConstants.MAPPING_DATA_TYPES.values())
 
+        # Valid intrinsic types for field kernel argument data.
+        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = \
+            LFRicConstants.VALID_INTRINSIC_TYPES[0:2]
+
         # ---------- Evaluators -----------------------------------------------
 
         # Dictionary allowing us to look-up the name of the Fortran module,

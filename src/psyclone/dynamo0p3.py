@@ -2741,7 +2741,7 @@ class LFRicFields(DynCollection):
                 "Found unsupported intrinsic types for the field "
                 "arguments {0} to Invoke '{1}'. Supported types are {2}.".
                 format(list(fld_inv), self._invoke.name,
-                       const.VALID_INTRINSIC_TYPES))
+                       const.VALID_FIELD_INTRINSIC_TYPES))
         # Check that the same field name is not found in both real and
         # integer field lists (for instance if passed to one kernel as a
         # real-valued and to another kernel as an integer-valued field)
