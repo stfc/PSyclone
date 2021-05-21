@@ -1067,14 +1067,14 @@ class GOLoop(Loop):
         # Climb up the tree looking for our enclosing GOInvokeSchedule
         schedule = self.ancestor(GOInvokeSchedule)
         if schedule is None or not isinstance(schedule, GOInvokeSchedule):
-            raise GenerationError("Internal error: cannot find parent"
-                                  " GOInvokeSchedule for this Do loop")
+            raise GenerationError("Cannot find a GOInvokeSchedule ancestor "
+                                  "for this GOLoop.")
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
         go_kernels = self.walk(GOKern)
         if not go_kernels:
-            raise GenerationError("Internal error: cannot find the "
+            raise GenerationError("Cannot find the "
                                   "GOcean Kernel enclosed by this loop")
         index_offset = go_kernels[0].index_offset
         const = GOceanConstants()
@@ -1090,8 +1090,8 @@ class GOLoop(Loop):
         for kernel in go_kernels:
             if kernel.index_offset != index_offset:
                 raise GenerationError("All Kernels must expect the same "
-                                      "grid offset but kernel {0} has offset "
-                                      "{1} which does not match {2}".
+                                      "grid offset but kernel '{0}' has offset"
+                                      " '{1}' which does not match '{2}'.".
                                       format(kernel.name,
                                              kernel.index_offset,
                                              index_offset))
