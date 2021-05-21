@@ -140,7 +140,7 @@ def test_ad_scalar_type_too_many_args():
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
         assert ("each 'meta_arg' entry must have 3 arguments if its first "
-                "argument is 'gh_{r,i}scalar', but found 4 in "
+                "argument is 'gh_scalar', but found 4 in "
                 "'arg_type(gh_scalar, gh_integer, gh_read, w1)'." in
                 str(excinfo.value))
 
@@ -153,12 +153,13 @@ def test_ad_scalar_invalid_data_type():
     code = CODE.replace("arg_type(gh_scalar,   gh_real,    gh_read)",
                         "arg_type(gh_scalar, gh_unreal, gh_read)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
+    const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of ['gh_real', 'gh_integer']), but "
-            "found 'gh_unreal' in 'arg_type(gh_scalar, gh_unreal, gh_read)'."
-            in str(excinfo.value))
+            "be a valid data type (one of {0}), but found 'gh_unreal' in "
+            "'arg_type(gh_scalar, gh_unreal, gh_read)'.".
+            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
 
 
 def test_ad_scalar_init_wrong_data_type(monkeypatch):
@@ -331,7 +332,7 @@ def test_lfricscalars_call_err():
         test_str = test_str.replace("u'", "'")
     assert ("Found unsupported intrinsic types for the scalar arguments "
             "['a'] to Invoke 'invoke_0_testkern_two_scalars_type'. Supported "
-            "types are ['real', 'integer']." in test_str)
+            "types are ['real', 'integer', 'logical']." in test_str)
 
 
 def test_dyninvoke_uniq_declns_intent_scalar():
@@ -395,7 +396,7 @@ def test_multiple_updated_scalar_args():
             "argument with 'gh_sum' access." in str(excinfo.value))
 
 
-def test_int_real_scalar_invalid():
+def test_scalar_different_data_types_invoke():
     ''' Tests that the same scalar cannot have different data types
     in different kernels within the same Invoke.
 
@@ -406,9 +407,10 @@ def test_int_real_scalar_invalid():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    with pytest.raises(GenerationError) as err:
+    const = LFRicConstants()
+    with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Scalar argument(s) ['b'] in Invoke "
             "'invoke_real_and_integer_scalars' have different metadata for "
-            "data type (['gh_real', 'gh_integer']) in different kernels. "
-            "This is invalid." in str(err.value))
+            "data type ({0}) in different kernels. This is invalid.".
+            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
