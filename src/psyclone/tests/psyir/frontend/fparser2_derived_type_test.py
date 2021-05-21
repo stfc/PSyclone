@@ -103,9 +103,9 @@ def test_name_clash_derived_type(f2008_parser, type_name):
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert ("Search for a TypeSymbol named '{0}' (required by declaration"
-            " 'TYPE({0}) :: some_var') found a 'RoutineSymbol' "
-            "instead".format(type_name) in str(err.value))
+    assert ("Search for a TypeSymbol named '{0}' (required by specification"
+            " 'TYPE({0})') found a 'RoutineSymbol' instead".format(type_name)
+            in str(err.value))
 
 
 def test_name_clash_derived_type_def(f2008_parser):
