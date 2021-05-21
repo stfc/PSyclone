@@ -432,13 +432,13 @@ def test_two_int_scalars(tmpdir):
     assert expected in generated_code
 
 
-def test_two_scalars(tmpdir):
-    ''' Tests that we generate correct code when a kernel has two scalar
-    arguments, one real and one integer.
+def test_three_scalars(tmpdir):
+    ''' Tests that we generate correct code when a kernel has all three
+    valid scalar arguments: real, integer and logical.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
@@ -446,12 +446,19 @@ def test_two_scalars(tmpdir):
 
     generated_code = str(psy.gen)
     expected = (
-        "    SUBROUTINE invoke_0_testkern_two_scalars_type(a, f1, f2, m1, "
-        "m2, istep)\n"
-        "      USE testkern_two_scalars_mod, ONLY: testkern_two_scalars_code\n"
+        "  MODULE single_invoke_psy\n"
+        "    USE constants_mod, ONLY: r_def, l_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_testkern_three_scalars_type(a, f1, f2, "
+        "m1, m2, lswitch, istep)\n"
+        "      USE testkern_three_scalars_mod, ONLY: "
+        "testkern_three_scalars_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      INTEGER(KIND=i_def), intent(in) :: istep\n"
+        "      LOGICAL(KIND=l_def), intent(in) :: lswitch\n"
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
@@ -518,8 +525,8 @@ def test_two_scalars(tmpdir):
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
-        "        CALL testkern_two_scalars_code(nlayers, a, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))\n")
+        "        CALL testkern_three_scalars_code(nlayers, a, f1_proxy%data, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, lswitch, istep, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
