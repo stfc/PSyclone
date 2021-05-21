@@ -119,6 +119,7 @@ module lfric_builtins_mod
   end type setval_X
 
   !> Invalid built-in that claims to take an operator as an argument
+  !! (invalid argument type)
   type, public, extends(kernel_type) :: a_times_X
      private
      type(arg_type) :: meta_args(3) = (/                                      &
@@ -130,6 +131,19 @@ module lfric_builtins_mod
    contains
      procedure, nopass :: a_times_X_code
   end type a_times_X
+
+  !> Invalid built-in that takes a logical scalar as an argument
+  !! (invalid data type)
+  type, public, extends(kernel_type) :: inc_a_divideby_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_LOGICAL, GH_READ                  ), &
+          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_SPACE_1)  &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_a_divideby_X_code
+  end type inc_a_divideby_X
 
   !> Invalid built-in that has arguments on different spaces
   type, public, extends(kernel_type) :: inc_X_divideby_Y
@@ -176,6 +190,9 @@ contains
 
   subroutine a_times_X_code()
   end subroutine a_times_X_code
+
+  subroutine inc_a_divideby_X_code()
+  end subroutine inc_a_divideby_X_code
 
   subroutine inc_X_divideby_Y_code()
   end subroutine inc_X_divideby_Y_code
