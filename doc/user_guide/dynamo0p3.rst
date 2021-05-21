@@ -90,6 +90,7 @@ objects and their use are discussed in the following sections.
 
   real(kind=r_def)           :: rscalar
   integer(kind=i_def)        :: iscalar
+  logical(kind=l_def)        :: lscalar
   integer(kind=i_def)        :: stencil_extent
   type(field_type)           :: field1, field2, field3
   type(field_type)           :: field5(3), field6(3)
@@ -101,7 +102,7 @@ objects and their use are discussed in the following sections.
   call invoke( kernel1(field1, field2, operator1, qr),           &
                builtin1(rscalar, field2, field3),                &
                int_builtin2(iscalar, field7),                    &
-               kernel2(field1, stencil_extent, field3, rscalar), &
+               kernel2(field1, stencil_extent, field3, lscalar), &
                assembly_kernel(cma_op1, operator1),              &
                name="some_calculation"                           &
              )
@@ -129,8 +130,9 @@ Scalar
 ++++++
 
 In the LFRic API a scalar is a single-valued argument that can be
-:ref:`either real or integer <lfric-kernel-valid-data-type>`.
-Scalars are identified with ``GH_SCALAR`` metadata.
+``real``, ``integer`` or ``logical`` (see :ref:`valid data types
+<lfric-kernel-valid-data-type>`). Scalars are identified with
+``GH_SCALAR`` metadata.
 
 .. _lfric-field:
 
@@ -149,7 +151,8 @@ Points of evaluation are determined by a quadrature object
 the field is on. Placement of field data points, also called degrees of
 freedom (hereafter "DoFs"), is determined by the function space the field
 is on.
-LFRic fields can have ``real``-valued data or ``integer``-valued data.
+LFRic fields can have ``real``-valued data or ``integer``-valued data
+(see :ref:`valid data types <lfric-kernel-valid-data-type>`).
 In the LFRic infrastructure, these fields are represented by instances of
 the ``field_type`` and ``integer_field_type`` classes, respectively.
 
@@ -167,6 +170,8 @@ Field vectors are represented as ``GH_FIELD*N`` where ``N`` is the
 size of the vector. The 3D coordinate field, for example, has
 ``(x, y, z)`` scalar values at the nodes and therefore has a
 vector size of 3.
+As fields, field vectors can have ``real``-valued data or ``integer``-valued
+data (see :ref:`valid data types <lfric-kernel-valid-data-type>`).
 
 .. _lfric-operator:
 
@@ -177,7 +182,8 @@ Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
 metadata. In the LFRic infrastructure, operators are represented by
 instances of the ``operator_type`` class. LFRic operators can only
-have ``real``-valued data.
+have ``real``-valued data (see :ref:`valid data types
+<lfric-kernel-valid-data-type>`).
 
 .. _lfric-cma-operator:
 
@@ -512,7 +518,7 @@ Rules specific to General-Purpose Kernels without CMA Operators
 
 1) General-purpose kernels with ``operates_on = CELL_COLUMN`` accept
    arguments of any of the following types: field, field vector, LMA
-   operator, scalar integer, scalar real.
+   operator, scalar (``real``, ``integer`` or ``logical``).
 
 2) A Kernel is permitted to write to more than one
    quantity (field or operator) and these quantities may be on the
@@ -624,7 +630,8 @@ The rules for kernels that have ``operates_on = DOMAIN`` are a subset
 of :ref:`those <lfric-no-cma-mdata-rules>` for kernels that operate
 on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 
-1) Only scalar, field and field vector arguments are permitted.
+1) Only :ref:`scalar <lfric-scalar>`, :ref:`field <lfric-field>` and
+   :ref:`field vector <lfric-field-vector>` arguments are permitted.
 
 2) All fields must be on discontinuous function spaces.
 
@@ -710,10 +717,10 @@ fourth is an operator. The third entry is a field vector of size 3.
 
 The second item in a metadata entry describes the Fortran primitive
 (intrinsic) type of the data of a kernel argument. The currently supported
-values are ``GH_REAL`` and ``GH_INTEGER`` for ``real`` and ``integer``
-data, respectively. This information is mandatory. Valid data types for
-each LFRic API argument type are specified later in this section (see
-:ref:`lfric-kernel-valid-data-type`).
+values are ``GH_REAL``, ``GH_INTEGER`` and ``GH_LOGICAL`` for ``real``,
+``integer`` and ``logical`` data, respectively. This information is
+mandatory. Valid data types for each LFRic API argument type are specified
+later in this section (see :ref:`lfric-kernel-valid-data-type`).
 
 The third component of argument metadata describes how the Kernel makes
 use of the data being passed into it (the way it is accessed within a
@@ -759,9 +766,10 @@ For example::
 
 .. note:: In the LFRic API only :ref:`lfric-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).
-          Furthermore, this permission is currently restricted to real
+          Furthermore, this permission is currently restricted to ``real``
           scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure
-          does not yet support integer reductions.
+          does not yet support ``integer`` reductions (and a reduction to
+          a ``logical`` scalar makes no sense).
 
 For a scalar the argument metadata contains only these three entries.
 However, fields and operators require further entries specifying
@@ -844,26 +852,26 @@ Valid Data Types
 ^^^^^^^^^^^^^^^^
 
 As mentioned earlier, the currently supported Fortran primitive
-(intrinsic) types for kernel argument data are ``real`` and
-``integer``, described by the ``GH_REAL`` and ``GH_INTEGER``
-metadata descriptors. Supported data types for each argument
-type are given in the table below (please note that :ref:`field
-vectors <lfric-field-vector>` follow the same rules as the
-:ref:`LFRic fields <lfric-field>`):
+(intrinsic) types for kernel argument data are ``real``, ``integer``
+and ``logical``, described by the ``GH_REAL``, ``GH_INTEGER`` and
+``GH_LOGICAL`` metadata descriptors. Supported data types for each
+argument type are given in the table below (please note that
+:ref:`field vectors <lfric-field-vector>` follow the same rules as
+the :ref:`LFRic fields <lfric-field>`):
 
 .. tabularcolumns:: |l|l|
 
-+------------------------+---------------------+
-| Argument Type          | Data Type           |
-+========================+=====================+
-| GH_SCALAR              | GH_REAL, GH_INTEGER |
-+------------------------+---------------------+
-| GH_FIELD               | GH_REAL, GH_INTEGER |
-+------------------------+---------------------+
-| GH_OPERATOR            | GH_REAL             |
-+------------------------+---------------------+
-| GH_COLUMNWISE_OPERATOR | GH_REAL             |
-+------------------------+---------------------+
++------------------------+---------------------------------+
+| Argument Type          | Data Type                       |
++========================+=================================+
+| GH_SCALAR              | GH_REAL, GH_INTEGER, GH_LOGICAL |
++------------------------+---------------------------------+
+| GH_FIELD               | GH_REAL, GH_INTEGER             |
++------------------------+---------------------------------+
+| GH_OPERATOR            | GH_REAL                         |
++------------------------+---------------------------------+
+| GH_COLUMNWISE_OPERATOR | GH_REAL                         |
++------------------------+---------------------------------+
 
 .. _dynamo0.3-kernel-valid-access:
 
@@ -1302,7 +1310,7 @@ following kernel metadata::
     end type testkern_operator_type
 
 The ``arg_type`` component of this metadata describes a kernel that
-takes three arguments (an operator, a field and an integer
+takes three arguments (an operator, a field and an ``integer``
 scalar). Following the ``meta_args`` array we now have a
 ``meta_funcs`` array. This allows the user to specify that the kernel
 requires basis functions (``gh_basis``) and/or the differential of the
@@ -1407,16 +1415,16 @@ component of the metadata. Currently PSyclone supports four shapes;
 ``gh_quadrature_face`` for quadrature points on cell faces,
 ``gh_quadrature_edge`` for quadrature points on cell edges and
 ``gh_evaluator`` for evaluation at nodal points. If a kernel requires
-just one of these then ``gh_shape`` is a scalar integer. However, if
+just one of these then ``gh_shape`` is an ``integer`` scalar. However, if
 more than one is required then ``gh_shape`` becomes a one-dimensional,
-integer array, e.g.::
+``integer`` array, e.g.::
 
     integer :: gh_shape(2) = (/ gh_quadrature_face, gh_quadrature_edge /)
 
 If a kernel requires an evaluator then there are two options: if an
 evaluator is required for multiple function spaces then these can be
 specified using the additional ``gh_evaluator_targets`` metadata
-entry. This entry is a one-dimensional, integer array containing the
+entry. This entry is a one-dimensional, ``integer`` array containing the
 desired function spaces. For example, to request
 basis/differential-basis functions evaluated on both W0 and W1, the
 metadata would be::
@@ -1490,9 +1498,9 @@ in the ``dynamo0p3.py`` file. The rules, along with PSyclone's naming
 conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
-   ``cells`` is an integer and has intent ``in``.
+   ``cells`` is an ``integer`` and has intent ``in``.
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer of type ``i_def`` and has intent ``in``.
+   is an ``integer`` of kind ``i_def`` and has intent ``in``.
 3) For each scalar/field/vector_field/operator in the order specified by
    the meta_args metadata:
 
@@ -1502,28 +1510,29 @@ conventions, are:
    2) If the current entry is a field then include the field array. The
       field array name is currently specified as being
       ``"field_"<argument_position>"_"<field_function_space>``. A field
-      array is a real array of type ``r_def`` and dimensioned as the
+      array is a ``real`` array of kind ``r_def`` and dimensioned as the
       unique degrees of freedom for the space that the field is on.
       This value is passed in separately. Again, the intent is determined
       from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-      1) If the field entry has a stencil access then add an integer (or if
-         the stencil is of type ``CROSS2D``, an integer array of dimension(4))
-         stencil-size argument with intent ``in``. This will supply
-         the number of cells in the stencil or, in the case of the ``CROSS2D``
-         stencil, the number of cells in each branch of the stencil.
-      2) If the stencil is of type ``CROSS2D`` then an integer of intent ``in``
-         for the max branch length is needed. This is used in defining the
-         dimensions of the stencil dofmap array and is required due to the
+      1) If the field entry has a stencil access then add an ``integer``
+         (or if the stencil is of type ``CROSS2D``, an ``integer`` array
+         of dimension(4)) stencil-size argument with intent ``in``. This
+         will supply the number of cells in the stencil or, in the case of
+         the ``CROSS2D`` stencil, the number of cells in each branch of
+         the stencil.
+      2) If the stencil is of type ``CROSS2D`` then an ``integer`` of intent
+         ``in`` for the max branch length is needed. This is used in defining
+         the dimensions of the stencil dofmap array and is required due to the
          varying length of the branches of the stencil when used on planar
          meshes.
-      3) Also needed is a stencil dofmap array of type integer and intent
+      3) Also needed is a stencil dofmap array of type ``integer`` and intent
          ``in`` in either 2 or 3 dimensions. For a ``CROSS2D`` stencil the
          array needs dimensions of (number-of-dofs-in-cell, max-branch-length,
          4). All other stencils need dimensions of (number-of-dofs-in-cell,
          stencil-size).
       4) If the field entry stencil access is of type ``XORY1D`` then
-         add an additional integer direction argument with intent ``in``.
+         add an additional ``integer`` direction argument with intent ``in``.
 
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
@@ -1532,9 +1541,9 @@ conventions, are:
       A field array in a field vector is declared in the same way as a
       field array (described in the previous step).
    4) If the current entry is an operator then first include a
-      dimension size. This is an integer of type ``i_def``. The name of this
-      size is ``<operator_name>"_ncell_3d"``. Next include the operator. This
-      is a real array of type ``r_def`` and is 3 dimensional. The
+      dimension size. This is an ``integer`` of kind ``i_def``. The name of
+      this size is ``<operator_name>"_ncell_3d"``. Next include the operator.
+      This is a ``real`` array of kind ``r_def`` and is 3 dimensional. The
       first two dimensions are the local degrees of freedom for the
       ``to`` and ``from`` function spaces respectively. The third
       dimension is the dimension size mentioned before. The name of
@@ -1547,20 +1556,20 @@ conventions, are:
    lexicographic order)
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
-      for the function space. This is an integer of type ``i_def`` and has
-      intent ``in``. The name of this argument is
+      for the function space. This is an ``integer`` of kind ``i_def`` and
+      has intent ``in``. The name of this argument is
       ``"ndf_"<field_function_space>``.
    2) If there is a field on this space
 
       1) Include the unique number of degrees of freedom for the function
-         space. This is an integer of type ``i_def`` and has intent ``in``.
+         space. This is an ``integer`` of kind ``i_def`` and has intent ``in``.
          The name of this argument is ``"undf_"<field_function_space>``.
-      2) Include the **dofmap** for this function space. This is an integer
-         array of type ``i_def`` with intent ``in``. It has one dimension
+      2) Include the **dofmap** for this function space. This is an ``integer``
+         array of kind ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
    3) For each operation on the function space (``basis``, ``diff_basis``),
-      in the order specified in the metadata, pass real arrays of kind
+      in the order specified in the metadata, pass ``real`` arrays of kind
       ``r_def`` with intent ``in``. For each shape specified in the
       ``gh_shape`` metadata entry:
 
@@ -1629,46 +1638,48 @@ conventions, are:
    ``i_def``.) Then, in the order specified in the
    ``meta_reference_element`` metadata:
 
-   1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
-      array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
+   1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2
+      ``integer`` array of kind ``i_def`` with dimensions
+      ``(3, nfaces_re_h/v)``.
    2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
-      integer array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
+      ``integer`` array of kind ``i_def`` with dimensions
+      ``(3, nfaces_re_h/v)``.
    3) For ``normals_to_faces`` or ``outward_normals_to_faces`` pass
-      a rank-2 integer array of type ``i_def`` with dimensions
+      a rank-2 ``integer`` array of kind ``i_def`` with dimensions
       ``(3, nfaces_re)``.
 
 6) If the ``adjacent_face`` mesh property is required then:
 
    1) If the number of horizontal cell faces obtained from the reference
       element (``nfaces_re_h``) is not already being passed to the kernel (due
-      to rule 5 above) then supply it here. This is an integer of kind
+      to rule 5 above) then supply it here. This is an ``integer`` of kind
       ``i_def``.
-   2) Pass a rank-1, integer array of kind ``i_def`` and extent
+   2) Pass a rank-1, ``integer`` array of kind ``i_def`` and extent
       ``nfaces_re_h``.
 
 7) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
    each shape in the order specified in the ``gh_shape`` metadata:
 
-   1) Include integer, scalar arguments of kind ``i_def`` with intent ``in``
-      that specify the extent of the basis/diff-basis arrays:
+   1) Include ``integer``, scalar arguments of kind ``i_def`` with intent
+      ``in`` that specify the extent of the basis/diff-basis arrays:
 
       1) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass
-	 ``np_xy_<quadrature_arg_name>`` and ``np_z_<quadrature_arg_name>``.
+         ``np_xy_<quadrature_arg_name>`` and ``np_z_<quadrature_arg_name>``.
       2) If ``gh_shape`` is ``gh_quadrature_face``/``_edge`` then pass
-	 ``nfaces``/``nedges_<quadrature_arg_name>`` and
-	 ``np_xyz_<quadrature_arg_name>``.
+         ``nfaces``/``nedges_<quadrature_arg_name>`` and
+         ``np_xyz_<quadrature_arg_name>``.
 
-   2) Include weights which are real arrays of kind ``r_def``:
+   2) Include weights which are ``real`` arrays of kind ``r_def``:
 
       1) If ``gh_quadrature_XYoZ`` pass in
-	 ``weights_xz_<quadrature_arg_name>`` (rank one, extent
-	 ``np_xy_<quadrature_arg_name>``)
-	 and ``weights_z_<quadrature_arg_name>`` (rank one, extent
-	 ``np_z_<quadrature_arg_name>``).
+         ``weights_xz_<quadrature_arg_name>`` (rank one, extent
+         ``np_xy_<quadrature_arg_name>``)
+         and ``weights_z_<quadrature_arg_name>`` (rank one, extent
+         ``np_z_<quadrature_arg_name>``).
       2) If ``gh_quadrature_face``/``_edge`` pass in
-	 ``weights_xyz_<quadrature_arg_name>`` (rank two with extents
-	 [``np_xyz_<quadrature_arg_name>``,
-	 ``nfaces/nedges_<quadrature_arg_name>``]).
+         ``weights_xyz_<quadrature_arg_name>`` (rank two with extents
+         [``np_xyz_<quadrature_arg_name>``,
+         ``nfaces/nedges_<quadrature_arg_name>``]).
 
 Examples
 ^^^^^^^^
@@ -1782,57 +1793,57 @@ An assembly kernel requires the column-banded dofmap for both the to-
 and from-function spaces of the CMA operator being assembled as well
 as the number of DoFs for each of the dofmaps. The full set of rules is:
 
-1) Include the ``cell`` argument. ``cell`` is an integer and has
+1) Include the ``cell`` argument. ``cell`` is an ``integer`` and has
    intent ``in``.
 
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer of type ``i_def`` and has intent ``in``.
+   is an ``integer`` of kind ``i_def`` and has intent ``in``.
 
 3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an integer of type ``i_def`` with intent ``in``.
+   an ``integer`` of kind ``i_def`` with intent ``in``.
 
-4) Include the total number of cells, ``ncell_3d``, which is an integer
-   of type ``i_def`` with intent ``in``.
+4) Include the total number of cells, ``ncell_3d``, which is an ``integer``
+   of kind ``i_def`` with intent ``in``.
 
 5) For each argument in the ``meta_args`` metadata array:
 
-   1) If it is a LMA operator, include a real, 3-dimensional
-      array of type ``r_def``. The first two dimensions are the local
+   1) If it is a LMA operator, include a ``real``, 3-dimensional
+      array of kind ``r_def``. The first two dimensions are the local
       degrees of freedom for the ``to`` and ``from`` spaces,
       respectively. The third dimension is ``ncell_3d``;
 
-   2) If it is a CMA operator, include a real, 3-dimensional array
-      of type ``r_def``. The first dimension is
+   2) If it is a CMA operator, include a ``real``, 3-dimensional array
+      of kind ``r_def``. The first dimension is
       ``"bandwidth_"<operator_name>``, the second is
       ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
 
       1) Include the number of rows in the banded matrix.  This is
-         an integer of type ``i_def`` with intent ``in`` and is named as
-         ``"nrow_"<operator_name>``.
+         an ``integer`` of kind ``i_def`` with intent ``in`` and is named
+         as ``"nrow_"<operator_name>``.
 
       2) If the from-space of the operator is *not* the same as the
          to-space then include the number of columns in the banded
-         matrix.  This is an integer of type ``i_def`` with intent ``in``
-         and is named as ``"ncol_"<operator_name>``.
+         matrix.  This is an ``integer`` of kind ``i_def`` with intent
+         ``in`` and is named as ``"ncol_"<operator_name>``.
 
       3) Include the bandwidth of the banded matrix. This is an
-         integer of type ``i_def`` with intent ``in`` and is named as
+         ``integer`` of kind ``i_def`` with intent ``in`` and is named as
          ``"bandwidth_"<operator_name>``.
 
-      4) Include banded-matrix parameter ``alpha``. This is an integer
-         of type ``i_def`` with intent ``in`` and is named as
+      4) Include banded-matrix parameter ``alpha``. This is an ``integer``
+         of kind ``i_def`` with intent ``in`` and is named as
          ``"alpha_"<operator_name>``.
 
-      5) Include banded-matrix parameter ``beta``. This is an integer
-         of type ``i_def`` with intent ``in`` and is named as
+      5) Include banded-matrix parameter ``beta``. This is an ``integer``
+         of kind ``i_def`` with intent ``in`` and is named as
          ``"beta_"<operator_name>``.
 
-      6) Include banded-matrix parameter ``gamma_m``. This is an integer
-         of type ``i_def`` with intent ``in`` and is named as
+      6) Include banded-matrix parameter ``gamma_m``. This is an ``integer``
+         of kind ``i_def`` with intent ``in`` and is named as
          ``"gamma_m_"<operator_name>``.
 
-      7) Include banded-matrix parameter ``gamma_p``. This is an integer
-         of type ``i_def`` with intent ``in`` and is named as
+      7) Include banded-matrix parameter ``gamma_p``. This is an ``integer``
+         of kind ``i_def`` with intent ``in`` and is named as
          ``"gamma_p_"<operator_name>``.
 
    3) If it is a field or scalar argument then include arguments following
@@ -1844,23 +1855,23 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
    operator as it appears first in lexicographic order):
 
    1) Include the number of degrees of freedom per cell for the space.
-      This is an integer of type ``i_def`` with intent ``in``. The name
+      This is an ``integer`` of kind ``i_def`` with intent ``in``. The name
       of this argument is ``"ndf_"<arg_function_space>``.
 
    2) If there is a field on this space then:
 
       1) Include the unique number of degrees of freedom for the
-         function space. This is an integer of type ``i_def`` and has
+         function space. This is an ``integer`` of kind ``i_def`` and has
          intent ``in``. The name of this argument is
          ``"undf_"<field_function_space>``.
 
-      2) Include the dofmap for this space. This is an integer array
-         of type ``i_def`` with intent ``in``. It has one dimension
+      2) Include the dofmap for this space. This is an ``integer`` array
+         of kind ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
    3) If the CMA operator has this space as its to/from space then
       include the column-banded dofmap, the list of offsets for the
-      to/from-space. This is an integer array of rank 2 and type
+      to/from-space. This is an ``integer`` array of rank 2 and kind
       ``i_def``. The first dimension is ``"ndf_"<arg_function_space>``
       and the second is ``nlayers``.
 
@@ -1876,15 +1887,15 @@ column-wise operator is, by definition, assembled for a whole column,
 there is no loop over levels when applying it.)
 The full set of rules is then:
 
-1) Include the ``cell`` argument. ``cell`` is an integer and has
+1) Include the ``cell`` argument. ``cell`` is an ``integer`` and has
    intent ``in``.
 
 2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an integer of type ``i_def`` with intent ``in``.
+   an ``integer`` of kind ``i_def`` with intent ``in``.
 
 3) For each argument in the ``meta_args`` metadata array:
 
-   1) If it is a field, include the field array. This is a real
+   1) If it is a field, include the field array. This is a ``real``
       array of kind ``r_def`` and is of rank 1.  The field array name
       is currently specified as being
       ``"field_"<argument_position>"_"<field_function_space>``. The
@@ -1902,23 +1913,23 @@ The full set of rules is then:
    same operator as it appears first in lexicographic order):
 
    1) Include the number of degrees of freedom per cell for the associated
-      function space. This is an integer of type ``i_def`` with intent
+      function space. This is an ``integer`` of kind ``i_def`` with intent
       ``in``. The name of this argument is ``"ndf_"<field_function_space>``;
 
    2) Include the number of unique degrees of freedom for the associated
-      function space. This is an integer of type ``i_def`` with intent
+      function space. This is an ``integer`` of kind ``i_def`` with intent
       ``in``. The name of this argument is ``"undf_"<field_function_space>``;
 
-   3) Include the dofmap for this function space. This is a rank-1 integer
-      array of type ``i_def`` with extent equal to the number of degrees of
+   3) Include the dofmap for this function space. This is a rank-1 ``integer``
+      array of kind ``i_def`` with extent equal to the number of degrees of
       freedom of the space (``"ndf_"<field_function_space>``).
 
 5) Include the indirection map for the to-space of the CMA operator.
-   This is a rank-1 integer array of type ``i_def`` with extent ``nrow``.
+   This is a rank-1 ``integer`` array of kind ``i_def`` with extent ``nrow``.
 
 6) If the from-space of the operator is *not* the same as the to-space
    then include the indirection map for the from-space of the CMA operator.
-   This is a rank-1 integer array of type ``i_def`` with extent ``ncol``.
+   This is a rank-1 ``integer`` array of kind ``i_def`` with extent ``ncol``.
 
 Matrix-Matrix
 ^^^^^^^^^^^^^
@@ -1926,13 +1937,13 @@ Matrix-Matrix
 Does not require any dofmaps and also does not require the ``nlayers``
 and ``ncell_3d`` scalar arguments. The full set of rules are then:
 
-1) Include the ``cell`` argument. ``cell`` is an integer and has
+1) Include the ``cell`` argument. ``cell`` is an ``integer`` and has
    intent ``in``.
 
 2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an integer of type ``i_def`` with intent ``in``.
+   an ``integer`` of kind ``i_def`` with intent ``in``.
 
-3) For each CMA operator or scalar argument specifed in metadata:
+3) For each CMA operator or scalar argument specified in metadata:
 
    1) If it is a CMA operator, include it and its associated
       parameters (see Rule 5 of CMA Assembly kernels);
@@ -1954,10 +1965,10 @@ kernels with field data being followed by dofmap data. The rules for
 arguments to inter-grid kernels are as follows:
 
 1) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer of type ``i_def`` and has intent ``in``.
+   is an ``integer`` of kind ``i_def`` and has intent ``in``.
 
 2) Include the ``cell_map`` for the current cell (column). This is
-   an integer array of rank two, type ``i_def`` and intent ``in``
+   an ``integer`` array of rank two, kind ``i_def`` and intent ``in``
    which provides the mapping from the coarse to the fine mesh. It
    has extent ``(ncell_f_per_c_x, ncell_f_per_c_y)``.
 
@@ -1967,7 +1978,7 @@ arguments to inter-grid kernels are as follows:
    ``in``.
 
 4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
-   This is an integer of type ``i_def`` and has intent ``in``.
+   This is an ``integer`` of kind ``i_def`` and has intent ``in``.
 
 5) For each argument in the ``meta_args`` metadata array (which must be
    a field or field-vector):
@@ -1987,17 +1998,17 @@ arguments to inter-grid kernels are as follows:
       of the field on the fine mesh;
 
    3) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
-      is an integer array of rank two and type ``i_def`` with intent ``in``.
-      The extent of the first dimension is ``ndf_fine`` and that of the
-      second is ``ncell_f``.
+      is an ``integer`` array of rank two and kind ``i_def`` with intent
+      ``in``. The extent of the first dimension is ``ndf_fine`` and that of
+      the second is ``ncell_f``.
 
    else, the dofmap is associated with an argument on the coarse mesh:
 
    1) Include ``undf_coarse``, the number of unique DoFs for the coarse
-      field. This is an integer of type ``i_def`` with intent ``in``;
+      field. This is an ``integer`` of kind ``i_def`` with intent ``in``;
 
    2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
-      in the coarse mesh. This is an integer array of rank one, type
+      in the coarse mesh. This is an ``integer`` array of rank one, kind
       ``i_def``and has intent ``in``.
 
 Rules for Domain Kernels
@@ -2010,7 +2021,7 @@ are not permitted any type of operator argument or any argument with a
 stencil access. The only difference is that, since the kernel operates
 on the whole domain, the number of columns in the mesh (``ncell_2d``)
 must be passed in. This is provided as the second argument to the
-kernel (after ``nlayers``). ``ncell_2d`` is an integer of kind
+kernel (after ``nlayers``). ``ncell_2d`` is an ``integer`` of kind
 ``i_def`` with intent ``in``.
 
 .. _dynamo0.3-kernel-arg-intents:
@@ -2076,7 +2087,8 @@ following rules:
 3) There must be at least one field in the argument list. This is so
    that we know the number of DoFs to iterate over in the PSy layer.
 
-4) Kernel arguments must be either fields or scalars.
+4) Kernel arguments must be either fields or scalars (``real``- and
+   ``integer``-valued).
 
 5) All field arguments to a given Built-in must be on the same
    function space. This is because all current Built-ins operate on
@@ -2186,7 +2198,8 @@ are listed in the table below.
 
 .. note:: Since the LFRic infrastructure does not currently support
           ``integer`` reductions, ``integer`` scalar arguments in Built-ins
-          are restricted to having read-only access.
+          are restricted to having read-only access. Also, ``logical``
+          scalar arguments are not permitted.
 
 .. _lfric-built-ins-names:
 
@@ -2268,7 +2281,7 @@ Addition
 ########
 
 Built-ins that add (scaled) ``real``-valued fields and return the result
-as a `real`-valued field are denoted with the keyword **plus**.
+as a ``real``-valued field are denoted with the keyword **plus**.
 
 X_plus_Y
 ^^^^^^^^
@@ -2414,7 +2427,7 @@ Subtraction
 ###########
 
 Built-ins which subtract (scaled) ``real``-valued  fields and return the
-result as a `real`-valued field are denoted with the keyword **minus**.
+result as a ``real``-valued field are denoted with the keyword **minus**.
 
 X_minus_Y
 ^^^^^^^^^
@@ -2503,7 +2516,7 @@ Multiplication
 ##############
 
 Built-ins which multiply (scaled) ``real``-valued fields and return the
-result as a `real`-valued field are denoted with the keyword **times**.
+result as a ``real``-valued field are denoted with the keyword **times**.
 
 X_times_Y
 ^^^^^^^^^
@@ -2587,7 +2600,7 @@ Division
 ########
 
 Built-ins which divide ``real``-valued fields and return the result
-as a `real`-valued field are denoted with the keyword **divideby**.
+as a ``real``-valued field are denoted with the keyword **divideby**.
 
 X_divideby_Y
 ^^^^^^^^^^^^
@@ -2730,7 +2743,7 @@ Inner product
 
 Built-ins which calculate the inner product of two ``real``-valued fields
 or of a ``real``-valued field with itself and return the result as a
-`real` scalar are denoted with the keyword **innerproduct**.
+``real`` scalar are denoted with the keyword **innerproduct**.
 
 .. note:: When used with distributed memory these Built-ins will
           trigger the addition of a global sum which may affect the
@@ -2853,7 +2866,7 @@ Addition
 ########
 
 Built-ins that add ``integer``-valued fields and return the result as
-an `integer`-valued field are denoted with the keyword **plus** and
+an ``integer``-valued field are denoted with the keyword **plus** and
 the prefix **int**.
 
 int_X_plus_Y
@@ -2916,7 +2929,7 @@ Subtraction
 ###########
 
 Built-ins which subtract ``integer``-valued fields and return the result
-as an `integer`-valued field are denoted with the keyword **minus**
+as an ``integer``-valued field are denoted with the keyword **minus**
 and the prefix **int**.
 
 int_X_minus_Y
@@ -2950,7 +2963,7 @@ Multiplication
 ##############
 
 Built-ins which multiply ``integer``-valued fields and return the result
-as an `integer`-valued field are denoted with the keyword **times**
+as an ``integer``-valued field are denoted with the keyword **times**
 and the prefix **int**.
 
 int_X_times_Y
@@ -3238,10 +3251,10 @@ Supported Data Types and Default Kind
 The LFRic API supports three Fortran primitive (intrinsic) data
 types, ``real``, ``integer`` and ``logical`` (listed in the
 `supported_fortran_datatypes` section of the :ref:`PSyclone
-configuration file <configuration>`). Of these three, ``real`` and
-``integer`` datatypes are used for :ref:`scalars <lfric-scalar>`,
-:ref:`fields <lfric-field>` and :ref:`field vectors <lfric-field-vector>`.
-:ref:`Operators <lfric-operator>` and
+configuration file <configuration>`). All three data types are used
+for :ref:`scalars <lfric-scalar>`. :ref:`Fields <lfric-field>` and
+:ref:`field vectors <lfric-field-vector>` are allowed to have ``real``
+and ``integer`` data. :ref:`Operators <lfric-operator>` and
 :ref:`column-wise operators <lfric-cma-operator>` are only allowed to
 have ``real`` data. These supported primitive types are linked to the
 respective kernel :ref:`kernel data type <lfric-kernel-valid-data-type>`
@@ -3253,9 +3266,9 @@ set to ``r_def``, ``i_def`` and ``l_def``, respectively, in the
 values are defined in the LFRic infrastructure code.
 
 .. note:: Whilst the ``logical`` Fortran primitive (intrinsic) data
-          type is supported in the LFRic API, it is not yet available
-          as a scalar, field or operator. This will be added as
-          required in future releases.
+          type is supported in the LFRic API for scalar arguments, it is
+          not yet available for fields and operators. This will be added
+          as required in future releases.
 
 .. _lfric-num-any-spaces:
 
