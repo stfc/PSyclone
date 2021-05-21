@@ -66,12 +66,13 @@ TEST_API = "dynamo0.3"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                              &
+     type(arg_type), meta_args(7) =                              &
           (/ arg_type(gh_scalar,   gh_real,    gh_read),         &
              arg_type(gh_field,    gh_real,    gh_inc,  w1),     &
              arg_type(gh_field,    gh_real,    gh_read, w2),     &
              arg_type(gh_operator, gh_real,    gh_read, w2, w2), &
              arg_type(gh_field,    gh_real,    gh_read, w3),     &
+             arg_type(gh_scalar,   gh_logical, gh_read),         &
              arg_type(gh_scalar,   gh_integer, gh_read)          &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
@@ -186,8 +187,8 @@ def test_ad_scalar_init_wrong_data_type(monkeypatch):
 
 
 def test_ad_scalar_type_no_write():
-    ''' Tests that an error is raised when the argument descriptor metadata
-    for a real or an integer scalar specifies 'GH_WRITE' access. '''
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar specifies 'GH_WRITE' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
     const = LFRicConstants()
@@ -204,8 +205,8 @@ def test_ad_scalar_type_no_write():
 
 
 def test_ad_scalar_type_no_inc():
-    ''' Tests that an error is raised when the argument descriptor metadata
-    for a real or an integer scalar specifies 'GH_INC' access. '''
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar specifies 'GH_INC' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
     const = LFRicConstants()
@@ -220,7 +221,25 @@ def test_ad_scalar_type_no_inc():
                 str(excinfo.value))
 
 
-def test_ad_int_scalar_type_no_sum():
+def test_ad_scalar_type_no_readwrite():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar specifies 'GH_READWRITE' access. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "testkern_qr_type"
+    const = LFRicConstants()
+    for argname in const.VALID_SCALAR_NAMES:
+        code = CODE.replace(
+            "arg_type(" + argname + ",   gh_logical, gh_read)",
+            "arg_type(" + argname + ",   gh_logical, gh_readwrite)", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("scalar arguments must have read-only ('gh_read') or a "
+                "reduction ['gh_sum'] access but found 'gh_readwrite'" in
+                str(excinfo.value))
+
+
+def test_ad_integer_scalar_type_no_sum():
     ''' Tests that an error is raised when the argument descriptor metadata
     for an integer scalar specifies 'GH_SUM' access (reduction). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -232,6 +251,21 @@ def test_ad_int_scalar_type_no_sum():
         _ = DynKernMetadata(ast, name=name)
     assert ("reduction access 'gh_sum' is only valid with a real scalar "
             "argument, but a scalar argument with 'gh_integer' data type "
+            in str(excinfo.value))
+
+
+def test_ad_logical_scalar_type_no_sum():
+    ''' Tests that an error is raised when the argument descriptor metadata
+    for a logical scalar specifies 'GH_SUM' access (reduction). '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = CODE.replace("arg_type(gh_scalar,   gh_logical, gh_read)",
+                        "arg_type(gh_scalar,   gh_logical, gh_sum)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("reduction access 'gh_sum' is only valid with a real scalar "
+            "argument, but a scalar argument with 'gh_logical' data type "
             in str(excinfo.value))
 
 
@@ -281,13 +315,13 @@ def test_arg_descriptor_real_scalar():
     assert scalar_descriptor.vector_size == 0
 
 
-def test_arg_descriptor_int_scalar():
+def test_arg_descriptor_integer_scalar():
     ''' Test that the LFRicArgDescriptor argument representation works
     as expected for an integer scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    scalar_descriptor = metadata.arg_descriptors[5]
+    scalar_descriptor = metadata.arg_descriptors[6]
 
     # Assert correct string representation from LFRicArgDescriptor
     result = str(scalar_descriptor)
@@ -309,6 +343,34 @@ def test_arg_descriptor_int_scalar():
     assert scalar_descriptor.vector_size == 0
 
 
+def test_arg_descriptor_logical_scalar():
+    ''' Test that the LFRicArgDescriptor argument representation works
+    as expected for a logical scalar argument. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    scalar_descriptor = metadata.arg_descriptors[5]
+
+    # Assert correct string representation from LFRicArgDescriptor
+    result = str(scalar_descriptor)
+    expected_output = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_scalar'\n"
+        "  data_type[1]='gh_logical'\n"
+        "  access_descriptor[2]='gh_read'\n")
+    assert expected_output in result
+
+    # Check LFRicArgDescriptor argument properties
+    assert scalar_descriptor.argument_type == "gh_scalar"
+    assert scalar_descriptor.data_type == "gh_logical"
+    assert scalar_descriptor.function_space is None
+    assert scalar_descriptor.function_spaces == []
+    assert str(scalar_descriptor.access) == "READ"
+    assert scalar_descriptor.mesh is None
+    assert scalar_descriptor.stencil is None
+    assert scalar_descriptor.vector_size == 0
+
+
 def test_lfricscalars_call_err():
     ''' Check that the LFRicScalarArgs constructor raises the expected
     internal error if it encounters an unrecognised intrinsic type of
@@ -317,7 +379,7 @@ def test_lfricscalars_call_err():
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "1.7_single_invoke_2scalar.f90"),
+                     "1.7_single_invoke_3scalar.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -331,38 +393,51 @@ def test_lfricscalars_call_err():
     if six.PY2:
         test_str = test_str.replace("u'", "'")
     assert ("Found unsupported intrinsic types for the scalar arguments "
-            "['a'] to Invoke 'invoke_0_testkern_two_scalars_type'. Supported "
-            "types are ['real', 'integer', 'logical']." in test_str)
+            "['a'] to Invoke 'invoke_0_testkern_three_scalars_type'. "
+            "Supported types are ['real', 'integer', 'logical']." in test_str)
 
 
 def test_dyninvoke_uniq_declns_intent_scalar():
     ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for 'gh_scalar' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+
+    # Test 'real' scalar arguments
     real_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
         ["gh_scalar"], intrinsic_type="real")
-    int_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
-        ["gh_scalar"], intrinsic_type="integer")
     assert real_args['inout'] == []
     assert real_args['out'] == []
-    assert int_args['inout'] == []
-    assert int_args['out'] == []
     real_args_in = [arg.declaration_name for arg in real_args['in']]
-    int_args_in = [arg.declaration_name for arg in int_args['in']]
     assert real_args_in == ['a']
-    assert int_args_in == ['istep']
+
+    # Test 'integer' scalar arguments
+    integer_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
+        ["gh_scalar"], intrinsic_type="integer")
+    assert integer_args['inout'] == []
+    assert integer_args['out'] == []
+    integer_args_in = [arg.declaration_name for arg in integer_args['in']]
+    assert integer_args_in == ['istep']
+
+    # Test 'logical' scalar arguments
+    logical_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
+        ["gh_scalar"], intrinsic_type="logical")
+    assert logical_args['inout'] == []
+    assert logical_args['out'] == []
+    logical_args_in = [arg.declaration_name for arg in logical_args['in']]
+    assert logical_args_in == ['lswitch']
 
 
 def test_scalar_invoke_uniq_declns_valid_intrinsic():
-    ''' Tests that all valid intrinsic types for user-defined scalar arguments
-    ('real' and 'integer') are accepted by Invoke.unique_declarations().
+    ''' Tests that all valid intrinsic types for user-defined scalar
+    arguments ('real', 'integer' and 'logical') are accepted by
+    Invoke.unique_declarations().
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -375,10 +450,16 @@ def test_scalar_invoke_uniq_declns_valid_intrinsic():
     assert scalars_real == ["a"]
 
     # Test 'integer' scalars
-    scalars_int_args = invoke.unique_declarations(
+    scalars_integer_args = invoke.unique_declarations(
         const.VALID_SCALAR_NAMES, intrinsic_type="integer")
-    scalars_int = [arg.declaration_name for arg in scalars_int_args]
-    assert scalars_int == ["istep"]
+    scalars_integer = [arg.declaration_name for arg in scalars_integer_args]
+    assert scalars_integer == ["istep"]
+
+    # Test 'logical' scalars
+    scalars_logical_args = invoke.unique_declarations(
+        const.VALID_SCALAR_NAMES, intrinsic_type="logical")
+    scalars_logical = [arg.declaration_name for arg in scalars_logical_args]
+    assert scalars_logical == ["lswitch"]
 
 
 def test_multiple_updated_scalar_args():
