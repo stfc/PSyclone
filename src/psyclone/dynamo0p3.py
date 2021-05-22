@@ -3345,46 +3345,45 @@ class LFRicScalarArgs(DynCollection):
         const = LFRicConstants()
         # Real scalar arguments
         dtype = const.MAPPING_DATA_TYPES["gh_real"]
+        dkind = api_config.default_kind[dtype]
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
                 real_scalar_names = [arg.declaration_name for arg
                                      in self._real_scalars[intent]]
                 parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
+                    DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=real_scalar_names,
                             intent=intent))
 
         # Integer scalar arguments
         dtype = const.MAPPING_DATA_TYPES["gh_integer"]
+        dkind = api_config.default_kind[dtype]
         for intent in FORTRAN_INTENT_NAMES:
             if self._integer_scalars[intent]:
                 integer_scalar_names = [arg.declaration_name for arg
                                         in self._integer_scalars[intent]]
                 parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
+                    DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=integer_scalar_names,
                             intent=intent))
 
         # Logical scalar arguments
-        if self._logical_scalars:
-            dtype = const.MAPPING_DATA_TYPES["gh_logical"]
-            dkind = api_config.default_kind[dtype]
-            if self._invoke:
-                (self._invoke.invokes.psy.
-                 infrastructure_modules["constants"]["constants_mod"].
-                 add(dkind))
-            if self._kernel:
-                (self._kernel.argument_kinds.add(dkind))
-            for intent in FORTRAN_INTENT_NAMES:
-                if self._logical_scalars[intent]:
-                    logical_scalar_names = [arg.declaration_name for arg
-                                            in self._logical_scalars[intent]]
-                    parent.add(
-                        DeclGen(parent, datatype=dtype, kind=dkind,
-                                entity_decls=logical_scalar_names,
-                                intent=intent))
+        dtype = const.MAPPING_DATA_TYPES["gh_logical"]
+        dkind = api_config.default_kind[dtype]
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._logical_scalars[intent]:
+                if self._invoke:
+                    (self._invoke.invokes.psy.
+                     infrastructure_modules["constants"]["constants_mod"].
+                     add(dkind))
+                if self._kernel:
+                    self._kernel.argument_kinds.add(dkind)
+                logical_scalar_names = [arg.declaration_name for arg
+                                        in self._logical_scalars[intent]]
+                parent.add(
+                    DeclGen(parent, datatype=dtype, kind=dkind,
+                            entity_decls=logical_scalar_names,
+                            intent=intent))
 
 
 class DynLMAOperators(DynCollection):
