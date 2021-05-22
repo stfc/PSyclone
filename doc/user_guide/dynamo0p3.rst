@@ -129,10 +129,11 @@ which provides information required by a kernel to operate on fields
 Scalar
 ++++++
 
-In the LFRic API a scalar is a single-valued argument that can be
-``real``, ``integer`` or ``logical`` (see :ref:`valid data types
-<lfric-kernel-valid-data-type>`). Scalars are identified with
-``GH_SCALAR`` metadata.
+In the LFRic API a scalar is a single-valued argument that is identified
+with ``GH_SCALAR`` metadata. Scalar arguments can have ``real``,
+``integer`` or ``logical`` data type in the :ref:`user-defined Kernels
+<lfric-kernel-valid-data-type>` (``logical`` data type is not supported
+in the :ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`).
 
 .. _lfric-field:
 
@@ -151,10 +152,11 @@ Points of evaluation are determined by a quadrature object
 the field is on. Placement of field data points, also called degrees of
 freedom (hereafter "DoFs"), is determined by the function space the field
 is on.
-LFRic fields can have ``real``-valued data or ``integer``-valued data
-(see :ref:`valid data types <lfric-kernel-valid-data-type>`).
-In the LFRic infrastructure, these fields are represented by instances of
-the ``field_type`` and ``integer_field_type`` classes, respectively.
+LFRic fields can have ``real``-valued or ``integer``-valued data in the
+:ref:`user-defined Kernels <lfric-kernel-valid-data-type>` and in the
+:ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`. In the LFRic
+infrastructure, these fields are represented by instances of the
+``field_type`` and ``integer_field_type`` classes, respectively.
 
 .. _lfric-field-vector:
 
@@ -170,8 +172,8 @@ Field vectors are represented as ``GH_FIELD*N`` where ``N`` is the
 size of the vector. The 3D coordinate field, for example, has
 ``(x, y, z)`` scalar values at the nodes and therefore has a
 vector size of 3.
-As fields, field vectors can have ``real``-valued data or ``integer``-valued
-data (see :ref:`valid data types <lfric-kernel-valid-data-type>`).
+Since they are arrays of fields, field vectors can have ``real``-valued
+or ``integer``-valued :ref:`data <lfric-kernel-valid-data-type>`.
 
 .. _lfric-operator:
 
@@ -182,8 +184,9 @@ Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
 metadata. In the LFRic infrastructure, operators are represented by
 instances of the ``operator_type`` class. LFRic operators can only
-have ``real``-valued data (see :ref:`valid data types
-<lfric-kernel-valid-data-type>`).
+have ``real``-valued data in the :ref:`user-defined Kernels
+<lfric-kernel-valid-data-type>` (:ref:`LFRic Built-ins <lfric-built-ins>`
+do not currently support operators).
 
 .. _lfric-cma-operator:
 
@@ -194,8 +197,9 @@ The LFRic API has support for the construction and use of
 column-wise/Column Matrix Assembly (CMA) operators whose metadata
 identifier is ``GH_COLUMNWISE_OPERATOR``. In the LFRic
 infrastructure, column-wise operators are represented by instances
-of the ``columnwise_operator_type`` class. LFRic column-wise
-operators can only have ``real``-valued data.
+of the ``columnwise_operator_type`` class. As the LMA operators above,
+LFRic column-wise operators can only have ``real``-valued
+:ref:`data <lfric-kernel-valid-data-type>`.
 
 As the name suggests, these are operators constructed for a whole
 column of the mesh. These are themselves constructed from the
@@ -3257,7 +3261,7 @@ for :ref:`scalars <lfric-scalar>`. :ref:`Fields <lfric-field>` and
 and ``integer`` data. :ref:`Operators <lfric-operator>` and
 :ref:`column-wise operators <lfric-cma-operator>` are only allowed to
 have ``real`` data. These supported primitive types are linked to the
-respective kernel :ref:`kernel data type <lfric-kernel-valid-data-type>`
+respective :ref:`kernel data type <lfric-kernel-valid-data-type>`
 metadata descriptors, ``GH_REAL`` and ``GH_INTEGER``.
 
 The default kind (precision) for these supported data types is
