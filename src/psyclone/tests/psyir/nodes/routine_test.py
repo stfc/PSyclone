@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
-from psyclone.psyir.symbols import (INTEGER_TYPE, REAL_TYPE, DataSymbol,
+from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links
 
@@ -52,9 +52,6 @@ def test_routine_constructor():
     with pytest.raises(TypeError) as err:
         Routine("hello", is_program=1)
     assert "'is_program' must be a bool" in str(err.value)
-    with pytest.raises(TypeError) as err:
-        Routine("hello", return_type=1)
-    assert "'return_type' must be of type DataType" in str(err.value)
     node = Routine("hello")
     assert node._name == "hello"
 
@@ -63,24 +60,18 @@ def test_routine_properties():
     ''' Check the various properties of the Routine class. '''
     node1 = Routine("hello")
     assert node1.dag_name == "routine_hello_0"
-    assert node1.return_type is None
+    assert node1.return_symbol is None
     assert node1.is_program is False
     assert node1.name == "hello"
     # Give the Routine a child to get full coverage of __str__ method
     node1.addchild(Assignment())
     assert "Routine[name:'hello']:\nAssignment" in str(node1)
 
-    node2 = Routine("bonjour", return_type=INTEGER_TYPE)
-    assert node2.return_type == INTEGER_TYPE
+    node2 = Routine("bonjour")
     assert node2.is_program is False
 
     node3 = Routine("gutentag", is_program=True)
-    assert node3.return_type is None
     assert node3.is_program
-
-    node4 = Routine("welcome", is_program=True, return_type=INTEGER_TYPE)
-    assert node4.return_type == INTEGER_TYPE
-    assert node4.is_program
 
 
 def test_routine_name_setter():
@@ -105,6 +96,28 @@ def test_routine_name_setter():
     # Check that the 'own_routine_symbol' tag has been updated
     assert node.symbol_table.lookup_with_tag('own_routine_symbol').name == \
         "goodbye"
+
+
+def test_routine_return_symbol_setter():
+    ''' Check that the return_symbol setter works correctly and rejects invalid
+    values.
+
+    '''
+    node = Routine("hello")
+    assert node.return_symbol is None
+    with pytest.raises(TypeError) as err:
+        node.return_symbol = "wrong"
+    assert ("Routine return-symbol should be a DataSymbol but found 'str'" in
+            str(err.value))
+    sym = DataSymbol("result", REAL_TYPE)
+    with pytest.raises(KeyError) as err:
+        node.return_symbol = sym
+    assert ("For a symbol to be a return-symbol, it must be present in the "
+            "symbol table of the Routine but 'result' is not." in
+            str(err.value))
+    node.symbol_table.add(sym)
+    node.return_symbol = sym
+    assert node.return_symbol is sym
 
 
 def test_routine_create_invalid():
@@ -143,6 +156,12 @@ def test_routine_create_invalid():
         "child of children argument in create method of Routine class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
+    # return_symbol is not a Symbol
+    with pytest.raises(TypeError) as excinfo:
+        _ = Routine.create("mod_name", symbol_table, [], return_symbol="wrong")
+    assert ("Routine return-symbol should be a DataSymbol but found 'str'" in
+            str(excinfo.value))
+
 
 def test_routine_create():
     '''Test that the create method correctly creates a Routine instance. '''
@@ -152,10 +171,9 @@ def test_routine_create():
     assignment = Assignment.create(Reference(symbol),
                                    Literal("0.0", REAL_TYPE))
     kschedule = Routine.create("mod_name", symbol_table, [assignment],
-                               is_program=True, return_type=INTEGER_TYPE)
+                               is_program=True, return_symbol=symbol)
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
     assert kschedule.is_program
-    assert kschedule.return_type == INTEGER_TYPE
-    # TODO #910 test the Fortran backend for the Routine node.
+    assert kschedule.return_symbol is symbol

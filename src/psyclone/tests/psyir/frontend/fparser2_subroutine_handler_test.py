@@ -31,20 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford, STFC Daresbury Lab
+#          A. R. Porter, STFC Daresbury Lab
 
 '''Module containing pytest tests for the _subroutine_handler method
 in the class Fparser2Reader. This handler deals with the translation
-of the fparser2 Subroutine_Subprogram construct to PSyIR.
+of the fparser2 Subroutine_Subprogram and Function_Subprogram constructs
+to PSyIR.
 
 '''
 from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.symbols import DataSymbol, ScalarType
+from psyclone.psyir.nodes import Container, Routine, CodeBlock
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.backend.fortran import FortranWriter
 
 # subroutine no declarations
 SUB1_IN = (
@@ -79,7 +81,7 @@ SUB3_OUT = (
                          [(SUB1_IN, SUB1_OUT),
                           (SUB2_IN, SUB2_OUT),
                           (SUB3_IN, SUB3_OUT)])
-def test_subroutine_handler(parser, code, expected):
+def test_subroutine_handler(parser, fortran_writer, code, expected):
     '''Test that subroutine_handler handles valid Fortran subroutines.'''
 
     processor = Fparser2Reader()
@@ -90,6 +92,168 @@ def test_subroutine_handler(parser, code, expected):
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, Routine)
     assert psyir.parent is None
-    writer = FortranWriter()
-    result = writer(psyir)
+    result = fortran_writer(psyir)
     assert expected == result
+
+
+def test_function_handler(fortran_reader, fortran_writer):
+    '''Test that subroutine_handler correctly handles a function defined
+    within a module.
+
+    '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func()\n"
+        "    integer :: my_func\n"
+        "    my_func = 1\n"
+        "  end function my_func\n"
+        "end module\n")
+    expected = (
+        "module a\n"
+        "  implicit none\n\n"
+        "  public :: my_func\n\n"
+        "  contains\n"
+        "  function my_func()\n"
+        "    integer :: my_func\n"
+        "\n"
+        "    my_func = 1\n"
+        "\n"
+        "  end function my_func\n"
+        "\n"
+        "end module a\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # Check PSyIR nodes are being created
+    assert isinstance(psyir, Container)
+    routines = psyir.walk(Routine)
+    assert len(routines) == 1
+    assert isinstance(routines[0].return_symbol, DataSymbol)
+    assert routines[0].return_symbol.name == "my_func"
+    assert (routines[0].return_symbol.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert psyir.parent is None
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
+@pytest.mark.parametrize("basic_type", ["real", "integer"])
+def test_function_type_prefix(fortran_reader, fortran_writer, basic_type):
+    '''
+    Test the handler when the function definition has a type prefix but no
+    result suffix.
+
+    '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  {0} function my_func()\n"
+        "    my_func = 1\n"
+        "  end function my_func\n"
+        "end module\n".format(basic_type))
+    expected = (
+        "module a\n"
+        "  implicit none\n\n"
+        "  public :: my_func\n\n"
+        "  contains\n"
+        "  function my_func()\n"
+        "    {0} :: my_func\n"
+        "\n"
+        "    my_func = 1\n"
+        "\n"
+        "  end function my_func\n"
+        "\n"
+        "end module a\n".format(basic_type))
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir, Container)
+    assert isinstance(psyir.children[0], Routine)
+    return_sym = psyir.children[0].return_symbol
+    assert isinstance(return_sym, DataSymbol)
+    if basic_type == "real":
+        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    else:
+        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
+FN1_IN = ("  function my_func() result(my_val)\n"
+          "    real :: my_val\n"
+          "    my_val = 1.0\n"
+          "  end function my_func\n")
+FN2_IN = ("  real function my_func() result(my_val)\n"
+          "    my_val = 1.0\n"
+          "  end function my_func\n")
+FN3_IN = ("  real(wp) function my_func() result(my_val)\n"
+          "    my_val = 1.0\n"
+          "  end function my_func\n")
+EXPECTED_FN_OUT = ("  function my_func() result(my_val)\n"
+                   "    real :: my_val\n\n"
+                   "    my_val = 1.0\n\n"
+                   "  end function my_func\n")
+EXPECTED_FN3_OUT = ("  function my_func() result(my_val)\n"
+                    "    real(kind=wp) :: my_val\n\n"
+                    "    my_val = 1.0\n\n"
+                    "  end function my_func\n")
+
+
+@pytest.mark.parametrize("code,expected",
+                         [(FN1_IN, EXPECTED_FN_OUT),
+                          (FN2_IN, EXPECTED_FN_OUT),
+                          (FN3_IN, EXPECTED_FN3_OUT)])
+def test_function_result_suffix(fortran_reader, fortran_writer,
+                                code, expected):
+    '''
+    Test that we handle a Fortran function with the return value specified
+    using the 'result()' suffix. We test when the type is specified by a
+    declaration inside the function or by a type specifier in the function
+    prefix.
+
+    '''
+    code = (
+        "module a\n"
+        "use kind_params, only: wp\n"
+        "contains\n"
+        "{0}end module\n".format(code))
+    psyir = fortran_reader.psyir_from_source(code)
+    # Check PSyIR nodes are being created
+    assert isinstance(psyir, Container)
+    routines = psyir.walk(Routine)
+    assert len(routines) == 1
+    assert (routines[0].return_symbol is
+            routines[0].symbol_table.lookup("my_val"))
+    result = fortran_writer(psyir)
+    assert expected in result
+
+
+def test_function_missing_return_type(fortran_reader):
+    '''
+    Test that we generate a CodeBlock for a Fortran function without an
+    explicit declaration of its return type (i.e. if it's relying on Fortran's
+    implicit typing).
+
+    '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func()\n"
+        "    my_func = 1.0\n"
+        "  end function my_func\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0], CodeBlock)
+
+
+@pytest.mark.parametrize("fn_prefix",
+                         ["pure real", "real pure", "recursive", "elemental"])
+def test_unsupported_function_prefix(fortran_reader, fn_prefix):
+    ''' Check that we get a CodeBlock if a Fortran function has an unsupported
+    prefix. '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  {0} function my_func()\n"
+        "    my_func = 1.0\n"
+        "  end function my_func\n"
+        "end module\n".format(fn_prefix))
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0], CodeBlock)
