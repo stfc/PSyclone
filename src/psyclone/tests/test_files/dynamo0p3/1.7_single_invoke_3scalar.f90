@@ -34,8 +34,9 @@
 
 program single_invoke
 
-  ! Description: single function specified in an invoke call
-  use constants_mod,              only: r_def, i_def, l_def
+  ! Single function specified in an invoke call that passes a 'real',
+  ! an 'integer' and a 'logical' scalar argument to a kernel
+  use constants_mod,              only: r_def, l_def, i_def
   use field_mod,                  only: field_type
   use testkern_three_scalars_mod, only: testkern_three_scalars_type
 

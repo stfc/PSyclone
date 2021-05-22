@@ -1023,12 +1023,11 @@ class DynamoPSy(PSy):
     def _initialise_infrastructure_modules(self):
         '''
         Initialise the dictionary that holds the names of the required
-         LFRic constants, data structures and data structure proxies for
+        LFRic constants, data structures and data structure proxies for
         the "use" statements in modules that contain PSy-layer routines.
 
-        :returns: the dictionary that holds the names of required \
-                  LFRic data structures and their proxies to create \
-                  "use" statements in the PSy-layer modules.
+        :returns: the dictionary with the required infrastructure modules \
+                  and names/classes from them.
         :rtype: dict of odicts
 
         '''
@@ -1041,12 +1040,12 @@ class DynamoPSy(PSy):
             (k, set()) for k in const_list)
         # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
-        # Start with 'real' and 'integer' kinds
+        # Start with 'real and 'integer' kinds
         self._infrastructure_modules["constants"]["constants_mod"] = set(
             [api_config.default_kind["real"],
              api_config.default_kind["integer"]])
 
-        # Sub-dictionary for data structures
+        # Sub-dictionary for LFRic data structures (fields and operators)
         data_struct_list = ["field_mod", "integer_field_mod", "operator_mod"]
         self._infrastructure_modules["data_struct"] = OrderedDict(
             (k, set()) for k in data_struct_list)
@@ -3219,7 +3218,7 @@ class LFRicScalarArgs(DynCollection):
     def __init__(self, node):
         super(LFRicScalarArgs, self).__init__(node)
 
-        # Initialise dictionaries of real, integer and logical
+        # Initialise dictionaries of 'real', 'integer' and 'logical'
         # scalar arguments by data type and intent
         self._scalar_args = {}
         self._real_scalars = {}
@@ -3246,7 +3245,7 @@ class LFRicScalarArgs(DynCollection):
                                  within the same Invoke.
 
         '''
-        # Create dict of all scalar arguments for checks
+        # Create dictionary of all scalar arguments for checks
         const = LFRicConstants()
         self._scalar_args = self._invoke.unique_declns_by_intent(
             const.VALID_SCALAR_NAMES)
@@ -3269,7 +3268,7 @@ class LFRicScalarArgs(DynCollection):
                      arg in self._integer_scalars[intent]]
             lscal = [arg.declaration_name for
                      arg in self._logical_scalars[intent]]
-            # Add real, integer and logical scalar lists for checks
+            # Add "real", "integer" and "logical" scalar lists for checks
             decl_scal = rscal + iscal + lscal
             # Check for unsupported intrinsic types
             scal_inv = sorted(set(scal) - set(decl_scal))
@@ -3279,9 +3278,10 @@ class LFRicScalarArgs(DynCollection):
                     "arguments {0} to Invoke '{1}'. Supported types are {2}.".
                     format(scal_inv, self._invoke.name,
                            const.VALID_INTRINSIC_TYPES))
-            # Check that the same scalar name is not found in either of real,
-            # integer or logical scalar lists (for instance if passed to one
-            # kernel as a real and to another kernel as an integer scalar)
+            # Check that the same scalar name is not found in either of
+            # 'real', 'integer' or 'logical' scalar lists (for instance if
+            # passed to one kernel as a 'real' and to another kernel as an
+            # 'integer' scalar)
             scal_multi_type = [item for item, count in
                                Counter(decl_scal).items() if count > 1]
             if scal_multi_type:

@@ -43,7 +43,9 @@ module testkern_three_scalars_mod
   use constants_mod
 
   implicit none
-  
+
+  ! Test kernel that uses all three supported data types for scalar
+  ! arguments in the LFRic API: 'gh_real', 'gh_integer' and 'gh_logical'
   type, extends(kernel_type) :: testkern_three_scalars_type
      type(arg_type), dimension(7) :: meta_args =           &
           (/ arg_type(gh_scalar, gh_real,    gh_read    ), &

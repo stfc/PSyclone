@@ -85,19 +85,6 @@ def test_lfricscalars_stub_err():
             in str(err.value))
 
 
-def test_stub_generate_with_scalar_sums_err():
-    ''' Check that the stub generator raises an exception when a kernel has
-    a reduction (since these are not permitted for user-supplied kernels). '''
-    with pytest.raises(ParseError) as err:
-        _ = generate(
-            os.path.join(BASE_PATH, "simple_with_reduction.f90"),
-            api=TEST_API)
-    assert (
-        "A user-supplied LFRic kernel must not write/update a scalar "
-        "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_sum' access." in str(err.value))
-
-
 SIMPLE_WITH_SCALARS = (
     "  MODULE simple_with_scalars_mod\n"
     "    IMPLICIT NONE\n"
@@ -126,3 +113,16 @@ def test_stub_generate_with_scalars():
                       api=TEST_API)
     print(str(result))
     assert SIMPLE_WITH_SCALARS in str(result)
+
+
+def test_stub_generate_with_scalar_sums_err():
+    ''' Check that the stub generator raises an exception when a kernel has
+    a reduction (since these are not permitted for user-supplied kernels). '''
+    with pytest.raises(ParseError) as err:
+        _ = generate(
+            os.path.join(BASE_PATH, "simple_with_reduction.f90"),
+            api=TEST_API)
+    assert (
+        "A user-supplied LFRic kernel must not write/update a scalar "
+        "argument but kernel 'simple_with_reduction_type' has a scalar "
+        "argument with 'gh_sum' access." in str(err.value))

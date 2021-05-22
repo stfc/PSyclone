@@ -63,7 +63,7 @@ module lfric_builtins_mod
   end type aX_plus_Y
 
   !> An invalid built-in that updates two arguments where one is a scalar
-  !! reduction (gh_sum) and the other is a field with gh_readwrite access
+  !! reduction ('gh_sum') and the other is a field with 'gh_readwrite' access
   type, public, extends(kernel_type) :: inc_aX_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -91,8 +91,8 @@ module lfric_builtins_mod
      procedure, nopass :: aX_plus_bY_code
   end type aX_plus_bY
 
-  !> An invalid built-in that writes to two field arguments
-  !! but with different access types - one is gh_write, one is gh_readwrite.
+  !> An invalid built-in that writes to two field arguments but with
+  !! different access types - one is 'gh_write', one is 'gh_readwrite'
   type, public, extends(kernel_type) :: inc_aX_plus_bY
      private
      type(arg_type) :: meta_args(4) = (/                              &
@@ -132,7 +132,7 @@ module lfric_builtins_mod
      procedure, nopass :: a_times_X_code
   end type a_times_X
 
-  !> Invalid built-in that takes a logical scalar as an argument
+  !> Invalid built-in that takes a 'logical' scalar as an argument
   !! (invalid data type)
   type, public, extends(kernel_type) :: inc_a_divideby_X
      private

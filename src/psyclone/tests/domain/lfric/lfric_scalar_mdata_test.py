@@ -241,7 +241,7 @@ def test_ad_scalar_type_no_readwrite():
 
 def test_ad_integer_scalar_type_no_sum():
     ''' Tests that an error is raised when the argument descriptor metadata
-    for an integer scalar specifies 'GH_SUM' access (reduction). '''
+    for an 'integer' scalar specifies 'GH_SUM' access (reduction). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_scalar,   gh_integer, gh_read)",
                         "arg_type(gh_scalar,   gh_integer, gh_sum)", 1)
@@ -256,7 +256,7 @@ def test_ad_integer_scalar_type_no_sum():
 
 def test_ad_logical_scalar_type_no_sum():
     ''' Tests that an error is raised when the argument descriptor metadata
-    for a logical scalar specifies 'GH_SUM' access (reduction). '''
+    for a 'logical' scalar specifies 'GH_SUM' access (reduction). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_scalar,   gh_logical, gh_read)",
                         "arg_type(gh_scalar,   gh_logical, gh_sum)", 1)
@@ -289,7 +289,7 @@ def test_no_vector_scalar():
 
 def test_arg_descriptor_real_scalar():
     ''' Test that the LFRicArgDescriptor argument representation works
-    as expected for a real scalar argument. '''
+    as expected for a 'real' scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
@@ -317,7 +317,7 @@ def test_arg_descriptor_real_scalar():
 
 def test_arg_descriptor_integer_scalar():
     ''' Test that the LFRicArgDescriptor argument representation works
-    as expected for an integer scalar argument. '''
+    as expected for an 'integer' scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
@@ -345,7 +345,7 @@ def test_arg_descriptor_integer_scalar():
 
 def test_arg_descriptor_logical_scalar():
     ''' Test that the LFRicArgDescriptor argument representation works
-    as expected for a logical scalar argument. '''
+    as expected for a 'logical' scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")

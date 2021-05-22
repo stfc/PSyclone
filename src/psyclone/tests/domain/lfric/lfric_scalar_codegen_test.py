@@ -434,7 +434,7 @@ def test_two_int_scalars(tmpdir):
 
 def test_three_scalars(tmpdir):
     ''' Tests that we generate correct code when a kernel has all three
-    valid scalar arguments: real, integer and logical.
+    valid scalar arguments: 'real', 'integer' and 'logical'.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,

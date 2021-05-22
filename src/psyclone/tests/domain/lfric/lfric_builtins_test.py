@@ -224,7 +224,7 @@ def test_builtin_no_field_args():
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
-def test_builtin_invalid_arg_type():
+def test_builtin_invalid_argument_type():
     ''' Check that we raise appropriate error if we encounter a built-in
     that takes something other than a field or scalar argument. '''
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
@@ -251,9 +251,9 @@ def test_builtin_invalid_arg_type():
 
 
 def test_builtin_invalid_data_type():
-    ''' Check that we raise appropriate error if we encounter a built-in
-    that takes something other than an argument of a real or an integer
-    data type. '''
+    ''' Check that we raise appropriate error if we encounter a
+    built-in that takes something other than an argument of a 'real'
+    or an 'integer' data type. '''
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
