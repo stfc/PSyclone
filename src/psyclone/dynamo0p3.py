@@ -2778,7 +2778,7 @@ class LFRicFields(DynCollection):
                 "metadata for data type ({2}) in different kernels. "
                 "This is invalid.".
                 format(list(fld_multi_type), self._invoke.name,
-                       list(const.MAPPING_DATA_TYPES.keys())))
+                       const.VALID_FIELD_DATA_TYPES))
 
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
