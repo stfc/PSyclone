@@ -131,7 +131,7 @@ Scalar
 
 In the LFRic API a scalar is a single-valued argument that is identified
 with ``GH_SCALAR`` metadata. Scalar arguments can have ``real``,
-``integer`` or ``logical`` data type in the :ref:`user-defined Kernels
+``integer`` or ``logical`` data type in :ref:`user-defined Kernels
 <lfric-kernel-valid-data-type>` (``logical`` data type is not supported
 in the :ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`).
 
@@ -152,11 +152,11 @@ Points of evaluation are determined by a quadrature object
 the field is on. Placement of field data points, also called degrees of
 freedom (hereafter "DoFs"), is determined by the function space the field
 is on.
-LFRic fields can have ``real``-valued or ``integer``-valued data in the
-:ref:`user-defined Kernels <lfric-kernel-valid-data-type>` and in the
-:ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`. In the LFRic
-infrastructure, these fields are represented by instances of the
-``field_type`` and ``integer_field_type`` classes, respectively.
+LFRic fields passed as arguments to any :ref:`LFRic kernel
+<lfric-kernel-valid-data-type>` can be of ``real`` or ``integer``
+primitive type. In the LFRic infrastructure, these fields are
+represented by instances of the ``field_type`` and ``integer_field_type``
+classes, respectively.
 
 .. _lfric-field-vector:
 
@@ -172,8 +172,6 @@ Field vectors are represented as ``GH_FIELD*N`` where ``N`` is the
 size of the vector. The 3D coordinate field, for example, has
 ``(x, y, z)`` scalar values at the nodes and therefore has a
 vector size of 3.
-Since they are arrays of fields, field vectors can have ``real``-valued
-or ``integer``-valued :ref:`data <lfric-kernel-valid-data-type>`.
 
 .. _lfric-operator:
 
@@ -184,7 +182,7 @@ Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
 metadata. In the LFRic infrastructure, operators are represented by
 instances of the ``operator_type`` class. LFRic operators can only
-have ``real``-valued data in the :ref:`user-defined Kernels
+have ``real``-valued data in :ref:`user-defined Kernels
 <lfric-kernel-valid-data-type>` (:ref:`LFRic Built-ins <lfric-built-ins>`
 do not currently support operators).
 
@@ -197,8 +195,8 @@ The LFRic API has support for the construction and use of
 column-wise/Column Matrix Assembly (CMA) operators whose metadata
 identifier is ``GH_COLUMNWISE_OPERATOR``. In the LFRic
 infrastructure, column-wise operators are represented by instances
-of the ``columnwise_operator_type`` class. As the LMA operators above,
-LFRic column-wise operators can only have ``real``-valued
+of the ``columnwise_operator_type`` class. As for the LMA operators
+above, LFRic column-wise operators can only have ``real``-valued
 :ref:`data <lfric-kernel-valid-data-type>`.
 
 As the name suggests, these are operators constructed for a whole
@@ -772,8 +770,7 @@ For example::
           to write to scalar arguments (and hence perform reductions).
           Furthermore, this permission is currently restricted to ``real``
           scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure
-          does not yet support ``integer`` reductions (and a reduction to
-          a ``logical`` scalar makes no sense).
+          does not yet support ``integer`` and ``logical`` reductions.
 
 For a scalar the argument metadata contains only these three entries.
 However, fields and operators require further entries specifying
@@ -1314,7 +1311,7 @@ following kernel metadata::
     end type testkern_operator_type
 
 The ``arg_type`` component of this metadata describes a kernel that
-takes three arguments (an operator, a field and an ``integer``
+takes three arguments (an operator, a field and an integer
 scalar). Following the ``meta_args`` array we now have a
 ``meta_funcs`` array. This allows the user to specify that the kernel
 requires basis functions (``gh_basis``) and/or the differential of the
@@ -1502,7 +1499,7 @@ in the ``dynamo0p3.py`` file. The rules, along with PSyclone's naming
 conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
-   ``cells`` is an ``integer`` and has intent ``in``.
+   ``cells`` is an ``integer`` of kind ``i_def`` and has intent ``in``.
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
    is an ``integer`` of kind ``i_def`` and has intent ``in``.
 3) For each scalar/field/vector_field/operator in the order specified by
@@ -1513,30 +1510,32 @@ conventions, are:
       metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
    2) If the current entry is a field then include the field array. The
       field array name is currently specified as being
-      ``"field_"<argument_position>"_"<field_function_space>``. A field
-      array is a ``real`` array of kind ``r_def`` and dimensioned as the
-      unique degrees of freedom for the space that the field is on.
+      ``"field_"<argument_position>"_"<field_function_space>``. A field array
+      is a rank-1, ``real`` array of kind ``r_def`` with extent equal to the
+      number of unique degrees of freedom for the space that the field is on.
       This value is passed in separately. Again, the intent is determined
       from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-      1) If the field entry has a stencil access then add an ``integer``
-         (or if the stencil is of type ``CROSS2D``, an ``integer`` array
-         of dimension(4)) stencil-size argument with intent ``in``. This
-         will supply the number of cells in the stencil or, in the case of
-         the ``CROSS2D`` stencil, the number of cells in each branch of
+      1) If the field entry has a stencil access then add an ``integer`` (or
+         if the stencil is of type ``CROSS2D``, an ``integer`` rank-1 array of
+         extent 4 and kind ``i_def``) stencil-size argument with intent ``in``.
+         This will supply the number of cells in the stencil or, in the case
+         of the ``CROSS2D`` stencil, the number of cells in each branch of
          the stencil.
-      2) If the stencil is of type ``CROSS2D`` then an ``integer`` of intent
-         ``in`` for the max branch length is needed. This is used in defining
-         the dimensions of the stencil dofmap array and is required due to the
-         varying length of the branches of the stencil when used on planar
-         meshes.
-      3) Also needed is a stencil dofmap array of type ``integer`` and intent
-         ``in`` in either 2 or 3 dimensions. For a ``CROSS2D`` stencil the
-         array needs dimensions of (number-of-dofs-in-cell, max-branch-length,
-         4). All other stencils need dimensions of (number-of-dofs-in-cell,
+      2) If the stencil is of type ``CROSS2D`` then an ``integer`` of kind
+         ``i_def`` and intent ``in`` for the max branch length is needed.
+         This is used in defining the dimensions of the stencil dofmap array
+         and is required due to the varying length of the branches of the
+         stencil when used on planar meshes.
+      3) Also needed is a stencil dofmap array of type ``integer``, kind
+         ``i_def`` and intent ``in`` in either 2 or 3 dimensions. For a
+         ``CROSS2D`` stencil the array needs dimensions of
+         (number-of-dofs-in-cell, max-branch-length, 4).
+         All other stencils need dimensions of (number-of-dofs-in-cell,
          stencil-size).
       4) If the field entry stencil access is of type ``XORY1D`` then
-         add an additional ``integer`` direction argument with intent ``in``.
+         add an additional ``integer`` direction argument of kind
+         ``i_def`` and with intent ``in``.
 
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
@@ -1544,13 +1543,13 @@ conventions, are:
       ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``.
       A field array in a field vector is declared in the same way as a
       field array (described in the previous step).
-   4) If the current entry is an operator then first include a
-      dimension size. This is an ``integer`` of kind ``i_def``. The name of
-      this size is ``<operator_name>"_ncell_3d"``. Next include the operator.
-      This is a ``real`` array of kind ``r_def`` and is 3 dimensional. The
-      first two dimensions are the local degrees of freedom for the
-      ``to`` and ``from`` function spaces respectively. The third
-      dimension is the dimension size mentioned before. The name of
+   4) If the current entry is an operator then first include an
+      ``integer`` extent of kind ``i_def``. The name of this extent
+      is ``<operator_name>"_ncell_3d"``. Next include the operator.
+      This is a rank-3, ``real`` array of kind ``r_def``. The extents
+      of the first two dimensions are the local degrees of freedom for
+      the ``to`` and ``from`` function spaces, respectively, and that
+      of the third is ``<operator_name>"_ncell_3d"``. The name of
       the operator is ``"op_"<argument_position>``. Again the intent
       is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
@@ -1797,8 +1796,8 @@ An assembly kernel requires the column-banded dofmap for both the to-
 and from-function spaces of the CMA operator being assembled as well
 as the number of DoFs for each of the dofmaps. The full set of rules is:
 
-1) Include the ``cell`` argument. ``cell`` is an ``integer`` and has
-   intent ``in``.
+1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
+   ``i_def``and has intent ``in``.
 
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
    is an ``integer`` of kind ``i_def`` and has intent ``in``.
@@ -1891,8 +1890,8 @@ column-wise operator is, by definition, assembled for a whole column,
 there is no loop over levels when applying it.)
 The full set of rules is then:
 
-1) Include the ``cell`` argument. ``cell`` is an ``integer`` and has
-   intent ``in``.
+1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
+   ``i_def`` and has intent ``in``.
 
 2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
    an ``integer`` of kind ``i_def`` with intent ``in``.
@@ -1941,8 +1940,8 @@ Matrix-Matrix
 Does not require any dofmaps and also does not require the ``nlayers``
 and ``ncell_3d`` scalar arguments. The full set of rules are then:
 
-1) Include the ``cell`` argument. ``cell`` is an ``integer`` and has
-   intent ``in``.
+1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
+   ``i_def`` and has intent ``in``.
 
 2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
    an ``integer`` of kind ``i_def`` with intent ``in``.
@@ -2091,7 +2090,7 @@ following rules:
 3) There must be at least one field in the argument list. This is so
    that we know the number of DoFs to iterate over in the PSy layer.
 
-4) Kernel arguments must be either fields or scalars (``real``- and
+4) Kernel arguments must be either fields or scalars (``real``- and/or
    ``integer``-valued).
 
 5) All field arguments to a given Built-in must be on the same
