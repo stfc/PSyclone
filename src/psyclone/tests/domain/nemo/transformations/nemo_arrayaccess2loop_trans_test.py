@@ -80,7 +80,8 @@ def check_transformation(code, expected_result, index):
     output_code = "program test\n{0}end program test\n".format(expected_result)
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
-    array_reference = psyir.children[0].lhs
+    assignment = psyir.walk(Assignment)[0]
+    array_reference = assignment.lhs
     index_node = array_reference.children[index]
 
     trans = NemoArrayAccess2LoopTrans()
@@ -88,6 +89,7 @@ def check_transformation(code, expected_result, index):
 
     writer = FortranWriter()
     result = writer(psyir)
+    print (result)
     assert result == output_code
 
 
@@ -143,12 +145,11 @@ def test_example3():
 # pre-existing loops
 def test_example4():
     ''' pre-existing loops '''
-    # **** Need to start at assignment index, not do loop ****
     code = (
         "  real :: a(10,10,10), b(10,10,10)\n"
         "  integer :: ji, n, jk\n"
-        "  do jk =1, 10\n"
-        "    do ji = 1, 10\n"
+        "  do jk =1, 10, 1\n"
+        "    do ji = 1, 10, 1\n"
         "      a(ji,n,jk) = b(ji,n,jk)\n"
         "    enddo\n"
         "  enddo\n")

@@ -120,6 +120,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
         supplied for that index, otherwise it is specified as being
         "unknown".
 
+        *** TBD
         :param node: a Range node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
         :param options: a dictionary with options for \
@@ -148,11 +149,8 @@ class NemoArrayAccess2LoopTrans(Transformation):
         try:
             loop_type = loop_type_order[array_index]
             loop_type_info = loop_type_data[loop_type]
-            upper_bound_info = loop_type_info['stop']
             loop_variable_name = loop_type_info['var']
         except IndexError:
-            lower_bound_info = None
-            upper_bound_info = None
             loop_variable_name = symbol_table.next_available_name("idx")
 
         # Look up the loop variable in the symbol table. If it does
@@ -164,6 +162,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
             loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
             symbol_table.add(loop_variable_symbol)
 
+        # Replace array access loop variable
         for array in assignment.walk(ArrayReference):
             array.children[array_index] = Reference(loop_variable_symbol)
         position = assignment.position
@@ -171,6 +170,16 @@ class NemoArrayAccess2LoopTrans(Transformation):
         step = Literal("1", INTEGER_TYPE)
         loop = NemoLoop.create(loop_variable_symbol, node.copy(),
                                node.copy(), step, [assignment.detach()])
+
+        # Work out where to add the new loop as there may be existing
+        # inner loops
+        symbols = [ref.symbol for ref in array.children[:array_index]
+                if isinstance(ref, Reference)]
+        location = parent
+        while isinstance(location, Loop) and location.symbol in symbols:
+            location = location.parent
+        print (type(parent))
+        exit(1)
         parent.children.insert(position, loop)
 
 
