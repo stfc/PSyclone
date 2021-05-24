@@ -286,9 +286,10 @@ Routine
 
 The `Routine` node is a subclass of `Schedule` that represents any program
 unit (subroutine, function or main program). As such it extends `Schedule`
-through the addition of the `return_type` and `is_program` properties.
+through the addition of the `return_symbol` (required when representing a
+function) and `is_program` properties.
 It also adds the `create` helper method for constructing a valid
-`Routine` instance.It is an important node in PSyclone because two of its
+`Routine` instance. It is an important node in PSyclone because two of its
 specialisations: `InvokeSchedule` and `KernelSchedule` (described below),
 are used as the root nodes of PSy-layer invokes and kernel subroutines.
 This makes them the starting points for any walking of the PSyIR tree in
