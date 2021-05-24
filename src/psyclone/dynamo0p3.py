@@ -1017,38 +1017,19 @@ class DynamoPSy(PSy):
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls, self)
-        # Initialise dictionaries for infrastructure modules
-        self._initialise_infrastructure_modules()
-
-    def _initialise_infrastructure_modules(self):
-        '''
-        Initialise the dictionary that holds the names of the required
-        LFRic constants, data structures and data structure proxies for
-        the "use" statements in modules that contain PSy-layer routines.
-
-        :returns: the dictionary with the required infrastructure modules \
-                  and names/classes from them.
-        :rtype: dict of odicts
-
-        '''
-        self._infrastructure_modules = {"constants": OrderedDict(),
-                                        "data_struct": OrderedDict()}
-
-        # Sub-dictionary for constants (only "constants_mod" for now)
-        const_list = ["constants_mod"]
-        self._infrastructure_modules["constants"] = OrderedDict(
-            (k, set()) for k in const_list)
-        # Get configuration for valid argument kinds
+        # Initialise the dictionary that holds the names of the required
+        # LFRic constants, data structures and data structure proxies for
+        # the "use" statements in modules that contain PSy-layer routines.
+        infmod_list = ["constants_mod", "field_mod", "integer_field_mod",
+                       "operator_mod"]
+        self._infrastructure_modules = OrderedDict(
+            (k, set()) for k in infmod_list)
+        # Get configuration for valid argument kinds (start with
+        # 'real' and 'integer' kinds)
         api_config = Config.get().api_conf("dynamo0.3")
-        # Start with 'real and 'integer' kinds
-        self._infrastructure_modules["constants"]["constants_mod"] = set(
-            [api_config.default_kind["real"],
-             api_config.default_kind["integer"]])
-
-        # Sub-dictionary for LFRic data structures (fields and operators)
-        data_struct_list = ["field_mod", "integer_field_mod", "operator_mod"]
-        self._infrastructure_modules["data_struct"] = OrderedDict(
-            (k, set()) for k in data_struct_list)
+        self._infrastructure_modules["constants_mod"] = {
+            api_config.default_kind["real"],
+            api_config.default_kind["integer"]}
 
     @property
     def name(self):
@@ -1096,25 +1077,20 @@ class DynamoPSy(PSy):
         # Add all invoke-specific information
         self.invokes.gen_code(psy_module)
 
-        # Include required infrastructure modules. The sets of required
-        # LFRic data structures and their proxies are updated in the
-        # relevant field and operator subclasses of DynCollection.
+        # Include required constants and infrastructure modules. The sets of
+        # required LFRic data structures and their proxies are updated in
+        # the relevant field and operator subclasses of DynCollection.
         # Here we sort the inputs in reverse order to have "_type" before
         # "_proxy_type" and "operator_" before "columnwise_operator_".
         # We also iterate through the dictionary in reverse order so the
         # "use" statements for field types are before the "use" statements
         # for operator types.
-        dstruct_dict = self._infrastructure_modules["data_struct"]
-        for infmod in reversed(dstruct_dict):
-            if dstruct_dict[infmod]:
-                infmod_types = sorted(list(dstruct_dict[infmod]), reverse=True)
+        for infmod in reversed(self._infrastructure_modules):
+            if self._infrastructure_modules[infmod]:
+                infmod_types = sorted(
+                    list(self._infrastructure_modules[infmod]), reverse=True)
                 psy_module.add(UseGen(psy_module, name=infmod,
                                       only=True, funcnames=infmod_types))
-        # Include constants (kinds for data structures for now)
-        const_defs = self._infrastructure_modules["constants"]["constants_mod"]
-        psy_module.add(UseGen(psy_module, name="constants_mod", only=True,
-                              funcnames=sorted(list(const_defs),
-                                               reverse=True)))
 
         # Return the root node of the generated code
         return psy_module.root
@@ -2788,15 +2764,14 @@ class LFRicFields(DynCollection):
                                    entity_decls=real_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["data_struct"]["field_mod"].add(dtype))
+             infrastructure_modules["field_mod"].add(dtype))
         if int_fld_arg_list:
             dtype = "integer_field_type"
             parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=int_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["data_struct"]["integer_field_mod"].
-             add(dtype))
+             infrastructure_modules["integer_field_mod"].add(dtype))
 
     def _stub_declarations(self, parent):
         '''
@@ -3054,8 +3029,8 @@ class DynProxies(DynCollection):
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
                                    entity_decls=real_field_proxy_decs))
-            (self._invoke.invokes.psy.
-             infrastructure_modules["data_struct"]["field_mod"].add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
+             add(dtype))
         int_field_proxy_decs = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
@@ -3065,8 +3040,7 @@ class DynProxies(DynCollection):
                                    datatype=dtype,
                                    entity_decls=int_field_proxy_decs))
             (self._invoke.invokes.psy.
-             infrastructure_modules["data_struct"]["integer_field_mod"].
-             add(dtype))
+             infrastructure_modules["integer_field_mod"].add(dtype))
 
         # Declarations of LMA operator proxies
         op_proxy_decs = self._invoke.unique_proxy_declarations(
@@ -3076,8 +3050,8 @@ class DynProxies(DynCollection):
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
                                    entity_decls=op_proxy_decs))
-            (self._invoke.invokes.psy.
-             infrastructure_modules["data_struct"]["operator_mod"].add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
         # Declarations of CMA operator proxies
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
@@ -3087,8 +3061,8 @@ class DynProxies(DynCollection):
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
                                    entity_decls=cma_op_proxy_decs))
-            (self._invoke.invokes.psy.
-             infrastructure_modules["data_struct"]["operator_mod"].add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
     def initialise(self, parent):
         '''
@@ -3374,8 +3348,7 @@ class LFRicScalarArgs(DynCollection):
             if self._logical_scalars[intent]:
                 if self._invoke:
                     (self._invoke.invokes.psy.
-                     infrastructure_modules["constants"]["constants_mod"].
-                     add(dkind))
+                     infrastructure_modules["constants_mod"].add(dkind))
                 if self._kernel:
                     self._kernel.argument_kinds.add(dkind)
                 logical_scalar_names = [arg.declaration_name for arg
@@ -3443,8 +3416,8 @@ class DynLMAOperators(DynCollection):
             parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=op_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.
-             infrastructure_modules["data_struct"]["operator_mod"].add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
 
 class DynCMAOperators(DynCollection):
@@ -3590,8 +3563,8 @@ class DynCMAOperators(DynCollection):
                                    datatype=dtype,
                                    entity_decls=cma_op_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.
-             infrastructure_modules["data_struct"]["operator_mod"].add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
@@ -7357,8 +7330,11 @@ class DynKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
-        # Initialise kinds (precisions) of all kernel arguments
-        self._initialise_argument_kinds()
+        # Initialise kinds (precisions) of all kernel arguments (start
+        # with 'real' and 'integer' kinds)
+        api_config = Config.get().api_conf("dynamo0.3")
+        self._argument_kinds = {api_config.default_kind["real"],
+                                api_config.default_kind["integer"]}
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -7595,25 +7571,6 @@ class DynKern(CodedKern):
         # Properties of the mesh required by this kernel
         self._mesh_properties = ktype.mesh
 
-    def _initialise_argument_kinds(self):
-        '''
-        Initialise the set that holds kinds (precisions) for all
-        arguments in a kernel required for the "use" statements in
-        kernel stub generator. The set contains kinds for 'real'
-        and 'integer'-valued arguments (the kind for 'logical'
-        arguments is added in the data structure classes if required).
-
-        :returns: kinds (precisions) for 'real' and 'integer'-valued
-                  kernel arguments.
-        :rtype: set
-
-        '''
-        # Get configuration for valid argument kinds
-        api_config = Config.get().api_conf("dynamo0.3")
-        # Start with 'real' and 'integer' kinds
-        self._argument_kinds = set([api_config.default_kind["real"],
-                                    api_config.default_kind["integer"]])
-
     @property
     def qr_rules(self):
         '''
@@ -7762,7 +7719,7 @@ class DynKern(CodedKern):
     def argument_kinds(self):
         '''
         :returns: kinds (precisions) for all arguments in a kernel.
-        :rtype: set
+        :rtype: set of str
 
         '''
         return self._argument_kinds

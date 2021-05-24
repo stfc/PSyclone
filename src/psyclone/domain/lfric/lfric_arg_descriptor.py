@@ -292,9 +292,7 @@ class LFRicArgDescriptor(Descriptor):
                                passed in.
         :raises ParseError: if there are fewer than 4 metadata arguments.
         :raises ParseError: if there are more than 5 metadata arguments.
-        :raises ParseError: if a field argument has an invalid data \
-                            type (the allowed data types are 'gh_real' \
-                            and 'gh_integer').
+        :raises ParseError: if a field argument has an invalid data type.
         :raises ParseError: if the 4th argument is not a valid function space.
         :raises ParseError: if the optional 5th argument is not a stencil \
                             specification or a mesh identifier (for \
@@ -481,8 +479,7 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if argument type other than an operator is \
                                passed in.
         :raises ParseError: if there are not exactly 5 metadata arguments.
-        :raises ParseError: if an operator argument has an invalid data \
-                            type (the only allowed data type is 'gh_real').
+        :raises ParseError: if an operator argument has an invalid data type.
         :raises ParseError: if the function space to- is not one of the \
                             valid function spaces.
         :raises ParseError: if the function space from- is not one of the \

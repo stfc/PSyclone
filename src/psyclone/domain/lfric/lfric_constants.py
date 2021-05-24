@@ -127,8 +127,7 @@ class LFRicConstants(object):
 
         # Valid intrinsic types for field kernel argument data
         # ('real' and 'integer').
-        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = \
-            LFRicConstants.VALID_INTRINSIC_TYPES[0:2]
+        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer"]
 
         # ---------- Evaluators -----------------------------------------------
 
