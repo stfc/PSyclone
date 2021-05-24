@@ -1057,7 +1057,7 @@ class DynamoPSy(PSy):
         :returns: the dictionary that holds the names of the required \
                   LFRic infrastructure modules to create "use" \
                   statements in the PSy-layer modules.
-        :rtype: dict of odicts
+        :rtype: dict of set
 
         '''
         return self._infrastructure_modules
