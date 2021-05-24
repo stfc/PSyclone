@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# Author S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
@@ -42,7 +43,7 @@ import six
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Routine, FileContainer
 
 
 # The 'contiguous' keyword is just valid with Fortran 2008
@@ -76,7 +77,9 @@ def test_fortran_psyir_from_source():
     ''' Test that the psyir_from_source method parses to PSyIR
     the specified source code. '''
     fortran_reader = FortranReader()
-    subroutine = fortran_reader.psyir_from_source(CODE)
+    file_container = fortran_reader.psyir_from_source(CODE)
+    assert isinstance(file_container, FileContainer)
+    subroutine = file_container.children[0]
     assert isinstance(subroutine, Routine)
 
 
@@ -89,7 +92,9 @@ def test_fortran_psyir_from_file(tmpdir_factory):
 
     # Check with a proper file
     fortran_reader = FortranReader()
-    subroutine = fortran_reader.psyir_from_file(filename)
+    file_container = fortran_reader.psyir_from_file(filename)
+    assert isinstance(file_container, FileContainer)
+    subroutine = file_container.children[0]
     assert isinstance(subroutine, Routine)
 
     # Check with a file that doesn't exist

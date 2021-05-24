@@ -852,7 +852,7 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
         "end module test\n" in result)
     assert Compile(tmpdir).string_compiles(result)
 
-    container.children.append(Container("child"))
+    container.children[0].children.append(Container("child"))
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(container)
     assert ("The Fortran back-end requires all children of a Container "
@@ -875,7 +875,8 @@ def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):
         "end subroutine tmp\n"
         "end module test")
     container = fortran_reader.psyir_from_source(code)
-    symbol = container.symbol_table.lookup("a")
+    module = container.children[0]
+    symbol = module.symbol_table.lookup("a")
     monkeypatch.setattr(symbol, "_interface", ArgumentInterface())
 
     with pytest.raises(VisitorError) as excinfo:
@@ -929,8 +930,8 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
         "  endif\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = fortran_reader.psyir_from_source(code).children[0]
-
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
 
