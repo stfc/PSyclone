@@ -21,6 +21,11 @@
         8) PR #1229 for #1170. Adds a Container parent node above all
         InvokeSchedule nodes.
 
+        9) PR #1225 towards #1223. Moves remaining GOcean constants into
+        new GOceanConstants class.
+
+        10) PR #1241 for #1240. Adds support for functions in the PSyIR and
+		Fortran frontend and backend.
 
 release 2.0.0 28th April 2021
 
