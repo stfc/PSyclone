@@ -85,42 +85,46 @@ def test_lfricscalars_stub_err():
             in str(err.value))
 
 
-TESTKERN_THREE_SCALARS = (
-    "  MODULE testkern_three_scalars_mod\n"
-    "    IMPLICIT NONE\n"
-    "    CONTAINS\n"
-    "    SUBROUTINE testkern_three_scalars_code(nlayers, rscalar_1, "
-    "field_2_w1, field_3_w2, field_4_w2, field_5_w3, lscalar_6, "
-    "iscalar_7, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
-    "ndf_w3, undf_w3, map_w3)\n"
-    "      USE constants_mod, ONLY: r_def, l_def, i_def\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-    "      INTEGER(KIND=i_def), intent(in) :: undf_w1, undf_w2, undf_w3\n"
-    "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
-    "      INTEGER(KIND=i_def), intent(in) :: iscalar_7\n"
-    "      LOGICAL(KIND=l_def), intent(in) :: lscalar_6\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: field_2_w1\n"
-    "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_3_w2\n"
-    "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_4_w2\n"
-    "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_5_w3\n"
-    "    END SUBROUTINE testkern_three_scalars_code\n"
-    "  END MODULE testkern_three_scalars_mod")
-
-
 def test_stub_generate_with_scalars():
     ''' Check that the stub generate produces the expected output when
     the kernel has scalar arguments. '''
     result = generate(
         os.path.join(BASE_PATH, "testkern_three_scalars_mod.f90"),
         api=TEST_API)
-    assert TESTKERN_THREE_SCALARS in str(result)
+
+    expected = (
+        "  MODULE testkern_three_scalars_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE testkern_three_scalars_code(nlayers, rscalar_1, "
+        "field_2_w1, field_3_w2, field_4_w2, field_5_w3, lscalar_6, "
+        "iscalar_7, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
+        "ndf_w3, undf_w3, map_w3)\n"
+        "      USE constants_mod, ONLY: r_def, l_def, i_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w1, undf_w2, undf_w3\n"
+        "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: iscalar_7\n"
+        "      LOGICAL(KIND=l_def), intent(in) :: lscalar_6\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+        "field_2_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_4_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
+        "field_5_w3\n"
+        "    END SUBROUTINE testkern_three_scalars_code\n"
+        "  END MODULE testkern_three_scalars_mod")
+
+    assert expected in str(result)
 
 
 def test_stub_generate_with_scalar_sums_err():

@@ -239,34 +239,24 @@ def test_ad_scalar_type_no_readwrite():
                 str(excinfo.value))
 
 
-def test_ad_integer_scalar_type_no_sum():
-    ''' Tests that an error is raised when the argument descriptor metadata
-    for an 'integer' scalar specifies 'GH_SUM' access (reduction). '''
+@pytest.mark.parametrize("scalar_type", ["gh_integer", "gh_logical"])
+def test_ad_integer_logical_scalar_type_no_sum(scalar_type):
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for an 'integer' or a 'logical' scalar specifies 'GH_SUM'
+    access (reduction).
+
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_scalar,   gh_integer, gh_read)",
-                        "arg_type(gh_scalar,   gh_integer, gh_sum)", 1)
+    code = CODE.replace(
+        "arg_type(gh_scalar,   {0}, gh_read)".format(scalar_type),
+        "arg_type(gh_scalar,   {0}, gh_sum)".format(scalar_type), 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("reduction access 'gh_sum' is only valid with a real scalar "
-            "argument, but a scalar argument with 'gh_integer' data type "
-            in str(excinfo.value))
-
-
-def test_ad_logical_scalar_type_no_sum():
-    ''' Tests that an error is raised when the argument descriptor metadata
-    for a 'logical' scalar specifies 'GH_SUM' access (reduction). '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_scalar,   gh_logical, gh_read)",
-                        "arg_type(gh_scalar,   gh_logical, gh_sum)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("reduction access 'gh_sum' is only valid with a real scalar "
-            "argument, but a scalar argument with 'gh_logical' data type "
-            in str(excinfo.value))
+            "argument, but a scalar argument with '{0}' data type ".
+            format(scalar_type) in str(excinfo.value))
 
 
 def test_no_vector_scalar():
@@ -287,82 +277,31 @@ def test_no_vector_scalar():
                 str(excinfo.value))
 
 
-def test_arg_descriptor_real_scalar():
+@pytest.mark.parametrize("scalar_ind, scalar_type", [
+    (0, "gh_real"), (6, "gh_integer"), (5, "gh_logical")])
+def test_arg_descriptor_scalar(scalar_ind, scalar_type):
     ''' Test that the LFRicArgDescriptor argument representation works
-    as expected for a 'real' scalar argument. '''
+    as expected for all three types of valid scalar argument:
+    'real', 'integer' and 'logical'.
+
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    scalar_descriptor = metadata.arg_descriptors[0]
+    scalar_descriptor = metadata.arg_descriptors[scalar_ind]
 
     # Assert correct string representation from LFRicArgDescriptor
     result = str(scalar_descriptor)
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_scalar'\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_read'\n")
+        "  data_type[1]='{0}'\n"
+        "  access_descriptor[2]='gh_read'\n".format(scalar_type))
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert scalar_descriptor.argument_type == "gh_scalar"
-    assert scalar_descriptor.data_type == "gh_real"
-    assert scalar_descriptor.function_space is None
-    assert scalar_descriptor.function_spaces == []
-    assert str(scalar_descriptor.access) == "READ"
-    assert scalar_descriptor.mesh is None
-    assert scalar_descriptor.stencil is None
-    assert scalar_descriptor.vector_size == 0
-
-
-def test_arg_descriptor_integer_scalar():
-    ''' Test that the LFRicArgDescriptor argument representation works
-    as expected for an 'integer' scalar argument. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    scalar_descriptor = metadata.arg_descriptors[6]
-
-    # Assert correct string representation from LFRicArgDescriptor
-    result = str(scalar_descriptor)
-    expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_scalar'\n"
-        "  data_type[1]='gh_integer'\n"
-        "  access_descriptor[2]='gh_read'\n")
-    assert expected_output in result
-
-    # Check LFRicArgDescriptor argument properties
-    assert scalar_descriptor.argument_type == "gh_scalar"
-    assert scalar_descriptor.data_type == "gh_integer"
-    assert scalar_descriptor.function_space is None
-    assert scalar_descriptor.function_spaces == []
-    assert str(scalar_descriptor.access) == "READ"
-    assert scalar_descriptor.mesh is None
-    assert scalar_descriptor.stencil is None
-    assert scalar_descriptor.vector_size == 0
-
-
-def test_arg_descriptor_logical_scalar():
-    ''' Test that the LFRicArgDescriptor argument representation works
-    as expected for a 'logical' scalar argument. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    scalar_descriptor = metadata.arg_descriptors[5]
-
-    # Assert correct string representation from LFRicArgDescriptor
-    result = str(scalar_descriptor)
-    expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_scalar'\n"
-        "  data_type[1]='gh_logical'\n"
-        "  access_descriptor[2]='gh_read'\n")
-    assert expected_output in result
-
-    # Check LFRicArgDescriptor argument properties
-    assert scalar_descriptor.argument_type == "gh_scalar"
-    assert scalar_descriptor.data_type == "gh_logical"
+    assert scalar_descriptor.data_type == scalar_type
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"
