@@ -80,7 +80,8 @@ class LFRicConstants(object):
             LFRicConstants.VALID_OPERATOR_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
-        # Supported API argument data types ('real', 'integer' and 'logical')
+        # Supported API argument data types ('gh_real', 'gh_integer'
+        # and 'gh_logical')
         LFRicConstants.VALID_ARG_DATA_TYPES = \
             ["gh_real", "gh_integer", "gh_logical"]
         LFRicConstants.VALID_SCALAR_DATA_TYPES = \
@@ -115,19 +116,19 @@ class LFRicConstants(object):
         # This is only used here, so no class variable:
         supported_fortran_datatypes = api_config.supported_fortran_datatypes
 
-        # ---------- Mapping from metadata data_type to Fortran intrinsic type
-        LFRicConstants.MAPPING_DATA_TYPES = \
-            OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,
-                            supported_fortran_datatypes))
-
         # psyGen intrinsic types for kernel argument data as defined in LFRic
-        # ('real', 'integer' and 'logical').
-        LFRicConstants.VALID_INTRINSIC_TYPES = \
-            list(LFRicConstants.MAPPING_DATA_TYPES.values())
+        # configuration by the supported Fortran datatypes ('real', 'integer'
+        # and 'logical').
+        LFRicConstants.VALID_INTRINSIC_TYPES = supported_fortran_datatypes
 
         # Valid intrinsic types for field kernel argument data
         # ('real' and 'integer').
         LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer"]
+
+        # ---------- Mapping from metadata data_type to Fortran intrinsic type
+        LFRicConstants.MAPPING_DATA_TYPES = \
+            OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,
+                            LFRicConstants.VALID_INTRINSIC_TYPES))
 
         # ---------- Evaluators -----------------------------------------------
 
