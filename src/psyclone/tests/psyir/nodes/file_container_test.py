@@ -47,10 +47,33 @@ from psyclone.psyir.nodes.node import colored
 
 
 def test_file_container_init():
-    '''Test that a file container can be created'''
+    '''Test that a file container can be created and that its name is
+    stored.
 
+    '''
     file_container = FileContainer("test")
     assert isinstance(file_container, FileContainer)
+    assert isinstance(file_container, Container)
+    assert file_container.name == "test"
+
+
+def test_file_container_node_str():
+    '''Test that a FileContainer instance outputs the expected text for the
+    view method.
+
+    '''
+    file_container = FileContainer("test")
+    coloredtext = colored("FileContainer", FileContainer._colour)
+    assert coloredtext+"[test]" in file_container.node_str()
+
+
+def test_container_str():
+    '''Test that the 'str' of a FileContainer instance gives the expected
+    output.
+
+    '''
+    file_container = FileContainer("test")
+    assert "FileContainer[test]\n" in str(file_container)
 
 
 def test_file_container_create():
@@ -64,6 +87,7 @@ def test_file_container_create():
     program = Routine.create("prog_1", SymbolTable(), [], is_program=True)
     file_container = FileContainer.create(
         "container_name", SymbolTable(), [module, program])
+    assert isinstance(file_container, FileContainer)
     result = FortranWriter().filecontainer_node(file_container)
     assert result == (
         "module mod_1\n"

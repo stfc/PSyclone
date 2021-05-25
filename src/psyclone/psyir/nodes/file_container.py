@@ -47,3 +47,12 @@ class FileContainer(Container):
     FileContainer can not have any symbol table entries in Fortran.
 
     '''
+    _text_name = "FileContainer"
+    _colour = "yellow"
+
+    def __str__(self):
+        return "FileContainer[{0}]\n".format(self.name)
+
+
+# For AutoAPI documentation generation
+__all__ = ['FileContainer']

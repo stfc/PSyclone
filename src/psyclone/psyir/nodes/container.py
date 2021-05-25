@@ -84,8 +84,8 @@ class Container(ScopingNode):
         # pylint: disable=unused-argument
         return isinstance(child, (Container, Routine, CodeBlock))
 
-    @staticmethod
-    def create(name, symbol_table, children):
+    @classmethod
+    def create(cls, name, symbol_table, children):
         '''Create a Container instance given a name, a symbol table and a
         list of child nodes.
 
@@ -98,8 +98,9 @@ class Container(ScopingNode):
         :type children: list of :py:class:`psyclone.psyir.nodes.Container` \
             or :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
-        :returns: a Container instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        :returns: an instance of `cls`.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container` or subclass
+            thereof
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.
@@ -121,7 +122,7 @@ class Container(ScopingNode):
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
 
-        container = Container(name)
+        container = cls(name)
         # pylint: disable=protected-access
         container._symbol_table = symbol_table
         symbol_table._node = container

@@ -48,7 +48,7 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
-    StructureReference, Schedule, Routine, Return
+    StructureReference, Schedule, Routine, Return, FileContainer
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -794,6 +794,69 @@ def test_fw_exception(fortran_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(unsupported)
     assert "Unsupported node 'Node' found" in str(excinfo.value)
+
+
+def test_fw_filecontainer_1(fortran_writer):
+    '''Check the FortranWriter class outputs nothing when a
+    FileContainer node with no content is found.
+
+    '''
+    file_container = FileContainer("None")
+    result = fortran_writer(file_container)
+    assert not result
+
+
+def test_fw_filecontainer_2(fortran_writer):
+    '''Check that an instance of the FortranWriter class outputs the
+    expected code when a FileContainer contains multiple nodes (in
+    this case a Container (module) and a Routine (subroutine).
+
+    '''
+    container = Container("mod_name")
+    routine = Routine("sub_name")
+    file_container = FileContainer.create("None", SymbolTable(), [container, routine])
+    result = fortran_writer(file_container)
+    expected = (
+        "module mod_name\n"
+        "  implicit none\n\n"
+        "  contains\n\n"
+        "end module mod_name\n"
+        "subroutine sub_name()\n\n\n"
+        "end subroutine sub_name\n")
+    assert result == expected
+
+
+def test_fw_filecontainer_error1(fortran_writer):
+    '''Check that an instance of the FortranWriter class raises the
+    expected exception if the symbol table associated with a
+    FileContainer node contains any symbols.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(Symbol("x"))
+    file_container = FileContainer.create("None", symbol_table, [])
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(file_container)
+    assert(
+        "In the Fortran backend, a file container should not have any "
+        "symbols associated with it, but found 1." in str(info.value))
+
+
+def test_fw_filecontainer_error2(fortran_writer):
+    '''Check that an instance of the FortranWriter class raises the
+    expected exception if a FileContainer node contains more than one
+    Routine node with is_program set (as only one program is allowed).
+
+    '''
+    program1 = Routine.create("prog1", SymbolTable(), [], is_program=True)
+    program2 = Routine.create("prog2", SymbolTable(), [], is_program=True)
+    file_container = FileContainer.create(
+        "None", SymbolTable(), [program1, program2])
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(file_container)
+    assert (
+        "In the Fortran backend, a file container should contain at most one "
+        "routine node that is a program, but found 2." in str(info.value))
 
 
 def test_fw_container_1(fortran_writer, monkeypatch):

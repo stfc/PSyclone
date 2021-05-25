@@ -689,12 +689,26 @@ class FortranWriter(PSyIRVisitor):
         :returns: the Fortran code as a string.
         :rtype: str
 
-        :raises VisitorError: if the attached symbol table contains any data symbols.
+        :raises VisitorError: if the attached symbol table contains \
+            any data symbols.
+        :raises VisitorError: if more than one child is a Routine Node \
+            with is_program set to True.
 
         '''
-        # TODO ********** STORE ROUTINE SYMBOLS in symbol table here???? ****
-        # TODO ****************** EXCEPTION **************
-        # TODO ********** MULTI-PROGRAM NOT ALLOWED ******
+        if node.symbol_table.symbols:
+            raise VisitorError(
+                "In the Fortran backend, a file container should not have "
+                "any symbols associated with it, but found {0}."
+                "".format(len(node.symbol_table.symbols)))
+
+        program_nodes = len([child for child in node.children if
+                             isinstance(child, Routine) and child.is_program])
+        if program_nodes > 1:
+            raise VisitorError(
+                "In the Fortran backend, a file container should contain at "
+                "most one routine node that is a program, but found {0}."
+                "".format(program_nodes))
+
         result = ""
         for child in node.children:
             result += self._visit(child)
