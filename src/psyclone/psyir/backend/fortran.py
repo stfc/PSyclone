@@ -549,9 +549,7 @@ class FortranWriter(PSyIRVisitor):
         public_routines = []
         private_routines = []
         for symbol in symbol_table.symbols:
-            if (isinstance(symbol, RoutineSymbol) or
-                (isinstance(symbol, DataSymbol) and
-                 isinstance(symbol.datatype, UnknownFortranType))):
+            if isinstance(symbol, RoutineSymbol):
 
                 # Skip the symbol representing the routine where these
                 # declarations belong
