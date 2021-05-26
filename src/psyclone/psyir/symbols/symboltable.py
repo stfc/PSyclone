@@ -378,7 +378,7 @@ class SymbolTable(object):
                     "found '{0}'.".format(type(root_name).__name__))
         if not root_name:
             root_name = Config.get().psyir_root_name
-        candidate_name = root_name
+        candidate_name = self._normalize(root_name)
         idx = 1
         while candidate_name in symbols:
             candidate_name = "{0}_{1}".format(root_name, idx)
@@ -1032,7 +1032,7 @@ class SymbolTable(object):
                 "in this symbol_table instance, but '{0}' does.".format(name))
 
         # Delete current dictionary entry
-        del self._symbols[symbol.name]
+        del self._symbols[self._normalize(symbol.name)]
 
         # Rename symbol using protected access as the Symbol class should not
         # expose a name attribute setter.
