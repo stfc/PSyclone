@@ -3578,9 +3578,10 @@ class DynCMAOperators(DynCollection):
             # Declare the operator matrix itself
             cma_name = self._symbol_table.symbol_from_tag(
                 op_name+"_matrix").name
-            dtype = self._cma_ops[op_name]["datatype"]
-            parent.add(DeclGen(parent, datatype=dtype,
-                               kind=api_config.default_kind[dtype],
+            cma_op_dtype = self._cma_ops[op_name]["datatype"]
+            cma_op_kind = const.DATA_STRUCT_MAPPING["cma_operator"]["kind"]
+            parent.add(DeclGen(parent, datatype=cma_op_dtype,
+                               kind=cma_op_kind,
                                pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
