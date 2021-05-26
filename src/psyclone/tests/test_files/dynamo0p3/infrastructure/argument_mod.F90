@@ -95,6 +95,7 @@ module argument_mod
   !> @{
   integer, public, parameter :: GH_REAL    = 58
   integer, public, parameter :: GH_INTEGER = 5
+  integer, public, parameter :: GH_LOGICAL = 987
   !> @}
 
   !> @defgroup argument_access Enumeration of argument access property descriptors.

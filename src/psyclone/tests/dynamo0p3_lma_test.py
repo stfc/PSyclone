@@ -114,12 +114,13 @@ def test_ad_op_type_invalid_data_type():
         "arg_type(gh_operator, gh_clear,    gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
+    const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of ['gh_real', 'gh_integer']), but "
-            "found 'gh_clear' in 'arg_type(gh_operator, gh_clear, gh_read, "
-            "w2)'." in str(excinfo.value))
+            "be a valid data type (one of {0}), but found 'gh_clear' in "
+            "'arg_type(gh_operator, gh_clear, gh_read, w2)'.".
+            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
 
 
 def test_ad_op_type_too_few_args():
@@ -222,7 +223,7 @@ def test_ad_op_type_init_wrong_data_type():
         LFRicArgDescriptor(
             op_arg, metadata.iterates_over)._init_operator(op_arg)
     const = LFRicConstants()
-    assert ("In the LFRic API the permitted data types for operator "
+    assert ("In the LFRic API the allowed data types for operator "
             "arguments are one of {0}, but found 'gh_integer' in "
             "'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'.".
             format(const.VALID_OPERATOR_DATA_TYPES) in
