@@ -47,7 +47,7 @@ from __future__ import print_function, absolute_import
 import abc
 import os
 from enum import Enum
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict, namedtuple, Counter
 import six
 import fparser
 
@@ -1017,12 +1017,19 @@ class DynamoPSy(PSy):
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls, self)
-        # Initialise the dictionary that holds the names of required
-        # LFRic data structures and their proxies for the "use"
-        # statements in modules that contain PSy-layer routines.
-        infmod_list = ["field_mod", "integer_field_mod", "operator_mod"]
+        # Initialise the dictionary that holds the names of the required
+        # LFRic constants, data structures and data structure proxies for
+        # the "use" statements in modules that contain PSy-layer routines.
+        infmod_list = ["constants_mod", "field_mod", "integer_field_mod",
+                       "operator_mod"]
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
+        # Get configuration for valid argument kinds (start with
+        # 'real' and 'integer' kinds)
+        api_config = Config.get().api_conf("dynamo0.3")
+        self._infrastructure_modules["constants_mod"] = {
+            api_config.default_kind["real"],
+            api_config.default_kind["integer"]}
 
     @property
     def name(self):
@@ -1047,9 +1054,9 @@ class DynamoPSy(PSy):
     @property
     def infrastructure_modules(self):
         '''
-        :returns: the dictionary that holds the names of required \
-                  LFRic data structures and their proxies to create \
-                  "use" statements in the PSy-layer modules.
+        :returns: the dictionary that holds the names of the required \
+                  LFRic infrastructure modules to create "use" \
+                  statements in the PSy-layer modules.
         :rtype: dict of set
 
         '''
@@ -1064,17 +1071,15 @@ class DynamoPSy(PSy):
         :rtype: :py:class:`psyir.nodes.Node`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
         # Create an empty PSy layer module
         psy_module = ModuleGen(self.name)
 
         # Add all invoke-specific information
         self.invokes.gen_code(psy_module)
 
-        # Include required infrastructure modules. The sets of required
-        # LFRic data structures and their proxies are updated in the
-        # relevant field and operator subclasses of DynCollection.
+        # Include required constants and infrastructure modules. The sets of
+        # required LFRic data structures and their proxies are updated in
+        # the relevant field and operator subclasses of DynCollection.
         # Here we sort the inputs in reverse order to have "_type" before
         # "_proxy_type" and "operator_" before "columnwise_operator_".
         # We also iterate through the dictionary in reverse order so the
@@ -1086,10 +1091,6 @@ class DynamoPSy(PSy):
                     list(self._infrastructure_modules[infmod]), reverse=True)
                 psy_module.add(UseGen(psy_module, name=infmod,
                                       only=True, funcnames=infmod_types))
-        psy_module.add(
-            UseGen(psy_module, name="constants_mod", only=True,
-                   funcnames=[api_config.default_kind["real"],
-                              api_config.default_kind["integer"]]))
 
         # Return the root node of the generated code
         return psy_module.root
@@ -2741,7 +2742,7 @@ class LFRicFields(DynCollection):
                 "Found unsupported intrinsic types for the field "
                 "arguments {0} to Invoke '{1}'. Supported types are {2}.".
                 format(list(fld_inv), self._invoke.name,
-                       const.VALID_INTRINSIC_TYPES))
+                       const.VALID_FIELD_INTRINSIC_TYPES))
         # Check that the same field name is not found in both real and
         # integer field lists (for instance if passed to one kernel as a
         # real-valued and to another kernel as an integer-valued field)
@@ -2753,7 +2754,7 @@ class LFRicFields(DynCollection):
                 "metadata for data type ({2}) in different kernels. "
                 "This is invalid.".
                 format(list(fld_multi_type), self._invoke.name,
-                       list(const.MAPPING_DATA_TYPES.keys())))
+                       const.VALID_FIELD_DATA_TYPES))
 
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
@@ -3191,15 +3192,17 @@ class LFRicScalarArgs(DynCollection):
     def __init__(self, node):
         super(LFRicScalarArgs, self).__init__(node)
 
-        # Initialise dictionaries of real and integer scalar
-        # arguments by data type and intent
+        # Initialise dictionaries of 'real', 'integer' and 'logical'
+        # scalar arguments by data type and intent
         self._scalar_args = {}
         self._real_scalars = {}
-        self._int_scalars = {}
+        self._integer_scalars = {}
+        self._logical_scalars = {}
         for intent in FORTRAN_INTENT_NAMES:
             self._scalar_args[intent] = []
             self._real_scalars[intent] = []
-            self._int_scalars[intent] = []
+            self._integer_scalars[intent] = []
+            self._logical_scalars[intent] = []
 
     def _invoke_declarations(self, parent):
         '''
@@ -3216,7 +3219,7 @@ class LFRicScalarArgs(DynCollection):
                                  within the same Invoke.
 
         '''
-        # Create dict of all scalar arguments for checks
+        # Create dictionary of all scalar arguments for checks
         const = LFRicConstants()
         self._scalar_args = self._invoke.unique_declns_by_intent(
             const.VALID_SCALAR_NAMES)
@@ -3224,34 +3227,43 @@ class LFRicScalarArgs(DynCollection):
         self._real_scalars = self._invoke.unique_declns_by_intent(
             const.VALID_SCALAR_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        self._int_scalars = self._invoke.unique_declns_by_intent(
+        self._integer_scalars = self._invoke.unique_declns_by_intent(
             const.VALID_SCALAR_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
+        self._logical_scalars = self._invoke.unique_declns_by_intent(
+            const.VALID_SCALAR_NAMES,
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
 
         for intent in FORTRAN_INTENT_NAMES:
             scal = [arg.declaration_name for arg in self._scalar_args[intent]]
             rscal = [arg.declaration_name for
                      arg in self._real_scalars[intent]]
             iscal = [arg.declaration_name for
-                     arg in self._int_scalars[intent]]
+                     arg in self._integer_scalars[intent]]
+            lscal = [arg.declaration_name for
+                     arg in self._logical_scalars[intent]]
+            # Add "real", "integer" and "logical" scalar lists for checks
+            decl_scal = rscal + iscal + lscal
             # Check for unsupported intrinsic types
-            scal_inv = set(scal) - set(rscal).union(set(iscal))
+            scal_inv = sorted(set(scal) - set(decl_scal))
             if scal_inv:
                 raise InternalError(
                     "Found unsupported intrinsic types for the scalar "
                     "arguments {0} to Invoke '{1}'. Supported types are {2}.".
-                    format(list(scal_inv), self._invoke.name,
+                    format(scal_inv, self._invoke.name,
                            const.VALID_INTRINSIC_TYPES))
-            # Check that the same scalar name is not found in both real and
-            # integer scalar lists (for instance if passed to one kernel as
-            # a real and to another kernel as an integer scalar)
-            scal_multi_type = set(rscal).intersection(set(iscal))
+            # Check that the same scalar name is not found in either of
+            # 'real', 'integer' or 'logical' scalar lists (for instance if
+            # passed to one kernel as a 'real' and to another kernel as an
+            # 'integer' scalar)
+            scal_multi_type = [item for item, count in
+                               Counter(decl_scal).items() if count > 1]
             if scal_multi_type:
                 raise GenerationError(
                     "Scalar argument(s) {0} in Invoke '{1}' have different "
                     "metadata for data type ({2}) in different kernels. "
                     "This is invalid.".
-                    format(list(scal_multi_type), self._invoke.name,
+                    format(scal_multi_type, self._invoke.name,
                            list(const.MAPPING_DATA_TYPES.keys())))
 
         # Create declarations
@@ -3281,7 +3293,9 @@ class LFRicScalarArgs(DynCollection):
                 if arg.descriptor.data_type == "gh_real":
                     self._real_scalars[intent].append(arg)
                 elif arg.descriptor.data_type == "gh_integer":
-                    self._int_scalars[intent].append(arg)
+                    self._integer_scalars[intent].append(arg)
+                elif arg.descriptor.data_type == "gh_logical":
+                    self._logical_scalars[intent].append(arg)
                 else:
                     raise InternalError(
                         "Found an unsupported data type '{0}' for the "
@@ -3305,26 +3319,43 @@ class LFRicScalarArgs(DynCollection):
         const = LFRicConstants()
         # Real scalar arguments
         dtype = const.MAPPING_DATA_TYPES["gh_real"]
+        dkind = api_config.default_kind[dtype]
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
                 real_scalar_names = [arg.declaration_name for arg
                                      in self._real_scalars[intent]]
                 parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
+                    DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=real_scalar_names,
                             intent=intent))
 
         # Integer scalar arguments
         dtype = const.MAPPING_DATA_TYPES["gh_integer"]
+        dkind = api_config.default_kind[dtype]
         for intent in FORTRAN_INTENT_NAMES:
-            if self._int_scalars[intent]:
-                int_scalar_names = [arg.declaration_name for arg
-                                    in self._int_scalars[intent]]
+            if self._integer_scalars[intent]:
+                integer_scalar_names = [arg.declaration_name for arg
+                                        in self._integer_scalars[intent]]
                 parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
-                            entity_decls=int_scalar_names,
+                    DeclGen(parent, datatype=dtype, kind=dkind,
+                            entity_decls=integer_scalar_names,
+                            intent=intent))
+
+        # Logical scalar arguments
+        dtype = const.MAPPING_DATA_TYPES["gh_logical"]
+        dkind = api_config.default_kind[dtype]
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._logical_scalars[intent]:
+                if self._invoke:
+                    (self._invoke.invokes.psy.
+                     infrastructure_modules["constants_mod"].add(dkind))
+                if self._kernel:
+                    self._kernel.argument_kinds.add(dkind)
+                logical_scalar_names = [arg.declaration_name for arg
+                                        in self._logical_scalars[intent]]
+                parent.add(
+                    DeclGen(parent, datatype=dtype, kind=dkind,
+                            entity_decls=logical_scalar_names,
                             intent=intent))
 
 
@@ -7299,6 +7330,11 @@ class DynKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
+        # Initialise kinds (precisions) of all kernel arguments (start
+        # with 'real' and 'integer' kinds)
+        api_config = Config.get().api_conf("dynamo0.3")
+        self._argument_kinds = {api_config.default_kind["real"],
+                                api_config.default_kind["integer"]}
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -7368,6 +7404,8 @@ class DynKern(CodedKern):
                     pre = "rscalar_"
                 elif descriptor.data_type.lower() == "gh_integer":
                     pre = "iscalar_"
+                elif descriptor.data_type.lower() == "gh_logical":
+                    pre = "lscalar_"
                 else:
                     raise InternalError(
                         "Expected one of {0} data types for a scalar "
@@ -7678,6 +7716,15 @@ class DynKern(CodedKern):
         return self._base_name
 
     @property
+    def argument_kinds(self):
+        '''
+        :returns: kinds (precisions) for all arguments in a kernel.
+        :rtype: set of str
+
+        '''
+        return self._argument_kinds
+
+    @property
     def gen_stub(self):
         '''
         Create the fparser1 AST for a kernel stub.
@@ -7703,19 +7750,12 @@ class DynKern(CodedKern):
                 "in kernel '{2}'.".format(supported_operates_on,
                                           self.iterates_over, self.name))
 
-        # Get configuration for valid argument kinds
-        api_config = Config.get().api_conf("dynamo0.3")
-
         # Create an empty PSy layer module
         psy_module = ModuleGen(self._base_name+"_mod")
 
         # Create the subroutine
         sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
-        sub_stub.add(
-            UseGen(sub_stub, name="constants_mod", only=True,
-                   funcnames=[api_config.default_kind["real"],
-                              api_config.default_kind["integer"]]))
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
@@ -7724,6 +7764,11 @@ class DynKern(CodedKern):
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
+
+        # Add "use" statement with kinds (precisions) of all arguments
+        sub_stub.add(
+            UseGen(sub_stub, name="constants_mod", only=True,
+                   funcnames=sorted(list(self._argument_kinds), reverse=True)))
 
         # Create the arglist
         create_arg_list = KernStubArgList(self)

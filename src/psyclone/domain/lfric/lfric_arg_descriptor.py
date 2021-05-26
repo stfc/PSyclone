@@ -168,7 +168,7 @@ class LFRicArgDescriptor(Descriptor):
                 format(const.VALID_ARG_DATA_TYPES,
                        dtype, arg_type))
 
-        # The 3rd arg is an access descriptor. Permitted accesses for each
+        # The 3rd arg is an access descriptor. Allowed accesses for each
         # argument type are dealt with in the related _init methods.
         # Convert from GH_* names to the generic access type
         api_config = Config.get().api_conf(API)
@@ -292,7 +292,7 @@ class LFRicArgDescriptor(Descriptor):
                                passed in.
         :raises ParseError: if there are fewer than 4 metadata arguments.
         :raises ParseError: if there are more than 5 metadata arguments.
-        :raises InternalError: if a field argument has an invalid data type.
+        :raises ParseError: if a field argument has an invalid data type.
         :raises ParseError: if the 4th argument is not a valid function space.
         :raises ParseError: if the optional 5th argument is not a stencil \
                             specification or a mesh identifier (for \
@@ -347,10 +347,11 @@ class LFRicArgDescriptor(Descriptor):
 
         # Check whether an invalid data type for a field argument is passed in.
         if self._data_type not in const.VALID_FIELD_DATA_TYPES:
-            raise InternalError(
-                "Expected one of {0} as the field data type but got '{1}'.".
+            raise ParseError(
+                "In the LFRic API the allowed data types for field "
+                "arguments are one of {0}, but found '{1}' in '{2}'.".
                 format(const.VALID_FIELD_DATA_TYPES,
-                       self._data_type))
+                       self._data_type, arg_type))
 
         # The 4th argument must be a valid function-space name
         prop_ind = 3
@@ -478,8 +479,7 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if argument type other than an operator is \
                                passed in.
         :raises ParseError: if there are not exactly 5 metadata arguments.
-        :raises ParseError: if an operator argument has an invalid data \
-                            type (the only permitted data type is 'gh_real').
+        :raises ParseError: if an operator argument has an invalid data type.
         :raises ParseError: if the function space to- is not one of the \
                             valid function spaces.
         :raises ParseError: if the function space from- is not one of the \
@@ -509,7 +509,7 @@ class LFRicArgDescriptor(Descriptor):
         # in. The only valid data type for operators in LFRic API is "gh_real".
         if self._data_type not in const.VALID_OPERATOR_DATA_TYPES:
             raise ParseError(
-                "In the LFRic API the permitted data types for operator "
+                "In the LFRic API the allowed data types for operator "
                 "arguments are one of {0}, but found '{1}' in '{2}'.".
                 format(const.VALID_OPERATOR_DATA_TYPES,
                        self._data_type, arg_type))
@@ -583,7 +583,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._nargs != nargs_scalar:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have {0} "
-                "arguments if its first argument is 'gh_{{r,i}}scalar', but "
+                "arguments if its first argument is 'gh_scalar', but "
                 "found {1} in '{2}'.".
                 format(nargs_scalar, self._nargs, arg_type))
 
