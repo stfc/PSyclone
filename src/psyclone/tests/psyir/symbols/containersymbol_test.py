@@ -161,7 +161,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     create_dummy_module(path)
     container = fminterface.import_container("dummy_module")
     assert isinstance(container, Container)
-    assert container.name == "dummy_module"
+    assert container.name.lower() == "dummy_module"
 
     # Import the wrong module, additionally it tests that the uppercase
     # F90 extension is also being imported as it does not produce a file
