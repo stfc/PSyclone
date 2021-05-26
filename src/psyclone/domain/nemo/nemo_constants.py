@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,47 +31,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 
-# This makefile compiles a PSyData profiling wrapper library using the LFRic
-# timer code. It can be used with any code, not only with LFRic.
+'''
+This module provides a class with all GOcean related constants.
+'''
 
-# This defaults to the infrastructure library included in PSyclone
-LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
+# Imports
+from __future__ import print_function, absolute_import
 
-F90?=gfortran
-F90FLAGS?=-g
-F90FLAGS += -I$(LFRIC_DIR)
 
-PSY_OBJS = profile_psy_data_mod.o
-LFRIC_OBJS = timer_mod.o log_mod.o scalar_mod.o mpi_mod.o io_utility_mod.o
-LFRIC_OBJS_FULL_PATH = $(patsubst %,$(LFRIC_DIR)/%,$(LFRIC_OBJS))
+# pylint: disable=too-few-public-methods
+class NemoConstants(object):
+    '''This class stores all Nemo constants.
+    It stores all values in class variables (to avoid re-evaluating them).
+    At this stage it only contains the variables that might be used in
+    psyGen.
+    # TODO #1223 - Add more constants into this object (if required).
+    '''
 
-.phony: default clean
+    HAS_BEEN_INITIALISED = False
 
-default: libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a
+    def __init__(self):
+        if NemoConstants.HAS_BEEN_INITIALISED:
+            return
 
-# First target: this needs to be linked with the LFRic
-# infrastructure library.
-libpsy_lfric_timer.a: $(PSY_OBJS)
-	ar rs $@ $<
+        NemoConstants.HAS_BEEN_INITIALISED = True
 
-# Second target: this library contains the required files
-# from the infrastructure library, and can be used by any
-# application, not only LFRic.
-libpsy_lfric_timer_standalone.a: $(LFRIC_LIB) $(PSY_OBJS)
-	ar rs $@ $(LFRIC_OBJS_FULL_PATH) $(PSY_OBJS)
+        # Valid intrinsic types of kernel argument data, used in psyGen.
+        NemoConstants.VALID_INTRINSIC_TYPES = []
 
-# Trigger recompilation if the infrastructure lib is changed
-$(OBJS): $(LFRIC_LIB)
+        # psyGen argument types
+        NemoConstants.VALID_ARG_TYPE_NAMES = []
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_DIR)
+        # psyGen names of internal scalar argument types.
+        NemoConstants.VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
 
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
 
-clean:
-	rm -f libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a *.mod *.o
-
+# =============================================================================
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
+__all__ = ['NemoConstants']

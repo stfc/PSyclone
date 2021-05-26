@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented
@@ -44,22 +45,13 @@ from __future__ import absolute_import
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.f2pygen import AssignGen
 from psyclone.configuration import Config
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "lfric_builtins_mod.f90"
-
-# The types of argument that are valid for built-in kernels in the
-# LFRic API
-VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
-    LFRicArgDescriptor.VALID_SCALAR_NAMES
-
-# Valid LFRic iteration spaces for built-in kernels
-# TODO #870 rm 'dofs' from list below.
-BUILTIN_ITERATION_SPACES = ["dofs", "dof"]
 
 
 # Function to return the built-in operations that we support for this API.
@@ -124,13 +116,16 @@ class LFRicBuiltInCallFactory(object):
         builtin = BUILTIN_MAP[call.func_name]()
 
         # Create the loop over DoFs
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynLoop
+        const = LFRicConstants()
         dofloop = DynLoop(parent=parent,
-                          loop_type=BUILTIN_ITERATION_SPACES[0])
+                          loop_type=const.BUILTIN_ITERATION_SPACES[0])
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
-        builtin.load(call, parent=dofloop)
+        builtin.load(call, parent=dofloop.loop_body)
 
         # Set-up its state
         dofloop.load(builtin)
@@ -138,7 +133,6 @@ class LFRicBuiltInCallFactory(object):
         # As it is the innermost loop it has the kernel as a loop_body
         # child.
         dofloop.loop_body.addchild(builtin)
-        builtin.parent = dofloop.loop_body
 
         # Return the outermost loop
         return dofloop
@@ -172,18 +166,15 @@ class LFRicBuiltIn(BuiltIn):
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import FSDescriptors, DynKernelArguments
-        self._parent = parent  # Needed on the DynKernelArguments() below
-        BuiltIn.load(self, call, DynKernelArguments(call, self), parent)
+        BuiltIn.load(self, call, DynKernelArguments, parent)
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
         self._idx_name = \
             self.root.symbol_table.symbol_from_tag("dof_loop_idx", "df").name
-        # parent was needed for DynKernelArguments but is never added as a
-        # children of another node during the load(), so the link must be
-        # reverted
-        self._parent = None
         # Check that this built-in kernel is valid
         self._validate()
 
@@ -194,6 +185,8 @@ class LFRicBuiltIn(BuiltIn):
         :raises ParseError: if a built-in call does not iterate over DoFs.
         :raises ParseError: if an argument to a built-in kernel is not \
                             one of valid argument types.
+        :raises ParseError: if an argument to a built-in kernel has \
+                            an invalid data type.
         :raises ParseError: if a built-in kernel writes to more than \
                             one argument.
         :raises ParseError: if a built-in kernel does not have at least \
@@ -203,8 +196,9 @@ class LFRicBuiltIn(BuiltIn):
                             built-in do not have the same data type.
 
         '''
+        const = LFRicConstants()
         # Check that our assumption that we're looping over DoFs is valid
-        if self.iterates_over not in BUILTIN_ITERATION_SPACES:
+        if self.iterates_over not in const.BUILTIN_ITERATION_SPACES:
             raise ParseError(
                 "In the LFRic API built-in calls must operate on "
                 "DoFs but found '{0}' for {1}.".
@@ -217,18 +211,26 @@ class LFRicBuiltIn(BuiltIn):
         data_types = set()
         for arg in self.arg_descriptors:
             # Check valid argument types
-            if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
+            if arg.argument_type not in const.VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
                     "In the LFRic API an argument to a built-in kernel "
                     "must be one of {0} but kernel '{1}' has an argument of "
-                    "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
-                                         arg.argument_type))
+                    "type '{2}'.".format(const.VALID_BUILTIN_ARG_TYPES,
+                                         self.name, arg.argument_type))
+            # Check valid data types
+            if arg.data_type not in const.VALID_BUILTIN_DATA_TYPES:
+                raise ParseError(
+                    "In the LFRic API an argument to a built-in kernel "
+                    "must have one of {0} as a data type but kernel '{1}' "
+                    "has an argument of data type '{2}'.".
+                    format(const.VALID_BUILTIN_DATA_TYPES,
+                           self.name, arg.data_type))
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
                               AccessType.READWRITE]:
                 write_count += 1
-            if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+            if arg.argument_type in const.VALID_FIELD_NAMES:
                 field_count += 1
                 spaces.add(arg.function_space)
                 data_types.add(arg.data_type)

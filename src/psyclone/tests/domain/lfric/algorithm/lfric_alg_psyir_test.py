@@ -32,20 +32,45 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
-'''Module containing tests for the translation of PSyIR to LFRic
-Algorithm PSyIR.
+'''Module containing tests for the LFRicAlgorithmInvokeCall,
+LFRicBuiltinFunctor and LFRicKernelFunctor LFRic
+algorithm-layer-specific nodes. The tests include translation of PSyIR
+to LFRic Algorithm PSyIR and from LFRic Algorithm PSyIR to processed
+PSyIR.
 
 '''
 from __future__ import absolute_import
 import pytest
 
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Node, Reference
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, \
     LFRicBuiltinFunctor
+from psyclone.domain.lfric.transformations import LFRicAlgTrans
+
+
+def create_alg_psyir(code):
+    '''Utility to create an LFRic Algorithm PSyIR tree from Fortran
+    code.
+
+    :param str code: Fortran algorithm code encoded as a string.
+
+    :returns: LFRic Algorithm PSyIR tree representing the Fortran \
+        code.
+    :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    fortran_reader = FortranReader()
+    psyir = fortran_reader.psyir_from_source(code)
+    alg_trans = LFRicAlgTrans()
+    alg_trans.apply(psyir)
+
+    return psyir
 
 
 def test_lfricalgorithminvokecall():
@@ -54,10 +79,12 @@ def test_lfricalgorithminvokecall():
 
     '''
     routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall(routine)
+    index = 2
+    call = LFRicAlgorithmInvokeCall(routine, index)
     assert call._description is None
     assert call.parent is None
     assert call.routine is routine
+    assert call._index == index
     assert call._text_name == "LFRicAlgorithmInvokeCall"
 
 
@@ -70,7 +97,7 @@ def test_lfricalgorithminvokecall_options():
     node = Node()
     routine = RoutineSymbol("hello")
     call = LFRicAlgorithmInvokeCall(
-        routine, description="describing an invoke", parent=node)
+        routine, 0, description="describing an invoke", parent=node)
     assert call._description == "describing an invoke"
     assert call.parent is node
 
@@ -90,7 +117,7 @@ def test_lfricalgorithminvokecall_create(cls):
     '''
     routine = RoutineSymbol("hello")
     klc = LFRicKernelFunctor.create(TypeSymbol("arg", StructureType()), [])
-    call = cls.create(routine, [klc], description="describing an invoke")
+    call = cls.create(routine, [klc], 0, description="describing an invoke")
     assert call._description == "describing an invoke"
     assert call.routine is routine
     # pylint: disable=unidiomatic-typecheck
@@ -105,8 +132,51 @@ def test_lfricalgorithminvokecall_create_nodescription():
 
     '''
     routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall.create(routine, [])
+    call = LFRicAlgorithmInvokeCall.create(routine, [], 0)
     assert call._description is None
+
+
+def test_lfricalgorithminvoke_call_root_name():
+    '''Check that an LFRicAlgorithmInvokeCall node is translated into the
+    expected PSyIR call node when the lower_to_language_level() method
+    is called. This test exercises the _def_routine_root_name(). The
+    rest of the functionality is in the parent class.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1\n"
+        "  call invoke(kern(field1))\n"
+        "  call invoke(kern(field1), name=\"test 1\")\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+
+    assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 2
+    assert len(psyir.walk(LFRicKernelFunctor)) == 2
+
+    psyir.lower_to_language_level()
+
+    assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 0
+    assert len(psyir.walk(LFRicKernelFunctor)) == 0
+    call0 = psyir.children[0]
+    assert call0.routine.name == "invoke_0_kern"
+    assert call0.routine.is_global
+    assert call0.routine.interface.container_symbol.name == "invoke_0_kern_mod"
+    args = call0.children
+    assert len(args) == 1
+    assert isinstance(args[0], Reference)
+    assert args[0].symbol.name == "field1"
+    call1 = psyir.children[1]
+    assert call1.routine.name == "test_1"
+    assert call1.routine.is_global
+    assert call1.routine.interface.container_symbol.name == "test_1_mod"
+    args = call1.children
+    assert len(args) == 1
+    assert isinstance(args[0], Reference)
+    assert args[0].symbol.name == "field1"
 
 
 def test_lfricalgorithminvokecall_node_str():
@@ -116,7 +186,7 @@ def test_lfricalgorithminvokecall_node_str():
     '''
     routine = RoutineSymbol("hello")
     call = LFRicAlgorithmInvokeCall.create(
-        routine, [], description="describing an invoke")
+        routine, [], 0, description="describing an invoke")
     assert ("LFRicAlgorithmInvokeCall[description=\"describing an invoke\"]"
             in call.node_str(colour=False))
 

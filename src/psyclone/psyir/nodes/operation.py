@@ -175,7 +175,6 @@ class UnaryOperation(Operation):
 
         unary_op = UnaryOperation(oper)
         unary_op.children = [child]
-        child.parent = unary_op
         return unary_op
 
 
@@ -194,9 +193,9 @@ class BinaryOperation(Operation):
         'AND', 'OR',
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
-        # Casting operators with precise type specified by second argument
-        'REAL', 'INT',
-        # Query Operators
+        # Casting operators
+        'REAL', 'INT', 'CAST',
+        # Array Query Operators
         'SIZE', 'LBOUND', 'UBOUND',
         # Matrix and Vector Operators
         'MATMUL'
@@ -207,7 +206,7 @@ class BinaryOperation(Operation):
 
        :returns: `arg0` raised to the power of `arg1`.
 
-    Query operators:
+    Array query operators:
 
     .. function:: SIZE(array, index) -> int
 
@@ -234,6 +233,11 @@ class BinaryOperation(Operation):
 
        :returns: `arg0` converted to an integer number of the specified \
                   precision.
+
+    .. function:: CAST(arg0, mold)
+
+       :returns: `arg0` with the same bitwise representation but interpreted \
+                 with the same type as the specified `mold` argument.
 
     Matrix and Vector Operators:
 
@@ -330,8 +334,6 @@ class BinaryOperation(Operation):
 
         binary_op = BinaryOperation(oper)
         binary_op.children = [lhs, rhs]
-        lhs.parent = binary_op
-        rhs.parent = binary_op
         return binary_op
 
 
@@ -395,8 +397,6 @@ class NaryOperation(Operation):
 
         nary_op = NaryOperation(oper)
         nary_op.children = children
-        for child in children:
-            child.parent = nary_op
         return nary_op
 
 

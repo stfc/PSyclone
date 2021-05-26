@@ -46,7 +46,7 @@ from fparser import api as fpapi
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Schedule
-from psyclone.domain.lfric import FunctionSpace
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
@@ -57,6 +57,24 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
+
+
+def test_constructor_invalid_loop_type(monkeypatch):
+    ''' Check that the constructor raises the expected errors when an invalid
+    loop type is specified. '''
+    # An invalid type should be caught by the setter in the base Loop class.
+    with pytest.raises(GenerationError) as err:
+        DynLoop(loop_type="wrong")
+    const = LFRicConstants()
+    assert ("Error, loop_type value (wrong) is invalid. Must be one of {0}."
+            .format(const.VALID_LOOP_TYPES) in str(err.value))
+    # Monkeypatch the list of valid loop types so as to reach the code
+    # that attempts to set the loop variable.
+    monkeypatch.setattr(LFRicConstants, "VALID_LOOP_TYPES", ["wrong"])
+    with pytest.raises(InternalError) as err:
+        DynLoop(loop_type="wrong")
+    assert ("Unsupported loop type 'wrong' found when creating loop variable."
+            " Supported values are 'colours'" in str(err.value))
 
 
 def test_set_lower_bound_functions():
@@ -223,8 +241,9 @@ def test_dynloop_load_unexpected_func_space():
     # We can now raise the exception.
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
+    const = LFRicConstants()
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of " + str(FunctionSpace.VALID_FUNCTION_SPACES) +
+            "one of " + str(const.VALID_FUNCTION_SPACES) +
             " but found 'broken'" in str(err.value))
 
 
@@ -513,9 +532,9 @@ def test_null_loop():
     ast = fpapi.parse('''
 module testkern_mod
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), meta_args(2) =                   &
-          (/ arg_type(gh_scalar, gh_real, gh_read),   &
-             arg_type(gh_field, gh_readwrite, w3)     &
+     type(arg_type), meta_args(2) =                         &
+          (/ arg_type(gh_scalar, gh_real, gh_read),         &
+             arg_type(gh_field,  gh_real, gh_readwrite, w3) &
            /)
      integer :: operates_on = cell_column
    contains

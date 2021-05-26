@@ -53,8 +53,10 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType
 from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Operation, BinaryOperation
-from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.nemo import NemoLoop
 from psyclone.configuration import Config
+from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
+    import CreateNemoKernelTrans
 
 
 class NemoArrayRange2LoopTrans(Transformation):
@@ -229,12 +231,11 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "assignment are not equal. This is invalid PSyIR and "
                     "should never happen.")
             idx = get_outer_index(array)
-            array.children[idx] = Reference(loop_variable_symbol, parent=array)
+            array.children[idx] = Reference(loop_variable_symbol)
         position = assignment.position
         loop = NemoLoop.create(loop_variable_symbol, lower_bound,
                                upper_bound, step, [assignment.detach()])
         parent.children.insert(position, loop)
-        loop.parent = parent
 
         try:
             _ = get_outer_index(array_reference)
@@ -242,13 +243,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             # All valid array ranges have been replaced with explicit
             # loops. We now need to take the content of the loop and
             # place it within a NemoKern (inlined kernel) node.
-            parent = assignment.parent
-            # We do not provide the fparser2 ast of the code as we are
-            # moving towards using visitors rather than gen_code when
-            # outputting nemo api code
-            inlined_kernel = NemoKern([assignment.detach()], None)
-            parent.children = [inlined_kernel]
-            inlined_kernel.parent = parent
+            CreateNemoKernelTrans().apply(assignment.parent)
 
     def __str__(self):
         return (

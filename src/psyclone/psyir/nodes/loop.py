@@ -41,10 +41,12 @@
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.node import colored
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.psyir.symbols import ScalarType, DataSymbol
-from psyclone.core.access_info import AccessType
+from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
+from psyclone.f2pygen import DoGen, DeclGen
 
 
 class Loop(Statement):
@@ -200,11 +202,6 @@ class Loop(Statement):
         loop = Loop(variable=variable)
         schedule = Schedule(parent=loop, children=children)
         loop.children = [start, stop, step, schedule]
-        for child in children:
-            child.parent = schedule
-        start.parent = loop
-        stop.parent = loop
-        step.parent = loop
         return loop
 
     def _check_completeness(self):
@@ -303,11 +300,12 @@ class Loop(Statement):
         :rtype: string
 
         '''
+        _, position = self._find_position(self.ancestor(Routine))
+
         if self.loop_type:
-            name = "loop_[{0}]_".format(self.loop_type) + \
-                   str(self.abs_position)
+            name = "loop_[{0}]_{1}".format(self.loop_type, str(position))
         else:
-            name = "loop_" + str(self.abs_position)
+            name = "loop_" + str(position)
         return name
 
     @property
@@ -445,8 +443,10 @@ class Loop(Statement):
         # the dependency analysis for declaring openmp private variables
         # will automatically declare the loop variables to be private
         # (write access before read)
-        var_accesses.add_access(self.variable.name, AccessType.WRITE, self)
-        var_accesses.add_access(self.variable.name, AccessType.READ, self)
+        var_accesses.add_access(Signature(self.variable.name),
+                                AccessType.WRITE, self)
+        var_accesses.add_access(Signature(self.variable.name),
+                                AccessType.READ, self)
 
         # Accesses of the start/stop/step expressions
         self.start_expr.reference_accesses(var_accesses)
@@ -512,6 +512,8 @@ class Loop(Statement):
         '''Return all arguments of type arg_types and arg_accesses. If these
         are not set then return all arguments. If unique is set to
         True then only return uniquely named arguments'''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import args_filter
         all_args = []
         all_arg_names = []
@@ -535,7 +537,9 @@ class Loop(Statement):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.psyGen import zero_reduction_variables
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import zero_reduction_variables, InvokeSchedule
 
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.
@@ -551,14 +555,16 @@ class Loop(Statement):
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self.root.opencl or (is_unit_literal(self.start_expr) and
-                                is_unit_literal(self.stop_expr)):
+        invoke = self.ancestor(InvokeSchedule)
+        if invoke.opencl or (is_unit_literal(self.start_expr) and
+                             is_unit_literal(self.stop_expr)):
             # no need for a loop
             for child in self.loop_body:
                 child.gen_code(parent)
         else:
+            # Avoid circular dependency
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.backend.fortran import FortranWriter
-            from psyclone.f2pygen import DoGen, DeclGen
             # start/stop/step_expr are generated with the FortranWriter
             # backend, the rest of the loop with f2pygen.
             fwriter = FortranWriter()

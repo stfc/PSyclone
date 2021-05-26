@@ -42,7 +42,7 @@ command, it is not designed to be directly run from python.
 from __future__ import print_function
 from psyclone.transformations import ACCEnterDataTrans, \
     ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans, ACCKernelsTrans
-from psyclone.domain.lfric.function_space import FunctionSpace
+from psyclone.domain.lfric import LFRicConstants
 
 
 def trans(psy):
@@ -59,6 +59,7 @@ def trans(psy):
     ctrans = Dynamo0p3ColourTrans()
     loop_trans = ACCLoopTrans()
     enter_trans = ACCEnterDataTrans()
+    const = LFRicConstants()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -68,7 +69,7 @@ def trans(psy):
         # Colour loops as required
         for loop in schedule.loops():
             if loop.field_space.orig_name \
-               not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
+               not in const.VALID_DISCONTINUOUS_NAMES \
                and loop.iteration_space == "cell_column":
                 ctrans.apply(loop)
 

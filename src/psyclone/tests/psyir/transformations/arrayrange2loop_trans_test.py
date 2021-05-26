@@ -538,7 +538,7 @@ def test_validate():
 
     array_symbol = DataSymbol("x", ArrayType(INTEGER_TYPE, [10, 10]))
     one = Literal("1", INTEGER_TYPE)
-    array_assignment = ArrayReference.create(array_symbol, [one, one])
+    array_assignment = ArrayReference.create(array_symbol, [one, one.copy()])
     with pytest.raises(TransformationError) as info:
         trans.validate(Assignment.create(array_assignment, DataNode()))
     assert (

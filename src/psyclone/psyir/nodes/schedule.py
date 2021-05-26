@@ -38,31 +38,19 @@
 
 ''' This module contains the Schedule node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.symbols import SymbolTable
 
 
-class Schedule(Node):
+class Schedule(ScopingNode):
     ''' Stores schedule information for a sequence of statements (supplied
     as a list of children).
-
-    :param children: the PSyIR nodes that are children of this Schedule.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent node of this Schedule in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
-    :param symbol_table: initialise the Schedule with a given symbol table.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
-            NoneType
 
     '''
     # Textual description of the node.
     _children_valid_format = "[Statement]*"
     _text_name = "Schedule"
     _colour = "white"
-
-    # Polymorphic parameter to initialize the Symbol Table of the Schedule
-    _symbol_table_class = SymbolTable
 
     @staticmethod
     def _validate_child(position, child):
@@ -78,40 +66,17 @@ class Schedule(Node):
         # pylint: disable=unused-argument
         return isinstance(child, Statement)
 
-    def __init__(self, children=None, parent=None, symbol_table=None):
-        super(Schedule, self).__init__(self, children=children, parent=parent)
-        if symbol_table:
-            self._symbol_table = symbol_table
-        else:
-            self._symbol_table = self._symbol_table_class(self)
-
-    def _refine_copy(self, other):
-        ''' Refine the object attributes when a shallow copy is not the most
-        appropriate operation during a call to the copy() method.
-
-        :param other: object we are copying from.
-        :type other: :py:class:`psyclone.psyir.node.Node`
-
-        :raises NotImplementedError: Schedule copy is not supported yet.
-        '''
-        raise NotImplementedError(
-            "Schedule copies are currently not supported.")
-
     @property
     def dag_name(self):
         '''
         :returns: The name of this node in the dag.
         :rtype: str
         '''
-        return "schedule_" + str(self.abs_position)
-
-    @property
-    def symbol_table(self):
-        '''
-        :returns: table containing symbol information for the Schedule.
-        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
-        '''
-        return self._symbol_table
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        _, position = self._find_position(self.ancestor(Routine))
+        return "schedule_" + str(position)
 
     def __getitem__(self, index):
         '''
@@ -141,3 +106,7 @@ class Schedule(Node):
         '''
         for child in self.children:
             child.gen_code(parent)
+
+
+# For AutoAPI documentation generation
+__all__ = ['Schedule']

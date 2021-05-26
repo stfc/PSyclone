@@ -376,6 +376,27 @@ def test_invokeschedule_can_be_printed():
     assert "InvokeSchedule:\n" in output
 
 
+def test_invokeschedule_gen_code_with_preexisting_globals():
+    ''' Check the InvokeSchedule gen_code adds pre-existing SymbolTable global
+    variables into the generated f2pygen code. Multiple globals imported from
+    the same module will be part of a single USE statement.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # Add some globals into the SymbolTable before calling gen_code()
+    schedule = psy.invokes.invoke_list[0].schedule
+    my_mod = ContainerSymbol("my_mod")
+    schedule.symbol_table.add(my_mod)
+    global1 = DataSymbol('gvar1', REAL_TYPE, interface=GlobalInterface(my_mod))
+    global2 = DataSymbol('gvar2', REAL_TYPE, interface=GlobalInterface(my_mod))
+    schedule.symbol_table.add(global1)
+    schedule.symbol_table.add(global2)
+
+    assert "USE my_mod, ONLY: gvar1, gvar2" in str(psy.gen)
+
+
 # Kern class test
 
 def test_kern_get_kernel_schedule():
@@ -639,7 +660,6 @@ def test_inlinedkern_children_validation():
 def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
-    my_arguments = Arguments(None)
 
     class KernType(object):
         ''' temporary dummy class '''
@@ -653,8 +673,13 @@ def test_call_abstract_methods():
             self.module_name = "dummy_module"
             self.ktype = ktype
 
+    class DummyArguments(Arguments):
+        ''' temporary dummy class '''
+        def __init__(self, call, parent_call):
+            Arguments.__init__(self, parent_call)
+
     dummy_call = DummyClass(my_ktype)
-    my_call = Kern(None, dummy_call, "dummy", my_arguments)
+    my_call = Kern(None, dummy_call, "dummy", DummyArguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
@@ -723,10 +748,10 @@ def test_kern_is_coloured1():
     assert not kern.is_coloured()
     # Colour the loop around the kernel
     ctrans = Dynamo0p3ColourTrans()
-    cschedule, _ = ctrans.apply(schedule[0])
+    ctrans.apply(schedule[0])
     assert kern.is_coloured()
     # Test when the Kernel appears to have no parent loop
-    kern.parent = schedule
+    schedule.addchild(kern.detach())
     assert not kern.is_coloured()
 
 
@@ -840,27 +865,26 @@ def test_acc_dir_node_str():
     schedule = invoke.schedule
 
     # Enter-data
-    new_sched, _ = accdt.apply(schedule)
-    out = new_sched[0].node_str()
+    accdt.apply(schedule)
+    out = schedule[0].node_str()
     assert out.startswith(
         colored("Directive", colour)+"[ACC enter data]")
 
     # Parallel region around outermost loop
-    new_sched, _ = accpt.apply(new_sched[1])
-    out = new_sched[1].node_str()
+    accpt.apply(schedule[1])
+    out = schedule[1].node_str()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Parallel]")
 
     # Loop directive on outermost loop
-    new_sched, _ = acclt.apply(new_sched[1].dir_body[0])
-    out = new_sched[1].dir_body[0].node_str()
+    acclt.apply(schedule[1].dir_body[0])
+    out = schedule[1].dir_body[0].node_str()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Loop, independent]")
 
     # Loop directive with collapse
-    new_sched, _ = acclt.apply(new_sched[1].dir_body[0].dir_body[0],
-                               {"collapse": 2})
-    out = new_sched[1].dir_body[0].dir_body[0].node_str()
+    acclt.apply(schedule[1].dir_body[0].dir_body[0], {"collapse": 2})
+    out = schedule[1].dir_body[0].dir_body[0].node_str()
     assert out.startswith(
         colored("Directive", colour) + "[ACC Loop, collapse=2, independent]")
 
@@ -928,8 +952,7 @@ def test_args_filter():
     # fuse our loops so we have more than one Kernel in a loop
     schedule = psy.invokes.invoke_list[0].schedule
     ftrans = LFRicLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0],
-                               schedule.children[1])
+    ftrans.apply(schedule.children[0], schedule.children[1])
     # get our loop and call our method ...
     loop = schedule.children[0]
     args = loop.args_filter(unique=True)
@@ -1029,6 +1052,23 @@ def test_call_multi_reduction_error(monkeypatch):
             "or builtin" in str(err.value))
 
 
+def test_invokes_wrong_schedule_gen_code():
+    ''' Check that the invoke.schedule reference points to an InvokeSchedule
+    when using the gen_code. Otherwise rise an error. '''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+
+    # Set the invoke.schedule to something else other than a InvokeSchedule
+    psy.invokes.invoke_list[0].schedule = Node()
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An invoke.schedule element of the invoke_list is a 'Node', "
+            "but it should be an 'InvokeSchedule'." in str(err.value))
+
+
 def test_invoke_name():
     ''' Check that specifying the name of an invoke in the Algorithm
     layer results in a correctly-named routine in the PSy layer '''
@@ -1102,10 +1142,9 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     otrans = Dynamo0p3OMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
-    schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
+    otrans.apply(schedule.children[0], {"reprod": True})
     # Apply an OpenMP Parallel directive around the OpenMP do directive
-    schedule, _ = rtrans.apply(schedule.children[0])
-    invoke.schedule = schedule
+    rtrans.apply(schedule.children[0])
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert (
@@ -1542,8 +1581,8 @@ def test_call_forward_dependence():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
     read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
@@ -1571,8 +1610,8 @@ def test_call_backward_dependence():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   {"same_space": True})
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
     # 1: loop no backwards dependence
     call3 = schedule.children[0].loop_body[2]
     assert not call3.backward_dependence()
@@ -1597,7 +1636,7 @@ def test_omp_forward_dependence():
     schedule = invoke.schedule
     otrans = DynamoOMPParallelLoopTrans()
     for child in schedule.children:
-        schedule, _ = otrans.apply(child)
+        otrans.apply(child)
     read4 = schedule.children[4]
     # 1: returns none if none found
     # a) check many reads
@@ -1620,9 +1659,9 @@ def test_omp_forward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule, _ = otrans.apply(schedule.children[0])
-    schedule, _ = otrans.apply(schedule.children[1])
-    schedule, _ = otrans.apply(schedule.children[3])
+    otrans.apply(schedule.children[0])
+    otrans.apply(schedule.children[1])
+    otrans.apply(schedule.children[3])
     prev_omp = schedule.children[0]
     sum_omp = schedule.children[1]
     global_sum_loop = schedule.children[2]
@@ -1647,7 +1686,7 @@ def test_directive_backward_dependence():
     schedule = invoke.schedule
     otrans = DynamoOMPParallelLoopTrans()
     for child in schedule.children:
-        schedule, _ = otrans.apply(child)
+        otrans.apply(child)
     # 1: omp directive no backwards dependence
     omp3 = schedule.children[2]
     assert not omp3.backward_dependence()
@@ -1665,9 +1704,9 @@ def test_directive_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule, _ = otrans.apply(schedule.children[0])
-    schedule, _ = otrans.apply(schedule.children[1])
-    schedule, _ = otrans.apply(schedule.children[3])
+    otrans.apply(schedule.children[0])
+    otrans.apply(schedule.children[1])
+    otrans.apply(schedule.children[3])
     omp1 = schedule.children[0]
     omp2 = schedule.children[1]
     global_sum = schedule.children[2]
@@ -1696,9 +1735,9 @@ def test_directive_get_private(monkeypatch):
     otrans = Dynamo0p3OMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
-    schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
+    otrans.apply(schedule.children[0], {"reprod": True})
     # Apply an OpenMP Parallel directive around the OpenMP do directive
-    schedule, _ = rtrans.apply(schedule.children[0])
+    rtrans.apply(schedule.children[0])
     directive = schedule.children[0]
     assert isinstance(directive, OMPParallelDirective)
     # Now check that _get_private_list returns what we expect
@@ -1746,7 +1785,7 @@ def test_openmp_pdo_dag_name():
     schedule = invoke.schedule
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
-    schedule, _ = otrans.apply(schedule.children[0])
+    otrans.apply(schedule.children[0])
     assert schedule.children[0].dag_name == "OMP_parallel_do_1"
 
 
@@ -1768,10 +1807,9 @@ def test_omp_dag_names():
     ptrans = OMPParallelTrans()
     # Put an OMP PARALLEL around this loop
     child = schedule.children[0]
-    oschedule, _ = ptrans.apply(child)
+    ptrans.apply(child)
     # Put an OMP DO around this loop
-    schedule, _ = olooptrans.apply(oschedule[0].dir_body[0])
-    # Replace the original loop schedule with the transformed one
+    olooptrans.apply(schedule[0].dir_body[0])
     omp_par_node = schedule.children[0]
     assert omp_par_node.dag_name == "OMP_parallel_1"
     assert omp_par_node.dir_body[0].dag_name == "OMP_do_3"
@@ -1792,13 +1830,13 @@ def test_acc_dag_names():
     accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
     # Enter-data
-    new_sched, _ = accdt.apply(schedule)
+    accdt.apply(schedule)
     assert schedule[0].dag_name == "ACC_data_1"
     # Parallel region
-    new_sched, _ = accpt.apply(new_sched[1])
+    accpt.apply(schedule[1])
     assert schedule[1].dag_name == "ACC_parallel_3"
     # Loop directive
-    new_sched, _ = acclt.apply(new_sched[1].dir_body[0])
+    acclt.apply(schedule[1].dir_body[0])
     assert schedule[1].dir_body[0].dag_name == "ACC_loop_5"
     # Base class
     name = super(ACCEnterDataDirective, schedule[0]).dag_name
@@ -1898,8 +1936,8 @@ def test_acckernelsdirective_update(parser, default_present):
     psy = PSyFactory("nemo", distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     kernels_trans = ACCKernelsTrans()
-    schedule, _ = kernels_trans.apply(schedule.children[0:1],
-                                      {"default_present": default_present})
+    kernels_trans.apply(schedule.children[0:1],
+                        {"default_present": default_present})
     gen_code = str(psy.gen)
     string = ""
     if default_present:

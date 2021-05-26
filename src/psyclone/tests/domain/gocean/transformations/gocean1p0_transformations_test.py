@@ -54,9 +54,9 @@ from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
 from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
-    GOLoopSwapTrans, OMPParallelTrans, \
+    GOLoopSwapTrans, OMPParallelTrans, MoveTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
-    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, \
+    ACCParallelTrans, ACCEnterDataTrans, ACCDataTrans, ACCLoopTrans, \
     OCLTrans, OMPLoopTrans
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
@@ -106,7 +106,7 @@ def test_const_loop_bounds_toggle(tmpdir):
 
     # Next, check the generated code applying the constant loop-bounds
     # transformation.
-    newsched, _ = cbtrans.apply(schedule)
+    cbtrans.apply(schedule)
     gen = str(psy.gen)
     assert schedule._const_loop_bounds is True
     assert "INTEGER istop, jstop" in gen
@@ -117,7 +117,7 @@ def test_const_loop_bounds_toggle(tmpdir):
 
     # Next, check that applying the constant loop-bounds
     # transformation again has no effect.
-    newsched, _ = cbtrans.apply(schedule)
+    cbtrans.apply(schedule)
     gen = str(psy.gen)
     assert "INTEGER istop, jstop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
@@ -126,8 +126,7 @@ def test_const_loop_bounds_toggle(tmpdir):
     assert "DO i=2,istop" in gen
 
     # Finally, test that we can turn-off constant loop bounds.
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
-    invoke.schedule = newsched
+    cbtrans.apply(schedule, {"const_bounds": False})
     gen = str(psy.gen)
     assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
     assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
@@ -145,8 +144,7 @@ def test_const_loop_bounds_invalid_offset():
                              API, idx=0)
     cbtrans = GOConstLoopBoundsTrans()
     schedule = invoke.schedule
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": True})
-    invoke.schedule = newsched
+    cbtrans.apply(schedule, {"const_bounds": True})
     with pytest.raises(GenerationError):
         _ = psy.gen
 
@@ -169,10 +167,9 @@ def test_loop_fuse_different_iterates_over():
 
     # Turn off constant loop bounds (which should have no effect)
     # and repeat
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
+    cbtrans.apply(schedule, {"const_bounds": False})
     with pytest.raises(TransformationError) as err:
-        _, _ = lftrans.apply(newsched.children[0],
-                             newsched.children[1])
+        lftrans.apply(schedule.children[0], schedule.children[1])
     assert "Loops do not have the same iteration space" in str(err.value)
 
 
@@ -221,10 +218,9 @@ def test_omp_parallel_loop(tmpdir):
 
     omp = GOceanOMPParallelLoopTrans()
     cbtrans = GOConstLoopBoundsTrans()
-    omp_sched, _ = omp.apply(schedule.children[0])
-    newsched, _ = cbtrans.apply(omp_sched, {"const_bounds": True})
+    omp.apply(schedule[0])
+    cbtrans.apply(schedule, {"const_bounds": True})
 
-    invoke.schedule = omp_sched
     gen = str(psy.gen)
     gen = gen.lower()
     expected = ("!$omp parallel do default(shared), private(i,j), "
@@ -238,8 +234,7 @@ def test_omp_parallel_loop(tmpdir):
                 "      !$omp end parallel do")
     assert expected in gen
 
-    newsched, _ = cbtrans.apply(omp_sched, {"const_bounds": False})
-    invoke.schedule = newsched
+    cbtrans.apply(schedule, {"const_bounds": False})
     gen = str(psy.gen)
     gen = gen.lower()
     expected = (
@@ -279,10 +274,8 @@ def test_omp_region_with_single_loop(tmpdir):
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
 
-    omp_schedule, _ = ompr.apply(schedule.children[1])
+    ompr.apply(schedule[1])
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
@@ -302,8 +295,7 @@ def test_omp_region_with_single_loop(tmpdir):
     assert call_count == 1
 
     # Repeat the test after turning off constant loop bounds
-    newsched, _ = cbtrans.apply(omp_schedule, {"const_bounds": False})
-    invoke.schedule = newsched
+    cbtrans.apply(schedule, {"const_bounds": False})
     gen = str(psy.gen)
     gen = gen.lower()
     within_omp_region = False
@@ -328,10 +320,8 @@ def test_omp_region_with_slice(tmpdir):
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
-    omp_schedule, _ = ompr.apply(schedule.children[1:])
+    ompr.apply(schedule[1:])
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
@@ -398,9 +388,7 @@ def test_omp_region_no_slice(tmpdir):
     schedule = invoke.schedule
     ompr = OMPParallelTrans()
 
-    omp_schedule, _ = ompr.apply(schedule.children)
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
+    ompr.apply(schedule.children)
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
@@ -430,10 +418,8 @@ def test_omp_region_no_slice_no_const_bounds(tmpdir):
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
 
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
-    omp_schedule, _ = ompr.apply(newsched.children)
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
+    cbtrans.apply(schedule, {"const_bounds": False})
+    ompr.apply(schedule.children)
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
@@ -463,10 +449,8 @@ def test_omp_region_retains_kernel_order1(tmpdir):
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
 
-    omp_schedule, _ = ompr.apply(schedule.children[1:])
+    ompr.apply(schedule.children[1:])
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
@@ -487,8 +471,7 @@ def test_omp_region_retains_kernel_order1(tmpdir):
     assert cu_idx < cv_idx < ts_idx
 
     # Repeat after turning off constant loop bounds
-    newsched, _ = cbtrans.apply(omp_schedule, {"const_bounds": False})
-    invoke.schedule = newsched
+    cbtrans.apply(schedule, {"const_bounds": False})
     gen = str(psy.gen)
     gen = gen.lower()
     # Iterate over the lines of generated code
@@ -518,10 +501,8 @@ def test_omp_region_retains_kernel_order2(tmpdir):
 
     ompr = OMPParallelTrans()
 
-    omp_schedule, _ = ompr.apply(schedule.children[0:2])
+    ompr.apply(schedule.children[0:2])
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
@@ -556,13 +537,11 @@ def test_omp_region_retains_kernel_order3(tmpdir):
     ompl = GOceanOMPLoopTrans()
 
     # Put an OMP Do around the 2nd loop of the schedule
-    omp_schedule, _ = ompl.apply(schedule.children[1])
+    ompl.apply(schedule.children[1])
 
     # Put an OMP Parallel around that single OMP Do
-    schedule, _ = ompr.apply([omp_schedule.children[1]])
+    ompr.apply([schedule.children[1]])
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
@@ -596,17 +575,13 @@ def test_omp_region_before_loops_trans(tmpdir):
     # Put all of the loops in the schedule within a single
     # OpenMP region
     ompr = OMPParallelTrans()
-    omp_schedule, _ = ompr.apply(schedule.children)
+    ompr.apply(schedule.children)
 
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].dir_body[:]:
-        schedule, _ = ompl.apply(child)
-        omp_schedule = schedule
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
+    for child in schedule.children[0].dir_body[:]:
+        ompl.apply(child)
 
     # Store the results of applying this code transformation as
     # a string
@@ -640,18 +615,13 @@ def test_omp_region_after_loops_trans(tmpdir):
     # in the schedule
     ompl = GOceanOMPLoopTrans()
     for child in schedule.children:
-        omp_schedule, _ = ompl.apply(child)
+        ompl.apply(child)
 
     # Now put an OpenMP parallel region around that set of
     # loops
     ompr = OMPParallelTrans()
-    schedule, _ = ompr.apply(omp_schedule.children)
+    ompr.apply(schedule.children)
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
-
-    # Store the results of applying this code transformation as
-    # a string
     gen = str(psy.gen)
 
     # Iterate over the lines of generated code
@@ -683,15 +653,12 @@ def test_omp_region_commutes_with_loop_trans(tmpdir):
     # in the schedule
     ompl = GOceanOMPLoopTrans()
     for child in schedule.children:
-        omp_schedule, _ = ompl.apply(child)
+        ompl.apply(child)
 
     # Now put an OpenMP parallel region around that set of
     # loops
     ompr = OMPParallelTrans()
-    schedule, _ = ompr.apply(omp_schedule.children)
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    ompr.apply(schedule.children)
 
     # Store the results of applying this code transformation as
     # a string
@@ -706,17 +673,13 @@ def test_omp_region_commutes_with_loop_trans(tmpdir):
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
-    omp_schedule, _ = ompr.apply(schedule.children)
+    ompr.apply(schedule.children)
 
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].dir_body[:]:
-        schedule, _ = ompl.apply(child)
-        omp_schedule = schedule
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
+    for child in schedule.children[0].dir_body[:]:
+        ompl.apply(child)
 
     # Store the results of applying this code transformation as
     # a string
@@ -736,24 +699,19 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     schedule = invoke.schedule
     # Turn-off constant loop bounds
     cbtrans = GOConstLoopBoundsTrans()
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
+    cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put an OpenMP do directive around each loop contained
     # in the schedule
     ompl = GOceanOMPLoopTrans()
-    for child in newsched.children:
-        omp_schedule, _ = ompl.apply(child)
+    for child in schedule.children:
+        ompl.apply(child)
 
     # Now put an OpenMP parallel region around that set of
     # loops
     ompr = OMPParallelTrans()
-    schedule, _ = ompr.apply(omp_schedule.children)
+    ompr.apply(schedule.children)
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
-
-    # Store the results of applying this code transformation as
-    # a string
     loop_before_region_gen = str(psy.gen)
 
     # Now we do it again but in the opposite order...
@@ -765,22 +723,18 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     schedule = invoke.schedule
     # Turn-off constant loop bounds
     cbtrans = GOConstLoopBoundsTrans()
-    schedule, _ = cbtrans.apply(schedule, {"const_bounds": False})
+    cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put all of the loops in the schedule within a single
     # OpenMP region
     ompr = OMPParallelTrans()
-    omp_schedule, _ = ompr.apply(schedule.children)
+    ompr.apply(schedule.children)
 
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].dir_body[:]:
-        schedule, _ = ompl.apply(child)
-        omp_schedule = schedule
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = omp_schedule
+    for child in schedule.children[0].dir_body[:]:
+        ompl.apply(child)
 
     # Store the results of applying this code transformation as
     # a string
@@ -845,13 +799,10 @@ def test_omp_loop_outside_region():
     ompr = OMPParallelTrans()
 
     for child in schedule.children:
-        omp_schedule, _ = ompl.apply(child)
+        ompl.apply(child)
 
     # Now enclose all but the last loop in a parallel region
-    ompr_schedule, _ = ompr.apply(omp_schedule.children[0:-2])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = ompr_schedule
+    ompr.apply(schedule.children[0:-2])
 
     # Attempt to generate the transformed code
     with pytest.raises(GenerationError):
@@ -867,13 +818,13 @@ def test_omp_loop_applied_to_non_loop():
     schedule = invoke.schedule
 
     ompl = OMPLoopTrans()
-    omp_schedule, _ = ompl.apply(schedule.children[0])
+    ompl.apply(schedule.children[0])
 
     # Attempt to (erroneously) apply the OMP Loop transformation
     # to the first node in the schedule (which is now itself an
     # OMP Loop transformation)
     with pytest.raises(TransformationError):
-        _, _ = ompl.apply(omp_schedule.children[0])
+        ompl.apply(schedule.children[0])
 
 
 def test_go_omp_loop_applied_to_non_loop():
@@ -885,17 +836,17 @@ def test_go_omp_loop_applied_to_non_loop():
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans()
-    omp_schedule, _ = ompl.apply(schedule.children[0])
+    ompl.apply(schedule.children[0])
 
     # Attempt to (erroneously) apply the GO OMP Loop transformation
     # to the first node in the schedule (which is now itself an
     # OMPDoDirective).
     with pytest.raises(TransformationError) as err:
-        ompl.validate(omp_schedule.children[0])
+        ompl.validate(schedule.children[0])
     assert ("Target of GOceanOMPLoopTrans transformation must be a sub-class "
             "of Loop but got 'OMPDoDirective'" in str(err.value))
     with pytest.raises(TransformationError) as err:
-        _, _ = ompl.apply(omp_schedule.children[0])
+        ompl.apply(schedule.children[0])
     assert ("Target of GOceanOMPLoopTrans transformation must be a sub-class "
             "of Loop but got 'OMPDoDirective'" in str(err.value))
 
@@ -936,13 +887,13 @@ def test_go_omp_parallel_loop_applied_to_non_loop():
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
-    omp_schedule, _ = ompl.apply(schedule.children[0])
+    ompl.apply(schedule.children[0])
 
     # Attempt to (erroneously) apply the OMP Loop transformation
     # to the first node in the schedule (which is now itself an
     # OMP Loop transformation)
     with pytest.raises(TransformationError):
-        _, _ = ompl.apply(omp_schedule.children[0])
+        ompl.apply(schedule.children[0])
 
 
 def test_go_omp_parallel_loop_applied_to_wrong_loop_type():
@@ -979,13 +930,10 @@ def test_omp_parallel_do_inside_parallel_region():
 
     # Put an OpenMP parallel do directive around all of the loops
     for child in schedule.children:
-        omp_schedule, _ = ompl.apply(child)
+        ompl.apply(child)
 
     # Now enclose all of the children within a parallel region
-    schedule, _ = ompr.apply(omp_schedule.children)
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    ompr.apply(schedule.children)
 
     # Attempt to generate the transformed code
     with pytest.raises(GenerationError):
@@ -1025,14 +973,11 @@ def test_omp_parallel_do_around_parallel_region():
     ompr = OMPParallelTrans()
 
     # Put a parallel region around two of the loops
-    omp_schedule, _ = ompr.apply(schedule[0:2])
+    ompr.apply(schedule[0:2])
 
     # Put an OpenMP parallel do directive around one of those loops
     # (which is now a child of the region directive)
-    schedule, _ = ompl.apply(omp_schedule[0].dir_body[0])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    ompl.apply(schedule[0].dir_body[0])
 
     # Attempt to generate the transformed code
     with pytest.raises(GenerationError):
@@ -1049,15 +994,15 @@ def test_omp_region_invalid_node():
     ompr = OMPParallelTrans()
     acct = ACCParallelTrans()
     # Apply an OpenACC parallel transformation to the first loop
-    new_sched, _ = acct.apply(schedule.children[0])
+    acct.apply(schedule.children[0])
 
     with pytest.raises(TransformationError) as err:
-        _, _ = ompr.apply(new_sched.children)
+        ompr.apply(schedule.children)
     assert ("ACCParallelDirective' cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(err.value))
 
     # Check that the test can be disabled with the appropriate option:
-    ompr.apply(new_sched.children, {"node-type-check": False})
+    ompr.apply(schedule.children, {"node-type-check": False})
 
 
 @pytest.mark.xfail(reason="OMP Region with children of different types "
@@ -1073,13 +1018,10 @@ def test_omp_region_with_children_of_different_types(tmpdir):
     ompr = OMPParallelTrans()
 
     # Put an OpenMP do directive around one loop
-    omp_schedule, _ = ompl.apply(schedule.children[1])
+    ompl.apply(schedule.children[1])
 
     # Now enclose all of the children within a parallel region
-    schedule, _ = ompr.apply(omp_schedule.children)
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    ompr.apply(schedule.children)
 
     # Attempt to generate the transformed code
     _ = psy.gen
@@ -1098,13 +1040,10 @@ def test_omp_schedule_default_static(tmpdir):
 
     # Put an OpenMP do directive around one loop without specifying
     # the OMP schedule to use
-    omp_schedule, _ = ompl.apply(schedule.children[1])
+    ompl.apply(schedule.children[1])
 
     # Now enclose it within a parallel region
-    schedule, _ = ompr.apply(omp_schedule.children[1])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    ompr.apply(schedule.children[1])
 
     # Attempt to generate the transformed code
     gen = str(psy.gen)
@@ -1124,13 +1063,10 @@ def test_omp_do_schedule_runtime(tmpdir):
     ompr = OMPParallelTrans()
 
     # Put an OpenMP do directive around one loop
-    omp_schedule, _ = ompl.apply(schedule.children[1])
+    ompl.apply(schedule.children[1])
 
     # Now enclose it within a parallel region
-    schedule, _ = ompr.apply(omp_schedule.children[1])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    ompr.apply(schedule.children[1])
 
     # Attempt to generate the transformed code
     gen = str(psy.gen)
@@ -1150,13 +1086,10 @@ def test_omp_do_schedule_dynamic(tmpdir):
     ompr = OMPParallelTrans()
 
     # Put an OpenMP do directive around one loop
-    omp_schedule, _ = ompl.apply(schedule.children[1])
+    ompl.apply(schedule.children[1])
 
     # Now enclose it within a parallel region
-    schedule, _ = ompr.apply(omp_schedule.children[1])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    ompr.apply(schedule.children[1])
 
     # Attempt to generate the transformed code
     gen = str(psy.gen)
@@ -1176,13 +1109,10 @@ def test_omp_do_schedule_guided(tmpdir):
     ompr = OMPParallelTrans()
 
     # Put an OpenMP do directive around one loop
-    omp_schedule, _ = ompl.apply(schedule.children[1])
+    ompl.apply(schedule.children[1])
 
     # Now enclose it within a parallel region
-    schedule, _ = ompr.apply(omp_schedule.children[1])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    ompr.apply(schedule.children[1])
 
     # Attempt to generate the transformed code
     gen = str(psy.gen)
@@ -1209,13 +1139,10 @@ def test_omp_schedule_guided_with_chunk(tmpdir):
     ompr = OMPParallelTrans()
 
     # Put an OpenMP do directive around one loop
-    omp_schedule, _ = ompl.apply(schedule.children[1])
+    ompl.apply(schedule.children[1])
 
     # Now enclose it within a parallel region
-    schedule, _ = ompr.apply(omp_schedule.children[1])
-
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+    ompr.apply(schedule.children[1])
 
     # Attempt to generate the transformed code
     gen = str(psy.gen)
@@ -1279,7 +1206,7 @@ def test_module_inline_with_transformation(tmpdir):
     schedule = invoke.schedule
     kern_call = schedule.children[1].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
-    schedule, _ = inline_trans.apply(kern_call)
+    inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
@@ -1300,7 +1227,7 @@ def test_module_no_inline_with_transformation(tmpdir):
     kern_call.module_inline = True
     inline_trans = KernelModuleInlineTrans()
     # use a transformation to switch inlining off again
-    schedule, _ = inline_trans.apply(kern_call, {"inline": False})
+    inline_trans.apply(kern_call, {"inline": False})
     gen = str(psy.gen)
     # check that the subroutine has not been inlined
     assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
@@ -1337,7 +1264,7 @@ def test_module_inline_with_sub_use(tmpdir):
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
-    schedule, _ = inline_trans.apply(kern_call)
+    inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
@@ -1364,7 +1291,7 @@ def test_module_inline_same_kernel(tmpdir):
     # check that the associated psy "use" does not exist
     assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
     # check that the subroutine has only been inlined once
-    count = count_lines(psy.gen, "SUBROUTINE compute_cu_code(")
+    count = count_lines(gen, "SUBROUTINE compute_cu_code(")
     assert count == 1, "Expecting subroutine to be inlined once"
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -1427,9 +1354,8 @@ def test_loop_swap_correct(tmpdir):
 
     # Now swap the first loops
     swap = GOLoopSwapTrans()
-    swapped1, _ = swap.apply(schedule.children[0])
-    psy.invokes.get('invoke_loop1').schedule = swapped1
-    schedule_str = str(swapped1)
+    swap.apply(schedule.children[0])
+    schedule_str = str(schedule)
 
     expected = (
         r"Loop\[id:'', variable:'i'.*?"
@@ -1445,9 +1371,8 @@ def test_loop_swap_correct(tmpdir):
     assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the middle loops
-    swapped2, _ = swap.apply(swapped1.children[1])
-    psy.invokes.get('invoke_loop1').schedule = swapped2
-    schedule_str = str(swapped2)
+    swap.apply(schedule.children[1])
+    schedule_str = str(schedule)
 
     expected = (
         r"Loop\[id:'', variable:'i'.*?"
@@ -1463,9 +1388,8 @@ def test_loop_swap_correct(tmpdir):
     assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the last loops
-    swapped3, _ = swap.apply(swapped2.children[2])
-    psy.invokes.get('invoke_loop1').schedule = swapped3
-    schedule_str = str(swapped3)
+    swap.apply(schedule.children[2])
+    schedule_str = str(schedule)
 
     expected = (
         r"Loop\[id:'', variable:'i'.*?"
@@ -1514,11 +1438,10 @@ def test_go_loop_swap_errors():
     schedule = invoke_loop2.schedule
 
     fuse = GOceanLoopFuseTrans()
-    fused, _ = fuse.apply(schedule.children[0], schedule.children[1])
-    invoke_loop2.schedule = fused
+    fuse.apply(schedule.children[0], schedule.children[1])
 
     with pytest.raises(TransformationError) as error:
-        swap.apply(fused.children[0])
+        swap.apply(schedule.children[0])
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
                      "and must have exactly one inner loop, but this node "
                      "has 2 inner statements, the first two being .* and .*",
@@ -1526,10 +1449,10 @@ def test_go_loop_swap_errors():
 
     # Now remove the body of the first inner loop, and pass the first
     # inner loop --> i.e. a loop with an empty body
-    del fused.children[0].loop_body[0].children[3].children[0]
+    del schedule.children[0].loop_body[0].children[3].children[0]
 
     with pytest.raises(TransformationError) as error:
-        swap.apply(fused.children[0].loop_body[0])
+        swap.apply(schedule.children[0].loop_body[0])
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
                      "and must have one inner loop, but this node does not "
                      "have any statements inside.",
@@ -1580,8 +1503,8 @@ def test_ocl_apply(kernel_outputdir):
     assert "the supplied node must be a (sub-class of) InvokeSchedule " \
         in str(err.value)
 
-    new_sched, _ = ocl.apply(schedule)
-    assert new_sched.opencl
+    ocl.apply(schedule)
+    assert schedule.opencl
 
     gen = str(psy.gen)
     assert "USE clfortran" in gen
@@ -1621,17 +1544,16 @@ def test_acc_parallel_trans(tmpdir):
     acct = ACCParallelTrans()
     # Apply the OpenACC Parallel transformation
     # to the first loop of the schedule
-    new_sched, _ = acct.apply(schedule.children[0])
-    invoke.schedule = new_sched
+    acct.apply(schedule.children[0])
 
     with pytest.raises(GenerationError) as err:
         _ = str(psy.gen)
-    assert ("an ACC parallel region must also contain an ACC enter data "
-            "directive but none was found for invoke_0" in str(err.value))
+    assert ("An ACC parallel region must either be preceded by an ACC enter "
+            "data directive or enclosed within an ACC data region but in "
+            "'invoke_0' this is not the case" in str(err.value))
 
     accdt = ACCEnterDataTrans()
-    new_sched, _ = accdt.apply(schedule)
-    invoke.schedule = new_sched
+    accdt.apply(schedule)
     code = str(psy.gen)
 
     acc_idx = -1
@@ -1701,11 +1623,11 @@ def test_acc_parallel_invalid_node():
     accpara = ACCParallelTrans()
 
     # Add an enter-data directive to the schedule
-    new_sched, _ = acct.apply(schedule)
+    acct.apply(schedule)
 
     # Attempt to enclose the enter-data directive within a parallel region
     with pytest.raises(TransformationError) as err:
-        _, _ = accpara.apply(new_sched.children[0])
+        _, _ = accpara.apply(schedule.children[0])
     assert ("'GOACCEnterDataDirective' cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
 
@@ -1723,11 +1645,10 @@ def test_acc_data_copyin(tmpdir):
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
-    invoke.schedule = new_sched
+    accdt.apply(schedule)
     code = str(psy.gen)
 
     assert (
@@ -1751,12 +1672,10 @@ def test_acc_data_grid_copyin(tmpdir):
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
-
-    invoke.schedule = new_sched
+    accdt.apply(schedule)
     code = str(psy.gen)
 
     # TODO grid properties are effectively duplicated in this list (but the
@@ -1788,12 +1707,10 @@ def test_acc_data_parallel_commute(tmpdir):
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
-
-    invoke.schedule = new_sched
+    accdt.apply(schedule)
     code1 = str(psy.gen)
 
     # Repeat these transformations but create the region
@@ -1803,14 +1720,13 @@ def test_acc_data_parallel_commute(tmpdir):
     schedule = invoke.schedule
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(schedule)
+    accdt.apply(schedule)
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
-    invoke.schedule = new_sched
     code2 = str(psy.gen)
 
     assert code1 == code2
@@ -1828,16 +1744,16 @@ def test_accdata_duplicate():
     schedule = invoke.schedule
 
     # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(schedule)
+    accdt.apply(schedule)
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
+            accpt.apply(child)
 
     # Erroneously attempt to add a data region for the second time
     with pytest.raises(TransformationError):
-        _, _ = accdt.apply(new_sched)
+        accdt.apply(schedule)
 
 
 def test_accloop(tmpdir):
@@ -1861,7 +1777,7 @@ def test_accloop(tmpdir):
     # Apply an OpenACC loop directive to each loop
     for child in schedule.children:
         if isinstance(child, Loop):
-            new_sched, _ = acclpt.apply(child)
+            acclpt.apply(child)
 
     # Code generation should fail at this point because there's no
     # enclosing parallel region
@@ -1872,19 +1788,18 @@ def test_accloop(tmpdir):
             str(err.value))
 
     # Add an enclosing parallel region
-    new_sched, _ = accpara.apply(schedule.children)
+    accpara.apply(schedule.children)
 
     # Code generation should still fail because there's no 'enter data'
     # directive and we need one for the parallel region to work
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("A Schedule containing an ACC parallel region must also "
-            "contain an ACC enter data directive but none was found for "
-            "invoke_0" in str(err.value))
+    assert ("An ACC parallel region must either be preceded by an ACC enter "
+            "data directive or enclosed within an ACC data region but in "
+            "'invoke_0' this is not the case." in str(err.value))
 
     # Add a data region
-    new_sched, _ = accdata.apply(new_sched)
-    invoke.schedule = new_sched
+    accdata.apply(schedule)
 
     gen = str(psy.gen)
 
@@ -1896,6 +1811,61 @@ def test_accloop(tmpdir):
             "      !$acc loop independent\n"
             "      DO j=2,jstop+1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+
+def test_acc_loop_not_within_data_region():
+    ''' Test the check that an OpenACC loop is within a data region works
+    when there is a data region, but not around the loop in question. '''
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accstaticdata = ACCDataTrans()
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    # Apply ACCLoopTrans to just the second loop
+    acclpt.apply(schedule[1])
+    # Add an enclosing parallel region
+    accpara.apply(schedule[1])
+
+    # Add a static data region around the wrong loop
+    accstaticdata.apply(schedule[2])
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An ACC parallel region must either be preceded by an ACC enter "
+            "data directive or enclosed within an ACC data region but in "
+            "'invoke_0' this is not the case." in str(err.value))
+
+
+def test_acc_loop_before_enter_data():
+    ''' Test that we refuse to generate code if the enter data directive
+    comes after the OpenACC region. '''
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+    mvtrans = MoveTrans()
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    # Apply ACCLoopTrans to just the second loop
+    acclpt.apply(schedule[1])
+    # Add an enclosing parallel region
+    accpara.apply(schedule[1])
+
+    # Add a data region. By default, the enter data is always added at the
+    # beginning of the Schedule. We must therefore move it in order to trigger
+    # the error.
+    accdata.apply(schedule)
+    mvtrans.apply(schedule[0], schedule[3])
+
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An ACC parallel region must be preceded by an ACC enter-data "
+            "directive but in 'invoke_0' this is not the case." in
+            str(err.value))
 
 
 def test_acc_collapse(tmpdir):
@@ -1932,16 +1902,14 @@ def test_acc_collapse(tmpdir):
 
     # Finally, do something valid and check that we get the correct
     # generated code
-    new_sched, _ = acclpt.apply(child, {"collapse": 2})
+    acclpt.apply(child, {"collapse": 2})
 
-    new_sched, _ = accpara.apply(new_sched.children)
-    new_sched, _ = accdata.apply(new_sched)
-
-    invoke.schedule = new_sched
+    accpara.apply(schedule.children)
+    accdata.apply(schedule)
 
     gen = str(psy.gen)
     assert ("      !$acc parallel default(present)\n"
-            "      !$acc loop collapse(2) independent\n"
+            "      !$acc loop independent collapse(2)\n"
             "      DO j=2,jstop\n"
             "        DO i=2,istop+1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
@@ -1959,13 +1927,12 @@ def test_acc_indep(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    new_sched, _ = cbtrans.apply(schedule)
-    new_sched, _ = acclpt.apply(schedule.children[0], {"independent": False})
-    new_sched, _ = acclpt.apply(schedule.children[1], {"independent": True})
-    new_sched, _ = accpara.apply(new_sched.children)
-    new_sched, _ = accdata.apply(new_sched)
+    cbtrans.apply(schedule)
+    acclpt.apply(schedule.children[0], {"independent": False})
+    acclpt.apply(schedule.children[1], {"independent": True})
+    accpara.apply(schedule.children)
+    accdata.apply(schedule)
     # Check the generated code
-    invoke.schedule = new_sched
     gen = str(psy.gen)
     assert "!$acc loop\n      DO j=2,jstop" in gen
     assert "!$acc loop independent\n      DO j=2,jstop+1" in gen
@@ -1983,12 +1950,11 @@ def test_acc_loop_seq():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    new_sched, _ = cbtrans.apply(schedule)
-    new_sched, _ = acclpt.apply(schedule.children[0], {"sequential": True})
-    new_sched, _ = accpara.apply(new_sched.children)
-    new_sched, _ = accdata.apply(new_sched)
+    cbtrans.apply(schedule)
+    acclpt.apply(schedule.children[0], {"sequential": True})
+    accpara.apply(schedule.children)
+    accdata.apply(schedule)
     # Check the generated code
-    invoke.schedule = new_sched
     gen = str(psy.gen).lower()
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop seq\n"
@@ -2002,11 +1968,11 @@ def test_acc_loop_view(capsys):
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                            name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], {"independent": False})
-    new_sched, _ = acclpt.apply(schedule.children[1], {"independent": True})
-    new_sched, _ = acclpt.apply(schedule.children[2], {"sequential": True})
+    acclpt.apply(schedule.children[0], {"independent": False})
+    acclpt.apply(schedule.children[1], {"independent": True})
+    acclpt.apply(schedule.children[2], {"sequential": True})
     # Check the view method
-    new_sched.view()
+    schedule.view()
     output, _ = capsys.readouterr()
     assert "[ACC Loop]" in output
     assert "[ACC Loop, independent]" in output

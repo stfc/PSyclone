@@ -430,7 +430,7 @@ class FortranWriter(PSyIRVisitor):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                return symbol.datatype.declaration
+                return symbol.datatype.declaration + "\n"
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
                 "The Fortran backend cannot handle the declaration of a "
@@ -741,14 +741,14 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when a Routine node is found in
         the PSyIR tree.
 
-        :param node: a KernelSchedule PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :param node: a Routine PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
 
-        :returns: the Fortran code as a string.
+        :returns: the Fortran code for this node.
         :rtype: str
 
         :raises VisitorError: if the name attribute of the supplied \
-        node is empty or None.
+                              node is empty or None.
 
         '''
         if not node.name:
@@ -756,11 +756,20 @@ class FortranWriter(PSyIRVisitor):
 
         if node.is_program:
             result = ("{0}program {1}\n".format(self._nindent, node.name))
+            routine_type = "program"
         else:
             args = [symbol.name for symbol in node.symbol_table.argument_list]
-            result = (
-                "{0}subroutine {1}({2})\n"
-                "".format(self._nindent, node.name, ", ".join(args)))
+            suffix = ""
+            if node.return_symbol:
+                # This Routine has a return value and is therefore a Function
+                routine_type = "function"
+                if node.return_symbol.name != node.name:
+                    suffix = " result({0})".format(node.return_symbol.name)
+            else:
+                routine_type = "subroutine"
+            result = "{0}{1} {2}({3}){4}\n".format(self._nindent, routine_type,
+                                                   node.name, ", ".join(args),
+                                                   suffix)
 
         self._depth += 1
 
@@ -798,13 +807,9 @@ class FortranWriter(PSyIRVisitor):
             "".format(imports, declarations, exec_statements))
 
         self._depth -= 1
-        if node.is_program:
-            keyword = "program"
-        else:
-            keyword = "subroutine"
         result += (
             "{0}end {1} {2}\n"
-            "".format(self._nindent, keyword, node.name))
+            "".format(self._nindent, routine_type, node.name))
 
         return result
 
@@ -1281,24 +1286,26 @@ class FortranWriter(PSyIRVisitor):
             result += self._visit(child)
         return result
 
-    def ompdirective_node(self, node):
-        '''This method is called when an OMPDirective instance is found in
+    def directive_node(self, node):
+        '''This method is called when a Directive instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
         the statements in between as a string (depending on the language).
 
         :param node: a Directive PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Directive`
 
-        :returns: the Fortran code as a string.
+        :returns: the Fortran code for this node.
         :rtype: str
 
         '''
-        result_list = ["!${0}\n".format(node.begin_string())]
-        self._depth += 1
+        result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
+
         for child in node.dir_body:
             result_list.append(self._visit(child))
-        self._depth -= 1
-        result_list.append("!${0}\n".format(node.end_string()))
+
+        end_string = node.end_string()
+        if end_string:
+            result_list.append("{0}!${1}\n".format(self._nindent, end_string))
         return "".join(result_list)
 
     def call_node(self, node):

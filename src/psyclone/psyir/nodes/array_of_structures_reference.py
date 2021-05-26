@@ -57,7 +57,7 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
     _text_name = "ArrayOfStructuresReference"
 
     @staticmethod
-    def create(symbol, indices, members, parent=None):
+    def create(symbol, indices, members):
         '''
         Create a reference to a member of one or more elements of an array of
         structures.
@@ -83,8 +83,6 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             DataNodes describing which part of it is accessed.
         :type members: list of str or 2-tuples containing (str, \
             list of nodes describing array access)
-        :param parent: the parent of this node in the PSyIR or None.
-        :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: an ArrayOfStructuresReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresReference`
@@ -117,14 +115,12 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.
-        ref = ArrayOfStructuresReference._create(
-            symbol, base_type, members, parent)
+        ref = ArrayOfStructuresReference._create(symbol, base_type, members)
 
         # Then add the array-index expressions. We don't validate the children
         # as that is handled in _validate_child.
         for child in indices:
             ref.addchild(child)
-            child.parent = ref
         return ref
 
 
