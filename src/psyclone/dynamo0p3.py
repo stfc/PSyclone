@@ -6544,6 +6544,7 @@ class DynLoop(Loop):
             try:
                 self.variable = symtab.lookup_with_tag(tag)
             except KeyError:
+                # TODO #696 - each loop variable should have KIND i_def.
                 self.variable = symtab.new_symbol(
                     suggested_name, tag, symbol_type=DataSymbol,
                     datatype=INTEGER_TYPE)
