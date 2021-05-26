@@ -1738,7 +1738,6 @@ def test_gokernelargument_infer_datatype():
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernelcall = invoke.schedule.coded_kernels()[0]
-    sym_table = kernelcall.scope.symbol_table
     argument_list = kernelcall.arguments
 
     # The first argument is a scalar Real
