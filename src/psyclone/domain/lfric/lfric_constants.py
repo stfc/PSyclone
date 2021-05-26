@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 '''
 This module provides a class with all LFRic related constants.
@@ -282,6 +283,44 @@ class LFRicConstants(object):
         # Meta functions
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
+
+        # ---------- LFRic infrastructure modules and corresponding mappings -
+
+        # Data structures in LFRic are stored in infrastructure modules.
+        # Data structure name mandates the Fortran primitive type of its
+        # data and the default kind (precision) tied to the data type.
+        LFRicConstants.DATA_STRUCT_MAPPING = {
+            "field_type": {
+                "module": "field_mod",
+                "proxy_type": "field_proxy_type", "datatype": "real",
+                "kind": "r_def"},
+            "integer_field_type": {
+                "module": "integer_field_mod",
+                "proxy_type": "integer_field_proxy_type",
+                "datatype": "integer", "kind": "i_def"},
+            "operator_type": {
+                "module": "operator_mod", "proxy_type": "operator_proxy_type",
+                "datatype": "real", "kind": "r_def"},
+            "columnwise_operator_type": {
+                "module": "operator_mod",
+                "proxy_type": "columnwise_operator_proxy_type",
+                "datatype": "real", "kind": "r_def"}}
+
+        # Initialise the dictionary that holds the names of the required
+        # LFRic constants, data structures and data structure proxies for
+        # the "use" statements in PSy-layer routines and kernel stubs.
+        infmod_list = [
+            "constants_mod",
+            LFRicConstants.DATA_STRUCT_MAPPING["field_type"]["module"],
+            LFRicConstants.DATA_STRUCT_MAPPING["integer_field_type"]["module"],
+            LFRicConstants.DATA_STRUCT_MAPPING["operator_type"]["module"]]
+        LFRicConstants.infrastructure_modules = OrderedDict(
+            (k, set()) for k in infmod_list)
+        # Get configuration for valid argument kinds (start with
+        # 'real' and 'integer' kinds)
+        LFRicConstants.infrastructure_modules["constants_mod"] = {
+            api_config.default_kind["real"],
+            api_config.default_kind["integer"]}
 
 
 # =============================================================================
