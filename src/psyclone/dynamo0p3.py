@@ -7778,7 +7778,8 @@ class DynKern(CodedKern):
 
         # Add "use" statement with kinds (precisions) of all arguments
         sub_stub.add(
-            UseGen(sub_stub, name="constants_mod", only=True,
+            UseGen(sub_stub,
+                   name=const.INFRASTRUCTURE_MODULES["constants"], only=True,
                    funcnames=sorted(list(self._argument_kinds), reverse=True)))
 
         # Create the arglist
