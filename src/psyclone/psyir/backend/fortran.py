@@ -800,9 +800,14 @@ class FortranWriter(PSyIRVisitor):
                 try:
                     whole_routine_scope.add(symbol)
                 except KeyError:
-                    schedule.symbol_table.rename_symbol(
-                        symbol,
-                        whole_routine_scope.next_available_name(symbol.name))
+                    # Need to rename the symbol. The new name must not exist in
+                    # either the top-level table or the one for the current
+                    # schedule.
+                    new_name = whole_routine_scope.next_available_name(
+                        symbol.name)
+                    new_name = schedule.symbol_table.next_available_name(
+                        new_name)
+                    schedule.symbol_table.rename_symbol(symbol, new_name)
                     whole_routine_scope.add(symbol)
 
         # Generate module imports
