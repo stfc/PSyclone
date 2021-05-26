@@ -219,6 +219,7 @@ class Parser(object):
                 for child in statement.children:
                     if isinstance(child,Declaration_Type_Spec):
                         tname=('TYPE',str(get_child(child,Type_Name) or ''))
+                        # print ("DEC_TYPE_SPEC {0}".format(tname))
                     if isinstance(child,Intrinsic_Type_Spec):
                         intrinsic_type = str(get_child(child,str) or '')
                         kind = ''
@@ -226,10 +227,11 @@ class Parser(object):
                             if isinstance(entity,Kind_Selector):
                                  kind = str(get_child(entity,Name) or '')
                         tname=(intrinsic_type,kind)
+                        # print ("INTRINSIC_TYPE_SPEC {0}".format(tname))
                     if isinstance(child,Entity_Decl_List):
                         for entity in child.children:
-                            self._arg_type_defns[str(entity)] = tname
-                            print(str(entity)+" = " + str(tname or ''))
+                            self._arg_type_defns[str(entity.children[0])] = tname
+                            # print("ENTITY_DECL_LIST " + str(entity) + " " + str(entity.children[0]) + " = " + str(tname or ''))
 
             if isinstance(statement, Use_Stmt):
                 # found a Fortran use statement
@@ -312,10 +314,11 @@ class Parser(object):
             :py:class:`psyclone.parse.algorithm.BuiltInCall`
 
         '''
-        kernel_name, args = get_kernel(argument, self._alg_filename)
+        kernel_name, args = get_kernel(argument, self._alg_filename,
+                                       self._arg_type_defns)
         # This is where the kernel call is created, so what fields are used?
-        for miarg in args:
-            print("ArgsVAR~"+str(miarg.varname or ''))
+        # for miarg in args:
+        #     print("ArgsVAR~"+str(miarg.varname or ''))
         if kernel_name.lower() in self._builtin_name_map.keys():
             # This is a builtin kernel
             kernel_call = self.create_builtin_kernel_call(
@@ -551,7 +554,7 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     return invoke_label
 
 
-def get_kernel(parse_tree, alg_filename):
+def get_kernel(parse_tree, alg_filename, arg_type_defns):
     '''Takes the parse tree of an invoke kernel argument and returns the
     name of the kernel and a list of Arg instances which capture the
     relevant information about the arguments associated with the
@@ -606,12 +609,20 @@ def get_kernel(parse_tree, alg_filename):
             # A simple variable e.g. arg
             full_text = str(argument).lower()
             var_name = full_text
-            arguments.append(Arg('variable', full_text, var_name))
+            try:
+                datatype = arg_type_defns[var_name]
+            except KeyError:
+                datatype = None
+            arguments.append(Arg('variable', full_text, varname=var_name, datatype=datatype))
         elif isinstance(argument, Part_Ref):
             # An indexed variable e.g. arg(n)
             full_text = argument.tostr().lower()
             var_name = str(argument.items[0]).lower()
-            arguments.append(Arg('indexed_variable', full_text, var_name))
+            try:
+                datatype = arg_type_defns[var_name]
+            except KeyError:
+                datatype = None
+            arguments.append(Arg('indexed_variable', full_text, varname=var_name, datatype=datatype))
         elif isinstance(argument, Function_Reference):
             # A function reference e.g. func()
             full_text = argument.tostr().lower()
@@ -621,14 +632,27 @@ def get_kernel(parse_tree, alg_filename):
             rhs = str(designator.items[2])
             var_name = "{0}_{1}".format(lhs, rhs)
             var_name = var_name.lower()
-            arguments.append(Arg('indexed_variable', full_text, var_name))
+            try:
+                datatype = arg_type_defns[lhs]
+            except KeyError:
+                datatype = None
+            arguments.append(Arg('indexed_variable', full_text, varname=var_name, datatype=datatype))
         elif isinstance(argument, (Data_Ref, Proc_Component_Ref)):
             # A structure dereference e.g. base%arg, base%arg(n) It is
             # a Proc_Component_Ref if the structure constructor uses
             # self e.g. self%arg
+            lhs = argument.children[0]
+            if not isinstance(lhs, Name):
+                datatype = None
+            else:
+                try:
+                    datatype = arg_type_defns[str(lhs)]
+                except KeyError:
+                    datatype = None
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
-            arguments.append(Arg('variable', full_text, var_name))
+
+            arguments.append(Arg('variable', full_text, varname=var_name, datatype=datatype))
         elif isinstance(argument, (Level_2_Unary_Expr, Add_Operand,
                                    Parenthesis)):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
@@ -940,7 +964,8 @@ class Arg(object):
     '''
     form_options = ["literal", "variable", "indexed_variable"]
 
-    def __init__(self, form, text, varname=None):
+    def __init__(self, form, text, varname=None, datatype=None):
+        # print ("*** Arg {0}, datatype {1}".format(text,datatype))
         self._form = form
         self._text = text
         self._varname = varname
