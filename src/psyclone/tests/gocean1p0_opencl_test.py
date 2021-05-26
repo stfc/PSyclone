@@ -264,7 +264,7 @@ c_sizeof(field%grid%tmask(1,1))
       cl_mem = transfer(field%grid%tmask_device, cl_mem)
       ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
 size_in_bytes,c_loc(field%grid%tmask),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer tmask"', ierr)
+      call check_status('clenqueuewritebuffer tmask', ierr)
       size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%area_t(1,1))'''
     assert expected in generated_code
@@ -274,7 +274,7 @@ c_sizeof(field%grid%area_t(1,1))'''
                 "      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,"
                 "cl_true,0_8,size_in_bytes,c_loc(field%grid%{0}),0,"
                 "c_null_ptr,c_null_ptr)\n      call check_status("
-                "'\"clenqueuewritebuffer {0}_device\"', ierr)\n"
+                "'clenqueuewritebuffer {0}_device', ierr)\n"
                 "".format(grid_property))
         assert code in generated_code
 
@@ -363,10 +363,10 @@ def test_opencl_routines_initialisation(kernel_outputdir):
 (startx - 1)) * c_sizeof(to(1,1))
           ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_false,\
 offset_in_bytes,size_in_bytes,c_loc(to(startx,i)),0,c_null_ptr,c_null_ptr)
-          call check_status('"clenqueuereadbuffer"', ierr)
+          call check_status('clenqueuereadbuffer', ierr)
         end do
         if (blocking) then
-          call check_status('"clfinish on read"', clfinish(cmd_queues(1)))
+          call check_status('clfinish on read', clfinish(cmd_queues(1)))
         end if
       else
         size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
@@ -374,7 +374,7 @@ offset_in_bytes,size_in_bytes,c_loc(to(startx,i)),0,c_null_ptr,c_null_ptr)
 c_sizeof(to(1,1))
         ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_true,\
 offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
-        call check_status('"clenqueuereadbuffer"', ierr)
+        call check_status('clenqueuereadbuffer', ierr)
       end if
 
     end subroutine read_from_device'''
@@ -411,10 +411,10 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
 c_sizeof(from(1,1))
           ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_false,\
 offset_in_bytes,size_in_bytes,c_loc(from(startx,i)),0,c_null_ptr,c_null_ptr)
-          call check_status('"clenqueuewritebuffer"', ierr)
+          call check_status('clenqueuewritebuffer', ierr)
         end do
         if (blocking) then
-          call check_status('"clfinish on write"', clfinish(cmd_queues(1)))
+          call check_status('clfinish on write', clfinish(cmd_queues(1)))
         end if
       else
         size_in_bytes = int(size(from, 1) * ny, 8) * c_sizeof(from(1,1))
@@ -422,7 +422,7 @@ offset_in_bytes,size_in_bytes,c_loc(from(startx,i)),0,c_null_ptr,c_null_ptr)
 c_sizeof(from(1,1))
         ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,\
 offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
-        call check_status('"clenqueuewritebuffer"', ierr)
+        call check_status('clenqueuewritebuffer', ierr)
       end if
 
     end subroutine write_to_device'''

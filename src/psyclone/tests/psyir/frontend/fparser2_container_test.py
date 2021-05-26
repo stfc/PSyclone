@@ -296,5 +296,5 @@ def test_broken_access_spec(parser):
     access_spec = fparser2spec.children[0].children[1].children[0]
     access_spec.string = "not-private"
     with pytest.raises(InternalError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert "Unexpected Access Spec attribute 'not-private'" in str(err.value)

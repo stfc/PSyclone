@@ -370,7 +370,7 @@ def test_profiling_case(parser):
     assert ("        enddo\n"
             "        call profile_psy_data % postend\n"
             "      end if\n" in code)
-    assert ("  if (cd_op == ''vol'') then\n"
+    assert ("  if (cd_op == 'vol') then\n"
             "    call profile_psy_data_1 % prestart('my_test', 'r1', 0, 0)\n"
             in code)
     assert ("    call profile_psy_data_1 % postend\n"

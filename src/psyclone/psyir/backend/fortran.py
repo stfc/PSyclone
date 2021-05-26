@@ -531,19 +531,20 @@ class FortranWriter(PSyIRVisitor):
         result += "{0}end type {1}\n".format(self._nindent, symbol.name)
         return result
 
-    def gen_routine_access_stmts(self, symbol_table):
+    def gen_access_stmts(self, symbol_table):
         '''
         Creates the accessibility statements (R518) for any routine symbols
-        in the supplied symbol table.
+        and symbols of UnknownFortranType in the supplied symbol table.
 
         :param symbol_table: the symbol table for which to generate \
                              accessibility statements.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: the accessibility statements for any routine symbols.
+        :returns: the accessibility statements for any routine symbols or \
+                  those of unknown type.
         :rtype: str
 
-        :raises InternalError: if a Routine symbol with an unrecognised \
+        :raises InternalError: if a symbol with an unrecognised \
                                visibility is encountered.
         '''
 
@@ -557,7 +558,9 @@ class FortranWriter(PSyIRVisitor):
         public_routines = []
         private_routines = []
         for symbol in symbol_table.symbols:
-            if isinstance(symbol, RoutineSymbol):
+            if (isinstance(symbol, RoutineSymbol) or
+                (isinstance(symbol, DataSymbol) and
+                 isinstance(symbol.datatype, UnknownFortranType))):
 
                 # Skip the symbol representing the routine where these
                 # declarations belong
@@ -581,6 +584,7 @@ class FortranWriter(PSyIRVisitor):
                         "'{1}'. Should be either 'Symbol.Visibility.PUBLIC' "
                         "or 'Symbol.Visibility.PRIVATE'.".format(
                             str(symbol.visibility), symbol.name))
+
         result = "\n"
         if public_routines:
             result += "{0}public :: {1}\n".format(self._nindent,
@@ -729,8 +733,9 @@ class FortranWriter(PSyIRVisitor):
         # not allow argument declarations.
         declarations = self.gen_decls(node.symbol_table, args_allowed=False)
 
-        # Accessibility statements for routine symbols
-        declarations += self.gen_routine_access_stmts(node.symbol_table)
+        # Accessibility statements for routine symbols and those of unknown
+        # type.
+        declarations += self.gen_access_stmts(node.symbol_table)
 
         # Get the subroutine statements.
         subroutines = ""
