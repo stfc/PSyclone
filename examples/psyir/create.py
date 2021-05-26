@@ -186,7 +186,7 @@ def create_psyir_tree():
     # File container
     file_container = FileContainer.create(
         "dummy", SymbolTable(), [container, program])
-    
+
     return file_container
 
 

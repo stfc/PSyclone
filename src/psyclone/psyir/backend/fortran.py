@@ -713,7 +713,7 @@ class FortranWriter(PSyIRVisitor):
         for child in node.children:
             result += self._visit(child)
         return result
-        
+
     def container_node(self, node):
         '''This method is called when a Container instance is found in
         the PSyIR tree.
