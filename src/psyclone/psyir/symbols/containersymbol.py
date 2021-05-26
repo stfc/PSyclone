@@ -148,6 +148,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
         :raises SymbolError: the given Fortran module is not found on the \
             import path.
+
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.frontend.fortran import FortranReader
@@ -158,17 +159,15 @@ class FortranModuleInterface(ContainerSymbolInterface):
                     abspath = path.join(directory, filename)
                     fortran_reader = FortranReader()
                     file_container = fortran_reader.psyir_from_file(abspath)
-                    container = file_container.children[0]
-
-                    # Check the imported container is the expected one
-                    if container.name != name:
-                        raise ValueError(
-                            "Error importing the Fortran module '{0}' into a "
-                            "PSyIR container. The imported module has the "
-                            "unexpected name: '{1}'."
-                            "".format(name, container.name))
-
-                    return container
+                    # Check the expected container is in this file
+                    for candidate in file_container.children:
+                        if candidate.name.lower() == name.lower():
+                            return candidate
+                    raise ValueError(
+                        "Error importing the Fortran module '{0}' into a "
+                        "PSyIR container. The file with filename '{1}' "
+                        "does not contain the expected module."
+                        "".format(name, filename))
 
         raise SymbolError(
             "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
