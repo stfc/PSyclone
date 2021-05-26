@@ -2719,8 +2719,8 @@ class LFRicFields(DynCollection):
                                  the same Invoke.
 
         '''
-        # Create dict of all field arguments for checks
         const = LFRicConstants()
+        # Create dict of all field arguments for checks
         fld_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES)
         # Filter field arguments by intent and intrinsic type
@@ -3021,8 +3021,8 @@ class DynProxies(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # Declarations of real and integer field proxies
         const = LFRicConstants()
+        # Declarations of real and integer field proxies
         real_field_proxy_decs = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
             intrinsic_type=const.DATA_STRUCT_MAPPING["field"]["intrinsic"])
@@ -3050,23 +3050,24 @@ class DynProxies(DynCollection):
         op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_operator"])
         if op_proxy_decs:
-            dtype = "operator_proxy_type"
+            op_proxy_type = const.DATA_STRUCT_MAPPING["operator"]["proxy_type"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=op_proxy_type,
                                    entity_decls=op_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules["operator"].
-             add(dtype))
+             add(op_proxy_type))
 
         # Declarations of CMA operator proxies
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
         if cma_op_proxy_decs:
-            dtype = "columnwise_operator_proxy_type"
+            cma_op_proxy_type = const.DATA_STRUCT_MAPPING[
+                "cma_operator"]["proxy_type"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=cma_op_proxy_type,
                                    entity_decls=cma_op_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules["operator"].
-             add(dtype))
+             add(cma_op_proxy_type))
 
     def initialise(self, parent):
         '''
@@ -3410,18 +3411,19 @@ class DynLMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        const = LFRicConstants()
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
         # Create a list of operator names
         op_arg_list = [arg.declaration_name for arg in op_args]
         if op_arg_list:
-            dtype = "operator_type"
-            parent.add(TypeDeclGen(parent, datatype=dtype,
+            op_type = const.DATA_STRUCT_MAPPING["operator"]["type"]
+            parent.add(TypeDeclGen(parent, datatype=op_type,
                                    entity_decls=op_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.infrastructure_modules["operator"].
-             add(dtype))
+             add(op_type))
 
 
 class DynCMAOperators(DynCollection):
@@ -3550,6 +3552,7 @@ class DynCMAOperators(DynCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -3562,13 +3565,13 @@ class DynCMAOperators(DynCollection):
         # Create a list of column-wise operator names
         cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
         if cma_op_arg_list:
-            dtype = "columnwise_operator_type"
+            cma_op_type = const.DATA_STRUCT_MAPPING["cma_operator"]["type"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=cma_op_type,
                                    entity_decls=cma_op_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.infrastructure_modules["operator"].
-             add(dtype))
+             add(cma_op_type))
 
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
