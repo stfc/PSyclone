@@ -2726,10 +2726,11 @@ class LFRicFields(DynCollection):
         # Filter field arguments by intent and intrinsic type
         real_fld_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
+            intrinsic_type=const.DATA_STRUCT_MAPPING["field"]["intrinsic"])
         int_fld_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
+            intrinsic_type=const.DATA_STRUCT_MAPPING[
+                "integer_field"]["intrinsic"])
 
         # Create lists of field names for real- and integer-valued fields
         fld_arg_list = [arg.declaration_name for arg in fld_args]
@@ -2760,19 +2761,19 @@ class LFRicFields(DynCollection):
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
         if real_fld_arg_list:
-            dtype = "field_type"
-            parent.add(TypeDeclGen(parent, datatype=dtype,
+            fld_type = const.DATA_STRUCT_MAPPING["field"]["type"]
+            parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=real_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["field"].add(dtype))
+             infrastructure_modules["field"].add(fld_type))
         if int_fld_arg_list:
-            dtype = "integer_field_type"
-            parent.add(TypeDeclGen(parent, datatype=dtype,
+            fld_type = const.DATA_STRUCT_MAPPING["integer_field"]["type"]
+            parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=int_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["integer_field"].add(dtype))
+             infrastructure_modules["integer_field"].add(fld_type))
 
     def _stub_declarations(self, parent):
         '''
@@ -3024,24 +3025,26 @@ class DynProxies(DynCollection):
         const = LFRicConstants()
         real_field_proxy_decs = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
+            intrinsic_type=const.DATA_STRUCT_MAPPING["field"]["intrinsic"])
         if real_field_proxy_decs:
-            dtype = "field_proxy_type"
+            fld_proxy_type = const.DATA_STRUCT_MAPPING["field"]["proxy_type"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=fld_proxy_type,
                                    entity_decls=real_field_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules["field"].
-             add(dtype))
+             add(fld_proxy_type))
         int_field_proxy_decs = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
+            intrinsic_type=const.DATA_STRUCT_MAPPING[
+                "integer_field"]["intrinsic"])
         if int_field_proxy_decs:
-            dtype = "integer_field_proxy_type"
+            fld_proxy_type = const.DATA_STRUCT_MAPPING[
+                "integer_field"]["proxy_type"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=fld_proxy_type,
                                    entity_decls=int_field_proxy_decs))
             (self._invoke.invokes.psy.
-             infrastructure_modules["integer_field"].add(dtype))
+             infrastructure_modules["integer_field"].add(fld_proxy_type))
 
         # Declarations of LMA operator proxies
         op_proxy_decs = self._invoke.unique_proxy_declarations(
