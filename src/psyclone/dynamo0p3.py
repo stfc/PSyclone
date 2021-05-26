@@ -8838,7 +8838,7 @@ class DynKernelArgument(KernelArgument):
         '''
         self._stencil = value
 
-    def infer_datatype(self, symbol_table, proxy=False):
+    def infer_datatype(self, proxy=False):
         '''
         Infer the datatype of this kernel argument in the PSy layer using
         the LFRic API rules. If any LFRic infrastructure modules are required
@@ -8847,21 +8847,22 @@ class DynKernelArgument(KernelArgument):
         any required LFRic derived types that are not already in the symbol
         table.
 
-        :param symbol_table: symbol table from which to access e.g. kind \
-            symbols required for this argument.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        TODO #1258 - ultimately this routine should not have to create any
+        TypeSymbols as that should already have been done.
+
         :param bool proxy: whether or not we want the type of the proxy \
-            object for this kernel argument.
+            object for this kernel argument. Defaults to False (i.e.
+            return the type rather than the proxy type).
 
         :returns: the datatype of this argument.
-        :rtype: :py:class::`psyclone.psyir.symbols.DataType`
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
-        :raises NotImplementedError: if an unsupported primitive type is \
-            encountered for a scalar or field argument.
+        :raises NotImplementedError: if an unsupported argument type is found.
 
         '''
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
+        symbol_table = self._call.scope.symbol_table
         root_table = symbol_table
         while root_table.parent_symbol_table():
             root_table = root_table.parent_symbol_table()
@@ -8873,7 +8874,7 @@ class DynKernelArgument(KernelArgument):
         def _find_or_create_type(mod_name, type_name):
             '''
             Utility to find or create a TypeSymbol with the supplied name,
-            imported from the module of the supplied name.
+            imported from the named module.
 
             :param str mod_name: the name of the module from which the \
                                  TypeSymbol should be imported.
@@ -8887,6 +8888,8 @@ class DynKernelArgument(KernelArgument):
             try:
                 fld_type = symbol_table.lookup(type_name)
             except KeyError:
+                # TODO Once #1258 is done we should already have symbols for
+                # the various types at this point.
                 try:
                     fld_mod_container = symbol_table.lookup(mod_name)
                 except KeyError:
@@ -8922,6 +8925,11 @@ class DynKernelArgument(KernelArgument):
                     constants_container = symbol_table.lookup(
                         "constants_mod")
                 except KeyError:
+                    # TODO Once #696 is done, we should *always* have a
+                    # symbol for this container at this point so should
+                    # raise an exception if we haven't. Also, the name
+                    # of the Fortran module should be read from the config
+                    # file.
                     constants_container = ContainerSymbol("constants_mod")
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
@@ -8933,6 +8941,8 @@ class DynKernelArgument(KernelArgument):
         elif self.is_field:
 
             # Find or create the TypeSymbol for the appropriate field type.
+            # TODO #1258 the names of the Fortran modules should come from
+            # the config file.
             if self.intrinsic_type == 'real':
                 mod_name = "field_mod"
                 type_name = "field{0}_type".format(proxy_str)
@@ -8962,7 +8972,9 @@ class DynKernelArgument(KernelArgument):
             return _find_or_create_type("operator_mod", type_name)
 
         else:
-            return DeferredType()
+            raise NotImplementedError(
+                "'{0}' is not a scalar, field or operator argument".format(
+                    str(self)))
 
 
 class DynKernCallFactory(object):

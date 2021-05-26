@@ -1155,7 +1155,7 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
 def test_argument_infer_datatype():
     ''' Check that a generic argument inferred datatype is a DeferredType. '''
     arg = Argument(None, None, None)
-    assert isinstance(arg.infer_datatype(None), DeferredType)
+    assert isinstance(arg.infer_datatype(), DeferredType)
 
 
 def test_argument_depends_on():

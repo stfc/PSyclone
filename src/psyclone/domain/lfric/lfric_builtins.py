@@ -165,10 +165,10 @@ class LFRicBuiltIn(BuiltIn):
         '''
         Populate the state of this object using the supplied call object.
 
-        :param call: The BuiltIn object from which to extract information
+        :param call: The BuiltIn object from which to extract information \
                      about this built-in call.
         :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
-        :param parent: The parent node of the kernel call in the AST
+        :param parent: The parent node of the kernel call in the PSyIR \
                        we are constructing. This will be a loop.
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
 
@@ -180,8 +180,7 @@ class LFRicBuiltIn(BuiltIn):
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
-        self._idx_name = \
-            self.scope.symbol_table.symbol_from_tag("dof_loop_idx", "df").name
+        self._idx_name = self.get_dof_loop_index_symbol().name
         # Check that this built-in kernel is valid
         self._validate()
 
@@ -375,9 +374,11 @@ class LFRicBuiltIn(BuiltIn):
                 try:
                     scalar_sym = table.lookup(arg.name)
                 except KeyError:
+                    # TODO once #1258 is done the symbols should already exist
+                    # and therefore we should raise an exception if not.
                     scalar_sym = table.new_symbol(
                         arg.name, symbol_type=DataSymbol,
-                        datatype=arg.infer_datatype(table))
+                        datatype=arg.infer_datatype())
                 arg_symbols.append(scalar_sym)
 
             elif arg.is_field:
@@ -387,9 +388,11 @@ class LFRicBuiltIn(BuiltIn):
                 try:
                     sym = table.lookup(arg.proxy_name)
                 except KeyError:
+                    # TODO once #1258 is done the symbols should already exist
+                    # and therefore we should raise an exception if not.
                     sym = table.new_symbol(
                         arg.proxy_name, symbol_type=DataSymbol,
-                        datatype=arg.infer_datatype(table, proxy=True))
+                        datatype=arg.infer_datatype(proxy=True))
                 arg_symbols.append(sym)
 
             else:

@@ -2374,12 +2374,8 @@ class GOKernelArgument(KernelArgument):
                             " 'field' or 'scalar' but found '{0}'."
                             "".format(self.argument_type))
 
-    def infer_datatype(self, symbol_table):
+    def infer_datatype(self):
         ''' Infer the datatype of this argument using the API rules.
-
-        :param symbol_table: symbol table from which to access e.g. kind \
-            symbols required for this argument.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: the datatype of this argument.
         :rtype: :py:class::`psyclone.psyir.symbols.DataType`

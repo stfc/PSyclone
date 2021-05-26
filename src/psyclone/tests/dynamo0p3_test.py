@@ -1421,34 +1421,34 @@ def test_dynkernelargument_infer_type(monkeypatch, proxy):
     call = schedule[0].loop_body[0]
     arg = call.arguments.args[0]
     # Scalar argument.
-    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+    dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.REAL
     monkeypatch.setattr(arg, "_intrinsic_type", "integer")
-    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+    dtype = arg.infer_datatype(proxy)
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     monkeypatch.setattr(arg, "_intrinsic_type", "logical")
-    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+    dtype = arg.infer_datatype(proxy)
     assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     # Monkeypatch to check with an invalid type of scalar argument.
     monkeypatch.setattr(arg, "_intrinsic_type", "foo")
     with pytest.raises(NotImplementedError) as err:
-        arg.infer_datatype(call.scope.symbol_table, proxy)
+        arg.infer_datatype(proxy)
     assert "Unsupported scalar type 'foo'" in str(err.value)
     # Field argument.
     arg = call.arguments.args[1]
-    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+    dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, TypeSymbol)
     assert dtype.name == "field{0}_type".format(proxy_str)
     monkeypatch.setattr(arg, "_intrinsic_type", "foo")
     with pytest.raises(NotImplementedError) as err:
-        arg.infer_datatype(call.scope.symbol_table, proxy)
+        arg.infer_datatype(proxy)
     assert ("Fields may only be of 'real' or 'integer' type but found 'foo'" in
             str(err.value))
     # Valid operator types
     for op_name in ["gh_operator", "gh_columnwise_operator"]:
         monkeypatch.setattr(arg, "_argument_type", op_name)
-        dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
+        dtype = arg.infer_datatype(proxy)
         assert isinstance(dtype, TypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
     # We need to monkeypatch the recognised list of operators in order to
@@ -1459,14 +1459,15 @@ def test_dynkernelargument_infer_type(monkeypatch, proxy):
                         ["gh_not_an_op"])
     monkeypatch.setattr(arg, "_argument_type", "gh_not_an_op")
     with pytest.raises(NotImplementedError) as err:
-        arg.infer_datatype(call.scope.symbol_table, proxy)
+        arg.infer_datatype(proxy)
     assert ("Operators may only be of 'gh_operator' or 'gh_columnwise_"
             "operator' type but found 'gh_not_an_op'" in str(err.value))
 
-    # We should get a DeferredType for an unrecognised argument type
+    # We should get an exception for an unrecognised argument type
     monkeypatch.setattr(arg, "_argument_type", "foo")
-    dtype = arg.infer_datatype(call.scope.symbol_table, proxy)
-    assert isinstance(dtype, DeferredType)
+    with pytest.raises(NotImplementedError) as err:
+        arg.infer_datatype(proxy)
+    assert "'f1' is not a scalar, field or operator argument" in str(err.value)
 
 
 def test_arg_ref_name_method_error1():

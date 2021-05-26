@@ -3911,7 +3911,7 @@ class Argument(object):
                 # Find the tag or create a new symbol with expected attributes
                 new_argument = symtab.symbol_from_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
-                    datatype=self.infer_datatype(symtab),
+                    datatype=self.infer_datatype(),
                     interface=ArgumentInterface(argument_access))
                 self._name = new_argument.name
 
@@ -3929,14 +3929,10 @@ class Argument(object):
 
         '''
 
-    def infer_datatype(self, symbol_table):
+    def infer_datatype(self):
         ''' Infer the datatype of this argument using the API rules. If no
         specialisation of this method has been provided make the type
         DeferredType for now (it may be provided later in the execution).
-
-        :param symbol_table: symbol table from which to access e.g. kind \
-            symbols required for this argument.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: the datatype of this argument.
         :rtype: :py:class::`psyclone.psyir.symbols.DataType`
