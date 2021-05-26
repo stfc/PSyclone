@@ -3377,6 +3377,7 @@ class DynLMAOperators(DynCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
         lma_args = psyGen.args_filter(
             self._kernel.arguments.args, arg_types=["gh_operator"])
@@ -3386,14 +3387,14 @@ class DynLMAOperators(DynCollection):
                                intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
-            dtype = arg.intrinsic_type
+            op_dtype = arg.intrinsic_type
+            op_kind = const.DATA_STRUCT_MAPPING["operator"]["kind"]
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
             ndf_name_to = arg.function_space_to.ndf_name
             ndf_name_from = arg.function_space_from.ndf_name
-            parent.add(DeclGen(parent, datatype=dtype,
-                               kind=api_config.default_kind[dtype],
+            parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
                                dimension=",".join([ndf_name_to,
                                                    ndf_name_from, size]),
                                intent=arg.intent,
@@ -3601,6 +3602,7 @@ class DynCMAOperators(DynCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -3629,9 +3631,9 @@ class DynCMAOperators(DynCollection):
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
-            dtype = self._cma_ops[op_name]["datatype"]
-            parent.add(DeclGen(parent, datatype=dtype,
-                               kind=api_config.default_kind[dtype],
+            op_dtype = self._cma_ops[op_name]["datatype"]
+            op_kind = const.DATA_STRUCT_MAPPING["cma_operator"]["kind"]
+            parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
