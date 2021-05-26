@@ -505,7 +505,7 @@ def test_invoke_uniq_declns_invalid_argtype():
     ''' Tests that we raise an error when Invoke.unique_declarations() is
     called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
@@ -521,7 +521,7 @@ def test_invoke_uniq_declns_invalid_access():
     ''' Tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid access type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
@@ -536,7 +536,7 @@ def test_invoke_uniq_declns_invalid_intrinsic():
     ''' Tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid intrinsic type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
@@ -555,7 +555,7 @@ def test_invoke_uniq_declns_valid_access():
 
     # Test READ and INC
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     fields_read_args = psy.invokes.invoke_list[0]\
@@ -594,7 +594,7 @@ def test_invoke_uniq_proxy_declns():
     ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
     is called for an invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
@@ -609,7 +609,7 @@ def test_uniq_proxy_declns_invalid_access():
     ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
     is called for an invalid access type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     api_config = Config.get().api_conf("dynamo0.3")
@@ -626,7 +626,7 @@ def test_uniq_proxy_declns_invalid_intrinsic_type():
     ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
     is called for an invalid intrinsic type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
@@ -642,7 +642,7 @@ def test_uniq_proxy_declns_valid_parameters():
     ''' Tests that valid intrinsic_type and access are accepted,
     and will be correctly handled.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
@@ -664,7 +664,7 @@ def test_dyninvoke_first_access():
     ''' Tests that we raise an error if DynInvoke.first_access(name) is
     called for an argument name that doesn't exist '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
@@ -677,7 +677,7 @@ def test_dyninvoke_uniq_declns_intent_inv_argtype():
     ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
     is called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
@@ -693,7 +693,7 @@ def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
     ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
     is called for an invalid intrinsic type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
@@ -745,7 +745,7 @@ def test_dyninvoke_arg_for_fs():
     ''' Tests that we raise an error when DynInvoke.arg_for_funcspace() is
     called for an unused space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:

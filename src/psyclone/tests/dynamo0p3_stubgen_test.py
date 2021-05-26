@@ -49,11 +49,9 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicScalarArgs
-from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import ModuleGen
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.errors import GenerationError
 from psyclone.gen_kernel_stub import generate
-from psyclone.parse.utils import ParseError
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -87,30 +85,6 @@ def test_kernel_stub_invalid_iteration_space():
     assert ("supports kernels that operate on one of "
             "['cell_column'] but found 'domain' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
-
-
-def test_lfricscalars_stub_err():
-    ''' Check that LFRicScalarArgs._stub_declarations() raises the
-    expected internal error if it encounters an unrecognised data
-    type of a scalar argument when generating a kernel stub.
-
-    '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid data type
-    arg = kernel.arguments.args[1]
-    arg.descriptor._data_type = "gh_invalid_scalar"
-    with pytest.raises(InternalError) as err:
-        LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
-    const = LFRicConstants()
-    assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
-            "scalar argument 'iscalar_2'. Supported types are {0}.".
-            format(const.VALID_SCALAR_DATA_TYPES)
-            in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -158,68 +132,6 @@ def test_stub_generate_working_noapi():
     we use the default api (which should be dynamo0.3)'''
     result = generate(os.path.join(BASE_PATH, "simple.f90"))
     assert SIMPLE in str(result)
-
-
-SIMPLE_WITH_SCALARS = (
-    "  MODULE simple_with_scalars_mod\n"
-    "    IMPLICIT NONE\n"
-    "    CONTAINS\n"
-    "    SUBROUTINE simple_with_scalars_code(nlayers, rscalar_1, field_2_w1, "
-    "iscalar_3, ndf_w1, undf_w1, map_w1)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-    "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
-    "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
-    "      INTEGER(KIND=i_def), intent(in) :: iscalar_3\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) ::"
-    " field_2_w1\n"
-    "    END SUBROUTINE simple_with_scalars_code\n"
-    "  END MODULE simple_with_scalars_mod")
-
-
-def test_stub_generate_with_scalars():
-    ''' check that the stub generate produces the expected output when
-    the kernel has scalar arguments '''
-    result = generate(os.path.join(BASE_PATH, "simple_with_scalars.f90"),
-                      api=TEST_API)
-    assert SIMPLE_WITH_SCALARS in str(result)
-
-
-SCALAR_SUMS = (
-    "  MODULE testkern_multiple_scalar_sums_mod\n"
-    "    IMPLICIT NONE\n"
-    "    CONTAINS\n"
-    "    SUBROUTINE testkern_multiple_scalar_sums_code(nlayers, rscalar_1, "
-    "iscalar_2, field_3_w3, rscalar_4, iscalar_5, ndf_w3, undf_w3, map_w3)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      REAL(KIND=r_def), intent(inout) :: rscalar_1\n"
-    "      INTEGER(KIND=i_def), intent(inout) :: iscalar_2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
-    "      INTEGER(KIND=i_def), intent(in) :: undf_w3\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(undf_w3) :: field_3_w3\n"
-    "      REAL(KIND=r_def), intent(inout) :: rscalar_4\n"
-    "      INTEGER(KIND=i_def), intent(inout) :: iscalar_5\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-    "    END SUBROUTINE testkern_multiple_scalar_sums_code\n"
-    "  END MODULE testkern_multiple_scalar_sums_mod")
-
-
-def test_stub_generate_with_scalar_sums():
-    '''check that the stub generator raises an exception when a kernel has
-    a reduction (since these are not permitted for user-supplied kernels)'''
-    with pytest.raises(ParseError) as err:
-        _ = generate(
-            os.path.join(BASE_PATH, "simple_with_reduction.f90"),
-            api=TEST_API)
-    assert (
-        "A user-supplied LFRic kernel must not write/update a scalar "
-        "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_sum' access." in str(err.value))
 
 
 # Fields : intent
@@ -763,7 +675,7 @@ def test_kernel_stub_gen_cmd_line():
     # We use the Popen constructor here rather than check_output because
     # the latter is only available in Python 2.7 onwards.
     out = Popen(["genkernelstub",
-                 os.path.join(BASE_PATH, "simple_with_scalars.f90")],
+                 os.path.join(BASE_PATH, "simple.f90")],
                 stdout=PIPE).communicate()[0]
 
-    assert SIMPLE_WITH_SCALARS in out.decode('utf-8')
+    assert SIMPLE in out.decode('utf-8')

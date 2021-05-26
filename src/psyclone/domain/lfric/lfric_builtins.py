@@ -191,6 +191,8 @@ class LFRicBuiltIn(BuiltIn):
         :raises ParseError: if a built-in call does not iterate over DoFs.
         :raises ParseError: if an argument to a built-in kernel is not \
                             one of valid argument types.
+        :raises ParseError: if an argument to a built-in kernel has \
+                            an invalid data type.
         :raises ParseError: if a built-in kernel writes to more than \
                             one argument.
         :raises ParseError: if a built-in kernel does not have at least \
@@ -221,6 +223,14 @@ class LFRicBuiltIn(BuiltIn):
                     "must be one of {0} but kernel '{1}' has an argument of "
                     "type '{2}'.".format(const.VALID_BUILTIN_ARG_TYPES,
                                          self.name, arg.argument_type))
+            # Check valid data types
+            if arg.data_type not in const.VALID_BUILTIN_DATA_TYPES:
+                raise ParseError(
+                    "In the LFRic API an argument to a built-in kernel "
+                    "must have one of {0} as a data type but kernel '{1}' "
+                    "has an argument of data type '{2}'.".
+                    format(const.VALID_BUILTIN_DATA_TYPES,
+                           self.name, arg.data_type))
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
