@@ -1017,6 +1017,34 @@ def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
+def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir):
+    ''' Check that the FortranWriter outputs a function when a routine node
+    is found with return_symbol set.
+
+    '''
+    code = ("module test\n"
+            "implicit none\n"
+            "real :: a\n"
+            "contains\n"
+            "function tmp(b) result(val)\n"
+            "  real :: val\n"
+            "  real :: b\n"
+            "  val = a + b\n"
+            "end function tmp\n"
+            "end module test")
+    container = fortran_reader.psyir_from_source(code)
+    # Generate Fortran from PSyIR
+    result = fortran_writer(container)
+    assert(
+        "  contains\n"
+        "  function tmp(b) result(val)\n"
+        "    real, intent(inout) :: b\n"
+        "    real :: val\n\n"
+        "    val = a + b\n\n"
+        "  end function tmp\n" in result)
+    assert Compile(tmpdir).string_compiles(result)
+
+
 # assignment and binaryoperation (not intrinsics) are already checked
 # within previous tests
 
