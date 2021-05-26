@@ -99,6 +99,9 @@ def test_lfric_const():
     assert lfric_const.VALID_SCALAR_NAMES == ["gh_scalar"]
     assert lfric_const.VALID_ARG_DATA_TYPES == ["gh_real", "gh_integer",
                                                 "gh_logical"]
+    assert lfric_const.INFRASTRUCTURE_MODULES == {
+        "constants": "constants_mod", "field": "field_mod",
+        "integer_field": "integer_field_mod", "operator": "operator_mod"}
     # Make sure the 'INVALID' value is reset when the constant
     # object is created again.
     LFRicConstants.HAS_BEEN_INITIALISED = False
