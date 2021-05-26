@@ -39,15 +39,65 @@
 
 from __future__ import absolute_import
 import pytest
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
-    ArrayOfStructuresMember, ArrayMember, Literal, Reference, Range
+    ArrayOfStructuresMember, ArrayMember, Literal, Reference, Range, \
+    BinaryOperation
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
-    UnknownFortranType
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    UnknownFortranType, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    _create_struct_reference
 from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
+
+
+def test_create_struct_reference():
+    ''' Tests for the _create_struct_reference() utility. '''
+    one = Literal("1", INTEGER_TYPE)
+    with pytest.raises(InternalError) as err:
+        _create_struct_reference(None, StructureReference, Symbol("fake"),
+                                 ["hello", 1], [])
+    assert ("List of members must contain only strings or tuples but found "
+            "entry of type 'int'" in str(err.value))
+    with pytest.raises(NotImplementedError) as err:
+        _create_struct_reference(None, StructureType, Symbol("fake"),
+                                 ["hello"], [])
+    assert "Cannot create structure reference for type '" in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _create_struct_reference(None, StructureReference,
+                                 DataSymbol("fake", DeferredType()),
+                                 ["hello"], [one.copy()])
+    assert ("Creating a StructureReference but array indices have been "
+            "supplied" in str(err.value))
+    with pytest.raises(InternalError) as err:
+        _create_struct_reference(None, ArrayOfStructuresReference,
+                                 DataSymbol("fake", DeferredType()),
+                                 ["hello"], [])
+    assert ("Cannot create an ArrayOfStructuresReference without one or more "
+            "index expressions" in str(err.value))
+    ref = _create_struct_reference(None, StructureReference,
+                                   DataSymbol("fake", DeferredType()),
+                                   ["hello"], [])
+    assert isinstance(ref, StructureReference)
+    assert isinstance(ref.member, Member)
+    assert ref.member.name == "hello"
+    # Check that we can create an ArrayOfStructuresReference and that any
+    # PSyIR nodes are copied.
+    idx_var = one.copy()
+    idx_var2 = one.copy()
+    aref = _create_struct_reference(None, ArrayOfStructuresReference,
+                                    DataSymbol("fake", DeferredType()),
+                                    ["a", ("b", [idx_var2])], [idx_var])
+    assert isinstance(aref, ArrayOfStructuresReference)
+    assert isinstance(aref.member, StructureMember)
+    assert aref.member.name == "a"
+    assert aref.member.member.name == "b"
+    assert len(aref.member.member.indices) == 1
+    assert aref.member.member.indices[0] is not idx_var2
+    assert len(aref.indices) == 1
+    assert aref.indices[0] is not idx_var
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -235,19 +285,21 @@ def test_derived_type_accessibility():
     assert scale.visibility == Symbol.Visibility.PUBLIC
 
 
-def test_derived_type_ref(f2008_parser):
+def test_derived_type_ref(f2008_parser, fortran_writer):
     ''' Check that the frontend handles a references to a member of
     a derived type. '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "subroutine my_sub()\n"
         "  use some_mod, only: my_type\n"
-        "  type(my_type) :: var\n"
+        "  type(my_type) :: var, vars(3)\n"
         "  var%flag = 0\n"
         "  var%region%start = 1\n"
         "  var%region%subgrid(3)%stop = 1\n"
         "  var%region%subgrid(3)%data(:) = 1.0\n"
         "  var%region%subgrid(3)%data(var%start:var%stop) = 1.0\n"
+        "  vars(1)%region%subgrid(3)%data(:) = 1.0\n"
+        "  vars(:)%region%subgrid(3)%xstop = 1.0\n"
         "end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
     sched = processor.generate_schedule("my_sub", fparser2spec)
@@ -278,17 +330,28 @@ def test_derived_type_ref(f2008_parser):
     assert isinstance(amem, ArrayOfStructuresMember)
     assert isinstance(amem.member, ArrayMember)
     assert isinstance(amem.member.indices[0], Range)
-    # TODO the Range node still contains references to the 'fake' symbol used
-    # while constructing the full reference.
-    assert amem.member.indices[0].children[0].children[0].symbol.name != "fake"
-    assign = assignments[4]
+    assert isinstance(amem.member.indices[0].children[0], BinaryOperation)
+    assert amem.member.indices[0].children[0].children[0].symbol.name == "var"
+    gen = fortran_writer(amem)
+    assert (gen == "subgrid(3)%data(:)")
     # var%region%subgrid(3)%data(var%start:var%stop)
+    assign = assignments[4]
     amem = assign.lhs.member.member.member
     assert isinstance(amem, ArrayMember)
     assert isinstance(amem.indices[0], Range)
     assert isinstance(amem.indices[0].children[0], StructureReference)
     assert isinstance(amem.indices[0].children[0].member, Member)
     assert amem.indices[0].children[0].member.name == "start"
+    # vars(1)%region%subgrid(3)%data(:) = 1.0
+    assign = assignments[5]
+    amem = assign.lhs
+    gen = fortran_writer(amem)
+    assert (gen == "vars(1)%region%subgrid(3)%data(:)")
+    # vars(:)%region%subgrid(3)%xstop
+    assign = assignments[6]
+    amem = assign.lhs
+    gen = fortran_writer(amem)
+    assert (gen == "vars(:)%region%subgrid(3)%xstop")
 
 
 def test_array_of_derived_type_ref(f2008_parser):

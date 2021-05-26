@@ -1426,6 +1426,36 @@ def test_fw_range(fortran_writer):
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
 
 
+def test_fw_range_structureref(fortran_writer):
+    '''
+    Check the FortranWriter for Range nodes within structure references.
+    '''
+    grid_type = TypeSymbol("grid_type", DeferredType())
+    symbol = DataSymbol("my_grid", grid_type)
+    grid_array_type = ArrayType(grid_type, [5, 5])
+    array_symbol = DataSymbol("my_grids", grid_array_type)
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    data_ref = StructureReference.create(symbol, ["data"])
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   data_ref.copy(), one.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  data_ref.copy(), one.copy())
+    ref = StructureReference.create(symbol, [("data",
+                                              [Range.create(start, stop)])])
+    result = fortran_writer(ref)
+    assert result == "my_grid%data(:)"
+    data_ref = Reference(array_symbol)
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   data_ref.copy(), two.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  data_ref.copy(), two.copy())
+    aref = ArrayOfStructuresReference.create(
+        array_symbol, [one.copy(), Range.create(start, stop)], ["flag"])
+    result = fortran_writer(aref)
+    assert result == "my_grids(1,:)%flag"
+
+
 def test_fw_structureref(fortran_writer):
     ''' Test the FortranWriter support for StructureReference. '''
     region_type = StructureType.create([
