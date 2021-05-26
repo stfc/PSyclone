@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,24 +29,26 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author: R. W. Ford, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program single_invoke
 
-  ! Description: single function specified in an invoke call
-  use constants_mod,            only: r_def, i_def
-  use field_mod,                only: field_type
-  use testkern_two_scalars_mod, only: testkern_two_scalars_type
+  ! Single function specified in an invoke call that passes a 'real',
+  ! an 'integer' and a 'logical' scalar argument to a kernel
+  use constants_mod,              only: r_def, l_def, i_def
+  use field_mod,                  only: field_type
+  use testkern_three_scalars_mod, only: testkern_three_scalars_type
 
   implicit none
 
   type(field_type) :: f1, f2, m1, m2
   real(r_def)      :: a
+  logical(l_def)   :: lswitch
   integer(i_def)   :: istep
 
-  call invoke(                                             &
-       testkern_two_scalars_type(a, f1, f2, m1, m2, istep) &
+  call invoke(                                                        &
+       testkern_three_scalars_type(a, f1, f2, m1, m2, lswitch, istep) &
           )
 
 end program single_invoke

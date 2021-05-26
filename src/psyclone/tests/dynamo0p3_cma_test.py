@@ -137,13 +137,14 @@ def test_cma_mdata_invalid_data_type():
         "arg_type(gh_columnwise_operator, gh_real, gh_write,   &\n",
         "arg_type(gh_columnwise_operator, gh_unreal, gh_write,   &\n", 1)
     ast = fpapi.parse(code, ignore_comments=False)
+    const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
-            "entry should be a valid data type (one of "
-            "['gh_real', 'gh_integer']), but found 'gh_unreal' in "
-            "'arg_type(gh_columnwise_operator, gh_unreal, gh_write, "
-            "any_space_1, any_space_2)'." in str(excinfo.value))
+            "entry should be a valid data type (one of {0}), but found "
+            "'gh_unreal' in 'arg_type(gh_columnwise_operator, gh_unreal, "
+            "gh_write, any_space_1, any_space_2)'.".
+            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
 
 
 def test_cma_mdata_init_wrong_argument_type():
@@ -174,7 +175,7 @@ def test_cma_mdata_init_wrong_data_type():
         LFRicArgDescriptor(
             cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
     const = LFRicConstants()
-    assert ("In the LFRic API the permitted data types for operator arguments "
+    assert ("In the LFRic API the allowed data types for operator arguments "
             "are one of {0}, but found 'gh_integer' in 'arg_type(gh_columnwise"
             "_operator, gh_integer, gh_write, any_space_1, any_space_2)'.".
             format(const.VALID_OPERATOR_DATA_TYPES) in

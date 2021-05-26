@@ -25,7 +25,10 @@
         new GOceanConstants class.
 
         10) PR #1241 for #1240. Adds support for functions in the PSyIR and
-		Fortran frontend and backend.
+        Fortran frontend and backend.
+
+        11) PR #1257 for #1248. Adds support for logical, read-only, scalar
+        arguments to LFRic user-supplied kernels.
 
 release 2.0.0 28th April 2021
 
