@@ -1020,14 +1020,13 @@ class DynamoPSy(PSy):
         # Initialise the dictionary that holds the names of the required
         # LFRic constants, data structures and data structure proxies for
         # the "use" statements in modules that contain PSy-layer routines.
-        infmod_list = ["constants_mod", "field_mod", "integer_field_mod",
-                       "operator_mod"]
+        const = LFRicConstants()
         self._infrastructure_modules = OrderedDict(
-            (k, set()) for k in infmod_list)
+            (k, set()) for k in const.INFRASTRUCTURE_MODULES)
         # Get configuration for valid argument kinds (start with
         # 'real' and 'integer' kinds)
         api_config = Config.get().api_conf("dynamo0.3")
-        self._infrastructure_modules["constants_mod"] = {
+        self._infrastructure_modules["constants"] = {
             api_config.default_kind["real"],
             api_config.default_kind["integer"]}
 
@@ -1085,11 +1084,13 @@ class DynamoPSy(PSy):
         # We also iterate through the dictionary in reverse order so the
         # "use" statements for field types are before the "use" statements
         # for operator types.
+        const = LFRicConstants()
         for infmod in reversed(self._infrastructure_modules):
+            infmod_name = const.INFRASTRUCTURE_MODULES[infmod]
             if self._infrastructure_modules[infmod]:
                 infmod_types = sorted(
                     list(self._infrastructure_modules[infmod]), reverse=True)
-                psy_module.add(UseGen(psy_module, name=infmod,
+                psy_module.add(UseGen(psy_module, name=infmod_name,
                                       only=True, funcnames=infmod_types))
 
         # Return the root node of the generated code
@@ -2764,14 +2765,14 @@ class LFRicFields(DynCollection):
                                    entity_decls=real_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["field_mod"].add(dtype))
+             infrastructure_modules["field"].add(dtype))
         if int_fld_arg_list:
             dtype = "integer_field_type"
             parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=int_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["integer_field_mod"].add(dtype))
+             infrastructure_modules["integer_field"].add(dtype))
 
     def _stub_declarations(self, parent):
         '''
@@ -3029,7 +3030,7 @@ class DynProxies(DynCollection):
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
                                    entity_decls=real_field_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
+            (self._invoke.invokes.psy.infrastructure_modules["field"].
              add(dtype))
         int_field_proxy_decs = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
@@ -3040,7 +3041,7 @@ class DynProxies(DynCollection):
                                    datatype=dtype,
                                    entity_decls=int_field_proxy_decs))
             (self._invoke.invokes.psy.
-             infrastructure_modules["integer_field_mod"].add(dtype))
+             infrastructure_modules["integer_field"].add(dtype))
 
         # Declarations of LMA operator proxies
         op_proxy_decs = self._invoke.unique_proxy_declarations(
@@ -3050,7 +3051,7 @@ class DynProxies(DynCollection):
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
                                    entity_decls=op_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+            (self._invoke.invokes.psy.infrastructure_modules["operator"].
              add(dtype))
 
         # Declarations of CMA operator proxies
@@ -3061,7 +3062,7 @@ class DynProxies(DynCollection):
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
                                    entity_decls=cma_op_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+            (self._invoke.invokes.psy.infrastructure_modules["operator"].
              add(dtype))
 
     def initialise(self, parent):
@@ -3348,7 +3349,7 @@ class LFRicScalarArgs(DynCollection):
             if self._logical_scalars[intent]:
                 if self._invoke:
                     (self._invoke.invokes.psy.
-                     infrastructure_modules["constants_mod"].add(dkind))
+                     infrastructure_modules["constants"].add(dkind))
                 if self._kernel:
                     self._kernel.argument_kinds.add(dkind)
                 logical_scalar_names = [arg.declaration_name for arg
@@ -3416,7 +3417,7 @@ class DynLMAOperators(DynCollection):
             parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=op_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+            (self._invoke.invokes.psy.infrastructure_modules["operator"].
              add(dtype))
 
 
@@ -3563,7 +3564,7 @@ class DynCMAOperators(DynCollection):
                                    datatype=dtype,
                                    entity_decls=cma_op_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+            (self._invoke.invokes.psy.infrastructure_modules["operator"].
              add(dtype))
 
         for op_name in self._cma_ops:
