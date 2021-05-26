@@ -136,8 +136,11 @@ def test_function_handler(fortran_reader, fortran_writer):
     assert result == expected
 
 
-@pytest.mark.parametrize("basic_type", ["real", "integer"])
-def test_function_type_prefix(fortran_reader, fortran_writer, basic_type):
+@pytest.mark.parametrize("basic_type, rhs_val", [("real", "1.0"),
+                                                 ("integer", "1"),
+                                                 ("logical", ".false.")])
+def test_function_type_prefix(fortran_reader, fortran_writer,
+                              basic_type, rhs_val):
     '''
     Test the handler when the function definition has a type prefix but no
     result suffix.
@@ -146,23 +149,23 @@ def test_function_type_prefix(fortran_reader, fortran_writer, basic_type):
     code = (
         "module a\n"
         "contains\n"
-        "  {0} function my_func()\n"
-        "    my_func = 1\n"
+        "  {0} function my_fUnc()\n"
+        "    my_Func = {1}\n"
         "  end function my_func\n"
-        "end module\n".format(basic_type))
+        "end module\n".format(basic_type, rhs_val))
     expected = (
         "module a\n"
         "  implicit none\n\n"
-        "  public :: my_func\n\n"
+        "  public :: my_fUnc\n\n"
         "  contains\n"
-        "  function my_func()\n"
+        "  function my_fUnc()\n"
         "    {0} :: my_func\n"
         "\n"
-        "    my_func = 1\n"
+        "    my_func = {1}\n"
         "\n"
-        "  end function my_func\n"
+        "  end function my_fUnc\n"
         "\n"
-        "end module a\n".format(basic_type))
+        "end module a\n".format(basic_type, rhs_val))
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir, Container)
     assert isinstance(psyir.children[0], Routine)
@@ -170,8 +173,10 @@ def test_function_type_prefix(fortran_reader, fortran_writer, basic_type):
     assert isinstance(return_sym, DataSymbol)
     if basic_type == "real":
         assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    else:
+    elif basic_type == "integer":
         assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    else:
+        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     result = fortran_writer(psyir)
     assert result == expected
 
