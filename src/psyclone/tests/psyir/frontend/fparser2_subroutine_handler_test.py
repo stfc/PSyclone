@@ -46,7 +46,8 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.nodes import Container, Routine, CodeBlock
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    TYPE_MAP_FROM_FORTRAN
 
 # subroutine no declarations
 SUB1_IN = (
@@ -138,12 +139,13 @@ def test_function_handler(fortran_reader, fortran_writer):
 
 @pytest.mark.parametrize("basic_type, rhs_val", [("real", "1.0"),
                                                  ("integer", "1"),
-                                                 ("logical", ".false.")])
+                                                 ("logical", ".false."),
+                                                 ("character", "'b'")])
 def test_function_type_prefix(fortran_reader, fortran_writer,
                               basic_type, rhs_val):
     '''
     Test the handler when the function definition has a type prefix but no
-    result suffix.
+    result suffix. Includes test that handling is not case sensitive.
 
     '''
     code = (
@@ -159,9 +161,9 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
         "  public :: my_fUnc\n\n"
         "  contains\n"
         "  function my_fUnc()\n"
-        "    {0} :: my_func\n"
+        "    {0} :: my_fUnc\n"
         "\n"
-        "    my_func = {1}\n"
+        "    my_fUnc = {1}\n"
         "\n"
         "  end function my_fUnc\n"
         "\n"
@@ -171,12 +173,7 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     assert isinstance(psyir.children[0], Routine)
     return_sym = psyir.children[0].return_symbol
     assert isinstance(return_sym, DataSymbol)
-    if basic_type == "real":
-        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    elif basic_type == "integer":
-        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    else:
-        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
     result = fortran_writer(psyir)
     assert result == expected
 
@@ -260,5 +257,18 @@ def test_unsupported_function_prefix(fortran_reader, fn_prefix):
         "    my_func = 1.0\n"
         "  end function my_func\n"
         "end module\n".format(fn_prefix))
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0], CodeBlock)
+
+
+def test_unsupported_char_len_function(fortran_reader):
+    ''' Check that we get a CodeBlock if a Fortran function is of character
+    type with a specified length. '''
+    code = ("module a\n"
+            "contains\n"
+            "  character(len=2) function my_func()\n"
+            "    my_func = 'aa'\n"
+            "  end function my_func\n"
+            "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0], CodeBlock)
