@@ -322,13 +322,13 @@ class LFRicConstants(object):
         # and type associated with mesh.
         LFRicConstants.MESH_TYPE_MAP = {
             "mesh": {"module": "mesh_mod", "type": "mesh_type"},
-            "mesh_map": {"module": "mesh_map_mod", "type": "mesh_MAP_type"}}
+            "mesh_map": {"module": "mesh_map_mod", "type": "mesh_map_type"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type associated with reference element.
-        LFRicConstants.REFERENCE_ELEMENT_TYPE_MAP = {
-            "reference_element": {"module": "reference_element_mod",
-                                  "type": "reference_element_type"}}
+        LFRicConstants.REFELEMENT_TYPE_MAP = {
+            "refelement": {"module": "reference_element_mod",
+                           "type": "reference_element_type"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with function space.

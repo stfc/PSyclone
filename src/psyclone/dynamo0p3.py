@@ -2198,12 +2198,15 @@ class DynReferenceElement(DynCollection):
             return
 
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
-        parent.add(UseGen(parent, name="reference_element_mod", only=True,
-                          funcnames=["reference_element_type"]))
+        refelem_type = const.REFELEMENT_TYPE_MAP["refelement"]["type"]
+        refelem_mod = const.REFELEMENT_TYPE_MAP["refelement"]["module"]
+        parent.add(UseGen(parent, name=refelem_mod, only=True,
+                          funcnames=[refelem_type]))
         parent.add(
             TypeDeclGen(parent, pointer=True, is_class=True,
-                        datatype="reference_element_type",
+                        datatype=refelem_type,
                         entity_decls=[self._ref_elem_name + " => null()"]))
 
         parent.add(DeclGen(parent, datatype="integer",
@@ -3794,26 +3797,31 @@ class DynMeshes(object):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
         # Since we're now generating code, any transformations must
         # have been applied so we can set-up colourmap information
         self._colourmap_init()
 
         # We'll need various typedefs from the mesh module
+        mtype = const.MESH_TYPE_MAP["mesh"]["type"]
+        mmod = const.MESH_TYPE_MAP["mesh"]["module"]
+        mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
+        mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
         if self._mesh_names:
-            parent.add(UseGen(parent, name="mesh_mod", only=True,
-                              funcnames=["mesh_type"]))
+            parent.add(UseGen(parent, name=mmod, only=True,
+                              funcnames=[mtype]))
         if self._ig_kernels:
-            parent.add(UseGen(parent, name="mesh_map_mod", only=True,
-                              funcnames=["mesh_map_type"]))
+            parent.add(UseGen(parent, name=mmap_mod, only=True,
+                              funcnames=[mmap_type]))
         # Declare the mesh object(s)
         for name in self._mesh_names:
-            parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
+            parent.add(TypeDeclGen(parent, pointer=True, datatype=mtype,
                                    entity_decls=[name + " => null()"]))
         # Declare the inter-mesh map(s) and cell map(s)
         for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
-                                   datatype="mesh_map_type",
+                                   datatype=mmap_type,
                                    entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
