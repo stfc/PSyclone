@@ -42,6 +42,7 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.nodes import Return, Routine, Loop
+from psyclone.psyir.symbols import ScalarType
 from psyclone.transformations import TransformationError
 from psyclone.domain.nemo.transformations import CreateNemoInvokeScheduleTrans
 from psyclone.nemo import NemoInvokeSchedule
@@ -116,3 +117,25 @@ end module my_mod
     assert isinstance(psyir.children[1], NemoInvokeSchedule)
     # Check body has not changed
     assert psyir.children[1][0] is loops[0]
+
+
+def test_invoke_function(fortran_reader):
+    ''' Test the transformation when the target routine is a function. '''
+    code = '''module my_mod
+contains
+real function calc(x) result(val)
+  real :: x
+  val = x
+end function calc
+end module my_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = CreateNemoInvokeScheduleTrans()
+    routine = psyir.walk(Routine)[0]
+    assert routine.return_symbol.name == "val"
+    trans.apply(routine)
+    sched = psyir.walk(NemoInvokeSchedule)[0]
+    # Check that the new NemoInvokeSchedule still has a return symbol
+    assert sched.return_symbol.name == "val"
+    assert isinstance(sched.return_symbol.datatype, ScalarType)
+    assert sched.return_symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
