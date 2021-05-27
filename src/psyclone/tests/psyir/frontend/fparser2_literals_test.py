@@ -93,34 +93,30 @@ def test_handling_literal(code, dtype):
 
 
 def test_handling_literal_char(fortran_reader):
-    ''' Check that we correctly handle the special cases where '' must be
-    interpreted as ' and "" as ". (See Note 4.12 in the Fortran 2003
-    standard.) '''
+    ''' Check that the special cases where '' must be interpreted as ' and
+    "" as " result in CodeBlocks. (See Note 4.12 in the Fortran 2003
+    standard.) Also tests that any empty string is handled correctly. '''
     code = """program my_prog
   implicit none
-  character(len=32) :: my_str1, my_str2, my_str3, my_str4
+  character(len=32) :: my_str1, my_str2, my_str3, my_str4, fmt_str
   my_str1 = 'a cat''s mat'
   my_str2 = "a cat""s mat"
   my_str3 = "a cat''s mat"
   my_str4 = 'a cat""s mat'
+  fmt_str = "('Let''s see a cat''s mat')"
+  my_str3 = ''
+  my_str4 = ""
+
 end program my_prog
 """
     prog = fortran_reader.psyir_from_source(code)
     assigns = prog.walk(Assignment)
-    assert isinstance(assigns[0].rhs, Literal)
-    assert assigns[0].rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
-    assert assigns[0].rhs.value == "a cat's mat"
-    assert isinstance(assigns[1].rhs, Literal)
-    assert assigns[1].rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
-    assert assigns[1].rhs.value == 'a cat"s mat'
-    # The delimiting characters are not the same as the ones within the string
-    # and therefore the latter are left unchanged.
-    assert isinstance(assigns[2].rhs, Literal)
-    assert assigns[2].rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
-    assert assigns[2].rhs.value == "a cat''s mat"
-    assert isinstance(assigns[3].rhs, Literal)
-    assert assigns[3].rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
-    assert assigns[3].rhs.value == 'a cat""s mat'
+    for assign in assigns[:5]:
+        assert isinstance(assign.rhs, CodeBlock)
+    for assign in assigns[5:]:
+        assert isinstance(assign.rhs, Literal)
+        assert assign.rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+        assert assign.rhs.value == ""
 
 
 @pytest.mark.parametrize("value,dprecision,intrinsic",
