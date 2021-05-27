@@ -2852,8 +2852,12 @@ class LFRicRunTimeChecks(DynCollection):
         '''
         if Config.get().api_conf("dynamo0.3").run_time_checks:
             # Only add if run-time checks are requested
-            parent.add(UseGen(parent, name="fs_continuity_mod"))
-            parent.add(UseGen(parent, name="log_mod", only=True,
+            const = LFRicConstants()
+            parent.add(UseGen(parent, name=const.
+                              FUNCTION_SPACE_MAP["fs_continuity"]["module"]))
+            parent.add(UseGen(parent, name=const.
+                              UTILITIES_MOD_MAP["logging"]["module"],
+                              only=True,
                               funcnames=["log_event", "LOG_LEVEL_ERROR"]))
 
     def _check_field_fs(self, parent):
@@ -4423,7 +4427,9 @@ class DynBasisFunctions(DynCollection):
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
         if self._qr_vars or self._eval_targets:
-            parent.add(UseGen(parent, name="function_space_mod",
+            parent.add(UseGen(parent,
+                              name=const.
+                              FUNCTION_SPACE_MAP["function_space"]["module"],
                               only=True,
                               funcnames=["BASIS", "DIFF_BASIS"]))
 
