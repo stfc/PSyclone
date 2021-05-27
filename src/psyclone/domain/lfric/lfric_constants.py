@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 '''
 This module provides a class with all LFRic related constants.
@@ -282,6 +283,22 @@ class LFRicConstants(object):
         # Meta functions
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
+
+        # Dictionary that holds the names of the required LFRic infrastructure
+        # modules for the "use" statements in PSy layer and kernel stubs.
+        LFRicConstants.INFRASTRUCTURE_TYPES = [
+            # Data structures
+            "field_type", "integer_field_type", "operator_type", "scalar_type",
+            # Constants
+            "constants"]
+        LFRicConstants.INFRASTRUCTURE_MODULES = [
+            # Data structure modules
+            "field_mod", "integer_field_mod", "operator_mod", "scalar_mod",
+            # Constants module
+            "constants_mod"]
+        LFRicConstants.INFRASTRUCTURE_MAPPING = OrderedDict(
+            zip(LFRicConstants.INFRASTRUCTURE_TYPES,
+                LFRicConstants.INFRASTRUCTURE_MODULES))
 
 
 # =============================================================================
