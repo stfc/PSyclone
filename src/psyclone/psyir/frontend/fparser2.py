@@ -1476,6 +1476,11 @@ class Fparser2Reader(object):
                 precision = self._process_precision(type_spec, parent)
             if not precision:
                 precision = default_precision(data_name)
+            # We don't support len or kind specifiers for character variables
+            if fort_type == "character" and type_spec.children[1]:
+                raise NotImplementedError(
+                    "Length or kind attributes not supported on character "
+                    "varaiables: '{0}'".format(str(type_spec)))
             base_type = ScalarType(data_name, precision)
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
@@ -3325,7 +3330,10 @@ class Fparser2Reader(object):
         # pylint: disable=no-self-use
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
-        return Literal(str(node.items[0]), character_type)
+        # fparser issue #295 - the value of the character string currently
+        # contains the quotation symbols themselves. Therefore we must strip
+        # them before storing the value.
+        return Literal(str(node.items[0])[1:-1], character_type)
 
     def _bool_literal_handler(self, node, parent):
         '''
