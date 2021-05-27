@@ -119,6 +119,24 @@ end program my_prog
         assert assign.rhs.value == ""
 
 
+@pytest.mark.usefixtures("f2008_parser")
+def test_literal_char_without_quotes_error():
+    ''' Test that the check in the handler that the provided string is quoted
+    works as expected. This will need to be changed once fparser #295 is
+    done. '''
+    reader = FortranStringReader("x = 'hello'")
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    # Edit the resulting parse tree to remove the quotes
+    astmt.children[2].items = ("hello", None)
+    sched = Schedule()
+    sched.symbol_table.add(DataSymbol("x", UnknownFortranType("blah :: x")))
+    processor = Fparser2Reader()
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(sched, [astmt])
+    assert ("Char literal handler expects a quoted value but got: >>hello<<"
+            in str(err.value))
+
+
 @pytest.mark.parametrize("value,dprecision,intrinsic",
                          [("0.0", "rdef", ScalarType.Intrinsic.REAL),
                           ("1", "idef", ScalarType.Intrinsic.INTEGER),

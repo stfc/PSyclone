@@ -3334,8 +3334,14 @@ class Fparser2Reader(object):
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
         # fparser issue #295 - the value of the character string currently
-        # contains the quotation symbols themselves.
+        # contains the quotation symbols themselves. Once that's fixed this
+        # check will need to be changed.
         char_value = str(node.items[0])
+        if not ((char_value.startswith("'") and char_value.endswith("'")) or
+                (char_value.startswith('"') and char_value.endswith('"'))):
+            raise InternalError(
+                "Char literal handler expects a quoted value but got: "
+                ">>{0}<<".format(char_value))
         # In Fortran "x""x" or 'x''x' represents a string containing x"x
         # or x'x, respectively. (See Note 4.12 in the Fortran 2003 standard.)
         # However, checking whether we have e.g. 'that''s a cat''s mat' is
