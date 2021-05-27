@@ -46,12 +46,14 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     get_literal_precision
 from psyclone.psyir.symbols import ScalarType, DataSymbol, INTEGER_TYPE, \
     UnknownFortranType
-from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule
+from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule, Assignment
 from psyclone.errors import InternalError
 
 
 @pytest.mark.parametrize("code, dtype",
                          [("'hello'", ScalarType.Intrinsic.CHARACTER),
+                          ('''"('hello: ',3A)"''',
+                           ScalarType.Intrinsic.CHARACTER),
                           ('"hello"', ScalarType.Intrinsic.CHARACTER),
                           ("1", ScalarType.Intrinsic.INTEGER),
                           ("1.0", ScalarType.Intrinsic.REAL),
@@ -62,6 +64,10 @@ def test_handling_literal(code, dtype):
     ''' Check that the fparser2 frontend can handle literals of all
     supported datatypes. Note that signed literals are represented in the
     PSyIR as a Unary operation on an unsigned literal.
+
+    Note that because of fparser issue #295 we must include the quotation marks
+    with supplied character literals. Once that issue is done, these can
+    be removed.
 
     '''
     reader = FortranStringReader("x=" + code)
@@ -76,11 +82,45 @@ def test_handling_literal(code, dtype):
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.datatype.intrinsic == dtype
-    if dtype in [ScalarType.Intrinsic.BOOLEAN, ScalarType.Intrinsic.CHARACTER]:
-        # Remove wrapping dots or quotes
+    if dtype == ScalarType.Intrinsic.BOOLEAN:
+        # Remove wrapping dots and lower the case
         assert literal.value == code.lower()[1:-1]
+    elif dtype == ScalarType.Intrinsic.CHARACTER:
+        # Remove wrapping quotes
+        assert literal.value == code[1:-1]
     else:
         assert literal.value == code
+
+
+def test_handling_literal_char(fortran_reader):
+    ''' Check that we correctly handle the special cases where '' must be
+    interpreted as ' and "" as ". (See Note 4.12 in the Fortran 2003
+    standard.) '''
+    code = """program my_prog
+  implicit none
+  character(len=32) :: my_str1, my_str2, my_str3, my_str4
+  my_str1 = 'a cat''s mat'
+  my_str2 = "a cat""s mat"
+  my_str3 = "a cat''s mat"
+  my_str4 = 'a cat""s mat'
+end program my_prog
+"""
+    prog = fortran_reader.psyir_from_source(code)
+    assigns = prog.walk(Assignment)
+    assert isinstance(assigns[0].rhs, Literal)
+    assert assigns[0].rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+    assert assigns[0].rhs.value == "a cat's mat"
+    assert isinstance(assigns[1].rhs, Literal)
+    assert assigns[1].rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+    assert assigns[1].rhs.value == 'a cat"s mat'
+    # The delimiting characters are not the same as the ones within the string
+    # and therefore the latter are left unchanged.
+    assert isinstance(assigns[2].rhs, Literal)
+    assert assigns[2].rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+    assert assigns[2].rhs.value == "a cat''s mat"
+    assert isinstance(assigns[3].rhs, Literal)
+    assert assigns[3].rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+    assert assigns[3].rhs.value == 'a cat""s mat'
 
 
 @pytest.mark.parametrize("value,dprecision,intrinsic",

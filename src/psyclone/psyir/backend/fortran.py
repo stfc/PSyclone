@@ -1087,7 +1087,7 @@ class FortranWriter(PSyIRVisitor):
         :param node: a Literal PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Literal`
 
-        :returns: the Fortran code as a string.
+        :returns: the Fortran code for the literal.
         :rtype: str
 
         '''
@@ -1095,7 +1095,26 @@ class FortranWriter(PSyIRVisitor):
             # Booleans need to be converted to Fortran format
             result = '.' + node.value + '.'
         elif node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-            result = "'{0}'".format(node.value)
+            # Need to take care with which quotation symbol to use since a
+            # character string may include quotation marks, e.g. a format
+            # specifier: "('hello',3A)". The outermost quotation marks are
+            # not stored so we have to decide whether to use ' or ".
+            single_idx = node.value.find("'")
+            if single_idx == -1:
+                # No single quotes in the string so use those
+                quote_symbol = "'"
+            else:
+                dbl_idx = node.value.find('"')
+                if dbl_idx == -1:
+                    # No double quotes in the string so use those
+                    quote_symbol = '"'
+                else:
+                    if single_idx < dbl_idx:
+                        # Single quote appears before double
+                        quote_symbol = '"'
+                    else:
+                        quote_symbol = "'"
+            result = quote_symbol + "{0}".format(node.value) + quote_symbol
         else:
             result = node.value
         precision = node.datatype.precision

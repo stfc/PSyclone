@@ -3317,6 +3317,9 @@ class Fparser2Reader(object):
     def _char_literal_handler(self, node, parent):
         '''
         Transforms an fparser2 character literal into a PSyIR literal.
+        Since Fortran permits the use of a double '' or double "" to represent
+        a single instance of one of those characters within a string delimited
+        by the same character, that conversion is handled here.
 
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
@@ -3331,9 +3334,17 @@ class Fparser2Reader(object):
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
         # fparser issue #295 - the value of the character string currently
-        # contains the quotation symbols themselves. Therefore we must strip
-        # them before storing the value.
-        return Literal(str(node.items[0])[1:-1], character_type)
+        # contains the quotation symbols themselves.
+        char_value = str(node.items[0])
+        # In Fortran "x""x" or 'x''x' represents a string containing x"x
+        # or x'x, respectively. (See Note 4.12 in the Fortran 2003 standard.)
+        if len(char_value) > 2:
+            if char_value.startswith("'") and "''" in char_value:
+                char_value = char_value.replace("''", "'")
+            if char_value.startswith('"') and '""' in char_value:
+                char_value = char_value.replace('""', '"')
+        # Strip the wrapping quotation chars before storing the value.
+        return Literal(char_value[1:-1], character_type)
 
     def _bool_literal_handler(self, node, parent):
         '''
