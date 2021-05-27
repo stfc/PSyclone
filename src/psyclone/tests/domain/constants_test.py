@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 
 '''Tests for class storing API-specific constants.'''
@@ -96,6 +97,8 @@ def test_lfric_const():
                                                 "gh_columnwise_operator",
                                                 "gh_scalar"]
     assert lfric_const.VALID_SCALAR_NAMES == ["gh_scalar"]
+    assert lfric_const.VALID_ARG_DATA_TYPES == ["gh_real", "gh_integer",
+                                                "gh_logical"]
     # Make sure the 'INVALID' value is reset when the constant
     # object is created again.
     LFRicConstants.HAS_BEEN_INITIALISED = False
