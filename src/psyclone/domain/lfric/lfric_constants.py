@@ -299,10 +299,10 @@ class LFRicConstants(object):
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.
         LFRicConstants.STENCIL_TYPE_MAP = {
-            "stencil_dofmap": {"module": "stencil_dofmap_mod",
-                               "type": "stencil_dofmap_type"},
-            "stencil_2D_dofmap": {"module": "stencil_2D_dofmap_mod",
-                                  "type": "stencil_2D_dofmap_type"},
+            "stencil": {"module": "stencil_dofmap_mod",
+                        "type": "stencil_dofmap_type"},
+            "stencil_2D": {"module": "stencil_2D_dofmap_mod",
+                           "type": "stencil_2D_dofmap_type"},
             "direction": {"module": "flux_direction_mod"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module,

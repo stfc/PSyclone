@@ -1695,12 +1695,12 @@ class DynStencils(DynCollection):
             stencil_map_names.append(map_name)
             stencil_type = arg.descriptor.stencil['type']
             if stencil_type == "cross2d":
-                parent.add(UseGen(parent, name="stencil_2D_dofmap_mod",
-                                  only=True,
-                                  funcnames=["stencil_2D_dofmap_type",
-                                             "STENCIL_2D_CROSS"]))
+                smap_type = const.STENCIL_TYPE_MAP["stencil_2D"]["type"]
+                smap_mod = const.STENCIL_TYPE_MAP["stencil_2D"]["module"]
+                parent.add(UseGen(parent, name=smap_mod, only=True,
+                                  funcnames=[smap_type, "STENCIL_2D_CROSS"]))
                 parent.add(TypeDeclGen(parent, pointer=True,
-                                       datatype="stencil_2D_dofmap_type",
+                                       datatype=smap_type,
                                        entity_decls=[map_name +
                                                      " => null()"]))
                 parent.add(DeclGen(parent, datatype="integer",
@@ -1720,14 +1720,16 @@ class DynStencils(DynCollection):
                                    entity_decls=[self.max_branch_length_name(
                                        symtab, arg)]))
             else:
-                parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True,
-                                  funcnames=["stencil_dofmap_type"]))
+                smap_type = const.STENCIL_TYPE_MAP["stencil"]["type"]
+                smap_mod = const.STENCIL_TYPE_MAP["stencil"]["module"]
+                parent.add(UseGen(parent, name=smap_mod,
+                                  only=True, funcnames=[smap_type]))
                 if stencil_type == 'xory1d':
-                    parent.add(UseGen(parent, name="flux_direction_mod",
+                    drct_mod = const.STENCIL_TYPE_MAP["direction"]["module"]
+                    parent.add(UseGen(parent, name=drct_mod,
                                       only=True, funcnames=["x_direction",
                                                             "y_direction"]))
-                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                    parent.add(UseGen(parent, name=smap_mod,
                                       only=True, funcnames=["STENCIL_1DX",
                                                             "STENCIL_1DY"]))
                 else:
@@ -1739,11 +1741,11 @@ class DynStencils(DynCollection):
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
                                    str(const.STENCIL_MAPPING))), err)
-                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                    parent.add(UseGen(parent, name=smap_mod,
                                       only=True, funcnames=[stencil_name]))
 
                 parent.add(TypeDeclGen(parent, pointer=True,
-                                       datatype="stencil_dofmap_type",
+                                       datatype=smap_type,
                                        entity_decls=[map_name+" => null()"]))
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
