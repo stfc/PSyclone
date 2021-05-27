@@ -2726,11 +2726,12 @@ class LFRicFields(DynCollection):
         # Filter field arguments by intent and intrinsic type
         real_fld_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
-            intrinsic_type=const.DATA_STRUCT_MAPPING["field"]["intrinsic"])
+            intrinsic_type=const.DATA_STRUCT_MAPPING[
+                "field_type"]["intrinsic"])
         int_fld_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.DATA_STRUCT_MAPPING[
-                "integer_field"]["intrinsic"])
+                "integer_field_type"]["intrinsic"])
 
         # Create lists of field names for real- and integer-valued fields
         fld_arg_list = [arg.declaration_name for arg in fld_args]
@@ -2761,19 +2762,19 @@ class LFRicFields(DynCollection):
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
         if real_fld_arg_list:
-            fld_type = const.DATA_STRUCT_MAPPING["field"]["type"]
+            fld_type = "field_type"
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=real_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["field"].add(fld_type))
+             infrastructure_modules[fld_type].add(fld_type))
         if int_fld_arg_list:
-            fld_type = const.DATA_STRUCT_MAPPING["integer_field"]["type"]
+            fld_type = "integer_field_type"
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=int_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["integer_field"].add(fld_type))
+             infrastructure_modules[fld_type].add(fld_type))
 
     def _stub_declarations(self, parent):
         '''
@@ -2789,7 +2790,7 @@ class LFRicFields(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
         const = LFRicConstants()
-        intr_infmod = {"real": "field", "integer": "integer_field"}
+        intr_infmod = {"real": "field_type", "integer": "integer_field_type"}
 
         fld_args = psyGen.args_filter(
             self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
@@ -3023,52 +3024,55 @@ class DynProxies(DynCollection):
 
         '''
         const = LFRicConstants()
-        # Declarations of real and integer field proxies
+        # Declarations of 'real' and 'integer' field proxies
         real_field_proxy_decs = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
-            intrinsic_type=const.DATA_STRUCT_MAPPING["field"]["intrinsic"])
+            intrinsic_type=const.DATA_STRUCT_MAPPING[
+                "field_type"]["intrinsic"])
         if real_field_proxy_decs:
-            fld_proxy_type = const.DATA_STRUCT_MAPPING["field"]["proxy_type"]
+            fld_proxy_type = const.DATA_STRUCT_MAPPING[
+                "field_type"]["proxy_type"]
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_proxy_type,
                                    entity_decls=real_field_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules["field"].
-             add(fld_proxy_type))
+            (self._invoke.invokes.psy.infrastructure_modules[
+                "field_type"].add(fld_proxy_type))
         int_field_proxy_decs = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
             intrinsic_type=const.DATA_STRUCT_MAPPING[
-                "integer_field"]["intrinsic"])
+                "integer_field_type"]["intrinsic"])
         if int_field_proxy_decs:
             fld_proxy_type = const.DATA_STRUCT_MAPPING[
-                "integer_field"]["proxy_type"]
+                "integer_field_type"]["proxy_type"]
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_proxy_type,
                                    entity_decls=int_field_proxy_decs))
             (self._invoke.invokes.psy.
-             infrastructure_modules["integer_field"].add(fld_proxy_type))
+             infrastructure_modules["integer_field_type"].add(fld_proxy_type))
 
         # Declarations of LMA operator proxies
         op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_operator"])
         if op_proxy_decs:
-            op_proxy_type = const.DATA_STRUCT_MAPPING["operator"]["proxy_type"]
+            op_proxy_type = const.DATA_STRUCT_MAPPING[
+                "operator_type"]["proxy_type"]
             parent.add(TypeDeclGen(parent,
                                    datatype=op_proxy_type,
                                    entity_decls=op_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules["operator"].
-             add(op_proxy_type))
+            (self._invoke.invokes.psy.infrastructure_modules[
+                "operator_type"].add(op_proxy_type))
 
         # Declarations of CMA operator proxies
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
         if cma_op_proxy_decs:
             cma_op_proxy_type = const.DATA_STRUCT_MAPPING[
-                "cma_operator"]["proxy_type"]
+                "columnwise_operator_type"]["proxy_type"]
             parent.add(TypeDeclGen(parent,
                                    datatype=cma_op_proxy_type,
                                    entity_decls=cma_op_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules["operator"].
-             add(cma_op_proxy_type))
+            (self._invoke.invokes.psy.infrastructure_modules[
+                "operator_type"].add(cma_op_proxy_type))
 
     def initialise(self, parent):
         '''
@@ -3389,7 +3393,7 @@ class DynLMAOperators(DynCollection):
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
             op_dtype = arg.intrinsic_type
-            op_kind = const.DATA_STRUCT_MAPPING["operator"]["kind"]
+            op_kind = const.DATA_STRUCT_MAPPING["operator_type"]["kind"]
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
@@ -3420,12 +3424,12 @@ class DynLMAOperators(DynCollection):
         # Create a list of operator names
         op_arg_list = [arg.declaration_name for arg in op_args]
         if op_arg_list:
-            op_type = const.DATA_STRUCT_MAPPING["operator"]["type"]
+            op_type = "operator_type"
             parent.add(TypeDeclGen(parent, datatype=op_type,
                                    entity_decls=op_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules["operator"].
-             add(op_type))
+            (self._invoke.invokes.psy.infrastructure_modules[
+                "operator_type"].add(op_type))
 
 
 class DynCMAOperators(DynCollection):
@@ -3566,13 +3570,13 @@ class DynCMAOperators(DynCollection):
             argument_types=["gh_columnwise_operator"])
         # Create a list of column-wise operator names
         cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
+        cma_op_type = "columnwise_operator_type"
         if cma_op_arg_list:
-            cma_op_type = const.DATA_STRUCT_MAPPING["cma_operator"]["type"]
             parent.add(TypeDeclGen(parent,
                                    datatype=cma_op_type,
                                    entity_decls=cma_op_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules["operator"].
+            (self._invoke.invokes.psy.infrastructure_modules["operator_type"].
              add(cma_op_type))
 
         for op_name in self._cma_ops:
@@ -3580,7 +3584,7 @@ class DynCMAOperators(DynCollection):
             cma_name = self._symbol_table.symbol_from_tag(
                 op_name+"_matrix").name
             cma_op_dtype = self._cma_ops[op_name]["datatype"]
-            cma_op_kind = const.DATA_STRUCT_MAPPING["cma_operator"]["kind"]
+            cma_op_kind = const.DATA_STRUCT_MAPPING[cma_op_type]["kind"]
             parent.add(DeclGen(parent, datatype=cma_op_dtype,
                                kind=cma_op_kind,
                                pointer=True,
@@ -3634,7 +3638,8 @@ class DynCMAOperators(DynCollection):
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
             op_dtype = self._cma_ops[op_name]["datatype"]
-            op_kind = const.DATA_STRUCT_MAPPING["cma_operator"]["kind"]
+            op_kind = const.DATA_STRUCT_MAPPING[
+                "columnwise_operator_type"]["kind"]
             parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
@@ -5406,14 +5411,17 @@ class DynGlobalSum(GlobalSum):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        const = LFRicConstants()
         name = self._scalar.name
         # Use InvokeSchedule SymbolTable to share the same symbol for all
         # GlobalSums in the Invoke.
         sum_name = self.ancestor(InvokeSchedule).symbol_table.\
             symbol_from_tag("global_sum").name
-        parent.add(UseGen(parent, name="scalar_mod", only=True,
-                          funcnames=["scalar_type"]))
-        parent.add(TypeDeclGen(parent, datatype="scalar_type",
+        sum_type = "scalar_type"
+        parent.add(UseGen(parent,
+                          name=const.INFRASTRUCTURE_MODULES["scalar_type"],
+                          only=True, funcnames=[sum_type]))
+        parent.add(TypeDeclGen(parent, datatype=sum_type,
                                entity_decls=[sum_name]))
         parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))

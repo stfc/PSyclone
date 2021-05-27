@@ -290,46 +290,48 @@ class LFRicConstants(object):
         # Data structure type mandates its proxy name, Fortran intrinsic type
         # of its data and the kind (precision) for the intrinsic type.
         LFRicConstants.DATA_STRUCT_MAPPING = {
-            # 'real'-valued scalar of kind 'r_def' (used for global
-            # reductions of "field_type" data)
-            "scalar": {
-                "type": "scalar_type",
-                "module": "scalar_mod",
-                "intrinsic": "real", "kind": "r_def"},
             # 'real'-valued field with data of kind 'r_def'
-            "field": {
-                "type": "field_type",
+            "field_type": {
                 "proxy_type": "field_proxy_type",
                 "module": "field_mod",
-                "intrinsic": "real", "kind": "r_def"},
+                "intrinsic": "real",
+                "kind": api_config.default_kind["real"]},
             # 'integer'-valued field with data of kind 'i_def'
-            "integer_field": {
-                "type": "integer_field_type",
+            "integer_field_type": {
                 "proxy_type": "integer_field_proxy_type",
                 "module": "integer_field_mod",
-                "intrinsic": "integer", "kind": "i_def"},
+                "intrinsic": "integer",
+                "kind": api_config.default_kind["integer"]},
             # 'real'-valued operator with data of kind 'r_def'
-            "operator": {
-                "type": "operator_type",
+            "operator_type": {
                 "proxy_type": "operator_proxy_type",
                 "module": "operator_mod",
-                "intrinsic": "real", "kind": "r_def"},
+                "intrinsic": "real",
+                "kind": api_config.default_kind["real"]},
             # 'real'-valued columnwise operator with data of kind 'r_def'
-            "cma_operator": {
-                "type": "columnwise_operator_type",
+            "columnwise_operator_type": {
                 "proxy_type": "columnwise_operator_proxy_type",
                 "module": "operator_mod",
-                "intrinsic": "real", "kind": "r_def"}}
+                "intrinsic": "real",
+                "kind": api_config.default_kind["real"]},
+            # 'real'-valued scalar of kind 'r_def' (used for global
+            # reductions of "field_type" data)
+            "scalar_type": {
+                "module": "scalar_mod",
+                "intrinsic": "real",
+                "kind": api_config.default_kind["real"]}}
 
         # Dictionary that holds the names of the required LFRic infrastructure
         # modules for the "use" statements in PSy layer and kernel stubs.
         LFRicConstants.INFRASTRUCTURE_MODULES = OrderedDict(
-            zip(["constants", "scalar", "field", "integer_field", "operator"],
+            zip(["constants", "field_type", "integer_field_type",
+                 "operator_type", "scalar_type"],
                 ["constants_mod",
-                 LFRicConstants.DATA_STRUCT_MAPPING["scalar"]["module"],
-                 LFRicConstants.DATA_STRUCT_MAPPING["field"]["module"],
-                 LFRicConstants.DATA_STRUCT_MAPPING["integer_field"]["module"],
-                 LFRicConstants.DATA_STRUCT_MAPPING["operator"]["module"]]))
+                 LFRicConstants.DATA_STRUCT_MAPPING["field_type"]["module"],
+                 LFRicConstants.DATA_STRUCT_MAPPING[
+                     "integer_field_type"]["module"],
+                 LFRicConstants.DATA_STRUCT_MAPPING["operator_type"]["module"],
+                 LFRicConstants.DATA_STRUCT_MAPPING["scalar_type"]["module"]]))
 
 
 # =============================================================================

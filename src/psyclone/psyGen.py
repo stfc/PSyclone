@@ -2704,6 +2704,8 @@ class Kern(Statement):
 
         '''
         from psyclone.f2pygen import AssignGen, DeclGen, AllocateGen
+        from psyclone.domain.lfric import LFRicConstants
+        api_config = Config.get().api_conf("dynamo0.3")
         if not position:
             position = ["auto"]
         var_name = self._reduction_arg.name
@@ -2718,10 +2720,11 @@ class Kern(Statement):
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
             data_value = "0.0"
+            kind_type = LFRicConstants().DATA_STRUCT_MAPPING[
+                "scalar_type"]["kind"]
         if var_data_type == "integer":
             data_value = "0"
-        kind_type = \
-            Config.get().api_conf("dynamo0.3").default_kind[var_data_type]
+            kind_type = api_config.default_kind[var_data_type]
         zero = "_".join([data_value, kind_type])
         parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
                    position=position)
