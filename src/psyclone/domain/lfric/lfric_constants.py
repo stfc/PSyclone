@@ -273,7 +273,7 @@ class LFRicConstants(object):
 
         # Dictionary allowing us to look-up the name of the Fortran module,
         # type and proxy-type associated with each LFRic data type.
-        LFRicConstants.DATA_TYPE_MAP = {
+        LFRicConstants.DATA_TYPE_MOD_MAP = {
             # 'real'-valued scalar of kind 'r_def' (used for global
             # reductions of "field_type" data)
             "scalar": {"module": "scalar_mod",
@@ -298,16 +298,16 @@ class LFRicConstants(object):
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.
-        LFRicConstants.STENCIL_TYPE_MAP = {
-            "stencil": {"module": "stencil_dofmap_mod",
-                        "type": "stencil_dofmap_type"},
-            "stencil_2D": {"module": "stencil_2D_dofmap_mod",
-                           "type": "stencil_2D_dofmap_type"},
+        LFRicConstants.STENCIL_TYPE_MOD_MAP = {
+            "stencil_dofmap": {"module": "stencil_dofmap_mod",
+                               "type": "stencil_dofmap_type"},
+            "stencil_2D_dofmap": {"module": "stencil_2D_dofmap_mod",
+                                  "type": "stencil_2D_dofmap_type"},
             "direction": {"module": "flux_direction_mod"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module,
         # type and proxy-type associated with each quadrature shape.
-        LFRicConstants.QUADRATURE_TYPE_MAP = {
+        LFRicConstants.QUADRATURE_TYPE_MOD_MAP = {
             "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
                                    "type": "quadrature_xyoz_type",
                                    "proxy_type": "quadrature_xyoz_proxy_type"},
@@ -320,19 +320,19 @@ class LFRicConstants(object):
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type associated with mesh.
-        LFRicConstants.MESH_TYPE_MAP = {
+        LFRicConstants.MESH_TYPE_MOD_MAP = {
             "mesh": {"module": "mesh_mod", "type": "mesh_type"},
             "mesh_map": {"module": "mesh_map_mod", "type": "mesh_map_type"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type associated with reference element.
-        LFRicConstants.REFELEMENT_TYPE_MAP = {
+        LFRicConstants.REFELEMENT_TYPE_MOD_MAP = {
             "refelement": {"module": "reference_element_mod",
                            "type": "reference_element_type"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with function space.
-        LFRicConstants.FUNCTION_SPACE_MAP = {
+        LFRicConstants.FUNCTION_SPACE_MOD_MAP = {
             # Function space type (for basis and differential basis functions)
             "function_space": {"module": "function_space_mod",
                                "type": "function_space_type"},
