@@ -1848,9 +1848,14 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal('a', CHARACTER_TYPE)
     result = fortran_writer(lit1)
     assert result == "'a'"
+    # An empty character string is valid
+    lit1 = Literal('', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == "''"
 
     # Check that we generate the correct quotation marks if the literal itself
-    # includes quotation marks
+    # includes quotation marks within it. (Note that the values of character
+    # literals are stored in the PSyIR without any enclosing quotation marks.)
     lit1 = Literal('''('hello ',4A)''', CHARACTER_TYPE)
     result = fortran_writer(lit1)
     assert result == '''"('hello ',4A)"'''
