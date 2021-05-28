@@ -74,11 +74,13 @@ class ArrayMixin(object):
         return isinstance(child, (DataNode, Range))
 
     def get_signature_and_indices(self):
-        ''':returns: the Signature of this structure reference, and \
+        ''':returns: the Signature of this array reference, and \
             a list of the indices used for each component (empty list \
-            if an access is not an array).
+            if an access is not an array). In this base class there is \
+            no other component, so it just returns a list with a list \
+            of all indices.
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
-            list of indices)
+            lists of indices)
         '''
         sig, _ = super(ArrayMixin, self).get_signature_and_indices()
         return (sig, [self.indices[:]])
