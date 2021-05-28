@@ -74,13 +74,13 @@ def test_transform():
     assert NemoArrayAccess2LoopTrans()
     assert isinstance(NemoArrayAccess2LoopTrans(), Transformation)
 
-def check_transformation(code, expected_result, index):
+def check_transformation(code, expected_result, index=0, statement=0):
     ''' xxx '''
     input_code = "program test\n{0}end program test\n".format(code)
     output_code = "program test\n{0}end program test\n".format(expected_result)
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
-    assignment = psyir.walk(Assignment)[0]
+    assignment = psyir.walk(Assignment)[statement]
     array_reference = assignment.lhs
     index_node = array_reference.children[index]
 
@@ -99,30 +99,29 @@ def test_example1():
         "  real :: a(10), b(10)\n"
         "  a(1) = b(1)\n")
     expected_result = (
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  integer :: ji\n\n"
         "  do ji = 1, 1, 1\n"
         "    a(ji) = b(ji)\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, 0)
+    check_transformation(code, expected_result)
 
 
 def test_example2():
-    ''' second dimension variable '''
+    ''' second dimension variable with pre-existing code before the target loop. '''
     code = (
-        "  real :: a(10), b(10)\n"
+        "  real :: a(10,10), b(10,10)\n"
         "  integer :: n\n"
+        "  b(:,:) = 0.0\n"
         "  a(1,n) = b(1,n)\n")
     expected_result = (
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  integer :: n\n"
-        "  integer :: jj\n\n"
+        "  real, dimension(10,10) :: a\n  real, dimension(10,10) :: b\n"
+        "  integer :: n\n  integer :: jj\n\n"
+        "  b(:,:) = 0.0\n"
         "  do jj = n, n, 1\n"
         "    a(1,jj) = b(1,jj)\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, 1)
+    check_transformation(code, expected_result, index=1, statement=1)
 
 
 def test_example3():
@@ -132,19 +131,35 @@ def test_example3():
         "  integer :: n\n"
         "  a(1,n,2*n+1) = b(1,n,2*n+1)\n")
     expected_result = (
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  integer :: n\n"
-        "  integer :: jk\n\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  integer :: n\n  integer :: jk\n\n"
         "  do jk = 2 * n + 1, 2 * n + 1, 1\n"
         "    a(1,n,jk) = b(1,n,jk)\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, 2)
+    check_transformation(code, expected_result, index=2)
 
 
-# pre-existing loops
+def test_indirection():
+    ''' indirection '''
+    code = (
+        "  real :: a(10), b(10)\n"
+        "  integer :: lookup(10)\n"
+        "  integer :: n\n"
+        "  a(lookup(n)) = b(lookup(n))\n")
+    expected_result = (
+        "  real, dimension(10) :: a\n"
+        "  real, dimension(10) :: b\n"
+        "  integer, dimension(10) :: lookup\n"
+        "  integer :: n\n"
+        "  integer :: ji\n\n"
+        "  do ji = lookup(n), lookup(n), 1\n"
+        "    a(ji) = b(ji)\n"
+        "  enddo\n\n")
+    check_transformation(code, expected_result)
+
+
 def test_example4():
-    ''' pre-existing loops '''
+    ''' adding loop inbetween pre-existing loops '''
     code = (
         "  real :: a(10,10,10), b(10,10,10)\n"
         "  integer :: ji, n, jk\n"
@@ -154,21 +169,64 @@ def test_example4():
         "    enddo\n"
         "  enddo\n")
     expected_result = (
-        "  real, dimension(10,10,10) :: a\n"
-        "  real, dimension(10,10,10) :: b\n"
-        "  integer :: ji\n"
-        "  integer :: n\n"
-        "  integer :: jk\n"
-        "  integer :: jj\n\n"
-        "  do jk = 1, 10\n"
-        "    do jj = n, n\n"
-        "      do jj = 1, 10\n"
+        "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
+        "  integer :: ji\n  integer :: n\n  integer :: jk\n  integer :: jj\n\n"
+        "  do jk = 1, 10, 1\n"
+        "    do jj = n, n, 1\n"
+        "      do ji = 1, 10, 1\n"
         "        a(ji,jj,jk) = b(ji,jj,jk)\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, 1)
+    check_transformation(code, expected_result, index=1)
 
+def test_example5():
+    ''' array notation '''
+    code = (
+        "  real :: a(10,10,10), b(10,10,10)\n"
+        "  integer :: jpk\n"
+        "  a(:,:,jpk) = 0.0e0\n")
+
+    expected_result = (
+        "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
+        "  integer :: jpk\n  integer :: jk\n\n"
+        "  do jk = jpk, jpk, 1\n"
+        "    a(:,:,jk) = 0.0e0\n"
+        "  enddo\n\n")
+    check_transformation(code, expected_result, index=2)
+
+
+
+# TODO different lhs and rhs indexing
+
+# loop variable expression
+def test_example9():
+    ''' loop variable expression '''
+    code = (
+        "  real :: a(10,10,10), b(10,10,10)\n"
+        "  integer :: lookup(10)\n"
+        "  integer :: ji, jj, n\n"
+        "  do jj = 1, n\n"
+        "    do ji = 1, n\n"
+        "      a(ji+n+1,jj-1+lookup(jj),n) = b(ji,jj,n)\n"
+        "    end do\n"
+        "  end do\n")
+    expected_result = (
+        "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
+        "  integer, dimension(10) :: lookup\n"
+        "  integer :: ji\n  integer :: jj\n  integer :: n\n  integer :: jk\n\n"
+        "  do jk = n, n, 1\n"
+        "    do jj = 1, n, 1\n"
+        "      do ji = 1, n, 1\n"
+        "        a(ji + n + 1,jj - 1,jk) = b(ji,jj,jk)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n\n")
+    check_transformation(code, expected_result, index=2)
+
+
+# loop variable lookup/function
+# multiple loop iterators error
 
 # validate (constraint - all indices are the same)
 

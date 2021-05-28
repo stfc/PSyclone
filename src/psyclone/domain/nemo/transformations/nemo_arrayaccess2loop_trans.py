@@ -138,7 +138,9 @@ class NemoArrayAccess2LoopTrans(Transformation):
         parent = assignment.parent
         symbol_table = node.scope.symbol_table
 
-        assignment.view()
+        node_copy = node.copy()
+
+        # assignment.view()
 
         # See if there is any configuration information for this array index
         loop_type_order = Config.get().api_conf("nemo").get_index_order()
@@ -153,6 +155,29 @@ class NemoArrayAccess2LoopTrans(Transformation):
         except IndexError:
             loop_variable_name = symbol_table.next_available_name("idx")
 
+        # ************************************************************
+        # TBD: We need better evaluation of symbols in the code below
+        # as we might have expressions, lookups and/or multiple
+        # symbols within indices. The problem is demonstrated by an
+        # failing test.
+        # ************************************************************
+
+        # Work out where to add the new loop (at 'location') as there may be existing
+        # inner loops
+        symbols = [ref.symbol for ref in array_reference.children[:array_index]
+                if isinstance(ref, Reference)]
+
+        location = assignment
+        idx = 0
+        from psyclone.psyir.nodes import Loop, Schedule
+        while isinstance(location.parent, Schedule) and isinstance(location.parent.parent, Loop) and idx<len(symbols):
+            if not symbols[idx] is location.parent.parent.variable:
+                print (symbols[idx].name)
+                print (location.parent.parent.variable.name)
+                raise InternalError("Validation method should pick this up.")
+            idx += 1
+            location = location.parent.parent
+
         # Look up the loop variable in the symbol table. If it does
         # not exist then create it.
         try:
@@ -162,26 +187,18 @@ class NemoArrayAccess2LoopTrans(Transformation):
             loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
             symbol_table.add(loop_variable_symbol)
 
-        # Replace array access loop variable
+        # Replace array access loop variable.
         for array in assignment.walk(ArrayReference):
-            array.children[array_index] = Reference(loop_variable_symbol)
-        position = assignment.position
+            if not array.ancestor(ArrayReference):
+                print (type(array.parent))
+                array.children[array_index] = Reference(loop_variable_symbol)
 
+        # Create our new loop and add its children
         step = Literal("1", INTEGER_TYPE)
-        loop = NemoLoop.create(loop_variable_symbol, node.copy(),
-                               node.copy(), step, [assignment.detach()])
+        loop = NemoLoop.create(loop_variable_symbol, node_copy,
+                               node_copy.copy(), step, [location.copy()])
 
-        # Work out where to add the new loop as there may be existing
-        # inner loops
-        symbols = [ref.symbol for ref in array.children[:array_index]
-                if isinstance(ref, Reference)]
-        location = parent
-        while isinstance(location, Loop) and location.symbol in symbols:
-            location = location.parent
-        print (type(parent))
-        exit(1)
-        parent.children.insert(position, loop)
-
+        location.replace_with(loop)
 
     def __str__(self):
         return (
