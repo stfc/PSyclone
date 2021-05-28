@@ -1865,6 +1865,12 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal("apostrophe's", CHARACTER_TYPE)
     result = fortran_writer(lit1)
     assert result == '''"apostrophe's"'''
+    lit1 = Literal('''('hello "',4A,'"')''', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '''"('hello "',4A,'"')"'''
+    lit1 = Literal('''("hello '",4A,"'")''', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == """'("hello '",4A,"'")'"""
 
     lit1 = Literal('3.14', REAL_TYPE)
     result = fortran_writer(lit1)
