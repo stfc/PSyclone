@@ -416,7 +416,7 @@ class VariablesAccessInfo(dict):
         '''Increases the location number.'''
         self._location = self._location + 1
 
-    def add_access(self, signature, access_type, node, indices_list=None):
+    def add_access(self, signature, access_type, node, component_indices=None):
         '''Adds access information for the variable with the given signature.
 
         :param signature: the signature of the variable.
@@ -425,10 +425,10 @@ class VariablesAccessInfo(dict):
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node` instance
-        :param indices_list: list of lists of indices used in the access, one \
-            list for each component. None if the variable is not an array. \
-            Defaults to None, which is then converted to [[]].
-        :type indices_list: list of lists of \
+        :param component_indices: list of lists of indices used in the \
+            access, one list for each component. None if the variable is \
+            not an array. Defaults to None, which is then converted to [[]].
+        :type component_indices: list of lists of \
             :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -439,17 +439,17 @@ class VariablesAccessInfo(dict):
                                 "be of type psyclone.core.Signature."
                                 .format(signature, type(signature).__name__))
 
-        if indices_list is None:
-            indices_list = [[]]
+        if component_indices is None:
+            component_indices = [[]]
 
         if signature in self:
             self[signature].add_access_with_location(access_type,
                                                      self._location, node,
-                                                     indices_list)
+                                                     component_indices)
         else:
             var_info = SingleVariableAccessInfo(signature)
             var_info.add_access_with_location(access_type, self._location,
-                                              node, indices_list)
+                                              node, component_indices)
             self[signature] = var_info
 
     @property
