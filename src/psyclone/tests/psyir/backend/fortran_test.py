@@ -1278,6 +1278,8 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = -a + (-b + (-c))\n"
         "    e = .not. f .or. .not. g\n"
         "    a = log(b*c)\n"
+        "    a = b**(-c)\n"
+        "    a = b**(-b + c)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1288,7 +1290,9 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = -a * (-b + c)\n"
         "    a = -a + (-b + -c)\n"
         "    e = .NOT.f .OR. .NOT.g\n"
-        "    a = LOG(b * c)\n")
+        "    a = LOG(b * c)\n"
+        "    a = b ** (-c)\n"
+        "    a = b ** (-b + c)\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
