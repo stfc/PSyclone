@@ -70,7 +70,32 @@ def test_adjloop_trans_validate(monkeypatch, fortran_reader):
         trans.validate(loop)
     assert ("Cannot apply a AdjointLoopTrans transformation to a "
             "'null' loop" in str(err.value))
-    monkeypatch.undo()
+
+
+def test_adjloop_trans_validate_body(fortran_reader):
+    ''' Test the validation checks on the body of the loop provided to the
+    transformation. '''
+    code = CODE.replace("var(ji) = ji", "var(ji+1) = var(ji)")
+    code = code.replace(", 10", ", 9")
+    prog = fortran_reader.psyir_from_source(code)
+    loop = prog.walk(Loop)[0]
+    trans = AdjointLoopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    assert ("Loop contains complex dependencies: Warning: Variable var is "
+            "written" in str(err.value))
+
+
+def test_adjloop_trans_validate_codeblock(fortran_reader):
+    ''' Check that the transformation rejects a loop that contains a
+    CodeBlock. '''
+    code = CODE.replace("var(ji) = ji", "write(*,*) ji")
+    prog = fortran_reader.psyir_from_source(code)
+    loop = prog.walk(Loop)[0]
+    trans = AdjointLoopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    assert ("Nodes of type 'CodeBlock' cannot be" in str(err.value))
 
 
 def test_adjloop_trans_basic_apply(tmpdir, fortran_reader, fortran_writer):
@@ -93,5 +118,5 @@ def test_adjloop_trans_negative_step(tmpdir, fortran_reader, fortran_writer):
     loop = prog.walk(Loop)[0]
     trans.apply(loop)
     gen = fortran_writer(prog)
-    assert "do ji = 1, 10, 2\n" in gen
+    assert "do ji = 1, 10, -(-2)\n" in gen
     assert Compile(tmpdir).string_compiles(gen)

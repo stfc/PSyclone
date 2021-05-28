@@ -35,23 +35,30 @@
 
 ''' This module contains the AdjointLoopTrans. '''
 
-import six
-
-from psyclone.psyGen import Kern
+from psyclone.psyir.nodes import UnaryOperation, CodeBlock
+from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.nodes import Schedule, Loop, UnaryOperation
+
+
+class AdjointDependencyTools(DependencyTools):
+    ''' Sub-class of DependencyTools that removes the need for loop-type
+    information (since we only have that for a DSL, not for language-level
+    PSyIR).
+
+    '''
+    def _is_loop_suitable_for_parallel(self, loop, only_nested_loops=False):
+        return True
 
 
 class AdjointLoopTrans(LoopTrans):
     '''
-    This class implements XXXXXX.
+    This class implements the transformation to take the Adjoint of a loop.
 
     '''
-    # The types of Node that are excluded from within the target loop. Must be
-    # populated by sub-class.
-    excluded_node_types = ()
+    #: The types of Node that are excluded from within the target loop.
+    excluded_node_types = (CodeBlock)
 
     def validate(self, node, options=None):
         '''Checks that the supplied node is a valid target for an adjoint
@@ -65,13 +72,33 @@ class AdjointLoopTrans(LoopTrans):
             type of the nodes enclosed in the loop should be tested to \
             avoid including unsupported nodes in a transformation.
 
-        :raises TransformationError: XXXXXX
+        :raises TransformationError: if the loop contains dependencies that \
+            would prevent its parallelisation - to play it safe we refuse to \
+            take the adjoint of such loops for now.
 
         '''
         super(AdjointLoopTrans, self).validate(node, options=options)
 
+        # Although this transformation does not alter the body of the loop, we
+        # need to check that it is suitable for adjointing. For now we are
+        # very conservative.
+        dtools = AdjointDependencyTools()
+        if not dtools.can_loop_be_parallelised(node, only_nested_loops=False):
+            raise TransformationError(
+                "Loop contains complex dependencies: {0}".format(
+                    "\n".join(dtools.get_all_messages())))
+
     def apply(self, node, options=None):
-        ''' '''
+        ''' Takes the adjoint of the supplied loop node. This means that
+        the loop itself is run backwards. This transformation does not deal
+        with the body of the loop.
+
+        :param node: target PSyIR loop.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        '''
         self.validate(node, options=options)
         start = node.start_expr.copy()
         stop = node.stop_expr.copy()
