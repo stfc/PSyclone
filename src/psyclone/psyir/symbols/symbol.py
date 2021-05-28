@@ -498,7 +498,7 @@ class Symbol(object):
         raise ValueError("No array information is available for the "
                          "symbol '{0}'.".format(self.name))
 
-    def is_used_as_array(self, index_variable=None, access_info=None):
+    def is_array_access(self, index_variable=None, access_info=None):
         '''This method detects if a variable is used as an array or not.
         If available, it will use the access information, i.e. how the
         variable is used (e.g. if it has indices somewhere, like `a(i)%b`).
@@ -541,7 +541,7 @@ class Symbol(object):
         # information and symbol table - if required, the user can
         # query both in two simple statements anyway.
         if index_variable and not access_info:
-            raise InternalError("In Symbol.is_used_as_array: index variable "
+            raise InternalError("In Symbol.is_array_access: index variable "
                                 "'{0}' specified, but no access information "
                                 "given."
                                 .format(index_variable))

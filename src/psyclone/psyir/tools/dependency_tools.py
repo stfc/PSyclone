@@ -386,7 +386,7 @@ class DependencyTools(object):
             var_info = var_accesses[signature]
             symbol_table = loop.scope.symbol_table
             symbol = symbol_table.lookup(var_name)
-            is_array = symbol.is_used_as_array(access_info=var_info)
+            is_array = symbol.is_array_access(access_info=var_info)
 
             if is_array:
                 # Handle arrays

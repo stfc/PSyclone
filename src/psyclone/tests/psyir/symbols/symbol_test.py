@@ -394,7 +394,7 @@ def test_symbol_array_handling(fortran_reader):
         in str(error.value)
 
     # Import additional tests from access_info_test to reach 100% coverage
-    # for the is_used_as_array function. Import these tests locally only.
+    # for the is_array_access function. Import these tests locally only.
     # pylint: disable=import-outside-toplevel
     from psyclone.tests.core.access_info_test import \
         test_symbol_array_detection

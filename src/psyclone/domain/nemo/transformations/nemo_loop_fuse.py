@@ -110,7 +110,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 continue
 
             symbol = symbol_table.lookup(var_name)
-            is_array = symbol.is_used_as_array(access_info=var_info1)
+            is_array = symbol.is_array_access(access_info=var_info1)
 
             if not is_array:
                 NemoLoopFuseTrans.validate_written_scalar(var_info1, var_info2)

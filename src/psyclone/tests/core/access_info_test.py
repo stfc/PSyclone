@@ -441,8 +441,8 @@ def test_symbol_array_detection(fortran_reader):
     symbol_table = scalar_assignment.scope.symbol_table
     sym_a = symbol_table.lookup("a")
     with pytest.raises(InternalError) as error:
-        sym_a.is_used_as_array(index_variable="j")
-    assert "In Symbol.is_used_as_array: index variable 'j' specified, but " \
+        sym_a.is_array_access(index_variable="j")
+    assert "In Symbol.is_array_access: index variable 'j' specified, but " \
            "no access information given." in str(error.value)
 
     vai = VariablesAccessInfo()
@@ -451,34 +451,34 @@ def test_symbol_array_detection(fortran_reader):
     # For 'a' we don't have access information, nor symbol table information
     access_info_a = vai[Signature("a")]
     with pytest.raises(ValueError) as error:
-        sym_a.is_used_as_array(access_info=access_info_a)
+        sym_a.is_array_access(access_info=access_info_a)
     assert "No array information is available for the symbol 'a'" \
         in str(error.value)
 
     # For the access to 'b' we will find array access information:
     access_info_b = vai[Signature("b")]
     sym_b = symbol_table.lookup("b")
-    b_is_array = sym_b.is_used_as_array(access_info=access_info_b)
+    b_is_array = sym_b.is_array_access(access_info=access_info_b)
     assert b_is_array
 
     # For the access to 'c' we don't have access information, but
     # have symbol table information.
     access_info_c = vai[Signature("c")]
     sym_c = symbol_table.lookup("c")
-    c_is_array = sym_c.is_used_as_array(access_info=access_info_c)
+    c_is_array = sym_c.is_array_access(access_info=access_info_c)
     assert c_is_array
 
     # Test specifying the index variable. The access to 'b' is
     # considered an array access when ysing the index variable 'i'.
     access_info_b = vai[Signature("b")]
     sym_b = symbol_table.lookup("b")
-    b_is_array = sym_b.is_used_as_array(access_info=access_info_b,
-                                        index_variable="i")
+    b_is_array = sym_b.is_array_access(access_info=access_info_b,
+                                       index_variable="i")
     assert b_is_array
 
     # Verify that the access to 'b' is not considered to be an
     # array access regarding the loop variable 'j' (the access
     # is loop independent):
-    b_is_array = sym_b.is_used_as_array(access_info=access_info_b,
-                                        index_variable="j")
+    b_is_array = sym_b.is_array_access(access_info=access_info_b,
+                                       index_variable="j")
     assert not b_is_array
