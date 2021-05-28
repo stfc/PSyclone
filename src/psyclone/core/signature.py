@@ -52,9 +52,13 @@ class Signature(object):
     sure two different signature objects containing the same variable
     can be used as a key, this class implements `__hash__` and other special
     functions.
+    The constructor also supports appending an existing signature to this
+    new signature using the `sub_sig` argument. This is used in
+    StructureReference to assemble the overall signature of a structure
+    access.
 
     :param variable: the variable that is accessed.
-    :type variable: can be str or a tuple of strings.
+    :type variable: str or tuple of str
 
     :param sub_sig: a signature that is to be added to this new signature.
     :type sub_sig: :py:class:`psyclone.core.Signature`
@@ -66,7 +70,7 @@ class Signature(object):
         else:
             # null-tuple
             sub_tuple = ()
-        if isinstance(variable, (str, six.text_type)):
+        if isinstance(variable, (six.text_type)):
             # str() required for python2 unicode support
             self._signature = (str(variable),) + sub_tuple
         elif isinstance(variable, tuple):

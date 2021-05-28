@@ -54,8 +54,8 @@ from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
                                    DataSymbol, GlobalInterface, \
                                    INTEGER_SINGLE_TYPE, LocalInterface, \
                                    RoutineSymbol, Symbol, SymbolError, \
-                                   SymbolInterface, SymbolTable, \
-                                   UnresolvedInterface
+                                   SymbolTable, UnresolvedInterface
+from psyclone.psyir.symbols.symbol import SymbolInterface
 
 
 def test_symbol_initialisation():

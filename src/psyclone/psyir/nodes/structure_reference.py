@@ -234,11 +234,12 @@ class StructureReference(Reference):
             if an access is not an array).
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             list of indices)
+
         '''
         # Get the signature of self:
         my_sig, my_index = \
             super(StructureReference, self).get_signature_and_indices()
-        # The the sub-signature of the member, and indices used:
+        # Then the sub-signature of the member, and indices used:
         sub_sig, indices = self.children[0].get_signature_and_indices()
         # Combine signature and indices
         return (Signature(my_sig, sub_sig), my_index + indices)

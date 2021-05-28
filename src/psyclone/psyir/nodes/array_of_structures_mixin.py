@@ -111,9 +111,9 @@ class ArrayOfStructuresMixin(ArrayMixin):
             a list of the indices used for each component (empty list \
             if an access is not an array).
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
-            list of indices)
-        '''
+            lists of indices)
 
+        '''
         sub_sig, indices = self.children[0].get_signature_and_indices()
         sig = Signature(self.name)
         return (Signature(sig, sub_sig), [self.indices]+indices)

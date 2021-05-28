@@ -88,13 +88,13 @@ def test_access_info_exceptions():
     with pytest.raises(InternalError) as err:
         _ = AccessInfo(AccessType.READ, location, Node(),
                        indices_groups=123)
-    assert "Indices_groups in add_access must be a list or None, got '123'" \
-        in str(err.value)
+    assert "Indices_groups in add_access must be a list of lists or None, " \
+           "got '123'" in str(err.value)
 
     with pytest.raises(InternalError) as err:
         _ = AccessInfo(AccessType.READ, location, Node(),
                        indices_groups=[[], 123])
-    assert "Indices_groups in add_access must be a list of lists, or None, "\
+    assert "Indices_groups in add_access must be a list of lists or None, "\
         "got '[[], 123]'" in str(err.value)
 
 

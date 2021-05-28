@@ -126,8 +126,8 @@ class Reference(DataNode):
 
     def get_signature_and_indices(self):
         ''':returns: the Signature of this structure reference, and \
-            a list of the indices used for each component (empty list \
-            if an access is not an array).
+            an empty list of lists as 'indices' since this reference does \
+            not represent an array access.
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             list of indices)
         '''
@@ -135,7 +135,9 @@ class Reference(DataNode):
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.
-        it sets this variable to be read.
+        it sets this variable to be read. It relies on
+        `get_signature_and_indices` and will correctly handle
+        array expressions.
 
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.

@@ -43,7 +43,6 @@ import six
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
-from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.statement import Statement
@@ -157,9 +156,10 @@ class Assignment(Statement):
             # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
             # supported in PSyclone.
             six.raise_from(
-                ParseError("The variable '{0}' appears more than once "
-                           "on the left-hand side of an assignment."
-                           .format(self.lhs.name)), err)
+                NotImplementedError("The variable '{0}' appears more than "
+                                    "once on the left-hand side of an "
+                                    "assignment."
+                                    .format(self.lhs.name)), err)
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the

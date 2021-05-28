@@ -181,11 +181,17 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
         # be accessed. Since the variable is written somewhere (read-only
         # was tested above), loop fusion will likely result in invalid code.
-        # Additionally, collect all indices that are actually used, since
-        # they are needed in a test further down.
         all_accesses = var_info1.all_accesses + var_info2.all_accesses
 
-        found_dimension_index = (-1, -1)
+        # This variable will store two indices as a tuple: first the
+        # component index in which the loop variable was used, and then
+        # in which dimension for the component. For example, `a%b%c(i,j)`
+        # would store (2,1) for an access to j - component 2 (which is c),
+        # and 2nd dimension (j).
+        found_dimension_index = None
+
+        # Additionally, collect all indices that are actually used, since
+        # they are needed in a test further down.
         all_indices = []
 
         # Loop over all the accesses of this variable
@@ -200,7 +206,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             for component_index, index_expressions in \
                     enumerate(indices_groups):
 
-                # This inner loop loop over all indices for the
+                # This inner loop is over all indices for the
                 # current component, i.e. `[i, j]` for the first
                 # component above, then `[k]`.
                 for dimension_index, index_expression in \
@@ -215,7 +221,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                     # the current index location (e.g. a(i,j), and a(j,i) ),
                     # then the loop in general cannot be fused.
                     ind_pair = (component_index, dimension_index)
-                    if found_dimension_index[0] > -1 and \
+                    if found_dimension_index and \
                             found_dimension_index != ind_pair:
                         raise TransformationError(
                             "Variable '{0}' is written to in one or both of "

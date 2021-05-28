@@ -141,7 +141,7 @@ def test_double_variable_lhs(parser):
     indirect_addressing = schedule[0]
     assert isinstance(indirect_addressing, Assignment)
     var_accesses = VariablesAccessInfo()
-    with pytest.raises(ParseError) as err:
+    with pytest.raises(NotImplementedError) as err:
         indirect_addressing.reference_accesses(var_accesses)
     assert "The variable 'g' appears more than once on the left-hand side "\
            "of an assignment." in str(err.value)

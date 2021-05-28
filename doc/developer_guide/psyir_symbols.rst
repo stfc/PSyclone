@@ -396,7 +396,7 @@ and structure members used in an access - called components. For example,
 an access like
 `a(1)%b(k)%c(i,j)` would be stored with a signature `(a, b, c)`, giving
 three components `a`, `b`, and `c`.
-And a simple variable `a` is stored as a one-element tuple `(a, )`, having
+A simple variable such as `a` is stored as a one-element tuple `(a, )`, having
 a single component.
 
 .. autoclass:: psyclone.core.access_info.Signature
@@ -446,9 +446,9 @@ have the indices groups `[ [], [j], [] ]`, and a scalar `a` will just
 return `[ [] ]`.
 
 Each entry in this list of lists is still a PSyIR node for each index
-expressions used. To find out details about an index expression, you can
+expression used. To find out details about an index expression, you can
 either analyse the tree, or use the variable access functionality again.
-Below an example that shows how this is done to determine if an array expression
+Below is an example that shows how this is done to determine if an array expression
 contains a reference to a given variable `index_variable`. The variable
 `access_info` is an instance of `AccessInfo` and contains the information
 about one reference. The outer loop is over the indices used for each component,

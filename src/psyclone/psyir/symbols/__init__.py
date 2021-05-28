@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,14 +33,12 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
 # Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Symbols package module '''
 
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError, \
-    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    SymbolInterface
+    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
@@ -58,7 +56,6 @@ from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
 __all__ = ['TYPE_MAP_TO_PYTHON',
            'Symbol',
            'SymbolError',
-           'SymbolInterface',
            'SymbolTable',
            'DataSymbol',
            'DataType',

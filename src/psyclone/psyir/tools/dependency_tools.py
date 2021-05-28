@@ -165,9 +165,16 @@ class DependencyTools(object):
         # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
         # be accessed. Since the variable is written somewhere (read-only
         # was tested above), the variable cannot be used in parallel.
+
+        # This variable will store two indices as a tuple: first the
+        # component index in which the loop variable was used, and then
+        # in which dimension for the component. For example, `a%b%c(i,j)`
+        # would store (2,1) for an access to j - component 2 (which is c),
+        # and 2nd dimension (j).
+        found_dimension_index = None
+
         # Additionally, collect all indices that are actually used, since
         # they are needed in a test further down.
-        found_dimension_index = (-1, -1)
         all_indices = []
 
         # Loop over all the accesses of this variable
@@ -197,7 +204,7 @@ class DependencyTools(object):
                     # the current index location (e.g. a(i,j), and a(j,i) ),
                     # then the loop can not be parallelised
                     ind_pair = (component_index, dimension_index)
-                    if found_dimension_index[0] > -1 and \
+                    if found_dimension_index and \
                             found_dimension_index != ind_pair:
                         self._add_warning("Variable '{0}' is using loop "
                                           "variable '{1}' in index '{2}'' "
@@ -318,11 +325,11 @@ class DependencyTools(object):
                                         otherwise it will stop after the first\
                                         variable is found that can not be\
                                         parallelised.
-        :param signatures_to_ignore: list of signatures for which to skip the\
-                                    checks on how they are accessed.
-        :type signatures_to_ignore: list of str
+        :param signatures_to_ignore: list of signatures for which to skip \
+                                     the access checks.
+        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
         :param var_accesses: optional argument containing the variable access\
-                           pattern of the loop (default: None).
+                             pattern of the loop (default: None).
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 

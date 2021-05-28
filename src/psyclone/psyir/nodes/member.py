@@ -107,11 +107,11 @@ class Member(Node):
         return self.node_str(False)
 
     def get_signature_and_indices(self):
-        ''':returns: the Signature of this structure reference, and \
-            a list of the indices used for each component (empty list \
-            if an access is not an array).
+        ''':returns: the Signature of this member access, and a list \
+        of list of the indices used for each component, which is empty \
+        in this case since it is not an array access.
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
-            list of indices)
+            lists of indices)
         '''
         return (Signature(self.name), [[]])
 

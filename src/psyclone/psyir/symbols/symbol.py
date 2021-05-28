@@ -63,13 +63,8 @@ class SymbolError(Exception):
         return str(self.value)
 
 
-# You cannot disable this warning inside of the class if the
-# class has no method, so it needs to be disabled in the file
-# (and then re-enabled again just after this class).
-# pylint: disable=too-few-public-methods
-class SymbolInterface(object):
+class SymbolInterface(object):   # pylint: disable=too-few-public-methods
     ''' Abstract class of a Symbol Interface '''
-# pylint: enable=too-few-public-methods
 
 
 class LocalInterface(SymbolInterface):
@@ -491,7 +486,11 @@ class Symbol(object):
 
     @property
     def is_array(self):
-        '''
+        '''This is the basic implementation for the method that checks
+        if a symbol is declared to be an array. In this base class it
+        will just raise an exception, indicating that no information
+        is available. The function will be overwritten, e.g. in
+        DataSymbol.
         :returns: True if this symbol is an array and False otherwise.
         :rtype: bool
 
@@ -504,9 +503,10 @@ class Symbol(object):
         If available, it will use the access information, i.e. how the
         variable is used (e.g. if it has indices somewhere, like `a(i)%b`).
         This can be incorrect in case of implicit loops (e.g. `a=b+1`,
-        where `a` and `b` are arrays), the variable usage information will
-        not have information about indices. In this case this function
-        will then fallback to use information available for this symbol.
+        where `a` and `b` are arrays) where the variable usage information
+        will not have information about indices. In this case this function
+        will fallback to querying the symbol itself.
+
         This can cause significant slowdown if this symbol is imported
         from a module, since then these modules need to be parsed.
         # TODO #1213: Parsing modules is not yet supported.

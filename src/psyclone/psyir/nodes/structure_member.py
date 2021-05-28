@@ -120,7 +120,7 @@ class StructureMember(Member):
         return self.children[0]
 
     def get_signature_and_indices(self):
-        ''':returns: the Signature of this structure reference, and \
+        ''':returns: the Signature of this structure member, and \
             a list of the indices used for each component (empty list \
             if an access is not an array).
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \

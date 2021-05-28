@@ -63,9 +63,9 @@ class AccessInfo(object):
     :type access_type: :py:class:`psyclone.core.access_type.AccessType`
     :param int location: a number used in ordering the accesses.
     :param indices_groups: indices used in the access, defaults to None
-    :type indices_groups: list of list of
+    :type indices_groups: list of lists of
         :py:class:`psyclone.psyir.nodes.Node` (e.g. Reference, ...)
-    :param node: Node in PSyIR in which the access happens, defaults to None.
+    :param node: Node in PSyIR in which the access happens.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
@@ -99,36 +99,37 @@ class AccessInfo(object):
     def indices_groups(self):
         '''
         This function returns the list of accesses used for each component,
-        e.g. `a(i)%b(j,k)%c` will return `[ [i], [j, k], [] ]`. Especially
-        in case of a simple scalar variable `a` this function will still
-        return `[ [] ]`. Each entry in this list of lists will be a PSyIR
-        node of the index expression used.
+        e.g. `a(i)%b(j,k)%c` will return `[ [i], [j, k], [] ]`. In the
+        case of a simple scalar variable `a` this function will
+        return `[ [] ]`. Each entry in this list of lists will be the PSyIR
+        for the index expression used.
+
         :returns: the indices used in this access for each component.
-        :rtype: list of list of :py:class:`psyclone.psyir.nodes.Node`
+        :rtype: list of lists of :py:class:`psyclone.psyir.nodes.Node`
         '''
         return self._indices_groups
 
     @indices_groups.setter
     def indices_groups(self, indices_groups):
-        '''Sets the indices for this AccessInfo instance.
+        '''Sets the indices for this AccessInfo instance. The indices_groups
+        contains a list of indices for each component of the signature,
+        e.g. for `a(i)%b(j,k)%c` the indices group will be
+        `[ [i], [j, k], [] ]` (with each element being a PSyIR node of the
+        index expression).
 
         :param indices_groups: list of indices used in the access.
-        :type indices_groups: list of list of \
+        :type indices_groups: list of lists of \
             py:class:`psyclone.psyir.nodes.Node`
 
         :raises InternalError: if the indices_groups is not a list of lists.
 
         '''
         if indices_groups:
-            if not isinstance(indices_groups, list):
+            if not isinstance(indices_groups, list) or \
+                    not all(isinstance(grp, list) for grp in indices_groups):
                 raise InternalError("Indices_groups in add_access must be a "
-                                    "list or None, got '{0}'".
+                                    "list of lists or None, got '{0}'".
                                     format(indices_groups))
-            for indices in indices_groups:
-                if not isinstance(indices, list):
-                    raise InternalError("Indices_groups in add_access must be "
-                                        "a list of lists, or None, got '{0}'".
-                                        format(indices_groups))
             self._indices_groups = indices_groups[:]
         else:
             self._indices_groups = [[]]
@@ -141,10 +142,7 @@ class AccessInfo(object):
             the variable is an array.
         :rtype: bool
         '''
-        for list_of_indices in self._indices_groups:
-            if list_of_indices != []:
-                return True
-        return False
+        return any(grp for grp in self._indices_groups)
 
     @property
     def access_type(self):
@@ -259,9 +257,10 @@ class SingleVariableAccessInfo(object):
             :py:class:`psyclone.core.access_type.AccessType`
         :param location: location information
         :type location: int
-        :param indicies_groups: indices used in the access (None if the \
-            variable is not an array). Defaults to None
-        :type indices_groups: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param indicies_groups: indices used for each component of the \
+            access (None if the variable is not an array). Defaults to None.
+        :type indices_groups: list of lists of \
+            :py:class:`psyclone.psyir.nodes.Node`
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         '''
@@ -295,6 +294,10 @@ class SingleVariableAccessInfo(object):
         this variable must be used in (at least one) index access in order
         for this variable to be considered as an array.
 
+        :param str index_variable: only considers this variable to be used \
+            as array if there is at least one access using this \
+            index_variable.
+
         :returns: true if there is at least one access to this variable \
             that uses an index.
         :rtype: bool
@@ -308,15 +311,14 @@ class SingleVariableAccessInfo(object):
         if not is_array or index_variable is None:
             return is_array
 
-        # Now test if the loop variable is used when accessing this array:
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference
+
         for access_info in self._accesses:
-            indices_list = access_info.indices_groups
-            for index_group in indices_list:
-                for index_expression in index_group:
-                    accesses = VariablesAccessInfo()
-                    index_expression.reference_accesses(accesses)
-                    if Signature(index_variable) in accesses:
-                        return True
+            if any(ref.symbol.name == index_variable
+                   for ref in access_info.node.walk(Reference)):
+                return True
 
         # The index variable is not used in any index in any access:
         return False
@@ -423,10 +425,10 @@ class VariablesAccessInfo(dict):
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node` instance
-        :param indices_list: list of list of indices used in the access, one \
+        :param indices_list: list of lists of indices used in the access, one \
             list for each component. None if the variable is not an array. \
             Defaults to None, which is then converted to [[]].
-        :type indices_list: list of list of \
+        :type indices_list: list of lists of \
             :py:class:`psyclone.psyir.nodes.Node`
 
         '''
