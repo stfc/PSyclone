@@ -139,7 +139,7 @@ class DependencyTools(object):
         return True
 
     # -------------------------------------------------------------------------
-    def is_array_parallelisable(self, loop_variable, var_info):
+    def array_access_parallelisable(self, loop_variable, var_info):
         '''Tries to determine if the access pattern for a variable
         given in var_info allows parallelisation along the variable
         loop_variable. Additional messages might be provided to the
@@ -388,8 +388,8 @@ class DependencyTools(object):
 
             if is_array:
                 # Handle arrays
-                par_able = self.is_array_parallelisable(loop_variable,
-                                                        var_info)
+                par_able = self.array_access_parallelisable(loop_variable,
+                                                            var_info)
             else:
                 # Handle scalar variable
                 par_able = self.is_scalar_parallelisable(var_info)
