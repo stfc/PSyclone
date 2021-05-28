@@ -37,18 +37,10 @@ assignment node with its adjoint form.
 
 '''
 from __future__ import absolute_import
-from psyclone.psyGen import Transformation
+from psyclone.psyad.transformations import AdjointTransformation
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Literal
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-
-# make abstract
-class AdjointTransformation(Transformation):
-    ''' xxx '''
-
-    def __init__(self, active_variables):
-        super(AdjointTransformation, self).__init__()
-        self._active_variables = active_variables
 
 
 class AssignmentTrans(AdjointTransformation):
@@ -67,7 +59,7 @@ class AssignmentTrans(AdjointTransformation):
                 # There is no active variable
                 return []
             elif isinstance(rhs_node, BinaryOperation) and \
-                 (rhs_node.operator == BinaryOperation.Operator.MUL):
+                 (rhs_node.operator in (BinaryOperation.Operator.MUL, BinaryOperation.Operator.DIV)):
                 # Find the active variable and remove it from the constant
                 constant = rhs_node.copy()
                 # To ensure constant has a parent to support replacement.
@@ -94,9 +86,14 @@ class AssignmentTrans(AdjointTransformation):
                 exit(1)
             # Adjoint is rhs_node = rhs_node + constant * lhs_node
             new_lhs = active_var.copy()
-            if constant:
+            if constant and rhs_node.operator == BinaryOperation.Operator.MUL:
+                # output in the form x*A
                 new_rhs_part = BinaryOperation.create(
-                    BinaryOperation.Operator.MUL, constant, lhs_node.copy())
+                    rhs_node.operator, constant, lhs_node.copy())
+            elif constant and rhs_node.operator == BinaryOperation.Operator.DIV:
+                # output in the form A/x
+                new_rhs_part = BinaryOperation.create(
+                    rhs_node.operator, lhs_node.copy(), constant)
             else:
                 new_rhs_part = lhs_node.copy()
             new_rhs = BinaryOperation.create(
