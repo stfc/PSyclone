@@ -70,7 +70,7 @@ class Signature(object):
         else:
             # null-tuple
             sub_tuple = ()
-        if isinstance(variable, (six.text_type)):
+        if isinstance(variable, (str, six.text_type)):
             # str() required for python2 unicode support
             self._signature = (str(variable),) + sub_tuple
         elif isinstance(variable, tuple):
