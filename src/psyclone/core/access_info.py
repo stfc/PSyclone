@@ -432,6 +432,8 @@ class VariablesAccessInfo(dict):
             :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        # TODO 1268: Allow for more intuitive arguments, e.g. for simple
+        # arrays accept a non-nested list.
         if not isinstance(signature, Signature):
             raise InternalError("Got '{0}' of type '{1}' but expected it to "
                                 "be of type psyclone.core.Signature."

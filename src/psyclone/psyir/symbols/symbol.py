@@ -536,6 +536,10 @@ class Symbol(object):
             access information is given.
 
         '''
+        # TODO 1270: this function might either be better off elsewhere,
+        # or even do not implement one function that uses both access
+        # information and symbol table - if required, the user can
+        # query both in two simple statements anyway.
         if index_variable and not access_info:
             raise InternalError("In Symbol.is_used_as_array: index variable "
                                 "'{0}' specified, but no access information "

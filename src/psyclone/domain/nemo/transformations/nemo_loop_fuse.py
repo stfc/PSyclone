@@ -188,6 +188,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         # in which dimension for the component. For example, `a%b%c(i,j)`
         # would store (2,1) for an access to j - component 2 (which is c),
         # and 2nd dimension (j).
+        # TODO 1269: code duplicated with dependency_tools
         found_dimension_index = None
 
         # Additionally, collect all indices that are actually used, since
@@ -223,6 +224,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                     ind_pair = (component_index, dimension_index)
                     if found_dimension_index and \
                             found_dimension_index != ind_pair:
+                        # TODO #1268: improve error message
                         raise TransformationError(
                             "Variable '{0}' is written to in one or both of "
                             "the loops and the loop variable {1} is used in "

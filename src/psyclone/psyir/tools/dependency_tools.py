@@ -171,6 +171,7 @@ class DependencyTools(object):
         # in which dimension for the component. For example, `a%b%c(i,j)`
         # would store (2,1) for an access to j - component 2 (which is c),
         # and 2nd dimension (j).
+        # TODO 1269: code duplicated with nemo_loop_fuse
         found_dimension_index = None
 
         # Additionally, collect all indices that are actually used, since
@@ -206,6 +207,7 @@ class DependencyTools(object):
                     ind_pair = (component_index, dimension_index)
                     if found_dimension_index and \
                             found_dimension_index != ind_pair:
+                        # TODO #1268: improve error message
                         self._add_warning("Variable '{0}' is using loop "
                                           "variable '{1}' in index '{2}'' "
                                           "and '{3}'."
