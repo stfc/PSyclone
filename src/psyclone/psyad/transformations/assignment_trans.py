@@ -84,7 +84,6 @@ class AssignmentTrans(AdjointTransformation):
                 print ("UNSUPPORTED NODE TYPE FOUND")
                 print (type(rhs_node).__name__)
                 exit(1)
-            # Adjoint is rhs_node = rhs_node + constant * lhs_node
             new_lhs = active_var.copy()
             if constant and rhs_node.operator == BinaryOperation.Operator.MUL:
                 # output in the form x*A
@@ -96,9 +95,17 @@ class AssignmentTrans(AdjointTransformation):
                     rhs_node.operator, lhs_node.copy(), constant)
             else:
                 new_rhs_part = lhs_node.copy()
-            new_rhs = BinaryOperation.create(
-                BinaryOperation.Operator.ADD, active_var.copy(), new_rhs_part)
-            new_assignment = Assignment.create(new_lhs, new_rhs)
+            if active_var.name == lhs_node.name:
+                if constant:
+                    # Adjoint is lhs_node = constant * lhs_node
+                    new_assignment = Assignment.create(new_lhs, new_rhs_part)
+                else:
+                    return []
+            else:
+                # Adjoint is rhs_node = rhs_node + constant * lhs_node
+                new_rhs = BinaryOperation.create(
+                    BinaryOperation.Operator.ADD, active_var.copy(), new_rhs_part)
+                new_assignment = Assignment.create(new_lhs, new_rhs)
             return [new_assignment]
 
 
@@ -112,18 +119,15 @@ class AssignmentTrans(AdjointTransformation):
         adjoint_assignment_list = self._process(node.rhs, node.lhs)
 
         # Deal with the adjoint wrt the lhs
-        increment_node = None
+        increment_node = False
         for reference in node.rhs.walk(Reference):
             if node.lhs.name == reference.name:
-                increment_node = node
-        if increment_node:
-            # lhs is an increment so x=ax
-            new_rhs = node.lhs.copy()
-        else:
-            # lhs is not an increment so x=0
+                increment_node = True
+                break
+        if not increment_node:
+            # lhs is not an increment so set x=0
             new_rhs = Literal("0.0", REAL_TYPE)
-        adjoint_assignment_list.insert(0, Assignment.create(node.lhs.copy(), new_rhs))
-
+            adjoint_assignment_list.insert(0, Assignment.create(node.lhs.copy(), new_rhs))
         # replace original node with new nodes
         for adjoint_assignment in reversed(adjoint_assignment_list):
             node.parent.children.insert(node.position, adjoint_assignment)

@@ -206,6 +206,8 @@ def test_increment():
 
     A=A -> A*=A*
 
+    As A does not change we output nothing.
+
     '''
     # Scalar
     tl_fortran = (
@@ -213,8 +215,7 @@ def test_increment():
         "  a = a\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  real :: a\n\n"
-        "  a = a\n\n")
+        "  real :: a\n\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -233,7 +234,7 @@ def test_increment_mult():
     active_variables = ["a"]
     ad_fortran = (
         "  real :: a\n\n"
-        "  a = 5*a\n\n")
+        "  a = 5 * a\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -254,12 +255,34 @@ def test_increment_add():
     ad_fortran = (
         "  real :: a\n"
         "  real :: b\n\n"
-        "  a = b\n"
-        "  a = a\n\n")
+        "  b = b + a\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
-# a=wa+xb+yc+zd
+def test_increment_add_reorder():
+    '''Test that the adjoint transformation with an assignment of the form
+    A = B + A. This tests that the transformation works when there is
+    a single addition on the rhs with the lhs being a scaled increment
+    and the increment not being on the lhs of the rhs.
+
+    A=B+kA -> B*=A*; A*=kA*
+
+    '''
+    # Scalar
+    tl_fortran = (
+        "  real a, b\n"
+        "  integer k\n"
+        "  a = b+k*a\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real :: a\n"
+        "  real :: b\n"
+        "  integer :: k\n\n"
+        "  b = b + a\n"
+        "  a = k * a\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
 def test_increment_multi_add():
     '''Test that the adjoint transformation with an assignment of the form
     A += xB + yC + zD. This tests that the transformation works when
@@ -277,7 +300,7 @@ def test_increment_multi_add():
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
         "  real :: a\n  real :: b\n  real :: c\n  real :: d\n"
-        "  real :: w\n  real :: x\n  real :: y\n  real :: z\n"
+        "  real :: w\n  real :: x\n  real :: y\n  real :: z\n\n"
         "  d = d + z * a\n"
         "  c = c + y * a\n"
         "  b = b + x * a\n"
@@ -286,8 +309,8 @@ def test_increment_multi_add():
 
 
 # TODO
-# fix increment error
-# arrays
+# check a = b + ya as a should be assigned after (test error)
+# arrays for increment tests
 # a = -b -yc
 # a(i) = a(i+1) + b(i) + b(i+1)
 # * errors (not all terms active, not linear, ...)
