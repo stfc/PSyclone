@@ -74,6 +74,54 @@ def test_parser_parse(tmpdir):
     assert ("Program, module, function or subroutine not found in parse tree "
             "for file") in str(excinfo.value)
 
+import os
+from psyclone.parse.algorithm import FileInfo, InvokeCall, KernelCall, Arg
+TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
+                         "test_files", "dynamo0p3")
+
+
+def test_parser_datatypes():
+    '''Test that the parse method in the Parser class captures the
+    required datatype information for "standard" fields, operators and
+    scalars i.e. defined as field_type, operator_type and r_def
+    respectively. We also capture the datatype of quadrature but don't
+    care. field_type is actually a vector which shows that the code
+    works with arrays as well as individual types.
+
+    '''
+    parser = Parser()
+    _, info = parser.parse(os.path.join(TEST_PATH, "10_operator.f90"))
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype == ("TYPE", "operator_type")
+    assert args[1]._datatype == ("TYPE", "field_type")
+    assert args[2]._datatype == ("REAL", "r_def")
+    assert args[3]._datatype == ("TYPE", "quadrature_xyoz_type")
+
+
+def test_parser_datatypes_mixed():
+    '''Test that the parse method in the Parser class captures the
+    required datatype information with mixed-precision fields,
+    operators and scalars i.e. defined as r_solver_field_type,
+    r_solver_operator_type and r_solver respectively. We also capture
+    the datatype of quadrature but don't care. field_type is actually
+    a vector which shows that the code works with arrays as well as
+    individual types.
+
+    '''
+    parser = Parser()
+    _, info = parser.parse(os.path.join(TEST_PATH, "26_mixed_precision.f90"))
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype == ("TYPE", "r_solver_operator_type")
+    assert args[1]._datatype == ("TYPE", "r_solver_field_type")
+    assert args[2]._datatype == ("REAL", "r_solver")
+    assert args[3]._datatype == ("TYPE", "quadrature_xyoz_type")
+
+#field, operator, scalar : reduced precision
+# self%..., structures
+#unknown
+#errors
+
+
 # create_invoke_call tests
 
 
@@ -203,7 +251,7 @@ def test_getkernel_invalid_tree():
 
     '''
     with pytest.raises(InternalError) as excinfo:
-        _ = get_kernel("invalid", "dummy.f90")
+        _ = get_kernel("invalid", "dummy.f90", None)
     assert (
         "Expected a parse tree (type Part_Ref or Structure_Constructor) but "
         "found instance of ") in str(excinfo.value)
@@ -222,7 +270,7 @@ def test_getkernel_invalid_children(cls, monkeypatch):
     parse_tree = cls("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
-        _ = get_kernel(parse_tree, "dummy.f90")
+        _ = get_kernel(parse_tree, "dummy.f90", None)
     assert ("Expected Part_Ref or Structure_Constructor to have 2 children "
             "but found 3.") in str(excinfo.value)
 
@@ -238,7 +286,7 @@ def test_getkernel_invalid_arg(monkeypatch):
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, "invalid"])
     with pytest.raises(InternalError) as excinfo:
-        _ = get_kernel(parse_tree, "dummy.f90")
+        _ = get_kernel(parse_tree, "dummy.f90", None)
     assert (
         "Unsupported argument structure") in str(excinfo.value)
     assert (
@@ -255,7 +303,7 @@ def test_getkernel_isliteral(content):
 
     '''
     tree = Structure_Constructor("sub({0})".format(content))
-    kern_name, args = get_kernel(tree, "dummy.f90")
+    kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
     arg = args[0]
@@ -274,7 +322,7 @@ def test_getkernel_isarg(content):
 
     '''
     tree = Part_Ref("sub({0})".format(content))
-    kern_name, args = get_kernel(tree, "dummy.f90")
+    kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
     arg = args[0]
@@ -295,7 +343,7 @@ def test_getkernel_noexpr(content):
     '''
     tree = Part_Ref("sub({0})".format(content))
     with pytest.raises(NotImplementedError) as excinfo:
-        _, _ = get_kernel(tree, "dummy.f90")
+        _, _ = get_kernel(tree, "dummy.f90", None)
     assert "Expressions containing variables are not yet supported" \
         in str(excinfo.value)
 
@@ -308,7 +356,7 @@ def test_getkernel_argerror(monkeypatch):
     tree = Part_Ref("sub(dummy)")
     monkeypatch.setattr(tree, "items", ["sub", None])
     with pytest.raises(InternalError) as excinfo:
-        _, _ = get_kernel(tree, "dummy.f90")
+        _, _ = get_kernel(tree, "dummy.f90", None)
     assert "Unsupported argument structure " in str(excinfo.value)
 
 # function create_var_name() tests

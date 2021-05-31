@@ -218,7 +218,7 @@ class Parser(object):
                 tname = None
                 for child in statement.children:
                     if isinstance(child,Declaration_Type_Spec):
-                        tname=('TYPE',str(get_child(child,Type_Name) or ''))
+                        tname=("TYPE",str(get_child(child,Type_Name) or ''))
                         # print ("DEC_TYPE_SPEC {0}".format(tname))
                     if isinstance(child,Intrinsic_Type_Spec):
                         intrinsic_type = str(get_child(child,str) or '')
@@ -974,6 +974,7 @@ class Arg(object):
                 "algorithm.py:Alg:__init__: Unknown arg type provided. "
                 "Expected one of {0} but found "
                 "'{1}'.".format(str(Arg.form_options), form))
+        self._datatype = datatype
 
     def __str__(self):
         return "Arg(form='{0}',text='{1}',varname='{2}')". \
