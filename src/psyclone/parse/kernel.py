@@ -905,8 +905,8 @@ class KernelType(object):
         :raises ParseError: if the RHS of the assignment is not a Name.
 
         '''
-        # Ensure the Fortran2003 parser is initialised
-        _ = ParserFactory().create()
+        # Ensure the Fortran2008 parser is initialised
+        _ = ParserFactory().create(std="f2008")
         # Fortran is not case sensitive so nor is our matching
         lower_name = name.lower()
 
@@ -948,8 +948,8 @@ class KernelType(object):
                             does not match the extent of the array.
 
         '''
-        # Ensure the classes are setup for the Fortran2003 parser
-        _ = ParserFactory().create()
+        # Ensure the classes are setup for the Fortran2008 parser
+        _ = ParserFactory().create(std="f2008")
         # Fortran is not case sensitive so nor is our matching
         lower_name = name.lower()
 

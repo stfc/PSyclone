@@ -44,8 +44,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
-from psyclone.core.access_info import VariablesAccessInfo
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallAccArgList, KernStubArgList
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.parse.algorithm import parse
@@ -84,10 +83,10 @@ def test_assignment(parser):
     assert isinstance(scalar_assignment, Assignment)
     var_accesses = VariablesAccessInfo(scalar_assignment)
     # Test some test functions explicitly:
-    assert var_accesses.is_written("a")
-    assert not var_accesses.is_read("a")
-    assert not var_accesses.is_written("b")
-    assert var_accesses.is_read("b")
+    assert var_accesses.is_written(Signature("a"))
+    assert not var_accesses.is_read(Signature("a"))
+    assert not var_accesses.is_written(Signature("b"))
+    assert var_accesses.is_read(Signature("b"))
 
     # Array element assignment: c(i,j) = d(i,j+1)+e+f(x,y)
     array_assignment = schedule.children[1]
@@ -170,7 +169,7 @@ def test_if_statement(parser):
     assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
                                 "q: READ+WRITE, r: READ"
     # Test that the two accesses to 'q' indeed show up as
-    q_accesses = var_accesses["q"].all_accesses
+    q_accesses = var_accesses[Signature("q")].all_accesses
     assert len(q_accesses) == 2
     assert q_accesses[0].access_type == AccessType.READ
     assert q_accesses[1].access_type == AccessType.WRITE
@@ -297,14 +296,14 @@ def test_goloop_field_accesses():
     var_accesses = VariablesAccessInfo(invoke.schedule)
 
     # cu_fld has a pointwise write access in the first loop:
-    cu_fld = var_accesses["cu_fld"]
+    cu_fld = var_accesses[Signature("cu_fld")]
     assert len(cu_fld.all_accesses) == 1
     assert cu_fld.all_accesses[0].access_type == AccessType.WRITE
     assert cu_fld.all_accesses[0].indices == ["i", "j"]
 
     # The stencil is defined to be GO_STENCIL(123,110,100)) for
     # p_fld. Make sure that these 9 accesses are indeed reported:
-    p_fld = var_accesses["p_fld"]
+    p_fld = var_accesses[Signature("p_fld")]
     all_indices = [access.indices for access in p_fld.all_accesses]
 
     for test_index in [["i-1", "j+1"],
@@ -373,38 +372,38 @@ def test_location(parser):
 
     var_accesses = VariablesAccessInfo(schedule)
     # Test accesses for a:
-    a_accesses = var_accesses["a"].all_accesses
+    a_accesses = var_accesses[Signature("a")].all_accesses
     assert a_accesses[0].location == 0
     assert a_accesses[1].location == 1
     assert a_accesses[2].location == 6
     assert a_accesses[3].location == 12
 
     # b should have the same locations as a:
-    b_accesses = var_accesses["b"].all_accesses
+    b_accesses = var_accesses[Signature("b")].all_accesses
     assert len(a_accesses) == len(b_accesses)
     for (index, access) in enumerate(a_accesses):
         assert b_accesses[index].location == access.location
 
-    q_accesses = var_accesses["q"].all_accesses
+    q_accesses = var_accesses[Signature("q")].all_accesses
     assert q_accesses[0].location == 2
     assert q_accesses[1].location == 4
 
     # Test jj for the loop statement. Note that 'jj' has one read and
     # one write access for the DO statement
-    jj_accesses = var_accesses["jj"].all_accesses
+    jj_accesses = var_accesses[Signature("jj")].all_accesses
     assert jj_accesses[0].location == 7
     assert jj_accesses[1].location == 7
     assert jj_accesses[2].location == 9
     assert jj_accesses[3].location == 9
 
-    ji_accesses = var_accesses["ji"].all_accesses
+    ji_accesses = var_accesses[Signature("ji")].all_accesses
     assert ji_accesses[0].location == 8
     assert ji_accesses[1].location == 8
     assert ji_accesses[2].location == 9
     assert ji_accesses[3].location == 9
 
     # Verify that x=x+1 shows the READ access before the write access
-    x_accesses = var_accesses["x"].all_accesses    # x=x+1
+    x_accesses = var_accesses[Signature("x")].all_accesses    # x=x+1
     assert x_accesses[0].access_type == AccessType.READ
     assert x_accesses[1].access_type == AccessType.WRITE
     assert x_accesses[0].location == x_accesses[1].location
@@ -423,6 +422,7 @@ def test_user_defined_variables(parser):
     reader = FortranStringReader('''program test_prog
                                        use some_mod, only: my_type
                                        type(my_type) :: a, e
+                                       integer :: ji, jj, d
                                        a%b%c(ji, jj) = d
                                        e%f = d
                                     end program test_prog''')
@@ -431,8 +431,8 @@ def test_user_defined_variables(parser):
     loops = psy.invokes.get("test_prog").schedule
 
     var_accesses = VariablesAccessInfo(loops)
-    assert var_accesses["a % b % c"].is_written
-    assert var_accesses["e % f"].is_written
+    assert var_accesses[Signature("a % b % c")].is_written
+    assert var_accesses[Signature("e % f")].is_written
 
 
 def test_math_equal(parser):

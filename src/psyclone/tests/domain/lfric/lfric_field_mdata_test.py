@@ -48,7 +48,7 @@ import six
 import fparser
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicArgDescriptor, FunctionSpace
+from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
 from psyclone.dynamo0p3 import DynKernMetadata, LFRicFields
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -103,9 +103,10 @@ def test_ad_fld_type_1st_arg():
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("the 1st argument of a 'meta_arg' entry should be a valid "
             "argument type (one of {0}), but found 'gh_hedge'".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            format(const.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
 
@@ -121,10 +122,11 @@ def test_ad_field_invalid_data_type():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             "be a valid data type (one of {0}), but found 'gh_unreal' "
             "in 'arg_type(gh_field, gh_unreal, gh_inc, w1)'.".
-            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES)
+            format(const.VALID_ARG_DATA_TYPES)
             in str(excinfo.value))
     # Check integer field
     code = FIELD_CODE.replace(
@@ -212,24 +214,27 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
     int_field_arg.args[1].name = "gh_double"
     # Now try to trip the error by making the initial test think
     # that 'gh_double' is actually a valid data type
+    const = LFRicConstants()
     monkeypatch.setattr(
-        target=LFRicArgDescriptor, name="VALID_ARG_DATA_TYPES",
-        value=LFRicArgDescriptor.VALID_ARG_DATA_TYPES + ["gh_double"])
+        target=LFRicConstants, name="VALID_ARG_DATA_TYPES",
+        value=LFRicConstants.VALID_ARG_DATA_TYPES + ["gh_double"])
     # Check real field
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             real_field_arg, metadata.iterates_over)._init_field(
                 real_field_arg, metadata.iterates_over)
-    assert ("Expected one of {0} as the field data type but got 'gh_double'.".
-            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES) in
+    assert ("In the LFRic API the allowed data types for field "
+            "arguments are one of {0}, but found 'gh_double'".
+            format(const.VALID_FIELD_DATA_TYPES) in
             str(excinfo.value))
     # Check integer field
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             int_field_arg, metadata.iterates_over)._init_field(
                 int_field_arg, metadata.iterates_over)
-    assert ("Expected one of {0} as the field data type but got 'gh_double'.".
-            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES) in
+    assert ("In the LFRic API the allowed data types for field "
+            "arguments are one of {0}, but found 'gh_double'".
+            format(const.VALID_FIELD_DATA_TYPES) in
             str(excinfo.value))
 
 
@@ -245,10 +250,11 @@ def test_arg_descriptor_invalid_fs():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("In the LFRic API argument 4 of a 'meta_arg' field entry "
             "must be a valid function-space name (one of {0}) if its "
             "first argument is of ['gh_field'] type, but found 'w4'".
-            format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES)
+            format(const.VALID_FUNCTION_SPACE_NAMES)
             in str(excinfo.value))
     # Check integer field
     code = FIELD_CODE.replace(
@@ -285,7 +291,8 @@ def test_fs_discontinuous_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and 'gh_inc' are provided for the same field in the metadata. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+    const = LFRicConstants()
+    for fspace in const.VALID_DISCONTINUOUS_NAMES:
         code = FIELD_CODE.replace(
             "arg_type(gh_field,  gh_integer, gh_read,  w3)",
             "arg_type(gh_field,  gh_integer, gh_inc, " + fspace + ")", 1)
@@ -306,7 +313,8 @@ def test_fs_continuous_cells_write_or_readwrite_error():
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
+    const = LFRicConstants()
+    for fspace in const.CONTINUOUS_FUNCTION_SPACES:
         for acc in ["gh_write", "gh_readwrite"]:
             code = FIELD_CODE.replace(
                 "arg_type(gh_field,  gh_real,    gh_read,  w2)",
@@ -328,7 +336,8 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
+    const = LFRicConstants()
+    for fspace in const.VALID_ANY_SPACE_NAMES:
         for acc in ["gh_write", "gh_readwrite"]:
             code = FIELD_CODE.replace(
                 "arg_type(gh_field,  gh_real,    gh_read,  w2)",
@@ -349,7 +358,8 @@ def test_fs_anyspace_dofs_inc_error():
     fparser.logging.disable(fparser.logging.CRITICAL)
     dof_code = FIELD_CODE.replace("integer :: operates_on = cell_column",
                                   "integer :: operates_on = dof", 1)
-    for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
+    const = LFRicConstants()
+    for fspace in const.VALID_ANY_SPACE_NAMES:
         code = dof_code.replace(
             "arg_type(gh_field,  gh_real,    gh_inc,   w1)",
             "arg_type(gh_field, gh_real, gh_inc, " + fspace + ")", 1)
@@ -499,7 +509,7 @@ def test_dyninvoke_uniq_declns_intent_fields():
     ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for 'gh_field' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_field"])
@@ -523,15 +533,16 @@ def test_field_invoke_uniq_declns_valid_intrinsic():
     invoke = psy.invokes.invoke_list[0]
 
     # Return 'real'-valued fields
+    const = LFRicConstants()
     fields_real_args = invoke.unique_declarations(
-        LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="real")
+        const.VALID_FIELD_NAMES, intrinsic_type="real")
     fields_real = [arg.declaration_name for arg in fields_real_args]
     assert fields_real == ["f1", "f2", "m1", "m2", "f3", "f4", "m3",
                            "m4", "f5", "f6", "m5", "m6", "m7"]
 
     # Return 'integer'-valued fields
-    fields_int_args = invoke.unique_declarations(
-        LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="integer")
+    fields_int_args = invoke.unique_declarations(const.VALID_FIELD_NAMES,
+                                                 intrinsic_type="integer")
     fields_int = [arg.declaration_name for arg in fields_int_args]
     assert fields_int == ["i1", "i2", "n1", "n2", "i3", "i4", "n3", "n4",
                           "i5", "i6", "n5", "n6", "i7", "i8", "n7"]
@@ -563,6 +574,7 @@ def test_field_arg_discontinuous(monkeypatch, annexed):
 
     '''
 
+    # pylint: disable=too-many-branches, too-many-statements
     # 1) Discontinuous fields return true
     # 1a) Check w3, wtheta and w2v in turn
     api_config = Config.get().api_conf(TEST_API)
@@ -576,7 +588,8 @@ def test_field_arg_discontinuous(monkeypatch, annexed):
         # continuous spaces)
         idchld_list = [3, 0, 0]
     idarg_list = [4, 0, 0]
-    fs_dict = dict(zip(FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES[0:3],
+    const = LFRicConstants()
+    fs_dict = dict(zip(const.DISCONTINUOUS_FUNCTION_SPACES[0:3],
                        zip(idchld_list, idarg_list)))
     for fspace in fs_dict.keys():
         filename = "1_single_invoke_" + fspace + ".f90"

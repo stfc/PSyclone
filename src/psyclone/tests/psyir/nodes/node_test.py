@@ -45,11 +45,11 @@ import re
 import pytest
 from psyclone.psyir.nodes.node import (ChildrenList, Node,
                                        _graphviz_digraph_class)
-from psyclone.psyir.nodes import Schedule, Reference, Container, \
+from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     INTEGER_TYPE, REAL_TYPE, SymbolTable
-from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
+from psyclone.psyGen import PSyFactory, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
@@ -59,18 +59,6 @@ from psyclone.psyir.nodes.node import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-
-
-def test_node_abstract_methods():
-    ''' Tests that the abstract methods of the Node class raise appropriate
-    errors. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    sched = invoke.schedule
-    loop = sched.children[0].loop_body[0]
-    with pytest.raises(NotImplementedError) as err:
-        Node.gen_code(loop, parent=None)
-    assert "Please implement me" in str(err.value)
 
 
 def test_node_coloured_name():
@@ -146,7 +134,7 @@ def test_node_depth():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    schedule = invoke.schedule.detach()
     # Assert that start_depth of any Node (including Schedule) is 0
     assert schedule.START_DEPTH == 0
     # Assert that Schedule depth is 1
@@ -169,26 +157,57 @@ def test_node_position():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    schedule = invoke.schedule.detach()
     child = schedule.children[6]
     # Assert that position of a Schedule (no parent Node) is 0
     assert schedule.position == 0
+    assert schedule.abs_position == 0
     # Assert that start_position of any Node is 0
     assert child.START_POSITION == 0
     # Assert that relative and absolute positions return correct values
     assert child.position == 6
     assert child.abs_position == 7
+
+    # Insert two more levels of nodes in top of the root
+    previous_root = child.root
+    container1 = Container("test1")
+    container2 = Container("test2")
+    container2.addchild(previous_root)
+    container1.addchild(container2)
+    # The relative position should still be the same but the absolute position
+    # should increase by 2.
+    assert child.position == 6
+    assert child.abs_position == 9
+
+    # Check that the _find_position returns the correct distance between itself
+    # and the provided ancestor.
+    _, position = child._find_position(child.ancestor(Routine), 0)
+    assert position == 7
+
+    # If no starting position is provided it starts with START_POSITION=0
+    _, same_position = child._find_position(child.ancestor(Routine))
+    assert same_position == position
+
     # Test InternalError for _find_position with an incorrect position
     with pytest.raises(InternalError) as excinfo:
         _, _ = child._find_position(child.root.children, -2)
     assert "started from -2 instead of 0" in str(excinfo.value)
-    # Test InternalError for abs_position with a Node that does
-    # not belong to the Schedule
-    ompdir = OMPDoDirective()
-    with pytest.raises(InternalError) as excinfo:
-        _ = ompdir.abs_position
-    assert ("PSyclone internal error: Error in search for Node position "
-            "in the tree") in str(excinfo.value)
+
+
+def test_node_abs_position_error():
+    ''' Check that the abs_position method produces and internal error when
+    a node can be found as one of the children of its parent (this just
+    happens with inconsistent parent-child connections). '''
+
+    parent = Schedule()
+    node1 = Statement()
+    # Manually connect the _parent attribute which won't make a consistent
+    # two-way relationship
+    node1._parent = parent
+
+    with pytest.raises(InternalError) as err:
+        _ = node1.abs_position
+    assert "Error in search for Node position in the tree" in str(err.value)
 
 
 def test_node_root():
@@ -205,8 +224,8 @@ def test_node_root():
     # Select a loop and the kernel inside
     ru_loop = ru_schedule.children[1]
     ru_kern = ru_loop.children[0]
-    # Assert that the absolute root is a Schedule
-    assert isinstance(ru_kern.root, Schedule)
+    # Assert that the absolute root is a Container
+    assert isinstance(ru_kern.root, Container)
 
 
 def test_node_annotations():
@@ -252,7 +271,7 @@ def test_node_args():
         assert arg == loop2_args[idx]
     # 4) Loop fuse
     ftrans = LFRicLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]
     kern1 = loop.loop_body[0]
     kern2 = loop.loop_body[1]
@@ -482,7 +501,7 @@ def test_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    assert super(Schedule, schedule).dag_name == "node_0"
+    assert super(Schedule, schedule).dag_name == "node_1"
     assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
     assert schedule.children[4].dag_name == "loop_5"
@@ -625,7 +644,6 @@ def test_node_dag(tmpdir, have_graphviz):
     if not have_graphviz:
         return
     # We may not have graphviz installed so disable pylint error
-    # pylint: disable=import-error
     # pylint: disable=import-outside-toplevel
     import graphviz
     _, invoke_info = parse(

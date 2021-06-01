@@ -361,14 +361,12 @@ def test_cw_binaryoperator():
     assert "' operator." in str(err.value)
 
 
-def test_cw_loop():
+def test_cw_loop(fortran_reader):
     '''Tests writing out a Loop node in C. It parses Fortran code
     and outputs it as C. Note that this is atm a literal translation,
     the loops are not functionally identical to Fortran, see TODO #523.
 
     '''
-    from psyclone.tests.utilities import create_schedule
-
     # Generate PSyIR from Fortran code.
     code = '''
         module test
@@ -381,7 +379,7 @@ def test_cw_loop():
           enddo
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
+    schedule = fortran_reader.psyir_from_source(code).children[0]
 
     cvisitor = CWriter()
     result = cvisitor(schedule[0])

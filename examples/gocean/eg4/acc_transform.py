@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,13 +37,15 @@
 function via the -s option. Transforms all kernels in the invoke
 to have them compiled for an OpenACC accelerator. '''
 
+from psyclone.transformations import ACCParallelTrans, \
+    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
+    KernelGlobalsToArguments, KernelModuleInlineTrans
+from psyclone.psyir.nodes import Loop
+
 
 def trans(psy):
     ''' Take the supplied psy object, apply OpenACC transformations
     to the schedule of the first invoke and return the new psy object '''
-    from psyclone.transformations import ACCParallelTrans, \
-        ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
-        KernelGlobalsToArguments, KernelModuleInlineTrans
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
@@ -57,26 +59,23 @@ def trans(psy):
 
     # Apply the OpenACC Loop transformation to *every* loop
     # nest in the schedule
-    from psyclone.psyir.nodes import Loop
     for child in schedule.children:
         if isinstance(child, Loop):
-            newschedule, _ = ltrans.apply(child, {"collapse": 2})
-            schedule = newschedule
+            ltrans.apply(child, {"collapse": 2})
 
     # Put all of the loops in a single parallel region
-    newschedule, _ = ptrans.apply(schedule.children)
+    ptrans.apply(schedule.children)
 
     # Add an enter-data directive
-    newschedule, _ = dtrans.apply(schedule)
+    dtrans.apply(schedule)
 
     # Convert any accesses to global data into kernel arguments, put an
     # 'acc routine' directive inside, and module-inline each kernel
     for kern in schedule.coded_kernels():
         if kern.name == "kern_use_var_code":
             g2localtrans.apply(kern)
-        _, _ = ktrans.apply(kern)
-        _, _ = itrans.apply(kern)
+        ktrans.apply(kern)
+        itrans.apply(kern)
 
-    invoke.schedule = newschedule
-    newschedule.view()
+    schedule.view()
     return psy

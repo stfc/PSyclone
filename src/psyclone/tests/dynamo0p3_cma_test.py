@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for Column-Matrix-Assembly operators in
 the Dynamo 0.3 API using pytest. '''
@@ -42,15 +43,17 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
+
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
+from psyclone.dynamo0p3 import DynDofmaps, DynKernMetadata
+from psyclone.errors import GenerationError, InternalError
+from psyclone.f2pygen import ModuleGen
+from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError, InternalError
-from psyclone.gen_kernel_stub import generate
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -134,13 +137,14 @@ def test_cma_mdata_invalid_data_type():
         "arg_type(gh_columnwise_operator, gh_real, gh_write,   &\n",
         "arg_type(gh_columnwise_operator, gh_unreal, gh_write,   &\n", 1)
     ast = fpapi.parse(code, ignore_comments=False)
+    const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
-            "entry should be a valid data type (one of "
-            "['gh_real', 'gh_integer']), but found 'gh_unreal' in "
-            "'arg_type(gh_columnwise_operator, gh_unreal, gh_write, "
-            "any_space_1, any_space_2)'." in str(excinfo.value))
+            "entry should be a valid data type (one of {0}), but found "
+            "'gh_unreal' in 'arg_type(gh_columnwise_operator, gh_unreal, "
+            "gh_write, any_space_1, any_space_2)'.".
+            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
 
 
 def test_cma_mdata_init_wrong_argument_type():
@@ -170,10 +174,11 @@ def test_cma_mdata_init_wrong_data_type():
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
-    assert ("In the LFRic API the permitted data types for operator arguments "
+    const = LFRicConstants()
+    assert ("In the LFRic API the allowed data types for operator arguments "
             "are one of {0}, but found 'gh_integer' in 'arg_type(gh_columnwise"
             "_operator, gh_integer, gh_write, any_space_1, any_space_2)'.".
-            format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
+            format(const.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 
 
@@ -703,9 +708,11 @@ def test_cma_mdata_stencil_invalid():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+
+    const = LFRicConstants()
     assert ("each 'meta_arg' entry must have 5 arguments if its first "
             "argument is an operator (one of {0})".
-            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES)
+            format(const.VALID_OPERATOR_NAMES)
             in str(excinfo.value))
 
 
@@ -1245,8 +1252,6 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
 def test_dyndofmap_stubdecln_err():
     ''' Check that DynDofmaps._stub_declarations raises the expected errors
     if the stored CMA information is invalid. '''
-    from psyclone.dynamo0p3 import DynDofmaps
-    from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "20.5_multi_cma_invoke.f90"),
                            api=TEST_API)

@@ -40,7 +40,8 @@
 This module contains the abstract Node implementation.
 
 '''
-import abc
+from __future__ import print_function
+
 import copy
 import six
 from psyclone.psyir.symbols import SymbolError
@@ -547,8 +548,11 @@ class Node(object):
         edges (but their direction is reversed so the layout looks
         reasonable) and parent child dependencies are represented as
         blue edges.'''
-        # pylint: disable=too-many-branches
+        # Import outside top-level to avoid circular dependencies.
+        # pylint: disable=too-many-branches, import-outside-toplevel
         from psyclone.psyir.nodes.loop import Loop
+        from psyclone.psyir.nodes.routine import Routine
+
         # names to append to my default name to create start and end vertices
         start_postfix = "_start"
         end_postfix = "_end"
@@ -574,9 +578,9 @@ class Node(object):
                 remote_name += start_postfix
             # Create the forward dependence edge in green
             graph.edge(local_name, remote_name, color="green")
-        elif self.parent:
-            # this node is a child of another node and has no forward
-            # dependence. Therefore connect it to the the end vertex
+        elif not isinstance(self, Routine):
+            # If this node is not a Routine (where the DAG context finishes)
+            # and has no forward dependence, connect it to the end vertex
             # of its parent. Use blue to indicate a parent child
             # relationship.
             remote_name = self.parent.dag_name + end_postfix
@@ -600,9 +604,9 @@ class Node(object):
                 remote_name += end_postfix
             # Create the backward dependence edge in red.
             graph.edge(remote_name, local_name, color="red")
-        elif self.parent:
-            # this node has a parent and has no backward
-            # dependence. Therefore connect it to the the start vertex
+        elif not isinstance(self, Routine):
+            # If this node is not a Routine (where the DAG context finishes)
+            # and has no backward dependence, connect it to the start vertex
             # of its parent. Use blue to indicate a parent child
             # relationship.
             remote_name = self.parent.dag_name + start_postfix
@@ -657,9 +661,9 @@ class Node(object):
                 # the tree as me.
                 while node.depth > self.depth:
                     node = node.parent
-                if self.sameParent(node):
+                if self.sameParent(node) and node is not self:
                     # The remote node (or one of its ancestors) shares
-                    # the same parent as me
+                    # the same parent as me (but its not me)
                     if not dependence:
                         # this is the first dependence found so keep it
                         dependence = node
@@ -694,9 +698,9 @@ class Node(object):
                 # the tree as me.
                 while node.depth > self.depth:
                     node = node.parent
-                if self.sameParent(node):
+                if self.sameParent(node) and node is not self:
                     # The remote node (or one of its ancestors) shares
-                    # the same parent as me
+                    # the same parent as me (but its not me)
                     if not dependence:
                         # this is the first dependence found so keep it
                         dependence = node
@@ -808,11 +812,12 @@ class Node(object):
         '''
         from psyclone.psyir.nodes import Schedule
         if not isinstance(self.parent, Schedule) or index is None:
-            print("{0}{1}".format(self.indent(indent),
-                                  self.node_str(colour=True)))
+            result = "{0}{1}".format(self.indent(indent),
+                                     self.node_str(colour=True))
         else:
-            print("{0}{1}: {2}".format(self.indent(indent), index,
-                                       self.node_str(colour=True)))
+            result = "{0}{1}: {2}".format(self.indent(indent), index,
+                                          self.node_str(colour=True))
+        print(six.text_type(result))
         for idx, entity in enumerate(self._children):
             entity.view(indent=indent + 1, index=idx)
 
@@ -899,13 +904,13 @@ class Node(object):
         it is the root). Needs to be computed dynamically from the
         starting position (0) as its position may change.
 
-        :returns: absolute position of a Node in the tree
+        :returns: absolute position of a Node in the tree.
         :rtype: int
 
-        :raises InternalError: if the absolute position cannot be found
+        :raises InternalError: if the absolute position cannot be found.
+
         '''
-        from psyclone.psyir.nodes import Schedule
-        if self.root == self and isinstance(self.root, Schedule):
+        if self.root == self:
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)
@@ -914,17 +919,26 @@ class Node(object):
                                 "in the tree")
         return position
 
-    def _find_position(self, children, position):
+    def _find_position(self, children, position=None):
         '''
         Recurse through the tree depth first returning position of
         a Node if found.
-        :param children: list of Nodes which are children of this Node
+
+        :param children: list of Nodes which are children of this Node.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :returns: position of the Node in the tree
-        :rtype: int
-        :raises InternalError: if the starting position is < 0
+        :param int position: start counting from this position. Defaults to \
+            START_POSITION.
+
+        :returns: if the self has been found in the provided children list \
+            and its relative position.
+        :rtype: bool, int
+
+        :raises InternalError: if the starting position is < 0.
+
         '''
-        if position < self.START_POSITION:
+        if position is None:
+            position = self.START_POSITION
+        elif position < self.START_POSITION:
             raise InternalError(
                 "Search for Node position started from {0} "
                 "instead of {1}.".format(position, self.START_POSITION))
@@ -940,7 +954,17 @@ class Node(object):
 
     @property
     def root(self):
-        node = self
+        '''
+        :returns: the root node of the PSyIR tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # Starting with 'self.parent' instead of 'node = self' avoids many
+        # false positive pylint issues that assume self.root type would be
+        # the same as self type.
+        if self.parent is None:
+            return self
+        node = self.parent
         while node.parent is not None:
             node = node.parent
         return node
@@ -1135,15 +1159,6 @@ class Node(object):
         for child in self.children:
             child.lower_to_language_level()
 
-    def gen_code(self, parent):
-        '''Abstract base class for code generation function.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        '''
-        raise NotImplementedError(
-            "Please implement me: {0}".format(type(self)))
-
     def update(self):
         ''' By default we assume there is no need to update the existing
         fparser2 AST which this Node represents. We simply call the update()
@@ -1298,6 +1313,20 @@ class Node(object):
         # pylint: disable=protected-access
         new_instance._refine_copy(self)
         return new_instance
+
+    def validate_global_constraints(self):
+        ''' Validates this Node in the context of the whole PSyIR tree.
+        Although there are validation checks for the parent<->child
+        relationships, there are other constraints that can only be
+        checked once the tree is complete and all transformations have
+        been applied. (One example is that an OMP Do directive must be
+        within the scope of an OMP Parallel directive.)
+
+        By default, this routine does nothing. It must be overridden
+        appropriately in any sub-classes to which constraints apply.
+        If an error is found then a GenerationError should be raised.
+
+        '''
 
 
 # For automatic documentation generation

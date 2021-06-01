@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Contains tests for transformations on the GOcean 0.1 API '''
 
@@ -63,12 +63,11 @@ def test_loop_fuse_with_not_a_loop():
     lftrans = LoopFuseTrans()
     ompf = GOceanOMPParallelLoopTrans()
     # Enclose the first loop within an OMP parallel do
-    new_sched, _ = ompf.apply(schedule.children[0])
+    ompf.apply(schedule.children[0])
     # Attempt to (erroneously) fuse this OMP parallel do
     # with the next loop in the schedule
     with pytest.raises(TransformationError) as ex:
-        schedule, _ = lftrans.apply(new_sched.children[0],
-                                    new_sched.children[1])
+        lftrans.apply(schedule.children[0], schedule.children[1])
     # Exercise the __str__ method of TransformationError
     assert ("Target of LoopFuseTrans transformation must be a sub-class of "
             "Loop but got 'OMPParallelDoDirective'" in str(ex.value))
@@ -114,12 +113,11 @@ def test_gocean_loop_fuse_with_not_a_loop():
     lftrans = GOceanLoopFuseTrans()
     ompf = GOceanOMPParallelLoopTrans()
     # Enclose the first loop within an OMP parallel do
-    new_sched, _ = ompf.apply(schedule.children[0])
+    ompf.apply(schedule.children[0])
     # Attempt to (erroneously) fuse this OMP parallel do
     # with the next loop in the schedule
     with pytest.raises(TransformationError):
-        _, _ = lftrans.apply(new_sched.children[0],
-                             new_sched.children[1])
+        lftrans.apply(schedule.children[0], schedule.children[1])
 
 
 def test_openmp_loop_fuse_trans():
@@ -130,21 +128,16 @@ def test_openmp_loop_fuse_trans():
     ompf = GOceanOMPParallelLoopTrans()
 
     # fuse all outer loops
-    lf_schedule, _ = lftrans.apply(schedule.children[0],
-                                   schedule.children[1])
-    schedule, _ = lftrans.apply(lf_schedule.children[0],
-                                lf_schedule.children[1])
+    lftrans.apply(schedule.children[0], schedule.children[1])
+    lftrans.apply(schedule.children[0], schedule.children[1])
     # fuse all inner loops
-    lf_schedule, _ = lftrans.apply(schedule.children[0].loop_body[0],
-                                   schedule.children[0].loop_body[1])
-    schedule, _ = lftrans.apply(lf_schedule.children[0].loop_body[0],
-                                lf_schedule.children[0].loop_body[1])
+    lftrans.apply(schedule.children[0].loop_body[0],
+                  schedule.children[0].loop_body[1])
+    lftrans.apply(schedule.children[0].loop_body[0],
+                  schedule.children[0].loop_body[1])
 
     # Add an OpenMP directive around the fused loop
-    lf_schedule, _ = ompf.apply(schedule.children[0])
-
-    # Replace the original loop schedule with the transformed one
-    psy.invokes.get('invoke_0').schedule = lf_schedule
+    ompf.apply(schedule.children[0])
 
     # Store the results of applying this code transformation as
     # a string
@@ -183,10 +176,7 @@ def test_openmp_loop_trans():
     schedule = invoke.schedule
     ompf = GOceanOMPParallelLoopTrans()
 
-    omp1_schedule, _ = ompf.apply(schedule.children[0])
-
-    # Replace the original loop schedule with the transformed one
-    psy.invokes.get('invoke_0').schedule = omp1_schedule
+    ompf.apply(schedule.children[0])
 
     # Store the results of applying this code transformation as
     # a string

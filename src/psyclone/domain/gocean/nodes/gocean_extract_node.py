@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''
@@ -73,11 +74,9 @@ class GOceanExtractNode(ExtractNode):
         not overwritten in the options dictionary.
 
     '''
-    def __init__(self, ast=None, children=None, parent=None,
-                 options=None):
+    def __init__(self, ast=None, children=None, parent=None, options=None):
         super(GOceanExtractNode, self).__init__(ast=ast, children=children,
-                                                parent=parent,
-                                                options=options)
+                                                parent=parent, options=options)
         if options:
             self._create_driver = options.get("create_driver", False)
         else:
@@ -362,3 +361,7 @@ class GOceanExtractNode(ExtractNode):
         with open("driver-{0}-{1}.f90".
                   format(module_name, region_name), "w") as out:
             out.write(code)
+
+
+# For AutoAPI documentation generation
+__all__ = ['GOceanExtractNode']
