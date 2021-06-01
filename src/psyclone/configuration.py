@@ -45,7 +45,7 @@ from __future__ import absolute_import, print_function
 from collections import namedtuple
 import os
 import six
-from psyclone.errors import InternalError
+from psyclone.errors import PsycloneError, InternalError
 
 
 # Name of the config file we search for
@@ -63,7 +63,7 @@ VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
 
 # pylint: disable=too-many-lines
-class ConfigurationError(Exception):
+class ConfigurationError(PsycloneError):
     '''
     Class for all configuration-related errors.
 
@@ -72,17 +72,11 @@ class ConfigurationError(Exception):
     :type config: :py:class:`psyclone.configuration.Config`.
     '''
     def __init__(self, value, config=None):
-        Exception.__init__(self, value)
+        PsycloneError.__init__(self, value)
         self.value = "PSyclone configuration error"
         if config:
             self.value += " (file={0})".format(config.filename)
         self.value += ": "+str(value)
-
-    def __repr__(self):
-        return "ConfigurationError()"
-
-    def __str__(self):
-        return str(self.value)
 
 
 # =============================================================================

@@ -42,7 +42,7 @@ import io
 
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
-from psyclone.errors import InternalError
+from psyclone.errors import PsycloneError, InternalError
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranFileReader
 from fparser.two.utils import FortranSyntaxError
@@ -50,7 +50,7 @@ from fparser.two.utils import FortranSyntaxError
 # Exceptions
 
 
-class ParseError(Exception):
+class ParseError(PsycloneError):
     '''Provides a PSyclone-specific error class for the situation when
     the PSyclone code parsing finds an error in the input.
 
@@ -58,14 +58,8 @@ class ParseError(Exception):
 
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
+        PsycloneError.__init__(self, value)
         self.value = "Parse Error: " + str(value)
-
-    def __repr__(self):
-        return "ParseError()"
-
-    def __str__(self):
-        return str(self.value)
 
 # support functions
 

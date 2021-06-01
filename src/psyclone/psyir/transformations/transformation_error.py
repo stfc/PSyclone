@@ -36,17 +36,12 @@
 '''This module provides the TransformationError class.
 '''
 
+from psyclone.errors import PsycloneError
 
-class TransformationError(Exception):
+class TransformationError(PsycloneError):
     ''' Provides a PSyclone-specific error class for errors found during
         code transformation operations. '''
 
     def __init__(self, value):
-        Exception.__init__(self, value)
+        PsycloneError.__init__(self, value)
         self.value = "Transformation Error: "+str(value)
-
-    def __repr__(self):
-        return "TransformationError()"
-
-    def __str__(self):
-        return str(self.value)
