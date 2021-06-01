@@ -55,57 +55,40 @@ def all_sub_exceptions(expt):
     return set(expt.__subclasses__()).union(new_sub_except)
 
 
+def import_submodules(package, recursive=True):
+    """ Import all submodules of a module, recursively, including subpackages
+
+    :param package: package (name or actual module)
+    :type package: str | module
+
+    :rtype: dict[str, types.ModuleType]
+    """
+    if isinstance(package, str):
+        package = importlib.import_module(package)
+    results = {}
+    for loader, name, is_pkg in pkgutil.walk_packages(package.__path__):
+        full_name = package.__name__ + '.' + name
+        if "test" not in full_name:
+            results[full_name] = importlib.import_module(full_name)
+            if recursive and is_pkg:
+                results.update(import_submodules(full_name))
+    return results
+
+
 def test_exception_repr():
     ''' Test the properties of Exception classes defined by Psyclone. '''
 
     modules = dict()
-    allclass = set()
 
     # Recursively walk through the psyclone module, importing sub-modules.
     # Store any class definitions we come across.
 
-    modules["psyclone"] = True
-    while any(not_imported for _, not_imported in modules.items()):
-        for module, is_pkg in list(modules.items()):
-            # if the submodule is also a package (and so not yet imported),
-            # then parse it now...
-            if is_pkg:
-                # import this submodule, and record that it no longer needs
-                # to be imported
-                module_handle = importlib.import_module(module)
-                modules[module] = False
-
-                # record any classes defined in it
-                module_path = module_handle.__path__
-                for _, obj in inspect.getmembers(module_handle):
-                    if inspect.isclass(obj):
-                        if obj.__module__ == module:
-                            allclass.add(obj)
-
-                # As it is a package, look for submodules
-                for _, sub_mod, s_is_pkg in pkgutil.iter_modules(module_path):
-
-                    # record the submodule exists
-                    full_sub_mod_name = module + "." + sub_mod
-                    modules[full_sub_mod_name] = s_is_pkg
-
-                    # if the new submodule is *not* a package, import it and
-                    # look for defined classes now. If it is a package, it will
-                    # be imported on a later iteration.
-                    if not s_is_pkg:
-                        s_m_handle = importlib.import_module(full_sub_mod_name)
-                        for _, obj in inspect.getmembers(s_m_handle):
-                            if inspect.isclass(obj):
-                                if obj.__module__ == full_sub_mod_name:
-                                    allclass.add(obj)
-
-    # Find the set of all the exceptions (all defined classes which are
-    # subclasses of the Exception clss.)
-    # The intersection of this set and the set of classes we found earlier
-    # is the set of all exceptions defined by Psyclone
+    modules = import_submodules("psyclone")
+    for mod in modules:
+        package = importlib.import_module(mod)
 
     all_excpetions = all_sub_exceptions(Exception)
-    all_psyclone_exceptions = all_excpetions.intersection(allclass)
+    psy_excepts = [exc for exc in all_excpetions if "psyclone." in str(exc)]
 
     # Different vertions of pytest behave differently with repect to their
     # handeling of an exception's representation. This can lead to some tests
@@ -122,7 +105,7 @@ def test_exception_repr():
     # When these conditions are met, assertion behaviour is consistent across
     # all pytest verions.
 
-    for psy_except in list(all_psyclone_exceptions):
+    for psy_except in psy_excepts:
 
         # Ensure there are __str__ & __repr__ methods implemented which are not
         # inherited from the parent Exception class
@@ -136,7 +119,7 @@ def test_exception_repr():
             arglist = list(inspect.getargspec(psy_except.__init__).args)
         args = [None for arg in arglist if arg != 'self']
 
-        # Check that the _str__ & __repr__ do not return the same struing, and
+        # Check that the _str__ & __repr__ do not return the same string, and
         # that one is not contained within the other
         if len(args) > 0:
             assert str(psy_except(*args)) != str(repr(psy_except(*args)))
