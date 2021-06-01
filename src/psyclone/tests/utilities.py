@@ -62,12 +62,6 @@ class CompileError(PsycloneError):
         # pylint: disable=super-init-not-called
         PsycloneError.value = "Compile error: " + str(value)
 
-    def __repr__(self):
-        return "CompileError()"
-
-    def __str__(self):
-        return str(self.value)
-
 
 # =============================================================================
 def line_number(root, string_name):
