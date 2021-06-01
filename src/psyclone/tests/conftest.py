@@ -39,11 +39,17 @@
     command-line options '''
 
 from __future__ import absolute_import
+
+import os
 import pytest
+
+from fparser.two.parser import ParserFactory
 from psyclone.configuration import Config
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from fparser.two.parser import ParserFactory
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import Compile
 
 
 # fixtures defined here are available to all tests
@@ -81,7 +87,7 @@ def have_graphviz():
     only checks for the Python bindings. The underlying library must
     also have been installed for dag generation to work correctly. '''
     try:
-        # pylint: disable=unused-variable
+        # pylint: disable=import-outside-toplevel, unused-import
         import graphviz
     except ImportError:
         return False
@@ -96,7 +102,6 @@ def setup_psyclone_config():
     independent of a potential psyclone config file installed by
     the user.
     '''
-    import os
     config_file = Config.get_repository_config_file()
 
     # In case that PSyclone is installed and tested (e.g. GitHub Actions),
@@ -117,10 +122,8 @@ def infra_compile(tmpdir_factory, request):
     infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
     (if compilation was enabled).
     '''
-    from psyclone.tests.utilities import Compile
     Compile.store_compilation_flags(request.config)
 
-    from psyclone.tests.lfric_build import LFRicBuild
     # Create a temporary directory to store the compiled files.
     # Note that this directory is unique even if compiled in
     # parallel, i.e. each process has its own copy of the
@@ -131,7 +134,6 @@ def infra_compile(tmpdir_factory, request):
     # compilation of the infrastructure files.
     LFRicBuild(tmpdir)
 
-    from psyclone.tests.gocean1p0_build import GOcean1p0Build
     tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
     GOcean1p0Build(tmpdir)
 
