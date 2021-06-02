@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,34 +29,38 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Author: R. W. Ford STFC Daresbury Lab
 
-program operator_example
+module self_symbols_clash_example
 
-  use constants_mod,                 only : i_def, r_solver
-  use fs_continuity_mod,             only : W0
-  use function_space_collection_mod, only : function_space_collection
-  use quadrature_xyoz_mod,           only : quadrature_xyoz_type
-  use testkern_operator_mod,         only : testkern_operator_type
-
+  use constants_mod, only : r_solver
   use r_solver_field_mod, only : r_solver_field_type
   use r_solver_operator_mod, only : r_solver_operator_type
-  use constants_mod, only : r_solver
-  
-  implicit none
+  use quadrature_xyoz_mod, only : quadrature_xyoz_type
+  use testkern_operator_mod, only : testkern_operator_type
 
-  type(r_solver_field_type)           :: coord(3)
-  type(r_solver_operator_type)        :: mm_w0
-  type(quadrature_xyoz_type), pointer :: qr => null
-  integer(i_def)                      :: mesh_id = 1
-  integer(i_def)                      :: element_order = 0
-  real(r_solver)                      :: a
+  type :: my_type
+     type(r_solver_field_type) :: coord(3)
+     type(quadrature_xyoz_type), pointer :: qr => null
+     type(r_solver_operator_type) :: mm_w0
+     real(r_solver) :: a
+   contains
+     procedure, public :: my_sub
+  end type my_type
 
-  a = 1.0_r_solver
-  mm_w0 = operator_type(function_space_collection%get_fs(mesh_id,element_order,W0), &
-                        function_space_collection%get_fs(mesh_id,element_order,W0))
+contains
 
-  call invoke(testkern_operator_type(mm_w0, coord, a, qr))
+  subroutine my_sub(self)
+    class (my_type), intent(in) :: self
+    call invoke(testkern_operator_type(self%mm_w0, self%coord, self%a, self%qr))
+  end subroutine my_sub
 
-end program operator_example
+  subroutine dummy(a)
+     real(r_solver), intent(in) :: a
+  end subroutine dummy
+   
+  subroutine dummy2(a)
+     real, intent(in) :: a
+  end subroutine dummy2
+
+end module self_symbols_clash_example

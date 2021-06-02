@@ -217,20 +217,36 @@ class Parser(object):
 
         for statement in walk(alg_parse_tree.content):
             if isinstance(statement, (Type_Declaration_Stmt, Data_Component_Def_Stmt)):
-                if isinstance(statement.children[0], Declaration_Type_Spec):
+                spec = statement.children[0]
+                if isinstance(spec, Declaration_Type_Spec):
                     # This is a type declaration
-                    my_type = statement.children[0].children[1].string
+                    my_type = spec.children[1].string.lower()
                     my_precision = None
-                elif isinstance(statement.children[0], Intrinsic_Type_Spec):
+                elif isinstance(spec, Intrinsic_Type_Spec):
                     # This is an intrinsic declaration
-                    my_type = statement.children[0].children[0]
-                    my_precision = statement.children[0].children[1].children[1].string
+                    my_type = spec.children[0].lower()
+                    my_precision = None
+                    if isinstance(spec.children[1], Kind_Selector):
+                        my_precision = spec.children[1].children[1].string.lower()
                 else:
                     print ("UNKNOWN")
                     print (repr(statement.children[0]))
                     exit(1)
-                for decl in walk(statement.children[2], (Entity_Decl, Component_Decl)):
+                for decl in walk(statement.children[2], (
+                        Entity_Decl, Component_Decl)):
                     my_var_name = decl.children[0].string.lower()
+                    if my_var_name in self._arg_type_defns and (
+                            self._arg_type_defns[my_var_name][0] != my_type or
+                            self._arg_type_defns[my_var_name][1] !=
+                            my_precision):
+                        raise InternalError(
+                            "The same symbol '{0}' is used for different "
+                            "datatypes, '{1}, {2}' and '{3}, {4}'. This is not "
+                            "currently supported.".format(
+                                my_var_name,
+                                self._arg_type_defns[my_var_name][0],
+                                self._arg_type_defns[my_var_name][1],
+                                my_type, my_precision))
                     self._arg_type_defns[my_var_name] = (my_type, my_precision)
 
             if isinstance(statement, Use_Stmt):
@@ -970,12 +986,11 @@ class Arg(object):
     form_options = ["literal", "variable", "indexed_variable"]
 
     def __init__(self, form, text, varname=None, datatype=None):
-        # print ("*** Arg {0}, datatype {1}".format(text,datatype))
         if not datatype and form != "literal":
             # raise exception at some point
             print("Argument '{0}' has no datatype information".format(text))
         elif datatype:
-             print ("{0},{1},{2},{3}\n".format(form, text, varname, datatype))
+             print ("{0}, {1}, {2}, {3}\n".format(form, text, varname, datatype))
         self._form = form
         self._text = text
         self._varname = varname

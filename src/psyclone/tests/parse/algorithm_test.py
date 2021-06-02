@@ -94,7 +94,7 @@ def test_parser_datatypes():
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype == ("operator_type", None)
     assert args[1]._datatype == ("field_type", None)
-    assert args[2]._datatype == ("REAL", "r_def")
+    assert args[2]._datatype == ("real", "r_def")
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
@@ -107,13 +107,18 @@ def test_parser_datatypes_mixed():
     a vector which shows that the code works with arrays as well as
     individual types.
 
+    Also tests that the datatype information is always lower case
+    irrespective of the case of the declaration and argument. This
+    covers the situation where the variable is declared and used with
+    different case e.g. real a; call invoke(kern(A))
+
     '''
     parser = Parser()
-    _, info = parser.parse(os.path.join(TEST_PATH, "26_mixed_precision.f90"))
+    _, info = parser.parse(os.path.join(TEST_PATH, "26.1_mixed_precision.f90"))
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype == ("r_solver_operator_type", None)
     assert args[1]._datatype == ("r_solver_field_type", None)
-    assert args[2]._datatype == ("REAL", "r_solver")
+    assert args[2]._datatype == ("real", "r_solver")
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
@@ -125,17 +130,46 @@ def test_parser_datatypes_self():
     '''
     parser = Parser()
     _, info = parser.parse(os.path.join(
-        TEST_PATH, "26_mixed_precision_self.f90"))
+        TEST_PATH, "26.2_mixed_precision_self.f90"))
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype == ("r_solver_operator_type", None)
     assert args[1]._datatype == ("r_solver_field_type", None)
-    assert args[2]._datatype == ("REAL", "r_solver")
+    assert args[2]._datatype == ("real", "r_solver")
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
-# Test that it Works if case is different between declaration and use - it does now
-# test with a structure - expect it to fail.
-# Error if same symbol found more than once with different value.
+def test_parser_datatypes_clash():
+    '''Test that the parse method in the Parser class allows multiple
+    symbols with the same name and type but raises an exception if a
+    symbol has the same name but a different type. This is simply a
+    limitation of the current implementation as we do not capture the
+    context of a symbol so do not deal with variable scope. This
+    limitation will disapear when the PSyIR is used to determine
+    datatypes, see issue #753.
+
+    '''
+    parser = Parser()
+    with pytest.raises(InternalError) as info:
+        parser.parse(os.path.join(
+            TEST_PATH, "26.3_mixed_precision_error.f90"))
+    assert ("The same symbol 'a' is used for different datatypes, 'real, "
+            "r_solver' and 'real, None'. This is not currently supported."
+            in str(info.value))
+
+
+def test_parser_use_error():
+    '''Test that the parse method in the Parser class raises an exception
+    if an argument to an invoke comes from a use statement (as we then
+    do not know its datatype). Also check that an exception is raised
+    if the variable is not declared at all i.e. is included via a
+    wildcard use statement, or implicit none is not specified.
+
+    '''
+    parser = Parser()
+    _, info = parser.parse(os.path.join(
+        TEST_PATH, "26.4_mixed_precision_use.f90"))
+
+
 # Test that it fails if included from a module e.g.
 # 1: use timestepping_config_mod, only: dt
 # 2: use constants_mod, only: LARGE_REAL_NEGATIVE
@@ -148,6 +182,7 @@ def test_parser_datatypes_self():
 # Test that it fails if included from another algorithm file: rk_transport_theta_mod.x90
 # e.g. w1_multiplicity : use advective_update_alg_mod, only: w1_multiplicity
 
+# test with a structure - expect it to fail.
 
 # structures
 #unknown
