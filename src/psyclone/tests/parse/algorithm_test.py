@@ -92,10 +92,10 @@ def test_parser_datatypes():
     parser = Parser()
     _, info = parser.parse(os.path.join(TEST_PATH, "10_operator.f90"))
     args = info.calls[0].kcalls[0].args
-    assert args[0]._datatype == ("TYPE", "operator_type")
-    assert args[1]._datatype == ("TYPE", "field_type")
+    assert args[0]._datatype == ("operator_type", None)
+    assert args[1]._datatype == ("field_type", None)
     assert args[2]._datatype == ("REAL", "r_def")
-    assert args[3]._datatype == ("TYPE", "quadrature_xyoz_type")
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
 def test_parser_datatypes_mixed():
@@ -111,13 +111,45 @@ def test_parser_datatypes_mixed():
     parser = Parser()
     _, info = parser.parse(os.path.join(TEST_PATH, "26_mixed_precision.f90"))
     args = info.calls[0].kcalls[0].args
-    assert args[0]._datatype == ("TYPE", "r_solver_operator_type")
-    assert args[1]._datatype == ("TYPE", "r_solver_field_type")
+    assert args[0]._datatype == ("r_solver_operator_type", None)
+    assert args[1]._datatype == ("r_solver_field_type", None)
     assert args[2]._datatype == ("REAL", "r_solver")
-    assert args[3]._datatype == ("TYPE", "quadrature_xyoz_type")
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
-#field, operator, scalar : reduced precision
-# self%..., structures
+
+def test_parser_datatypes_self():
+    '''Test that the parse method in the Parser class captures the
+    required datatype information when the argument is part of a class
+    and is referenced via self.
+
+    '''
+    parser = Parser()
+    _, info = parser.parse(os.path.join(
+        TEST_PATH, "26_mixed_precision_self.f90"))
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype == ("r_solver_operator_type", None)
+    assert args[1]._datatype == ("r_solver_field_type", None)
+    assert args[2]._datatype == ("REAL", "r_solver")
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
+
+
+# Test that it Works if case is different between declaration and use - it does now
+# test with a structure - expect it to fail.
+# Error if same symbol found more than once with different value.
+# Test that it fails if included from a module e.g.
+# 1: use timestepping_config_mod, only: dt
+# 2: use constants_mod, only: LARGE_REAL_NEGATIVE
+# 3: use jules_control_init_mod, only: first_sea_tile, n_sea_tile
+# 4: use reference_element_mod, only : T
+# 5: use mixing_config_mod,         only: mix_factor
+# 6: use runge_kutta_init_mod, only: ak
+# 7: use boundaries_config_mod, only : rim_width_ns, rim_width_ew
+
+# Test that it fails if included from another algorithm file: rk_transport_theta_mod.x90
+# e.g. w1_multiplicity : use advective_update_alg_mod, only: w1_multiplicity
+
+
+# structures
 #unknown
 #errors
 

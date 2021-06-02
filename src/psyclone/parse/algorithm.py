@@ -52,7 +52,8 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List, \
     Proc_Component_Ref, Entity_Decl_List, Name, Kind_Selector, \
     Type_Declaration_Stmt, Type_Declaration_StmtBase, Type_Guard_Stmt, Type_Name,\
-    Type_Param_Name, Declaration_Type_Spec, Entity_Decl, Intrinsic_Type_Spec
+    Type_Param_Name, Declaration_Type_Spec, Entity_Decl, Intrinsic_Type_Spec, \
+    Data_Component_Def_Stmt, Component_Decl
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
@@ -212,26 +213,25 @@ class Parser(object):
         self._arg_type_defns = dict()
         invoke_calls = []
 
+        # print (repr(alg_parse_tree.content))
+
         for statement in walk(alg_parse_tree.content):
-            if isinstance(statement, Type_Declaration_Stmt):
-                #Here we find the field declarations
-                tname = None
-                for child in statement.children:
-                    if isinstance(child,Declaration_Type_Spec):
-                        tname=("TYPE",str(get_child(child,Type_Name) or ''))
-                        # print ("DEC_TYPE_SPEC {0}".format(tname))
-                    if isinstance(child,Intrinsic_Type_Spec):
-                        intrinsic_type = str(get_child(child,str) or '')
-                        kind = ''
-                        for entity in walk(child):
-                            if isinstance(entity,Kind_Selector):
-                                 kind = str(get_child(entity,Name) or '')
-                        tname=(intrinsic_type,kind)
-                        # print ("INTRINSIC_TYPE_SPEC {0}".format(tname))
-                    if isinstance(child,Entity_Decl_List):
-                        for entity in child.children:
-                            self._arg_type_defns[str(entity.children[0])] = tname
-                            # print("ENTITY_DECL_LIST " + str(entity) + " " + str(entity.children[0]) + " = " + str(tname or ''))
+            if isinstance(statement, (Type_Declaration_Stmt, Data_Component_Def_Stmt)):
+                if isinstance(statement.children[0], Declaration_Type_Spec):
+                    # This is a type declaration
+                    my_type = statement.children[0].children[1].string
+                    my_precision = None
+                elif isinstance(statement.children[0], Intrinsic_Type_Spec):
+                    # This is an intrinsic declaration
+                    my_type = statement.children[0].children[0]
+                    my_precision = statement.children[0].children[1].children[1].string
+                else:
+                    print ("UNKNOWN")
+                    print (repr(statement.children[0]))
+                    exit(1)
+                for decl in walk(statement.children[2], (Entity_Decl, Component_Decl)):
+                    my_var_name = decl.children[0].string.lower()
+                    self._arg_type_defns[my_var_name] = (my_type, my_precision)
 
             if isinstance(statement, Use_Stmt):
                 # found a Fortran use statement
@@ -641,13 +641,18 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             # A structure dereference e.g. base%arg, base%arg(n) It is
             # a Proc_Component_Ref if the structure constructor uses
             # self e.g. self%arg
-            lhs = argument.children[0]
-            if not isinstance(lhs, Name):
+            arg = argument.children[1]
+            if not isinstance(arg, Name):
+                exit(1)
                 datatype = None
             else:
                 try:
-                    datatype = arg_type_defns[str(lhs)]
+                    datatype = arg_type_defns[str(arg)]
                 except KeyError:
+                    print ("XXXX")
+                    print ("ERROR '{0}' not in '{1}'".format(arg, arg_type_defns.keys()))
+                    print (arg_type_defns)
+                    exit(1)
                     datatype = None
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
@@ -966,6 +971,11 @@ class Arg(object):
 
     def __init__(self, form, text, varname=None, datatype=None):
         # print ("*** Arg {0}, datatype {1}".format(text,datatype))
+        if not datatype and form != "literal":
+            # raise exception at some point
+            print("Argument '{0}' has no datatype information".format(text))
+        elif datatype:
+             print ("{0},{1},{2},{3}\n".format(form, text, varname, datatype))
         self._form = form
         self._text = text
         self._varname = varname
