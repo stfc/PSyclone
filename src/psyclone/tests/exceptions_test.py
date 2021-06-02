@@ -36,6 +36,7 @@
 ''' Test exception classes to ensure consistent __repr__ & __str__ methods. '''
 
 from __future__ import absolute_import
+from psyclone.errors import PsycloneError
 
 import sys
 import pkgutil
@@ -44,6 +45,13 @@ import psyclone
 import inspect
 import os
 import importlib
+
+class DummyPsycloneError(PsycloneError):
+    ''' Provides a dummy PSyclone specific error class as for use in this test
+    '''
+    def __init__(self):
+        PsycloneError.__init__(self, "")
+        self.value = "Dummy Psyclone Error"
 
 
 def all_sub_exceptions(expt):
@@ -89,6 +97,7 @@ def test_exception_repr():
 
     all_excpetions = all_sub_exceptions(Exception)
     psy_excepts = [exc for exc in all_excpetions if "psyclone." in str(exc)]
+    psy_excepts.append(DummyPsycloneError)
 
     # Different vertions of pytest behave differently with repect to their
     # handeling of an exception's representation. This can lead to some tests
