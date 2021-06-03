@@ -163,26 +163,29 @@ class Parser(object):
 
     def parse(self, alg_filename):
         '''Takes a PSyclone conformant algorithm file as input and outputs a
-        parse tree of the code contained therein and an object containing
-        information about the 'invoke' calls in the algorithm file and any
-        associated kernels within the invoke calls.
+        parse tree of the code contained therein and an object
+        containing information about the 'invoke' calls in the
+        algorithm file and any associated kernels within the invoke
+        calls. If the NEMO API is being used then the parsed code is
+        returned without any additional information about the code.
 
         :param str alg_filename: The file containing the algorithm code.
+
         :returns: 2-tuple consisting of the fparser2 parse tree of the \
-        algorithm code and an object holding details of the algorithm \
-        code and the invokes found within it.
+            algorithm code and an object holding details of the \
+            algorithm code and the invokes found within it, unless it \
+            is the NEMO API, where the first entry of the tuple is \
+            None and the second is the fparser2 parse tree of the \
+            code.
         :rtype: (:py:class:`fparser.two.Fortran2003.Program`, \
-                 :py:class:`psyclone.parse.FileInfo`)
-        :raises ParseError: if a program, module, subroutine or \
-        function is not found in the input file.
+            :py:class:`psyclone.parse.FileInfo`) or (NoneType, \
+            :py:class:`fparser.two.Fortran2003.Program`)
 
         '''
         self._alg_filename = alg_filename
-
         if self._line_length:
             # Make sure the code conforms to the line length limit.
             check_line_length(alg_filename)
-
         alg_parse_tree = parse_fp2(alg_filename)
 
         if self._api == "nemo":
@@ -190,6 +193,30 @@ class Parser(object):
             # fparser2 AST with None for the Algorithm AST.
             return None, alg_parse_tree
 
+        return alg_parse_tree, self.invoke_info(alg_parse_tree)
+
+    def invoke_info(self, alg_parse_tree):
+        '''Takes a PSyclone conformant fparser2 representation of an algorithm
+        code as input and outputs an object containing information
+        about the 'invoke' calls in the algorithm file and any
+        associated kernels within the invoke calls.
+
+        :param alg_parse_tree: the fparser2 representation of the \
+            algorithm code.
+        :type: :py:class:`fparser.two.Fortran2003.Program`
+
+        :returns: an object holding details of the algorithm \
+            code and the invokes found within it.
+        :rtype: :py:class:`psyclone.parse.FileInfo`)
+
+        :raises ParseError: if a program, module, subroutine or \
+            function is not found in the fparser2 tree.
+        :raises InternalError: if the fparser2 tree representing the \
+            type declaration statements is not in the expected form.
+        :raises NotImplementedError: if the algorithm code contains \
+            two different datatypes with the same name.
+
+        '''
         # Find the first program, module, subroutine or function in the
         # parse tree. The assumption here is that the first is the one
         # that is required. See issue #307.
@@ -204,19 +231,17 @@ class Parser(object):
             # Nothing relevant found.
             raise ParseError(
                 "algorithm.py:parser:parse: Program, module, function or "
-                "subroutine not found in parse tree for file "
-                "'{0}'".format(alg_filename))
+                "subroutine not found in fparser2 parse tree.")
 
         self._unique_invoke_labels = []
         self._arg_name_to_module_name = OrderedDict()
         self._arg_type_defns = dict()
         invoke_calls = []
 
-        # print (repr(alg_parse_tree.content))
-
         for statement in walk(alg_parse_tree.content):
             if isinstance(statement,
                           (Type_Declaration_Stmt, Data_Component_Def_Stmt)):
+                # Capture datatype information for the variable
                 spec = statement.children[0]
                 if isinstance(spec, Declaration_Type_Spec):
                     # This is a type declaration
@@ -230,17 +255,20 @@ class Parser(object):
                         my_precision = \
                             spec.children[1].children[1].string.lower()
                 else:
-                    print("UNKNOWN")
-                    print(repr(statement))
-                    exit(1)
+                    raise InternalError(
+                        "Expected first child of Type_Declaration_Stmt or "
+                        "Data_Component_Def_Stmt to be Declaration_Type_Spec "
+                        "or Intrinsic_Type_Spec but found '{0}'"
+                        "".format(type(spec).__name__))
                 for decl in walk(statement.children[2], (
                         Entity_Decl, Component_Decl)):
+                    # Determine the variables names
                     my_var_name = decl.children[0].string.lower()
                     if my_var_name in self._arg_type_defns and (
                             self._arg_type_defns[my_var_name][0] != my_type or
                             self._arg_type_defns[my_var_name][1] !=
                             my_precision):
-                        raise InternalError(
+                        raise NotImplementedError(
                             "The same symbol '{0}' is used for different "
                             "datatypes, '{1}, {2}' and '{3}, {4}'. This is "
                             "not currently supported.".format(
@@ -248,6 +276,7 @@ class Parser(object):
                                 self._arg_type_defns[my_var_name][0],
                                 self._arg_type_defns[my_var_name][1],
                                 my_type, my_precision))
+                    # Store the variable name and information about its type
                     self._arg_type_defns[my_var_name] = (my_type, my_precision)
 
             if isinstance(statement, Use_Stmt):
@@ -262,7 +291,7 @@ class Parser(object):
                     invoke_call = self.create_invoke_call(statement)
                     invoke_calls.append(invoke_call)
 
-        return alg_parse_tree, FileInfo(container_name, invoke_calls)
+        return FileInfo(container_name, invoke_calls)
 
     def create_invoke_call(self, statement):
         '''Takes the part of a parse tree containing an invoke call and
@@ -333,9 +362,6 @@ class Parser(object):
         '''
         kernel_name, args = get_kernel(argument, self._alg_filename,
                                        self._arg_type_defns)
-        # This is where the kernel call is created, so what fields are used?
-        # for miarg in args:
-        #     print("ArgsVAR~"+str(miarg.varname or ''))
         if kernel_name.lower() in self._builtin_name_map.keys():
             # This is a builtin kernel
             kernel_call = self.create_builtin_kernel_call(

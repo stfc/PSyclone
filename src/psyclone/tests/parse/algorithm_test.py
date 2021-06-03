@@ -63,7 +63,8 @@ ParserFactory().create(std="f2008")
 
 def test_parser_parse(tmpdir):
     '''Test that if no relevant code is found in the algorithm file then
-    the appropriate exception is raised.
+    the appropriate exception is raised. Tests the parse and
+    invoke_info methods.
 
     '''
     tmp = Parser()
@@ -73,17 +74,17 @@ def test_parser_parse(tmpdir):
     ffile.close()
     with pytest.raises(ParseError) as excinfo:
         _ = tmp.parse(filename)
-    assert ("Program, module, function or subroutine not found in parse tree "
-            "for file") in str(excinfo.value)
+    assert ("Program, module, function or subroutine not found in fparser2 "
+            "parse tree.") in str(excinfo.value)
 
 
 def test_parser_datatypes():
-    '''Test that the parse method in the Parser class captures the
-    required datatype information for "standard" fields, operators and
-    scalars i.e. defined as field_type, operator_type and r_def
-    respectively. We also capture the datatype of quadrature but don't
-    care. field_type is actually a vector which shows that the code
-    works with arrays as well as individual types.
+    '''Test that the parse and invoke_info methods in the Parser class
+    capture the required datatype information for "standard" fields,
+    operators and scalars i.e. defined as field_type, operator_type
+    and r_def respectively. We also capture the datatype of quadrature
+    but don't care. field_type is actually a vector which shows that
+    the code works with arrays as well as individual types.
 
     '''
     parser = Parser()
@@ -96,9 +97,9 @@ def test_parser_datatypes():
 
 
 def test_parser_datatypes_mixed():
-    '''Test that the parse method in the Parser class captures the
-    required datatype information with mixed-precision fields,
-    operators and scalars i.e. defined as r_solver_field_type,
+    '''Test that the parse and invoke_info methods in the Parser class
+    capture the required datatype information with mixed-precision
+    fields, operators and scalars i.e. defined as r_solver_field_type,
     r_solver_operator_type and r_solver respectively. We also capture
     the datatype of quadrature but don't care. field_type is actually
     a vector which shows that the code works with arrays as well as
@@ -120,9 +121,9 @@ def test_parser_datatypes_mixed():
 
 
 def test_parser_datatypes_self():
-    '''Test that the parse method in the Parser class captures the
-    required datatype information when the argument is part of a class
-    and is referenced via self.
+    '''Test that the parse and invoke_info methods in the Parser class
+    capture the required datatype information when the argument is
+    part of a class and is referenced via self.
 
     '''
     parser = Parser()
@@ -136,17 +137,17 @@ def test_parser_datatypes_self():
 
 
 def test_parser_datatypes_clash():
-    '''Test that the parse method in the Parser class allows multiple
-    symbols with the same name and type but raises an exception if a
-    symbol has the same name but a different type. This is simply a
-    limitation of the current implementation as we do not capture the
-    context of a symbol so do not deal with variable scope. This
-    limitation will disapear when the PSyIR is used to determine
-    datatypes, see issue #753.
+    '''Test that the parse and invoke_info methods in the Parser class
+    allow multiple symbols with the same name and type but raises an
+    exception if a symbol has the same name but a different type. This
+    is simply a limitation of the current implementation as we do not
+    capture the context of a symbol so do not deal with variable
+    scope. This limitation will disapear when the PSyIR is used to
+    determine datatypes, see issue #753.
 
     '''
     parser = Parser()
-    with pytest.raises(InternalError) as info:
+    with pytest.raises(NotImplementedError) as info:
         parser.parse(os.path.join(
             TEST_PATH, "26.3_mixed_precision_error.f90"))
     assert ("The same symbol 'a' is used for different datatypes, 'real, "
@@ -155,12 +156,12 @@ def test_parser_datatypes_clash():
 
 
 def test_parser_use_error():
-    '''Test that the parse method in the Parser class provides None as the
-    datatype to the associated Arg class if an argument to an invoke
-    comes from a use statement (as we then do not know its
-    datatype). Also check for the same behaviour if the variable is
-    not declared at all i.e. is included via a wildcard use statement,
-    or implicit none is not specified.
+    '''Test that the parse and invoke_info methods in the Parser class
+    provide None as the datatype to the associated Arg class if an
+    argument to an invoke comes from a use statement (as we then do
+    not know its datatype). Also check for the same behaviour if the
+    variable is not declared at all i.e. is included via a wildcard
+    use statement, or implicit none is not specified.
 
     '''
     parser = Parser()
@@ -174,11 +175,12 @@ def test_parser_use_error():
 
 
 def test_parser_structure_error():
-    '''Test that the parse method in the Parser class provides None as
-    the datatype to the associated Arg class if an argument to an
-    invoke is a structure that comes from a use statement (as we then
-    do not know its datatype), but that the datatype for a structure
-    is found if the structure is declared within the code.
+    '''Test that the parse and invoke_info methods in the Parser class
+    provide None as the datatype to the associated Arg class if an
+    argument to an invoke is a structure that comes from a use
+    statement (as we then do not know its datatype), but that the
+    datatype for a structure is found if the structure is declared
+    within the code.
 
     '''
     parser = Parser()
@@ -190,9 +192,10 @@ def test_parser_structure_error():
     assert args[2]._datatype == ("real", "r_def")
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
+# invoke_info() test InternalError
+
 # Test for error conditions ...
 # Test other modified code including Alg class.
-
 # create_invoke_call tests
 
 
