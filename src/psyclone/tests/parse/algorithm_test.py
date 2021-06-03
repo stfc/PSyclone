@@ -38,6 +38,7 @@ file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
 from __future__ import absolute_import
+import os
 import six
 
 import pytest
@@ -51,7 +52,8 @@ from psyclone.parse.algorithm import Parser, get_invoke_label, \
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
 
-
+TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
+                         "test_files", "dynamo0p3")
 # This ParserFactory call needs to happen at the top-level in order for the
 # fparser.two.Fortran2003 import to work as expected.
 ParserFactory().create(std="f2008")
@@ -73,11 +75,6 @@ def test_parser_parse(tmpdir):
         _ = tmp.parse(filename)
     assert ("Program, module, function or subroutine not found in parse tree "
             "for file") in str(excinfo.value)
-
-import os
-from psyclone.parse.algorithm import FileInfo, InvokeCall, KernelCall, Arg
-TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
-                         "test_files", "dynamo0p3")
 
 
 def test_parser_datatypes():
@@ -193,22 +190,8 @@ def test_parser_structure_error():
     assert args[2]._datatype == ("real", "r_def")
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
-
-# Test that it fails if included from a module e.g.
-# 1: use timestepping_config_mod, only: dt
-# 2: use constants_mod, only: LARGE_REAL_NEGATIVE
-# 3: use jules_control_init_mod, only: first_sea_tile, n_sea_tile
-# 4: use reference_element_mod, only : T
-# 5: use mixing_config_mod,         only: mix_factor
-# 6: use runge_kutta_init_mod, only: ak
-# 7: use boundaries_config_mod, only : rim_width_ns, rim_width_ew
-# Test that it fails if included from another algorithm file: rk_transport_theta_mod.x90
-# e.g. w1_multiplicity : use advective_update_alg_mod, only: w1_multiplicity
-
-# structures
-#unknown
-#errors
-
+# Test for error conditions ...
+# Test other modified code including Alg class.
 
 # create_invoke_call tests
 

@@ -42,7 +42,7 @@ from __future__ import absolute_import
 
 from collections import OrderedDict
 from fparser.two import pattern_tools
-from fparser.two.utils import walk, get_child
+from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
     Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
@@ -50,9 +50,8 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Section_Subscript_List, Name, Real_Literal_Constant, \
     Int_Literal_Constant, Function_Reference, Level_2_Unary_Expr, \
     Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List, \
-    Proc_Component_Ref, Entity_Decl_List, Name, Kind_Selector, \
-    Type_Declaration_Stmt, Type_Declaration_StmtBase, Type_Guard_Stmt, Type_Name,\
-    Type_Param_Name, Declaration_Type_Spec, Entity_Decl, Intrinsic_Type_Spec, \
+    Proc_Component_Ref, Kind_Selector, Type_Declaration_Stmt, \
+    Declaration_Type_Spec, Entity_Decl, Intrinsic_Type_Spec, \
     Data_Component_Def_Stmt, Component_Decl
 # pylint: enable=no-name-in-module
 
@@ -216,7 +215,8 @@ class Parser(object):
         # print (repr(alg_parse_tree.content))
 
         for statement in walk(alg_parse_tree.content):
-            if isinstance(statement, (Type_Declaration_Stmt, Data_Component_Def_Stmt)):
+            if isinstance(statement,
+                          (Type_Declaration_Stmt, Data_Component_Def_Stmt)):
                 spec = statement.children[0]
                 if isinstance(spec, Declaration_Type_Spec):
                     # This is a type declaration
@@ -227,10 +227,11 @@ class Parser(object):
                     my_type = spec.children[0].lower()
                     my_precision = None
                     if isinstance(spec.children[1], Kind_Selector):
-                        my_precision = spec.children[1].children[1].string.lower()
+                        my_precision = \
+                            spec.children[1].children[1].string.lower()
                 else:
-                    print ("UNKNOWN")
-                    print (repr(statement))
+                    print("UNKNOWN")
+                    print(repr(statement))
                     exit(1)
                 for decl in walk(statement.children[2], (
                         Entity_Decl, Component_Decl)):
@@ -241,8 +242,8 @@ class Parser(object):
                             my_precision):
                         raise InternalError(
                             "The same symbol '{0}' is used for different "
-                            "datatypes, '{1}, {2}' and '{3}, {4}'. This is not "
-                            "currently supported.".format(
+                            "datatypes, '{1}, {2}' and '{3}, {4}'. This is "
+                            "not currently supported.".format(
                                 my_var_name,
                                 self._arg_type_defns[my_var_name][0],
                                 self._arg_type_defns[my_var_name][1],
@@ -629,7 +630,8 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                 datatype = arg_type_defns[var_name]
             except KeyError:
                 datatype = None
-            arguments.append(Arg('variable', full_text, varname=var_name, datatype=datatype))
+            arguments.append(Arg('variable', full_text, varname=var_name,
+                                 datatype=datatype))
         elif isinstance(argument, Part_Ref):
             # An indexed variable e.g. arg(n)
             full_text = argument.tostr().lower()
@@ -638,7 +640,8 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                 datatype = arg_type_defns[var_name]
             except KeyError:
                 datatype = None
-            arguments.append(Arg('indexed_variable', full_text, varname=var_name, datatype=datatype))
+            arguments.append(Arg('indexed_variable', full_text,
+                                 varname=var_name, datatype=datatype))
         elif isinstance(argument, Function_Reference):
             # A function reference e.g. func()
             full_text = argument.tostr().lower()
@@ -652,20 +655,21 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                 datatype = arg_type_defns[lhs]
             except KeyError:
                 datatype = None
-            arguments.append(Arg('indexed_variable', full_text, varname=var_name, datatype=datatype))
+            arguments.append(Arg('indexed_variable', full_text,
+                                 varname=var_name, datatype=datatype))
         elif isinstance(argument, (Data_Ref, Proc_Component_Ref)):
             if isinstance(argument, Proc_Component_Ref):
                 if isinstance(argument.children[2], Name):
                     arg = argument.children[2].string.lower()
                 else:
-                    print (repr(argument))
+                    print(repr(argument))
                     exit(1)
             elif isinstance(argument, Data_Ref):
                 rhs_node = argument.children[-1]
                 if isinstance(rhs_node, Part_Ref):
                     rhs_node = rhs_node.children[0]
                 if not isinstance(rhs_node, Name):
-                    print (repr(argument))
+                    print(repr(argument))
                     exit(1)
                 arg = rhs_node.string.lower()
             try:
@@ -675,7 +679,8 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
 
-            arguments.append(Arg('variable', full_text, varname=var_name, datatype=datatype))
+            arguments.append(Arg('variable', full_text,
+                                 varname=var_name, datatype=datatype))
         elif isinstance(argument, (Level_2_Unary_Expr, Add_Operand,
                                    Parenthesis)):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
@@ -988,11 +993,12 @@ class Arg(object):
     form_options = ["literal", "variable", "indexed_variable"]
 
     def __init__(self, form, text, varname=None, datatype=None):
-        #if not datatype and form != "literal":
-        #    # raise exception at some point
-        #    print("Argument '{0}' has no datatype information".format(text))
-        #elif datatype:
-        #     print ("{0}, {1}, {2}, {3}\n".format(form, text, varname, datatype))
+        if not datatype and form != "literal":
+            # raise exception at some point
+            print("Argument '{0}' has no datatype information".format(text))
+        #  elif datatype:
+        #      print ("{0}, {1}, {2}, {3}\n".format(form, text,
+        #                                           varname, datatype))
         self._form = form
         self._text = text
         self._varname = varname
