@@ -230,7 +230,7 @@ class Parser(object):
                         my_precision = spec.children[1].children[1].string.lower()
                 else:
                     print ("UNKNOWN")
-                    print (repr(statement.children[0]))
+                    print (repr(statement))
                     exit(1)
                 for decl in walk(statement.children[2], (
                         Entity_Decl, Component_Decl)):
@@ -654,22 +654,24 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                 datatype = None
             arguments.append(Arg('indexed_variable', full_text, varname=var_name, datatype=datatype))
         elif isinstance(argument, (Data_Ref, Proc_Component_Ref)):
-            # A structure dereference e.g. base%arg, base%arg(n) It is
-            # a Proc_Component_Ref if the structure constructor uses
-            # self e.g. self%arg
-            arg = argument.children[1]
-            if not isinstance(arg, Name):
-                exit(1)
-                datatype = None
-            else:
-                try:
-                    datatype = arg_type_defns[str(arg)]
-                except KeyError:
-                    print ("XXXX")
-                    print ("ERROR '{0}' not in '{1}'".format(arg, arg_type_defns.keys()))
-                    print (arg_type_defns)
+            if isinstance(argument, Proc_Component_Ref):
+                if isinstance(argument.children[2], Name):
+                    arg = argument.children[2].string.lower()
+                else:
+                    print (repr(argument))
                     exit(1)
-                    datatype = None
+            elif isinstance(argument, Data_Ref):
+                rhs_node = argument.children[-1]
+                if isinstance(rhs_node, Part_Ref):
+                    rhs_node = rhs_node.children[0]
+                if not isinstance(rhs_node, Name):
+                    print (repr(argument))
+                    exit(1)
+                arg = rhs_node.string.lower()
+            try:
+                datatype = arg_type_defns[arg]
+            except KeyError:
+                datatype = None
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
 
@@ -986,11 +988,11 @@ class Arg(object):
     form_options = ["literal", "variable", "indexed_variable"]
 
     def __init__(self, form, text, varname=None, datatype=None):
-        if not datatype and form != "literal":
-            # raise exception at some point
-            print("Argument '{0}' has no datatype information".format(text))
-        elif datatype:
-             print ("{0}, {1}, {2}, {3}\n".format(form, text, varname, datatype))
+        #if not datatype and form != "literal":
+        #    # raise exception at some point
+        #    print("Argument '{0}' has no datatype information".format(text))
+        #elif datatype:
+        #     print ("{0}, {1}, {2}, {3}\n".format(form, text, varname, datatype))
         self._form = form
         self._text = text
         self._varname = varname

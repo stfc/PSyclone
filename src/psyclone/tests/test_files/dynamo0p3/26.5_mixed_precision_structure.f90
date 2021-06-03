@@ -31,7 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford STFC Daresbury Lab
 
-module self_symbols_use
+module self_symbols_structure
 
   use constants_mod, only : r_solver
   use r_solver_field_mod, only : r_solver_field_type
@@ -39,21 +39,31 @@ module self_symbols_use
   use quadrature_xyoz_mod, only : quadrature_xyoz_type
   use testkern_operator_mod, only : testkern_operator_type
 
-  use some_mod, only : a
-  use wildcard_mod
-
   type :: my_type
-     type(r_solver_field_type) :: coord(3)
      type(quadrature_xyoz_type), pointer :: qr => null
    contains
      procedure, public :: my_sub
   end type my_type
 
+  type(bundletype) :: bundle
+
+  type :: bundle2type
+     real(r_def) :: a(3)
+  end type bundle2type
+
+  type :: bundle3type
+     type(r_solver_field_type) :: coord(3)
+     type(bundle2type) :: x(2)
+  end type bundle3type
+
+  type(bundle2type) :: bundle2
+  type(bundle3type) :: bundle3
+
 contains
 
   subroutine my_sub(self)
     class (my_type), intent(in) :: self
-    call invoke(testkern_operator_type(mm_w0, self%coord, a, self%qr))
+    call invoke(testkern_operator_type(bundle%stuff(1)%b%mm_w0(1), bundle3%coord, bundle2%x(1)%a(0), self%qr))
   end subroutine my_sub
 
-end module self_symbols_use
+end module self_symbols_structure

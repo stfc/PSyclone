@@ -158,16 +158,40 @@ def test_parser_datatypes_clash():
 
 
 def test_parser_use_error():
-    '''Test that the parse method in the Parser class raises an exception
-    if an argument to an invoke comes from a use statement (as we then
-    do not know its datatype). Also check that an exception is raised
-    if the variable is not declared at all i.e. is included via a
-    wildcard use statement, or implicit none is not specified.
+    '''Test that the parse method in the Parser class provides None as the
+    datatype to the associated Arg class if an argument to an invoke
+    comes from a use statement (as we then do not know its
+    datatype). Also check for the same behaviour if the variable is
+    not declared at all i.e. is included via a wildcard use statement,
+    or implicit none is not specified.
 
     '''
     parser = Parser()
     _, info = parser.parse(os.path.join(
         TEST_PATH, "26.4_mixed_precision_use.f90"))
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype is None
+    assert args[1]._datatype == ("r_solver_field_type", None)
+    assert args[2]._datatype is None
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
+
+
+def test_parser_structure_error():
+    '''Test that the parse method in the Parser class provides None as
+    the datatype to the associated Arg class if an argument to an
+    invoke is a structure that comes from a use statement (as we then
+    do not know its datatype), but that the datatype for a structure
+    is found if the structure is declared within the code.
+
+    '''
+    parser = Parser()
+    _, info = parser.parse(os.path.join(
+        TEST_PATH, "26.5_mixed_precision_structure.f90"))
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype is None
+    assert args[1]._datatype == ("r_solver_field_type", None)
+    assert args[2]._datatype == ("real", "r_def")
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
 # Test that it fails if included from a module e.g.
@@ -178,11 +202,8 @@ def test_parser_use_error():
 # 5: use mixing_config_mod,         only: mix_factor
 # 6: use runge_kutta_init_mod, only: ak
 # 7: use boundaries_config_mod, only : rim_width_ns, rim_width_ew
-
 # Test that it fails if included from another algorithm file: rk_transport_theta_mod.x90
 # e.g. w1_multiplicity : use advective_update_alg_mod, only: w1_multiplicity
-
-# test with a structure - expect it to fail.
 
 # structures
 #unknown
