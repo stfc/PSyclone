@@ -319,9 +319,9 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
     # Check the kernel calls have the global passed as last argument
     assert "CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use_1_code(i_2, j, oldu_fld, cu_fld%data, " \
+    assert "CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use2_0_code(i_1, j, oldu_fld, cu_fld%data, " \
+    assert "CALL kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
 
 

@@ -535,13 +535,18 @@ class GOLoop(Loop):
     '''
     _bounds_lookup = {}
 
-    def __init__(self, parent=None,
-                 topology_name="", loop_type=""):
+    def __init__(self, parent=None, topology_name="", loop_type=""):
         # pylint: disable=unused-argument
         const = GOceanConstants()
         Loop.__init__(self, parent=parent,
                       valid_loop_types=const.VALID_LOOP_TYPES)
         self.loop_type = loop_type
+
+        # Check that the GOLoop in inside the GOcean PSy-layer
+        if not self.ancestor(GOInvokeSchedule):
+            raise GenerationError(
+                "GOLoops must always be constructed with a parent which is"
+                " inside (directly or indirectly) of a GOInvokeSchedule")
 
         # We set the loop variable name in the constructor so that it is
         # available when we're determining which vars should be OpenMP
@@ -557,7 +562,7 @@ class GOLoop(Loop):
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, const.VALID_LOOP_TYPES))
 
-        symtab = self.scope.symbol_table
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         try:
             self.variable = symtab.lookup_with_tag(tag)
         except KeyError:

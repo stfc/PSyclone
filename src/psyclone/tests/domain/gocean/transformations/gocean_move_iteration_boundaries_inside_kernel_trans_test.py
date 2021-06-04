@@ -179,6 +179,7 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
   type(r2d_field), intent(inout) :: unew_fld
   type(r2d_field), intent(inout) :: uold_fld
   integer :: j
+  integer :: i
   integer :: xstart
   integer :: xstop
   integer :: ystart
@@ -187,8 +188,6 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
   integer :: xstop_1
   integer :: ystart_1
   integer :: ystop_1
-  integer :: i
-  integer :: i_1
 
   xstart = cu_fld%internal%xstart
   xstop = cu_fld%internal%xstop
@@ -205,8 +204,8 @@ xstop, ystart, ystop)
   ystart_1 = 1
   ystop_1 = SIZE(uold_fld%data, 2)
   do j = 1, SIZE(uold_fld%data, 2), 1
-    do i_1 = 1, SIZE(uold_fld%data, 1), 1
-      call time_smooth_code(i_1, j, u_fld%data, unew_fld%data, uold_fld%data, \
+    do i = 1, SIZE(uold_fld%data, 1), 1
+      call time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data, \
 xstart_1, xstop_1, ystart_1, ystop_1)
     enddo
   enddo

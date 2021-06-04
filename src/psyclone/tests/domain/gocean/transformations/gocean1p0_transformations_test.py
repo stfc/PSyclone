@@ -102,7 +102,7 @@ def test_const_loop_bounds_enabled_and_disabled(tmpdir):
     assert "DO j = cv_fld%internal%ystart, cv_fld%internal%ystop" in gen
     assert "DO i = cv_fld%internal%xstart, cv_fld%internal%xstop" in gen
     assert "DO j = p_fld%whole%ystart, p_fld%whole%ystop" in gen
-    assert "DO i_1 = p_fld%whole%xstart, p_fld%whole%xstop" in gen
+    assert "DO i = p_fld%whole%xstart, p_fld%whole%xstop" in gen
 
     # Next, check the generated code applying the constant loop-bounds
     # transformation.
