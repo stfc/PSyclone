@@ -138,7 +138,7 @@ def infra_compile(tmpdir_factory, request):
     GOcean1p0Build(tmpdir)
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def parser():
     '''
     Creates and returns an fparser object. Since this is expensive we only

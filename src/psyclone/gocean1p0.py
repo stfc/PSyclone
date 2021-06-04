@@ -703,6 +703,10 @@ class GOLoop(Loop):
             # Now replace any {start}/{stop} expression in the loop
             # with a valid integer value:
             do_string = do_string.format(start='15', stop='25')
+            # We need to make sure the fparser is properly initialised, which
+            # typically has not yet happened when the config file is read.
+            # Otherwise the Nonlabel_Do_Stmt cannot parse valid expressions.
+            ParserFactory().create(std="f2008")
             # Check if the do loop can be parsed as a nonlabel do loop
             try:
                 _ = Nonlabel_Do_Stmt(do_string)
