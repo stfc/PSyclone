@@ -235,27 +235,6 @@ def test_parser_invokeinfo_datatypes_self():
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
-def test_parser_invokeinfo_datatypes_clash():
-    '''Test that the invoke_info method in the Parser class
-    allows multiple symbols with the same name and type but raises an
-    exception if a symbol has the same name but a different type. This
-    is simply a limitation of the current implementation as we do not
-    capture the context of a symbol so do not deal with variable
-    scope. This limitation will disapear when the PSyIR is used to
-    determine datatypes, see issue #753.
-
-    '''
-    alg_filename = os.path.join(
-        LFRIC_TEST_PATH, "26.3_mixed_precision_error.f90")
-    parser = Parser(kernel_path=LFRIC_TEST_PATH)
-    alg_parse_tree = parse_fp2(alg_filename)
-    with pytest.raises(NotImplementedError) as info:
-        parser.invoke_info(alg_parse_tree)    
-    assert ("The same symbol 'a' is used for different datatypes, 'real, "
-            "r_solver' and 'real, None'. This is not currently supported."
-            in str(info.value))
-
-
 def test_parser_invokeinfo_use_error():
     '''Test that the invoke_info method in the Parser class
     provides None as the datatype to the associated Arg class if an
@@ -297,8 +276,49 @@ def test_parser_invokeinfo_structure_error():
     assert args[2]._datatype == ("real", "r_def")
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
-# invoke_info() test InternalError
 
+def test_parser_invokeinfo_internalerror():
+    '''Test that the invoke_info method in the Parser class raises the
+    expected exception if an unexpected child or Type_Declaration_Stmt
+    or Data_Component_Def_Stmt is found.
+
+    '''
+    alg_filename = os.path.join(
+        LFRIC_TEST_PATH, "26.1_mixed_precision.f90")
+    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    # Modify parse tree to make it invalid
+    alg_parse_tree.children[0].children[1].children[9].items = ["hello"]
+    with pytest.raises(InternalError) as info:
+        parser.invoke_info(alg_parse_tree)
+    assert (
+        "Expected first child of Type_Declaration_Stmt or "
+        "Data_Component_Def_Stmt to be Declaration_Type_Spec or "
+        "Intrinsic_Type_Spec but found 'str'" in str(info.value))
+
+
+def test_parser_invokeinfo_datatypes_clash():
+    '''Test that the invoke_info method in the Parser class
+    allows multiple symbols with the same name and type but raises an
+    exception if a symbol has the same name but a different type. This
+    is simply a limitation of the current implementation as we do not
+    capture the context of a symbol so do not deal with variable
+    scope. This limitation will disapear when the PSyIR is used to
+    determine datatypes, see issue #753.
+
+    '''
+    alg_filename = os.path.join(
+        LFRIC_TEST_PATH, "26.3_mixed_precision_error.f90")
+    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    with pytest.raises(NotImplementedError) as info:
+        parser.invoke_info(alg_parse_tree)    
+    assert ("The same symbol 'a' is used for different datatypes, 'real, "
+            "r_solver' and 'real, None'. This is not currently supported."
+            in str(info.value))
+
+
+# I think invoke_info is covered now.
 # Test for error conditions ...
 # Test other modified code including Alg class.
 # create_invoke_call tests
