@@ -45,50 +45,147 @@ import pytest
 
 from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor, \
     Data_Ref, Proc_Component_Ref, Name, Call_Stmt, Use_Stmt, \
-    Actual_Arg_Spec
+    Actual_Arg_Spec, Program
 from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
-    get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
-from psyclone.parse.utils import ParseError
+    get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
+    FileInfo
+from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
 
-TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
-                         "test_files", "dynamo0p3")
+LFRIC_TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "..", "test_files", "dynamo0p3")
 # This ParserFactory call needs to happen at the top-level in order for the
 # fparser.two.Fortran2003 import to work as expected.
 ParserFactory().create(std="f2008")
 
-# class parser() tests
+# class Parser() tests
+
+# Parser.parse() method tests
 
 
-def test_parser_parse(tmpdir):
-    '''Test that if no relevant code is found in the algorithm file then
-    the appropriate exception is raised. Tests the parse and
-    invoke_info methods.
+def test_parser_parse_linelength():
+    '''Check that the parse() method in the Parser() class raises an
+    exception if one or more of the lines is too long (>132
+    characters) in the supplied input file when _line_length is set to
+    True and does not raise an exception by default.
 
     '''
-    tmp = Parser()
-    filename = str(tmpdir.join("empty.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
-    with pytest.raises(ParseError) as excinfo:
-        _ = tmp.parse(filename)
+    parser = Parser()
+    parser.parse(os.path.join(LFRIC_TEST_PATH, "13_alg_long_line.f90"))
+
+    parser = Parser(line_length=True)
+    with pytest.raises(ParseError) as info:
+        parser.parse(os.path.join(LFRIC_TEST_PATH, "13_alg_long_line.f90"))
+    assert ("the file does not conform to the specified 132 line length "
+            "limit" in str(info.value))
+
+
+def test_parser_parse_nemo():
+    '''Check that the parse() method in the Parser() class returns the
+    expected results (None, and an fparser2 ast) when using the NEMO
+    API. We actually use an LFRic algorithm file here but it does not
+    matter as we are only parsing the code.
+
+    '''
+    parser = Parser(api="nemo")
+    res1, res2 = parser.parse(os.path.join(
+        LFRIC_TEST_PATH, "1_single_invoke.f90"))
+    assert res1 is None
+    assert isinstance(res2, Program)
+    assert "PROGRAM single_invoke" in str(res2)
+
+
+def test_parser_parse():
+    '''Check that the parse() method in the Parser() class returns the
+    expected results (fparser2 ast and a FileInfo instance) when using
+    an API other than the NEMO API. Also test that the filename is
+    stored in _alg_filename.
+
+    '''
+    parser = Parser(api="dynamo0.3")
+    assert parser._alg_filename is None
+    res1, res2 = parser.parse(os.path.join(
+        LFRIC_TEST_PATH, "1_single_invoke.f90"))
+    assert "1_single_invoke.f90" in parser._alg_filename
+    assert isinstance(res1, Program)
+    assert "PROGRAM single_invoke" in str(res1)
+    assert isinstance(res2, FileInfo)
+    assert res2.name == "single_invoke"
+
+# Parser.invoke_info() method tests
+
+
+def test_parser_invokeinfo_nocode(tmpdir):
+    '''Check that the invoke_info() method in the Parser() class raises
+    the expected exception if no relevant code (subroutine, module
+    etc.) is found in the supplied fparser2 tree.
+
+    '''
+    parser = Parser()
+    alg_filename = str(tmpdir.join("empty.f90"))
+    with open(alg_filename, "w") as ffile:
+        ffile.write("")
+    alg_parse_tree = parse_fp2(alg_filename)
+    with pytest.raises(ParseError) as info:
+        parser.invoke_info(alg_parse_tree)
     assert ("Program, module, function or subroutine not found in fparser2 "
-            "parse tree.") in str(excinfo.value)
+            "parse tree.") in str(info.value)
 
 
-def test_parser_datatypes():
-    '''Test that the parse and invoke_info methods in the Parser class
-    capture the required datatype information for "standard" fields,
+def test_parser_invokeinfo_first(tmpdir):
+    '''Check that the invoke_info() method in the Parser() class evaluates
+    the first subroutine, module, etc if more than one exist in the
+    supplied fparser2 tree.
+
+    '''
+    parser = Parser()
+    alg_filename = str(tmpdir.join("two_routines.f90"))
+    with open(alg_filename, "w") as ffile:
+        ffile.write(
+            "subroutine first()\n"
+            "end subroutine first\n"
+            "subroutine second()\n"
+            "end subroutine second\n")
+    alg_parse_tree = parse_fp2(alg_filename)
+    res = parser.invoke_info(alg_parse_tree)
+    assert isinstance(res, FileInfo)
+    assert res.name == "first"
+
+
+@pytest.mark.parametrize("code,name", [
+    ("program prog\nend program prog\n", "prog"),
+    ("module mod\nend module mod\n", "mod"),
+    ("subroutine sub()\nend subroutine sub\n", "sub"),
+    ("function func()\nend function func\n", "func")])
+def test_parser_invokeinfo_containers(tmpdir, code, name):
+    '''Check that the invoke_info() method in the Parser() class works
+    with program, module, subroutine and function.
+
+    '''
+    parser = Parser()
+    alg_filename = str(tmpdir.join("container.f90"))
+    with open(alg_filename, "w") as ffile:
+        ffile.write(code)
+    alg_parse_tree = parse_fp2(alg_filename)
+    res = parser.invoke_info(alg_parse_tree)
+    assert isinstance(res, FileInfo)
+    assert res.name == name
+
+
+def test_parser_invokeinfo_datatypes():
+    '''Test that the invoke_info method in the Parser class
+    captures the required datatype information for "standard" fields,
     operators and scalars i.e. defined as field_type, operator_type
     and r_def respectively. We also capture the datatype of quadrature
     but don't care. field_type is actually a vector which shows that
     the code works with arrays as well as individual types.
 
     '''
-    parser = Parser()
-    _, info = parser.parse(os.path.join(TEST_PATH, "10_operator.f90"))
+    alg_filename = os.path.join(LFRIC_TEST_PATH, "10_operator.f90")
+    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype == ("operator_type", None)
     assert args[1]._datatype == ("field_type", None)
@@ -96,23 +193,23 @@ def test_parser_datatypes():
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
-def test_parser_datatypes_mixed():
-    '''Test that the parse and invoke_info methods in the Parser class
-    capture the required datatype information with mixed-precision
-    fields, operators and scalars i.e. defined as r_solver_field_type,
-    r_solver_operator_type and r_solver respectively. We also capture
-    the datatype of quadrature but don't care. field_type is actually
-    a vector which shows that the code works with arrays as well as
-    individual types.
+def test_parser_invokeinfo_datatypes_mixed():
+    '''Test that the invoke_info method in the Parser class captures the
+    required datatype information with mixed-precision fields,
+    operators and scalars e.g. defined as r_solver_field_type,
+    r_solver_operator_type and r_solver respectively.
 
     Also tests that the datatype information is always lower case
     irrespective of the case of the declaration and argument. This
     covers the situation where the variable is declared and used with
-    different case e.g. real a; call invoke(kern(A))
+    different case e.g. real a\n call invoke(kern(A))
 
     '''
-    parser = Parser()
-    _, info = parser.parse(os.path.join(TEST_PATH, "26.1_mixed_precision.f90"))
+    alg_filename = os.path.join(
+        LFRIC_TEST_PATH, "26.1_mixed_precision.f90")
+    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype == ("r_solver_operator_type", None)
     assert args[1]._datatype == ("r_solver_field_type", None)
@@ -120,15 +217,17 @@ def test_parser_datatypes_mixed():
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
-def test_parser_datatypes_self():
-    '''Test that the parse and invoke_info methods in the Parser class
-    capture the required datatype information when the argument is
-    part of a class and is referenced via self.
+def test_parser_invokeinfo_datatypes_self():
+    '''Test that the invoke_info method in the Parser class captures the
+    required datatype information when the argument is part of a class
+    and is referenced via self.
 
     '''
-    parser = Parser()
-    _, info = parser.parse(os.path.join(
-        TEST_PATH, "26.2_mixed_precision_self.f90"))
+    alg_filename = os.path.join(
+        LFRIC_TEST_PATH, "26.2_mixed_precision_self.f90")
+    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)    
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype == ("r_solver_operator_type", None)
     assert args[1]._datatype == ("r_solver_field_type", None)
@@ -136,9 +235,9 @@ def test_parser_datatypes_self():
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
-def test_parser_datatypes_clash():
-    '''Test that the parse and invoke_info methods in the Parser class
-    allow multiple symbols with the same name and type but raises an
+def test_parser_invokeinfo_datatypes_clash():
+    '''Test that the invoke_info method in the Parser class
+    allows multiple symbols with the same name and type but raises an
     exception if a symbol has the same name but a different type. This
     is simply a limitation of the current implementation as we do not
     capture the context of a symbol so do not deal with variable
@@ -146,27 +245,31 @@ def test_parser_datatypes_clash():
     determine datatypes, see issue #753.
 
     '''
-    parser = Parser()
+    alg_filename = os.path.join(
+        LFRIC_TEST_PATH, "26.3_mixed_precision_error.f90")
+    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
     with pytest.raises(NotImplementedError) as info:
-        parser.parse(os.path.join(
-            TEST_PATH, "26.3_mixed_precision_error.f90"))
+        parser.invoke_info(alg_parse_tree)    
     assert ("The same symbol 'a' is used for different datatypes, 'real, "
             "r_solver' and 'real, None'. This is not currently supported."
             in str(info.value))
 
 
-def test_parser_use_error():
-    '''Test that the parse and invoke_info methods in the Parser class
-    provide None as the datatype to the associated Arg class if an
+def test_parser_invokeinfo_use_error():
+    '''Test that the invoke_info method in the Parser class
+    provides None as the datatype to the associated Arg class if an
     argument to an invoke comes from a use statement (as we then do
     not know its datatype). Also check for the same behaviour if the
     variable is not declared at all i.e. is included via a wildcard
     use statement, or implicit none is not specified.
 
     '''
-    parser = Parser()
-    _, info = parser.parse(os.path.join(
-        TEST_PATH, "26.4_mixed_precision_use.f90"))
+    alg_filename = os.path.join(
+        LFRIC_TEST_PATH, "26.4_mixed_precision_use.f90")
+    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype is None
     assert args[1]._datatype == ("r_solver_field_type", None)
@@ -174,18 +277,20 @@ def test_parser_use_error():
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
-def test_parser_structure_error():
-    '''Test that the parse and invoke_info methods in the Parser class
-    provide None as the datatype to the associated Arg class if an
+def test_parser_invokeinfo_structure_error():
+    '''Test that the invoke_info method in the Parser class
+    provides None as the datatype to the associated Arg class if an
     argument to an invoke is a structure that comes from a use
     statement (as we then do not know its datatype), but that the
     datatype for a structure is found if the structure is declared
     within the code.
 
     '''
-    parser = Parser()
-    _, info = parser.parse(os.path.join(
-        TEST_PATH, "26.5_mixed_precision_structure.f90"))
+    alg_filename = os.path.join(
+        LFRIC_TEST_PATH, "26.5_mixed_precision_structure.f90")
+    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype is None
     assert args[1]._datatype == ("r_solver_field_type", None)
