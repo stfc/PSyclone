@@ -306,12 +306,17 @@ class Compile(object):
         :rtype: bool
 
         '''
-        kernel_modules = set()
+        modules = set()
         # Get the names of the modules associated with the kernels.
         # By definition, built-ins do not have associated Fortran modules.
         for invoke in psy_ast.invokes.invoke_list:
+            for symbol in invoke.schedule.symbol_table.containersymbols:
+                modules.add(symbol.name)
+            # For some PSyIR that container symbols may not be registered
+            # to the symboltable we make sure to at least insert modules
+            # associated to the tree CodedKenrels
             for call in invoke.schedule.coded_kernels():
-                kernel_modules.add(call.module_name)
+                modules.add(call.module_name)
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
@@ -330,9 +335,9 @@ class Compile(object):
         if dependencies:
             # We must ensure that we build any dependencies first and in
             # the order supplied.
-            build_list = dependencies + list(kernel_modules)
+            build_list = dependencies + list(modules)
         else:
-            build_list = list(kernel_modules)
+            build_list = list(modules)
 
         try:
             # Build the dependencies and then the kernels. We allow kernels
