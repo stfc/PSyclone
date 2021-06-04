@@ -181,14 +181,15 @@ class GOInvokes(Invokes):
         '''
         GOcean redefines the Invokes.gen_code() to start using the PSyIR
         backend when possible. In cases where the backend can not be used yet
-        (e.g. OpenCL and ExtractorNode) the parent class will be called. This
-        is temporally done here to avoid modifying the generator file while
-        other APIs still use the f2pygen.
+        (e.g. OpenCL and PSyDataNodes) the parent class will be called. This
+        is a temporal workaround to avoid modifying the generator file while
+        other APIs still use the f2pygen module for code generation.
         Once the PSyIR backend has generated an output, this is added into a
-        f2pygen PSyIRGen block into the f2pygen AST for each Invoke in the
+        f2pygen PSyIRGen block in the f2pygen AST for each Invoke in the
         PSy layer.
 
-        :param parent: the parent node in the AST to which to add content.
+        :param parent: the parent node in the f2pygen AST to which to add \
+                       content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
         for invoke in self.invoke_list:
@@ -199,8 +200,7 @@ class GOInvokes(Invokes):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
-            # TODO 1168: PSyDataNodes and ExtractNodes are not supported by
-            # the backend yet.
+            # TODO 1168: PSyDataNodes are not supported by the backend yet.
             if invoke.schedule.root.walk(PSyDataNode):
                 super(GOInvokes, self).gen_code(parent)
                 return
@@ -247,7 +247,10 @@ class GOInvokes(Invokes):
                 invoke.schedule.children.insert(1, assign1)
                 invoke.schedule.children.insert(2, assign2)
 
+            # Lower the GOcean PSyIR to language level so it can be visited
+            # by the backends
             invoke.schedule.root.lower_to_language_level()
+            # Then insert it into a f2pygen AST as a PSyIRGen node
             for child in invoke.schedule.root.children:
                 parent.add(PSyIRGen(parent, child))
 
@@ -338,16 +341,15 @@ class GOInvoke(Invoke):
         '''
 
         def sort_by_interface(symbol_names):
-            ''' Utility to help differentiate between arguments, local symbols
-            and other symbols (globals, unresolved, ...).
+            ''' Utility to filter arguments and local symbols from a given
+            list of symbols names.
 
             :param symbol_names: a list of symbols to categorise.
             :type symbol_names: list of str
 
-            :returns: a tuple of 3 lists with the given symbol_names \
-                      categorised as argument symbols, local symbols and \
-                      other symbols.
-            :rtype: 3-tuple of lists of str
+            :returns: a tuple of 2 lists with the given symbol_names \
+                      categorised as argument symbols and local symbols.
+            :rtype: 2-tuple of lists of str
             '''
             arg_symbols = []
             local_symbols = []
@@ -2449,13 +2451,13 @@ class GOKernelArgument(KernelArgument):
                                "scalar".
 
         '''
-        # If the argument name is just a number (e.g. '0') if returns a
+        # If the argument name is just a number (e.g. '0') we return a
         # constant Literal expression
         # six.text_type is needed in Python2 to use the isnumeric method
         if six.text_type(self.name).isnumeric():
             return Literal(self.name, INTEGER_TYPE)
 
-        # Otherwise its some form of Reference
+        # Otherwise it's some form of Reference
         symbol = self._call.scope.symbol_table.lookup(self.name)
 
         # Gocean field arguments are StructureReferences to the %data attribute
@@ -2474,7 +2476,7 @@ class GOKernelArgument(KernelArgument):
         ''' Infer the datatype of this argument using the API rules.
 
         :returns: the datatype of this argument.
-        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+        :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         :raises InternalError: if this Argument type is not "field" or \
                                "scalar".
@@ -3142,8 +3144,8 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
     def lower_to_language_level(self):
         '''
-        In-place replacement of DSL or high-level concepts into generic
-        PSyIR constructs. In addition to call its parent logic, the
+        In-place replacement of DSL or high-level concepts into generic PSyIR
+        constructs. In addition to calling this method in the base class, the
         GOACCEnterDataDirective sets up the 'data_on_device' flag for
         each of the fields accessed.
 
@@ -3263,14 +3265,11 @@ class GOHaloExchange(HaloExchange):
         appropriate library method.
 
         '''
+        # Call the halo_exchange routine with depth argument to 1
         rsymbol = RoutineSymbol(self.field.name + "%" +
                                 self._halo_exchange_name)
-        call_node = Call(rsymbol)
-
+        call_node = Call.create(rsymbol, [Literal("1", INTEGER_TYPE)])
         self.replace_with(call_node)
-
-        # Set depth argument to 1
-        call_node.addchild(Literal("1", INTEGER_TYPE, parent=call_node))
 
     def gen_code(self, parent):
         '''GOcean specific code generation for this class.
