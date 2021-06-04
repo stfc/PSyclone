@@ -339,6 +339,8 @@ def test_globalstoarguments_noglobals():
     before_code = str(psy.gen)
 
     # Parse the same file but this time apply the KernelGlobalsToArguments
+    # TODO #1276 and #1274: We could copy the invoke schedule instead of parse
+    # the whole file again.
     _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
                                         "single_invoke.f90"),
                            api=API)

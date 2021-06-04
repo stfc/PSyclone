@@ -504,8 +504,8 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     schedule.symbol_table.add(RoutineSymbol("ru_code"))
     with pytest.raises(NotImplementedError) as err:
         gen = str(psy.gen)
-    assert ("Can not inline subroutine 'ru_code' because another subroutine "
-            "with the same name already exists and versioning of "
+    assert ("Can not inline subroutine 'ru_code' because another, different, "
+            "subroutine with the same name already exists and versioning of "
             "module-inlined subroutines is not implemented "
             "yet.") in str(err.value)
 

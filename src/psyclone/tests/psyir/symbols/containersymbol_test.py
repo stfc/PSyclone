@@ -87,8 +87,9 @@ def test_containersymbol_initialisation():
 
     with pytest.raises(TypeError) as error:
         sym = ContainerSymbol("name", interface="interface")
-    assert ("A ContinerSymbol interface must be of type "
-            "'FortranModuleInterface' but found 'str'" in str(error.value))
+    assert ("A ContainerSymbol interface must be of type "
+            "'FortranModuleInterface' but found 'str' for Container 'name'."
+            in str(error.value))
 
 
 def test_containersymbol_can_be_copied():

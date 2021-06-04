@@ -212,6 +212,7 @@ def test_omp_parallel_loop(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
+    original_schedule = schedule.copy()
 
     omp = GOceanOMPParallelLoopTrans()
     cbtrans = GOConstLoopBoundsTrans()
@@ -231,6 +232,9 @@ def test_omp_parallel_loop(tmpdir):
                 "      !$omp end parallel do")
     assert expected in gen
 
+    # Also test it with the const_bounds set to false
+    # TODO #1276 and #1274: We could copy the invoke schedule instead of parse
+    # the whole file again.
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule

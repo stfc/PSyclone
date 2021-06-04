@@ -386,7 +386,6 @@ def test_valid_config_files():
           CALL compute_kern3_code(i_2, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
-    print(gen)
     assert new_loop3 in gen
 
     # Note that this file can not be compiled, since the new iteration space

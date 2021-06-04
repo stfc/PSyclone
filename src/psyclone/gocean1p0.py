@@ -1027,7 +1027,9 @@ class GOLoop(Loop):
         # Finally, lose the DSL-level abstraction since the lower_bound() and
         # upper_bound() methods will fail after lowering because they rely on
         # a GOKern to be found inside the Loop, and this doesn't exist anymore
-        self.__class__ = Loop
+        new_loop = Loop(variable=self.variable)
+        new_loop.children = self.pop_all_children()
+        self.replace_with(new_loop)
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -1068,7 +1070,7 @@ class GOLoop(Loop):
         # Our schedule holds the names to use for the loop bounds.
         # Climb up the tree looking for our enclosing GOInvokeSchedule
         schedule = self.ancestor(GOInvokeSchedule)
-        if schedule is None or not isinstance(schedule, GOInvokeSchedule):
+        if schedule is None:
             raise GenerationError("Cannot find a GOInvokeSchedule ancestor "
                                   "for this GOLoop.")
 
@@ -3266,6 +3268,8 @@ class GOHaloExchange(HaloExchange):
 
         '''
         # Call the halo_exchange routine with depth argument to 1
+        # Currently we create an symbol name with % as a workaround of not
+        # having type bound routines.
         rsymbol = RoutineSymbol(self.field.name + "%" +
                                 self._halo_exchange_name)
         call_node = Call.create(rsymbol, [Literal("1", INTEGER_TYPE)])

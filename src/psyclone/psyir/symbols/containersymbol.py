@@ -60,7 +60,6 @@ class ContainerSymbol(Symbol):
         :py:class:`psyclone.psyir.symbols.FortranModuleInterface`
     :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
-
     '''
     def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY,
                  interface=None):
@@ -72,9 +71,10 @@ class ContainerSymbol(Symbol):
         elif isinstance(interface, FortranModuleInterface):
             self.interface = interface
         else:
-            raise TypeError("A ContinerSymbol interface must be of type '"
-                            "FortranModuleInterface' but found '{0}'"
-                            "".format(type(interface).__name__))
+            raise TypeError("A ContainerSymbol interface must be of type '"
+                            "FortranModuleInterface' but found '{0}' for "
+                            "Container '{1}'."
+                            "".format(type(interface).__name__, name))
 
         self._reference = None
         # Whether or not there is a wildcard import of all public symbols

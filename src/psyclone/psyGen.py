@@ -1409,10 +1409,10 @@ class ACCEnterDataDirective(ACCDirective):
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-        # The _copy_vars are computed dynamically until the _lowered_clauses
+        # The _variables_to_copy are computed dynamically until the _node_lowered
         # flag is set to True, after that re-use the stored ones.
-        self._copy_vars = []
-        self._lowered_clauses = False
+        self._variables_to_copy = []
+        self._node_lowered = False
 
     def node_str(self, colour=True):
         '''
@@ -1455,7 +1455,7 @@ class ACCEnterDataDirective(ACCDirective):
         self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                 (ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
-        #    the kernels it contains (this list is given by var_list)
+        #    the kernels it contains (this list is given by ref_list)
         #    and add it to our list if we don't already have it
         var_list = []
         # TODO grid properties are effectively duplicated in this list (but
@@ -1488,7 +1488,7 @@ class ACCEnterDataDirective(ACCDirective):
         PSyIR constructs.
 
         '''
-        if not self._lowered_clauses:
+        if not self._node_lowered:
             # We must generate a list of all of the fields accessed by
             # OpenACC kernels (calls within an OpenACC parallel or kernels
             # directive)
@@ -1497,16 +1497,16 @@ class ACCEnterDataDirective(ACCDirective):
             self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                     (ACCParallelDirective, ACCKernelsDirective))
             # 2. For each directive, loop over each of the fields used by
-            #    the kernels it contains (this list is given by var_list)
+            #    the kernels it contains (this list is given by ref_list)
             #    and add it to our list if we don't already have it
-            self._copy_vars = []
+            self._variables_to_copy = []
             # TODO grid properties are effectively duplicated in this list (but
             # the OpenACC deep-copy support should spot this).
             for pdir in self._acc_dirs:
                 for var in pdir.ref_list:
-                    if var not in self._copy_vars:
-                        self._copy_vars.append(var)
-            self._lowered_clauses = True
+                    if var not in self._variables_to_copy:
+                        self._variables_to_copy.append(var)
+            self._node_lowered = True
 
         super(ACCEnterDataDirective, self).lower_to_language_level()
 
@@ -1518,8 +1518,8 @@ class ACCEnterDataDirective(ACCDirective):
         :rtype: str
 
         '''
-        # The enter data clauses are computed from the current copy_vars values
-        var_str = ",".join(self._copy_vars)
+        # The enter data clauses are given by the _variables_to_copy list
+        var_str = ",".join(self._variables_to_copy)
         if var_str:
             copy_in_str = "copyin("+var_str+")"
         else:
@@ -2124,7 +2124,6 @@ class OMPParallelDirective(OMPDirective):
         :raises GenerationError: if this OMPDoDirective is not enclosed \
                             within some OpenMP parallel region.
         '''
-
         if self.ancestor(OMPParallelDirective) is not None:
             raise GenerationError("Cannot nest OpenMP parallel regions.")
 
@@ -3148,11 +3147,9 @@ class CodedKern(Kern):
                     symtab.add(csymbol)
                 rsymbol.interface = GlobalInterface(csymbol)
 
-        call_node = Call(rsymbol)
-
-        # Create argument expressions as children of the new node
-        for argument in self.arguments.psyir_expressions():
-            call_node.addchild(argument)
+        # Create Call to the rsymbol with the argument expressions as children
+        # of the new node
+        call_node = Call.create(rsymbol, self.arguments.psyir_expressions())
 
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
@@ -3221,10 +3218,10 @@ class CodedKern(Kern):
                             break
                 else:
                     raise NotImplementedError(
-                        "Can not inline subroutine '{0}' because another "
-                        "subroutine with the same name already exists and"
-                        " versioning of module-inlined subroutines is not"
-                        " implemented yet.".format(self._name))
+                        "Can not inline subroutine '{0}' because another, "
+                        "different, subroutine with the same name already "
+                        "exists and versioning of module-inlined subroutines "
+                        "is not implemented yet.".format(self._name))
 
     def gen_code(self, parent):
         '''

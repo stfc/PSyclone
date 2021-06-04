@@ -67,6 +67,7 @@ def test_typesymbol_copy():
                         visibility=Symbol.Visibility.PRIVATE,
                         interface=UnresolvedInterface())
     new_symbol = symbol.copy()
+    assert new_symbol is not symbol
     assert new_symbol.name == "my_type"
     assert isinstance(new_symbol.datatype, DeferredType)
     assert new_symbol.visibility == Symbol.Visibility.PRIVATE

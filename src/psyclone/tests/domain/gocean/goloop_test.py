@@ -148,6 +148,7 @@ def test_goloop_lower_to_language_level(monkeypatch):
     and stop expressions for the loops using the upper/lower_bound methods. '''
     schedule = GOInvokeSchedule('name', [])
     goloop = GOLoop(loop_type="inner", parent=schedule)
+    schedule.addchild(goloop)
     assert goloop.start_expr.value == 'NOT_INITIALISED'
     assert goloop.stop_expr.value == 'NOT_INITIALISED'
 
@@ -161,10 +162,11 @@ def test_goloop_lower_to_language_level(monkeypatch):
 
     # Lower to language level and check the resulting Loop is as expected
     goloop.lower_to_language_level()
-    assert goloop.start_expr.value == '1'
-    assert goloop.stop_expr.value == '1'
+    new_loop = schedule.children[0]
     # pylint: disable=unidiomatic-typecheck
-    assert type(goloop) == Loop
+    assert type(new_loop) == Loop
+    assert new_loop.start_expr.value == '1'
+    assert new_loop.stop_expr.value == '1'
 
 
 def test_goloop_validate_loop():

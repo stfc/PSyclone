@@ -168,8 +168,7 @@ def test_two_kernels(tmpdir, dist_mem):
     if dist_mem:
         # In this case the second kernel just has pointwise accesses, so it
         # doesn't add any halo exchange.
-        halos_first_kernel = (
-            "      CALL p_fld%halo_exchange(1)\n")
+        halos_first_kernel = "      CALL p_fld%halo_exchange(1)\n"
         expected_output = before_kernels + halos_first_kernel + first_kernel \
             + second_kernel
     else:
@@ -223,10 +222,8 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
         # In this case the second kernel just has a RaW dependency on the
         # cu_fld of the first kernel, so a halo exchange should be inserted
         # bewteen the kernels in addition to the initial p_fld halo exchange.
-        halos_first_kernel = (
-            "      CALL p_fld%halo_exchange(1)\n")
-        halos_second_kernel = (
-            "      CALL cu_fld%halo_exchange(1)\n")
+        halos_first_kernel = "      CALL p_fld%halo_exchange(1)\n"
+        halos_second_kernel = "      CALL cu_fld%halo_exchange(1)\n"
         expected_output = before_kernels + halos_first_kernel + first_kernel \
             + halos_second_kernel + second_kernel
     else:
@@ -282,10 +279,8 @@ def test_grid_property(tmpdir, dist_mem):
     if dist_mem:
         # Grid properties do not insert halo exchanges, in this case
         # only the u_fld and d_fld have read stencil accesses.
-        halos_first_kernel = (
-            "      CALL u_fld%halo_exchange(1)\n")
-        halos_second_kernel = (
-            "      CALL d_fld%halo_exchange(1)\n")
+        halos_first_kernel = "      CALL u_fld%halo_exchange(1)\n"
+        halos_second_kernel = "      CALL d_fld%halo_exchange(1)\n"
         expected_output = before_kernels + halos_first_kernel + first_kernel \
             + halos_second_kernel + second_kernel
     else:
