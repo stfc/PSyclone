@@ -80,12 +80,13 @@ class LFRicConstants(object):
             LFRicConstants.VALID_OPERATOR_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
-        # Supported API argument data types (real and integer for now)
-        LFRicConstants.VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
+        # Supported API argument data types ('gh_real', 'gh_integer'
+        # and 'gh_logical')
+        LFRicConstants.VALID_ARG_DATA_TYPES = \
+            ["gh_real", "gh_integer", "gh_logical"]
         LFRicConstants.VALID_SCALAR_DATA_TYPES = \
             LFRicConstants.VALID_ARG_DATA_TYPES
-        LFRicConstants.VALID_FIELD_DATA_TYPES = \
-            LFRicConstants.VALID_ARG_DATA_TYPES
+        LFRicConstants.VALID_FIELD_DATA_TYPES = ["gh_real", "gh_integer"]
         LFRicConstants.VALID_OPERATOR_DATA_TYPES = ["gh_real"]
 
         # pylint: disable=too-many-instance-attributes
@@ -115,14 +116,19 @@ class LFRicConstants(object):
         # This is only used here, so no class variable:
         supported_fortran_datatypes = api_config.supported_fortran_datatypes
 
+        # psyGen intrinsic types for kernel argument data as defined in LFRic
+        # configuration by the supported Fortran datatypes ('real', 'integer'
+        # and 'logical').
+        LFRicConstants.VALID_INTRINSIC_TYPES = supported_fortran_datatypes
+
+        # Valid intrinsic types for field kernel argument data
+        # ('real' and 'integer').
+        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer"]
+
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
         LFRicConstants.MAPPING_DATA_TYPES = \
             OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,
-                            supported_fortran_datatypes[0:2]))
-
-        # psyGen intrinsic types for kernel argument data as defined in LFRic.
-        LFRicConstants.VALID_INTRINSIC_TYPES = \
-            list(LFRicConstants.MAPPING_DATA_TYPES.values())
+                            LFRicConstants.VALID_INTRINSIC_TYPES))
 
         # ---------- Evaluators -----------------------------------------------
 
@@ -190,6 +196,10 @@ class LFRicConstants(object):
         LFRicConstants.VALID_BUILTIN_ARG_TYPES = \
             LFRicConstants.VALID_FIELD_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
+
+        # The data types of argument that are valid for built-in kernels
+        # in the LFRic API ('real' and 'integer')
+        LFRicConstants.VALID_BUILTIN_DATA_TYPES = ["gh_real", "gh_integer"]
 
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels

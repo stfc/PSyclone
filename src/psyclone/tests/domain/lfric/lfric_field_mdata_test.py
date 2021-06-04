@@ -126,7 +126,7 @@ def test_ad_field_invalid_data_type():
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             "be a valid data type (one of {0}), but found 'gh_unreal' "
             "in 'arg_type(gh_field, gh_unreal, gh_inc, w1)'.".
-            format(const.VALID_FIELD_DATA_TYPES)
+            format(const.VALID_ARG_DATA_TYPES)
             in str(excinfo.value))
     # Check integer field
     code = FIELD_CODE.replace(
@@ -219,19 +219,21 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
         target=LFRicConstants, name="VALID_ARG_DATA_TYPES",
         value=LFRicConstants.VALID_ARG_DATA_TYPES + ["gh_double"])
     # Check real field
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             real_field_arg, metadata.iterates_over)._init_field(
                 real_field_arg, metadata.iterates_over)
-    assert ("Expected one of {0} as the field data type but got 'gh_double'.".
+    assert ("In the LFRic API the allowed data types for field "
+            "arguments are one of {0}, but found 'gh_double'".
             format(const.VALID_FIELD_DATA_TYPES) in
             str(excinfo.value))
     # Check integer field
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             int_field_arg, metadata.iterates_over)._init_field(
                 int_field_arg, metadata.iterates_over)
-    assert ("Expected one of {0} as the field data type but got 'gh_double'.".
+    assert ("In the LFRic API the allowed data types for field "
+            "arguments are one of {0}, but found 'gh_double'".
             format(const.VALID_FIELD_DATA_TYPES) in
             str(excinfo.value))
 
@@ -507,7 +509,7 @@ def test_dyninvoke_uniq_declns_intent_fields():
     ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for 'gh_field' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
+                                        "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_field"])
