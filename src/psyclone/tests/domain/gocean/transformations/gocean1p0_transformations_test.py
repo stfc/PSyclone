@@ -1821,9 +1821,6 @@ def test_accloop(tmpdir):
     for child in schedule.children:
         if isinstance(child, Loop):
             acclpt.apply(child)
-    # TODO 1247: Manually remove CodeBlock from comment line while comments
-    # are not in the PSyIR
-    schedule.children[0].detach()
     # Add an enclosing parallel region
     accpara.apply(schedule.children)
     # Add a data region
@@ -1833,10 +1830,10 @@ def test_accloop(tmpdir):
     assert '''\
       !$acc parallel default(present)
       !$acc loop independent
-      DO j = 2, jstop+1, 1''' in gen
+      DO j = 2, jstop, 1''' in gen
     assert ("END DO\n"
             "      !$acc loop independent\n"
-            "      DO j = 1, jstop+1, 1" in gen)
+            "      DO j = 2, jstop+1, 1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
