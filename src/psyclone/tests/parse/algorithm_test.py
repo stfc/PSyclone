@@ -227,7 +227,7 @@ def test_parser_invokeinfo_datatypes_self():
         LFRIC_TEST_PATH, "26.2_mixed_precision_self.f90")
     parser = Parser(kernel_path=LFRIC_TEST_PATH)
     alg_parse_tree = parse_fp2(alg_filename)
-    info = parser.invoke_info(alg_parse_tree)    
+    info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype == ("r_solver_operator_type", None)
     assert args[1]._datatype == ("r_solver_field_type", None)
@@ -312,16 +312,10 @@ def test_parser_invokeinfo_datatypes_clash():
     parser = Parser(kernel_path=LFRIC_TEST_PATH)
     alg_parse_tree = parse_fp2(alg_filename)
     with pytest.raises(NotImplementedError) as info:
-        parser.invoke_info(alg_parse_tree)    
+        parser.invoke_info(alg_parse_tree)
     assert ("The same symbol 'a' is used for different datatypes, 'real, "
             "r_solver' and 'real, None'. This is not currently supported."
             in str(info.value))
-
-
-# I think invoke_info is covered now.
-# Test for error conditions ...
-# Test other modified code including Alg class.
-# create_invoke_call tests
 
 
 def test_parser_createinvokecall():
@@ -395,8 +389,8 @@ def test_parser_caseinsensitive2(monkeypatch):
         raise NotImplementedError("test_parser_caseinsensitive2")
 
     monkeypatch.setattr("psyclone.parse.kernel.get_kernel_ast", dummy_func)
-    parser = Parser()
-    use = Use_Stmt("use my_mod, only : MY_KERN")
+    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    use = Use_Stmt("use testkern_mod, only : TESTKERN_TYPE")
     parser.update_arg_to_module_map(use)
     with pytest.raises(NotImplementedError) as excinfo:
         # We have monkeypatched the function 'get_kernel_ast' to
@@ -406,7 +400,7 @@ def test_parser_caseinsensitive2(monkeypatch):
         # really care about is before this function is called (and it
         # raises a ParseError) so we know that if we don't get a
         # ParseError then all is well.
-        parser.create_coded_kernel_call("My_Kern", None)
+        parser.create_coded_kernel_call("TestKern_Mod", None)
     # Sanity check that the exception is the monkeypatched one.
     assert str(excinfo.value) == "test_parser_caseinsensitive2"
 
@@ -510,14 +504,18 @@ def test_getkernel_isliteral(content):
     assert arg.is_literal()
     assert arg.text == content
     assert arg.varname is None
+    assert arg._datatype is None
 
 
 @pytest.mark.parametrize('content',
                          ["a_rg", "a_rg(n)", "a % rg", "a % rg(n)",
                           "a % rg()"])
 def test_getkernel_isarg(content):
-    '''Test that the get_kernel function recognises standard arguments,
-    including a function reference, and returns them correctly
+    '''Test that the get_kernel function recognises standard arguments and
+    returns them correctly. Tests for Name, Part_Ref, Data_Ref and
+    Function_Reference, but does not include Proc_Component_Ref
+    (i.e. an argument to a Structure Constructor) which is tested
+    separately in test_getkernel_proc_component.
 
     '''
     tree = Part_Ref("sub({0})".format(content))
@@ -529,6 +527,82 @@ def test_getkernel_isarg(content):
     assert not arg.is_literal()
     assert arg.text == content
     assert arg.varname == "a_rg"
+    assert arg._datatype is None
+    kern_name, args = get_kernel(
+        tree, "dummy.f90", {"a_rg": ("info"), "rg": ("info")})
+    arg = args[0]
+    if content == "a % rg()":
+        # Datatype information is not captured for function references
+        assert arg._datatype is None
+    else:
+        assert arg._datatype == ("info")
+
+
+@pytest.mark.parametrize('content', ["self % a_b", "self % a % b"])
+def test_getkernel_proc_component(content):
+    '''Test that the get_kernel function recognises procedure components -
+    Proc_Component_Ref - (within a structure constructor) and returns
+    them correctly. The real literal in the call forces fparser to
+    treat the argument to the call as a structure constructor. Note,
+    if we make the rhs an array access (e.g. self%a(1)), fparser no
+    longer treats it as a structure constructor.
+
+    '''
+    tree = Call_Stmt("call x(y({0}, 1.0))".format(content))
+    kernel = tree.children[1].children[0]
+    kern_name, args = get_kernel(kernel, "dummy.f90", {})
+    assert kern_name == "y"
+    assert len(args) == 2
+    arg = args[0]
+    assert isinstance(arg, Arg)
+    assert not arg.is_literal()
+    assert arg.text == content
+    assert arg.varname == "self_a_b"
+    assert arg._datatype is None
+    kern_name, args = get_kernel(
+        kernel, "dummy.f90", {"a_b": ("info"), "b": ("info")})
+    arg = args[0]
+    assert arg._datatype == ("info")
+
+
+def test_getkernel_proccomponent_error():
+    '''Check that the expected exception is raised if the 3rd child of a
+    Proc_Component_Ref is not of type Name. In theory this should be
+    possible but in practice fparser2 does not generate a parse tree
+    in this form. We therefore need to manually modify the tree to
+    raise this exception.
+
+    '''
+    tree = Call_Stmt("call x(y(self%a, 1.0))")
+    kernel = tree.children[1].children[0]
+    proc_comp_ref = kernel.children[1].children[0]
+    # Modify tree
+    proc_comp_ref.items = (proc_comp_ref.items[0],
+                           proc_comp_ref.items[1], "hello")
+    with pytest.raises(InternalError) as info:
+        get_kernel(kernel, "dummy.f90", {})
+    assert ("The third argument to to a Proc_Component_Ref is expected "
+            "to be a Name, but found 'str'." in str(info.value))
+
+
+def test_getkernel_dataref_error():
+    '''Check that the expected exception is raised if the last child of a
+    Data_Ref is not a Name or a Part_Ref whose first child is not a
+    Name. fparser2 does not generate a parse tree in this form. We
+    therefore need to manually modify the tree to raise this
+    exception.
+
+    '''
+    tree = Call_Stmt("call x(y(self%a))")
+    kernel = tree.children[1].children[0]
+    data_ref = kernel.children[1].children[0]
+    # Modify tree
+    data_ref.items = (data_ref.items[0], "hello")
+    with pytest.raises(InternalError) as info:
+        get_kernel(kernel, "dummy.f90", {})
+    assert ("The last child of a Data_Ref is expected to be a Name or a "
+            "Part_Ref whose first child is a Name, but found 'str'."
+            in str(info.value))
 
 
 @pytest.mark.parametrize('content',
@@ -670,3 +744,14 @@ def test_arg_str():
     tmp = Arg("indexed_variable", "my_arg(2)", "my_arg")
     assert str(tmp) == ("Arg(form='indexed_variable',text='my_arg(2)',"
                         "varname='my_arg')")
+
+
+def test_arg_datatype():
+    '''Check that the datatype argument defaults to None and that any
+    datatype content is stored correctly.
+
+    '''
+    tmp = Arg("literal", "0.0")
+    assert tmp._datatype is None
+    tmp = Arg("variable", "var", varname="var", datatype=("info"))
+    assert tmp._datatype == ("info")

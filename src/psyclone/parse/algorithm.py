@@ -39,8 +39,9 @@ PSyclone-conformant Algorithm code.
 '''
 
 from __future__ import absolute_import
-
 from collections import OrderedDict
+import six
+
 from fparser.two import pattern_tools
 from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
@@ -59,11 +60,15 @@ from psyclone.configuration import Config
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
 from psyclone.errors import InternalError
+from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
+    KernelTypeFactory
+
+# pylint: disable=too-many-statements
+# pylint: disable=too-many-branches
 
 # Section 1: parse the algorithm file
 
 
-# pylint: disable=too-many-arguments
 def parse(alg_filename, api="", invoke_name="invoke", kernel_path="",
           line_length=False):
     '''Takes a PSyclone conformant algorithm file as input and outputs a
@@ -400,7 +405,6 @@ class Parser(object):
                        self._arg_name_to_module_name[kernel_name.lower()],
                        self._alg_filename))
 
-        from psyclone.parse.kernel import BuiltInKernelTypeFactory
         return BuiltInCall(BuiltInKernelTypeFactory(api=self._api).create(
             self._builtin_name_map.keys(), self._builtin_defs_file,
             name=kernel_name.lower()), args)
@@ -426,20 +430,17 @@ class Parser(object):
         '''
         try:
             module_name = self._arg_name_to_module_name[kernel_name.lower()]
-        except KeyError:
-            raise ParseError(
-                "kernel call '{0}' must either be named "
-                "in a use "
-                "statement (found {1}) or be a recognised built-in "
-                "(one of '{2}' for this API)".
-                format(kernel_name,
-                       list(self._arg_name_to_module_name.values()),
-                       list(self._builtin_name_map.keys())))
+        except KeyError as info:
+            message = (
+                "kernel call '{0}' must either be named in a use statement "
+                "(found {1}) or be a recognised built-in (one of '{2}' for "
+                "this API)".format(
+                    kernel_name.lower(), list(self._arg_name_to_module_name.values()),
+                    list(self._builtin_name_map.keys())))
+            six.raise_from(ParseError(message), info)
 
-        from psyclone.parse.kernel import get_kernel_ast
         modast = get_kernel_ast(module_name, self._alg_filename,
                                 self._kernel_path, self._line_length)
-        from psyclone.parse.kernel import KernelTypeFactory
         return KernelCall(module_name,
                           KernelTypeFactory(api=self._api).create(
                               modast, name=kernel_name), args)
@@ -616,6 +617,13 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
     :rtype: (str, list of :py:class:`psyclone.parse.algorithm.Arg`)
 
     :raises InternalError: if the parse tree is of the wrong type.
+    :raises InternalError: if Part_Ref or Structure_Constructor do not \
+        have two children.
+    :raises InternalError: if Proc_Component_Ref has a child with an \
+        unexpected type.
+    :raises InternalError: if Data_Ref has a child with an unexpected \
+        type.
+    :raises NotImplementedError: if an expression contains a variable.
     :raises InternalError: if an unsupported argument format is found.
 
     '''
@@ -669,7 +677,8 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             arguments.append(Arg('indexed_variable', full_text,
                                  varname=var_name, datatype=datatype))
         elif isinstance(argument, Function_Reference):
-            # A function reference e.g. func()
+            # A function reference e.g. func(). The datatype of this
+            # function is not determined so datatype in Arg is None.
             full_text = argument.tostr().lower()
             designator = argument.items[0]
             lhs = designator.items[0]
@@ -677,26 +686,33 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             rhs = str(designator.items[2])
             var_name = "{0}_{1}".format(lhs, rhs)
             var_name = var_name.lower()
-            try:
-                datatype = arg_type_defns[lhs]
-            except KeyError:
-                datatype = None
             arguments.append(Arg('indexed_variable', full_text,
-                                 varname=var_name, datatype=datatype))
+                                 varname=var_name))
         elif isinstance(argument, (Data_Ref, Proc_Component_Ref)):
+            # A structure access e.g. a % b or self % c
             if isinstance(argument, Proc_Component_Ref):
                 if isinstance(argument.children[2], Name):
                     arg = argument.children[2].string.lower()
                 else:
-                    print(repr(argument))
-                    exit(1)
+                    # It does not appear to be possible to get to here
+                    # as an array (e.g. self%a(10)) is not treated as
+                    # being a Proc_Component_Ref by fparser2 and
+                    # Data_Ref otherwise always has a Name on the rhs
+                    # (3rd argument).
+                    raise InternalError(
+                        "The third argument to to a Proc_Component_Ref is "
+                        "expected to be a Name, but found '{0}'."
+                        "".format(type(argument.children[2]).__name__))
             elif isinstance(argument, Data_Ref):
                 rhs_node = argument.children[-1]
                 if isinstance(rhs_node, Part_Ref):
                     rhs_node = rhs_node.children[0]
                 if not isinstance(rhs_node, Name):
-                    print(repr(argument))
-                    exit(1)
+                    raise InternalError(
+                        "The last child of a Data_Ref is expected to be "
+                        "a Name or a Part_Ref whose first child is a "
+                        "Name, but found '{0}'."
+                        "".format(type(rhs_node).__name__))
                 arg = rhs_node.string.lower()
             try:
                 datatype = arg_type_defns[arg]
@@ -704,7 +720,6 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                 datatype = None
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
-
             arguments.append(Arg('variable', full_text,
                                  varname=var_name, datatype=datatype))
         elif isinstance(argument, (Level_2_Unary_Expr, Add_Operand,
@@ -755,7 +770,10 @@ def create_var_name(arg_parse_tree):
     if isinstance(tree, Part_Ref):
         return str(tree.items[0])
     if isinstance(tree, Proc_Component_Ref):
-        return "{0}_{1}".format(tree.items[0], tree.items[2])
+        # RHS is always a Name but LHS could be more complex so call
+        # function again.
+        return "{0}_{1}".format(
+            create_var_name(tree.items[0]), tree.items[2])
     if isinstance(tree, Data_Ref):
         component_names = []
         for item in tree.items:
@@ -1019,12 +1037,6 @@ class Arg(object):
     form_options = ["literal", "variable", "indexed_variable"]
 
     def __init__(self, form, text, varname=None, datatype=None):
-        if not datatype and form != "literal":
-            # raise exception at some point
-            print("Argument '{0}' has no datatype information".format(text))
-        #  elif datatype:
-        #      print ("{0}, {1}, {2}, {3}\n".format(form, text,
-        #                                           varname, datatype))
         self._form = form
         self._text = text
         self._varname = varname
