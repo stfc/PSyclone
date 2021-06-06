@@ -380,6 +380,10 @@ def test_parser_caseinsensitive2(monkeypatch):
     statement is case insensitive.
 
     '''
+    parser = Parser()
+    use = Use_Stmt("use testkern_mod, only : TESTKERN_TYPE")
+    parser.update_arg_to_module_map(use)
+
     def dummy_func(arg1, arg2, arg3, arg4):
         '''A dummy function used by monkeypatch to override the get_kernel_ast
         function. We don't care about the arguments as we just want to
@@ -387,11 +391,7 @@ def test_parser_caseinsensitive2(monkeypatch):
 
         '''
         raise NotImplementedError("test_parser_caseinsensitive2")
-
-    monkeypatch.setattr("psyclone.parse.kernel.get_kernel_ast", dummy_func)
-    parser = Parser(kernel_path=LFRIC_TEST_PATH)
-    use = Use_Stmt("use testkern_mod, only : TESTKERN_TYPE")
-    parser.update_arg_to_module_map(use)
+    monkeypatch.setattr("psyclone.parse.algorithm.get_kernel_ast", dummy_func)
     with pytest.raises(NotImplementedError) as excinfo:
         # We have monkeypatched the function 'get_kernel_ast' to
         # return 'NotImplementedError' with a string associated with
@@ -400,7 +400,7 @@ def test_parser_caseinsensitive2(monkeypatch):
         # really care about is before this function is called (and it
         # raises a ParseError) so we know that if we don't get a
         # ParseError then all is well.
-        parser.create_coded_kernel_call("TestKern_Mod", None)
+        parser.create_coded_kernel_call("TestKern_Type", None)
     # Sanity check that the exception is the monkeypatched one.
     assert str(excinfo.value) == "test_parser_caseinsensitive2"
 
