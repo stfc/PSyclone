@@ -98,7 +98,7 @@ def teardown_function():
 
 def test_non_existant_filename():
     ''' checks that alg_gen raises appropriate error when a
-    non-existant filename is supplied '''
+        non-existant filename is supplied '''
     with pytest.raises(IOError):
         generate("non_existant_file.f90")
 
@@ -111,43 +111,50 @@ def test_invalid_api():
                               "1_single_function.f90"), api="invalid")
 
 
-def test_invalid_kernel_path():
+def test_invalid_kernel_paths():
     ''' checks that alg_gen raises appropriate error when an invalid
-        search path for kernel source files is supplied '''
-    with pytest.raises(IOError):
+        search path for kernel source files is supplied, even if a
+        valid path is also supplied. '''
+    with pytest.raises(IOError) as info:
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
                               "1_single_function.f90"),
                  api="dynamo0.1",
-                 kernel_path="does_not_exist")
+                 kernel_paths=[os.path.join(BASE_PATH, "dynamo0p1"),
+                               "does_not_exist"])
+    assert "kernel search path 'does_not_exist' not found" in str(info.value)
 
 
-def test_wrong_kernel_path():
+def test_wrong_kernel_paths():
     ''' checks that alg_gen raises appropriate error when the kernel
         code cannot be found in the specified search path '''
     with pytest.raises(ParseError):
         generate(os.path.join(BASE_PATH, "dynamo0p3",
                               "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="dynamo0.3",
-                 kernel_path=os.path.join(BASE_PATH, "gocean0p1"))
+                 kernel_paths=[os.path.join(BASE_PATH, "gocean0p1")])
 
 
-def test_correct_kernel_path():
+def test_correct_kernel_paths():
     ''' checks that alg_gen succeeds when the location of the kernel
-        source code is *not* the same as that of the algorithm code '''
+        source code is *not* the same as that of the algorithm
+        code. Also adds a path that does not contain the required
+        kernel. '''
     _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
                                  "1_single_function.f90"),
                     api="dynamo0.1",
-                    kernel_path=os.path.join(BASE_PATH,
-                                             "dynamo0p1", "kernels"))
+                    kernel_paths=[
+                        os.path.join(
+                            BASE_PATH, "dynamo0p1", "kernels3", "dead_end"),
+                        os.path.join(BASE_PATH, "dynamo0p1", "kernels")])
 
 
-def test_same_kernel_path():
+def test_same_kernel_paths():
     ''' checks that the generator succeeds when the search directory
         is the same as the algorithm code directory and a path is
         specified '''
     path = os.path.join(BASE_PATH, "dynamo0p1", "algorithm")
     _, _ = generate(os.path.join(path, "1_single_function.f90"),
-                    api="dynamo0.1", kernel_path=path)
+                    api="dynamo0.1", kernel_paths=[path])
 
 
 def test_similar_kernel_name():
@@ -155,19 +162,19 @@ def test_similar_kernel_name():
     _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1",
                                  "algorithm", "1_single_function.f90"),
                     api="dynamo0.1",
-                    kernel_path=os.path.join(BASE_PATH,
-                                             "dynamo0p1", "kernels2"))
+                    kernel_paths=[
+                        os.path.join(BASE_PATH, "dynamo0p1", "kernels2")])
 
 
-def test_recurse_correct_kernel_path():
+def test_recurse_correct_kernel_paths():
     '''checks that the generator succeeds when the location of the kernel
        source code is *not* the same as that of the algorithm code and
        recursion through subdirectories is required'''
     _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1",
                                  "algorithm", "1_single_function.f90"),
                     api="dynamo0.1",
-                    kernel_path=os.path.join(BASE_PATH,
-                                             "dynamo0p1", "kernels3"))
+                    kernel_paths=[os.path.join(
+                        BASE_PATH, "dynamo0p1", "kernels3")])
 
 
 def test_script_file_not_found():
@@ -526,6 +533,21 @@ def test_main_api():
     # command line should take precedence
     main([filename, "--config", config_name, "-api", "dynamo0.1"])
     assert Config.get().api == "dynamo0.1"
+
+
+def test_main_directory_arg(capsys):
+    '''Test the -d option in main().'''
+    # No -d option supplied
+    filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
+    main([filename, "-api", "dynamo0.3"])
+    # Invalid -d path supplied
+    with pytest.raises(SystemExit):
+        main([filename, "-api", "dynamo0.3", "-d", "invalid"])
+    _, output = capsys.readouterr()
+    assert "kernel search path 'invalid' not found" in output
+    # Multiple -d paths supplied
+    main([filename, "-api", "dynamo0.3", "-d", DYN03_BASE_PATH,
+          "-d", NEMO_BASE_PATH])
 
 
 def test_main_expected_fatal_error(capsys):
