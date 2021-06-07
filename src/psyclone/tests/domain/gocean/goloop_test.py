@@ -53,14 +53,20 @@ API = "gocean1.0"
 def test_goloop_no_parent():
     ''' Attempt to generate code for a loop that has no GOInvokeSchedule
     as a parent '''
-    # First create with a schedule as one is required to declare the
-    # loop variable
+    # First attempt to create with a  generic Schedule
     schedule = Schedule()
+    with pytest.raises(GenerationError) as err:
+        goloop = GOLoop(loop_type="inner", parent=schedule)
+    assert ("GOLoops must always be constructed with a parent which is inside "
+            "(directly or indirectly) of a GOInvokeSchedule" in str(err.value))
+
+    # Now create it in a GOInvokeSchedule but then detach it
+    schedule = GOInvokeSchedule('name', [])
     goloop = GOLoop(loop_type="inner", parent=schedule)
     schedule.children = [goloop]
     # Now remove parent and children
     goloop.detach()
-    goloop.children = []
+
     # Try and generate the code for this loop even though it
     # has no parent schedule and no children
     with pytest.raises(GenerationError):
@@ -173,9 +179,12 @@ def test_goloop_validate_loop():
     ''' Tests that the GOLoop _validate_loop raises the appropriate errors when
     the Loop is not valid. '''
 
-    schedule = Schedule()
+    # We need a parent in order to create the node, but then we detach it to
+    # check that the validation works as expected.
+    schedule = GOInvokeSchedule('name', [])
     goloop = GOLoop(loop_type="inner", parent=schedule)
     schedule.addchild(goloop)
+    goloop.detach()
 
     # Test that an ancestor must be GOInvokeSchedule
     with pytest.raises(GenerationError) as err:

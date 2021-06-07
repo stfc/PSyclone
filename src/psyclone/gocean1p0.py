@@ -192,8 +192,9 @@ class GOInvokes(Invokes):
                        content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
+        # First check if there is any unsupported invoke, in this case the
+        # f2pygen gen_code path is used instead
         for invoke in self.invoke_list:
-
             # TODO 1134: The opencl path is still largely implemented using
             # the f2pygen and cannot be processed by the backend yet.
             if invoke.schedule.opencl:
@@ -205,10 +206,11 @@ class GOInvokes(Invokes):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
-            # If the const_loop_bounds flag is True, we need to declare
-            # and initialize the loop bounds variables.
-            # TODO 1256: The code below should be moved to the
-            # const_loop_bounds transformation itself.
+        # If the const_loop_bounds flag is True for any invoke, we need to
+        # declare and initialize the loop bounds variables.
+        # TODO 1256: The code below should be moved to the const_loop_bounds
+        # transformation itself.
+        for invoke in self.invoke_list:
             if invoke.schedule.const_loop_bounds:
                 i_stop = invoke.schedule.symbol_table.new_symbol(
                     invoke.schedule.iloop_stop, symbol_type=DataSymbol,
@@ -247,12 +249,12 @@ class GOInvokes(Invokes):
                 invoke.schedule.children.insert(1, assign1)
                 invoke.schedule.children.insert(2, assign2)
 
-            # Lower the GOcean PSyIR to language level so it can be visited
-            # by the backends
-            invoke.schedule.root.lower_to_language_level()
-            # Then insert it into a f2pygen AST as a PSyIRGen node
-            for child in invoke.schedule.root.children:
-                parent.add(PSyIRGen(parent, child))
+        # Lower the GOcean PSyIR to language level so it can be visited
+        # by the backends
+        invoke.schedule.root.lower_to_language_level()
+        # Then insert it into a f2pygen AST as a PSyIRGen node
+        for child in invoke.schedule.root.children:
+            parent.add(PSyIRGen(parent, child))
 
 
 class GOInvoke(Invoke):

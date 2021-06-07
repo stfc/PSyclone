@@ -373,8 +373,8 @@ def test_valid_config_files():
 
     new_loop2 = '''\
       DO j = 2, jstop, 1
-        DO i_1 = 1, istop+1, 1
-          CALL compute_kern2_code(i_1, j, cu_fld%data, p_fld%data, u_fld%data)
+        DO i = 1, istop+1, 1
+          CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
     assert new_loop2 in gen
@@ -382,8 +382,8 @@ def test_valid_config_files():
     # The third kernel tests {start} and {stop}
     new_loop3 = '''\
       DO j = 2-2, 1, 1
-        DO i_2 = istop, istop+1, 1
-          CALL compute_kern3_code(i_2, j, cu_fld%data, p_fld%data, u_fld%data)
+        DO i = istop, istop+1, 1
+          CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
     assert new_loop3 in gen
