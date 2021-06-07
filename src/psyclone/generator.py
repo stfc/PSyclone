@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -138,7 +138,7 @@ def handle_script(script_name, psy):
         os.sys.path.pop()
 
 
-def generate(filename, api="", kernel_path="", script_name=None,
+def generate(filename, api="", kernel_paths=None, script_name=None,
              line_length=False,
              distributed_memory=None,
              kern_out_path="",
@@ -152,33 +152,32 @@ def generate(filename, api="", kernel_path="", script_name=None,
     to generate the PSy code and the :class:`alg_gen.Alg` class to
     generate the modified algorithm code.
 
-    :param str filename: The file containing the algorithm specification.
-    :param str kernel_path: The directory from which to recursively \
-                            search for the files containing the kernel \
-                            source (if different from the location of the \
-                            algorithm specification).
-    :param str script_name: A script file that can apply optimisations \
-                            to the PSy layer (can be a path to a file or \
-                            a filename that relies on the PYTHONPATH to \
-                            find the module).
-    :param bool line_length: A logical flag specifying whether we care \
-                             about line lengths being longer than 132 \
-                             characters. If so, the input (algorithm \
-                             and kernel) code is checked to make sure \
-                             that it conforms. The default is False.
-    :param bool distributed_memory: A logical flag specifying whether to \
-                                    generate distributed memory code. The \
-                                    default is set in the config.py file.
-    :param str kern_out_path: Directory to which to write transformed \
-                              kernel code.
+    :param str filename: the file containing the algorithm specification.
+    :param kernel_paths: the directories from which to recursively \
+        search for the files containing the kernel source (if \
+        different from the location of the algorithm specification). \
+        Defaults to None.
+    :type kernel_paths: list of str or NoneType
+    :param str script_name: a script file that can apply optimisations \
+        to the PSy layer (can be a path to a file or a filename that \
+        relies on the PYTHONPATH to find the module).
+    :param bool line_length: a logical flag specifying whether we care \
+        about line lengths being longer than 132 characters. If so, \
+        the input (algorithm and kernel) code is checked to make sure \
+        that it conforms. The default is False.
+    :param bool distributed_memory: a logical flag specifying whether \
+        to generate distributed memory code. The default is set in the \
+        config.py file.
+    :param str kern_out_path: directory to which to write transformed \
+        kernel code.
     :param bool kern_naming: the scheme to use when re-naming transformed \
-                             kernels.
+        kernels.
     :return: 2-tuple containing fparser1 ASTs for the algorithm code and \
-             the psy code.
+        the psy code.
     :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
              :py:class:`fparser.one.block_statements.Module`)
 
-    :raises IOError: if the filename or search path do not exist
+    :raises IOError: if the filename or search path do not exist.
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
 
@@ -186,12 +185,14 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     >>> from psyclone.generator import generate
     >>> alg, psy = generate("algspec.f90")
-    >>> alg, psy = generate("algspec.f90", kernel_path="src/kernels")
+    >>> alg, psy = generate("algspec.f90", kernel_paths=["src/kernels"])
     >>> alg, psy = generate("algspec.f90", script_name="optimise.py")
     >>> alg, psy = generate("algspec.f90", line_length=True)
     >>> alg, psy = generate("algspec.f90", distributed_memory=False)
 
     '''
+    if kernel_paths is None:
+        kernel_paths = []
 
     if distributed_memory is None:
         distributed_memory = Config.get().distributed_memory
@@ -215,12 +216,14 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
-    if kernel_path and not os.access(kernel_path, os.R_OK):
-        raise IOError("kernel search path '{0}' not found".format(kernel_path))
+    for kernel_path in kernel_paths:
+        if not os.access(kernel_path, os.R_OK):
+            raise IOError(
+                "kernel search path '{0}' not found".format(kernel_path))
     try:
         from psyclone.alg_gen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
-                                 kernel_path=kernel_path,
+                                 kernel_paths=kernel_paths,
                                  line_length=line_length)
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
@@ -275,8 +278,8 @@ def main(args):
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
     parser.add_argument(
-        '-d', '--directory', default="", help='path to root of directory '
-        'structure containing kernel source code')
+        '-d', '--directory', default=[], action="append", help='path to root '
+        'of directory structure containing kernel source code')
     # Make the default an empty list so that we can check whether the
     # user has supplied a value(s) later
     parser.add_argument(
@@ -370,7 +373,7 @@ def main(args):
 
     try:
         alg, psy = generate(args.filename, api=api,
-                            kernel_path=args.directory,
+                            kernel_paths=args.directory,
                             script_name=args.script,
                             line_length=(args.limit == 'all'),
                             distributed_memory=args.dist_mem,

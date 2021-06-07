@@ -62,32 +62,31 @@ from psyclone.errors import InternalError
 
 
 # pylint: disable=too-many-arguments
-def parse(alg_filename, api="", invoke_name="invoke", kernel_path="",
+def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
           line_length=False):
     '''Takes a PSyclone conformant algorithm file as input and outputs a
     parse tree of the code contained therein and an object containing
     information about the 'invoke' calls in the algorithm file and any
     associated kernels within the invoke calls.
 
-    :param str alg_filename: The file containing the algorithm \
-    specification.
-    :param str api: The PSyclone API to use when parsing the code.
-    :param str invoke_name: The expected name of the invocation calls \
-                            in the algorithm code.
-    :param str kernel_path: The path to search for kernel source files \
-                            (if different from the location of the \
-                            algorithm source).
-    :param bool line_length: A logical flag specifying whether we care \
-                             about line lengths being longer than 132 \
-                             characters. If so, the input (algorithm \
-                             and kernel) code is checked to make sure \
-                             that it conforms and an error raised if \
-                             not. The default is False.
+    :param str alg_filename: the file containing the algorithm \
+        specification.
+    :param str api: the PSyclone API to use when parsing the code.
+    :param str invoke_name: the expected name of the invocation calls \
+        in the algorithm code.
+    :param kernel_paths: the paths to search for kernel source files \
+        (if different from the location of the algorithm source). \
+        Defaults to None.
+    :type kernel_paths: list of str or NoneType
+    :param bool line_length: a logical flag specifying whether we care \
+        about line lengths being longer than 132 characters. If so, \
+        the input (algorithm and kernel) code is checked to make sure \
+        that it conforms and an error raised if not. The default is \
+        False.
 
     :returns: 2-tuple consisting of the fparser2 parse tree of the \
-              Algorithm file and an object holding details of the \
-              invokes found.
-
+        Algorithm file and an object holding details of the invokes \
+        found.
     :rtype: (:py:class:`fparser.two.Fortran2003.Program`, \
              :py:class:`psyclone.parse.FileInfo`)
 
@@ -97,10 +96,11 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_path="",
     >>> ast, info = parse("alg.f90")
 
     '''
-
+    if kernel_paths is None:
+        kernel_paths = []
     # Parsing is encapsulated in the Parser class. We keep this
     # function for compatibility.
-    my_parser = Parser(api, invoke_name, kernel_path, line_length)
+    my_parser = Parser(api, invoke_name, kernel_paths, line_length)
     return my_parser.parse(alg_filename)
 
 
@@ -110,19 +110,18 @@ class Parser(object):
     file and extraction of relevant information for any 'invoke' calls
     contained within the code.
 
-    :param str api: The PSyclone API to use when parsing the code.
-    :param str invoke_name: The expected name of the invocation calls in the
-                            algorithm code.
-    :param str kernel_path: The path to search for kernel source files (if
-                            different from the location of the algorithm
-                            source).
-    :param bool line_length: A logical flag specifying whether we
-                             care about line lengths being longer
-                             than 132 characters. If so, the input
-                             (algorithm and kernel) code is checked
-                             to make sure that it conforms and an
-                             error raised if not. The default is
-                             False.
+    :param str api: the PSyclone API to use when parsing the code.
+    :param str invoke_name: the expected name of the invocation calls in the \
+        algorithm code.
+    :param kernel_paths: the paths to search for kernel source files \
+        (if different from the location of the algorithm source). \
+        Defaults to None.
+    :type kernel_paths: list of str or NoneType
+    :param bool line_length: a logical flag specifying whether we care \
+        about line lengths being longer than 132 characters. If so, \
+        the input (algorithm and kernel) code is checked to make sure \
+        that it conforms and an error raised if not. The default is \
+        False.
 
     For example:
 
@@ -132,11 +131,14 @@ class Parser(object):
 
     '''
 
-    def __init__(self, api="", invoke_name="invoke", kernel_path="",
+    def __init__(self, api="", invoke_name="invoke", kernel_paths=None,
                  line_length=False):
 
         self._invoke_name = invoke_name
-        self._kernel_path = kernel_path
+        if kernel_paths is None:
+            self._kernel_paths = []
+        else:
+            self._kernel_paths = kernel_paths
         self._line_length = line_length
 
         _config = Config.get()
@@ -369,7 +371,7 @@ class Parser(object):
 
         from psyclone.parse.kernel import get_kernel_ast
         modast = get_kernel_ast(module_name, self._alg_filename,
-                                self._kernel_path, self._line_length)
+                                self._kernel_paths, self._line_length)
         from psyclone.parse.kernel import KernelTypeFactory
         return KernelCall(module_name,
                           KernelTypeFactory(api=self._api).create(
