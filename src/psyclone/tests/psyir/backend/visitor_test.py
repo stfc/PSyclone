@@ -138,8 +138,12 @@ def test_psyirvisitor_visit_arg_error():
 
     '''
     visitor = PSyIRVisitor(indent_string=" ", initial_indent_depth=4)
-    with pytest.raises(VisitorError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         visitor("hello")
+    assert ("The PSyIR visitor functor method only accepts a PSyIR Node "
+            "as argument, but found 'str'." in str(excinfo.value))
+    with pytest.raises(VisitorError) as excinfo:
+        visitor._visit("hello")
     assert ("Visitor Error: Expected argument to be of type 'Node' but found "
             "'str'." in str(excinfo.value))
 

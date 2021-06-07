@@ -154,6 +154,10 @@ class PSyIRVisitor(object):
         :rtype: str
 
         '''
+        if not isinstance(node, Node):
+            raise TypeError(
+                "The PSyIR visitor functor method only accepts a PSyIR Node "
+                "as argument, but found '{0}'.".format(type(node).__name__))
         lowered_node = node.copy()
         if node.parent:
             node.replace_with(lowered_node)

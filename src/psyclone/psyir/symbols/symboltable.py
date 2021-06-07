@@ -234,6 +234,12 @@ class SymbolTable(object):
         for tag, symbol in self._tags.items():
             new_st._tags[tag] = new_st.lookup(symbol.name)
 
+        # Fix the container links for imported symbols
+        for symbol in new_st.global_symbols:
+            name = symbol.interface.container_symbol.name
+            new_container = new_st.lookup(name)
+            symbol.interface = GlobalInterface(new_container)
+
         return new_st
 
     @staticmethod
