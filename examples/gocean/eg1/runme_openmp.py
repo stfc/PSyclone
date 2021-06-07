@@ -75,6 +75,11 @@ _, INVOKEINFO = parse("shallow_alg.f90", api=API)
 PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
 print(PSY.gen)
 
+# To apply more transformations after a PSY.gen we need to restart
+# the PSyIR tree because the previous lowering has lost some domain
+# information.
+# TODO #1274: Lowering into a new PSyIR tree would fix this issue.
+PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
 print(PSY.invokes.names)
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
 SCHEDULE.view()
