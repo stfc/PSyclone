@@ -326,7 +326,7 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_globalstoarguments_noglobals():
+def test_globalstoarguments_noglobals(fortran_writer):
     ''' Check the KernelGlobalsToArguments transformation can be applied to
     a kernel that does not contain any global without any effect '''
 
@@ -336,20 +336,12 @@ def test_globalstoarguments_noglobals():
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    before_code = str(psy.gen)
+    before_code = fortran_writer(psy.container)
 
-    # Parse the same file but this time apply the KernelGlobalsToArguments
-    # TODO #1276 and #1274: We could copy the invoke schedule instead of parse
-    # the whole file again.
-    _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
-                                        "single_invoke.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
     trans = KernelGlobalsToArguments()
     kernel = invoke.schedule.coded_kernels()[0]
     trans.apply(kernel)
-    after_code = str(psy.gen)
+    after_code = fortran_writer(psy.container)
 
     # Check that both are the same
     assert before_code == after_code

@@ -81,6 +81,21 @@ class ContainerSymbol(Symbol):
         # from this container (e.g. an unqualified USE of a module in Fortran).
         self._has_wildcard_import = False
 
+    def copy(self):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this \
+                  symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        # Use the generic Symbol copy and add the wildcard import value
+        new_symbol = super(ContainerSymbol, self).copy()
+        new_symbol.wildcard_import = self.wildcard_import
+        return new_symbol
+
     @property
     def container(self):
         ''' Returns the referenced container. If it is not available, use

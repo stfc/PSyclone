@@ -154,7 +154,14 @@ class PSyIRVisitor(object):
         :rtype: str
 
         '''
-        return self._visit(node)
+        lowered_node = node.copy()
+        if node.parent:
+            node.replace_with(lowered_node)
+        lowered_node.lower_to_language_level()
+        result = self._visit(lowered_node)
+        if lowered_node.parent:
+            lowered_node.replace_with(node)
+        return result
 
     def _visit(self, node):
         '''Implements the PSyIR callbacks. Callbacks are implemented by using

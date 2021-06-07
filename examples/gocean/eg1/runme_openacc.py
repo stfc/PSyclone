@@ -75,17 +75,14 @@ from __future__ import print_function
 if __name__ == "__main__":
     from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory, TransInfo
+    from psyclone.psyir.backend.fortran import FortranWriter
 
     API = "gocean1.0"
     _, INVOKEINFO = parse("shallow_alg.f90", api=API)
     PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
-    print(PSY.gen)
+    fwriter = FortranWriter()
+    print(fwriter(PSY.container))
 
-    # To apply more transformations after a PSY.gen we need to restart
-    # the PSyIR tree because the previous lowering has lost some domain
-    # information.
-    # TODO #1274: Lowering into a new PSyIR tree would fix this issue.
-    PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
     print(PSY.invokes.names)
     SCHEDULE = PSY.invokes.get('invoke_0').schedule
     SCHEDULE.view()
@@ -125,4 +122,4 @@ if __name__ == "__main__":
 
     # Add an OpenACC enter-data directive
     DTRANS.apply(SCHEDULE)
-    print(PSY.gen)
+    print(fwriter(PSY.container))
