@@ -814,7 +814,8 @@ def test_fw_filecontainer_2(fortran_writer):
     '''
     container = Container("mod_name")
     routine = Routine("sub_name")
-    file_container = FileContainer.create("None", SymbolTable(), [container, routine])
+    file_container = FileContainer.create(
+        "None", SymbolTable(), [container, routine])
     result = fortran_writer(file_container)
     expected = (
         "module mod_name\n"

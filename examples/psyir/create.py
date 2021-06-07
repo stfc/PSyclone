@@ -198,7 +198,7 @@ if __name__ == "__main__":
     result = writer(psyir_tree)
     print(result)
 
-    # Write out the code as C. At the moment NaryOperator, KernelSchedule
+    # Write out the code as C. At the moment NaryOperator, Routine
     # and Container are not supported in the C backend so the full example
     # can't be output.
     writer = CWriter()

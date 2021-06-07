@@ -37,17 +37,15 @@
 ''' Performs py.test tests on the FileContainer PSyIR node. '''
 
 from __future__ import absolute_import
-import pytest
-from psyclone.psyir.nodes import Return, Routine, FileContainer, \
-    Container
+
+from psyclone.psyir.nodes import Routine, FileContainer, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
-from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
 
 
 def test_file_container_init():
-    '''Test that a file container can be created and that its name is
+    '''Test that a FileContainer can be created and that its name is
     stored.
 
     '''
@@ -67,7 +65,7 @@ def test_file_container_node_str():
     assert coloredtext+"[test]" in file_container.node_str()
 
 
-def test_container_str():
+def test_file_container_str():
     '''Test that the 'str' of a FileContainer instance gives the expected
     output.
 

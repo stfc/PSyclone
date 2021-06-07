@@ -43,7 +43,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
+from psyclone.psyir.nodes import Container, Routine, FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 

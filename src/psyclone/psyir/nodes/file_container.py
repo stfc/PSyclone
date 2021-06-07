@@ -40,11 +40,12 @@ from psyclone.psyir.nodes.container import Container
 
 
 class FileContainer(Container):
-    '''In the PSyIR, a FileContainer is identical to a container. However,
-    it is useful to distinguish this type of container for the
-    backends, which can have different constraints/functionality for
-    general Containers and a FileContainer. For example, a
-    FileContainer can not have any symbol table entries in Fortran.
+    '''PSyIR node to encapsulate the scope of a source file. In the
+    PSyIR, a FileContainer is identical to a Container. However, it is
+    useful to distinguish this type of container for the backends,
+    which can have different constraints/syntax for general
+    Containers and a FileContainer. For example, a FileContainer can
+    not have any symbol table entries in Fortran.
 
     '''
     _text_name = "FileContainer"

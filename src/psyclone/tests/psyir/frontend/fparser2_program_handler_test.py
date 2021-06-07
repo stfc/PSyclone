@@ -38,10 +38,8 @@ the class Fparser2Reader. This handler deals with the translation of
 the fparser2 Program construct to PSyIR.'''
 
 from __future__ import absolute_import
-import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter

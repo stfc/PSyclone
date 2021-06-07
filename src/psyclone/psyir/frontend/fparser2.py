@@ -3623,6 +3623,9 @@ class Fparser2Reader(object):
         :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        # fparser2 does not keep the original filename (if there was
+        # one) so this can't be provided as the name of the
+        # FileContainer.
         file_container = FileContainer("None", parent=parent)
         self.process_nodes(file_container, node.children)
         return file_container

@@ -39,7 +39,6 @@
 
 from __future__ import absolute_import
 import pytest
-import six
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
