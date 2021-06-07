@@ -57,6 +57,7 @@ class LFRicConstants(object):
     HAS_BEEN_INITIALISED = False
 
     def __init__(self):
+        # pylint: disable=too-many-statements
         if LFRicConstants.HAS_BEEN_INITIALISED:
             return
 
@@ -277,8 +278,7 @@ class LFRicConstants(object):
             # 'real'-valued scalar of kind 'r_def' (used for global
             # reductions of "field_type" data)
             "scalar": {"module": "scalar_mod",
-                       "type": "scalar_type",
-                       "proxy_type": "field_proxy_type"},
+                       "type": "scalar_type"},
             # 'real'-valued field with data of kind 'r_def'
             "field": {"module": "field_mod",
                       "type": "field_type",
