@@ -407,6 +407,7 @@ def test_driver_creation(tmpdir):
       CALL extract_psy_data%ReadVariable("in_out_fld_post", in_out_fld_post)
       CALL extract_psy_data%ReadVariable("dx", dx)
       CALL extract_psy_data%ReadVariable("in_fld%grid%dx", dx_1)
+      CALL extract_psy_data%ReadVariable("in_fld%grid%gphiu", gphiu)
       ! RegionStart
       DO j=2,jstop
         DO i=2,istop+1

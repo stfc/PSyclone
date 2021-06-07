@@ -52,7 +52,16 @@ def test_signature():
     assert repr(Signature("a")) == "Signature(a)"
     assert repr(Signature(("a",))) == "Signature(a)"
     assert repr(Signature(("a", "b", "c"))) == "Signature(a%b%c)"
+    assert repr(Signature(["a", "b", "c"])) == "Signature(a%b%c)"
     assert Signature("a") != "a"
+    sig = Signature(("a", "b", "c"))
+    assert sig.is_structure
+    assert sig[0] == "a"
+    assert sig[2] == "c"
+    assert sig[-1] == "c"
+    assert sig[0:2] == ("a", "b")
+    assert Signature(["a", "b", "c"]).is_structure
+    assert not Signature(("a")).is_structure
 
 
 def test_signature_errors():

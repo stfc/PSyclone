@@ -1111,12 +1111,13 @@ class GOKern(CodedKern):
             return var_name + "+" + str(depth)
         return var_name
 
-    def _record_stencil_accesses(self, var_name, arg, var_accesses):
+    def _record_stencil_accesses(self, signature, arg, var_accesses):
         '''This function adds accesses to a field depending on the
         meta-data declaration for this argument (i.e. accounting for
         any stencil accesses).
 
-        :param str var_name: name of the variable.
+        :param signature: signature of the variable.
+        :type signature: :py:class:`psyclone.core.Signature`
         :param arg:  the meta-data information for this argument.
         :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
         :param var_accesses: VariablesAccessInfo instance that stores the\
@@ -1134,7 +1135,7 @@ class GOKern(CodedKern):
                 for current_depth in range(1, depth+1):
                     i_expr = GOKern._format_access("i", i, current_depth)
                     j_expr = GOKern._format_access("j", j, current_depth)
-                    var_accesses.add_access(Signature(var_name), arg.access,
+                    var_accesses.add_access(signature, arg.access,
                                             self, [[i_expr, j_expr]])
 
     def reference_accesses(self, var_accesses):
@@ -1159,22 +1160,22 @@ class GOKern(CodedKern):
             else:
                 var_name = arg.name
 
+            signature = Signature(tuple(var_name.split("%")))
             if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
-                    var_accesses.add_access(Signature(var_name), arg.access,
-                                            self)
+                    var_accesses.add_access(signature, arg.access, self)
             else:
                 if arg.argument_type == "field":
                     # Now add 'artificial' accesses to this field depending
                     # on meta-data (access-mode and stencil information):
-                    self._record_stencil_accesses(var_name, arg,
+                    self._record_stencil_accesses(signature, arg,
                                                   var_accesses)
                 else:
                     # In case of an array for now add an arbitrary array
                     # reference to (i,j) so it is properly recognised as
                     # an array access.
-                    var_accesses.add_access(Signature(var_name), arg.access,
+                    var_accesses.add_access(signature, arg.access,
                                             self, [["i", "j"]])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
