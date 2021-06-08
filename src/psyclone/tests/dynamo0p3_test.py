@@ -1421,11 +1421,12 @@ def test_dynkernelargument_infer_scalar_datatype(monkeypatch, proxy):
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.REAL
-    # Repeat when the root symbol table is missing 'r_def'
-    del container_table._symbols["r_def"]
+    # Repeat when the root symbol table is missing the 'r_def' kind symbol.
+    old_r_def = container_table._symbols.pop("r_def")
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    assert old_r_def is not container_table.lookup("r_def")
     # Repeat when the root symbol table is missing both 'r_def' and the
     # ContainerSymbol 'constants_mod'.
     del container_table._symbols["r_def"]
@@ -1472,17 +1473,20 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     assert isinstance(dtype, TypeSymbol)
     assert dtype.name == "field{0}_type".format(proxy_str)
     # Repeat when the field(_proxy)_type symbol is missing.
-    del container_table._symbols["field{0}_type".format(proxy_str)]
+    old_dtype = container_table._symbols.pop(dtype.name)
     dtype = arg.infer_datatype(proxy)
+    assert dtype is not old_dtype
     assert isinstance(dtype, TypeSymbol)
     assert dtype.name == "field{0}_type".format(proxy_str)
     # Repeat when both the field (proxy) type and associated container are
     # missing.
-    del container_table._symbols["field{0}_type".format(proxy_str)]
-    del container_table._symbols["field_mod"]
-    dtype = arg.infer_datatype(proxy)
-    assert isinstance(dtype, TypeSymbol)
-    assert dtype.name == "field{0}_type".format(proxy_str)
+    old_dtype = container_table._symbols.pop(dtype.name)
+    old_fld_mod = container_table._symbols.pop("field_mod")
+    dtype3 = arg.infer_datatype(proxy)
+    assert isinstance(dtype3, TypeSymbol)
+    assert dtype3.name == "field{0}_type".format(proxy_str)
+    assert dtype3 is not old_dtype
+    assert old_fld_mod is not container_table.lookup("field_mod")
     # Integer field argument.
     monkeypatch.setattr(arg, "_intrinsic_type", "integer")
     dtype = arg.infer_datatype(proxy)
@@ -1495,10 +1499,12 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     assert dtype.name == "integer_field{0}_type".format(proxy_str)
     # Repeat when both the field (proxy) type and associated container are
     # missing.
-    del container_table._symbols[dtype.name]
-    del container_table._symbols["field_mod"]
+    old_dtype = container_table._symbols.pop(dtype.name)
+    old_fld_mod = container_table._symbols.pop("integer_field_mod")
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, TypeSymbol)
+    assert dtype is not old_dtype
+    assert old_fld_mod is not container_table.lookup("integer_field_mod")
     assert dtype.name == "integer_field{0}_type".format(proxy_str)
     # Field with invalid intrinsic type.
     monkeypatch.setattr(arg, "_intrinsic_type", "foo")
@@ -1513,16 +1519,19 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
         assert isinstance(dtype, TypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
         # Repeat, ensuring that type symbol is deleted first.
-        del container_table._symbols[dtype.name]
+        old_dtype = container_table._symbols.pop(dtype.name)
         dtype = arg.infer_datatype(proxy)
         assert isinstance(dtype, TypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
+        assert old_dtype is not dtype
         # Repeat, ensuring both type and container symbols deleted first.
-        del container_table._symbols[dtype.name]
-        del container_table._symbols["operator_mod"]
+        old_dtype = container_table._symbols.pop(dtype.name)
+        old_mod = container_table._symbols.pop("operator_mod")
         dtype = arg.infer_datatype(proxy)
         assert isinstance(dtype, TypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
+        assert dtype is not old_dtype
+        assert container_table.lookup("operator_mod") is not old_mod
     # We need to monkeypatch the recognised list of operators in order to
     # trigger the next exception. We have to ensure the LFRicConstants class
     # has been initialised before we monkeypatch it.
