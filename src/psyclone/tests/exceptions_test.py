@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 ''' Test exception classes to ensure consistent __repr__ & __str__ methods. '''
 
 from __future__ import absolute_import
-from psyclone.errors import PsycloneError
+from psyclone.errors import PSycloneError
 
 import sys
 import pkgutil
@@ -46,11 +46,11 @@ import inspect
 import os
 import importlib
 
-class DummyPsycloneError(PsycloneError):
+class DummyPSycloneError(PSycloneError):
     ''' Provides a dummy PSyclone specific error class as for use in this test
     '''
     def __init__(self):
-        PsycloneError.__init__(self, "")
+        PSycloneError.__init__(self, "")
         self.value = "Dummy Psyclone Error"
 
 
@@ -97,10 +97,10 @@ def test_exception_repr():
 
     all_excpetions = all_sub_exceptions(Exception)
     psy_excepts = [exc for exc in all_excpetions if "psyclone." in str(exc)]
-    psy_excepts.append(DummyPsycloneError)
+    psy_excepts.append(DummyPSycloneError)
 
     # Different vertions of pytest behave differently with repect to their
-    # handeling of an exception's representation. This can lead to some tests
+    # handling of an exception's representation. This can lead to some tests
     # passing/failing assertions depending on which pytest version is
     # installed.
     #

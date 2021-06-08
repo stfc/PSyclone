@@ -38,7 +38,7 @@
 
 ''' This module provides various error classes used in PSyclone'''
 
-class PsycloneError(Exception):
+class PSycloneError(Exception):
     ''' Provides a PSyclone specific error class as a generic parent class for
     all Pysclone exceptions.
 
@@ -55,27 +55,27 @@ class PsycloneError(Exception):
         return str(self.value)
 
 
-class GenerationError(PsycloneError):
+class GenerationError(PSycloneError):
     ''' Provides a PSyclone specific error class for errors found during PSy
     code generation.
 
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        PsycloneError.__init__(self, value)
+        PSycloneError.__init__(self, value)
         self.value = "Generation Error: "+str(value)
 
-class FieldNotFoundError(PsycloneError):
+class FieldNotFoundError(PSycloneError):
     ''' Provides a PSyclone-specific error class when a field with the
     requested property/ies is not found.
 
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        PsycloneError.__init__(self, value)
+        PSycloneError.__init__(self, value)
         self.value = "Field not found error: "+str(value)
 
-class InternalError(PsycloneError):
+class InternalError(PSycloneError):
     '''
     PSyclone-specific exception for use when an internal error occurs (i.e.
     something that 'should not happen').
@@ -83,5 +83,5 @@ class InternalError(PsycloneError):
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        PsycloneError.__init__(self, value)
+        PSycloneError.__init__(self, value)
         self.value = "PSyclone internal error: "+str(value)

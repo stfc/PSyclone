@@ -52,7 +52,7 @@ import sys
 
 import six
 
-from psyclone.errors import PsycloneError, InternalError
+from psyclone.errors import PSycloneError, InternalError
 
 
 # Name of the config file we search for
@@ -70,7 +70,7 @@ VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
 
 # pylint: disable=too-many-lines
-class ConfigurationError(PsycloneError):
+class ConfigurationError(PSycloneError):
     '''
     Class for all configuration-related errors.
 
@@ -79,7 +79,7 @@ class ConfigurationError(PsycloneError):
     :type config: :py:class:`psyclone.configuration.Config`.
     '''
     def __init__(self, value, config=None):
-        PsycloneError.__init__(self, value)
+        PSycloneError.__init__(self, value)
         self.value = "PSyclone configuration error"
         if config:
             self.value += " (file={0})".format(config.filename)

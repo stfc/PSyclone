@@ -40,9 +40,9 @@ that can be compiled and linked with the generated PSy code.
 '''
 
 from __future__ import absolute_import
-from psyclone.errors import PsycloneError
+from psyclone.errors import PSycloneError
 
-class NoInvokesError(PsycloneError):
+class NoInvokesError(PSycloneError):
     '''Provides a PSyclone-specific error class for the situation when an
     algorithm code contains no invoke calls.
 
@@ -50,7 +50,7 @@ class NoInvokesError(PsycloneError):
 
     '''
     def __init__(self, value):
-        PsycloneError.__init__(self, value)
+        PSycloneError.__init__(self, value)
         self.value = "Algorithm Error: "+str(value)
 
 
@@ -241,3 +241,7 @@ def adduse(location, name, only=None, funcnames=None):
     # part of the program
     spec_part = parent_prog_statement.content[1]
     spec_part.content.insert(0, use)
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["PSycloneError", etc. etc.]

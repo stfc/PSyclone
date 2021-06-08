@@ -50,13 +50,13 @@ from fparser import api as fpapi
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import PsycloneError
+from psyclone.errors import PSycloneError
 
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 
-class CompileError(PsycloneError):
+class CompileError(PSycloneError):
     '''
     Exception raised when compilation of a Fortran source file fails.
 
@@ -66,7 +66,7 @@ class CompileError(PsycloneError):
     '''
     def __init__(self, value):
         # pylint: disable=super-init-not-called
-        PsycloneError.value = "Compile error: " + str(value)
+        PSycloneError.value = "Compile error: " + str(value)
 
 
 # =============================================================================

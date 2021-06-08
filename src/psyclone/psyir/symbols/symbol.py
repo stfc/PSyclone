@@ -43,11 +43,11 @@ class and its subclasses and the generic Symbol class.
 
 from __future__ import absolute_import
 from enum import Enum
-from psyclone.errors import PsycloneError
+from psyclone.errors import PSycloneError
 import six
 
 
-class SymbolError(PsycloneError):
+class SymbolError(PSycloneError):
     '''
     PSyclone-specific exception for use with errors relating to the Symbol and
     SymbolTable in the PSyIR.
@@ -55,7 +55,7 @@ class SymbolError(PsycloneError):
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        PsycloneError.__init__(self, value)
+        PSycloneError.__init__(self, value)
         self.value = "PSyclone SymbolTable error: "+str(value)
 
 

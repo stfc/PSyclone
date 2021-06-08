@@ -44,9 +44,9 @@ back ends.
 import inspect
 import six
 from psyclone.psyir.nodes import Node
-from psyclone.errors import PsycloneError
+from psyclone.errors import PSycloneError
 
-class VisitorError(PsycloneError):
+class VisitorError(PSycloneError):
     '''Provides a PSyclone-specific error class for errors related to a
     PSyIR visitor.
 
@@ -54,7 +54,7 @@ class VisitorError(PsycloneError):
 
     '''
     def __init__(self, value):
-        PsycloneError.__init__(self, value)
+        PSycloneError.__init__(self, value)
         self.value = "Visitor Error: "+str(value)
 
 
