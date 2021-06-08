@@ -278,23 +278,33 @@ class LFRicConstants(object):
             # 'real'-valued scalar of kind 'r_def' (used for global
             # reductions of "field_type" data)
             "scalar": {"module": "scalar_mod",
-                       "type": "scalar_type"},
+                       "type": "scalar_type",
+                       "intrinsic": "real",
+                       "kind": api_config.default_kind["real"]},
             # 'real'-valued field with data of kind 'r_def'
             "field": {"module": "field_mod",
                       "type": "field_type",
-                      "proxy_type": "field_proxy_type"},
+                      "proxy_type": "field_proxy_type",
+                      "intrinsic": "real",
+                      "kind": api_config.default_kind["real"]},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
-                              "proxy_type": "integer_field_proxy_type"},
+                              "proxy_type": "integer_field_proxy_type",
+                              "intrinsic": "integer",
+                              "kind": api_config.default_kind["integer"]},
             # 'real'-valued operator with data of kind 'r_def'
             "lma_operator": {"module": "operator_mod",
                              "type": "operator_type",
-                             "proxy_type": "operator_proxy_type"},
+                             "proxy_type": "operator_proxy_type",
+                             "intrinsic": "real",
+                             "kind": api_config.default_kind["real"]},
             # 'real'-valued columnwise operator with data of kind 'r_def'
             "cma_operator": {"module": "operator_mod",
                              "type": "columnwise_operator_type",
-                             "proxy_type": "columnwise_operator_proxy_type"}}
+                             "proxy_type": "columnwise_operator_proxy_type",
+                             "intrinsic": "real",
+                             "kind": api_config.default_kind["real"]}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.
