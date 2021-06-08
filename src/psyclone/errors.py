@@ -85,3 +85,8 @@ class InternalError(PSycloneError):
     def __init__(self, value):
         PSycloneError.__init__(self, value)
         self.value = "PSyclone internal error: "+str(value)
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["PSycloneError", "GenerationError", "FieldNotFoundError",
+           "InternalError"]

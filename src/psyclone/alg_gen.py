@@ -241,7 +241,3 @@ def adduse(location, name, only=None, funcnames=None):
     # part of the program
     spec_part = parent_prog_statement.content[1]
     spec_part.content.insert(0, use)
-
-
-# For Sphinx AutoAPI documentation generation
-__all__ = ["PSycloneError", etc. etc.]
