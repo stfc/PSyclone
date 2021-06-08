@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 '''Module containing tests for the CreateNemoKernelTrans transformation.'''
 
@@ -87,7 +88,7 @@ def test_kern_trans_validation(fortran_reader):
     # We should reject the top-level routine schedule because it is not
     # within a loop
     with pytest.raises(TransformationError) as err:
-        trans.validate(psyir)
+        trans.validate(psyir.children[0])
     assert "supplied Schedule must be within a Loop" in str(err.value)
     # Loop body should not validate because it contains a Write statement
     # (which ends up as a CodeBlock)

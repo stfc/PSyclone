@@ -209,7 +209,7 @@ def test_aic_createpsylayersymbols():
         "end subroutine alg1\n")
 
     psyir = create_alg_psyir(code)
-    invoke = psyir.children[0]
+    invoke = psyir.children[0][0]
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert invoke.psylayer_routine_symbol is None
 
@@ -267,9 +267,10 @@ def test_aic_lowertolanguagelevel_expr():
         "end subroutine alg1\n")
 
     psyir = create_alg_psyir(code)
-    invoke = psyir.children[0]
+    subroutine = psyir.children[0]
+    invoke = subroutine.children[0]
     invoke.lower_to_language_level()
-    assert len(psyir.children[0].children) == 1
+    assert len(subroutine.children[0].children) == 1
 
 
 def test_aic_lowertolanguagelevel_single():
@@ -290,7 +291,7 @@ def test_aic_lowertolanguagelevel_single():
         "end subroutine alg1\n")
 
     psyir = create_alg_psyir(code)
-    invoke = psyir.children[0]
+    invoke = psyir.children[0][0]
 
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert len(psyir.walk(AlgorithmInvokeCall)) == 1
@@ -304,7 +305,7 @@ def test_aic_lowertolanguagelevel_single():
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
     assert len(psyir.walk(KernelFunctor)) == 0
 
-    call = psyir.children[0]
+    call = psyir.children[0][0]
     check_call(call, "invoke_0_kern1",
                [(Reference, "field1"),
                 (ArrayReference, "field2", ["i"]),
@@ -329,7 +330,7 @@ def test_aic_lowertolanguagelevel_multi():
         "end subroutine alg1\n")
 
     psyir = create_alg_psyir(code)
-    invoke = psyir.children[0]
+    invoke = psyir.children[0][0]
 
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert len(psyir.walk(AlgorithmInvokeCall)) == 1
@@ -344,7 +345,7 @@ def test_aic_lowertolanguagelevel_multi():
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
     assert len(psyir.walk(KernelFunctor)) == 0
 
-    call = psyir.children[0]
+    call = psyir.children[0][0]
     check_call(call, "invoke_0",
                [(Reference, "field1"),
                 (ArrayReference, "field2", ["i"]),

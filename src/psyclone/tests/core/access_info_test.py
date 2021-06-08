@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: Joerg Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter and R. W. Ford, STFC Daresbury Laboratory
 
 '''This module tests the various classes in core.access_info.'''
 
@@ -280,7 +280,8 @@ def test_constructor(fortran_reader):
           c = a*b
         end subroutine tmp
         end module test'''
-    schedule = fortran_reader.psyir_from_source(code).children[0]
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
     node1 = schedule[0]
     node2 = schedule[1]
     vai1 = VariablesAccessInfo(node1)
