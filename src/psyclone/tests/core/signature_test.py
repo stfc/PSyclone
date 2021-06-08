@@ -98,7 +98,6 @@ def test_concatenate_signature():
 
 def test_var_name():
     '''Test that the variable name is returned as expected.'''
-
     sig_a = Signature("a")
     assert sig_a.var_name == "a"
     sig_a_b = Signature(sig_a, Signature("b"))

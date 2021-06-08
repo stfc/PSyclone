@@ -605,9 +605,8 @@ def test_fuse_scalars_incorrect(fortran_reader, fortran_writer):
 # ----------------------------------------------------------------------------
 def test_fuse_no_symbol(fortran_reader, fortran_writer):
     '''Tests what happens if a variable name is not in the symbol table,
-    or not fully defined (i.e. likely imported from another module).
-    We have to patch the object (to replace the existing symbol table)
-    since otherwise all variables are in the symbol table.
+    e.g. because of a wildcard import. It also checks if a name is defined
+    in an outer module.
     '''
     # Case 1: assume that the array 't' is imported from mymod. In
     # this case the loop validation will find a Symbol (not a DataSymbol),

@@ -122,7 +122,8 @@ class StructureMember(Member):
     def get_signature_and_indices(self):
         ''':returns: the Signature of this structure member, and \
             a list of the indices used for each component (empty list \
-            if an access is not an array).
+            for this component, since the access is not an array - but \
+            other components might have indices).
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             list of indices)
         '''

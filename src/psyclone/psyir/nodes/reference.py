@@ -125,7 +125,7 @@ class Reference(DataNode):
         return self.name == other.name
 
     def get_signature_and_indices(self):
-        ''':returns: the Signature of this structure reference, and \
+        ''':returns: the Signature of this reference, and \
             an empty list of lists as 'indices' since this reference does \
             not represent an array access.
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \

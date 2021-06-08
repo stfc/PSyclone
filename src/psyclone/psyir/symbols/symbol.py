@@ -491,8 +491,12 @@ class Symbol(object):
         will just raise an exception, indicating that no information
         is available. The function will be overwritten, e.g. in
         DataSymbol.
+
         :returns: True if this symbol is an array and False otherwise.
         :rtype: bool
+
+        :raises ValueError: if this function is called for the base class \
+            since there is no information available.
 
         '''
         raise ValueError("No array information is available for the "

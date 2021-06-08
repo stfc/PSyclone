@@ -110,6 +110,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 continue
 
             symbol = symbol_table.lookup(var_name)
+            # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info1)
 
             if not is_array:
