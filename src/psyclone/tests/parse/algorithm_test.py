@@ -38,6 +38,7 @@ file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
 from __future__ import absolute_import
+import os
 import six
 
 import pytest
@@ -47,16 +48,63 @@ from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor, \
     Actual_Arg_Spec
 from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
-    get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
-from psyclone.parse.utils import ParseError
+    get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
+    parse
+from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
 
+
+LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               os.path.pardir, "test_files", "dynamo0p3")
 
 # This ParserFactory call needs to happen at the top-level in order for the
 # fparser.two.Fortran2003 import to work as expected.
 ParserFactory().create(std="f2008")
 
+# function parse() tests
+
+
+def test_parse_kernel_paths():
+    '''Check that the parse function behaves as expected with the
+    kernel_paths argument.
+
+    '''
+    alg_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    # No argument
+    parse(alg_name, api="dynamo0.3")
+    # None argument
+    parse(alg_name, api="dynamo0.3", kernel_paths=None)
+    # Empty list
+    parse(alg_name, api="dynamo0.3", kernel_paths=[])
+    # invalid path
+    with pytest.raises(ParseError) as info:
+        parse(alg_name, api="dynamo0.3", kernel_paths=["invalid"])
+    assert ("Supplied kernel search path does not exist or cannot be read"
+            in str(info.value))
+    # multiple kernel paths
+    parse(alg_name, api="dynamo0.3", kernel_paths=[LFRIC_BASE_PATH, "."])
+
 # class parser() tests
+
+
+def test_parser_init_kernel_paths():
+    '''Check that the Parser class stores the kernel_paths optional
+    argument as expected.
+
+    '''
+    # No argument
+    parser = Parser()
+    assert parser._kernel_paths == []
+    # None argument
+    parser = Parser(kernel_paths=None)
+    assert parser._kernel_paths == []
+    # Empty list
+    parser = Parser(kernel_paths=[])
+    assert parser._kernel_paths == []
+    # multiple kernel paths
+    paths = [LFRIC_BASE_PATH, "."]
+    parser = Parser(kernel_paths=paths)
+    assert parser._kernel_paths == paths
 
 
 def test_parser_parse(tmpdir):
@@ -91,8 +139,8 @@ def test_parser_createinvokecall():
         "call invoke(name=\"dummy\", setval_c(a,1.0), setval_c(a,1), "
         "setval_c(a,b), setval_c(a%c, b), setval_c(self%a, 1.0), "
         "setval_c(self%a, b))")
-    parse = Parser()
-    _ = parse.create_invoke_call(statement)
+    parser = Parser()
+    _ = parser.create_invoke_call(statement)
 
 
 def test_parser_createinvokecall_error():
@@ -107,6 +155,37 @@ def test_parser_createinvokecall_error():
     assert (
         "Expecting argument to be of the form 'name=xxx' or a Kernel call "
         "but found '0.0' in file 'None'.") in str(excinfo.value)
+
+# create_coded_kernel_call tests
+
+
+def test_parser_codedkernelcall_kernel_paths():
+    '''Check that the Parser class passes the kernel_paths information
+    through to the get_kernel_ast() function from the
+    coded_kernel_call() method.
+
+    '''
+    alg_filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    parse_tree = parse_fp2(alg_filename)
+    invoke_call = parse_tree.children[0].children[2].children[0]
+    invoke_argument = invoke_call.children[1].children[0]
+    kernel_name, args = get_kernel(invoke_argument, alg_filename)
+    parser = Parser()
+    parser._alg_filename = alg_filename
+    use_statement = parse_tree.children[0].children[1].children[2]
+    parser.update_arg_to_module_map(use_statement)
+    # no paths
+    parser.create_coded_kernel_call(kernel_name, args)
+    # invalid kernel path
+    parser._kernel_paths = ["invalid"]
+    with pytest.raises(ParseError) as info:
+        parser.create_coded_kernel_call(kernel_name, args)
+    assert ("Supplied kernel search path does not exist or cannot be read"
+            in str(info.value))
+    # multiple kernel paths
+    paths = [LFRIC_BASE_PATH, "."]
+    parser._kernel_paths = paths
+    parser.create_coded_kernel_call(kernel_name, args)
 
 
 def test_parser_updateargtomodulemap_invalid():
