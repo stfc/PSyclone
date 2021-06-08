@@ -43,13 +43,22 @@ from __future__ import absolute_import
 import os
 import pytest
 from fparser.api import parse
+from fparser import api as fpapi
+from fparser.one.block_statements import BeginSource
+from fparser.two import Fortran2003
+from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
+from psyclone.domain.lfric.lfric_builtins import \
+    BUILTIN_DEFINITIONS_FILE as fname
 from psyclone.parse.kernel import KernelType, get_kernel_metadata,\
-    get_kernel_interface,\
-    KernelProcedure, Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath
+    get_kernel_interface, KernelProcedure, Descriptor, \
+    BuiltInKernelTypeFactory, get_kernel_filepath, get_kernel_ast
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
 
 # pylint: disable=invalid-name
+
+LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               os.path.pardir, "test_files", "dynamo0p3")
 
 # Code fragment for testing standard kernel setup with
 # a type-bound procedure.
@@ -147,7 +156,7 @@ def test_getkernelfilepath_nodir():
 
     '''
     with pytest.raises(ParseError) as excinfo:
-        _ = get_kernel_filepath("test_mod", "non/existant/file/path", None)
+        _ = get_kernel_filepath("test_mod", ["non/existant/file/path"], None)
     assert ("Supplied kernel search path does not exist or cannot be "
             "read") in str(excinfo.value)
 
@@ -168,9 +177,45 @@ def test_getkernelfilepath_multifile(tmpdir):
     ffile.close()
 
     with pytest.raises(ParseError) as excinfo:
-        _ = get_kernel_filepath("test_mod", str(tmpdir), None)
+        _ = get_kernel_filepath("test_mod", [str(tmpdir)], None)
     assert ("More than one match for kernel file 'test_mod.[fF]90' "
             "found!") in str(excinfo.value)
+
+
+def test_getkernelfilepath_nodir_supplied():
+    '''Test that the directory of the algorithm file is searched if no
+    directory is supplied.
+
+    '''
+    kern_module_name = "testkern_mod"
+    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    result = get_kernel_filepath(kern_module_name, [], alg_file_name)
+    assert "testkern_mod.F90" in result
+
+
+def test_getkernelfilepath_nomatch():
+    '''Test that the expected exception is raised if the kernel file is
+    not found in the supplied directory (or its descendents).
+
+    '''
+    kern_module_name = "testkern_mod"
+    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    with pytest.raises(ParseError) as info:
+        get_kernel_filepath(kern_module_name, ["."], alg_file_name)
+    assert ("Kernel file 'testkern_mod.[fF]90' not found in"
+            in str(info.value))
+
+
+def test_getkernelfilepath_multidir():
+    '''Test that get_kernel_filepath works when multiple directories are
+    supplied.
+
+    '''
+    kern_module_name = "testkern_mod"
+    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    result = get_kernel_filepath(
+        kern_module_name, [".", LFRIC_BASE_PATH], alg_file_name)
+    assert "testkern_mod.F90" in result
 
 
 def test_getkernelfilepath_caseinsensitive1(tmpdir):
@@ -183,7 +228,7 @@ def test_getkernelfilepath_caseinsensitive1(tmpdir):
     ffile = open(filename, "w")
     ffile.write("")
     ffile.close()
-    result = get_kernel_filepath("TEST_MOD", str(tmpdir), None)
+    result = get_kernel_filepath("TEST_MOD", [str(tmpdir)], None)
     assert "tmp" in result
     assert "test_mod.f90" in result
 
@@ -202,9 +247,49 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
     ffile = open(filename, "w")
     ffile.write("")
     ffile.close()
-    result = get_kernel_filepath("TEST_MOD", None, filename)
+    result = get_kernel_filepath("TEST_MOD", [], filename)
     assert "tmp" in result
     assert "test_mod.f90" in result
+
+# function get_kernel_ast
+
+
+def test_getkernelast_nodir():
+    '''Test that the directory of the algorithm file is searched if no
+    directory is supplied.
+
+    '''
+    kern_module_name = "testkern_mod"
+    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    result = get_kernel_ast(kern_module_name, alg_file_name, [], False)
+    assert isinstance(result, BeginSource)
+
+
+def test_getkernelast_nomatch():
+    '''Test that the expected exception is raised if the kernel file is
+    not found in the supplied directory (or its descendents).
+
+    '''
+    kern_module_name = "testkern_mod"
+    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    with pytest.raises(ParseError) as info:
+        get_kernel_ast(kern_module_name, alg_file_name, ["."], False)
+    assert ("Kernel file 'testkern_mod.[fF]90' not found in"
+            in str(info.value))
+
+
+def test_getkernelast_multidir():
+    '''Test that get_kernel_ast works when multiple directories are
+    supplied.
+
+    '''
+    kern_module_name = "testkern_mod"
+    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    result = get_kernel_ast(
+        kern_module_name, alg_file_name, [".", LFRIC_BASE_PATH], False)
+    assert isinstance(result, BeginSource)
+
+# function get_kernel_interface
 
 
 def test_get_kernel_interface_no_match():
@@ -305,10 +390,6 @@ def test_builtinfactory_metadataerror(monkeypatch):
     (which gives a TypeError as it is not callable).
 
     '''
-    from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
-    from psyclone.domain.lfric.lfric_builtins import \
-        BUILTIN_DEFINITIONS_FILE as fname
-    from fparser import api as fpapi
     monkeypatch.setattr(fpapi, "parse", None)
     factory = BuiltInKernelTypeFactory()
     with pytest.raises(ParseError) as excinfo:
@@ -635,7 +716,7 @@ def test_get_integer_array():
 def test_get_int_array_name_err(monkeypatch):
     ''' Tests that we raise the correct error if there is something wrong
     with the Name in the assignment statement obtained from fparser2. '''
-    from fparser.two import Fortran2003
+
     # This is difficult as we have to break the result returned by fparser2.
     # We therefore create a valid KernelType object
     ast = parse(DIFF_BASIS, ignore_comments=False)
@@ -664,7 +745,7 @@ def test_get_int_array_name_err(monkeypatch):
 def test_get_int_array_constructor_err(monkeypatch):
     ''' Check that we raise the appropriate error if we fail to parse the
     array constructor expression. '''
-    from fparser.two import Fortran2003
+
     # First create a valid KernelType object
     ast = parse(DIFF_BASIS, ignore_comments=False)
     ktype = KernelType(ast)
@@ -690,7 +771,7 @@ def test_get_int_array_constructor_err(monkeypatch):
 def test_get_int_array_section_subscript_err(monkeypatch):
     ''' Check that we raise the appropriate error if the parse tree for the
     LHS of the array declaration is broken. '''
-    from fparser.two import Fortran2003
+
     # First create a valid KernelType object
     ast = parse(DIFF_BASIS, ignore_comments=False)
     ktype = KernelType(ast)
