@@ -161,7 +161,7 @@ def test_lfricalgorithminvoke_call_root_name():
 
     assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 0
     assert len(psyir.walk(LFRicKernelFunctor)) == 0
-    call0 = psyir.children[0]
+    call0 = psyir.children[0][0]
     assert call0.routine.name == "invoke_0_kern"
     assert call0.routine.is_global
     assert call0.routine.interface.container_symbol.name == "invoke_0_kern_mod"
@@ -169,7 +169,7 @@ def test_lfricalgorithminvoke_call_root_name():
     assert len(args) == 1
     assert isinstance(args[0], Reference)
     assert args[0].symbol.name == "field1"
-    call1 = psyir.children[1]
+    call1 = psyir.children[0][1]
     assert call1.routine.name == "test_1"
     assert call1.routine.is_global
     assert call1.routine.interface.container_symbol.name == "test_1_mod"
