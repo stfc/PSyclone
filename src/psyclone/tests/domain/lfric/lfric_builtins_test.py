@@ -76,6 +76,16 @@ def setup():
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
+def test_lfric_builtin_abstract_methods():
+    ''' Check that the LFRicBuiltIn class is abstract and that the __str__ and
+    gen_code() methods are abstract. '''
+    with pytest.raises(TypeError) as err:
+        lfric_builtins.LFRicBuiltIn()
+    assert "abstract class LFRicBuiltIn" in str(err.value)
+    assert "__str__" in str(err.value)
+    assert "gen_code" in str(err.value)
+
+
 def test_lfricbuiltin_missing_defs(monkeypatch):
     ''' Check that we raise an appropriate error if we cannot find the
     file specifying meta-data for built-in kernels '''
@@ -407,15 +417,20 @@ def test_get_argument_symbols(monkeypatch):
         else:
             assert isinstance(sym.datatype, TypeSymbol)
             assert sym.datatype.name == "field_proxy_type"
-    # Repeat but force the symbol for the scalar arg to be created
+    # Repeat but force the symbols for the scalar and field-proxy args to be
+    # created
     del loop.parent.symbol_table._symbols["a"]
+    del kern.parent.symbol_table._symbols["f2_proxy"]
     symbols = kern.get_argument_symbols()
     for sym in symbols:
         if sym.name == "a":
             # We should have a symbol of ScalarType for the scalar
             assert isinstance(sym.datatype, ScalarType)
             assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-            break
+        else:
+            assert isinstance(sym.datatype, TypeSymbol)
+            assert sym.datatype.name == "field_proxy_type"
+
     # Monkeypatch the scalar argument so that it appears to be an operator.
     monkeypatch.setattr(kern._arguments.args[1], "_argument_type",
                         LFRicConstants().VALID_OPERATOR_NAMES[0])
@@ -424,6 +439,20 @@ def test_get_argument_symbols(monkeypatch):
     assert ("Unsupported Builtin argument type: 'a' is of type "
             "'{0}'".format(LFRicConstants().VALID_OPERATOR_NAMES[0]) in
             str(err.value))
+
+
+def test_get_dof_loop_index_symbol():
+    ''' Test the LFRicBuiltIn.get_dof_loop_index_symbol() method. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.8_a_plus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    kern = loop.loop_body[0]
+    sym = kern.get_dof_loop_index_symbol()
+    assert sym.name == "df"
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+
 
 # ------------- Adding (scaled) real fields --------------------------------- #
 

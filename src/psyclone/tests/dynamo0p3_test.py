@@ -64,7 +64,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import colored
-from psyclone.psyir.symbols import ScalarType, DeferredType, TypeSymbol
+from psyclone.psyir.symbols import ScalarType, TypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -1402,25 +1402,34 @@ def test_dynkernelargument_intent_invalid(dist_mem):
 
 
 @pytest.mark.parametrize("proxy", [True, False])
-def test_dynkernelargument_infer_type(monkeypatch, proxy):
+def test_dynkernelargument_infer_scalar_datatype(monkeypatch, proxy):
     '''
-    Tests for the DynKernelArgument.infer_type() method.
+    Tests for the DynKernelArgument.infer_datatype() method for scalar
+    arguments.
 
     '''
-    if proxy:
-        proxy_str = "_proxy"
-    else:
-        proxy_str = ""
-
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    container_table = schedule.parent.symbol_table
     call = schedule[0].loop_body[0]
     arg = call.arguments.args[0]
-    # Scalar argument.
+    # Real, scalar argument.
+    dtype = arg.infer_datatype(proxy)
+    assert isinstance(dtype, ScalarType)
+    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    # Repeat when the root symbol table is missing 'r_def'
+    del container_table._symbols["r_def"]
+    dtype = arg.infer_datatype(proxy)
+    assert isinstance(dtype, ScalarType)
+    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    # Repeat when the root symbol table is missing both 'r_def' and the
+    # ContainerSymbol 'constants_mod'.
+    del container_table._symbols["r_def"]
+    del container_table._symbols["constants_mod"]
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.REAL
@@ -1435,11 +1444,63 @@ def test_dynkernelargument_infer_type(monkeypatch, proxy):
     with pytest.raises(NotImplementedError) as err:
         arg.infer_datatype(proxy)
     assert "Unsupported scalar type 'foo'" in str(err.value)
+
+
+@pytest.mark.parametrize("proxy", [True, False])
+def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
+    '''
+    Tests for the DynKernelArgument.infer_datatype() method for field and
+    operator arguments.
+
+    '''
+    if proxy:
+        proxy_str = "_proxy"
+    else:
+        proxy_str = ""
+
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    container_table = schedule.parent.symbol_table
+    call = schedule[0].loop_body[0]
     # Field argument.
     arg = call.arguments.args[1]
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, TypeSymbol)
     assert dtype.name == "field{0}_type".format(proxy_str)
+    # Repeat when the field(_proxy)_type symbol is missing.
+    del container_table._symbols["field{0}_type".format(proxy_str)]
+    dtype = arg.infer_datatype(proxy)
+    assert isinstance(dtype, TypeSymbol)
+    assert dtype.name == "field{0}_type".format(proxy_str)
+    # Repeat when both the field (proxy) type and associated container are
+    # missing.
+    del container_table._symbols["field{0}_type".format(proxy_str)]
+    del container_table._symbols["field_mod"]
+    dtype = arg.infer_datatype(proxy)
+    assert isinstance(dtype, TypeSymbol)
+    assert dtype.name == "field{0}_type".format(proxy_str)
+    # Integer field argument.
+    monkeypatch.setattr(arg, "_intrinsic_type", "integer")
+    dtype = arg.infer_datatype(proxy)
+    assert isinstance(dtype, TypeSymbol)
+    assert dtype.name == "integer_field{0}_type".format(proxy_str)
+    # Repeat when the integer_field(_proxy)_type symbol is missing.
+    del container_table._symbols[dtype.name]
+    dtype = arg.infer_datatype(proxy)
+    assert isinstance(dtype, TypeSymbol)
+    assert dtype.name == "integer_field{0}_type".format(proxy_str)
+    # Repeat when both the field (proxy) type and associated container are
+    # missing.
+    del container_table._symbols[dtype.name]
+    del container_table._symbols["field_mod"]
+    dtype = arg.infer_datatype(proxy)
+    assert isinstance(dtype, TypeSymbol)
+    assert dtype.name == "integer_field{0}_type".format(proxy_str)
+    # Field with invalid intrinsic type.
     monkeypatch.setattr(arg, "_intrinsic_type", "foo")
     with pytest.raises(NotImplementedError) as err:
         arg.infer_datatype(proxy)
@@ -1448,6 +1509,17 @@ def test_dynkernelargument_infer_type(monkeypatch, proxy):
     # Valid operator types
     for op_name in ["gh_operator", "gh_columnwise_operator"]:
         monkeypatch.setattr(arg, "_argument_type", op_name)
+        dtype = arg.infer_datatype(proxy)
+        assert isinstance(dtype, TypeSymbol)
+        assert dtype.name == op_name[3:] + proxy_str + "_type"
+        # Repeat, ensuring that type symbol is deleted first.
+        del container_table._symbols[dtype.name]
+        dtype = arg.infer_datatype(proxy)
+        assert isinstance(dtype, TypeSymbol)
+        assert dtype.name == op_name[3:] + proxy_str + "_type"
+        # Repeat, ensuring both type and container symbols deleted first.
+        del container_table._symbols[dtype.name]
+        del container_table._symbols["operator_mod"]
         dtype = arg.infer_datatype(proxy)
         assert isinstance(dtype, TypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
