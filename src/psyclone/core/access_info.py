@@ -258,7 +258,7 @@ class SingleVariableAccessInfo(object):
             :py:class:`psyclone.core.access_type.AccessType`
         :param location: location information
         :type location: int
-        :param indicies_groups: indices used for each component of the \
+        :param component_indices: indices used for each component of the \
             access (None if the variable is not an array). Defaults to None.
         :type component_indices: list of lists of \
             :py:class:`psyclone.psyir.nodes.Node`
