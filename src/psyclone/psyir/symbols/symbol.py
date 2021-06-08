@@ -540,7 +540,7 @@ class Symbol(object):
             access information is given.
 
         '''
-        # TODO 1270: this function might either be better off elsewhere,
+        # TODO #1270: this function might either be better off elsewhere,
         # or even do not implement one function that uses both access
         # information and symbol table - if required, the user can
         # query both in two simple statements anyway.

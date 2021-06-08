@@ -171,7 +171,7 @@ class DependencyTools(object):
         # in which dimension for the component. For example, `a%b%c(i,j)`
         # would store (2,1) for an access to j - component 2 (which is c),
         # and 2nd dimension (j).
-        # TODO 1269: code duplicated with nemo_loop_fuse
+        # TODO #1269: code duplicated with nemo_loop_fuse
         found_dimension_index = None
 
         # Additionally, collect all indices that are actually used, since
