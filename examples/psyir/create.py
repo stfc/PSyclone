@@ -49,7 +49,7 @@ C representation of the PSyIR.
 from __future__ import print_function
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
-    Container, Range, ArrayReference, Call, KernelSchedule
+    Container, Range, ArrayReference, Call, Routine, FileContainer
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     GlobalInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
@@ -151,14 +151,14 @@ def create_psyir_tree():
     loop = Loop.create(index_symbol, int_zero(), int_one(), int_one(),
                        [ifblock])
 
-    # KernelSchedule
-    kernel_schedule = KernelSchedule.create(
+    # Routine
+    routine = Routine.create(
         "work", symbol_table, [assign1, call, assign2, loop, assign5, assign6])
 
     # Container
     container_symbol_table = SymbolTable()
     container = Container.create("CONTAINER", container_symbol_table,
-                                 [kernel_schedule])
+                                 [routine])
 
     # Import data from another container
     external_container = ContainerSymbol("some_mod")
@@ -168,7 +168,26 @@ def create_psyir_tree():
     container_symbol_table.add(external_var)
     routine_symbol.interface = GlobalInterface(external_container)
     container_symbol_table.add(routine_symbol)
-    return container
+
+    # Routine (specified as being a program)
+    program_symbol_table = SymbolTable()
+    work_symbol = RoutineSymbol("work")
+    container_symbol = ContainerSymbol("CONTAINER")
+    work_symbol.interface = GlobalInterface(container_symbol)
+    arg_symbol = program_symbol_table.new_symbol(root_name="arg",
+                                                 symbol_type=DataSymbol,
+                                                 datatype=REAL_TYPE)
+    program_symbol_table.add(container_symbol)
+    program_symbol_table.add(work_symbol)
+    call = Call.create(work_symbol, [Reference(arg_symbol)])
+    program = Routine.create(
+        "some_program", program_symbol_table, [call], is_program=True)
+
+    # File container
+    file_container = FileContainer.create(
+        "dummy", SymbolTable(), [container, program])
+
+    return file_container
 
 
 if __name__ == "__main__":
@@ -179,9 +198,9 @@ if __name__ == "__main__":
     result = writer(psyir_tree)
     print(result)
 
-    # Write out the code as C. At the moment NaryOperator, KernelSchedule
+    # Write out the code as C. At the moment NaryOperator, Routine
     # and Container are not supported in the C backend so the full example
     # can't be output.
     writer = CWriter()
-    result = writer(psyir_tree.children[0].children[3])
+    result = writer(psyir_tree.children[0].children[0].children[3])
     print(result)
