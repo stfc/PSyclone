@@ -44,12 +44,12 @@ from psyclone.psyir.nodes import Assignment, Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.transformations import OMPLoopTrans
-from psyclone.tests.utilities import create_schedule, get_invoke
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import OMPParallelTrans, OMPLoopTrans
 
 
 # ----------------------------------------------------------------------------
-def test_nemo_omp_parallel():
+def test_nemo_omp_parallel(fortran_reader):
     '''Tests if an OpenMP parallel directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -65,9 +65,8 @@ def test_nemo_omp_parallel():
           enddo
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
-    from psyclone.transformations import OMPParallelTrans
-
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
     # Now apply a parallel transform
     omp_par = OMPParallelTrans()
     # Note that the loop is not handled as nemo kernel, so the
@@ -125,9 +124,6 @@ def test_gocean_omp_parallel():
     '''Test that an OMP PARALLEL directive in a 'classical' API (gocean here)
     is created correctly.
     '''
-
-    from psyclone.transformations import OMPParallelTrans
-
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0, dist_mem=False)
 
@@ -160,7 +156,7 @@ a = b
 
 
 # ----------------------------------------------------------------------------
-def test_nemo_omp_do():
+def test_nemo_omp_do(fortran_reader):
     '''Tests if an OpenMP do directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -176,7 +172,8 @@ def test_nemo_omp_do():
           enddo
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
 
     # Now apply a parallel transform
     omp_loop = OMPLoopTrans()

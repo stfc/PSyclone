@@ -6,6 +6,35 @@
         Signature rather than just the symbol name (in preparation for
         supporting derived types/structures).
 
+        3) PR #1216 for #1188. Adds a FortranReader PSyIR frontend.
+
+        4) PR #1217 towards #1210. Adds raising transformations for NEMO.
+
+        5) PR #1222 for #1171. Adds a new class to encapsulate all constants
+        related to the LFRic API.
+
+        6) PR #1233 for #1231. Adds psyadd driver script that will process an
+        LFRic tangent-linear kernel and produce its adjoint.
+
+        7) PR #1124 for #1185. Refactor PSyDataNode class and sub-classes.
+
+        8) PR #1229 for #1170. Adds a Container parent node above all
+        InvokeSchedule nodes.
+
+        9) PR #1225 towards #1223. Moves remaining GOcean constants into
+        new GOceanConstants class.
+
+        10) PR #1241 for #1240. Adds support for functions in the PSyIR and
+        Fortran frontend and backend.
+
+        11) PR #1257 for #1248. Adds support for logical, read-only, scalar
+        arguments to LFRic user-supplied kernels.
+
+        12) PR #1234 for #1230. Adds FileContainer node.
+
+        13) PR #1264 towards #1258. Adds mappings for the LFRic infrastructure
+        types to their Fortran modules to the LFRic Constants class.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

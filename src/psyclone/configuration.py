@@ -42,9 +42,16 @@ Deals with reading the config file and storing default settings.
 '''
 
 from __future__ import absolute_import, print_function
+import abc
+from configparser import ConfigParser, MissingSectionHeaderError, \
+    ParsingError
 from collections import namedtuple
 import os
+import re
+import sys
+
 import six
+
 from psyclone.errors import InternalError
 
 
@@ -84,7 +91,7 @@ class ConfigurationError(Exception):
 
 # =============================================================================
 class Config(object):
-    # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-instance-attributes, too-many-public-methods
     '''
     Handles all configuration management. It is implemented as a singleton
     using a class _instance variable and a get() function.
@@ -228,8 +235,6 @@ class Config(object):
         else:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
-        from configparser import ConfigParser, MissingSectionHeaderError, \
-            ParsingError
         # Add a getlist method to the ConfigParser instance using the
         # converters argument
         self._config = ConfigParser(
@@ -342,7 +347,6 @@ class Config(object):
                 "{0}".format(str(err)), config=self), err)
 
         # Verify that the prefixes will result in valid Fortran names:
-        import re
         valid_var = re.compile(r"[A-Z][A-Z0-9_]*$", re.I)
         for prefix in self._valid_psy_data_prefixes:
             if not valid_var.match(prefix):
@@ -434,8 +438,10 @@ class Config(object):
         :rtype: str
 
         :raises ConfigurationError: if no config file is found
+
         '''
-        import sys
+        # Moving this to the top causes test failures
+        # pylint: disable=import-outside-toplevel
         from psyclone.virtual_utils import within_virtual_env
 
         # If $PSYCLONE_CONFIG is set then we use that unless the
@@ -719,7 +725,10 @@ class APISpecificConfig(object):
         # Now convert the string type ("read" etc) to AccessType
         # TODO (issue #710): Add checks for duplicate or missing access
         # key-value pairs
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.core.access_type import AccessType
+
         for api_access_name, access_type in self._access_mapping.items():
             try:
                 self._access_mapping[api_access_name] = \
@@ -791,6 +800,14 @@ class APISpecificConfig(object):
         valid_names.sort()
         return valid_names
 
+    @abc.abstractmethod
+    def get_constants(self):
+        ''':returns: an object containing all constants for the API.
+        :rtype: either :py:class:`psyclone.domain.lfric.LFRicConstants`, \
+            :py:class:`psyclone.domain.gocean.GOceanConstants`, or \
+            :py:class:`psyclone.domain.nemo.NemoConstants`
+        '''
+
 
 # =============================================================================
 class DynConfig(APISpecificConfig):
@@ -821,7 +838,7 @@ class DynConfig(APISpecificConfig):
                                 spaces is less than or equal to 0.
 
     '''
-    # pylint: disable=too-few-public-methods
+    # pylint: disable=too-few-public-methods, too-many-instance-attributes
     def __init__(self, config, section):
         super(DynConfig, self).__init__(section)
         # Ref. to parent Config object
@@ -1019,6 +1036,16 @@ class DynConfig(APISpecificConfig):
         '''
         return self._num_any_discontinuous_space
 
+    def get_constants(self):
+        ''':returns: an object containing all constants for the API.
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicConstants`
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicConstants
+
+        return LFRicConstants()
+
 
 # =============================================================================
 class GOceanConfig(APISpecificConfig):
@@ -1032,7 +1059,7 @@ class GOceanConfig(APISpecificConfig):
     :type section:  :py:class:`configparser.SectionProxy`
 
     '''
-    # pylint: disable=too-few-public-methods
+    # pylint: disable=too-few-public-methods, too-many-branches
     def __init__(self, config, section):
         # pylint: disable=too-many-locals
         super(GOceanConfig, self).__init__(section)
@@ -1057,6 +1084,8 @@ class GOceanConfig(APISpecificConfig):
                 # in add_bounds for correctness.
                 value_as_str = str(section[key])
                 new_iteration_spaces = value_as_str.split("\n")
+                # Avoid circular import
+                # pylint: disable=import-outside-toplevel
                 from psyclone.gocean1p0 import GOLoop
                 for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
@@ -1165,6 +1194,7 @@ class GOceanConfig(APISpecificConfig):
         '''
         return self._grid_properties
 
+    # ---------------------------------------------------------------------
     @property
     def debug_mode(self):
         '''
@@ -1173,6 +1203,16 @@ class GOceanConfig(APISpecificConfig):
 
         '''
         return self._debug_mode
+
+    # ---------------------------------------------------------------------
+    def get_constants(self):
+        ''':returns: an object containing all constants for GOcean.
+        :rtype: :py:class:`psyclone.domain.gocean.GOceanConstants`
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.gocean import GOceanConstants
+        return GOceanConstants()
 
 
 # =============================================================================
@@ -1290,3 +1330,24 @@ class NemoConfig(APISpecificConfig):
         :rtype: list of str.
         '''
         return self._index_order
+
+    # ---------------------------------------------------------------------
+    def get_constants(self):
+        ''':returns: an object containing all constants for Nemo.
+        :rtype: :py:class:`psyclone.domain.nemo.NemoConstants`
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.nemo import NemoConstants
+        return NemoConstants()
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ["APISpecificConfig",
+           "Config",
+           "ConfigurationError",
+           "DynConfig",
+           "GOceanConfig",
+           "NemoConfig"]

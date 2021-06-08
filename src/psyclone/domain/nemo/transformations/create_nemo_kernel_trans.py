@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Schedule into a
@@ -46,30 +47,42 @@ from psyclone.nemo import NemoKern
 
 class CreateNemoKernelTrans(Transformation):
     """
-    Transform a generic PSyIR Schedule into a NEMO Kernel. For example:
+    Transform a generic PSyIR Schedule representing a loop body into a NEMO
+    Kernel. For example:
 
-    >>> from fparser.common.readfortran import FortranStringReader
-    >>> from fparser.two.parser import ParserFactory
-    >>> from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
-    >>> reader = FortranStringReader('''
+    >>> code = '''
     ... subroutine sub()
     ...   integer :: ji
     ...   real :: tmp(10)
     ...   do ji=1, 10
     ...     tmp(ji) = 2.0*ji
     ...   end do
-    ... end subroutine sub''')
-    >>> parser = ParserFactory().create()
-    >>> psyir = Fparser2Reader().generate_psyir(parser(reader))
+    ... end subroutine sub'''
+    >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoKernelTrans()
     >>> trans.apply(loop.loop_body)
     >>> psyir.view()
+    Routine[name:'sub']
+        0: Loop[type='None', field_space='None', it_space='None']
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Schedule[]
+                0: InlinedKern[]
+                    Schedule[]
+                        0: Assignment[]
+                            ArrayReference[name:'tmp']
+                                Reference[name:'ji']
+                            BinaryOperation[operator:'MUL']
+                                Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
+                                Reference[name:'ji']
 
-    The resulting Schedule will contain a NemoKern (displayed as an
-    'InlinedKern' by the view() method.
+    The resulting Schedule contains a NemoKern (displayed as an
+    'InlinedKern' by the view() method).
 
     """
     @property

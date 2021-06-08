@@ -66,8 +66,6 @@ def trans(psy):
     fvisitor = FortranWriter()
     print("")
     print("FortranWriter code:")
-    # TODO #1170: Remove the manual Container-InvokeSchedule connection
-    psy.container.addchild(schedule)
     print(fvisitor(psy.container))
 
     # This PSyclone call should terminate gracefully here

@@ -71,6 +71,8 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.file_container import FileContainer
+
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''A simple transformation script for the introduction of OpenMP with PSyclone.
 In order to use it you must first install PSyclone. See README.md in the
@@ -70,7 +70,7 @@ def trans(psy):
         # multiple kernels
         kernels = loop.walk(NemoKern)
         if kernels and loop.loop_type == "levels":
-            sched, _ = ompt.apply(loop)
+            ompt.apply(loop)
     psy.invokes.get('tra_ldf_iso').schedule = sched
     # Return the modified psy object
     return psy

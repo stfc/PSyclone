@@ -64,8 +64,10 @@ to create code.
 
 .. note:: This separation will be removed in the future and eventually
 	  all PSyIR classes will make use of backends with the
-	  expectation that ``gen_code()`` and ``update()`` methods will
-	  be removed.
+	  expectation that ``gen_code()`` and ``update()`` methods
+	  will be removed. Further this separation will be superceded
+	  by a separation between ``language-level PSyIR`` and
+	  ``domain-specific PSyIR``.
 
 PSy-layer nodes
 ---------------
@@ -97,16 +99,18 @@ PSyIR nodes are: ``Loop``, ``IfBlock``, ``CodeBlock``, ``Assignment``,
 ``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
 ``Return`` and ``Container``. The ``Reference`` class is further
 subclassed into ``ArrayReference``, ``StructureReference`` and
-``ArrayOfStructuresReference`` and the ``Operation`` class is further
+``ArrayOfStructuresReference``, the ``Operation`` class is further
 subclassed into ``UnaryOperation``, ``BinaryOperation`` and
-``NaryOperation``. Those nodes representing references to structures
-(derived types in Fortran) have a ``Member`` child node representing
-the member of the structure being accessed. The ``Member`` class is
-further subclassed into ``StructureMember`` (representing a member of
-a structure that is itself a structure), ``ArrayMember`` (a member of
-a structure that is an array of primitive types) and
-``ArrayOfStructuresMember`` (a member of a structure this is itself an
-array of structures).
+``NaryOperation`` and the ``Container`` class is further subclassed
+into ``FileContainer`` (representing a file that may contain more than
+one ``Container`` and/or ``Routine``. Those nodes representing
+references to structures (derived types in Fortran) have a ``Member``
+child node representing the member of the structure being
+accessed. The ``Member`` class is further subclassed into
+``StructureMember`` (representing a member of a structure that is
+itself a structure), ``ArrayMember`` (a member of a structure that is
+an array of primitive types) and ``ArrayOfStructuresMember`` (a member
+of a structure this is itself an array of structures).
 
 
 Node Descriptions

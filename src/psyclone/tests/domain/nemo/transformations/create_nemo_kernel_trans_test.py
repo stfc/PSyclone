@@ -32,14 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 '''Module containing tests for the CreateNemoKernelTrans transformation.'''
 
 from __future__ import absolute_import
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Loop, CodeBlock, Assignment
 from psyclone.psyGen import InlinedKern
 from psyclone.transformations import Transformation, TransformationError
@@ -66,17 +66,14 @@ def test_createkerneltrans_construction():
     assert trans.name == "CreateNemoKernelTrans"
 
 
-def test_kern_trans_validation(parser):
+def test_kern_trans_validation(fortran_reader):
     ''' Test that the validate() method of the transformation correctly
     rejects things that aren't kernels. '''
     trans = CreateNemoKernelTrans()
-    fp2reader = Fparser2Reader()
     # Add a write() to the body of the loop
     code = BASIC_KERN_CODE.replace("  end do\n",
                                    "    write(*,*) ji\n  end do\n")
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psyir = fp2reader.generate_psyir(prog)
+    psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
     # Check that calling apply() also calls validate()
     with pytest.raises(TransformationError) as err:
@@ -91,7 +88,7 @@ def test_kern_trans_validation(parser):
     # We should reject the top-level routine schedule because it is not
     # within a loop
     with pytest.raises(TransformationError) as err:
-        trans.validate(psyir)
+        trans.validate(psyir.children[0])
     assert "supplied Schedule must be within a Loop" in str(err.value)
     # Loop body should not validate because it contains a Write statement
     # (which ends up as a CodeBlock)
@@ -102,44 +99,40 @@ def test_kern_trans_validation(parser):
             str(err.value))
 
 
-def test_no_explicit_loop_in_kernel(parser):
+def test_no_explicit_loop_in_kernel(fortran_reader):
     ''' Check that the transformation rejects a loop body if it includes
     an explicit loop. '''
     trans = CreateNemoKernelTrans()
-    fp2reader = Fparser2Reader()
-    reader = FortranStringReader("program fake_kern\n"
-                                 "integer :: ji, jpj, idx\n"
-                                 "real :: sto_tmp(5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  do idx = 1, 5\n"
-                                 "    sto_tmp(ji) = 1.0\n"
-                                 "  end do\n"
-                                 "end do\n"
-                                 "end program fake_kern\n")
-    prog = parser(reader)
-    psy = fp2reader.generate_psyir(prog)
-    loop = psy.walk(Loop)[0]
+    code = ("program fake_kern\n"
+            "integer :: ji, jpj, idx\n"
+            "real :: sto_tmp(5)\n"
+            "do ji = 1,jpj\n"
+            "  do idx = 1, 5\n"
+            "    sto_tmp(ji) = 1.0\n"
+            "  end do\n"
+            "end do\n"
+            "end program fake_kern\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
     # 'loop.loop_body' is not a valid kernel because it itself contains a loop
     with pytest.raises(TransformationError) as err:
         trans.apply(loop.loop_body)
     assert "Kernel cannot contain nodes of type: ['Loop']" in str(err.value)
 
 
-def test_no_implicit_loop_in_kernel(parser):
+def test_no_implicit_loop_in_kernel(fortran_reader):
     ''' Check that the transformation rejects a loop if it includes an implicit
     loop. '''
     trans = CreateNemoKernelTrans()
-    fp2reader = Fparser2Reader()
-    reader = FortranStringReader("program fake_kern\n"
-                                 "integer :: ji, jpj\n"
-                                 "real :: sto_tmp(5,5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  sto_tmp(:,:) = 1.0\n"
-                                 "end do\n"
-                                 "end program fake_kern\n")
-    prog = parser(reader)
-    psy = fp2reader.generate_psyir(prog)
-    loop = psy.walk(Loop)[0]
+    code = ("program fake_kern\n"
+            "integer :: ji, jpj\n"
+            "real :: sto_tmp(5,5)\n"
+            "do ji = 1,jpj\n"
+            "  sto_tmp(:,:) = 1.0\n"
+            "end do\n"
+            "end program fake_kern\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
     assert isinstance(loop.loop_body[0], Assignment)
     # 'loop.loop_body' is not a valid kernel because it contains an
     # assignment to an array range.
@@ -149,14 +142,11 @@ def test_no_implicit_loop_in_kernel(parser):
             "['sto_tmp(:,:) = 1.0']" in str(err.value))
 
 
-def test_basic_kern(parser):
+def test_basic_kern(fortran_reader):
     ''' Check that the transformation correctly transforms a very simple
     kernel. '''
-    fp2reader = Fparser2Reader()
     trans = CreateNemoKernelTrans()
-    reader = FortranStringReader(BASIC_KERN_CODE)
-    prog = parser(reader)
-    psyir = fp2reader.generate_psyir(prog)
+    psyir = fortran_reader.psyir_from_source(BASIC_KERN_CODE)
     loop = psyir.walk(Loop)[0]
     assign = loop.loop_body[0]
     trans.apply(loop.loop_body)

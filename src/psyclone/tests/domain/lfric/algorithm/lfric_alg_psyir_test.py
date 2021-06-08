@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the LFRicAlgorithmInvokeCall,
 LFRicBuiltinFunctor and LFRicKernelFunctor LFRic
@@ -47,6 +48,8 @@ from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Node, Reference
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType, REAL_TYPE
 from psyclone.domain.lfric.algorithm import \
@@ -67,13 +70,8 @@ def create_alg_psyir(code):
     :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
-
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
-
+    fortran_reader = FortranReader()
+    psyir = fortran_reader.psyir_from_source(code)
     alg_trans = LFRicAlgTrans()
     alg_trans.apply(psyir)
 
@@ -105,6 +103,55 @@ def test_validate_child():
     assert LFRicAlgorithmInvokeCall._validate_child(1, lfric_builtin_functor)
     assert not LFRicAlgorithmInvokeCall._validate_child(0, "Invalid")
 
+
+def test_lfricalgorithminvoke_call_root_name():
+    '''Check that an LFRicAlgorithmInvokeCall node is translated into the
+    expected PSyIR call node when the lower_to_language_level() method
+    is called. This test exercises the _def_routine_root_name(). The
+    rest of the functionality is in the parent class.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1\n"
+        "  call invoke(kern(field1))\n"
+        "  call invoke(kern(field1), name=\"test 1\")\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+
+    assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 2
+    assert len(psyir.walk(LFRicKernelFunctor)) == 2
+
+    psyir.lower_to_language_level()
+
+    assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 0
+    assert len(psyir.walk(LFRicKernelFunctor)) == 0
+    call0 = psyir.children[0][0]
+    assert call0.routine.name == "invoke_0_kern"
+    assert call0.routine.is_global
+    assert call0.routine.interface.container_symbol.name == "invoke_0_kern_mod"
+    args = call0.children
+    assert len(args) == 1
+    assert isinstance(args[0], Reference)
+    assert args[0].symbol.name == "field1"
+    call1 = psyir.children[0][1]
+    assert call1.routine.name == "test_1"
+    assert call1.routine.is_global
+    assert call1.routine.interface.container_symbol.name == "test_1_mod"
+    args = call1.children
+    assert len(args) == 1
+    assert isinstance(args[0], Reference)
+    assert args[0].symbol.name == "field1"
+
+
+def test_lfricalgorithminvokecall_node_str():
+    '''Check that the LFRicAlgorithmInvokeCall node_str  method creates the
+    expected object.
+
+    '''
     routine = RoutineSymbol("hello")
     call = LFRicAlgorithmInvokeCall(routine, 0)
     with pytest.raises(GenerationError) as info:

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified by: R. W. Ford, STFC Daresbury Lab
+# Modified by: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for ReadOnlyVerifyTrans and ReadOnlyVerifyNode
@@ -84,8 +85,8 @@ def test_read_only_basic(capsys):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
-    new_sched, _ = read_only.apply(invoke.schedule[0].loop_body[0])
-    new_sched.view()
+    read_only.apply(invoke.schedule[0].loop_body[0])
+    invoke.schedule.view()
     result, _ = capsys.readouterr()
 
     # Create the coloured text (if required)
@@ -95,7 +96,7 @@ def test_read_only_basic(capsys):
             0: {1}[]
                 {0}[]""".format(sched_node, read_node) in result
 
-    read_node = new_sched[0].loop_body[0]
+    read_node = invoke.schedule[0].loop_body[0]
     assert read_node.dag_name == "read_only_verify_0"
 
 

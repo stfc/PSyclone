@@ -51,10 +51,9 @@ from __future__ import print_function
 import re
 import six
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
+from psyclone.domain.gocean import GOceanConstants
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
@@ -70,36 +69,10 @@ from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, \
     REAL_TYPE, UnknownFortranType, LocalInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
-
-
-# The different grid-point types that a field can live on
-VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct", "go_cf", "go_every"]
-
-# The two scalar types we support
-VALID_SCALAR_TYPES = ["go_i_scalar", "go_r_scalar"]
-
-# Index-offset schemes (for the Arakawa C-grid)
-VALID_OFFSET_NAMES = ["go_offset_se", "go_offset_sw",
-                      "go_offset_ne", "go_offset_nw", "go_offset_any"]
-
-# The offset schemes for which we can currently generate constant
-# loop bounds in the PSy layer
-SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw", "go_offset_any"]
-
-# The sets of grid points that a kernel may operate on
-VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
-
-# The list of valid stencil properties. We currently only support
-# pointwise. This property could probably be removed from the
-# GOcean API altogether.
-VALID_STENCIL_NAMES = ["go_pointwise"]
-
-# The valid types of loop. In this API we expect only doubly-nested
-# loops.
-VALID_LOOP_TYPES = ["inner", "outer"]
 
 
 class GOPSy(PSy):
@@ -476,20 +449,22 @@ class GOLoop(Loop):
         single loop information to the base class so it creates the one we
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
-        in the Dynamo api. '''
+        in the Dynamo api.
 
+        :param parent: optional parent node (default None).
+        :type parent: :py:class:`psyclone.psyGen.node`
+        :param str topology_name: optional opology of the loop (unused atm).
+        :param str loop_type: loop type - must be 'inner' or 'outer'.
+
+    '''
     _bounds_lookup = {}
 
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
-        '''Constructs a GOLoop instance.
-        :param parent: Optional parent node (default None).
-        :type parent: :py:class:`psyclone.psyGen.node`
-        :param str topology_name: Optional opology of the loop (unused atm).
-        :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
         # pylint: disable=unused-argument
+        const = GOceanConstants()
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+                      valid_loop_types=const.VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
         # We set the loop variable name in the constructor so that it is
@@ -504,7 +479,7 @@ class GOLoop(Loop):
         else:
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
-                format(self._loop_type, VALID_LOOP_TYPES))
+                format(self._loop_type, const.VALID_LOOP_TYPES))
 
         symtab = self.scope.symbol_table
         try:
@@ -586,13 +561,15 @@ class GOLoop(Loop):
     def setup_bounds():
         '''Populates the GOLoop._bounds_lookup dictionary. This is
         used by PSyclone to look up the loop boundaries for each loop
-        it creates.'''
+        it creates.
 
-        for grid_offset in SUPPORTED_OFFSETS:
+        '''
+        const = GOceanConstants()
+        for grid_offset in const.SUPPORTED_OFFSETS:
             GOLoop._bounds_lookup[grid_offset] = {}
-            for gridpt_type in VALID_FIELD_GRID_TYPES:
+            for gridpt_type in const.VALID_FIELD_GRID_TYPES:
                 GOLoop._bounds_lookup[grid_offset][gridpt_type] = {}
-                for itspace in VALID_ITERATES_OVER:
+                for itspace in const.VALID_ITERATES_OVER:
                     GOLoop._bounds_lookup[grid_offset][gridpt_type][
                         itspace] = {}
 
@@ -647,14 +624,14 @@ class GOLoop(Loop):
             {'inner': {'start': "{start}", 'stop': "{stop}+1"},
              'outer': {'start': "{start}", 'stop': "{stop}+1"}}
         # For offset 'any'
-        for gridpt_type in VALID_FIELD_GRID_TYPES:
-            for itspace in VALID_ITERATES_OVER:
+        for gridpt_type in const.VALID_FIELD_GRID_TYPES:
+            for itspace in const.VALID_ITERATES_OVER:
                 GOLoop._bounds_lookup['go_offset_any'][gridpt_type][itspace] =\
                     {'inner': {'start': "{start}-1", 'stop': "{stop}"},
                      'outer': {'start': "{start}-1", 'stop': "{stop}"}}
         # For 'every' grid-point type
-        for offset in SUPPORTED_OFFSETS:
-            for itspace in VALID_ITERATES_OVER:
+        for offset in const.SUPPORTED_OFFSETS:
+            for itspace in const.VALID_ITERATES_OVER:
                 GOLoop._bounds_lookup[offset]['go_every'][itspace] = \
                     {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
                      'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
@@ -719,10 +696,6 @@ class GOLoop(Loop):
                                              "space. But got "
                                              "{0}".format(bracket_expr))
 
-        # Test if a loop with the given boundaries can actually be parsed.
-        # Necessary to setup the parser
-        ParserFactory().create(std="f2003")
-
         # Test both the outer loop indices (index 3 and 4) and inner
         # indices (index 5 and 6):
         for bound in data[3:7]:
@@ -734,10 +707,11 @@ class GOLoop(Loop):
             try:
                 _ = Nonlabel_Do_Stmt(do_string)
             except NoMatchError as err:
-                raise ConfigurationError("Expression '{0}' is not a "
-                                         "valid do loop boundary. Error "
-                                         "message: '{1}'."
-                                         .format(bound, str(err)))
+                six.raise_from(
+                    ConfigurationError("Expression '{0}' is not a "
+                                       "valid do loop boundary. Error "
+                                       "message: '{1}'."
+                                       .format(bound, str(err))), err)
 
         # All tests successful, so add the new bounds:
         # --------------------------------------------
@@ -750,10 +724,11 @@ class GOLoop(Loop):
         if not data[1] in current_bounds[data[0]]:
             current_bounds[data[0]][data[1]] = {}
 
+        const = GOceanConstants()
         # Check iteration space exists:
         if not data[2] in current_bounds[data[0]][data[1]]:
             current_bounds[data[0]][data[1]][data[2]] = {}
-            VALID_ITERATES_OVER.append(data[2])
+            const.VALID_ITERATES_OVER.append(data[2])
 
         current_bounds[data[0]][data[1]][data[2]] = \
             {'outer': {'start': data[3], 'stop': data[4]},
@@ -1021,13 +996,14 @@ class GOLoop(Loop):
             raise GenerationError("Internal error: cannot find the "
                                   "GOcean Kernel enclosed by this loop")
         index_offset = go_kernels[0].index_offset
+        const = GOceanConstants()
         if schedule.const_loop_bounds and \
-           index_offset not in SUPPORTED_OFFSETS:
+           index_offset not in const.SUPPORTED_OFFSETS:
             raise GenerationError("Constant bounds generation"
                                   " not implemented for a grid offset "
                                   "of {0}. Supported offsets are {1}".
                                   format(index_offset,
-                                         SUPPORTED_OFFSETS))
+                                         const.SUPPORTED_OFFSETS))
         # Check that all kernels enclosed by this loop expect the same
         # grid offset
         for kernel in go_kernels:
@@ -1284,8 +1260,10 @@ class GOKern(CodedKern):
         # TODO #1134: Explore removing unnecessary set_args calls.
         self.gen_ocl_set_args_call(parent)
 
-        # Create array for the global work size argument of the kernel
-        symtab = self.root.symbol_table
+        # Create array for the global work size argument of the kernel. Use the
+        # InvokeSchedule symbol table to share this symbols for all the kernels
+        # in the Invoke.
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         garg = self._arguments.find_grid_access()
         glob_size = symtab.new_symbol(
             "globalsize", symbol_type=DataSymbol,
@@ -1396,6 +1374,7 @@ class GOKern(CodedKern):
         :param parent: Parent node of the set-kernel-arguments routine
         :type parent: :py:class:`psyclone.f2pygen.moduleGen`
         '''
+        # pylint: disable=too-many-locals, too-many-statements
         # The arg_setter code is in a subroutine, so we create a new scope
         argsetter_st = SymbolTable()
 
@@ -1531,8 +1510,8 @@ class GOKern(CodedKern):
         :param parent: Parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        # Get the root symbol table and the root f2pygen node
-        symtab = self.root.symbol_table
+        # Get the InvokeSchedule symbol table and the root f2pygen node
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         module = parent
         while module.parent:
             module = module.parent
@@ -1585,7 +1564,7 @@ class GOKern(CodedKern):
         :param parent: parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        symtab = self.root.symbol_table
+        symtab = self.scope.symbol_table
         there_is_a_grid_buffer = False
         for arg in self._arguments.args:
             if arg.argument_type == "field":
@@ -1616,8 +1595,9 @@ class GOKern(CodedKern):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        # pylint: disable=too-many-locals, too-many-branches
         # Retrieve symbol table and kernel name
-        symtab = self.root.symbol_table
+        symtab = self.scope.symbol_table
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
 
         # Find the symbol that defines each boundary for this kernel.
@@ -1704,6 +1684,7 @@ class GOKern(CodedKern):
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
+        # pylint: disable=too-many-locals
         symtab = self.root.symbol_table
         try:
             return symtab.lookup_with_tag("ocl_write_grid_buffers")
@@ -1761,13 +1742,9 @@ class GOKern(CodedKern):
         code += "end subroutine write_device_grid"
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1790,6 +1767,7 @@ class GOKern(CodedKern):
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
+        # pylint: disable=too-many-locals
         symtab = self.root.symbol_table
         try:
             return symtab.lookup_with_tag("ocl_init_buffer_func")
@@ -1840,13 +1818,9 @@ class GOKern(CodedKern):
         '''.format(num_x, num_y, host_buff, read_fp, write_fp)
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1869,6 +1843,7 @@ class GOKern(CodedKern):
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
+        # pylint: disable=too-many-locals
         symtab = self.root.symbol_table
         try:
             return symtab.lookup_with_tag("ocl_init_grid_buffers")
@@ -1935,13 +1910,9 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2030,13 +2001,10 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
+
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2125,13 +2093,9 @@ class GOKern(CodedKern):
         '''
 
         # Obtain the PSyIR representation of the code above
-        # TODO #1188: Reduce verbosity and improve performance by caching an
-        # already created fparser2 parser
-        processor = Fparser2Reader()
-        reader = FortranStringReader(code)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
-        subroutine = processor.generate_psyir(parse_tree)
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2496,11 +2460,13 @@ class GOKernelGridArgument(Argument):
         api_config = Config.get().api_conf("gocean1.0")
         try:
             deref_name = api_config.grid_properties[arg.grid_prop].fortran
-        except KeyError:
+        except KeyError as err:
             all_keys = str(api_config.grid_properties.keys())
-            raise GenerationError("Unrecognised grid property specified. "
-                                  "Expected one of {0} but found '{1}'".
-                                  format(all_keys, arg.grid_prop))
+            six.raise_from(
+                GenerationError("Unrecognised grid property "
+                                "specified. Expected one of {0} but found "
+                                "'{1}'". format(all_keys, arg.grid_prop)),
+                err)
 
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
@@ -2529,7 +2495,7 @@ class GOKernelGridArgument(Argument):
         # Find field from which to access grid properties
         base_field = self._call.arguments.find_grid_access().name
         tag = "AlgArgs_" + base_field
-        symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+        symbol = self._call.scope.symbol_table.symbol_from_tag(tag)
 
         # Get aggregate grid type accessors without the base name
         access = self.dereference(base_field).split('%')[1:]
@@ -2689,6 +2655,7 @@ class GOStencil():
 
         # Get the name
         name = stencil_info.name.lower()
+        const = GOceanConstants()
 
         if stencil_info.args:
             # The stencil info is of the form 'name(a,b,...), so the
@@ -2760,12 +2727,12 @@ class GOStencil():
         else:
             # stencil info is of the form 'name' so should be one of
             # our valid names
-            if name not in VALID_STENCIL_NAMES:
+            if name not in const.VALID_STENCIL_NAMES:
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument is '{1}' but must be one "
-                    "of {2} or go_stencil(...)".format(kernel_name, name,
-                                                       VALID_STENCIL_NAMES))
+                    "of {2} or go_stencil(...)"
+                    .format(kernel_name, name, const.VALID_STENCIL_NAMES))
             self._name = name
             # We currently only support one valid name ('pointwise')
             # which indicates that there is no stencil
@@ -2868,9 +2835,11 @@ class GO1p0Descriptor(Descriptor):
 
     '''
     def __init__(self, kernel_name, kernel_arg):
+        # pylint: disable=too-many-locals
         nargs = len(kernel_arg.args)
         stencil_info = None
 
+        const = GOceanConstants()
         if nargs == 3:
             # This kernel argument is supplied by the Algorithm layer
             # and is either a field or a scalar
@@ -2884,12 +2853,13 @@ class GO1p0Descriptor(Descriptor):
             # Valid values for the grid-point type that a kernel argument
             # may have. (We use the funcspace argument for this as it is
             # similar to the space in Finite-Element world.)
-            valid_func_spaces = VALID_FIELD_GRID_TYPES + VALID_SCALAR_TYPES
+            valid_func_spaces = const.VALID_FIELD_GRID_TYPES + \
+                const.VALID_SCALAR_TYPES
 
             self._grid_prop = ""
-            if funcspace.lower() in VALID_FIELD_GRID_TYPES:
+            if funcspace.lower() in const.VALID_FIELD_GRID_TYPES:
                 self._argument_type = "field"
-            elif funcspace.lower() in VALID_SCALAR_TYPES:
+            elif funcspace.lower() in const.VALID_SCALAR_TYPES:
                 self._argument_type = "scalar"
             else:
                 raise ParseError("Meta-data error in kernel {0}: argument "
@@ -2927,12 +2897,13 @@ class GO1p0Descriptor(Descriptor):
         access_mapping = api_config.get_access_mapping()
         try:
             access_type = access_mapping[access]
-        except KeyError:
+        except KeyError as err:
             valid_names = api_config.get_valid_accesses_api()
-            raise ParseError("Meta-data error in kernel {0}: argument "
-                             "access  is given as '{1}' but must be "
-                             "one of {2}".
-                             format(kernel_name, access, valid_names))
+            six.raise_from(
+                ParseError("Meta-data error in kernel {0}: "
+                           "argument access  is given as '{1}' but must be "
+                           "one of {2}".
+                           format(kernel_name, access, valid_names)), err)
 
         # Finally we can call the __init__ method of our base class
         super(GO1p0Descriptor,
@@ -2970,30 +2941,32 @@ class GOKernelType1p0(KernelType):
         # What grid offset scheme this kernel expects
         self._index_offset = self._ktype.get_variable('index_offset').init
 
+        const = GOceanConstants()
         if self._index_offset is None:
             raise ParseError("Meta-data error in kernel {0}: an INDEX_OFFSET "
                              "must be specified and must be one of {1}".
-                             format(name, VALID_OFFSET_NAMES))
+                             format(name, const.VALID_OFFSET_NAMES))
 
-        if self._index_offset.lower() not in VALID_OFFSET_NAMES:
+        if self._index_offset.lower() not in const.VALID_OFFSET_NAMES:
             raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET "
                              "has value '{1}' but must be one of {2}".
                              format(name,
                                     self._index_offset,
-                                    VALID_OFFSET_NAMES))
+                                    const.VALID_OFFSET_NAMES))
 
+        const = GOceanConstants()
         # Check that the meta-data for this kernel is valid
         if self._iterates_over is None:
             raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
                              "is missing. (Valid values are: {1})".
-                             format(name, VALID_ITERATES_OVER))
+                             format(name, const.VALID_ITERATES_OVER))
 
-        if self._iterates_over.lower() not in VALID_ITERATES_OVER:
+        if self._iterates_over.lower() not in const.VALID_ITERATES_OVER:
             raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
                              "has value '{1}' but must be one of {2}".
                              format(name,
                                     self._iterates_over.lower(),
-                                    VALID_ITERATES_OVER))
+                                    const.VALID_ITERATES_OVER))
 
         # The list of kernel arguments
         self._arg_descriptors = []

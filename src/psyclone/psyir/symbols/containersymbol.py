@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,10 @@
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
 from __future__ import absolute_import
+from os import listdir, path
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.psyir.symbols.symbol import SymbolInterface
+from psyclone.configuration import Config
 
 
 class ContainerSymbol(Symbol):
@@ -146,38 +148,33 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
         :raises SymbolError: the given Fortran module is not found on the \
             import path.
-        '''
-        from os import listdir, path
-        from fparser.two.parser import ParserFactory
-        from fparser.common.readfortran import FortranFileReader
-        from psyclone.configuration import Config
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.fortran import FortranReader
         for directory in Config.get().include_paths:
             for filename in [name+'.f90', name+'.F90']:
                 if filename in listdir(directory):
                     # Parse the module source code
                     abspath = path.join(directory, filename)
-                    reader = FortranFileReader(abspath,
-                                               ignore_comments=True)
-                    f2008_parser = ParserFactory().create(std="f2008")
-                    ast = f2008_parser(reader)
-                    fp2reader = Fparser2Reader()
-
-                    # Generate the PSyIR container
-                    container = fp2reader.generate_container(ast)
-
-                    # Check the imported container is the expected one
-                    if container.name != name:
-                        raise ValueError(
-                            "Error importing the Fortran module '{0}' into a "
-                            "PSyIR container. The imported module has the "
-                            "unexpected name: '{1}'."
-                            "".format(name, container.name))
-
-                    return container
+                    fortran_reader = FortranReader()
+                    file_container = fortran_reader.psyir_from_file(abspath)
+                    # Check the expected container is in this file
+                    for candidate in file_container.children:
+                        if candidate.name.lower() == name.lower():
+                            return candidate
+                    raise ValueError(
+                        "Error importing the Fortran module '{0}' into a "
+                        "PSyIR container. The file with filename '{1}' "
+                        "does not contain the expected module."
+                        "".format(name, filename))
 
         raise SymbolError(
             "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
             " any of the include_paths directories {1}."
             "".format(name, Config.get().include_paths))
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ['ContainerSymbol', 'ContainerSymbolInterface',
+           'FortranModuleInterface']

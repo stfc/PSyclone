@@ -32,8 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modifies R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by I. Kavcic, Met Office
 
 '''This module tests the loop fusion transformation.
 '''
@@ -42,11 +42,7 @@ from __future__ import absolute_import, print_function
 
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-
 from psyclone.domain.nemo.transformations import NemoLoopFuseTrans
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
@@ -122,17 +118,17 @@ def test_fusetrans_error_not_same_parent():
 
 
 # ----------------------------------------------------------------------------
-def fuse_loops(parser, fortran_code):
+def fuse_loops(fortran_code, fortran_reader, fortran_writer):
     '''Helper function that fuses the first two nodes in the given
     Fortran code, and returns the fused Fortran code as string.
     If an error is detected by the used NemoLoopFuseTrans transformation,
     it will raise a TransformationError.
 
-    :param parser: an fparser2 program class.
-    :type parser: :py:class:`fparser.two.Fortran2003.Program`
-
     :param str fortran_code: the Fortran code to loop fuse.
-    :param parser:
+    :param fortran_reader: the PSyIR Fortran frontend.
+    :type fortran_reader: :py:class:`psyclone.psyir.frontend.fortran`
+    :param fortran_writer: the PSyIR Fortran backend.
+    :type fortran_writer: :py:class:`psyclone.psyir.backend.fortran`
 
     :returns: a 2-tuple of the fused Fortran code, and the PSyIR \
         representation of the supplied Fortran code.
@@ -141,21 +137,17 @@ def fuse_loops(parser, fortran_code):
 
     '''
     # TODO #1210: Apply transformation to convert PSyIR to Nemo PSY layer
-    reader = FortranStringReader(fortran_code)
-    fp2_ast = parser(reader)
-    fp2_reader = Fparser2Reader()
-    psyir = fp2_reader.generate_psyir(fp2_ast)
-    loop1 = psyir.children[0]
-    loop2 = psyir.children[1]
+    psyir = fortran_reader.psyir_from_source(fortran_code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
     fuse = NemoLoopFuseTrans()
     fuse.apply(loop1, loop2)
 
-    writer = FortranWriter()
-    return writer(psyir), psyir
+    return fortran_writer(psyir), psyir
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_ok(parser, tmpdir):
+def test_fuse_ok(tmpdir, fortran_reader, fortran_writer):
     '''This tests verifies that loop fusion can be successfully applied to
     conformant loops.
 
@@ -174,7 +166,7 @@ def test_fuse_ok(parser, tmpdir):
                  enddo
               enddo
               end subroutine sub'''
-    out, psyir = fuse_loops(parser, code)
+    out, psyir = fuse_loops(code, fortran_reader, fortran_writer)
 
     expected = """  do jj = 1, n, 1
     do ji = 1, 10, 1
@@ -189,11 +181,10 @@ def test_fuse_ok(parser, tmpdir):
 
     # Then fuse the inner ji loops
     fuse = NemoLoopFuseTrans()
-    fuse.apply(psyir[0].loop_body[0],
-               psyir[0].loop_body[1])
-    writer = FortranWriter()
+    fuse.apply(psyir.children[0][0].loop_body[0],
+               psyir.children[0][0].loop_body[1])
 
-    out = writer(psyir)
+    out = fortran_writer(psyir)
     expected = """
   do jj = 1, n, 1
     do ji = 1, 10, 1
@@ -221,7 +212,7 @@ def test_fuse_ok(parser, tmpdir):
                  enddo
               enddo
               end subroutine sub'''
-    out, _ = fuse_loops(parser, code)
+    out, _ = fuse_loops(code, fortran_reader, fortran_writer)
     expected = """  do jj = 2 - 1, n + 1 - 1, 1
     do ji = 1, 10, 1
       s(ji,jj) = t(ji,jj) + 1
@@ -235,7 +226,7 @@ def test_fuse_ok(parser, tmpdir):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_incorrect_bounds_step(tmpdir, parser):
+def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
     '''
     Test that loop boundaries and step size must be identical.
     '''
@@ -256,7 +247,7 @@ def test_fuse_incorrect_bounds_step(tmpdir, parser):
               enddo
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Lower loop bounds must be identical, but are" in str(err.value)
 
     # Upper loop boundary
@@ -275,7 +266,7 @@ def test_fuse_incorrect_bounds_step(tmpdir, parser):
               enddo
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Upper loop bounds must be identical, but are" in str(err.value)
 
     # Test step size:
@@ -294,7 +285,7 @@ def test_fuse_incorrect_bounds_step(tmpdir, parser):
               enddo
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Step size in loops must be identical, but are" in str(err.value)
 
     # Test step size - make sure it defaults to 1
@@ -312,12 +303,12 @@ def test_fuse_incorrect_bounds_step(tmpdir, parser):
                  enddo
               enddo
               end subroutine sub'''
-    out, _ = fuse_loops(parser, code)
+    out, _ = fuse_loops(code, fortran_reader, fortran_writer)
     assert Compile(tmpdir).string_compiles(out)
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_different_loop_vars(parser):
+def test_fuse_different_loop_vars(fortran_reader, fortran_writer):
     '''
     Test that loop variables are verified to be identical.
 
@@ -337,14 +328,14 @@ def test_fuse_different_loop_vars(parser):
               enddo
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Loop variables must be the same, but are 'jj' and 'ji'" \
         in str(err.value)
 
 
 # ----------------------------------------------------------------------------
 @pytest.mark.xfail(reason="Needs evaluation of constant expressions")
-def test_fuse_correct_bounds(parser, tmpdir):
+def test_fuse_correct_bounds(tmpdir, fortran_reader, fortran_writer):
     '''
     Test that loop boundaries must be identical.
     '''
@@ -364,12 +355,12 @@ def test_fuse_correct_bounds(parser, tmpdir):
                  enddo
               enddo
               end subroutine sub'''
-    out, _ = fuse_loops(parser, code)
+    out, _ = fuse_loops(code, fortran_reader, fortran_writer)
     assert Compile(tmpdir).string_compiles(out)
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_dimension_change(parser, tmpdir):
+def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
     '''Test that inconsistent use of dimemsions are detected, e.g.:
     loop1:  a(i,j)
     loop2:  a(j,i)
@@ -393,7 +384,7 @@ def test_fuse_dimension_change(parser, tmpdir):
               enddo
               end subroutine sub'''
 
-    out, _ = fuse_loops(parser, code)
+    out, _ = fuse_loops(code, fortran_reader, fortran_writer)
     correct = """
   do jj = 1, n + 1, 1
     do ji = 1, 10, 1
@@ -424,7 +415,7 @@ def test_fuse_dimension_change(parser, tmpdir):
               end subroutine sub'''
 
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Variable 's' is written to in one or both of the loops and the "\
         "loop variable jj is used in different index locations (1 and 0) "\
         "when accessing it." in str(err.value)
@@ -448,14 +439,14 @@ def test_fuse_dimension_change(parser, tmpdir):
               end subroutine sub'''
 
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Variable 's' is written to in one or both of the loops and the " \
            "loop variable jj is used in different index locations (0 and 1) " \
            "when accessing it." in str(err.value)
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_independent_array(parser):
+def test_fuse_independent_array(fortran_reader, fortran_writer):
     '''Test that using arrays which are not dependent on the loop variable
     are handled correctly. Example:
     do j  ... a(1) = b(j) * c(j)
@@ -480,13 +471,13 @@ def test_fuse_independent_array(parser):
               end subroutine sub'''
 
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Variable 's' does not depend on loop variable 'jj', but is " \
            "read and written" in str(err.value)
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_scalars(parser, tmpdir):
+def test_fuse_scalars(tmpdir, fortran_reader, fortran_writer):
     '''Test that using scalars work as expected in all combinations of
     being read/written in both loops.
     '''
@@ -507,7 +498,7 @@ def test_fuse_scalars(parser, tmpdir):
                  enddo
               enddo
               end subroutine sub'''
-    out, _ = fuse_loops(parser, code)
+    out, _ = fuse_loops(code, fortran_reader, fortran_writer)
     assert Compile(tmpdir).string_compiles(out)
 
     # Second test: read/write of scalar variable
@@ -529,7 +520,7 @@ def test_fuse_scalars(parser, tmpdir):
               end subroutine sub'''
 
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Scalar variable 'a' is written in one loop, but only read in " \
            "the other loop." in str(err.value)
 
@@ -552,7 +543,7 @@ def test_fuse_scalars(parser, tmpdir):
               end subroutine sub'''
 
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Scalar variable 'b' is written in one loop, but only read in " \
            "the other loop." in str(err.value)
 
@@ -574,12 +565,12 @@ def test_fuse_scalars(parser, tmpdir):
                  enddo
               enddo
               end subroutine sub'''
-    out, _ = fuse_loops(parser, code)
+    out, _ = fuse_loops(code, fortran_reader, fortran_writer)
     assert Compile(tmpdir).string_compiles(out)
 
 
 @pytest.mark.xfail(reason="Variable usage does not handle conditional - #641")
-def test_fuse_scalars_incorrect(parser):
+def test_fuse_scalars_incorrect(fortran_reader, fortran_writer):
     '''This example incorrectly allows loop fusion due to known
     restrictions of the variable access detection. If t(1,1)
     would be < 0, the second loop would use ``t(10,10)-2`` as value
@@ -606,13 +597,13 @@ def test_fuse_scalars_incorrect(parser):
               enddo
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
-        fuse_loops(parser, code)
+        fuse_loops(code, fortran_reader, fortran_writer)
     assert "Scalar variable 'b' might not be written in one loop" \
         in str(err.value)
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_no_symbol(parser):
+def test_fuse_no_symbol(fortran_reader, fortran_writer):
     '''Tests what happens if a variable name is not in the symbol table,
     or not fully defined (i.e. likely imported from another module).
     We have to patch the object (to replace the existing symbol table)
@@ -638,7 +629,7 @@ def test_fuse_no_symbol(parser):
                  enddo
               enddo
               end subroutine sub'''
-    out, psyir = fuse_loops(parser, code)
+    out, psyir = fuse_loops(code, fortran_reader, fortran_writer)
     assert """
   do jj = 1, n, 1
     do ji = 1, 10, 1
@@ -653,7 +644,7 @@ def test_fuse_no_symbol(parser):
     # even a Symbol instance is returned. This should then look
     # up the information in the variable access information
     # to determine which variables are an array
-    loop = psyir.children[0]
+    loop = psyir.children[0][0]
 
     # Remove the symbol 't' from the symbol table to
     # trigger using the variable accesses to determine the type
@@ -665,8 +656,7 @@ def test_fuse_no_symbol(parser):
     # loops now:
     fuse.apply(loop.loop_body.children[0], loop.loop_body.children[1])
 
-    writer = FortranWriter()
-    out = writer(psyir)
+    out = fortran_writer(psyir)
     assert """  do jj = 1, n, 1
     do ji = 1, 10, 1
       s(ji,jj) = t(ji,jj) + 1
@@ -694,18 +684,14 @@ def test_fuse_no_symbol(parser):
             enddo
         end subroutine sub
     end module mymod'''
-    reader = FortranStringReader(code)
-    fp2_ast = parser(reader)
-    fp2_reader = Fparser2Reader()
-    psyir = fp2_reader.generate_psyir(fp2_ast)
+    psyir = fortran_reader.psyir_from_source(code)
     # First child is now the subroutine, which has
     # two children which are the two loops:
-    loop1 = psyir.children[0].children[0]
-    loop2 = psyir.children[0].children[1]
+    loop1 = psyir.children[0].children[0][0]
+    loop2 = psyir.children[0].children[0][1]
     fuse.apply(loop1, loop2)
 
-    writer = FortranWriter()
-    out = writer(psyir)
+    out = fortran_writer(psyir)
     assert """
     do jj = 1, n, 1
       do ji = 1, 10, 1

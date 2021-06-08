@@ -34,6 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
@@ -49,9 +50,9 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
-from psyclone.domain.lfric import lfric_builtins
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import (
-    VALID_BUILTIN_ARG_TYPES, LFRicBuiltInCallFactory, LFRicBuiltIn)
+    LFRicBuiltInCallFactory, LFRicBuiltIn)
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -223,28 +224,53 @@ def test_builtin_no_field_args():
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
-def test_builtin_operator_arg():
+def test_builtin_invalid_argument_type(monkeypatch):
     ''' Check that we raise appropriate error if we encounter a built-in
     that takes something other than a field or scalar argument. '''
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Change the builtin-definitions file to point to one that has
-    # various invalid definitions
     # Define the built-in name and test file
     test_builtin_name = "a_times_X"
     test_builtin_file = "15.4.1_" + test_builtin_name + "_builtin.f90"
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     test_builtin_file),
-        api=API)
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    # Change the built-in-definitions file to point to one that has
+    # various invalid definitions
+    monkeypatch.setattr(
+        lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"))
+    _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
+    # Restore the actual built-in-definitions file name
+    monkeypatch.undo()
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
+        _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    const = LFRicConstants()
     assert ("In the LFRic API an argument to a built-in kernel must be one "
             "of {0} but kernel '{1}' has an argument of type 'gh_operator'.".
-            format(VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
+            format(const.VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
+            in str(excinfo.value))
+
+
+def test_builtin_invalid_data_type(monkeypatch):
+    ''' Check that we raise appropriate error if we encounter a
+    built-in that takes something other than an argument of a 'real'
+    or an 'integer' data type.
+
+    '''
+    # Define the built-in name and test file
+    test_builtin_name = "inc_a_divideby_X"
+    test_builtin_file = "15.5.4_" + test_builtin_name + "_builtin.f90"
+    # Change the built-in-definitions file to point to one that has
+    # various invalid definitions
+    monkeypatch.setattr(
+        lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"))
+    _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
+    # Restore the actual built-in-definitions file name
+    monkeypatch.undo()
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    const = LFRicConstants()
+    assert ("In the LFRic API an argument to a built-in kernel must have "
+            "one of {0} as a data type but kernel '{1}' has an argument of "
+            "data type 'gh_logical'.".
+            format(const.VALID_BUILTIN_DATA_TYPES, test_builtin_name.lower())
             in str(excinfo.value))
 
 

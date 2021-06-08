@@ -162,6 +162,66 @@ encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
 
+Constants Objects
+-----------------
+Each API provides a specific object that stores required constants.
+Most of these constants are hard-coded in the object, but
+some are taken from a section of the configuration file.
+The constants are provided as class variables, but an instance of
+it needs to be created (at least once) in order to make sure all
+class variables are initialised. It is therefore recommended to
+always use an instance of the corresponding constant class to access
+these constants. The constant objects make sure that this initialisation
+only happens the very first time - creating an instance is therefore
+very cheap.
+
+There three constant objects can be imported as follows:
+
+- ``from psyclone.domain.gocean import GOceanConstants``
+- ``from psyclone.domain.lfric import LFRicConstants``
+- ``from psyclone.domain.nemo import NemoConstants``
+
+These objects can be used in two different ways:
+
+  #) If the API is known, e.g. because the constant is used in an
+     API-specific file, an instance can simply be
+     created and used, e.g.:
+
+       .. code-block:: python
+
+         from psyclone.domain.lfric import LFRicConstants
+
+         const = LFRicConstants()
+
+         if var is in const.VALID_LOOP_BOUNDS_NAMES:
+             ...
+
+     This usage pattern can be seen in many API-specific files.
+
+  #) In some cases a value of an API-specific constant is required
+     in a generic function. In this case the API-specific constant
+     object can be accessed using the config file as follows:
+
+       .. code-block:: python
+
+         from psyclone.configuration import Config
+
+         const = Config.get().api_conf().get_constants()
+
+         if some_variable is in const.VALID_INTRINSIC_TYPES:
+             ...
+
+     This patterns is used in ``psyGen`` in some functions
+     that might be called with different APIs. The following
+     constants are used in ``psyGen`` this way:
+
+     - ``VALID_ARG_TYPE_NAMES``
+     - ``VALID_INTRINSIC_TYPES``
+     - ``VALID_SCALAR_NAMES``
+
+     These are the only variables that are defined across all
+     constant objects.
+
 Module: transformations
 =======================
 

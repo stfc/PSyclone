@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the support for OpenACC directives in the
@@ -227,8 +228,8 @@ def test_acc_loop(parser):
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     _ = acc_trans.apply(loops[0], {"sequential": True})
-    fort_writer = FortranWriter()
-    result = fort_writer(schedule)
+    fortran_writer = FortranWriter()
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop seq\n"
             "do jj = 1, jpj, 1\n" in result)
@@ -236,22 +237,22 @@ def test_acc_loop(parser):
     # Rather than keep apply the transformation with different options,
     # change the internal state of the Directive directly.
     loop_dir._sequential = False
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop independent\n"
             "do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = 2
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop independent collapse(2)\n"
             "do jj = 1, jpj, 1\n" in result)
     loop_dir._independent = False
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop collapse(2)\n"
             "do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = None
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("!$acc kernels\n"
             "!$acc loop\n"
             "do jj = 1, jpj, 1\n" in result)
@@ -287,18 +288,18 @@ def test_gocean_acc_parallel():
                            idx=0, dist_mem=False)
 
     ptrans = ACCParallelTrans()
-    sched, _ = ptrans.apply(invoke.schedule[0])
+    ptrans.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment
     # TODO: #440 tracks this
-    replace_child_with_assignment(sched[0].dir_body)
+    replace_child_with_assignment(invoke.schedule[0].dir_body)
 
     # omp_sched is a GOInvokeSchedule, which is not yet supported.
     # So only convert starting from the OMPParallelDirective. Also, disable
     # node validation so as to avoid the need for a data region.
     fvisitor = FortranWriter(check_global_constraints=False)
-    result = fvisitor(sched[0])
+    result = fvisitor(invoke.schedule[0])
     correct = '''!$acc begin parallel default(present)
 a = b
 !$acc end parallel'''
@@ -306,5 +307,5 @@ a = b
 
     cvisitor = CWriter(check_global_constraints=False)
     with pytest.raises(VisitorError) as err:
-        _ = cvisitor(sched[0])
+        _ = cvisitor(invoke.schedule[0])
     assert "Unsupported node 'ACCParallelDirective' found" in str(err.value)
