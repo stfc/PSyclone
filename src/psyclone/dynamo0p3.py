@@ -3393,6 +3393,7 @@ class DynLMAOperators(DynCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
         lma_args = psyGen.args_filter(
             self._kernel.arguments.args, arg_types=["gh_operator"])
@@ -3402,14 +3403,14 @@ class DynLMAOperators(DynCollection):
                                intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
-            dtype = arg.intrinsic_type
+            op_dtype = arg.intrinsic_type
+            op_kind = const.DATA_TYPE_MAP["lma_operator"]["kind"]
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
             ndf_name_to = arg.function_space_to.ndf_name
             ndf_name_from = arg.function_space_from.ndf_name
-            parent.add(DeclGen(parent, datatype=dtype,
-                               kind=api_config.default_kind[dtype],
+            parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
                                dimension=",".join([ndf_name_to,
                                                    ndf_name_from, size]),
                                intent=arg.intent,
@@ -3598,10 +3599,10 @@ class DynCMAOperators(DynCollection):
             # Declare the operator matrix itself
             cma_name = self._symbol_table.symbol_from_tag(
                 op_name+"_matrix").name
-            cma_op_dtype = self._cma_ops[op_name]["datatype"]
-            cma_op_kind = self._cma_ops[op_name]["kind"]
-            parent.add(DeclGen(parent, datatype=cma_op_dtype,
-                               kind=cma_op_kind, pointer=True,
+            cma_dtype = self._cma_ops[op_name]["datatype"]
+            cma_kind = self._cma_ops[op_name]["kind"]
+            parent.add(DeclGen(parent, datatype=cma_dtype,
+                               kind=cma_kind, pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
             param_names = []
@@ -3650,10 +3651,9 @@ class DynCMAOperators(DynCollection):
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
-            cma_op_dtype = self._cma_ops[op_name]["datatype"]
-            cma_op_kind = self._cma_ops[op_name]["kind"]
-            parent.add(DeclGen(parent, datatype=cma_op_dtype,
-                               kind=cma_op_kind,
+            op_dtype = self._cma_ops[op_name]["datatype"]
+            op_kind = self._cma_ops[op_name]["kind"]
+            parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
