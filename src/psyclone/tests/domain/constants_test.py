@@ -101,6 +101,7 @@ def test_lfric_const():
                                                 "gh_logical"]
     assert lfric_const.DATA_TYPE_MAP["lma_operator"]["kind"] == "r_def"
     assert lfric_const.DATA_TYPE_MAP["integer_field"]["kind"] == "i_def"
+    assert lfric_const.DATA_TYPE_MAP["r_solver_field"]["kind"] == "r_solver"
     # Make sure the 'INVALID' value is reset when the constant
     # object is created again.
     LFRicConstants.HAS_BEEN_INITIALISED = False
