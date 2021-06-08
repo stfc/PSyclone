@@ -273,7 +273,9 @@ class LFRicConstants(object):
         # ---------- Infrastructure module maps -------------------------------
 
         # Dictionary allowing us to look-up the name of the Fortran module,
-        # type and proxy-type associated with each LFRic data type.
+        # type and proxy-type associated with each LFRic data structure type.
+        # Data structure type mandates its proxy name, Fortran intrinsic type
+        # of its data and the kind (precision) for the intrinsic type.
         LFRicConstants.DATA_TYPE_MAP = {
             # 'real'-valued scalar of kind 'r_def' (used for global
             # reductions of "field_type" data)

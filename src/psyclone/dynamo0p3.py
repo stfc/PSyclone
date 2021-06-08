@@ -3464,6 +3464,7 @@ class DynCMAOperators(DynCollection):
 
     def __init__(self, node):
         super(DynCMAOperators, self).__init__(node)
+        const = LFRicConstants()
 
         # Look at every kernel call and generate a set of
         # the unique CMA operators involved. For each one we create a
@@ -3500,6 +3501,8 @@ class DynCMAOperators(DynCollection):
                         self._cma_ops[arg.name]["intent"] = arg.intent
                         self._cma_ops[arg.name]["datatype"] = \
                             arg.intrinsic_type
+                        self._cma_ops[arg.name]["kind"] = \
+                            const.DATA_TYPE_MAP["cma_operator"]["kind"]
                         # Keep a reference to the first CMA argument
                         if not self._first_cma_arg:
                             self._first_cma_arg = arg
@@ -3595,10 +3598,10 @@ class DynCMAOperators(DynCollection):
             # Declare the operator matrix itself
             cma_name = self._symbol_table.symbol_from_tag(
                 op_name+"_matrix").name
-            dtype = self._cma_ops[op_name]["datatype"]
-            parent.add(DeclGen(parent, datatype=dtype,
-                               kind=api_config.default_kind[dtype],
-                               pointer=True,
+            cma_op_dtype = self._cma_ops[op_name]["datatype"]
+            cma_op_kind = self._cma_ops[op_name]["kind"]
+            parent.add(DeclGen(parent, datatype=cma_op_dtype,
+                               kind=cma_op_kind, pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
             param_names = []
@@ -3647,9 +3650,10 @@ class DynCMAOperators(DynCollection):
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
-            dtype = self._cma_ops[op_name]["datatype"]
-            parent.add(DeclGen(parent, datatype=dtype,
-                               kind=api_config.default_kind[dtype],
+            cma_op_dtype = self._cma_ops[op_name]["datatype"]
+            cma_op_kind = self._cma_ops[op_name]["kind"]
+            parent.add(DeclGen(parent, datatype=cma_op_dtype,
+                               kind=cma_op_kind,
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
