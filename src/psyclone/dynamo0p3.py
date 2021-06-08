@@ -2798,13 +2798,14 @@ class LFRicFields(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
         const = LFRicConstants()
+        intr_infmod = {"real": "field", "integer": "integer_field"}
 
         fld_args = psyGen.args_filter(
             self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
         for fld in fld_args:
             undf_name = fld.function_space.undf_name
-            intent = fld.intent
-            dtype = fld.intrinsic_type
+            fld_dtype = fld.intrinsic_type
+            fld_kind = const.DATA_TYPE_MAP[intr_infmod[fld_dtype]]["kind"]
 
             # Check for invalid descriptor data type
             fld_ad_dtype = fld.descriptor.data_type
@@ -2822,14 +2823,12 @@ class LFRicFields(DynCollection):
                             fld.function_space.mangled_name +
                             "_v" + str(idx))
                     parent.add(
-                        DeclGen(parent, datatype=dtype,
-                                kind=api_config.default_kind[dtype],
+                        DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
                                 dimension=undf_name,
-                                intent=intent, entity_decls=[text]))
+                                intent=fld.intent, entity_decls=[text]))
             else:
                 parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
+                    DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
                             intent=fld.intent,
                             dimension=undf_name,
                             entity_decls=[fld.name + "_" +
