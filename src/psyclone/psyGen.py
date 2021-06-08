@@ -1447,7 +1447,7 @@ class ACCEnterDataDirective(ACCDirective):
         # 1. Find all parallel and kernels directives. We store this list for
         #    later use in any sub-class.
         self._acc_dirs = self.ancestor(InvokeSchedule).walk(
-                (ACCParallelDirective, ACCKernelsDirective))
+            (ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -2720,8 +2720,7 @@ class Kern(Statement):
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
             data_value = "0.0"
-            kind_type = LFRicConstants().DATA_STRUCT_MAPPING[
-                "scalar_type"]["kind"]
+            kind_type = LFRicConstants().DATA_TYPE_MAP["scalar"]["kind"]
         if var_data_type == "integer":
             data_value = "0"
             kind_type = api_config.default_kind[var_data_type]
