@@ -236,11 +236,10 @@ specified directory:
     > psyclone -d tests/test_files/dynamo0p3 -api dynamo0.3 use.f90 
     [code output]
 
-.. note::
-    The ``-d`` option is limited to a single directory. Therefore a
-    current limitation in PSyclone is that all kernel files
-    required by an algorithm file must exist within a directory
-    hierarchy where their file names are unique.
+.. note:: The ``-d`` option can be repeated to add as many search
+    directories as is required, with the same constraint as before,
+    that there must be only one instance of the specified file within
+    (or below) the specified directories.
 
 Transformation script
 ---------------------
