@@ -357,7 +357,7 @@ def test_derived_type_scalar(fortran_reader):
         end subroutine tmp
         end module test'''
     schedule = fortran_reader.psyir_from_source(code).children[0]
-    node1 = schedule[0]
+    node1 = schedule.children[0][0]
     vai1 = VariablesAccessInfo(node1)
     assert isinstance(node1, Assignment)
     assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"
@@ -414,7 +414,7 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
         end module test'''.format(array)
 
     schedule = fortran_reader.psyir_from_source(code).children[0]
-    node1 = schedule[0]
+    node1 = schedule.children[0][0]
     vai1 = VariablesAccessInfo(node1)
     assert isinstance(node1, Assignment)
     assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
