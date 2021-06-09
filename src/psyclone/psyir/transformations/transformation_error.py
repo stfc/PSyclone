@@ -47,5 +47,7 @@ class TransformationError(PSycloneError):
         self.value = "Transformation Error: "+str(value)
 
 
+# TODO #1280: This currenetly causes 'more than one target for cross-reference'
+#             warnings when building the reference guide.
 # For AutoAPI documentation generation
-__all__ = ["TransformationError"]
+# __all__ = ["TransformationError"]

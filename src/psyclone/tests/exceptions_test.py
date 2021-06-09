@@ -116,6 +116,9 @@ def test_exception_repr():
 
     for psy_except in psy_excepts:
 
+        # Check if the excpetion inherits PSycloneError
+        assert issubclass(psy_except, PSycloneError)
+
         # Ensure there are __str__ & __repr__ methods implemented which are not
         # inherited from the parent Exception class
         assert psy_except.__str__ is not Exception.__str__
