@@ -32,47 +32,28 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''Module containing pytest tests for the _program_handler method in
-the class Fparser2Reader. This handler deals with the translation of
-the fparser2 Program construct to PSyIR.'''
+''' This module contains the FileContainer node implementation.'''
 
-from __future__ import absolute_import
-
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import FileContainer
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes.container import Container
 
 
-def test_program_handler(parser):
-    '''Test that program handler works with multiple program units of
-    different types.
+class FileContainer(Container):
+    '''PSyIR node to encapsulate the scope of a source file. In the
+    PSyIR, a FileContainer is identical to a Container. However, it is
+    useful to distinguish this type of container for the backends,
+    which can have different constraints/syntax for general
+    Containers and a FileContainer. For example, a FileContainer can
+    not have any symbol table entries in Fortran.
 
     '''
-    code = (
-        "module a\n"
-        "end module\n"
-        "program b\n"
-        "end program b\n"
-        "subroutine c\n"
-        "end subroutine")
-    expected = (
-        "module a\n"
-        "  implicit none\n\n"
-        "  contains\n\n"
-        "end module a\n"
-        "program b\n\n\n"
-        "end program b\n"
-        "subroutine c()\n\n\n"
-        "end subroutine c\n")
-    processor = Fparser2Reader()
-    reader = FortranStringReader(code)
-    parse_tree = parser(reader)
-    psyir = processor._program_handler(parse_tree, None)
-    # Check PSyIR nodes are being created
-    assert isinstance(psyir, FileContainer)
-    assert psyir.parent is None
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert result == expected
+    _text_name = "FileContainer"
+    _colour = "yellow"
+
+    def __str__(self):
+        return "FileContainer[{0}]\n".format(self.name)
+
+
+# For AutoAPI documentation generation
+__all__ = ['FileContainer']

@@ -43,7 +43,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Container, Routine, CodeBlock
+from psyclone.psyir.nodes import Container, Routine, FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -117,7 +117,8 @@ def test_generate_psyir(parser, code, expected, node_class):
     parse_tree = parser(reader)
     psyir = processor.generate_psyir(parse_tree)
     # Check the expected PSyIR nodes are being created
-    assert isinstance(psyir, node_class)
+    assert isinstance(psyir, FileContainer)
+    assert isinstance(psyir.children[0], node_class)
     writer = FortranWriter()
     result = writer(psyir)
     assert result == expected
