@@ -1744,7 +1744,8 @@ class GOKern(CodedKern):
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
-        subroutine = fortran_reader.psyir_from_source(code)
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1819,7 +1820,8 @@ class GOKern(CodedKern):
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
-        subroutine = fortran_reader.psyir_from_source(code)
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -1910,7 +1912,8 @@ class GOKern(CodedKern):
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
-        subroutine = fortran_reader.psyir_from_source(code)
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2000,7 +2003,9 @@ class GOKern(CodedKern):
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
-        subroutine = fortran_reader.psyir_from_source(code)
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
+
         # Rename subroutine
         subroutine.name = subroutine_name
 
@@ -2090,7 +2095,8 @@ class GOKern(CodedKern):
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
-        subroutine = fortran_reader.psyir_from_source(code)
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
         # Rename subroutine
         subroutine.name = subroutine_name
 

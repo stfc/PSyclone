@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: Joerg Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter and R. W. Ford, STFC Daresbury Laboratory
 
 '''This module tests the various classes in core.access_info.'''
 
@@ -53,7 +53,7 @@ def test_access_info():
     access_info = AccessInfo(AccessType.READ, location, Node())
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
-    assert access_info.indices_groups == [[]]
+    assert access_info.component_indices == [[]]
     assert not access_info.is_array()
     assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
@@ -64,20 +64,20 @@ def test_access_info():
     assert "Trying to change variable to 'WRITE' which does not have "\
         "'READ' access." in str(err.value)
 
-    access_info.indices_groups = [["i"]]
-    assert access_info.indices_groups == [["i"]]
+    access_info.component_indices = [["i"]]
+    assert access_info.component_indices == [["i"]]
     assert access_info.is_array()
 
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node())
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.indices_groups == [[]]
+    assert access_info.component_indices == [[]]
 
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node(),
                              [["i", "j"]])
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.indices_groups == [["i", "j"]]
+    assert access_info.component_indices == [["i", "j"]]
 
 
 # -----------------------------------------------------------------------------
@@ -87,14 +87,14 @@ def test_access_info_exceptions():
     location = 12
     with pytest.raises(InternalError) as err:
         _ = AccessInfo(AccessType.READ, location, Node(),
-                       indices_groups=123)
-    assert "Indices_groups in add_access must be a list of lists or None, " \
-           "got '123'" in str(err.value)
+                       component_indices=123)
+    assert "component_indices in add_access must be a list of lists or " \
+           "None, got '123'" in str(err.value)
 
     with pytest.raises(InternalError) as err:
         _ = AccessInfo(AccessType.READ, location, Node(),
-                       indices_groups=[[], 123])
-    assert "Indices_groups in add_access must be a list of lists or None, "\
+                       component_indices=[[], 123])
+    assert "component_indices in add_access must be a list of lists or None, "\
         "got '[[], 123]'" in str(err.value)
 
 
@@ -316,7 +316,8 @@ def test_constructor(fortran_reader):
           c = a*b
         end subroutine tmp
         end module test'''
-    schedule = fortran_reader.psyir_from_source(code).children[0]
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
     node1 = schedule[0]
     node2 = schedule[1]
     vai1 = VariablesAccessInfo(node1)
@@ -422,7 +423,7 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
     # expression to a list of list of strings to make this easier:
     sig = Signature(("a", "b", "c"))
     access = vai1[sig][0]
-    assert to_fortran(fortran_writer, access.indices_groups) == indices
+    assert to_fortran(fortran_writer, access.component_indices) == indices
 
 
 # -----------------------------------------------------------------------------

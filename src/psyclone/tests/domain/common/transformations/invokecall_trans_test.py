@@ -115,7 +115,8 @@ def test_parse_args_get_symbol(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    code_block = psyir[0].children[0]
+    subroutine = psyir.children[0]
+    code_block = subroutine[0].children[0]
     assert isinstance(code_block, CodeBlock)
 
     # Check expected output from parse_args
@@ -207,9 +208,10 @@ def test_array_reference(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir[0].children[0], ArrayReference)
+    subroutine = psyir.children[0]
+    assert isinstance(subroutine[0].children[0], ArrayReference)
     invoke_trans = InvokeCallTrans()
-    invoke_trans.validate(psyir[0])
+    invoke_trans.validate(subroutine[0])
 
 
 def test_code_block_error(fortran_reader):
@@ -228,7 +230,7 @@ def test_code_block_error(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(psyir[0])
+        invoke_trans.validate(psyir.children[0][0])
     assert ("The supplied call argument contains a CodeBlock with content "
             "(Actual_Arg_Spec) which is not a StructureConstructor."
             in str(info.value))
@@ -250,7 +252,7 @@ def test_arg_error(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(psyir[0])
+        invoke_trans.validate(psyir.children[0][0])
     assert ("The arguments to this invoke call are expected to be a "
             "CodeBlock or an ArrayReference, but found 'Literal'."
             in str(info.value))
@@ -271,13 +273,14 @@ def test_apply_arrayref(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    assert len(psyir[0].children) == 1
-    assert isinstance(psyir[0].children[0], ArrayReference)
+    subroutine = psyir.children[0]
+    assert len(subroutine[0].children) == 1
+    assert isinstance(subroutine[0].children[0], ArrayReference)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0], 1)
+    invoke_trans.apply(subroutine[0], 1)
 
-    invoke = psyir.children[0]
+    invoke = subroutine[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert invoke._index == 1
     assert len(invoke.children) == 1
@@ -297,13 +300,14 @@ def test_apply_codeblock(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    assert len(psyir[0].children) == 1
-    assert isinstance(psyir[0].children[0], CodeBlock)
+    subroutine = psyir.children[0]
+    assert len(subroutine[0].children) == 1
+    assert isinstance(subroutine[0].children[0], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0], 2)
+    invoke_trans.apply(subroutine[0], 2)
 
-    invoke = psyir.children[0]
+    invoke = subroutine.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert invoke._index == 2
     assert len(invoke.children) == 1
@@ -323,13 +327,14 @@ def test_apply_codeblocks(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    assert len(psyir[0].children) == 1
-    assert isinstance(psyir[0].children[0], CodeBlock)
+    subroutine = psyir.children[0]
+    assert len(subroutine[0].children) == 1
+    assert isinstance(subroutine[0].children[0], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0], 3)
+    invoke_trans.apply(subroutine[0], 3)
 
-    invoke = psyir.children[0]
+    invoke = subroutine.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert invoke._index == 3
     assert len(invoke.children) == 2
@@ -352,15 +357,16 @@ def test_apply_mixed(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    assert len(psyir[0].children) == 3
-    assert isinstance(psyir[0].children[0], CodeBlock)
-    assert isinstance(psyir[0].children[1], ArrayReference)
-    assert isinstance(psyir[0].children[2], CodeBlock)
+    subroutine = psyir.children[0]
+    assert len(subroutine[0].children) == 3
+    assert isinstance(subroutine[0].children[0], CodeBlock)
+    assert isinstance(subroutine[0].children[1], ArrayReference)
+    assert isinstance(subroutine[0].children[2], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0], 4)
+    invoke_trans.apply(subroutine[0], 4)
 
-    invoke = psyir.children[0]
+    invoke = psyir.children[0][0]
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert invoke._index == 4
     assert len(invoke.children) == 4
@@ -385,14 +391,15 @@ def test_apply_expr(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    assert len(psyir[0].children) == 2
-    assert isinstance(psyir[0].children[0], ArrayReference)
-    assert isinstance(psyir[0].children[1], CodeBlock)
+    subroutine = psyir.children[0]
+    assert len(subroutine[0].children) == 2
+    assert isinstance(subroutine[0].children[0], ArrayReference)
+    assert isinstance(subroutine[0].children[1], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
-    invoke_trans.apply(psyir[0], 5)
+    invoke_trans.apply(subroutine[0], 5)
 
-    invoke = psyir.children[0]
+    invoke = subroutine[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert invoke._index == 5
     assert len(invoke.children) == 2

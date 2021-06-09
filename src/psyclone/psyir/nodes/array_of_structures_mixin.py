@@ -107,9 +107,8 @@ class ArrayOfStructuresMixin(ArrayMixin):
         return self._children[1:]
 
     def get_signature_and_indices(self):
-        ''':returns: the Signature of this structure reference, and \
-            a list of the indices used for each component (empty list \
-            if an access is not an array).
+        ''':returns: the Signature of this array of structure reference, \
+            and a list of lists of the indices used for each component.
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
 

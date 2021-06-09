@@ -676,6 +676,44 @@ class FortranWriter(PSyIRVisitor):
 
         return declarations
 
+    def filecontainer_node(self, node):
+        '''This method is called when a FileContainer instance is found in
+        the PSyIR tree.
+
+        A file container node requires no explicit text in the Fortran
+        back end.
+
+        :param node: a Container PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: if the attached symbol table contains \
+            any data symbols.
+        :raises VisitorError: if more than one child is a Routine Node \
+            with is_program set to True.
+
+        '''
+        if node.symbol_table.symbols:
+            raise VisitorError(
+                "In the Fortran backend, a file container should not have "
+                "any symbols associated with it, but found {0}."
+                "".format(len(node.symbol_table.symbols)))
+
+        program_nodes = len([child for child in node.children if
+                             isinstance(child, Routine) and child.is_program])
+        if program_nodes > 1:
+            raise VisitorError(
+                "In the Fortran backend, a file container should contain at "
+                "most one routine node that is a program, but found {0}."
+                "".format(program_nodes))
+
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result
+
     def container_node(self, node):
         '''This method is called when a Container instance is found in
         the PSyIR tree.

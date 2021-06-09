@@ -171,7 +171,7 @@ class DependencyTools(object):
         # in which dimension for the component. For example, `a%b%c(i,j)`
         # would store (2,1) for an access to j - component 2 (which is c),
         # and 2nd dimension (j).
-        # TODO 1269: code duplicated with nemo_loop_fuse
+        # TODO #1269: code duplicated with nemo_loop_fuse
         found_dimension_index = None
 
         # Additionally, collect all indices that are actually used, since
@@ -180,7 +180,7 @@ class DependencyTools(object):
 
         # Loop over all the accesses of this variable
         for access in var_info.all_accesses:
-            indices_groups = access.indices_groups
+            component_indices = access.component_indices
 
             # Now determine all dimensions that depend
             # on the parallel variable. This outer loop is over
@@ -188,7 +188,7 @@ class DependencyTools(object):
             # a(i,j)%b(k) it would first handle `(i,j)`, then
             # `(k)`.
             for component_index, index_expressions in \
-                    enumerate(indices_groups):
+                    enumerate(component_indices):
 
                 # This inner loop loop over all indices for the
                 # current component, i.e. `[i, j]` for the first
@@ -386,6 +386,7 @@ class DependencyTools(object):
             var_info = var_accesses[signature]
             symbol_table = loop.scope.symbol_table
             symbol = symbol_table.lookup(var_name)
+            # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)
 
             if is_array:
