@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the ArrayOfStructuresMember
@@ -58,6 +59,7 @@ class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
     _children_valid_format = "Member, [DataNode | Range]+"
     _text_name = "ArrayOfStructuresMember"
 
+    # pylint: disable=arguments-differ
     @staticmethod
     def create(member_name, indices, inner_member):
         '''
