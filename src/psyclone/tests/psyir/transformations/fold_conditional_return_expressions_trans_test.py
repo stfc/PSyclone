@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 '''Module containing tests for the FoldConditionalReturnExpressionsTrans
 transformation.'''
@@ -154,6 +155,7 @@ def test_transformation(fortran_reader, fortran_writer, test_case):
     ''' Check that the transformation works as expected. '''
     input_code, expected = test_cases[test_case]
     trans = FoldConditionalReturnExpressionsTrans()
-    subroutine = fortran_reader.psyir_from_source(input_code)
+    file_container = fortran_reader.psyir_from_source(input_code)
+    subroutine = file_container.children[0]
     trans.apply(subroutine)
     assert fortran_writer(subroutine) == expected

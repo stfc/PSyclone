@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine
+    Call, Routine, FileContainer
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -3612,10 +3612,7 @@ class Fparser2Reader(object):
     def _program_handler(self, node, parent):
         '''Processes an fparser2 Program statement. Program is the top level
         node of a complete fparser2 tree and may contain one or more
-        program-units. At the moment PSyIR does not support the
-        concept of multiple program-units so can only support
-        one. Therefore this handler simply checks that this constraint
-        is observed in the supplied tree.
+        program-units. This is captured with a FileContainer node.
 
         :param node: top level node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Program`
@@ -3625,16 +3622,13 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of the program.
         :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises NotImplementedError: if more than one program-unit is \
-            found in the fparser2 parse tree.
-
         '''
-        if not len(node.children) == 1:
-            raise GenerationError(
-                "The PSyIR is currently limited to a single top level "
-                "module/subroutine/program/function, but {0} were found."
-                "".format(len(node.children)))
-        return self._create_child(node.children[0], parent)
+        # fparser2 does not keep the original filename (if there was
+        # one) so this can't be provided as the name of the
+        # FileContainer.
+        file_container = FileContainer("None", parent=parent)
+        self.process_nodes(file_container, node.children)
+        return file_container
 
 
 # For Sphinx AutoAPI documentation generation

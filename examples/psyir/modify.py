@@ -62,7 +62,8 @@ def modify_psyir_tree():
     :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
     '''
-    container = create_psyir_tree()
+    file_container = create_psyir_tree()
+    container = file_container.children[0]
     subroutine = container.children[0]
 
     # Rename one of the subroutine local symbols.
@@ -87,7 +88,7 @@ def modify_psyir_tree():
     assignment_rhs = assignment.rhs
     assignment_rhs.replace_with(Reference(tmp_symbol))
 
-    return container
+    return file_container
 
 
 if __name__ == "__main__":
