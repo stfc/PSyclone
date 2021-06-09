@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 '''
 This module provides a class with all LFRic related constants.
@@ -56,19 +57,20 @@ class LFRicConstants(object):
     HAS_BEEN_INITIALISED = False
 
     def __init__(self):
+        # pylint: disable=too-many-statements
         if LFRicConstants.HAS_BEEN_INITIALISED:
             return
 
         LFRicConstants.HAS_BEEN_INITIALISED = True
         api_config = Config.get().api_conf("dynamo0.3")
 
-        # ---------- Evaluators: quadrature ----------------------------------
+        # ---------- Evaluators: quadrature -----------------------------------
         LFRicConstants.VALID_QUADRATURE_SHAPES = \
             ["gh_quadrature_xyoz", "gh_quadrature_face", "gh_quadrature_edge"]
         LFRicConstants.VALID_EVALUATOR_SHAPES = \
             LFRicConstants.VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 
-        # ---------- LFRicArgDescriptor class constants  ---------------------
+        # ---------- LFRicArgDescriptor class constants  ----------------------
 
         # Supported LFRic API argument types (scalars, fields, operators)
         LFRicConstants.VALID_SCALAR_NAMES = ["gh_scalar"]
@@ -80,12 +82,13 @@ class LFRicConstants(object):
             LFRicConstants.VALID_OPERATOR_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
-        # Supported API argument data types (real and integer for now)
-        LFRicConstants.VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
+        # Supported API argument data types ('gh_real', 'gh_integer'
+        # and 'gh_logical')
+        LFRicConstants.VALID_ARG_DATA_TYPES = \
+            ["gh_real", "gh_integer", "gh_logical"]
         LFRicConstants.VALID_SCALAR_DATA_TYPES = \
             LFRicConstants.VALID_ARG_DATA_TYPES
-        LFRicConstants.VALID_FIELD_DATA_TYPES = \
-            LFRicConstants.VALID_ARG_DATA_TYPES
+        LFRicConstants.VALID_FIELD_DATA_TYPES = ["gh_real", "gh_integer"]
         LFRicConstants.VALID_OPERATOR_DATA_TYPES = ["gh_real"]
 
         # pylint: disable=too-many-instance-attributes
@@ -111,33 +114,23 @@ class LFRicConstants(object):
         # perform prolongation/restriction).
         LFRicConstants.VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
-        # ---------- Fortran datatypes ---------------------------------------
+        # ---------- Fortran datatypes ----------------------------------------
         # This is only used here, so no class variable:
         supported_fortran_datatypes = api_config.supported_fortran_datatypes
+
+        # psyGen intrinsic types for kernel argument data as defined in LFRic
+        # configuration by the supported Fortran datatypes ('real', 'integer'
+        # and 'logical').
+        LFRicConstants.VALID_INTRINSIC_TYPES = supported_fortran_datatypes
+
+        # Valid intrinsic types for field kernel argument data
+        # ('real' and 'integer').
+        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer"]
 
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
         LFRicConstants.MAPPING_DATA_TYPES = \
             OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,
-                            supported_fortran_datatypes[0:2]))
-
-        # psyGen intrinsic types for kernel argument data as defined in LFRic.
-        LFRicConstants.VALID_INTRINSIC_TYPES = \
-            list(LFRicConstants.MAPPING_DATA_TYPES.values())
-
-        # ---------- Evaluators -----------------------------------------------
-
-        # Dictionary allowing us to look-up the name of the Fortran module,
-        # type and proxy-type associated with each quadrature shape
-        LFRicConstants.QUADRATURE_TYPE_MAP = {
-            "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
-                                   "type": "quadrature_xyoz_type",
-                                   "proxy_type": "quadrature_xyoz_proxy_type"},
-            "gh_quadrature_face": {"module": "quadrature_face_mod",
-                                   "type": "quadrature_face_type",
-                                   "proxy_type": "quadrature_face_proxy_type"},
-            "gh_quadrature_edge": {"module": "quadrature_edge_mod",
-                                   "type": "quadrature_edge_type",
-                                   "proxy_type": "quadrature_edge_proxy_type"}}
+                            LFRicConstants.VALID_INTRINSIC_TYPES))
 
         # ---------- Loops (bounds, types, names) -----------------------------
         # These are loop bound names which identify positions in a field's
@@ -191,6 +184,10 @@ class LFRicConstants(object):
             LFRicConstants.VALID_FIELD_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
+        # The data types of argument that are valid for built-in kernels
+        # in the LFRic API ('real' and 'integer')
+        LFRicConstants.VALID_BUILTIN_DATA_TYPES = ["gh_real", "gh_integer"]
+
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
         LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
@@ -198,7 +195,7 @@ class LFRicConstants(object):
             LFRicConstants.USER_KERNEL_ITERATION_SPACES + \
             LFRicConstants.BUILTIN_ITERATION_SPACES
 
-        # ---------- Function spaces (FS) ------------------------------------
+        # ---------- Function spaces (FS) -------------------------------------
         # Discontinuous FS
         LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES = \
             ["w3", "wtheta", "w2v", "w2vtrace", "w2broken"]
@@ -272,6 +269,85 @@ class LFRicConstants(object):
         # Meta functions
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
+
+        # ---------- Infrastructure module maps -------------------------------
+
+        # Dictionary allowing us to look-up the name of the Fortran module,
+        # type and proxy-type associated with each LFRic data type.
+        LFRicConstants.DATA_TYPE_MAP = {
+            # 'real'-valued scalar of kind 'r_def' (used for global
+            # reductions of "field_type" data)
+            "scalar": {"module": "scalar_mod",
+                       "type": "scalar_type"},
+            # 'real'-valued field with data of kind 'r_def'
+            "field": {"module": "field_mod",
+                      "type": "field_type",
+                      "proxy_type": "field_proxy_type"},
+            # 'integer'-valued field with data of kind 'i_def'
+            "integer_field": {"module": "integer_field_mod",
+                              "type": "integer_field_type",
+                              "proxy_type": "integer_field_proxy_type"},
+            # 'real'-valued operator with data of kind 'r_def'
+            "lma_operator": {"module": "operator_mod",
+                             "type": "operator_type",
+                             "proxy_type": "operator_proxy_type"},
+            # 'real'-valued columnwise operator with data of kind 'r_def'
+            "cma_operator": {"module": "operator_mod",
+                             "type": "columnwise_operator_type",
+                             "proxy_type": "columnwise_operator_proxy_type"}}
+
+        # Dictionary allowing us to look-up the name of the Fortran module
+        # and type (if existing) associated with stencil shapes and directions.
+        LFRicConstants.STENCIL_TYPE_MAP = {
+            "stencil_dofmap": {"module": "stencil_dofmap_mod",
+                               "type": "stencil_dofmap_type"},
+            "stencil_2D_dofmap": {"module": "stencil_2D_dofmap_mod",
+                                  "type": "stencil_2D_dofmap_type"},
+            "direction": {"module": "flux_direction_mod"}}
+
+        # Dictionary allowing us to look-up the name of the Fortran module,
+        # type and proxy-type associated with each quadrature shape.
+        LFRicConstants.QUADRATURE_TYPE_MAP = {
+            "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
+                                   "type": "quadrature_xyoz_type",
+                                   "proxy_type": "quadrature_xyoz_proxy_type"},
+            "gh_quadrature_face": {"module": "quadrature_face_mod",
+                                   "type": "quadrature_face_type",
+                                   "proxy_type": "quadrature_face_proxy_type"},
+            "gh_quadrature_edge": {"module": "quadrature_edge_mod",
+                                   "type": "quadrature_edge_type",
+                                   "proxy_type": "quadrature_edge_proxy_type"}}
+
+        # Dictionary allowing us to look-up the name of the Fortran module
+        # and type associated with mesh.
+        LFRicConstants.MESH_TYPE_MAP = {
+            "mesh": {"module": "mesh_mod",
+                     "type": "mesh_type"},
+            "mesh_map": {"module": "mesh_map_mod",
+                         "type": "mesh_map_type"}}
+
+        # Dictionary allowing us to look-up the name of the Fortran module
+        # and type associated with reference element.
+        LFRicConstants.REFELEMENT_TYPE_MAP = {
+            "refelement": {"module": "reference_element_mod",
+                           "type": "reference_element_type"}}
+
+        # Dictionary allowing us to look-up the name of the Fortran module
+        # and type (if existing) associated with function space.
+        LFRicConstants.FUNCTION_SPACE_TYPE_MAP = {
+            # Function space type (for basis and differential basis functions)
+            "function_space": {"module": "function_space_mod",
+                               "type": "function_space_type"},
+            # Function space identifiers
+            "fs_continuity": {"module": "fs_continuity_mod"}}
+
+        # Dictionary allowing us to look-up the name of the Fortran modules
+        # that store various utilities in LFRic.
+        LFRicConstants.UTILITIES_MOD_MAP = {
+            # Constants module (stores precisions)
+            "constants": {"module": "constants_mod"},
+            # Logging module (used for runtime checks)
+            "logging": {"module": "log_mod"}}
 
 
 # =============================================================================

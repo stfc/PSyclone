@@ -124,9 +124,20 @@ class Reference(DataNode):
             return False
         return self.name == other.name
 
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this reference, and \
+            an empty list of lists as 'indices' since this reference does \
+            not represent an array access.
+        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
+            list of indices)
+        '''
+        return (Signature(self.name), [[]])
+
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.
-        it sets this variable to be read.
+        it sets this variable to be read. It relies on
+        `get_signature_and_indices` and will correctly handle
+        array expressions.
 
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
@@ -143,8 +154,11 @@ class Reference(DataNode):
             # array elements, they determine the array
             # bounds. Therefore there is no data dependence.
             return
-        sig = Signature(self.name)
-        var_accesses.add_access(sig, AccessType.READ, self)
+        sig, all_indices = self.get_signature_and_indices()
+        for indices in all_indices:
+            for index in indices:
+                index.reference_accesses(var_accesses)
+        var_accesses.add_access(sig, AccessType.READ, self, all_indices)
 
 
 # For AutoAPI documentation generation
