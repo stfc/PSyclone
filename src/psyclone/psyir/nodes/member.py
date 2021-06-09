@@ -33,11 +33,14 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Member node.'''
 
 from __future__ import absolute_import
+
+from psyclone.core import Signature
 from psyclone.psyir.nodes.node import Node
 
 
@@ -102,6 +105,15 @@ class Member(Node):
 
     def __str__(self):
         return self.node_str(False)
+
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this member access, and a list \
+        of list of the indices used for each component, which is empty \
+        in this case since it is not an array access.
+        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
+            lists of indices)
+        '''
+        return (Signature(self.name), [[]])
 
 
 # For Sphinx AutoAPI documentation generation
