@@ -75,7 +75,7 @@ from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
 
 # Specify which OpenCL command queue to use for management operations like
-# data transfers in the OpeCL Transformation
+# data transfers when generating an OpenCL PSy-layer
 # TODO #1134: This value should be moved to the OCLTrans when the
 # transformation logic is also moved there.
 _OCL_MANAGEMENT_QUEUE = 1
