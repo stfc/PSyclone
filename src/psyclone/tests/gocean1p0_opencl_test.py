@@ -780,14 +780,20 @@ def test_opencl_options_effects():
 @pytest.mark.parametrize("dist_mem", [True, False])
 @pytest.mark.usefixtures("kernel_outputdir")
 def test_multiple_command_queues(dist_mem):
-    ''' Check that '''
+    ''' Check that barriers (with clFinish) are inserted when a kernel (or a
+    haloexchange in distributed memory) is dispatched to a different queue than
+    its dependency predecessor. '''
     psy, _ = get_invoke("single_invoke_two_identical_kernels.f90", API, idx=0,
                         dist_mem=dist_mem)
     sched = psy.invokes.invoke_list[0].schedule
 
-    # Set the boundaries inside the kernel and each kernel in a different
-    # OpenCL queue (kernel1 in queue 2, kernel2 in queue3)
+    # Set the boundaries inside the kernel
     trans = GOMoveIterationBoundariesInsideKernelTrans()
+
+    # Set each kernel to run in a different OpenCL queue (kernel1 will run in
+    # queue 2 and kernel2 will run in queue 3. This is also different that the
+    # OCL_MANAGEMENT_QUEUE used by the haloexchange data transfer which will
+    # use queue 1, therefore barriers will always be needed in this example.
     for idx, kernel in enumerate(sched.coded_kernels()):
         trans.apply(kernel)
         kernel.set_opencl_options({'queue_number': idx+2})

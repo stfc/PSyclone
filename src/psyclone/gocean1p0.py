@@ -74,6 +74,12 @@ import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
 
+# Specify which OpenCL command queue to use for management operations like
+# data transfers in the OpeCL Transformation
+# TODO #1134: This value should be moved to the OCLTrans when the
+# transformation logic is also moved there.
+_OCL_MANAGEMENT_QUEUE = 1
+
 
 class GOPSy(PSy):
     '''
@@ -1308,16 +1314,16 @@ class GOKern(CodedKern):
         qlist = symtab.lookup_with_tag("opencl_cmd_queues").name
         flag = symtab.lookup_with_tag("opencl_error").name
 
-        # Choose the command queue number to where to dispatch this kernel. We
+        # Choose the command queue number to which to dispatch this kernel. We
         # have do deal with possible dependencies to kernels dispatched in
-        # different command queues as the order in not guaranteed.
+        # different command queues as the order of execution is not guaranteed.
         queue_number = self._opencl_options['queue_number']
         cmd_queue = qlist + "({0})".format(queue_number)
         outer_loop = self.parent.parent.parent.parent
         dependency = outer_loop.backward_dependence()
 
-        # If the dependency is a Kernel add a barrier if the previous kernels
-        # was dispatched in a different command queue
+        # If the dependency is a loop containing a kernel, add a barrier if the
+        # previous kernels were dispatched in a different command queue
         if dependency and dependency.coded_kernels():
             for kernel_dep in dependency.coded_kernels():
                 previous_queue = kernel_dep._opencl_options['queue_number']
@@ -1332,13 +1338,14 @@ class GOKern(CodedKern):
                             qlist, str(previous_queue))))
 
         # If the dependency is something other than a kernel, currently we
-        # dispatch everything else to queue 1, so add a barrier if this kernel
-        # is not on queue number 1.
+        # dispatch everything else to queue _OCL_MANAGEMENT_QUEUE, so add a
+        # barrier if this kernel is not on queue _OCL_MANAGEMENT_QUEUE.
         if dependency and not dependency.coded_kernels() and queue_number != 1:
             parent.add(AssignGen(
                 parent,
                 lhs=flag,
-                rhs="clFinish({0}({1}))".format(qlist, str(1))))
+                rhs="clFinish({0}({1}))".format(
+                    qlist, str(_OCL_MANAGEMENT_QUEUE))))
 
         if api_config.debug_mode:
             # Check that everything has succeeded before the kernel launch,
@@ -1750,24 +1757,24 @@ class GOKern(CodedKern):
             size_in_bytes = int({0} * {1}, 8) * &
                             c_sizeof(field%grid%tmask(1,1))
             cl_mem = transfer(field%grid%tmask_device, cl_mem)
-            ierr = clEnqueueWriteBuffer(cmd_queues(1), &
+            ierr = clEnqueueWriteBuffer(cmd_queues({2}), &
                         cl_mem, CL_TRUE, 0_8, size_in_bytes, &
                         C_LOC(field%grid%tmask), 0, C_NULL_PTR, C_NULL_PTR)
             CALL check_status("clEnqueueWriteBuffer tmask", ierr)
             ! Real grid buffers
             size_in_bytes = int({0} * {1}, 8) * &
                             c_sizeof(field%grid%area_t(1,1))
-        '''.format(num_x, num_y)
+        '''.format(num_x, num_y, _OCL_MANAGEMENT_QUEUE)
         write_str = '''
             cl_mem = transfer(field%grid%{0}_device, cl_mem)
-            ierr = clEnqueueWriteBuffer(cmd_queues(1), &
+            ierr = clEnqueueWriteBuffer(cmd_queues({1}), &
                        cl_mem, CL_TRUE, 0_8, size_in_bytes, &
                        C_LOC(field%grid%{0}), 0, C_NULL_PTR, C_NULL_PTR)
             CALL check_status("clEnqueueWriteBuffer {0}_device", ierr)
         '''
         for grid_prop in ['area_t', 'area_u', 'area_v', 'dx_u', 'dx_v',
                           'dx_t', 'dy_u', 'dy_v', 'dy_t', 'gphiu', 'gphiv']:
-            code += write_str.format(grid_prop)
+            code += write_str.format(grid_prop, _OCL_MANAGEMENT_QUEUE)
         code += "end subroutine write_device_grid"
 
         # Obtain the PSyIR representation of the code above
@@ -2003,14 +2010,14 @@ class GOKern(CodedKern):
                     size_in_bytes = int(nx, 8) * c_sizeof(to(1,1))
                     offset_in_bytes = int(size(to, 1) * (i-1) + (startx-1)) &
                                       * c_sizeof(to(1,1))
-                    ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
+                    ierr = clEnqueueReadBuffer(cmd_queues({0}), cl_mem, &
                         CL_FALSE, offset_in_bytes, size_in_bytes, &
                         C_LOC(to(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
                     CALL check_status("clEnqueueReadBuffer", ierr)
                 enddo
                 if (blocking) then
                     CALL check_status("clFinish on read", &
-                        clFinish(cmd_queues(1)))
+                        clFinish(cmd_queues({0})))
                 endif
             else
                 ! Copy across the whole starty:starty+ny rows in a single
@@ -2018,13 +2025,13 @@ class GOKern(CodedKern):
                 size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
                 offset_in_bytes = int(size(to,1)*(starty-1), 8) &
                                   * c_sizeof(to(1,1))
-                ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
+                ierr = clEnqueueReadBuffer(cmd_queues({0}), cl_mem, &
                     CL_TRUE, offset_in_bytes, size_in_bytes, &
                     C_LOC(to(1,starty)), 0, C_NULL_PTR, C_NULL_PTR)
                 CALL check_status("clEnqueueReadBuffer", ierr)
             endif
         end subroutine read_sub
-        '''
+        '''.format(_OCL_MANAGEMENT_QUEUE)
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
@@ -2093,14 +2100,14 @@ class GOKern(CodedKern):
                     size_in_bytes = int(nx, 8) * c_sizeof(from(1,1))
                     offset_in_bytes = int(size(from, 1) * (i-1) + (startx-1)) &
                                       * c_sizeof(from(1,1))
-                    ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
+                    ierr = clEnqueueWriteBuffer(cmd_queues({0}), cl_mem, &
                         CL_FALSE, offset_in_bytes, size_in_bytes, &
                         C_LOC(from(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
                     CALL check_status("clEnqueueWriteBuffer", ierr)
                 enddo
                 if (blocking) then
                     CALL check_status("clFinish on write", &
-                        clFinish(cmd_queues(1)))
+                        clFinish(cmd_queues({0})))
                 endif
             else
                 ! Copy across the whole starty:starty+ny rows in a single
@@ -2108,13 +2115,13 @@ class GOKern(CodedKern):
                 size_in_bytes = int(size(from,1) * ny, 8) * c_sizeof(from(1,1))
                 offset_in_bytes = int(size(from,1) * (starty-1)) &
                                   * c_sizeof(from(1,1))
-                ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
+                ierr = clEnqueueWriteBuffer(cmd_queues({0}), cl_mem, &
                     CL_TRUE, offset_in_bytes, size_in_bytes, &
                     C_LOC(from(1, starty)), 0, C_NULL_PTR, C_NULL_PTR)
                 CALL check_status("clEnqueueWriteBuffer", ierr)
             endif
         end subroutine write_sub
-        '''
+        '''.format(_OCL_MANAGEMENT_QUEUE)
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
@@ -3172,13 +3179,15 @@ class GOHaloExchange(HaloExchange):
         # API, so the HaloExchange is hardcoded to depth 1.
 
         if self.ancestor(InvokeSchedule).opencl:
-            # If the dependency is a Kernel add a barrier if the previous
-            # kernels was dispatched in a different command queue
+            # If the dependency is a Kernel dispatched in a different command
+            # queue than _OCL_MANAGEMENT_QUEUE, in order to guarantee that the
+            # haloexchange data transfer happens after the kernel is finished,
+            # we need to add a barrier to that previous queue.
             dependency = self.backward_dependence()
             if dependency and dependency.coded_kernels():
                 for kernel_dep in dependency.coded_kernels():
                     previous_queue = kernel_dep._opencl_options['queue_number']
-                    if previous_queue != 1:
+                    if previous_queue != _OCL_MANAGEMENT_QUEUE:
                         # If the backward dependency is being executed in
                         # another queue we add a barrier to make sure the
                         # previous kernel has finished.
