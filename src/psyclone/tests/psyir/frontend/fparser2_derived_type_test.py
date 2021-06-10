@@ -299,6 +299,7 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
         "  var%region%subgrid(3)%data(:) = 1.0\n"
         "  var%region%subgrid(3)%data(var%start:var%stop) = 1.0\n"
         "  vars(1)%region%subgrid(3)%data(:) = 1.0\n"
+        "  vars(1)%region%subgrid(:)%data(1) = 1.0\n"
         "  vars(:)%region%subgrid(3)%xstop = 1.0\n"
         "end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
@@ -330,8 +331,21 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert isinstance(amem, ArrayOfStructuresMember)
     assert isinstance(amem.member, ArrayMember)
     assert isinstance(amem.member.indices[0], Range)
-    assert isinstance(amem.member.indices[0].children[0], BinaryOperation)
-    assert amem.member.indices[0].children[0].children[0].symbol.name == "var"
+    bop = amem.member.indices[0].children[0]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.children[0].symbol.name == "var"
+    assert isinstance(bop.children[0], StructureReference)
+    # The argument to the LBOUND binary operator must ultimately resolve down
+    # to a Member access, not an ArrayMember access.
+    assert isinstance(bop.children[0].member.member.member, Member)
+    assert not isinstance(bop.children[0].member.member.member, ArrayMember)
+    bop = amem.member.indices[0].children[1]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.UBOUND
+    # The argument to the UBOUND binary operator must ultimately resolve down
+    # to a Member access, not an ArrayMember access.
+    assert isinstance(bop.children[0].member.member.member, Member)
+    assert not isinstance(bop.children[0].member.member.member, ArrayMember)
     gen = fortran_writer(amem)
     assert (gen == "subgrid(3)%data(:)")
     # var%region%subgrid(3)%data(var%start:var%stop)
@@ -345,13 +359,39 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     # vars(1)%region%subgrid(3)%data(:) = 1.0
     assign = assignments[5]
     amem = assign.lhs
-    gen = fortran_writer(amem)
-    assert (gen == "vars(1)%region%subgrid(3)%data(:)")
-    # vars(:)%region%subgrid(3)%xstop
+    data_node = amem.member.member.member
+    bop = data_node.children[0].children[0]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.LBOUND
+    # Argument to LBOUND must be a Member, not an ArrayMember
+    assert isinstance(bop.children[0].member.member.member, Member)
+    assert not isinstance(bop.children[0].member.member.member, ArrayMember)
+    bop = data_node.children[0].children[1]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.UBOUND
+    # Argument to UBOUND must be a Member, not an ArrayMember
+    assert isinstance(bop.children[0].member.member.member, Member)
+    assert not isinstance(bop.children[0].member.member.member, ArrayMember)
+    # vars(1)%region%subgrid(:)%data(1) = 1.0
     assign = assignments[6]
     amem = assign.lhs
-    gen = fortran_writer(amem)
-    assert (gen == "vars(:)%region%subgrid(3)%xstop")
+    assert isinstance(amem.member.member.children[1], Range)
+    bop = amem.member.member.children[1].children[0]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.LBOUND
+    assert bop.children[0].member.member.name == "subgrid"
+    assert isinstance(bop.children[0].member.member, Member)
+    assert not isinstance(bop.children[0].member.member, ArrayMember)
+    assert amem.member.member.member.name == "data"
+    assert isinstance(amem.member.member.member, ArrayMember)
+    # vars(:)%region%subgrid(3)%xstop
+    assign = assignments[7]
+    amem = assign.lhs
+    bop = amem.children[1].children[0]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.LBOUND
+    assert isinstance(bop.children[0], Reference)
+    assert bop.children[0].symbol.name == "vars"
 
 
 def test_array_of_derived_type_ref(f2008_parser):

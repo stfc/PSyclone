@@ -35,15 +35,18 @@
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the subscript-triplet handler in the fparser2
-    PSyIR front-end '''
+    PSyIR front-end. Also tests the associated utility used to create arguments
+    for the LBOUND and UBOUND array-query operations. '''
 
 from __future__ import absolute_import
 import pytest
 from fparser.two.Fortran2003 import Execution_Part
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    _create_array_bound_arg
+from psyclone.psyir.nodes import Schedule, Assignment, Member, ArrayMember, \
+    StructureMember, Reference, ArrayReference
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -59,3 +62,56 @@ def test_subscript_triplet_handler_error():
         processor._subscript_triplet_handler(triplet, fake_parent)
     assert ("Expected parent PSyIR node to be either a Reference or a Member "
             "but got 'Schedule' when processing ':'" in str(err.value))
+
+
+def test_ubound_lbound_arg_error(fortran_reader):
+    ''' Check that the _create_array_bound_arg utility method raises the
+    expected error if the supplied node is of the wrong type. '''
+    with pytest.raises(InternalError) as err:
+        _create_array_bound_arg(Schedule())
+    assert ("supplied node must be an instance of either ArrayReference or "
+            "StructureReference but got 'Schedule'" in str(err.value))
+
+
+def test_ubound_lbound_arg(fortran_reader):
+    ''' Tests for the _create_array_bound_arg utility method. '''
+    code = ("subroutine my_sub()\n"
+            "  use some_mod, only: my_type\n"
+            "  type(my_type) :: var, vars(3)\n"
+            "  var%region%subgrid(3)%data(:) = 1.0\n"
+            "  vars(1)%region%subgrid(3)%data(:) = 1.0\n"
+            "  vars(1)%region%subgrid(:)%data(:) = 1.0\n"
+            "  vars(:)%region%subgrid(3)%xstop = 1.0\n"
+            "end subroutine my_sub\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assignments = psyir.walk(Assignment)
+    # var%region%subgrid(3)%data(:)
+    assign = assignments[0]
+    arg = _create_array_bound_arg(assign.lhs.member.member.member)
+    assert arg.member.member.member.name == "data"
+    assert isinstance(arg.member.member.member, Member)
+    assert not isinstance(arg.member.member.member, ArrayMember)
+    # vars(1)%region%subgrid(3)%data(:)
+    assign = assignments[1]
+    arg = _create_array_bound_arg(assign.lhs.member.member.member)
+    assert arg.member.member.member.name == "data"
+    assert isinstance(arg.member.member.member, Member)
+    assert not isinstance(arg.member.member.member, ArrayMember)
+    # vars(1)%region%subgrid(:)%data(:)
+    assign = assignments[2]
+    # For the first colon
+    arg = _create_array_bound_arg(assign.lhs.member.member)
+    assert arg.member.member.name == "subgrid"
+    assert isinstance(arg.member.member, Member)
+    assert not isinstance(arg.member.member, (ArrayMember, StructureMember))
+    # For the second colon
+    arg = _create_array_bound_arg(assign.lhs.member.member.member)
+    assert arg.member.member.member.name == "data"
+    assert isinstance(arg.member.member.member, Member)
+    assert not isinstance(arg.member.member.member, ArrayMember)
+    # vars(:)%region%subgrid(3)%xstop
+    assign = assignments[3]
+    arg = _create_array_bound_arg(assign.lhs)
+    assert arg.symbol.name == "vars"
+    assert isinstance(arg, Reference)
+    assert not isinstance(arg, ArrayReference)

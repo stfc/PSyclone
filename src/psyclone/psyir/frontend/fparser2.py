@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine, Member, FileContainer
+    Call, Routine, Member, StructureMember, FileContainer
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -449,6 +449,62 @@ def _is_range_full_extent(my_range):
     # Check step (index 2 is the step index for the range function)
     is_step = _is_array_range_literal(array, dim, 2, 1)
     return is_lower and is_upper and is_step
+
+
+def _create_array_bound_arg(node):
+    '''
+    Given the supplied node, creates a new node with the same access
+    apart from the final array access, suitable for use as an
+    argument to either LBOUND or UBOUND.
+
+    e.g. if `node` is an ArrayMember representing the inner access in
+    'grid%data(:)' then this routine will return a PSyIR node for
+    'grid%data'.
+
+    :param node: the array access. In the case of a structure, this \
+                 must be the inner-most part of the access.
+    :type node: :py:class:`psyclone.psyir.nodes.Reference` or \
+                :py:class:`psyclone.psyir.nodes.Member`
+
+    :returns: the PSyIR for a suitable argument to either LBOUND or \
+              UBOUND applied to the supplied `node`.
+    :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+    :raises InternalError: if the supplied node is not an instance of \
+                           either Reference or Member.
+    '''
+    if isinstance(node, Reference):
+        return Reference(node.symbol)
+
+    elif isinstance(node, Member):
+        # We have to take care with derived types:
+        # grid(1)%data(:...) becomes
+        # grid(1)%data(lbound(grid(1)%data,1):...)
+        # N.B. the argument to lbound becomes a Member access rather
+        # than an ArrayMember access.
+        parent_ref = node.ancestor(Reference, include_self=True)
+        # We have to find the location of the supplied node in the
+        # StructureReference.
+        inner = parent_ref
+        depth = 0
+        while hasattr(inner, "member") and inner is not node:
+            depth += 1
+            inner = inner.member
+        # Now we take a copy of the full reference and then modify it so
+        # that the copy of 'node' is replaced by a Member().
+        arg = parent_ref.copy()
+        # We use the depth computed for the original reference in order
+        # to find the copy of 'node.
+        inner = arg
+        for step in range(depth-1):
+            inner = inner.member
+        # Change the innermost access to be a Member
+        inner.children[0] = Member(node.name, inner)
+        return arg
+
+    raise InternalError(
+        "The supplied node must be an instance of either ArrayReference "
+        "or StructureReference but got '{0}'.".format(type(node).__name__))
 
 
 def _kind_symbol_from_name(name, symbol_table):
@@ -3327,11 +3383,7 @@ class Fparser2Reader(object):
         # to our parent to determine the Fortran dimension value. However, we
         # do have to take care in case the parent is a member of a structure
         # rather than a plain array reference.
-        if isinstance(parent, Reference):
-            parent_ref = Reference(parent.symbol)
-            dimension = str(len(parent.children)+1)
-        elif isinstance(parent, Member):
-            parent_ref = parent.ancestor(Reference, include_self=True)
+        if isinstance(parent, (Reference, Member)):
             dimension = str(len([kid for kid in parent.children if
                                  not isinstance(kid, Member)]) + 1)
         else:
@@ -3351,13 +3403,12 @@ class Fparser2Reader(object):
             # supported in the PSyIR so we create the equivalent code
             # by using the PSyIR lbound function:
             # a(:...) becomes a(lbound(a,1):...)
-            # We have to take care with derived types:
-            # grid(1)%data(:...) becomes
-            # grid(1)%data(lbound(grid(1)%data,1):...)
             lbound = BinaryOperation.create(
-                BinaryOperation.Operator.LBOUND, parent_ref.copy(),
+                BinaryOperation.Operator.LBOUND,
+                _create_array_bound_arg(parent),
                 Literal(dimension, integer_type))
             my_range.children.append(lbound)
+
         if node.children[1]:
             self.process_nodes(parent=my_range, nodes=[node.children[1]])
         else:
@@ -3366,9 +3417,11 @@ class Fparser2Reader(object):
             # by using the PSyIR ubound function:
             # a(...:) becomes a(...:ubound(a,1))
             ubound = BinaryOperation.create(
-                BinaryOperation.Operator.UBOUND, parent_ref.copy(),
+                BinaryOperation.Operator.UBOUND,
+                _create_array_bound_arg(parent),
                 Literal(dimension, integer_type))
             my_range.children.append(ubound)
+
         if node.children[2]:
             self.process_nodes(parent=my_range, nodes=[node.children[2]])
         else:
