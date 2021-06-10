@@ -171,47 +171,28 @@ class ArrayMember(ArrayMixin, Member):
         :rtype: bool
 
         '''
+        # This node is at the 'bottom' of the structure access so we
+        # need to get the parent Reference.
+        parent_member = self.ancestor(Reference)
+        if not parent_member:
+            return False
+        self_sig, self_indices = parent_member.get_signature_and_indices()
+        node_sig, node_indices = node.get_signature_and_indices()
+        if self_sig != node_sig:
+            return False
+
         # We use the FortranWriter to simplify the job of comparing array-index
         # expressions but have to import it here to avoid circular dependencies
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.fortran import FortranWriter
         fwriter = FortranWriter()
 
-        # This node is at the 'bottom' of the structure access so we
-        # need to get the parent Reference.
-        parent_member = self.ancestor(Reference)
-        current_member = node
-
-        if type(current_member) != type(parent_member):
-            return False
-
-        while True:
-            if parent_member.name != current_member.name:
+        # Examine the indices, ignoring any on the innermost accesses.
+        for indices in zip(self_indices[:-1], node_indices[:-1]):
+            if ("".join(fwriter(idx) for idx in indices[0]) !=
+                    "".join(fwriter(idx) for idx in indices[1])):
                 return False
-            # Is this member of the structure access an array access?
-            if parent_member is not self and isinstance(parent_member,
-                                                        ArrayMixin):
-                if not isinstance(current_member, ArrayMixin):
-                    return False
-                # Check that the array index expressions match by
-                # creating their string representations.
-                if (len(parent_member.indices) !=
-                        len(current_member.indices)):
-                    return False
-                for pos, index in enumerate(parent_member.indices):
-                    if fwriter(index) != fwriter(current_member.indices[pos]):
-                        return False
-            if (not hasattr(parent_member, "member") and
-                    not hasattr(current_member, "member")):
-                # We've reached the 'bottom' of both structure accesses.
-                return True
-            try:
-                parent_member = parent_member.member
-                current_member = current_member.member
-            except AttributeError:
-                # One of the structure accesses didn't have a member attribute
-                # so they are not the same.
-                return False
+        return True
 
 
 # For AutoAPI documentation generation
