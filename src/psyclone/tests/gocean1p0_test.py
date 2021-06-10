@@ -1155,7 +1155,7 @@ def test_goschedule_str(dist_mem):
                                         "test_files", "gocean1p0",
                                         "single_invoke_two_kernels.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
