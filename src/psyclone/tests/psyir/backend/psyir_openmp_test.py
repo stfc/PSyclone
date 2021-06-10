@@ -65,8 +65,8 @@ def test_nemo_omp_parallel(fortran_reader):
           enddo
         end subroutine tmp
         end module test'''
-    schedule = fortran_reader.psyir_from_source(code).children[0]
-
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
     # Now apply a parallel transform
     omp_par = OMPParallelTrans()
     # Note that the loop is not handled as nemo kernel, so the
@@ -172,7 +172,8 @@ def test_nemo_omp_do(fortran_reader):
           enddo
         end subroutine tmp
         end module test'''
-    schedule = fortran_reader.psyir_from_source(code).children[0]
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
 
     # Now apply a parallel transform
     omp_loop = OMPLoopTrans()
