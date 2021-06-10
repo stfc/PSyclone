@@ -49,7 +49,7 @@ from psyclone.transformations import ACCRoutineTrans, \
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Container, Routine
+from psyclone.psyir.nodes import Container, Routine, FileContainer
 
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -184,8 +184,9 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     # Parse the new kernel file
     psyir = fortran_reader.psyir_from_file(filename)
     # Check that the module has the right name
-    assert isinstance(psyir, Container)
-    assert psyir.name == "continuity{0}_mod".format(tag)
+    assert isinstance(psyir, FileContainer)
+    module = psyir.children[0]
+    assert module.name == "continuity{0}_mod".format(tag)
     # Check that the subroutine has the right name
     found = False
     for sub in psyir.walk(Routine):

@@ -38,6 +38,8 @@
 node. '''
 
 from __future__ import absolute_import
+
+# Circular import if only '...nodes' is used:
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir import symbols
 from psyclone.psyir.nodes.array_of_structures_mixin import \
@@ -56,6 +58,7 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
     _children_valid_format = "MemberReference, [DataNode | Range]+"
     _text_name = "ArrayOfStructuresReference"
 
+    # pylint: disable=arguments-differ
     @staticmethod
     def create(symbol, indices, members):
         '''
