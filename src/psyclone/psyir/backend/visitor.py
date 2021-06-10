@@ -158,13 +158,36 @@ class PSyIRVisitor(object):
             raise TypeError(
                 "The PSyIR visitor functor method only accepts a PSyIR Node "
                 "as argument, but found '{0}'.".format(type(node).__name__))
+
+        # The visitor must not have any side effect to the provided node, but
+        # if there are DSL concepts this will need to be lowered in-place.
+        # Therefore we first create a copy of the provided node so that the
+        # changes are not permanent.
         lowered_node = node.copy()
+
         if node.parent:
+            # If the node has ancestors, we temporally add the copied node in
+            # the tree because some visitors look upwards (e.g. symbol lookups,
+            # global_constrain_checks, ...)
             node.replace_with(lowered_node)
+        else:
+            # If the node does not have ancestors, we need to place in inside
+            # a dummy node tree, since some lower_to_language_node may replace
+            # it in-place.
+            dummy = Node()
+            dummy.addchild(lowered_node)
+
+        # Make sure all tree contains only language level PSyIR nodes and then
+        # start visiting the nodes
+        parent = lowered_node.parent
+        position = lowered_node.position
         lowered_node.lower_to_language_level()
-        result = self._visit(lowered_node)
+        result = self._visit(parent.children[position])
+
+        # If the node has ancestors, restore the node in its original position
         if lowered_node.parent:
             lowered_node.replace_with(node)
+
         return result
 
     def _visit(self, node):
