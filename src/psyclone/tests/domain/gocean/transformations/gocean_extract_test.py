@@ -400,7 +400,7 @@ def test_single_node_ompparalleldo_gocean1p0_failing():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="TODO #969 and #1281 Loop boundariesmissing")
+@pytest.mark.xfail(reason="TODO #969 and #1281 Loop boundaries missing")
 def test_single_node_ompparalleldo_gocean1p0_failing_const_loop():
     ''' Test that applying Extract Transformation on a Node enclosed
     within an OMP Parallel DO Directive produces the correct result

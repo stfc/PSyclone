@@ -1160,7 +1160,7 @@ class GOKern(CodedKern):
             else:
                 var_name = arg.name
 
-            signature = Signature(tuple(var_name.split("%")))
+            signature = Signature(var_name.split("%"))
             if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
