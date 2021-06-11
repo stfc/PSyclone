@@ -60,7 +60,7 @@ def test_adjloop_trans_validate(monkeypatch, fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.validate(prog)
     assert ("Target of AdjointLoopTrans transformation must be a sub-"
-            "class of Loop but got 'Routine'" in str(err.value))
+            "class of Loop but got 'FileContainer'" in str(err.value))
     # Check that validate is OK with a valid loop
     loop = prog.walk(Loop)[0]
     trans.validate(loop)
