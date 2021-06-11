@@ -369,14 +369,17 @@ class GOInvokeSchedule(InvokeSchedule):
     :param reserved_names: optional list of names that are not allowed in the \
                            new InvokeSchedule SymbolTable.
     :type reserved_names: list of str
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
     '''
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, name, alg_calls, reserved_names=None):
+    def __init__(self, name, alg_calls, reserved_names=None, parent=None):
         InvokeSchedule.__init__(self, name, GOKernCallFactory,
                                 GOBuiltInCallFactory,
-                                alg_calls, reserved_names)
+                                alg_calls, reserved_names, parent=parent)
 
         # The GOcean Constants Loops Bounds Optimization is implemented using
         # a flag parameter. It defaults to False and can be turned on applying
@@ -2381,7 +2384,7 @@ class GOKernelArgument(KernelArgument):
         ''' Infer the datatype of this argument using the API rules.
 
         :returns: the datatype of this argument.
-        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+        :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         :raises InternalError: if this Argument type is not "field" or \
                                "scalar".
