@@ -54,7 +54,35 @@ class AdjointDependencyTools(DependencyTools):
 
 class AdjointLoopTrans(LoopTrans):
     '''
-    This class implements the transformation to take the Adjoint of a loop.
+    This class implements the transformation to take the adjoint of a loop.
+    For example:
+
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.psyir.transformations import AdjointLoopTrans
+    >>> code = """
+    ... subroutine sub()
+    ...   integer :: ji, tmp(10)
+    ...   do ji=1, 10
+    ...     tmp(ji) = 2*ji
+    ...   end do
+    ... end subroutine sub"""
+    >>> psyir = FortranReader().psyir_from_source(code)
+    >>> loop = psyir.walk(Loop)[0]
+    >>> trans = AdjointLoopTrans()
+    >>> trans.apply(loop)
+    >>> loop = psyir.walk(Loop)[0]
+    >>> loop.start_expr.view()
+    Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+    >>> loop.stop_expr.view()
+    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+    >>> loop.step_expr.view()
+    UnaryOperation[operator:'MINUS']
+        Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+
+    i.e. the original loop has been replaced by one which will run in reverse.
+    Note that this transformation only acts upon the loop itself - it does not
+    affect the loop body.
 
     '''
     #: The types of Node that are excluded from within the target loop.

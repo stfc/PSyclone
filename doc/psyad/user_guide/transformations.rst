@@ -7,8 +7,8 @@
 .. Redistribution and use in source and binary forms, with or without
 .. modification, are permitted provided that the following conditions are met:
 ..
-.. * Redistributions of source code must retain the above copyright notice,
-..   this list of conditions and the following disclaimer.
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
 ..
 .. * Redistributions in binary form must reproduce the above copyright notice,
 ..   this list of conditions and the following disclaimer in the documentation
@@ -33,41 +33,20 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-.. only:: html
+.. _transformations:
 
-    .. image:: ../../logo/psyclone_v1.0.png
-        :width: 75%
-        :align: center
-        :alt: PSyclone
+Transformations
+###############
 
+PSyAD relies upon various PSyclone :ref:`user_guide:transformations`
+that act on the PSyIR of tangent linear code in order to create the
+PSyIR of the corresponding adjoint code.
 
-PSyAD User Guide
-================
+Available transformations
+=========================
 
-.. only:: html
+The adjoint transformations implemented so far are generic in that they act
+on language-level PSyIR. They are:
 
-    PSyAD is PSyclone's Adjoint code generator. PSyAD takes an LFRic
-    tangent linear kernel and translates it into its adjoint.
-
-.. toctree::
-    :hidden:
-    :caption: Table of Contents
-
-.. toctree::
-    :maxdepth: 2
-    :caption: Introduction
-
-    introduction
-    psyad_command
-    transformations
-
-.. when generating latex the index and module index are generated
-   automatically and the entries below are rendered as plain text.
-.. only:: html
-	  
-    Indices and tables
-    ==================
-
-    * :ref:`genindex`
-    * :ref:`modindex`
-    * :ref:`search`
+.. autoclass:: psyclone.psyir.transformations.AdjointLoopTrans
+   :members: apply
