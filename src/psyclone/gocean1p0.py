@@ -59,7 +59,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment
+    Call, Assignment, Routine
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange
@@ -3035,6 +3035,12 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                        assignment nodes.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
+
+        # Get a reference to the f2pygen module root
+        module = parent
+        while module.parent:
+            module = module.parent
+
         obj_list = []
         for pdir in self._acc_dirs:
             for var in pdir.fields:
@@ -3042,7 +3048,53 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                     parent.add(AssignGen(parent,
                                          lhs=var+"%data_on_device",
                                          rhs=".true."))
+                    parent.add(AssignGen(
+                        parent,
+                        lhs=var+"%read_from_device_f",
+                        rhs=self._read_from_device_routine(module).name,
+                        pointer=True))
                     obj_list.append(var)
+
+    def _read_from_device_routine(self, f2pygen_module):
+        ''' Return the symbol of the routine that reads data from the OpenACC
+        device, if it doesn't exist create the Routine and the Symbol. '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("openacc_read_func")
+        except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "read_from_device", symbol_type=RoutineSymbol,
+            tag="openacc_read_func").name
+
+        code = '''
+            subroutine read_openacc(from, to, startx, starty, nx, ny, blocking)
+                use iso_c_binding, only: c_ptr
+                use kind_params_mod, only: go_wp
+                type(c_ptr), intent(in) :: from
+                real(go_wp), dimension(:,:), intent(inout), target :: to
+                integer, intent(in) :: startx, starty, nx, ny
+                logical, intent(in) :: blocking
+                !$acc update host(to)
+            end subroutine read_openacc
+            '''
+
+        # Obtain the PSyIR representation of the code above
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
+
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("openacc_read_func")
 
 
 class GOSymbolTable(SymbolTable):
