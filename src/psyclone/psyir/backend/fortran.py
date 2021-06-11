@@ -1052,7 +1052,8 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        if node.parent.is_lower_bound(node.parent.indices.index(node)):
+        if node.parent and node.parent.is_lower_bound(
+                node.parent.indices.index(node)):
             # The range starts for the first element in this
             # dimension. This is the default in Fortran so no need to
             # output anything.
@@ -1060,7 +1061,8 @@ class FortranWriter(PSyIRVisitor):
         else:
             start = self._visit(node.start)
 
-        if node.parent.is_upper_bound(node.parent.indices.index(node)):
+        if node.parent and node.parent.is_upper_bound(
+                node.parent.indices.index(node)):
             # The range ends with the last element in this
             # dimension. This is the default in Fortran so no need to
             # output anything.

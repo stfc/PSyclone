@@ -1418,10 +1418,7 @@ def test_fw_arrayreference_incomplete(fortran_writer):
 
 def test_fw_range(fortran_writer):
     '''Check the FortranWriter class range_node and arrayreference_node methods
-    produce the expected code when an array section is specified. We
-    can't test the Range node in isolation as one of the checks in the
-    Range code requires access to the (ArrayReference) parent (to
-    determine the array index of a Range node).
+    produce the expected code when an array section is specified.
 
     '''
     array_type = ArrayType(REAL_TYPE, [10, 10])
@@ -1453,9 +1450,16 @@ def test_fw_range(fortran_writer):
         BinaryOperation.Operator.ADD,
         Reference(DataSymbol("b", REAL_TYPE)),
         Reference(DataSymbol("c", REAL_TYPE)))
+    range1 = Range.create(one.copy(), dim1_bound_stop)
+    range2 = Range.create(dim2_bound_start, plus, step=three)
+    # Check the ranges in isolation
+    result = fortran_writer(range1)
+    assert result == "1:UBOUND(a, 1)"
+    result = fortran_writer(range2)
+    assert result == "LBOUND(a, 2):b + c:3"
+    # Check the ranges in context
     array = ArrayReference.create(
-        symbol, [Range.create(one.copy(), dim1_bound_stop),
-                 Range.create(dim2_bound_start, plus, step=three)])
+        symbol, [range1, range2])
     result = fortran_writer.arrayreference_node(array)
     assert result == "a(1:,:b + c:3)"
 
