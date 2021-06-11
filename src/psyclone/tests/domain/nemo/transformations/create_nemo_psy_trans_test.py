@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 '''Module containing tests for the CreateNemoPSyTrans transformation.'''
 
@@ -72,10 +73,11 @@ def test_no_matching_psyir(psy_trans, fortran_reader):
 end subroutine basic
 '''
     psyir = fortran_reader.psyir_from_source(code)
-    cblock = psyir[0]
-    psy_trans.apply(psyir[0])
+    subroutine = psyir.children[0]
+    cblock = subroutine[0]
+    psy_trans.apply(subroutine[0])
     # Transformation should have had no effect
-    assert psyir[0] is cblock
+    assert subroutine[0] is cblock
 
 
 def test_basic_psy(psy_trans, fortran_reader):
@@ -93,7 +95,8 @@ def test_basic_psy(psy_trans, fortran_reader):
 end subroutine basic_loop
 '''
     psyir = fortran_reader.psyir_from_source(code)
-    sched, _ = psy_trans.apply(psyir)
+    psy_trans.apply(psyir)
+    sched = psyir.children[0]
     assert isinstance(sched, NemoInvokeSchedule)
     assert isinstance(sched[0], NemoLoop)
     assert isinstance(sched[0].loop_body[0], NemoLoop)
