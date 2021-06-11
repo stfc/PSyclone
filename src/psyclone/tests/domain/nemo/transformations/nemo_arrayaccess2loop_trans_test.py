@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.psyir.nodes import Assignment
+from psyclone.psyir.nodes import Assignment, ArrayReference, Literal
 from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType, DeferredType
@@ -51,7 +51,7 @@ from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke
 from psyclone.nemo import NemoKern, NemoLoop
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, Node
 from psyclone.errors import InternalError
 from psyclone.configuration import Config
 
@@ -66,16 +66,23 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 TEST_CONFIG = os.path.join(BASE_PATH, "nemo_test.cfg")
 
 
-def test_transform():
-    '''Check that it is possible to create an instance of
-    NemoArrayAccess2LoopTrans and that it is a Transformation.
+def check_transformation(code, expected_result, index=0, statement=0):
+    '''Utility function to check that the result of applying the
+    NemoArrayAccess2LoopTrans transformation to the code supplied in
+    the code argument for the statement number specified in the
+    statement argument and the array access index specified in the
+    index argument produces the result specified in the
+    expected_result argument.
+
+    :param str code: the input code to be transformed.
+    :param str expected_result: the code expected after transformation.
+    :param int index: the array index on which to apply the \
+        transformation.
+    :param int statement: the index of the required statement in the top \
+        level of the PSyIR tree associated with the input code. \
+        Defaults to 0.
 
     '''
-    assert NemoArrayAccess2LoopTrans()
-    assert isinstance(NemoArrayAccess2LoopTrans(), Transformation)
-
-def check_transformation(code, expected_result, index=0, statement=0):
-    ''' xxx '''
     input_code = "program test\n{0}end program test\n".format(code)
     output_code = "program test\n{0}end program test\n".format(expected_result)
     reader = FortranReader()
@@ -93,8 +100,22 @@ def check_transformation(code, expected_result, index=0, statement=0):
     assert result == output_code
 
 
-def test_example1():
-    ''' first dimension integer '''
+def test_transform():
+    '''Check that it is possible to create an instance of
+    NemoArrayAccess2LoopTrans and that it is a subclass of
+    Transformation.
+
+    '''
+    assert NemoArrayAccess2LoopTrans()
+    assert isinstance(NemoArrayAccess2LoopTrans(), Transformation)
+
+
+def test_apply_single_dim_value():
+    '''Check that the expected code is produced when there is a 1D array,
+    the access to its 1st dimension is an integer value and this 1st
+    index is provided to the transformation.
+
+    '''
     code = (
         "  real :: a(10), b(10)\n"
         "  a(1) = b(1)\n")
@@ -107,8 +128,14 @@ def test_example1():
     check_transformation(code, expected_result)
 
 
-def test_example2():
-    ''' second dimension variable with pre-existing code before the target loop. '''
+def test_apply_second_dim_var():
+    '''Check that the expected code is produced for a 2D array where the
+    access to its 2nd dimension is via a scalar variable (that is not
+    a loop iterator) and the 2nd dimension is provided to the
+    transformation. Also add some code before the array access to make
+    sure there aren't any issues when modifying the tree.
+
+    '''
     code = (
         "  real :: a(10,10), b(10,10)\n"
         "  integer :: n\n"
@@ -124,14 +151,19 @@ def test_example2():
     check_transformation(code, expected_result, index=1, statement=1)
 
 
-def test_example3():
-    ''' third dimension expression '''
+def test_apply_third_dim_expr():
+    '''Check that the expected code is produced for a 3D array where the
+    access to its 3rd dimension is via an expression (that does not
+    contain a loop iterator) and this dimension is provided to the
+    transformation.
+
+    '''
     code = (
-        "  real :: a(10), b(10)\n"
+        "  real :: a(10,10,10), b(10,10,10)\n"
         "  integer :: n\n"
         "  a(1,n,2*n+1) = b(1,n,2*n+1)\n")
     expected_result = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
         "  integer :: n\n  integer :: jk\n\n"
         "  do jk = 2 * n + 1, 2 * n + 1, 1\n"
         "    a(1,n,jk) = b(1,n,jk)\n"
@@ -139,8 +171,13 @@ def test_example3():
     check_transformation(code, expected_result, index=2)
 
 
-def test_indirection():
-    ''' indirection '''
+def test_apply_indirection():
+    '''Check that the expected code is produced for a 1D array where the
+    access to its 1st dimension index is via a lookup (that does not
+    contain a loop iterator) and this dimension is provided to the
+    transformation.
+
+    '''
     code = (
         "  real :: a(10), b(10)\n"
         "  integer :: lookup(10)\n"
@@ -158,8 +195,13 @@ def test_indirection():
     check_transformation(code, expected_result)
 
 
-def test_example4():
-    ''' adding loop inbetween pre-existing loops '''
+def test_apply_loop_order():
+    '''Check that the expected code is produced for a 3D array where it is
+    accessed with the inner and outer dimensions being loop indices,
+    but the middle dimension being a variable and this middle
+    dimension is provided to the transformation.
+
+    '''
     code = (
         "  real :: a(10,10,10), b(10,10,10)\n"
         "  integer :: ji, n, jk\n"
@@ -180,8 +222,14 @@ def test_example4():
         "  enddo\n\n")
     check_transformation(code, expected_result, index=1)
 
-def test_example5():
-    ''' array notation '''
+
+def test_apply_ranges():
+    '''Check that the expected code is produced for a 3D array where its
+    inner two dimensions are array ranges (array notation), its outer
+    dimension is a variable and the outer dimension is provided to the
+    transformation.
+
+    '''
     code = (
         "  real :: a(10,10,10), b(10,10,10)\n"
         "  integer :: jpk\n"
@@ -196,62 +244,175 @@ def test_example5():
     check_transformation(code, expected_result, index=2)
 
 
-
+# TODO loop variable expression - what is this for ????
+#def test_example9():
+#    '''Check that the expected code is produced for a 3D array where its
+#    inner two dimensions are array ranges (array notation), its outer
+#    dimension is a variable and the outer dimension is provided to the
+#    transformation.
+#
+#    '''
+#    ''' loop variable expression '''
+#    code = (
+#        "  real :: a(10,10,10), b(10,10,10)\n"
+#        "  integer :: lookup(10)\n"
+#        "  integer :: ji, jj, n\n"
+#        "  do jj = 1, n\n"
+#        "    do ji = 1, n\n"
+#        "      a(ji+n+1,jj-1+lookup(jj),n) = b(ji,jj,n)\n"
+#        "    end do\n"
+#        "  end do\n")
+#    expected_result = (
+#        "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
+#        "  integer, dimension(10) :: lookup\n"
+#        "  integer :: ji\n  integer :: jj\n  integer :: n\n  integer :: jk\n\n"
+#        "  do jk = n, n, 1\n"
+#        "    do jj = 1, n, 1\n"
+#        "      do ji = 1, n, 1\n"
+#        "        a(ji + n + 1,jj - 1,jk) = b(ji,jj,jk)\n"
+#        "      enddo\n"
+#        "    enddo\n"
+#        "  enddo\n\n")
+#    check_transformation(code, expected_result, index=2)
 # TODO different lhs and rhs indexing
-
-# loop variable expression
-def test_example9():
-    ''' loop variable expression '''
-    code = (
-        "  real :: a(10,10,10), b(10,10,10)\n"
-        "  integer :: lookup(10)\n"
-        "  integer :: ji, jj, n\n"
-        "  do jj = 1, n\n"
-        "    do ji = 1, n\n"
-        "      a(ji+n+1,jj-1+lookup(jj),n) = b(ji,jj,n)\n"
-        "    end do\n"
-        "  end do\n")
-    expected_result = (
-        "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
-        "  integer, dimension(10) :: lookup\n"
-        "  integer :: ji\n  integer :: jj\n  integer :: n\n  integer :: jk\n\n"
-        "  do jk = n, n, 1\n"
-        "    do jj = 1, n, 1\n"
-        "      do ji = 1, n, 1\n"
-        "        a(ji + n + 1,jj - 1,jk) = b(ji,jj,jk)\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n\n")
-    check_transformation(code, expected_result, index=2)
-
-
 # loop variable lookup/function
 # multiple loop iterators error
 
-# validate (constraint - all indices are the same)
 
-# def test_apply_calls_validate():
-#    '''Check that the apply() method calls the validate method.'''
-#    trans = NemoArrayRange2LoopTrans()
-#    with pytest.raises(TransformationError) as info:
-#        trans.apply(None)
-#    assert("Error in NemoArrayRange2LoopTrans transformation. The supplied "
-#           "node argument should be a PSyIR Range, but found 'NoneType'."
-#           in str(info.value))
+def test_apply_calls_validate():
+    '''Check that the apply() method calls the validate method.'''
+    trans = NemoArrayAccess2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.apply(None)
+    assert("Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+           "node argument should be a PSyIR Node, but found 'NoneType'."
+           in str(info.value))
 
-
-#def test_str():
-#    '''Test that the str of an instance of the NemoArrayRange2LoopTrans class
-#    returns the expected value.
-#
-#    '''
-#    assert (str(NemoArrayRange2LoopTrans()) == "Convert the PSyIR assignment "
-#            "for a specified ArrayReference Range into a PSyIR NemoLoop.")
+# validate() method
 
 
-#def test_name():
-#    '''Check that the name property of the ArrayRange2LoopTrans class
-#    returns the expected value.
-#
-#    '''
-#    assert NemoArrayRange2LoopTrans().name == "NemoArrayRange2LoopTrans"
+def test_validate_arg():
+    '''Check that the validate() method raises the expected exception if
+   the supplied node is not a PSyIR Node.
+
+    '''
+    trans = NemoArrayAccess2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(None)
+    assert("Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+           "node argument should be a PSyIR Node, but found 'NoneType'."
+           in str(info.value))
+
+
+def test_validate_array_ref():
+    '''Check that the validate() method raises the expected exception if
+   the supplied node is not a child of an array reference.
+
+    '''
+    trans = NemoArrayAccess2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(Node())
+    assert("The supplied node argument should be within an ArrayReference "
+           "node, but found 'NoneType'." in str(info.value))
+
+
+def test_validate_assignment():
+    '''Check that the validate() method raises the expected exception if
+    the supplied node is not a child of an array reference that is
+    within an assignment.
+
+    '''
+    dim_access = Literal("1", INTEGER_TYPE)
+    array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
+    array_ref = ArrayReference.create(array_symbol, [dim_access])
+    trans = NemoArrayAccess2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(dim_access)
+    assert(
+        "Error in NemoArrayAccess2LoopTrans transformation. The supplied node "
+        "argument should be within an ArrayReference node that is within an "
+        "Assignment node, but found 'NoneType'." in str(info.value))
+
+def test_validate_lhs_assignment():
+    '''Check that the validate() method raises the expected exception if
+    the supplied node is a child of an array reference that is
+    within an assignment, but is on its right hand side.
+
+    '''
+    dim_access = Literal("1", INTEGER_TYPE)
+    array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
+    array_ref = ArrayReference.create(array_symbol, [dim_access])
+    lhs = array_ref.copy()
+    assignment = Assignment.create(lhs, array_ref)
+    trans = NemoArrayAccess2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(dim_access)
+    assert(
+        "Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+        "node argument should be within an ArrayReference node that is "
+        "within the left-hand-side of an Assignment node, but it is on the "
+        "right-hand-side." in str(info.value))
+
+def test_validate_range():
+    '''Check that the validate() method raises the expected exception if
+    the supplied node is, or contains, a Range node as it should be
+    single valued.
+
+    '''
+    code = (
+        "  real :: a(10)\n"
+        "  a(:) = 0.0e0\n")
+    expected_result = None
+    with pytest.raises(TransformationError) as info:
+        check_transformation(code, expected_result)
+    assert (
+        "Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+        "node should not be or contain a Range node as it should be single "
+        "valued." in str(info.value))
+
+
+def test_validate_iterator():
+    '''Check that the validate() method raises the expected exception if
+    the supplied node is, or contains, a loop iterator.
+
+    '''
+    input_code = (
+        "program test\n"
+        "  real :: a(10)\n"
+        "  integer :: i\n"
+        "  do i=1,10\n"
+        "    a(i) = 0.0e0\n"
+        "  end do\n"
+        "end program test")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(input_code)
+    trans = NemoArrayAccess2LoopTrans()
+    index_node = psyir.children[0].children[0].loop_body[0].lhs.children[0]
+    with pytest.raises(TransformationError) as info:
+        trans.apply(index_node)
+    assert(
+        "ans transformation. The supplied node should not be or contain a "
+        "loop iterator, it should be single valued." in str(info.value))
+
+
+# TODO all indices are the same on rhs?
+
+
+# str() and name() methods
+
+
+def test_str():
+    '''Test that the str of an instance of the NemoArrayAccess2LoopTrans class
+    returns the expected value.
+
+    '''
+    assert (str(NemoArrayAccess2LoopTrans()) == "Convert the PSyIR assignment "
+            "for a specified ArrayReference access into a PSyIR NemoLoop.")
+
+
+def test_name():
+    '''Check that the name property of the ArrayAccess2LoopTrans class
+    returns the expected value.
+
+    '''
+    assert NemoArrayAccess2LoopTrans().name == "NemoArrayAccess2LoopTrans"
