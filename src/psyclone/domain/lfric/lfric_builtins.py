@@ -46,8 +46,7 @@ import abc
 import six
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
-from psyclone.psyir.symbols import ContainerSymbol, TypeSymbol, DeferredType,\
-    GlobalInterface, DataSymbol, INTEGER_SINGLE_TYPE, ScalarType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
     BinaryOperation
 from psyclone.parse.utils import ParseError

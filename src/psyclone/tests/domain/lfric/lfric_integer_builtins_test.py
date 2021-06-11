@@ -45,7 +45,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.symbols import DeferredType, ScalarType
+from psyclone.psyir.symbols import ScalarType
 
 from psyclone.tests.lfric_build import LFRicBuild
 

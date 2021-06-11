@@ -9020,7 +9020,7 @@ class DynKernelArgument(KernelArgument):
                 root_table.add(kind_symbol)
             return ScalarType(prim_type, kind_symbol)
 
-        elif self.is_field:
+        if self.is_field:
 
             # Find or create the TypeSymbol for the appropriate field type.
             # TODO #1258 the names of the Fortran modules should come from
@@ -9038,7 +9038,7 @@ class DynKernelArgument(KernelArgument):
 
             return _find_or_create_type(mod_name, type_name)
 
-        elif self.is_operator:
+        if self.is_operator:
 
             # Find or create the TypeSymbol for the appropriate operator type.
             if self.argument_type == "gh_operator":
@@ -9053,10 +9053,9 @@ class DynKernelArgument(KernelArgument):
 
             return _find_or_create_type("operator_mod", type_name)
 
-        else:
-            raise NotImplementedError(
-                "'{0}' is not a scalar, field or operator argument".format(
-                    str(self)))
+        raise NotImplementedError(
+            "'{0}' is not a scalar, field or operator argument"
+            "".format(str(self)))
 
 
 class DynKernCallFactory(object):
