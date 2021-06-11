@@ -347,7 +347,7 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert isinstance(bop.children[0].member.member.member, Member)
     assert not isinstance(bop.children[0].member.member.member, ArrayMember)
     gen = fortran_writer(amem)
-    assert (gen == "subgrid(3)%data(:)")
+    assert gen == "subgrid(3)%data(:)"
     # var%region%subgrid(3)%data(var%start:var%stop)
     assign = assignments[4]
     amem = assign.lhs.member.member.member

@@ -139,7 +139,7 @@ class ArrayMixin(object):
         if not isinstance(array_dimension, Range):
             return False
 
-        lower = array_dimension.children[0]
+        lower = array_dimension.start
         if not (isinstance(lower, BinaryOperation) and
                 lower.operator == BinaryOperation.Operator.LBOUND):
             return False
@@ -181,7 +181,7 @@ class ArrayMixin(object):
         if not isinstance(array_dimension, Range):
             return False
 
-        upper = array_dimension.children[1]
+        upper = array_dimension.stop
         if not (isinstance(upper, BinaryOperation) and
                 upper.operator == BinaryOperation.Operator.UBOUND):
             return False
@@ -274,7 +274,7 @@ class ArrayMixin(object):
                 step = array_dimension.children[2]
                 if (isinstance(step, Literal) and
                         step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-                        and step.value == "1"):
+                        and str(step.value) == "1"):
                     return True
         return False
 

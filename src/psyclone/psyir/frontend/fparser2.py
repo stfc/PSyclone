@@ -494,11 +494,11 @@ def _create_array_bound_arg(node):
         # that the copy of 'node' is replaced by a Member().
         arg = parent_ref.copy()
         # We use the depth computed for the original reference in order
-        # to find the copy of 'node.
+        # to find the copy of 'node'.
         inner = arg
         for step in range(depth-1):
             inner = inner.member
-        # Change the innermost access to be a Member
+        # Change the innermost access to be a Member.
         inner.children[0] = Member(node.name, inner)
         return arg
 
