@@ -2017,7 +2017,7 @@ class OMPParallelDirective(OMPDirective):
         for signature in var_accesses.all_signatures:
             accesses = var_accesses[signature].all_accesses
             # Ignore variables that have indices, we only look at scalar
-            if accesses[0].indices is not None:
+            if accesses[0].is_array():
                 continue
 
             # If a variable is only accessed once, it is either an error
