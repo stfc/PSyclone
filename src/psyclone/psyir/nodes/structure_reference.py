@@ -228,8 +228,16 @@ class StructureReference(Reference):
                     type(self).__name__, self.children))
         return self.children[0]
 
-    def get_signature_and_indices(self):
-        ''':returns: the Signature of this structure reference, and \
+    def get_signature_and_indices(self, max_depth=None):
+        '''
+        Constructs and returns the Signature and indices for this structure
+        reference. If supplied, max_depth limits how far down the structure
+        access to recurse when constructing the signature.
+
+        :param int max_depth: the maximum depth to recurse down into a \
+            structure type.
+
+        :returns: the Signature of this structure reference, and \
             a list of the indices used for each component (empty list \
             if an access is not an array).
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
@@ -239,10 +247,18 @@ class StructureReference(Reference):
         # Get the signature of self:
         my_sig, my_index = \
             super(StructureReference, self).get_signature_and_indices()
+
         # Then the sub-signature of the member, and indices used:
-        sub_sig, indices = self.children[0].get_signature_and_indices()
-        # Combine signature and indices
-        return (Signature(my_sig, sub_sig), my_index + indices)
+        if max_depth is None or max_depth > 0:
+            new_depth = None
+            if max_depth:
+                new_depth = max_depth - 1
+            sub_sig, indices = self.member.get_signature_and_indices(
+                max_depth=new_depth)
+            # Combine signature and indices
+            return (Signature(my_sig, sub_sig), my_index + indices)
+
+        return Signature(my_sig), my_index
 
 
 # For AutoAPI documentation generation

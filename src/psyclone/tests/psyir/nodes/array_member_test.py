@@ -80,6 +80,7 @@ def test_am_validate_child():
 def test_am_is_lower_upper_bound():
     ''' Test the is_lower/upper_bound methods of ArrayMember. '''
     one = nodes.Literal("1", symbols.INTEGER_TYPE)
+    two = nodes.Literal("2", symbols.INTEGER_TYPE)
     amem1 = nodes.ArrayMember.create(
         "subdomains",
         [one.copy(), nodes.Literal("2", symbols.INTEGER_TYPE)])
@@ -124,6 +125,21 @@ def test_am_is_lower_upper_bound():
     amem2 = sref.walk(nodes.ArrayMember)[0]
     assert amem2.is_lower_bound(0) is True
     assert amem2.is_upper_bound(0) is True
+    # Range in a dimension other than the first
+    start = nodes.operation.BinaryOperation.create(
+        nodes.operation.BinaryOperation.Operator.LBOUND,
+        ref.copy(), two.copy())
+    stop = nodes.operation.BinaryOperation.create(
+        nodes.operation.BinaryOperation.Operator.UBOUND,
+        ref.copy(), two.copy())
+    my_range = nodes.Range.create(start, stop)
+    sref = nodes.StructureReference.create(sym, [("data",
+                                                  [one.copy(), my_range])])
+    amem2 = sref.walk(nodes.ArrayMember)[0]
+    assert amem2.is_lower_bound(0) is False
+    assert amem2.is_upper_bound(0) is False
+    assert amem2.is_lower_bound(1) is True
+    assert amem2.is_upper_bound(1) is True
 
 
 def test_am_matching_access():
@@ -151,10 +167,10 @@ def test_am_matching_access():
     ref1 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("xobs", [one.copy()])])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
-    assert ref2.member._matching_access(ref1) is False
+    assert ref2.member._matching_access(ref1) is True
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("yobs", [one.copy()])])
-    amem = ref2.walk(nodes.ArrayMember)[0]
+    amem = ref2.member.member  # "yobs"
     assert amem._matching_access(ref1) is False
     # The same 'signature' (a%b%c) but where b is an array access in one
     # case. This may not be possible in Fortran but we need to exercise
@@ -191,3 +207,19 @@ def test_am_matching_access():
     ref1 = nodes.StructureReference.create(sym1, ["data"])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
     assert ref2.member._matching_access(ref1) is True
+    # Reference to an ArrayOfStructures
+    array_sym = symbols.DataSymbol("grids",
+                                   symbols.ArrayType(grid_type, [two.copy()]))
+    ref1 = nodes.ArrayOfStructuresReference.create(array_sym, [one.copy()],
+                                                   ["data"])
+    assert ref1._matching_access(nodes.Reference(array_sym))
+    # member being compared is not at the bottom of a derived-type access
+    ref1 = nodes.StructureReference.create(sym1, [("a", [one.copy()]),
+                                                  ("b", [one.copy()]),
+                                                  ("d", [one.copy()])])
+    ref2 = nodes.StructureReference.create(sym1, [("a", [one.copy()]),
+                                                  ("b", [one.copy()]),
+                                                  ("c", [one.copy()])])
+    amem = ref2.member.member
+    assert amem.name == "b"
+    assert amem._matching_access(ref1)

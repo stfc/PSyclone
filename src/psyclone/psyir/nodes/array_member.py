@@ -39,9 +39,6 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.nodes.operation import BinaryOperation
-from psyclone.psyir.nodes.ranges import Range
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.errors import GenerationError
 
 
@@ -90,109 +87,6 @@ class ArrayMember(ArrayMixin, Member):
         for child in indices:
             obj.addchild(child)
         return obj
-
-    def is_lower_bound(self, index):
-        '''Returns True if the specified array index contains a Range node
-        which has a starting value given by the 'LBOUND(access-expr,index)'
-        intrinsic where 'access-expr' is the full access to the current
-        ArrayMember and 'index' matches the specified array index. Otherwise
-        False is returned.
-
-        For example, if a Fortran array A%B was allocated with extent 10
-        then the starting value is 1 and LBOUND(A%B,1) would
-        return that value.
-
-        :param int index: the array index to check.
-
-        :returns: True if the array index is a range with its start \
-            value being LBOUND(array,index) and False otherwise.
-        :rtype: bool
-
-        '''
-        self._validate_index(index)
-
-        array_dimension = self.indices[index]
-        if not isinstance(array_dimension, Range):
-            return False
-
-        lower = array_dimension.children[0]
-        if not (isinstance(lower, BinaryOperation) and
-                lower.operator == BinaryOperation.Operator.LBOUND):
-            return False
-        if not isinstance(lower.children[0], Reference):
-            return False
-
-        # Check that the full structure access being passed to the LBOUND
-        # operator matches the one for this node.
-        return self._matching_access(lower.children[0])
-
-    def is_upper_bound(self, index):
-        '''Returns True if the specified array index contains a Range node
-        which has a stopping value given by the 'UBOUND(access-expr,index)'
-        intrinsic where 'access-expr' is the full access to the current
-        ArrayMember and 'index' matches the specified array index. Otherwise
-        False is returned.
-
-        For example, if a Fortran array A%B has extent 10 then the stopping
-        value is 10 and UBOUND(A%B,1) would return that value.
-
-        :param int index: the array index to check.
-
-        :returns: True if the array index is a range with its stop \
-            value being UBOUND(array,index) and False otherwise.
-        :rtype: bool
-
-        '''
-        self._validate_index(index)
-
-        array_dimension = self.indices[index]
-        if not isinstance(array_dimension, Range):
-            return False
-
-        upper = array_dimension.children[1]
-        if not (isinstance(upper, BinaryOperation) and
-                upper.operator == BinaryOperation.Operator.UBOUND):
-            return False
-        if not isinstance(upper.children[0], Reference):
-            return False
-
-        # Check that the full structure access being passed to the UBOUND
-        # operator matches the one for this node.
-        return self._matching_access(upper.children[0])
-
-    def _matching_access(self, node):
-        '''
-        Examines the full structure access represented by the supplied node
-        to see whether it is the same as the one for this node. Any indices
-        on the innermost member access are ignored. e.g.
-        A(3)%B%C(1) will match with A(3)%B%C but not with A(2)%B%C(1)
-
-        :returns: True if the structure accesses match, False otherwise.
-        :rtype: bool
-
-        '''
-        # This node is at the 'bottom' of the structure access so we
-        # need to get the parent Reference.
-        parent_member = self.ancestor(Reference)
-        if not parent_member:
-            return False
-        self_sig, self_indices = parent_member.get_signature_and_indices()
-        node_sig, node_indices = node.get_signature_and_indices()
-        if self_sig != node_sig:
-            return False
-
-        # We use the FortranWriter to simplify the job of comparing array-index
-        # expressions but have to import it here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
-        fwriter = FortranWriter()
-
-        # Examine the indices, ignoring any on the innermost accesses.
-        for indices in zip(self_indices[:-1], node_indices[:-1]):
-            if ("".join(fwriter(idx) for idx in indices[0]) !=
-                    "".join(fwriter(idx) for idx in indices[1])):
-                return False
-        return True
 
 
 # For AutoAPI documentation generation

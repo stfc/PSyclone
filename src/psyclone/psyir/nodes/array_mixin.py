@@ -73,8 +73,16 @@ class ArrayMixin(object):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
-    def get_signature_and_indices(self):
-        ''':returns: the Signature of this array reference, and \
+    def get_signature_and_indices(self, max_depth=None):
+        '''
+        Constructs the Signature of this array access and a list of the
+        indices used.
+
+        :param int max_depth: the maximum depth to recurse down into a \
+            structure type. Not used in this method (because it doesn't \
+            handle structure members).
+
+        :returns: the Signature of this array reference, and \
             a list of the indices used for each component (empty list \
             if an access is not an array). In this base class there is \
             no other component, so it just returns a list with a list \
@@ -82,6 +90,7 @@ class ArrayMixin(object):
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
         '''
+        # pylint: disable=unused-argument
         sig, _ = super(ArrayMixin, self).get_signature_and_indices()
         return (sig, [self.indices[:]])
 
@@ -134,9 +143,13 @@ class ArrayMixin(object):
         if not (isinstance(lower, BinaryOperation) and
                 lower.operator == BinaryOperation.Operator.LBOUND):
             return False
-        if not (isinstance(lower.children[0], Reference) and
-                lower.children[0].name == self.name):
+
+        if not isinstance(lower.children[0], Reference):
             return False
+
+        if not self._matching_access(lower.children[0]):
+            return False
+
         if not (isinstance(lower.children[1], Literal) and
                 lower.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER
@@ -172,14 +185,70 @@ class ArrayMixin(object):
         if not (isinstance(upper, BinaryOperation) and
                 upper.operator == BinaryOperation.Operator.UBOUND):
             return False
-        if not (isinstance(upper.children[0], Reference) and
-                upper.children[0].name == self.name):
+
+        if not isinstance(upper.children[0], Reference):
             return False
+
+        if not self._matching_access(upper.children[0]):
+            return False
+
         if not (isinstance(upper.children[1], Literal) and
                 upper.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER
                 and upper.children[1].value == str(index+1)):
             return False
+        return True
+
+    def _matching_access(self, node):
+        '''
+        Examines the full structure access represented by the supplied node
+        to see whether it is the same as the one for this node. Any indices
+        on the innermost member access are ignored. e.g.
+        A(3)%B%C(1) will match with A(3)%B%C but not with A(2)%B%C(1)
+
+        :returns: True if the structure accesses match, False otherwise.
+        :rtype: bool
+
+        '''
+        if isinstance(self, Reference):
+            if not isinstance(node, Reference):
+                return False
+            # This node is a reference so just compare symbol names.
+            return self.symbol.name == node.symbol.name
+
+        # This node is somewhere within a structure access so we need to
+        # get the parent Reference and keep a record of how deep this node
+        # is within the structure access. e.g. if this node was the
+        # StructureMember 'b' in a%c%b%d then its depth would be two.
+        current = self
+        depth = 1
+        while current.parent and not isinstance(current.parent, Reference):
+            depth += 1
+            current = current.parent
+        parent_ref = current.parent
+        if not parent_ref:
+            return False
+
+        # Now we have the parent Reference and the depth, we can construct the
+        # Signatures for the two accesses to the required depth.
+        self_sig, self_indices = parent_ref.get_signature_and_indices(
+            max_depth=depth)
+        node_sig, node_indices = node.get_signature_and_indices(
+            max_depth=depth)
+        if self_sig != node_sig:
+            return False
+
+        # We use the FortranWriter to simplify the job of comparing array-index
+        # expressions but have to import it here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.fortran import FortranWriter
+        fwriter = FortranWriter()
+
+        # Examine the indices, ignoring any on the innermost accesses.
+        for indices in zip(self_indices[:-1], node_indices[:-1]):
+            if ("".join(fwriter(idx) for idx in indices[0]) !=
+                    "".join(fwriter(idx) for idx in indices[1])):
+                return False
         return True
 
     def is_full_range(self, index):

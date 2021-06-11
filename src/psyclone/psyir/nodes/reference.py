@@ -124,13 +124,20 @@ class Reference(DataNode):
             return False
         return self.name == other.name
 
-    def get_signature_and_indices(self):
-        ''':returns: the Signature of this reference, and \
-            an empty list of lists as 'indices' since this reference does \
-            not represent an array access.
+    def get_signature_and_indices(self, max_depth=None):
+        '''
+        Constructs and returns the Signature and an empty list of lists of
+        indices for this node (since it does not represent an array access).
+
+        :param int max_depth: the maximum depth to recurse down into a \
+            structure type. Not used in the case of a Reference.
+
+        :returns: the Signature of this reference, and an empty list of lists \
+            as 'indices'.
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             list of indices)
         '''
+        # pylint: disable=unused-argument
         return (Signature(self.name), [[]])
 
     def reference_accesses(self, var_accesses):
