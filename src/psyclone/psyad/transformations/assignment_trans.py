@@ -37,10 +37,27 @@ assignment node with its adjoint form.
 
 '''
 from __future__ import absolute_import
-from psyclone.psyad.transformations import AdjointTransformation
+
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Literal
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.transformations import TransformationError
+
+from psyclone.psyad.transformations import AdjointTransformation
+
+
+class TangentLinearError(Exception):
+    '''Provides a PSyclone-specific error class for errors found during
+        code transformation operations.
+
+    '''
+    def __init__(self, value):
+
+        Exception.__init__(self, value)
+        self.value = "TangentLinear Error: "+value
+
+        def __str__(self):
+            return repr(self.value)
 
 
 class AssignmentTrans(AdjointTransformation):
@@ -110,7 +127,16 @@ class AssignmentTrans(AdjointTransformation):
 
 
     def apply(self, node, options=None):
-        ''' xxx '''
+        '''Apply the Assignment transformation to the specified node. The node
+        must be a valid tangent linear assignment . The assignment is
+        replaced with its adjoint version.
+
+        :param node: an Assignment node.
+        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        '''
         self.validate(node)
 
         parent = node.parent
@@ -127,19 +153,50 @@ class AssignmentTrans(AdjointTransformation):
         if not increment_node:
             # lhs is not an increment so set x=0
             new_rhs = Literal("0.0", REAL_TYPE)
-            adjoint_assignment_list.insert(0, Assignment.create(node.lhs.copy(), new_rhs))
+            adjoint_assignment_list.insert(
+                0, Assignment.create(node.lhs.copy(), new_rhs))
         # replace original node with new nodes
         for adjoint_assignment in reversed(adjoint_assignment_list):
             node.parent.children.insert(node.position, adjoint_assignment)
         node.detach()
 
-    def validate(self, node, optione=None):
-        ''' xxx '''
-        # Must be assignment
-        # Must have parent
-        # Check that assignment is in the form DELTA_A [=|+=] X *
-        # DELTA_B + Y * DELTA_C + ...
-        pass
+    def validate(self, node, options=None):
+        '''Perform various checks to ensure that it is valid to apply the
+        AssignmentTran transformation to the supplied PSyIR Node.
+
+        :param node: the node that is being checked.
+        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the node argument is not an \
+            Assignment.
+
+        '''
+        if not isinstance(node, Assignment):
+            raise TransformationError(
+                "Node argument in assignment transformation should be a PSyIR "
+                "Assignment, but found '{0}'.".format(type(node).__name__))
+        assignment_active_vars = [
+            var.name for var in node.walk(Reference) if var.name.lower()
+            in self._active_variables]
+        if not assignment_active_vars:
+            # No active variables in this assigment so the assignment
+            # remains unchanged.
+            return
+        # Check that the assignment node has a valid tangent linear form
+        # i.e. DELTA_A [=|+=] X * DELTA_B + Y * DELTA_C + ...
+        if not node.lhs.name.lower() in self._active_variables:
+            # 1: Active vars on RHS but not active on LHS
+            raise TangentLinearError(
+                "Assignment node has the following active variables on its "
+                "RHS '{0}' but its LHS '{1}' is not an active variable."
+                "".format(assignment_active_vars, node.lhs.name))
+        
+        # 2) RHS term without active variable
+        # 3) RHS term with multiple active variables
+        # 4) RHS term with invalid form e.g. 
+        # No functions, no intrinsics
 
     def __str__(self):
         return "Convert a PSyIR Assignment to its adjoint form"

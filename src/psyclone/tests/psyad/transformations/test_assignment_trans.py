@@ -34,12 +34,16 @@
 #
 '''Module to test the psyad assignment transformation.'''
 
+import pytest
+
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, SymbolTable
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, Routine
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.transformations import TransformationError
 
 from psyclone.psyad.transformations import AssignmentTrans
+from psyclone.psyad.transformations.assignment_trans import TangentLinearError
 
 
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
@@ -360,10 +364,43 @@ def test_increment_multi_add():
         "  a(1) = w(1) * a(1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
-
 # TODO
 # check a = b + ya as a should be assigned after (test error)
 # a = -b -yc
 # a(i) = a(i+1) + b(i) + b(i+1)
-# * errors (not all terms active, not linear, ...)
 # * other datatypes (assuming all real for the moment) and ignoring precision
+
+# Validate method
+
+def test_validate_node():
+    '''Check that the expected exception is raised if the provided node
+    argument is not a PSyIR Assignment node.'''
+    trans = AssignmentTrans(active_variables=[])
+    with pytest.raises(TransformationError) as info:
+        trans.validate(None)
+    assert ("Node argument in assignment transformation should be a PSyIR "
+            "Assignment, but found 'NoneType'." in str(info.value))
+
+
+def test_validate_not_active():
+    '''Test that the validate method returns without error if there are no
+    active variables in the assignment.'''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
+    trans = AssignmentTrans(active_variables=["c", "aa", "ab"])
+    trans.validate(assignment)
+
+def test_validate_active_rhs():
+    '''Test that the validate method returns the expected exception if
+    there is at least one active variable on the RHS of an assignment
+    but the LHS is not an active variable.'''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
+    trans = AssignmentTrans(active_variables=["c", "aa", "b"])
+    with pytest.raises(TangentLinearError) as info:
+        trans.validate(assignment)
+    assert ("Assignment node has the following active variables on its RHS "
+            "'['b']' but its LHS 'a' is not an active variable."
+            in str(info.value))
