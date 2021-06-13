@@ -31,7 +31,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-''' xxx '''
+#
+'''Module to test the psyad assignment transformation.'''
 
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, SymbolTable
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, Routine
@@ -42,8 +43,18 @@ from psyclone.psyad.transformations import AssignmentTrans
 
 
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
-    ''' Utility xxx '''
-    
+    '''Utility routine that takes tangent linear fortran code as input in
+    the argument tl_fortran, transforms this code into its adjoint
+    using the active variables specified in the active variable_names
+    argument and tests whether the result is the same as the expected
+    result in the expected_ad_fortran argument.
+
+    :param str tl_fortran: tangent linear code.
+    :param list of str active_variable_names: a list of active \
+        variable names.
+    :param str tl_fortran: the expected adjoint code to be produced.
+
+    '''
     input_code = ("subroutine test()\n{0}end subroutine test\n"
                   "".format(tl_fortran))
     expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
@@ -70,7 +81,12 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
 
 
 def test_zero():
-    '''Test that the adjoint transformation works for the following case:
+    '''Test that the adjoint transformation with an assignment of the form
+    A = 0. This tests that the transformation works when there are no
+    active variables on the rhs and with the active variable on the lhs
+    being a write, not an increment. Scalars, directly addressed
+    arrays, indirectly addressed arrays and structure array accesses
+    are tested.
 
     A=0 -> A*=0
 
@@ -84,7 +100,7 @@ def test_zero():
         "  real :: a\n\n"
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
-    # Array
+    # Direct Addressed Array
     tl_fortran = (
         "  real :: a(n)\n"
         "  integer :: n\n"
@@ -95,10 +111,40 @@ def test_zero():
         "  real, dimension(n) :: a\n\n"
         "  a(n) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
+    # Indirect Addressed Array
+    tl_fortran = (
+        "  real :: a(n)\n"
+        "  integer :: b(n), n\n"
+        "  a(b(n)) = 0.0\n\n")
+    active_variables = ["a"]
+    ad_fortran = (
+        "  integer :: n\n"
+        "  real, dimension(n) :: a\n"
+        "  integer, dimension(n) :: b\n\n"
+        "  a(b(n)) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+    # Structure
+    tl_fortran = (
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: a\n"
+        "  integer :: n\n"
+        "  a%data(n) = 0.0\n\n")
+    active_variables = ["a"]
+    ad_fortran = (
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: a\n"
+        "  integer :: n\n\n"
+        "  a%data(n) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
 def test_single_assign():
-    '''Test that the adjoint transformation works for the following case:
+    '''Test that the adjoint transformation with an assignment of the form
+    A = B. This tests that the transformation works when there is one
+    active variable on the rhs and with the active variable on the lhs
+    being a write, not an increment. Scalars, directly addressed
+    arrays, indirectly addressed arrays and structure array accesses
+    are tested.
 
     A=B -> B*=B*+A*;A*=0.0
 
@@ -113,7 +159,7 @@ def test_single_assign():
         "  b = b + a\n"
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
-    # Array
+    # Direct addressed array
     tl_fortran = (
         "  real :: a(n),b(n)\n"
         "  integer :: i,n\n"
@@ -125,25 +171,45 @@ def test_single_assign():
         "  b(n + 1) = b(n + 1) + a(2 * i)\n"
         "  a(2 * i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
+    # Indirect addressed array
+    tl_fortran = (
+        "  real :: a(n),b(n)\n"
+        "  integer :: i,n,lookup(n)\n"
+        "  a(lookup(2*i)) = b(lookup(n)+1)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  integer :: n\n  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n  integer :: i\n"
+        "  integer, dimension(n) :: lookup\n\n"
+        "  b(lookup(n) + 1) = b(lookup(n) + 1) + a(lookup(2 * i))\n"
+        "  a(lookup(2 * i)) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+    # Structure
+    tl_fortran = (
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: a,b\n"
+        "  integer :: i,n\n"
+        "  a%data(2*i) = b%data(n+1)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: a\n  type(field_type) :: b\n"
+        "  integer :: i\n  integer :: n\n\n"
+        "  b%data(n + 1) = b%data(n + 1) + a%data(2 * i)\n"
+        "  a%data(2 * i) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
 def test_single_valued_assign():
-    '''Test that the adjoint transformation works for the following case:
+    '''Test that the adjoint transformation with an assignment of the form
+    A = xB. This tests that the transformation works when there is one
+    active variable on the rhs that is multipled by a factor and with
+    the active variable on the lhs being a write, not an
+    increment.
 
     A=xB -> B*=B*+xA*;A*=0.0
 
     '''
-    # Scalar
-    tl_fortran = (
-        "  real a, b, n\n"
-        "  a = 3*n*b\n")
-    active_variables = ["a", "b"]
-    ad_fortran = (
-        "  real :: a\n  real :: b\n  real :: n\n\n"
-        "  b = b + 3 * n * a\n"
-        "  a = 0.0\n\n")
-    check_adjoint(tl_fortran, active_variables, ad_fortran)
-    # Array
     tl_fortran = (
         "  real a(10), b(10), n\n"
         "  integer :: i,j\n"
@@ -158,31 +224,15 @@ def test_single_valued_assign():
 
 
 def test_multi_add():
-    '''Test that the adjoint transformation works for the following case:
-
-    Test that the adjoint transformation with an assignment of the form
-    A = B + xC + D. This tests that the transformation works when there
-    is more than one addition on the rhs with the lhs being a write,
-    not an increment.
+    '''Test that the adjoint transformation with an assignment of the form
+    A = xB + yC + D. This tests that the transformation works when
+    there are many active variables on the rhs with some of them being
+    multipled by a factor and with the active variable on the lhs
+    being a write, not an increment.
 
     A=xB+yC+D -> D*=D*+A; C*=C*+yA*; B*=B*+xA*; A*=0.0
 
     '''
-    # Scalar
-    tl_fortran = (
-        "  real a, b, c, d\n"
-        "  integer n\n"
-        "  a = 3*n*b + c/4 + d\n")
-    active_variables = ["a", "b", "c", "d"]
-    ad_fortran = (
-        "  real :: a\n  real :: b\n  real :: c\n  real :: d\n"
-        "  integer :: n\n\n"
-        "  d = d + a\n"
-        "  c = c + a / 4\n"
-        "  b = b + 3 * n * a\n"
-        "  a = 0.0\n\n")
-    check_adjoint(tl_fortran, active_variables, ad_fortran)
-    # Array
     tl_fortran = (
         "  real a(10), b(10), c(10), d(10)\n"
         "  integer :: i, j, n\n"
@@ -209,13 +259,14 @@ def test_increment():
     As A does not change we output nothing.
 
     '''
-    # Scalar
     tl_fortran = (
-        "  real a\n"
-        "  a = a\n")
+        "  integer :: n\n"
+        "  real a(n)\n"
+        "  a(n) = a(n)\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  real :: a\n\n\n")
+        "  integer :: n\n"
+        "  real, dimension(n) :: a\n\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -229,33 +280,33 @@ def test_increment_mult():
     '''
     # Scalar
     tl_fortran = (
-        "  real a\n"
-        "  a = 5*a\n")
+        "  integer :: n\n"
+        "  real a(n)\n"
+        "  a(n) = 5*a(n)\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  real :: a\n\n"
-        "  a = 5 * a\n\n")
+        "  integer :: n\n"
+        "  real, dimension(n) :: a\n\n"
+        "  a(n) = 5 * a(n)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
 def test_increment_add():
     '''Test that the adjoint transformation with an assignment of the form
     A = A + B. This tests that the transformation works when there is
-    a single addition on the rhs with the lhs being a scaled
-    increment.
+    a single addition on the rhs with the lhs being an increment.
 
     A+=B -> B*=A*; A*=A*
 
     '''
-    # Scalar
     tl_fortran = (
-        "  real a, b\n"
-        "  a = a+b\n")
+        "  real a(10), b(10)\n"
+        "  a(1) = a(1)+b(1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real :: a\n"
-        "  real :: b\n\n"
-        "  b = b + a\n\n")
+        "  real, dimension(10) :: a\n"
+        "  real, dimension(10) :: b\n\n"
+        "  b(1) = b(1) + a(1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -267,53 +318,52 @@ def test_increment_add_reorder():
 
     A=B+kA -> B*=A*; A*=kA*
 
+    *** FAILS ***
+
     '''
-    # Scalar
     tl_fortran = (
-        "  real a, b\n"
+        "  real a(10), b(10)\n"
         "  integer k\n"
-        "  a = b+k*a\n")
+        "  a(1) = b(1)+k*a(1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real :: a\n"
-        "  real :: b\n"
+        "  real, dimension(10) :: a\n"
+        "  real, dimension(10) :: b\n"
         "  integer :: k\n\n"
-        "  b = b + a\n"
-        "  a = k * a\n\n")
+        "  b(1) = b(1) + a(1)\n"
+        "  a(1) = k * a(1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
 def test_increment_multi_add():
     '''Test that the adjoint transformation with an assignment of the form
-    A += xB + yC + zD. This tests that the transformation works when
-    there are multiple additions on the rhs with the lhs being a
+    A = wA + xB + yC + zD. This tests that the transformation works
+    when there are multiple additions on the rhs with the lhs being a
     scaled increment.
 
     A=wA+xB+yC+zD -> D*=D*+zA*; C*=C*+yA*; B*=B*+xA*; A*=wA*
 
     '''
-    # Scalar
     tl_fortran = (
-        "  real a, b, c, d\n"
-        "  real w, x, y, z\n"
-        "  a = w*a+x*b+y*c+z*d\n")
+        "  real a(10), b(10), c(10), d(10)\n"
+        "  real w(10), x, y(10), z\n"
+        "  a(1) = w(1)*a(1)+x*b(1)+y(1)*c(1)+z*d(1)\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
-        "  real :: a\n  real :: b\n  real :: c\n  real :: d\n"
-        "  real :: w\n  real :: x\n  real :: y\n  real :: z\n\n"
-        "  d = d + z * a\n"
-        "  c = c + y * a\n"
-        "  b = b + x * a\n"
-        "  a = w * a\n\n")
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
+        "  real, dimension(10) :: w\n  real :: x\n"
+        "  real, dimension(10) :: y\n  real :: z\n\n"
+        "  d(1) = d(1) + z * a(1)\n"
+        "  c(1) = c(1) + y(1) * a(1)\n"
+        "  b(1) = b(1) + x * a(1)\n"
+        "  a(1) = w(1) * a(1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
 # TODO
 # check a = b + ya as a should be assigned after (test error)
-# arrays for increment tests
 # a = -b -yc
 # a(i) = a(i+1) + b(i) + b(i+1)
 # * errors (not all terms active, not linear, ...)
-# * structures (builtin examples)
-# * indirection (kernel examples)
-# * datatypes (assuming all real for the moment) and ignoring precision
+# * other datatypes (assuming all real for the moment) and ignoring precision
