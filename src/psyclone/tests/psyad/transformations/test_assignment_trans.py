@@ -37,13 +37,13 @@
 import pytest
 
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, SymbolTable
-from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, Routine
+from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
+    Routine
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.transformations import TransformationError
 
-from psyclone.psyad.transformations import AssignmentTrans
-from psyclone.psyad.transformations.assignment_trans import TangentLinearError
+from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
 
 
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):

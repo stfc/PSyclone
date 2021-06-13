@@ -43,21 +43,8 @@ from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
 
-from psyclone.psyad.transformations import AdjointTransformation
-
-
-class TangentLinearError(Exception):
-    '''Provides a PSyclone-specific error class for errors found during
-        code transformation operations.
-
-    '''
-    def __init__(self, value):
-
-        Exception.__init__(self, value)
-        self.value = "TangentLinear Error: "+value
-
-        def __str__(self):
-            return repr(self.value)
+from psyclone.psyad.transformations import AdjointTransformation, \
+    TangentLinearError
 
 
 class AssignmentTrans(AdjointTransformation):
