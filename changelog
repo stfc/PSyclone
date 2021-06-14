@@ -30,6 +30,22 @@
         11) PR #1257 for #1248. Adds support for logical, read-only, scalar
         arguments to LFRic user-supplied kernels.
 
+        12) PR #1234 for #1230. Adds FileContainer node.
+
+        13) PR #1264 towards #1258. Adds mappings for the LFRic infrastructure
+        types to their Fortran modules to the LFRic Constants class.
+
+        14) PR #1236 for #1028. Extends the core variable-access analysis
+        functionality to support structures (derived types).
+
+	15) PR #1239 towards #1237. Adds lower_to_language_level() method
+	for some LFRic builtins.
+
+        16) PR #1195 for #1194. Fixes some incorrect str(error) usage in the
+        tests, introduces a PSycloneError base class and adds tests to make
+        sure that it is used. Also adds tests to ensure that future accidental
+        use of str(error) will cause a failure.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

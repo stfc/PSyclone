@@ -43,10 +43,13 @@ class and its subclasses and the generic Symbol class.
 
 from __future__ import absolute_import
 from enum import Enum
+from psyclone.errors import PSycloneError
 import six
 
+from psyclone.errors import InternalError
 
-class SymbolError(Exception):
+
+class SymbolError(PSycloneError):
     '''
     PSyclone-specific exception for use with errors relating to the Symbol and
     SymbolTable in the PSyIR.
@@ -54,18 +57,16 @@ class SymbolError(Exception):
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "PSyclone SymbolTable error: "+value
-
-    def __str__(self):
-        return str(self.value)
+        PSycloneError.__init__(self, value)
+        self.value = "PSyclone SymbolTable error: "+str(value)
 
 
-class SymbolInterface(object):
+class SymbolInterface(object):   # pylint: disable=too-few-public-methods
     ''' Abstract class of a Symbol Interface '''
 
 
 class LocalInterface(SymbolInterface):
+    # pylint: disable=too-few-public-methods
     ''' The symbol just exists in the Local context '''
 
     def __str__(self):
@@ -73,6 +74,7 @@ class LocalInterface(SymbolInterface):
 
 
 class UnresolvedInterface(SymbolInterface):
+    # pylint: disable=too-few-public-methods
     '''We have a symbol but we don't know where it is declared.'''
 
     def __str__(self):
@@ -93,6 +95,8 @@ class GlobalInterface(SymbolInterface):
 
     '''
     def __init__(self, container_symbol):
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols import ContainerSymbol
 
         super(GlobalInterface, self).__init__()
@@ -283,6 +287,7 @@ class Symbol(object):
                     self.name, type(self).__name__, subclass.__name__))
         self.__class__ = subclass
 
+    # pylint: disable=inconsistent-return-statements
     def get_external_symbol(self):
         '''
         Looks-up and returns the Symbol referred to by this Symbol's external
@@ -476,3 +481,102 @@ class Symbol(object):
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_array(self):
+        '''This is the basic implementation for the method that checks
+        if a symbol is declared to be an array. In this base class it
+        will just raise an exception, indicating that no information
+        is available. The function will be overwritten, e.g. in
+        DataSymbol.
+
+        :returns: True if this symbol is an array and False otherwise.
+        :rtype: bool
+
+        :raises ValueError: if this function is called for the base class \
+            since there is no information available.
+
+        '''
+        raise ValueError("No array information is available for the "
+                         "symbol '{0}'.".format(self.name))
+
+    def is_array_access(self, index_variable=None, access_info=None):
+        '''This method detects if a variable is used as an array or not.
+        If available, it will use the access information, i.e. how the
+        variable is used (e.g. if it has indices somewhere, like `a(i)%b`).
+        This can be incorrect in case of implicit loops (e.g. `a=b+1`,
+        where `a` and `b` are arrays) where the variable usage information
+        will not have information about indices. In this case this function
+        will fallback to querying the symbol itself.
+
+        This can cause significant slowdown if this symbol is imported
+        from a module, since then these modules need to be parsed.
+        # TODO #1213: Parsing modules is not yet supported.
+
+        If a `loop_variable` is specified, a variable access will only be
+        considered an array access if the specified variable is used in
+        at least one of the indices. For example:
+        >>> do i=1, n
+        >>>     a(j) = 2
+
+        the access to `a` is not considered an array if `loop_variable` is
+        set to `i`. If `loop_variable` is specified, `access_information`
+        must be specified.
+
+        :param str index_variable: optional loop variable that is used to \
+            to determine if an access is an array access using this variable.
+        :param access_info: variable access information, optional.
+        :type access_info: \
+            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
+
+        :returns: if the variable is an array.
+        :rtype bool:
+
+        :raises InternalError: if a loop_variable is specified, but no \
+            access information is given.
+        :raises InternalError: if a loop_variable is specified, but no \
+            access information is given.
+
+        '''
+        # TODO #1270: this function might either be better off elsewhere,
+        # or even do not implement one function that uses both access
+        # information and symbol table - if required, the user can
+        # query both in two simple statements anyway.
+        if index_variable and not access_info:
+            raise InternalError("In Symbol.is_array_access: index variable "
+                                "'{0}' specified, but no access information "
+                                "given."
+                                .format(index_variable))
+
+        # TODO #1244: If as a result of 1244 we have more reliable
+        # information in the symbol table, the implementation here might
+        # be changed.
+
+        # Prioritise access information, since this can take the index
+        # variable into account, and avoids potentially parsing other
+        # modules to find type information.
+        if access_info:
+            # Access Info might not have information if a variable is used
+            # as array (e.g. in case of an array expression). In this case
+            # we still need to check the type information in the symbol table.
+            is_array = access_info.is_array(index_variable=index_variable)
+
+            # Access information might indicate that a variable is not an
+            # array if it is used in array expressions only. In order to
+            # verify, we need to check the symbol type information. But
+            # if an index variable is specified, an array used in an array
+            # expression without the index variable is not considered to
+            # be an array access, since it is independent of the loop
+            # variable. In this case also return the value from `is_array`.
+            if is_array or index_variable is not None:
+                return is_array
+
+        # Either we don't have access information, or the access information
+        # does not indicate an array. In the latter case we still need to
+        # test the symbol table, since the variable might be used in array
+        # expressions only. Note that we cannot check for index variable usage
+        # in this case. If there is no type information available (i.e. `self`
+        # is just a Symbol, not a DataSymbol), the `is_array` function will
+        # raise an exception.
+        # TODO #1213: check for wildcard imports
+        return self.is_array

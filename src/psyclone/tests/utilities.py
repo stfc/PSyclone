@@ -50,13 +50,13 @@ from fparser import api as fpapi
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-
+from psyclone.errors import PSycloneError
 
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 
-class CompileError(Exception):
+class CompileError(PSycloneError):
     '''
     Exception raised when compilation of a Fortran source file fails.
 
@@ -66,10 +66,7 @@ class CompileError(Exception):
     '''
     def __init__(self, value):
         # pylint: disable=super-init-not-called
-        self.value = "Compile error: " + str(value)
-
-    def __str__(self):
-        return repr(self.value)
+        PSycloneError.value = "Compile error: " + str(value)
 
 
 # =============================================================================
@@ -273,8 +270,8 @@ class Compile(object):
         except OSError as err:
             print("Failed to run: {0}: ".format(" ".join(arg_list)),
                   file=sys.stderr)
-            print("Error was: ", str(err), file=sys.stderr)
-            raise CompileError(str(err))
+            print("Error was: ", str(err.value), file=sys.stderr)
+            raise CompileError(str(err.value))
 
         # Check the return code
         stat = build.returncode

@@ -557,13 +557,18 @@ class Invoke(object):
         if not reserved_names:
             reserved_names = []
 
+        # Get a reference to the parent container, if any
+        container = None
+        if self.invokes:
+            container = self.invokes.psy.container
+
         # create the schedule
         self._schedule = schedule_class(self._name, alg_invocation.kcalls,
-                                        reserved_names)
+                                        reserved_names, parent=container)
 
-        # Add the new Schedule in a top-level PSy Container
-        if self.invokes:
-            self.invokes.psy.container.addchild(self._schedule)
+        # Add the new Schedule to the top-level PSy Container
+        if container:
+            container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -891,8 +896,8 @@ class InvokeSchedule(Routine):
     _text_name = "InvokeSchedule"
 
     def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
-                 reserved_names=None):
-        super(InvokeSchedule, self).__init__(name)
+                 reserved_names=None, parent=None):
+        super(InvokeSchedule, self).__init__(name, parent=parent)
 
         self._invoke = None
 
@@ -2076,7 +2081,7 @@ class OMPParallelDirective(OMPDirective):
         for signature in var_accesses.all_signatures:
             accesses = var_accesses[signature].all_accesses
             # Ignore variables that have indices, we only look at scalar
-            if accesses[0].indices is not None:
+            if accesses[0].is_array():
                 continue
 
             # If a variable is only accessed once, it is either an error
@@ -3970,9 +3975,11 @@ class DataAccess(object):
 
 
 class Argument(object):
-    ''' Argument base class
+    '''
+    Argument base class. Captures information on an argument that is passed
+    to a Kernel from an Invoke.
 
-    :param call: the call that this argument is associated with.
+    :param call: the kernel call that this argument is associated with.
     :type call: :py:class:`psyclone.psyGen.Kern`
     :param arg_info: Information about this argument collected by \
                      the parser.
@@ -4047,7 +4054,7 @@ class Argument(object):
         DeferredType for now (it may be provided later in the execution).
 
         :returns: the datatype of this argument.
-        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+        :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         '''
         # pylint: disable=no-self-use

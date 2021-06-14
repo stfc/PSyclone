@@ -69,7 +69,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
     InvokeSchedule
-from psyclone.psyir.nodes import Assignment, BinaryOperation, \
+from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
     Literal, Node, Schedule, KernelSchedule, Call, Loop, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     GlobalInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
@@ -261,6 +261,25 @@ def test_invokes_can_always_be_printed():
     inv = Invoke(alg_invocation, 0, DynInvokeSchedule, None)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1 % my_field, m1, m2)"
+
+
+def test_invoke_container():
+    ''' Test the setting of the container associated with an Invoke. '''
+    _, invoke = parse(
+        os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
+        api="dynamo0.3")
+    alg_invocation = invoke.calls[0]
+    # An isolated Invoke object has no associated Container
+    inv = Invoke(alg_invocation, 0, DynInvokeSchedule, None)
+    assert inv._schedule.parent is None
+    # Creating an Invokes object requires a PSy object but the construction of
+    # the latter also creates the former. Therefore, we just create a PSy
+    # object and check that a Container with the correct parent/child
+    # relationships is created.
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke)
+    assert isinstance(psy.container, Container)
+    assert psy.invokes.invoke_list[0].schedule.parent is psy.container
+    assert psy.container.children == [psy.invokes.invoke_list[0].schedule]
 
 
 def test_same_name_invalid():
