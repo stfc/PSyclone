@@ -43,7 +43,7 @@ from psyclone.core import AccessInfo, Signature, SingleVariableAccessInfo, \
     VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Assignment, Node
 
 
 def test_access_info():
@@ -53,7 +53,8 @@ def test_access_info():
     access_info = AccessInfo(AccessType.READ, location, Node())
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
-    assert access_info.indices is None
+    assert access_info.component_indices == [[]]
+    assert not access_info.is_array()
     assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
     assert str(access_info) == "WRITE(12)"
@@ -63,24 +64,44 @@ def test_access_info():
     assert "Trying to change variable to 'WRITE' which does not have "\
         "'READ' access." in str(err.value)
 
-    access_info.indices = ["i"]
-    assert access_info.indices == ["i"]
+    access_info.component_indices = [["i"]]
+    assert access_info.component_indices == [["i"]]
+    assert access_info.is_array()
 
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node())
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.indices is None
+    assert access_info.component_indices == [[]]
 
-    access_info = AccessInfo(AccessType.UNKNOWN, location, Node(), ["i", "j"])
+    access_info = AccessInfo(AccessType.UNKNOWN, location, Node(),
+                             [["i", "j"]])
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.indices == ["i", "j"]
+    assert access_info.component_indices == [["i", "j"]]
+
+
+# -----------------------------------------------------------------------------
+def test_access_info_exceptions():
+    '''Test that the right exceptions are raised.
+    '''
+    location = 12
+    with pytest.raises(InternalError) as err:
+        _ = AccessInfo(AccessType.READ, location, Node(),
+                       component_indices=123)
+    assert "component_indices in add_access must be a list of lists or " \
+           "None, got '123'" in str(err.value)
+
+    with pytest.raises(InternalError) as err:
+        _ = AccessInfo(AccessType.READ, location, Node(),
+                       component_indices=[[], 123])
+    assert "component_indices in add_access must be a list of lists or None, "\
+        "got '[[], 123]'" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
 def test_variable_access_info():
-    '''Test the VariableAccesInfo class, i.e. the class that manages a list
-    of VariableInfo instances for one variable
+    '''Test the SingleVariableAccesInfo class, i.e. the class that manages a
+    list of VariableInfo instances for one variable
     '''
 
     vai = SingleVariableAccessInfo("var_name")
@@ -121,6 +142,21 @@ def test_variable_access_info():
     # And make sure the variable is not read_only if a write is added
     vai.add_access_with_location(AccessType.WRITE, 3, Node())
     assert vai.is_read_only() is False
+
+
+# -----------------------------------------------------------------------------
+def test_variable_access_info_is_array():
+    '''Test that the SingleVariableAccesInfo class handles arrays as expected.
+
+    '''
+
+    vai = SingleVariableAccessInfo("var_name")
+    # Add non array-like access:
+    vai.add_access_with_location(AccessType.READ, 1, Node())
+    assert not vai.is_array()
+    # Add array access:
+    vai.add_access_with_location(AccessType.READ, 1, Node(), [[Node()]])
+    assert vai.is_array()
 
 
 # -----------------------------------------------------------------------------
@@ -303,3 +339,147 @@ def test_constructor(fortran_reader):
     # The error message is slightly different between python 2 and 3
     # so only test for the part that is the same in both:
     assert "'int'>" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_derived_type_scalar(fortran_reader):
+    '''This function tests the handling of derived scalartypes.
+    '''
+
+    code = '''module test
+        contains
+        subroutine tmp()
+          use my_mod
+          !use my_mod, only: something
+          !type(something) :: a, b, c
+          integer :: i, j, k
+          a%b = b%c/c%d%e
+        end subroutine tmp
+        end module test'''
+    schedule = fortran_reader.psyir_from_source(code).children[0]
+    node1 = schedule.children[0][0]
+    vai1 = VariablesAccessInfo(node1)
+    assert isinstance(node1, Assignment)
+    assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"
+
+
+# -----------------------------------------------------------------------------
+def to_fortran(writer, index_expression):
+    '''A small helper function that converts index information from an
+    AccessInfo object to a list of list of strings. For example, an access
+    like `a(i)%b%c(j,k)` will have an index expression of
+    `[ [i], [], [j, k]]`, where `i`, `j`, and `k` are the PSyIR representation
+    of the indices. This function will convert each PSyIR node to a string,
+    returning in the example: `[ ["i"], [], ["j", "k"]]`
+
+    :param writer: a FortranWriter object.
+    :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
+    :param expression: a Fortran PSyIR node with the index expression to \
+        convert.
+    :type index_expression: list of list of :py:class:`psyclone.psyir.node`s
+
+    :return: list of list of corresponding Fortran code, each as string.
+    :rtype: list of list of str
+    '''
+
+    result = []
+    for indices in index_expression:
+        result.append([writer(index) for index in indices])
+    return result
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("array, indices",
+                         [("a%b%c", [[], [], []]),
+                          ("a%b%c(i)", [[], [], ["i"]]),
+                          ("a%b(j)%c", [[], ["j"], []]),
+                          ("a%b(j)%c(i)", [[], ["j"], ["i"]]),
+                          ("a(k)%b%c", [["k"], [], []]),
+                          ("a(k)%b%c(i)", [["k"], [], ["i"]]),
+                          ("a(k)%b(j)%c", [["k"], ["j"], []]),
+                          ("a(k)%b(j)%c(i)", [["k"], ["j"], ["i"]])
+                          ])
+def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
+    '''This function tests the handling of derived array types.
+    '''
+    code = '''module test
+        contains
+        subroutine tmp()
+          use my_mod
+          !use my_mod, only: something
+          !type(something) :: a, b, c
+          integer :: i, j, k
+          c(i)%e(j,k) = {0}
+        end subroutine tmp
+        end module test'''.format(array)
+
+    schedule = fortran_reader.psyir_from_source(code).children[0]
+    node1 = schedule.children[0][0]
+    vai1 = VariablesAccessInfo(node1)
+    assert isinstance(node1, Assignment)
+    assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
+
+    # Verify that the index expression is correct. Convert the index
+    # expression to a list of list of strings to make this easier:
+    sig = Signature(("a", "b", "c"))
+    access = vai1[sig][0]
+    assert to_fortran(fortran_writer, access.component_indices) == indices
+
+
+# -----------------------------------------------------------------------------
+def test_symbol_array_detection(fortran_reader):
+    '''Verifies the handling of arrays together with access information.
+    '''
+
+    code = '''program test_prog
+              use some_mod
+              real, dimension(5,5) :: b, c
+              integer :: i
+              a = b(i) + c
+              end program test_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    scalar_assignment = psyir.children[0]
+    symbol_table = scalar_assignment.scope.symbol_table
+    sym_a = symbol_table.lookup("a")
+    with pytest.raises(InternalError) as error:
+        sym_a.is_array_access(index_variable="j")
+    assert "In Symbol.is_array_access: index variable 'j' specified, but " \
+           "no access information given." in str(error.value)
+
+    vai = VariablesAccessInfo()
+    scalar_assignment.reference_accesses(vai)
+
+    # For 'a' we don't have access information, nor symbol table information
+    access_info_a = vai[Signature("a")]
+    with pytest.raises(ValueError) as error:
+        sym_a.is_array_access(access_info=access_info_a)
+    assert "No array information is available for the symbol 'a'" \
+        in str(error.value)
+
+    # For the access to 'b' we will find array access information:
+    access_info_b = vai[Signature("b")]
+    sym_b = symbol_table.lookup("b")
+    b_is_array = sym_b.is_array_access(access_info=access_info_b)
+    assert b_is_array
+
+    # For the access to 'c' we don't have access information, but
+    # have symbol table information.
+    access_info_c = vai[Signature("c")]
+    sym_c = symbol_table.lookup("c")
+    c_is_array = sym_c.is_array_access(access_info=access_info_c)
+    assert c_is_array
+
+    # Test specifying the index variable. The access to 'b' is
+    # considered an array access when ysing the index variable 'i'.
+    access_info_b = vai[Signature("b")]
+    sym_b = symbol_table.lookup("b")
+    b_is_array = sym_b.is_array_access(access_info=access_info_b,
+                                       index_variable="i")
+    assert b_is_array
+
+    # Verify that the access to 'b' is not considered to be an
+    # array access regarding the loop variable 'j' (the access
+    # is loop independent):
+    b_is_array = sym_b.is_array_access(access_info=access_info_b,
+                                       index_variable="j")
+    assert not b_is_array

@@ -37,7 +37,6 @@
 '''
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import LoopFuseTrans
 
@@ -110,27 +109,9 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             if var_info1.is_read_only() and var_info2.is_read_only():
                 continue
 
-            # TODO #1213 - try to find symbol in case of 'wildcard' imports.
-            try:
-                # Find the symbol for this variable - the lookup function
-                # checks automatically in outer scopes.
-                symbol = symbol_table.lookup(var_name)
-                if isinstance(symbol, DataSymbol):
-                    is_array = symbol.is_array
-                else:
-                    # This typically indicates a symbol is used that we do
-                    # not have detailed information for, e.g. based on a
-                    # generic 'use some_mod' statement. In this case use
-                    # the information based on the access pattern, which
-                    # is at least better than having no information at all.
-                    is_array = var_info1[0].indices is not None
-            except KeyError:
-                # TODO #845: Once we have symbol tables, any variable should
-                # be in a symbol table, so we have to raise an exception here.
-                # We need to fall-back to the old-style test, since we do not
-                # have information in a symbol table. So check if the access
-                # information stored an index:
-                is_array = var_info1[0].indices is not None
+            symbol = symbol_table.lookup(var_name)
+            # TODO #1270 - the is_array_access function might be moved
+            is_array = symbol.is_array_access(access_info=var_info1)
 
             if not is_array:
                 NemoLoopFuseTrans.validate_written_scalar(var_info1, var_info2)
@@ -156,7 +137,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         '''
         # If a scalar variable is first written in both loops, that pattern
         # is typically ok. Example:
-        # - inner loops (loop variable is written then read,
+        # - inner loops (loop variable is written then read),
         # - a=sqrt(j); b(j)=sin(a)*cos(a) - a scalar variable as 'constant'
         # TODO #641: atm the variable access information has no details
         # about a conditional access, so the test below could result in
@@ -179,9 +160,11 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         variable).
 
         :param var_info1: access information for variable in the first loop.
-        :type var_info1: :py:class:`psyclone.core.var_info.VariableAccessInfo`
+        :type var_info1: \
+            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
         :param var_info2: access information for variable in the second loop.
-        :type var_info2: :py:class:`psyclone.core.var_info.VariableAccessInfo`
+        :type var_info2: \
+            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
         :param loop_variable: symbol of the variable associated with the \
             loops being fused.
         :type loop_variable: \
@@ -199,43 +182,62 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
         # be accessed. Since the variable is written somewhere (read-only
         # was tested above), loop fusion will likely result in invalid code.
-        # Additionally, collect all indices that are actually used, since
-        # they are needed in a test further down.
         all_accesses = var_info1.all_accesses + var_info2.all_accesses
 
-        found_dimension_index = -1
+        # This variable will store two indices as a tuple: first the
+        # component index in which the loop variable was used, and then
+        # in which dimension for the component. For example, `a%b%c(i,j)`
+        # would store (2,1) for an access to j - component 2 (which is c),
+        # and 2nd dimension (j).
+        # TODO 1269: code duplicated with dependency_tools
+        found_dimension_index = None
+
+        # Additionally, collect all indices that are actually used, since
+        # they are needed in a test further down.
         all_indices = []
 
         # Loop over all the accesses of this variable
         for access in all_accesses:
-            list_of_indices = access.indices
+            component_indices = access.component_indices
+
             # Now determine all dimensions that depend
-            # on the loop variable:
-            for dimension_index, index_expression in \
-                    enumerate(list_of_indices):
-                accesses = VariablesAccessInfo()
+            # on the loop variable. This outer loop is over
+            # the indices used for each component, e.g.
+            # a(i,j)%b(k) it would first handle `(i,j)`, then
+            # `(k)`.
+            for component_index, index_expressions in \
+                    enumerate(component_indices):
 
-                index_expression.reference_accesses(accesses)
-                if Signature(loop_variable.name) not in accesses:
-                    continue
+                # This inner loop is over all indices for the
+                # current component, i.e. `[i, j]` for the first
+                # component above, then `[k]`.
+                for dimension_index, index_expression in \
+                        enumerate(index_expressions):
+                    accesses = VariablesAccessInfo()
 
-                # If a previously identified index location does not match
-                # the current index location (e.g. a(i,j), and a(j,i) ), then
-                # the loop in general cannot be fused.
-                if found_dimension_index > -1 and \
-                        found_dimension_index != dimension_index:
-                    raise TransformationError(
-                        "Variable '{0}' is written to in one or both of the "
-                        "loops and the loop variable {1} is used in "
-                        "different index locations ({2} and {3}) when "
-                        "accessing it."
-                        .format(var_info1.var_name,
-                                loop_variable.name,
-                                found_dimension_index,
-                                dimension_index))
+                    index_expression.reference_accesses(accesses)
+                    if Signature(loop_variable.name) not in accesses:
+                        continue
 
-                found_dimension_index = dimension_index
-                all_indices.append(index_expression)
+                    # If a previously identified index location does not match
+                    # the current index location (e.g. a(i,j), and a(j,i) ),
+                    # then the loop in general cannot be fused.
+                    ind_pair = (component_index, dimension_index)
+                    if found_dimension_index and \
+                            found_dimension_index != ind_pair:
+                        # TODO #1268: improve error message
+                        raise TransformationError(
+                            "Variable '{0}' is written to in one or both of "
+                            "the loops and the loop variable {1} is used in "
+                            "different index locations ({2} and {3}) when "
+                            "accessing it."
+                            .format(var_info1.var_name,
+                                    loop_variable.name,
+                                    found_dimension_index,
+                                    ind_pair))
+
+                    found_dimension_index = ind_pair
+                    all_indices.append(index_expression)
 
         if not all_indices:
             # An array is used that is not actually dependent on the

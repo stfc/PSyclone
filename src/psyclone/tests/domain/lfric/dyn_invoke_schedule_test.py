@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,21 +30,34 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-include ../common.mk
+''' This module contains pytest tests for the DynInvokeSchedule class. '''
 
-CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+from __future__ import absolute_import, print_function
+import os
+from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.parse.algorithm import parse
+from psyclone.psyir.nodes import Container
 
-transform:
-	$(CONFIG_ENV) ${PYTHON} create.py
-	$(CONFIG_ENV) ${PYTHON} create_structure_types.py
-	$(CONFIG_ENV) ${PYTHON} modify.py
 
-compile:
-	@echo "No compilation supported for the PSyIR examples"
+BASE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+TEST_API = "dynamo0.3"
 
-run: compile
-	@echo "No run targets for PSyIR creation examples"
 
+def test_dyninvsched_parent():
+    ''' Check the setting of the parent of a DynInvokeSchedule. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.0.1_single_named_invoke.f90"),
+                           api=TEST_API)
+    kcalls = invoke_info.calls[0].kcalls
+    # With no parent specified
+    dsched = DynInvokeSchedule("my_sched", kcalls)
+    assert dsched.parent is None
+    # With a parent
+    fake_parent = Container("my_mod")
+    dsched2 = DynInvokeSchedule("my_sched", kcalls, parent=fake_parent)
+    assert dsched2.parent is fake_parent

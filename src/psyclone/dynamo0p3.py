@@ -74,7 +74,9 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              CodedKern, ACCEnterDataDirective,
                              OMPParallelDoDirective)
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
+from psyclone.psyir.symbols import (
+    INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
+    DeferredType, TypeSymbol, ContainerSymbol, GlobalInterface)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -1875,7 +1877,8 @@ class LFRicMeshProperties(DynCollection):
                     "adjacent_face").name
                 if var_accesses is not None:
                     var_accesses.add_access(Signature(adj_face),
-                                            AccessType.READ, self._kernel, [1])
+                                            AccessType.READ, self._kernel,
+                                            [[1]])
                 if not stub:
                     # This is a kernel call from within an invoke
                     cell_name = "cell"
@@ -5361,11 +5364,15 @@ class DynInvokeSchedule(InvokeSchedule):
     :param reserved_names: optional list of names that are not allowed in the \
                            new InvokeSchedule SymbolTable.
     :type reserved_names: list of str
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
     '''
 
-    def __init__(self, name, arg, reserved_names=None):
+    def __init__(self, name, arg, reserved_names=None, parent=None):
         InvokeSchedule.__init__(self, name, DynKernCallFactory,
-                                LFRicBuiltInCallFactory, arg, reserved_names)
+                                LFRicBuiltInCallFactory, arg, reserved_names,
+                                parent=parent)
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
@@ -6603,6 +6610,7 @@ class DynLoop(Loop):
             try:
                 self.variable = symtab.lookup_with_tag(tag)
             except KeyError:
+                # TODO #696 - each loop variable should have KIND i_def.
                 self.variable = symtab.new_symbol(
                     suggested_name, tag, symbol_type=DataSymbol,
                     datatype=INTEGER_TYPE)
@@ -8544,7 +8552,6 @@ class DynKernelArgument(KernelArgument):
     '''
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
-        KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
@@ -8583,18 +8590,19 @@ class DynKernelArgument(KernelArgument):
         try:
             const = LFRicConstants()
             self._intrinsic_type = const.MAPPING_DATA_TYPES[
-                self.descriptor.data_type]
+                arg_meta_data.data_type]
         except KeyError as err:
             six.raise_from(InternalError(
                 "DynKernelArgument.__init__(): Found unsupported data "
                 "type '{0}' in the kernel argument descriptor '{1}'.".
-                format(self.descriptor.data_type, self.descriptor)), err)
+                format(arg_meta_data.data_type, arg_meta_data)), err)
 
         # Addressing issue #753 will allow us to perform static checks
         # for consistency between the algorithm and the kernel
         # metadata. This will include checking that a field on a read
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
+        KernelArgument.__init__(self, arg_meta_data, arg_info, call)
 
     def ref_name(self, function_space=None):
         '''
@@ -8911,6 +8919,143 @@ class DynKernelArgument(KernelArgument):
 
         '''
         self._stencil = value
+
+    def infer_datatype(self, proxy=False):
+        '''
+        Infer the datatype of this kernel argument in the PSy layer using
+        the LFRic API rules. If any LFRic infrastructure modules are required
+        but are not already present then suitable ContainerSymbols are added
+        to the outermost symbol table. Similarly, TypeSymbols are added for
+        any required LFRic derived types that are not already in the symbol
+        table.
+
+        TODO #1258 - ultimately this routine should not have to create any
+        TypeSymbols as that should already have been done.
+
+        :param bool proxy: whether or not we want the type of the proxy \
+            object for this kernel argument. Defaults to False (i.e.
+            return the type rather than the proxy type).
+
+        :returns: the datatype of this argument.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        :raises NotImplementedError: if an unsupported argument type is found.
+
+        '''
+        # We want to put any Container symbols in the outermost scope so find
+        # the corresponding symbol table.
+        symbol_table = self._call.scope.symbol_table
+        root_table = symbol_table
+        while root_table.parent_symbol_table():
+            root_table = root_table.parent_symbol_table()
+
+        proxy_str = ""
+        if proxy:
+            proxy_str = "_proxy"
+
+        def _find_or_create_type(mod_name, type_name):
+            '''
+            Utility to find or create a TypeSymbol with the supplied name,
+            imported from the named module.
+
+            :param str mod_name: the name of the module from which the \
+                                 TypeSymbol should be imported.
+            :param str type_name: the name of the derived type for which to \
+                                  create a TypeSymbol.
+
+            :returns: the symbol for the requested type.
+            :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
+
+            '''
+            try:
+                fld_type = symbol_table.lookup(type_name)
+            except KeyError:
+                # TODO Once #1258 is done we should already have symbols for
+                # the various types at this point.
+                try:
+                    fld_mod_container = symbol_table.lookup(mod_name)
+                except KeyError:
+                    fld_mod_container = ContainerSymbol(mod_name)
+                    root_table.add(fld_mod_container)
+                fld_type = TypeSymbol(
+                    type_name, DeferredType(),
+                    interface=GlobalInterface(fld_mod_container))
+                root_table.add(fld_type)
+            return fld_type
+
+        if self.is_scalar:
+
+            api_config = Config.get().api_conf("dynamo0.3")
+
+            if self.intrinsic_type == 'real':
+                kind_name = api_config.default_kind["real"]
+                prim_type = ScalarType.Intrinsic.REAL
+            elif self.intrinsic_type == 'integer':
+                kind_name = api_config.default_kind["integer"]
+                prim_type = ScalarType.Intrinsic.INTEGER
+            elif self.intrinsic_type == 'logical':
+                kind_name = api_config.default_kind["logical"]
+                prim_type = ScalarType.Intrinsic.BOOLEAN
+            else:
+                raise NotImplementedError(
+                    "Unsupported scalar type '{0}'".format(
+                        self.intrinsic_type))
+            try:
+                kind_symbol = symbol_table.lookup(kind_name)
+            except KeyError:
+                try:
+                    constants_container = symbol_table.lookup(
+                        "constants_mod")
+                except KeyError:
+                    # TODO Once #696 is done, we should *always* have a
+                    # symbol for this container at this point so should
+                    # raise an exception if we haven't. Also, the name
+                    # of the Fortran module should be read from the config
+                    # file.
+                    constants_container = ContainerSymbol("constants_mod")
+                    root_table.add(constants_container)
+                kind_symbol = DataSymbol(
+                        kind_name, INTEGER_SINGLE_TYPE,
+                        interface=GlobalInterface(constants_container))
+                root_table.add(kind_symbol)
+            return ScalarType(prim_type, kind_symbol)
+
+        if self.is_field:
+
+            # Find or create the TypeSymbol for the appropriate field type.
+            # TODO #1258 the names of the Fortran modules should come from
+            # the config file.
+            if self.intrinsic_type == 'real':
+                mod_name = "field_mod"
+                type_name = "field{0}_type".format(proxy_str)
+            elif self.intrinsic_type == 'integer':
+                mod_name = "integer_field_mod"
+                type_name = "integer_field{0}_type".format(proxy_str)
+            else:
+                raise NotImplementedError(
+                    "Fields may only be of 'real' or 'integer' type but found "
+                    "'{0}'".format(self.intrinsic_type))
+
+            return _find_or_create_type(mod_name, type_name)
+
+        if self.is_operator:
+
+            # Find or create the TypeSymbol for the appropriate operator type.
+            if self.argument_type == "gh_operator":
+                type_name = "operator{0}_type".format(proxy_str)
+            elif self.argument_type == "gh_columnwise_operator":
+                type_name = "columnwise_operator{0}_type".format(proxy_str)
+            else:
+                raise NotImplementedError(
+                    "Operators may only be of 'gh_operator' or 'gh_columnwise_"
+                    "operator' type but found '{0}'".format(
+                        self.argument_type))
+
+            return _find_or_create_type("operator_mod", type_name)
+
+        raise NotImplementedError(
+            "'{0}' is not a scalar, field or operator argument"
+            "".format(str(self)))
 
 
 class DynKernCallFactory(object):

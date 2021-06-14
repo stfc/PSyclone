@@ -32,6 +32,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -42,6 +43,8 @@ from __future__ import absolute_import
 from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
+from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
+    Data_Ref, If_Then_Stmt, Array_Section
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
@@ -831,8 +834,8 @@ class Fparser2Reader(object):
         :return: 3-tuple of list of inputs, list of outputs, list of in-outs
         :rtype: (list of str, list of str, list of str)
         '''
-        from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
-            Data_Ref, If_Then_Stmt, Array_Section
+        # pylint: disable=too-many-locals,too-many-nested-blocks
+        # pylint: disable=too-many-branches, too-many-statements
         readers = set()
         writers = set()
         readwrites = set()
@@ -855,14 +858,16 @@ class Fparser2Reader(object):
                 for node2 in walk(rhs):
                     if isinstance(node2, Part_Ref):
                         name = node2.items[0].string
+                        if structure_name_str:
+                            name = "{0}%{1}".format(structure_name_str, name)
+                            structure_name_str = None
                         if name.upper() not in FORTRAN_INTRINSICS:
                             if name not in writers:
                                 readers.add(name)
                     if isinstance(node2, Data_Ref):
-                        # TODO we need a robust implementation - issue #309.
-                        raise NotImplementedError(
-                            "get_inputs_outputs: derived-type references on "
-                            "the RHS of assignments are not yet supported.")
+                        structure_name_str = node2.items[0].string
+                        readers.add(structure_name_str)
+
                 # Now do LHS
                 if isinstance(lhs, Data_Ref):
                     # This is a structure which contains an array access.

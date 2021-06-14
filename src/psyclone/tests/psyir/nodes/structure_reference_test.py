@@ -38,11 +38,13 @@
 ''' Module containing pytest tests for the StructureReference class. '''
 
 from __future__ import absolute_import
+
 import pytest
+
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import check_links
-from psyclone.core.access_info import VariablesAccessInfo
 
 
 def test_struc_ref_create():
@@ -170,16 +172,19 @@ def test_struc_ref_str():
 
 
 def test_reference_accesses():
-    ''' Test that the reference_accesses method does nothing. This will
-    be addressed by #1028. '''
-    var_access_info = VariablesAccessInfo()
+    ''' Test the reference_accesses method.
+    '''
     dref = nodes.StructureReference.create(
         symbols.DataSymbol(
             "grid",
             symbols.TypeSymbol("grid_type", symbols.DeferredType())),
         ["data"])
+    var_access_info = VariablesAccessInfo()
     dref.reference_accesses(var_access_info)
-    assert var_access_info.all_signatures == []
+
+    assert var_access_info.all_signatures == [Signature(("grid", "data"))]
+    # By default all accesses are marked as read
+    assert str(var_access_info) == "grid%data: READ"
 
 
 def test_struc_ref_semantic_nav():
