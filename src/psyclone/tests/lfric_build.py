@@ -157,7 +157,7 @@ class LFRicBuild(Compile):
             # Failed to compile one of the files
             LFRicBuild._infrastructure_built = False
             raise CompileError("Could not compile LFRic wrapper. "
-                               "Error: {0}".format(str(err)))
+                               "Error: {0}".format(str(err.value)))
 
         finally:
             old_pwd.chdir()
