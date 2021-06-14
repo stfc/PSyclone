@@ -1326,6 +1326,9 @@ class GOKern(CodedKern):
         # previous kernels were dispatched in a different command queue
         if dependency and dependency.coded_kernels():
             for kernel_dep in dependency.coded_kernels():
+                # TODO #1134: The OpenCL options should not leak from the
+                # OpenCL transformation.
+                # pylint: disable=protected-access
                 previous_queue = kernel_dep._opencl_options['queue_number']
                 if previous_queue != queue_number:
                     # If the backward dependency is being executed in another
@@ -1340,7 +1343,8 @@ class GOKern(CodedKern):
         # If the dependency is something other than a kernel, currently we
         # dispatch everything else to queue _OCL_MANAGEMENT_QUEUE, so add a
         # barrier if this kernel is not on queue _OCL_MANAGEMENT_QUEUE.
-        if dependency and not dependency.coded_kernels() and queue_number != 1:
+        if dependency and not dependency.coded_kernels() and \
+                queue_number != _OCL_MANAGEMENT_QUEUE:
             parent.add(AssignGen(
                 parent,
                 lhs=flag,
@@ -3192,6 +3196,9 @@ class GOHaloExchange(HaloExchange):
             dependency = self.backward_dependence()
             if dependency and dependency.coded_kernels():
                 for kernel_dep in dependency.coded_kernels():
+                    # TODO #1134: The OpenCL options should not leak from the
+                    # OpenCL transformation.
+                    # pylint: disable=protected-access
                     previous_queue = kernel_dep._opencl_options['queue_number']
                     if previous_queue != _OCL_MANAGEMENT_QUEUE:
                         # If the backward dependency is being executed in

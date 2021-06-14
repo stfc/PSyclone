@@ -709,7 +709,8 @@ The current available options are:
 +--------------+---------------------------------------------+---------+
 | queue_number | The identifier of the OpenCL command_queue  | 1       |
 |              | to which the kernel should be submitted. If |         |
-|              | the kernel has a dependency to a different  |         |
+|              | the kernel has a dependency on another      |         |
+|              | kernel submitted to a different             |         |
 |              | command_queue a barrier will be added to    |         |
 |              | guarantee the execution order.              |         |
 +--------------+---------------------------------------------+---------+

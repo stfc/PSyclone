@@ -791,7 +791,7 @@ def test_multiple_command_queues(dist_mem):
     trans = GOMoveIterationBoundariesInsideKernelTrans()
 
     # Set each kernel to run in a different OpenCL queue (kernel1 will run in
-    # queue 2 and kernel2 will run in queue 3. This is also different that the
+    # queue 2 and kernel2 will run in queue 3. This is also different from the
     # OCL_MANAGEMENT_QUEUE used by the haloexchange data transfer which will
     # use queue 1, therefore barriers will always be needed in this example.
     for idx, kernel in enumerate(sched.coded_kernels()):
