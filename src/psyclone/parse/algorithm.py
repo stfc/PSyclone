@@ -57,11 +57,11 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
-from psyclone.parse.utils import check_api, check_line_length, ParseError, \
-    parse_fp2
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
     KernelTypeFactory
+from psyclone.parse.utils import check_api, check_line_length, ParseError, \
+    parse_fp2
 
 # pylint: disable=too-many-statements
 # pylint: disable=too-many-branches
@@ -154,6 +154,7 @@ class Parser(object):
         self._api = api
 
         self._arg_name_to_module_name = {}
+        # Holds variable name, type and precision information.
         self._arg_type_defns = {}
         self._unique_invoke_labels = []
 
@@ -201,7 +202,7 @@ class Parser(object):
         return alg_parse_tree, self.invoke_info(alg_parse_tree)
 
     def invoke_info(self, alg_parse_tree):
-        '''Takes a PSyclone conformant fparser2 representation of an algorithm
+        '''Takes an fparser2 representation of a PSyclone-conformant algorithm
         code as input and outputs an object containing information
         about the 'invoke' calls in the algorithm file and any
         associated kernels within the invoke calls.
@@ -212,7 +213,7 @@ class Parser(object):
 
         :returns: an object holding details of the algorithm \
             code and the invokes found within it.
-        :rtype: :py:class:`psyclone.parse.FileInfo`)
+        :rtype: :py:class:`psyclone.parse.FileInfo`
 
         :raises ParseError: if a program, module, subroutine or \
             function is not found in the fparser2 tree.
@@ -240,6 +241,7 @@ class Parser(object):
 
         self._unique_invoke_labels = []
         self._arg_name_to_module_name = OrderedDict()
+        # Holds variable name, type and precision information.
         self._arg_type_defns = dict()
         invoke_calls = []
 
@@ -435,7 +437,8 @@ class Parser(object):
                 "kernel call '{0}' must either be named in a use statement "
                 "(found {1}) or be a recognised built-in (one of '{2}' for "
                 "this API)".format(
-                    kernel_name.lower(), list(self._arg_name_to_module_name.values()),
+                    kernel_name.lower(),
+                    list(self._arg_name_to_module_name.values()),
                     list(self._builtin_name_map.keys())))
             six.raise_from(ParseError(message), info)
 
@@ -660,20 +663,14 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             # A simple variable e.g. arg
             full_text = str(argument).lower()
             var_name = full_text
-            try:
-                datatype = arg_type_defns[var_name]
-            except KeyError:
-                datatype = None
+            datatype = arg_type_defns.get(var_name)
             arguments.append(Arg('variable', full_text, varname=var_name,
                                  datatype=datatype))
         elif isinstance(argument, Part_Ref):
             # An indexed variable e.g. arg(n)
             full_text = argument.tostr().lower()
             var_name = str(argument.items[0]).lower()
-            try:
-                datatype = arg_type_defns[var_name]
-            except KeyError:
-                datatype = None
+            datatype = arg_type_defns.get(var_name)
             arguments.append(Arg('indexed_variable', full_text,
                                  varname=var_name, datatype=datatype))
         elif isinstance(argument, Function_Reference):
@@ -1029,6 +1026,10 @@ class Arg(object):
     form is not literal otherwise it is set to None. This is optional \
     and defaults to None.
     :value varname: str or NoneType
+    :param datatype: a tuple containing information about the datatype \
+        and precision of the argument, or None if no information is \
+        available. Defaults to None.
+    :type datatype: (str, str or NoneType) or NoneType
 
     :raises InternalError: if the form argument is not one one of the \
     supported types as specified in the local form_options list.
@@ -1045,6 +1046,8 @@ class Arg(object):
                 "algorithm.py:Alg:__init__: Unknown arg type provided. "
                 "Expected one of {0} but found "
                 "'{1}'.".format(str(Arg.form_options), form))
+        # A tuple containing information about the datatype and
+        # precision of this argument, or None if there is none.
         self._datatype = datatype
 
     def __str__(self):
