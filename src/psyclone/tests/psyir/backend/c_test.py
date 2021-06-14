@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -379,15 +379,16 @@ def test_cw_loop(fortran_reader):
           enddo
         end subroutine tmp
         end module test'''
-    schedule = fortran_reader.psyir_from_source(code).children[0]
+    container = fortran_reader.psyir_from_source(code).children[0]
+    module = container.children[0]
 
     cvisitor = CWriter()
-    result = cvisitor(schedule[0])
+    result = cvisitor(module[0])
     correct = '''for(i=1; i<=20; i+=2)
 {
   a = (2 * i);
 }'''
-    result = cvisitor(schedule[0])
+    result = cvisitor(module[0])
     assert correct in result
 
 
