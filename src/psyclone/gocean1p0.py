@@ -699,6 +699,11 @@ class GOLoop(Loop):
                                              "space. But got "
                                              "{0}".format(bracket_expr))
 
+        # We need to make sure the fparser is properly initialised, which
+        # typically has not yet happened when the config file is read.
+        # Otherwise the Nonlabel_Do_Stmt cannot parse valid expressions.
+        ParserFactory().create(std="f2008")
+
         # Test both the outer loop indices (index 3 and 4) and inner
         # indices (index 5 and 6):
         for bound in data[3:7]:
@@ -706,10 +711,6 @@ class GOLoop(Loop):
             # Now replace any {start}/{stop} expression in the loop
             # with a valid integer value:
             do_string = do_string.format(start='15', stop='25')
-            # We need to make sure the fparser is properly initialised, which
-            # typically has not yet happened when the config file is read.
-            # Otherwise the Nonlabel_Do_Stmt cannot parse valid expressions.
-            ParserFactory().create(std="f2008")
             # Check if the do loop can be parsed as a nonlabel do loop
             try:
                 _ = Nonlabel_Do_Stmt(do_string)
