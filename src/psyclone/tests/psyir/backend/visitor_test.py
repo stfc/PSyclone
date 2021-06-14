@@ -35,12 +35,13 @@
 # Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
-'''Performs pytest tests on the psyclond.psyir.backend.visitor module'''
+'''Performs pytest tests on the psyclone.psyir.backend.visitor module'''
 
 from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Node, Reference, ArrayReference, Return
+from psyclone.psyir.nodes import Node, Reference, ArrayReference, Return, \
+    Statement, Schedule
 from psyclone.psyir.symbols import DataSymbol, ArrayType, REAL_TYPE
 from psyclone.errors import GenerationError
 
@@ -138,10 +139,48 @@ def test_psyirvisitor_visit_arg_error():
 
     '''
     visitor = PSyIRVisitor(indent_string=" ", initial_indent_depth=4)
-    with pytest.raises(VisitorError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         visitor("hello")
+    assert ("The PSyIR visitor functor method only accepts a PSyIR Node "
+            "as argument, but found 'str'." in str(excinfo.value))
+    with pytest.raises(VisitorError) as excinfo:
+        visitor._visit("hello")
     assert ("Visitor Error: Expected argument to be of type 'Node' but found "
             "'str'." in str(excinfo.value))
+
+def test_psyirvisitor_lower_dsl_concepts():
+    ''' Test that DSL concepts are lowered by the visitors but the node is not
+    modified after the visitor has finished. '''
+
+    class MyDSLNode(Statement):
+        ''' DSL Concept that lowers to a return statement '''
+        def lower_to_language_level(self):
+            ''' MyDSLNode lowers to a return statement '''
+            self.replace_with(Return())
+
+    class MyVisitor(PSyIRVisitor):
+        ''' Simple Visitor for Schedules and Return statements '''
+        def return_node(self, _):
+            ''' Return node visitor '''
+            return "return"
+
+        def schedule_node(self, node):
+            ''' Schedule node visitor '''
+            return "schedule(" + self._visit(node.children[0]) + ")"
+
+    schedule = Schedule()
+    my_dsl_node = MyDSLNode()
+    schedule.addchild(my_dsl_node)
+
+    visitor = MyVisitor(indent_string=" ", initial_indent_depth=4)
+
+    # Visit DSL Node in a tree (the tree should not be modified)
+    assert visitor(schedule) == "schedule(return)"
+    assert isinstance(schedule.children[0], MyDSLNode)
+    assert schedule.children[0] is my_dsl_node
+
+    # Visit DSL Node directly
+    assert visitor(my_dsl_node) == "return"
 
 
 def test_psyirvisitor_visit_no_method1():

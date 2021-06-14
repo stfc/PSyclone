@@ -53,20 +53,47 @@ class ContainerSymbol(Symbol):
 
     :param str name: name of the symbol.
     :param visibility: the visibility of the symbol.
-    :type scope: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-
+    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :param interface: optional object describing the interface to this \
+        symbol (i.e. whether it is passed as a routine argument or \
+        accessed in some other way). Defaults to \
+        :py:class:`psyclone.psyir.symbols.FortranModuleInterface`
+    :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
     '''
-    def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY):
-        # At the moment we just have one ContainerSymbol interface, so we
-        # always assign this interface to all ContainerSymbols. We will
-        # pass the interface as a parameter when we have more than one.
-        super(ContainerSymbol, self).__init__(
-            name, visibility=visibility, interface=FortranModuleInterface())
+    def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY,
+                 interface=None):
+        super(ContainerSymbol, self).__init__(name, visibility=visibility)
+
+        if interface is None:
+            # By default it is a FortranModuleInterface
+            self.interface = FortranModuleInterface()
+        elif isinstance(interface, FortranModuleInterface):
+            self.interface = interface
+        else:
+            raise TypeError("A ContainerSymbol interface must be of type '"
+                            "FortranModuleInterface' but found '{0}' for "
+                            "Container '{1}'."
+                            "".format(type(interface).__name__, name))
 
         self._reference = None
         # Whether or not there is a wildcard import of all public symbols
         # from this container (e.g. an unqualified USE of a module in Fortran).
         self._has_wildcard_import = False
+
+    def copy(self):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this \
+                  symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        # Use the generic Symbol copy and add the wildcard import value
+        new_symbol = super(ContainerSymbol, self).copy()
+        new_symbol.wildcard_import = self.wildcard_import
+        return new_symbol
 
     @property
     def container(self):
