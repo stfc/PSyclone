@@ -131,6 +131,17 @@ class AssignmentTrans(AdjointTransformation):
         # Create a list of adjoint assignments from the rhs terms
         adjoint_assignment_list = self._process(node.rhs, node.lhs)
 
+        # Sort adjoint assignment list to ensure that any nodes
+        # associated with increments are at the end of the list. Also
+        # determine whether the TL assignment is an increment or not.
+        inc_nodes = []
+        new_list = []
+        for assignment in adjoint_assignment_list:
+            if assignment.lhs.name.lower() == node.lhs.name.lower():
+                inc_nodes.append(assignment)
+            else:
+                new_list.append(assignment)
+        adjoint_assignment_list = inc_nodes + new_list
         # Deal with the adjoint wrt the lhs
         increment_node = False
         for reference in node.rhs.walk(Reference):
@@ -165,8 +176,8 @@ class AssignmentTrans(AdjointTransformation):
                 "Node argument in assignment transformation should be a PSyIR "
                 "Assignment, but found '{0}'.".format(type(node).__name__))
         assignment_active_vars = [
-            var.name for var in node.walk(Reference) if var.name.lower()
-            in self._active_variables]
+            var.name.lower() for var in node.walk(Reference)
+            if var.name.lower() in self._active_variables]
         if not assignment_active_vars:
             # No active variables in this assigment so the assignment
             # remains unchanged.
@@ -179,12 +190,40 @@ class AssignmentTrans(AdjointTransformation):
                 "Assignment node has the following active variables on its "
                 "RHS '{0}' but its LHS '{1}' is not an active variable."
                 "".format(assignment_active_vars, node.lhs.name))
-        
-        # 2) RHS term without active variable
-        # 3) RHS term with multiple active variables
-        # 4) RHS term with invalid form e.g. 
-        # No functions, no intrinsics
 
+        rhs_terms = self._split_nodes(node.rhs)
+
+        for rhs_term in rhs_terms:
+            active_vars = [
+                ref for ref in rhs_term.walk(Reference) if ref.name.lower()
+                in self._active_variables]
+            if not active_vars:
+                raise TangentLinearError(
+                    "Each term on the RHS of the assigment must have an "
+                    "active variable.")
+            if len(active_vars) > 1:
+                raise TangentLinearError(
+                    "Each term on the RHS of the assigment must not have more "
+                    "than one active variable.")
+            for node in rhs_term.walk(Node):
+                if node not in [Reference, Operator]:
+                    raise TransformationError(
+                        "Assignment node contains an unsupported node type "
+                        "'{0}'.".format(type(node).__name__))
+        # 4) RHS term with invalid form e.g. not kA or A/k
+        # Multi-increment raise error a = a + a + b as the current logic does not work in this case.
+
+    def _split_nodes(self, node):
+        ''' xxx '''
+        if (isinstance(node, BinaryOperation)) and \
+           (node.operator == BinaryOperation.Operator.ADD):
+            new_node_list = self._split_nodes(
+                node.children[0])
+            new_node_list.extend(
+                self._split_nodes(node.children[1]))
+            return new_node_list
+        else:
+            return [node]
     def __str__(self):
         return "Convert a PSyIR Assignment to its adjoint form"
 

@@ -282,7 +282,6 @@ def test_increment_mult():
     A=xA -> A*=xA*
 
     '''
-    # Scalar
     tl_fortran = (
         "  integer :: n\n"
         "  real a(n)\n"
@@ -300,7 +299,7 @@ def test_increment_add():
     A = A + B. This tests that the transformation works when there is
     a single addition on the rhs with the lhs being an increment.
 
-    A+=B -> B*=A*; A*=A*
+    A+=B -> B*+=A*; A*=A*
 
     '''
     tl_fortran = (
@@ -316,13 +315,11 @@ def test_increment_add():
 
 def test_increment_add_reorder():
     '''Test that the adjoint transformation with an assignment of the form
-    A = B + A. This tests that the transformation works when there is
+    A = B + kA. This tests that the transformation works when there is
     a single addition on the rhs with the lhs being a scaled increment
     and the increment not being on the lhs of the rhs.
 
-    A=B+kA -> B*=A*; A*=kA*
-
-    *** FAILS ***
+    A=B+kA -> B*+=A*; A*=kA*
 
     '''
     tl_fortran = (
@@ -366,11 +363,13 @@ def test_increment_multi_add():
 
 # TODO
 # check a = b + ya as a should be assigned after (test error)
+# check a = a + b + a i.e. multiple rhs increments
 # a = -b -yc
 # a(i) = a(i+1) + b(i) + b(i+1)
 # * other datatypes (assuming all real for the moment) and ignoring precision
 
 # Validate method
+
 
 def test_validate_node():
     '''Check that the expected exception is raised if the provided node
@@ -391,6 +390,7 @@ def test_validate_not_active():
     trans = AssignmentTrans(active_variables=["c", "aa", "ab"])
     trans.validate(assignment)
 
+
 def test_validate_active_rhs():
     '''Test that the validate method returns the expected exception if
     there is at least one active variable on the RHS of an assignment
@@ -404,3 +404,6 @@ def test_validate_active_rhs():
     assert ("Assignment node has the following active variables on its RHS "
             "'['b']' but its LHS 'a' is not an active variable."
             in str(info.value))
+
+
+# Multi-increment raise error a = a + a + b as the current logic does not work in this case.
