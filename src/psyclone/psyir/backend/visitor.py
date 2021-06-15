@@ -46,6 +46,7 @@ import six
 from psyclone.psyir.nodes import Node
 from psyclone.errors import PSycloneError
 
+
 class VisitorError(PSycloneError):
     '''Provides a PSyclone-specific error class for errors related to a
     PSyIR visitor.
@@ -157,43 +158,29 @@ class PSyIRVisitor(object):
                 "as argument, but found '{0}'.".format(type(node).__name__))
 
         # The visitor must not have any side effect to the provided node, but
-        # if there are DSL concepts this will need to be lowered in-place.
-        # Therefore we first create a copy of the provided node so that the
-        # changes are not permanent.
-        # FIXME: It really needs to copy the whole tree
-        lowered_node = node.copy()
+        # if there are DSL concepts this will need to be lowered in-place and
+        # this operation often modifies the tree. Therefore, we first create a
+        # copy of the full provided tree (as modifications can be above the
+        # provided node - e.g. adding a symbol in the scope)
+        tree_copy = node.root.copy()
 
-        if node.parent:
-            # If the node has ancestors, we temporally add the copied node in
-            # the tree because some visitors look upwards (e.g. symbol lookups,
-            # global_constrain_checks, ...)
-            node.replace_with(lowered_node)
-            parent = lowered_node.parent
-            position = lowered_node.position
-            lowered_node.lower_to_language_level()
-            lowered_node = parent.children[position]
+        # Get the node in the new tree with equivalent position to the provided
+        # node
+        node_copy = tree_copy.walk(Node)[node.abs_position]
 
-            # Visit the node
-            result = self._visit(lowered_node)
+        # Lower the DSL concepts starting from the selected node.
+        try:
+            node_copy.lower_to_language_level()
+        except Exception as error:
+            six.raise_from(VisitorError(
+                "Failed to lower '{0}'. Note that some nodes need to be "
+                "lowered from an ancestor in order to properly apply their "
+                "in-tree modifications.".format(node)), error)
 
-            # Restore the node in its original position
-            lowered_node.replace_with(node)
-        else:
-            # If the node does not have ancestors, we need to place in inside
-            # a dummy node tree, since some lower_to_language_node may replace
-            # it in-place.
-            class AllValid(Node):
-                @staticmethod
-                def _validate_child(_1, _2):
-                    return True
-            dummy = AllValid()
-            dummy.addchild(lowered_node)
-            lowered_node.lower_to_language_level()
+        # Find again the equivalent tree in case this has been replaced
+        lowered_node = tree_copy.walk(Node)[node.abs_position]
 
-            # Visit the node
-            result = self._visit(dummy.children[0])
-
-        return result
+        return self._visit(lowered_node)
 
     def _visit(self, node):
         '''Implements the PSyIR callbacks. Callbacks are implemented by using
