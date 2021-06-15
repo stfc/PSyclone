@@ -43,7 +43,7 @@ from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec, \
 
 from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock
 from psyclone.psyir.symbols import Symbol, TypeSymbol, StructureType, \
-    RoutineSymbol
+    RoutineSymbol, UnresolvedInterface, LocalInterface
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.psyGen import Transformation
@@ -249,7 +249,6 @@ class InvokeCallTrans(Transformation):
                 calls.append(KernelFunctor.create(type_symbol, args))
 
         symbol = call.scope.symbol_table.lookup("invoke")
-        from psyclone.psyir.symbols import UnresolvedInterface, LocalInterface
         if isinstance(symbol.interface, UnresolvedInterface):
             # No need to try to resolve the invoke call
             symbol._interface = LocalInterface()

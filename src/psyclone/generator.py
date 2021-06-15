@@ -47,15 +47,18 @@
 '''
 
 from __future__ import absolute_import, print_function
+import io
 import argparse
 import sys
 import os
 import traceback
+import six
+
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
-from psyclone.alg_gen import NoInvokesError
+from psyclone.alg_gen import NoInvokesError, Alg
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
@@ -65,7 +68,7 @@ from psyclone.configuration import Config, ConfigurationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import LocalInterface
+from psyclone.psyir.nodes import Loop
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
@@ -223,7 +226,6 @@ def generate(filename, api="", kernel_path="", script_name=None,
     if kernel_path and not os.access(kernel_path, os.R_OK):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
-        from psyclone.alg_gen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
@@ -234,7 +236,6 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
         # Add profiling nodes to schedule if automatic profiling has
         # been requested.
-        from psyclone.psyir.nodes import Loop
         for invoke in psy.invokes.invoke_list:
             Profiler.add_profile_nodes(invoke.schedule, Loop)
 
@@ -255,7 +256,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
                 #    include the removal of the invoke symbol).
                 # 3) psygen optimisation script will go here
 
-                # Process and lower to language-level PSyIR        
+                # Process and lower to language-level PSyIR
                 psyir.lower_to_language_level()
 
                 # Create Fortran from language-level PSyIR
@@ -463,9 +464,6 @@ def write_unicode_file(contents, filename):
     :raises InternalError: if an unrecognised Python version is found.
 
     '''
-    import six
-    import io
-
     if six.PY2:
         # In Python 2 a plain string must be encoded as unicode for the call
         # to write() below. unicode() does not exist in Python 3 since all
