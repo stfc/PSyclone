@@ -41,6 +41,7 @@ Algorithm PSyIR.
 from __future__ import absolute_import
 import pytest
 
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
     ArrayReference, Literal, BinaryOperation
@@ -150,7 +151,6 @@ def test_specialise_symbol():
     # Check that a Symbol is specialised
     InvokeCallTrans._specialise_symbol(symbol)
     assert isinstance(symbol, TypeSymbol)
-    # pylint: disable=no-member
     assert isinstance(symbol.datatype, StructureType)
 
     # Check that something that is not a symbol is ignored
@@ -160,7 +160,7 @@ def test_specialise_symbol():
     assert test == "hello"
 
 
-def test_structure_contructor():
+def test_structure_constructor():
     '''Test that validation does not raise an exception if the fparser2
     node is a structure constructor.
 
@@ -171,11 +171,13 @@ def test_structure_contructor():
         "  call invoke(kern(1.0))\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
 
-    invoke_trans.validate(psyir[0])
-    invoke_trans._validate_fp2_node(psyir[0].children[0]._fp2_nodes[0])
+    invoke = psyir.children[0][0]
+    invoke_trans.validate(invoke)
+    invoke_trans._validate_fp2_node(invoke.children[0]._fp2_nodes[0])
 
 
 @pytest.mark.parametrize("string", ["error = 'hello'", "name = 0"])
@@ -190,18 +192,20 @@ def test_named_arg_error(string):
         "  call invoke({0})\n"
         "end subroutine alg\n".format(string))
 
-    psyir = create_psyir(code)
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
 
+    invoke = psyir.children[0][0]
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(psyir[0])
+        invoke_trans.validate(invoke)
     assert ("Error in InvokeCallTrans transformation. If there is a "
             "named argument, it must take the form name='str', but found "
             "'{0}'.".format(string) in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         invoke_trans._validate_fp2_node(
-            psyir[0].children[0]._fp2_nodes[0])
+            invoke.children[0]._fp2_nodes[0])
     assert ("Error in InvokeCallTrans transformation. If there is a "
             "named argument, it must take the form name='str', but found "
             "'{0}'.".format(string) in str(info.value))
@@ -219,18 +223,20 @@ def test_multi_named_arg_error():
         "  call invoke(name='first', name='second')\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
+    invoke = psyir.children[0][0]
 
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(psyir[0])
+        invoke_trans.validate(invoke)
     assert ("Error in InvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
 
     invoke_trans._call_description = None
     with pytest.raises(TransformationError) as info:
-        invoke_trans.apply(psyir[0], 0)
+        invoke_trans.apply(invoke, 0)
     assert ("Error in InvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
@@ -248,15 +254,17 @@ def test_codeblock_invalid(monkeypatch):
         "  call invoke(name='tallulah')\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
-    code_block = psyir[0].children[0]
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    invoke = psyir.children[0][0]
+    code_block = invoke.children[0]
     assert isinstance(code_block, CodeBlock)
     monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
     invoke_trans = InvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(psyir[0])
+        invoke_trans.validate(invoke)
     assert ("Expecting an algorithm invoke codeblock to contain either "
             "Structure-Constructor or actual-arg-spec, but found "
             "'NoneType'." in str(info.value))
@@ -315,28 +323,6 @@ def test_array_reference(fortran_reader):
     assert isinstance(subroutine[0].children[0], ArrayReference)
     invoke_trans = InvokeCallTrans()
     invoke_trans.validate(subroutine[0])
-
-
-def test_code_block_error(fortran_reader):
-    '''Test that the validate method raises an exception if unexpected
-    content is found in a CodeBlock.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  use field_mod, only : r2d_field\n"
-        "  type(r2d_field) :: field\n"
-        "  call invoke(field=field)\n"
-        "end subroutine alg\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    invoke_trans = InvokeCallTrans()
-    with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(psyir.children[0][0])
-    assert ("The supplied call argument contains a CodeBlock with content "
-            "(Actual_Arg_Spec) which is not a StructureConstructor."
-            in str(info.value))
 
 
 def test_arg_error(fortran_reader):
@@ -535,11 +521,12 @@ def test_multi_description():
         "  call invoke(name='Shaw', name='Fernandez')\n"
         "end subroutine alg\n")
 
-    psyir = create_psyir(code)
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
     invoke_trans = InvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(psyir[0])
+        invoke_trans.validate(psyir.children[0][0])
     assert ("There should be at most one named argument in an invoke, but "
             "there are at least two: \'Shaw\' and \'Fernandez\'."
             in str(info.value))

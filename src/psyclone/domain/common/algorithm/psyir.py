@@ -36,6 +36,7 @@
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
+from __future__ import absolute_import
 import six
 
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
@@ -94,7 +95,8 @@ class AlgorithmInvokeCall(Call):
             # Avoid unicode issues with Python2
             description = str(description)
         self._index = index
-        self.psylayer_routine_symbol = None
+        self.psylayer_routine_root_name = None
+        self.psylayer_container_root_name = None
         self._description = description
 
     @classmethod
@@ -186,40 +188,31 @@ class AlgorithmInvokeCall(Call):
                 routine_root_name += "_" + self.children[0].name
         return routine_root_name
 
-    def create_psylayer_symbols(self):
-        '''If the PSy-layer routine and container symbols have not been
-        created, then create them. The names are based on the position
-        of this node (compared to other nodes of the same type) in the
-        PSyIR tree.
+    def create_psylayer_symbol_root_names(self):
+        '''If the PSy-layer routine and container root names have not been
+        created, then create them. The invoke root name is based on
+        the position of this node (compared to other nodes of the same
+        type) in the PSyIR tree. Note, we do not create and store
+        symbols, as the container name needs to be consistent between
+        different invoke calls and we have no way of knowing whether
+        one has already been created without the symbol being stored
+        in the symbol table, and we don't want to add anything related
+        to the lower level PSyIR to the symbol table before lowering.
 
         '''
-        if self.psylayer_routine_symbol:
-            # The language-level symbols have already been created
-            return
-
-        routine_root_name = self._def_routine_root_name()
-
-        symbol_table = self.scope.symbol_table
-        routine_name = symbol_table.next_available_name(
-            root_name=routine_root_name)
+        self.psylayer_routine_root_name = self._def_routine_root_name()
 
         # Use the name of the closest ancestor routine of this node as
         # the basis for the new container name
         node = self.ancestor(Routine, include_self=True)
-        container_root_name = "psy_{0}".format(node.name)
-        container_name = symbol_table.next_available_name(
-            root_name=container_root_name)
-
-        interface = GlobalInterface(ContainerSymbol(container_name))
-        self.psylayer_routine_symbol = RoutineSymbol(
-            routine_name, interface=interface)
+        self.psylayer_container_root_name = "psy_{0}".format(node.name)
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call
         node.
 
         '''
-        self.create_psylayer_symbols()
+        self.create_psylayer_symbol_root_names()
 
         arguments = []
         arguments_str = []
@@ -240,10 +233,21 @@ class AlgorithmInvokeCall(Call):
                         "found '{0}'.".format(type(arg).__name__))
 
         symbol_table = self.scope.symbol_table
-        routine_symbol = self.psylayer_routine_symbol
-        container_symbol = routine_symbol.interface.container_symbol
-        symbol_table.add(container_symbol)
-        symbol_table.add(routine_symbol)
+
+        container_tag = self.psylayer_container_root_name
+        try:
+            container_symbol = symbol_table.lookup_with_tag(container_tag)
+        except KeyError:
+            container_symbol = symbol_table.new_symbol(
+                root_name=container_tag, tag=container_tag,
+                symbol_type=ContainerSymbol)
+
+        routine_tag = self.psylayer_routine_root_name
+        interface = GlobalInterface(container_symbol)
+        routine_symbol = symbol_table.new_symbol(
+            root_name=routine_tag, tag=routine_tag, symbol_type=RoutineSymbol,
+            interface=interface)
+
         call = Call.create(routine_symbol, arguments)
         self.replace_with(call)
 

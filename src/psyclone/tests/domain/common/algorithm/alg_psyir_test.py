@@ -122,7 +122,8 @@ def test_algorithminvokecall():
     assert call._children_valid_format == "[KernelFunctor]*"
     assert call._text_name == "AlgorithmInvokeCall"
     assert call._colour == "green"
-    assert call.psylayer_routine_symbol is None
+    assert call.psylayer_routine_root_name is None
+    assert call.psylayer_container_root_name is None
     assert call._index == 2
     assert call.parent is None
     assert call._description is None
@@ -253,11 +254,10 @@ def test_aic_defroutinerootname():
         assert call._def_routine_root_name() == "a__description"
 
 
-def test_aic_createpsylayersymbols():
-    '''Check that the create_psylayer_symbols method behaves in the
-    expected way, i.e. creates and stores a routine_symbol and a
-    container_symbol the first time it is called and then does nothing
-    in subsequent calls.
+def test_aic_createpsylayersymbolrootnames():
+    '''Check that the create_psylayer_symbol_root_names method behaves in
+    the expected way, i.e. creates and stores a root name for a
+    routine_symbol and a container symbol.
 
     '''
     code = (
@@ -271,45 +271,13 @@ def test_aic_createpsylayersymbols():
     psyir = create_alg_psyir(code)
     invoke = psyir.children[0][0]
     assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke.psylayer_routine_symbol is None
+    assert invoke.psylayer_routine_root_name is None
+    assert invoke.psylayer_container_root_name is None
 
-    invoke.create_psylayer_symbols()
+    invoke.create_psylayer_symbol_root_names()
 
-    routine_name = "invoke_0_kern"
-    routine_symbol = invoke.psylayer_routine_symbol
-    assert isinstance(routine_symbol, RoutineSymbol)
-    assert routine_symbol.name == routine_name
-    container_symbol = routine_symbol.interface.container_symbol
-    assert container_symbol.name == "psy_alg1"
-
-    invoke.create_psylayer_symbols()
-
-    assert invoke.psylayer_routine_symbol is routine_symbol
-    assert (invoke.psylayer_routine_symbol.interface.container_symbol
-            is container_symbol)
-
-
-def test_aic_createpsylayersymbols_clash(monkeypatch):
-    '''Check that the create_psylayer_symbols method creates the expected
-    routine and container names when there is a name clash.
-
-    '''
-    code = (
-        "subroutine alg1()\n"
-        "  use kern_mod, only : kern\n"
-        "  use field_mod, only : field_type\n"
-        "  real :: psy_alg1, invoke_0_kern\n"
-        "  type(field_type) :: field1\n"
-        "  call invoke(kern(field1))\n"
-        "end subroutine alg1\n")
-
-    psyir = create_alg_psyir(code)
-    invoke = psyir.children[0]
-    invoke.create_psylayer_symbols()
-    routine_symbol = invoke.psylayer_routine_symbol
-    assert routine_symbol.name == "invoke_0_kern_1"
-    container_symbol = routine_symbol.interface.container_symbol
-    assert container_symbol.name == "psy_alg1_1"
+    assert invoke.psylayer_routine_root_name == "invoke_0_kern"
+    assert invoke.psylayer_container_root_name == "psy_alg1"
 
 
 def test_aic_lowertolanguagelevel_error():
@@ -380,8 +348,8 @@ def test_aic_lowertolanguagelevel_single():
     assert len(psyir.walk(AlgorithmInvokeCall)) == 1
     assert len(psyir.walk(KernelFunctor)) == 1
 
-    # Don't call create_psylayer_symbols() here. This is to
-    # check that lower_to_language_level() creates the symbols if
+    # Don't call create_psylayer_symbol_root_names() here. This is to
+    # check that lower_to_language_level() creates the names if
     # needed.
     invoke.lower_to_language_level()
 
@@ -421,10 +389,10 @@ def test_aic_lowertolanguagelevel_multi():
     assert len(psyir.walk(AlgorithmInvokeCall)) == 1
     assert len(psyir.walk(KernelFunctor)) == 7
 
-    # Explicitly create the language level symbols before lowering to
-    # make sure lower_to_language_level works if they have already
+    # Explicitly create the language level root names before lowering
+    # to make sure lower_to_language_level works if they have already
     # been created.
-    invoke.create_psylayer_symbols()
+    invoke.create_psylayer_symbol_root_names()
     invoke.lower_to_language_level()
 
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
@@ -436,6 +404,47 @@ def test_aic_lowertolanguagelevel_multi():
                 (ArrayReference, "field2", ["i"]),
                 (ArrayReference, "field2", ["j"]),
                 (ArrayReference, "field2", [BinaryOperation])])
+
+
+def test_aic_lowertolanguagelevel_multi_invoke():
+    '''Check that the lower_to_language_level method works as expected
+    when it has multiple invoke's. Also purposely add existing
+    algorithm names that clash with root names to make sure generated
+    names are correct.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern1, kern2\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1\n"
+        "  real :: invoke_0_kern1, psy_alg1\n"
+        "  call invoke(kern1(field1))\n"
+        "  call invoke(kern2(field1))\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0][0]
+
+    assert isinstance(invoke, AlgorithmInvokeCall)
+    assert len(psyir.walk(AlgorithmInvokeCall)) == 2
+    assert len(psyir.walk(KernelFunctor)) == 2
+
+    # Don't call create_psylayer_symbol_root_names() here. This is to
+    # check that lower_to_language_level() creates the names if
+    # needed.
+    psyir.lower_to_language_level()
+
+    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
+    assert len(psyir.walk(KernelFunctor)) == 0
+
+    call1 = psyir.children[0][0]
+    assert call1.routine.name == "invoke_0_kern1_1"
+    assert call1.routine.interface.container_symbol.name == "psy_alg1_1"
+
+    call2 = psyir.children[0][1]
+    assert call2.routine.name == "invoke_1_kern2"
+    assert call1.routine.interface.container_symbol.name == "psy_alg1_1"
 
 
 def test_kernelfunctor():

@@ -42,21 +42,15 @@ PSyIR.
 
 '''
 from __future__ import absolute_import
-import pytest
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
-
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Node, Reference
+from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType, REAL_TYPE
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, \
     LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
-from psyclone.errors import GenerationError
 
 
 def create_alg_psyir(code):
@@ -132,7 +126,7 @@ def test_lfricalgorithminvoke_call_root_name():
     call0 = psyir.children[0][0]
     assert call0.routine.name == "invoke_0_kern"
     assert call0.routine.is_global
-    assert call0.routine.interface.container_symbol.name == "invoke_0_kern_mod"
+    assert call0.routine.interface.container_symbol.name == "psy_alg1"
     args = call0.children
     assert len(args) == 1
     assert isinstance(args[0], Reference)
@@ -140,26 +134,11 @@ def test_lfricalgorithminvoke_call_root_name():
     call1 = psyir.children[0][1]
     assert call1.routine.name == "test_1"
     assert call1.routine.is_global
-    assert call1.routine.interface.container_symbol.name == "test_1_mod"
+    assert call1.routine.interface.container_symbol.name == "psy_alg1"
     args = call1.children
     assert len(args) == 1
     assert isinstance(args[0], Reference)
     assert args[0].symbol.name == "field1"
-
-
-def test_lfricalgorithminvokecall_node_str():
-    '''Check that the LFRicAlgorithmInvokeCall node_str  method creates the
-    expected object.
-
-    '''
-    routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall(routine, 0)
-    with pytest.raises(GenerationError) as info:
-        call.children = ["invalid"]
-    assert ("Item 'str' can't be child 0 of 'LFRicAlgorithmInvokeCall'. The "
-            "valid format is: '[LFRicKernelFunctor|LFRicBuiltinFunctor]*'."
-            in str(info.value))
-    call.children = [lfric_kernel_functor, lfric_builtin_functor]
 
 
 def test_lfricbuiltinfunctor():
