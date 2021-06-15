@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''This module provides the TransformationError class.
-'''
+''' This module contains pytest tests for the DynInvokeSchedule class. '''
 
-from psyclone.errors import PSycloneError
-
-class TransformationError(PSycloneError):
-    ''' Provides a PSyclone-specific error class for errors found during
-        code transformation operations. '''
-
-    def __init__(self, value):
-        PSycloneError.__init__(self, value)
-        self.value = "Transformation Error: "+str(value)
+from __future__ import absolute_import, print_function
+import os
+from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.parse.algorithm import parse
+from psyclone.psyir.nodes import Container
 
 
-# TODO #1280: This currenetly causes 'more than one target for cross-reference'
-#             warnings when building the reference guide.
-# For AutoAPI documentation generation
-# __all__ = ["TransformationError"]
+BASE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+TEST_API = "dynamo0.3"
+
+
+def test_dyninvsched_parent():
+    ''' Check the setting of the parent of a DynInvokeSchedule. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.0.1_single_named_invoke.f90"),
+                           api=TEST_API)
+    kcalls = invoke_info.calls[0].kcalls
+    # With no parent specified
+    dsched = DynInvokeSchedule("my_sched", kcalls)
+    assert dsched.parent is None
+    # With a parent
+    fake_parent = Container("my_mod")
+    dsched2 = DynInvokeSchedule("my_sched", kcalls, parent=fake_parent)
+    assert dsched2.parent is fake_parent

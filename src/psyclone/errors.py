@@ -32,42 +32,50 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
+#         I. Kavcic and A. J. Voysey, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides various error classes used in PSyclone'''
 
+class PSycloneError(Exception):
+    ''' Provides a PSyclone specific error class as a generic parent class for
+    all Pysclone exceptions.
 
-class GenerationError(Exception):
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Psyclone Error: " + str(value)
+
+    def __repr__(self):
+        return type(self).__name__ + "()"
+
+    def __str__(self):
+        return str(self.value)
+
+
+class GenerationError(PSycloneError):
     ''' Provides a PSyclone specific error class for errors found during PSy
     code generation.
 
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Generation Error: "+value
+        PSycloneError.__init__(self, value)
+        self.value = "Generation Error: "+str(value)
 
-    def __str__(self):
-        return str(self.value)
-
-
-class FieldNotFoundError(Exception):
+class FieldNotFoundError(PSycloneError):
     ''' Provides a PSyclone-specific error class when a field with the
     requested property/ies is not found.
 
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Field not found error: "+value
+        PSycloneError.__init__(self, value)
+        self.value = "Field not found error: "+str(value)
 
-    def __str__(self):
-        return str(self.value)
-
-
-class InternalError(Exception):
+class InternalError(PSycloneError):
     '''
     PSyclone-specific exception for use when an internal error occurs (i.e.
     something that 'should not happen').
@@ -75,8 +83,10 @@ class InternalError(Exception):
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "PSyclone internal error: "+value
+        PSycloneError.__init__(self, value)
+        self.value = "PSyclone internal error: "+str(value)
 
-    def __str__(self):
-        return str(self.value)
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["PSycloneError", "GenerationError", "FieldNotFoundError",
+           "InternalError"]
