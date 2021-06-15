@@ -132,7 +132,7 @@ def test_literal_init_invalid_2(value):
 
 def test_literal_init_empty_value():
     '''Test the initialisation of a Literal object with an empty value
-    argument raises the expected exception unless it is of CHARACTER_TYPE..
+    argument raises the expected exception unless it is of CHARACTER_TYPE.
 
     '''
     with pytest.raises(ValueError) as err:

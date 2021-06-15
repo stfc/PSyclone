@@ -87,6 +87,8 @@ end subroutine basic_loop
     assert isinstance(sched, NemoInvokeSchedule)
     assert sched.name == "basic_loop"
     assert sched[0] is first_loop
+    # Check that its return symbol is still None
+    assert sched.return_symbol is None
 
 
 def test_multi_invoke_schedules(fortran_reader):

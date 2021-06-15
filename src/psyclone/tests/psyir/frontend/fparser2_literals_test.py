@@ -140,7 +140,7 @@ def test_literal_char_without_quotes_error():
 @pytest.mark.parametrize("value,dprecision,intrinsic",
                          [("0.0", "rdef", ScalarType.Intrinsic.REAL),
                           ("1", "idef", ScalarType.Intrinsic.INTEGER),
-                          ("'hello'", "cdef", ScalarType.Intrinsic.CHARACTER),
+                          ("'hEllo'", "cdef", ScalarType.Intrinsic.CHARACTER),
                           (".tRue.", "ldef", ScalarType.Intrinsic.BOOLEAN),
                           (".false.", "ldef", ScalarType.Intrinsic.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
@@ -182,7 +182,7 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
 @pytest.mark.parametrize("value,dprecision,intrinsic",
                          [("0.0", 16, ScalarType.Intrinsic.REAL),
                           ("1", 8, ScalarType.Intrinsic.INTEGER),
-                          ("'hello'", 1, ScalarType.Intrinsic.CHARACTER),
+                          ("'hellO'", 1, ScalarType.Intrinsic.CHARACTER),
                           (".tRue.", 4, ScalarType.Intrinsic.BOOLEAN),
                           (".false.", 8, ScalarType.Intrinsic.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
