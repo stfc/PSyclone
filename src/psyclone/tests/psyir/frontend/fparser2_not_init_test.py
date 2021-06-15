@@ -59,6 +59,10 @@ def clear_fparser():
     # Now execute all tests
     yield
 
+    # We need to properly initialise fparser,
+    # otherwise followup tests will fail (if this test should fail)
+    ParserFactory().create(std="f2008")
+
 
 def test_loop_bound_when_fparser_not_initialised():
     '''This reproduces #1272: a gocean custom loop boundary could
