@@ -45,7 +45,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.symbols import DataSymbol, ScalarType
-from psyclone.psyir.nodes import Container, Routine, CodeBlock
+from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 
@@ -169,9 +169,12 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
         "\n"
         "end module a\n".format(basic_type, rhs_val))
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir, Container)
-    assert isinstance(psyir.children[0], Routine)
-    return_sym = psyir.children[0].return_symbol
+    assert isinstance(psyir, FileContainer)
+    module = psyir.children[0]
+    assert isinstance(module, Container)
+    routine = module.children[0]
+    assert isinstance(routine, Routine)
+    return_sym = routine.return_symbol
     assert isinstance(return_sym, DataSymbol)
     assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
     result = fortran_writer(psyir)
@@ -242,7 +245,7 @@ def test_function_missing_return_type(fortran_reader):
         "  end function my_func\n"
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0], CodeBlock)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
 
 
 @pytest.mark.parametrize("fn_prefix",
@@ -258,7 +261,7 @@ def test_unsupported_function_prefix(fortran_reader, fn_prefix):
         "  end function my_func\n"
         "end module\n".format(fn_prefix))
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0], CodeBlock)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
 
 
 def test_unsupported_char_len_function(fortran_reader):

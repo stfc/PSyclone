@@ -32,6 +32,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -42,12 +43,14 @@ from __future__ import absolute_import
 from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
+from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
+    Data_Ref, If_Then_Stmt, Array_Section
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine
+    Call, Routine, FileContainer
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -831,8 +834,8 @@ class Fparser2Reader(object):
         :return: 3-tuple of list of inputs, list of outputs, list of in-outs
         :rtype: (list of str, list of str, list of str)
         '''
-        from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
-            Data_Ref, If_Then_Stmt, Array_Section
+        # pylint: disable=too-many-locals,too-many-nested-blocks
+        # pylint: disable=too-many-branches, too-many-statements
         readers = set()
         writers = set()
         readwrites = set()
@@ -855,14 +858,16 @@ class Fparser2Reader(object):
                 for node2 in walk(rhs):
                     if isinstance(node2, Part_Ref):
                         name = node2.items[0].string
+                        if structure_name_str:
+                            name = "{0}%{1}".format(structure_name_str, name)
+                            structure_name_str = None
                         if name.upper() not in FORTRAN_INTRINSICS:
                             if name not in writers:
                                 readers.add(name)
                     if isinstance(node2, Data_Ref):
-                        # TODO we need a robust implementation - issue #309.
-                        raise NotImplementedError(
-                            "get_inputs_outputs: derived-type references on "
-                            "the RHS of assignments are not yet supported.")
+                        structure_name_str = node2.items[0].string
+                        readers.add(structure_name_str)
+
                 # Now do LHS
                 if isinstance(lhs, Data_Ref):
                     # This is a structure which contains an array access.
@@ -3636,10 +3641,7 @@ class Fparser2Reader(object):
     def _program_handler(self, node, parent):
         '''Processes an fparser2 Program statement. Program is the top level
         node of a complete fparser2 tree and may contain one or more
-        program-units. At the moment PSyIR does not support the
-        concept of multiple program-units so can only support
-        one. Therefore this handler simply checks that this constraint
-        is observed in the supplied tree.
+        program-units. This is captured with a FileContainer node.
 
         :param node: top level node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Program`
@@ -3649,16 +3651,13 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of the program.
         :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises NotImplementedError: if more than one program-unit is \
-            found in the fparser2 parse tree.
-
         '''
-        if not len(node.children) == 1:
-            raise GenerationError(
-                "The PSyIR is currently limited to a single top level "
-                "module/subroutine/program/function, but {0} were found."
-                "".format(len(node.children)))
-        return self._create_child(node.children[0], parent)
+        # fparser2 does not keep the original filename (if there was
+        # one) so this can't be provided as the name of the
+        # FileContainer.
+        file_container = FileContainer("None", parent=parent)
+        self.process_nodes(file_container, node.children)
+        return file_container
 
 
 # For Sphinx AutoAPI documentation generation

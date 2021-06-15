@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 '''
 Module providing pytest tests of the CreateNemoInvokeScheduleTrans
@@ -78,12 +79,14 @@ def test_basic_invokesched_trans(fortran_reader):
 end subroutine basic_loop
 '''
     psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
     trans = CreateNemoInvokeScheduleTrans()
-    first_loop = psyir[0]
+    first_loop = subroutine[0]
     routines = psyir.walk(Routine)
-    assert routines[0] is psyir
+    assert routines[0] is psyir.children[0]
     # Apply the transformation to the Routine
-    sched, _ = trans.apply(routines[0])
+    trans.apply(routines[0])
+    sched = psyir.children[0]
     assert isinstance(sched, NemoInvokeSchedule)
     assert sched.name == "basic_loop"
     assert sched[0] is first_loop
@@ -112,13 +115,14 @@ end subroutine basic_loop
 end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
+    module = psyir.children[0]
     trans = CreateNemoInvokeScheduleTrans()
     routines = psyir.walk(Routine)
     loops = psyir.walk(Loop)
     trans.apply(routines[1])
-    assert isinstance(psyir.children[1], NemoInvokeSchedule)
+    assert isinstance(module.children[1], NemoInvokeSchedule)
     # Check body has not changed
-    assert psyir.children[1][0] is loops[0]
+    assert module.children[1][0] is loops[0]
 
 
 def test_invoke_function(fortran_reader):

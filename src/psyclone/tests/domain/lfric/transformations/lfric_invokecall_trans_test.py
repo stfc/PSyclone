@@ -121,11 +121,12 @@ def test_structure_contructor(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.validate(psyir[0])
+    lfric_invoke_trans.validate(subroutine.children[0])
     lfric_invoke_trans._validate_fp2_node(
-        psyir[0].children[0]._fp2_nodes[0])
+        subroutine[0].children[0]._fp2_nodes[0])
 
 
 @pytest.mark.parametrize("string", ["error = 'hello'", "name = 0"])
@@ -141,17 +142,18 @@ def test_named_arg_error(string, fortran_reader):
         "end subroutine alg\n".format(string))
 
     psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
-        lfric_invoke_trans.validate(psyir[0])
+        lfric_invoke_trans.validate(subroutine[0])
     assert ("Error in LFRicInvokeCallTrans transformation. If there is a "
             "named argument, it must take the form name='str', but found "
             "'{0}'.".format(string) in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans._validate_fp2_node(
-            psyir[0].children[0]._fp2_nodes[0])
+            subroutine[0].children[0]._fp2_nodes[0])
     assert ("Error in LFRicInvokeCallTrans transformation. If there is a "
             "named argument, it must take the form name='str', but found "
             "'{0}'.".format(string) in str(info.value))
@@ -170,16 +172,17 @@ def test_multi_named_arg_error(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
-        lfric_invoke_trans.validate(psyir[0])
+        lfric_invoke_trans.validate(subroutine[0])
     assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
 
     with pytest.raises(TransformationError) as info:
-        lfric_invoke_trans.apply(psyir[0], 0)
+        lfric_invoke_trans.apply(subroutine[0], 0)
     assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
@@ -198,14 +201,15 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    code_block = psyir[0].children[0]
+    subroutine = psyir.children[0]
+    code_block = subroutine[0].children[0]
     assert isinstance(code_block, CodeBlock)
     monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
     with pytest.raises(TransformationError) as info:
-        lfric_invoke_trans.validate(psyir[0])
+        lfric_invoke_trans.validate(subroutine[0])
     assert ("Expecting an algorithm invoke codeblock to contain either "
             "Structure-Constructor or actual-arg-spec, but found "
             "'NoneType'." in str(info.value))
@@ -228,14 +232,15 @@ def test_apply_codedkern_arrayref(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0], 1)
+    lfric_invoke_trans.apply(subroutine[0], 1)
 
-    check_invoke(psyir[0], [(LFRicKernelFunctor, "kern")],
+    check_invoke(subroutine[0], [(LFRicKernelFunctor, "kern")],
                  description="hello")
-    assert psyir[0]._index == 1
-    args = psyir[0].children[0].children
+    assert subroutine[0]._index == 1
+    args = subroutine[0].children[0].children
     check_args(args, [(Reference, "field1")])
 
 
@@ -254,12 +259,13 @@ def test_apply_codedkern_structconstruct(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0], 2)
+    lfric_invoke_trans.apply(subroutine[0], 2)
 
-    check_invoke(psyir[0], [(LFRicKernelFunctor, "kern")])
-    args = psyir[0].children[0].children
+    check_invoke(subroutine[0], [(LFRicKernelFunctor, "kern")])
+    args = subroutine[0].children[0].children
     check_args(args, [(Literal, "1.0")])
 
 
@@ -279,12 +285,13 @@ def test_apply_builtin_structconstruct(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0], 3)
+    lfric_invoke_trans.apply(subroutine[0], 3)
 
-    check_invoke(psyir[0], [(LFRicBuiltinFunctor, "setval_c")])
-    args = psyir[0].children[0].children
+    check_invoke(subroutine[0], [(LFRicBuiltinFunctor, "setval_c")])
+    args = subroutine[0].children[0].children
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
 
 
@@ -305,13 +312,14 @@ def test_apply_builtin_arrayref(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0], 4)
+    lfric_invoke_trans.apply(subroutine[0], 4)
 
-    check_invoke(psyir[0], [(LFRicBuiltinFunctor, "setval_c")],
+    check_invoke(subroutine[0], [(LFRicBuiltinFunctor, "setval_c")],
                  description="test")
-    args = psyir[0].children[0].children
+    args = subroutine[0].children[0].children
     check_args(args, [(Reference, "field1"), (Reference, "value")])
 
 
@@ -333,20 +341,21 @@ def test_apply_mixed(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
     lfric_invoke_trans = LFRicInvokeCallTrans()
 
-    lfric_invoke_trans.apply(psyir[0], 5)
+    lfric_invoke_trans.apply(subroutine[0], 5)
 
     check_invoke(
-        psyir[0],
+        subroutine[0],
         [(LFRicKernelFunctor, "kern"), (LFRicBuiltinFunctor, "setval_c"),
          (LFRicBuiltinFunctor, "setval_c"), (LFRicBuiltinFunctor, "setval_c")],
         description="test")
-    args = psyir[0].children[0].children
+    args = subroutine[0].children[0].children
     check_args(args, [(Reference, "field1")])
-    args = psyir[0].children[1].children
+    args = subroutine[0].children[1].children
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
-    args = psyir[0].children[2].children
+    args = subroutine[0].children[2].children
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
-    args = psyir[0].children[3].children
+    args = subroutine[0].children[3].children
     check_args(args, [(Reference, "field1"), (Reference, "value")])
