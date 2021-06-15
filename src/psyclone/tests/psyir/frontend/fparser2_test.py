@@ -780,15 +780,15 @@ def test_process_unsupported_declarations(f2008_parser, fortran_reader):
     assert c2sym.datatype.declaration == "COMPLEX :: c2"
 
     # Char lengths are not supported
-    prog = fortran_reader.psyir_from_source("program dummy\n"
-                                            "character :: l*4\n"
-                                            "end program")
-    assert isinstance(prog.symbol_table.lookup("l").datatype,
+    psyir = fortran_reader.psyir_from_source("program dummy\n"
+                                             "character :: l*4\n"
+                                             "end program")
+    assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
                       UnknownFortranType)
     psyir = fortran_reader.psyir_from_source("program dummy\n"
                                              "character(len=4) :: l\n"
                                              "end program")
-    assert isinstance(psyir.symbol_table.lookup("l").datatype,
+    assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
                       UnknownFortranType)
 
     # Unsupported initialisation of a parameter which comes after a valid

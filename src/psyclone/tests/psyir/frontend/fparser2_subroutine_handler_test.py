@@ -274,4 +274,6 @@ def test_unsupported_char_len_function(fortran_reader):
             "  end function my_func\n"
             "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0], CodeBlock)
+    cblock = psyir.children[0].children[0]
+    assert isinstance(cblock, CodeBlock)
+    assert "LEN = 2" in str(cblock.get_ast_nodes[0])
