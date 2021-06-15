@@ -46,6 +46,10 @@
         sure that it is used. Also adds tests to ensure that future accidental
         use of str(error) will cause a failure.
 
+        17) #1243 for #1242. Bug fix for OpenCL code generation - ensures
+        synchronisation calls are added where necessary if kernels are running
+        on different command queues.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
