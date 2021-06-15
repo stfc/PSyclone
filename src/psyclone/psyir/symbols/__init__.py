@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,8 @@ from psyclone.psyir.symbols.symbol import Symbol, SymbolError, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
+from psyclone.psyir.symbols.datatypesymbol import DataTypeSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
-from psyclone.psyir.symbols.typesymbol import TypeSymbol
 from psyclone.psyir.symbols.symboltable import SymbolTable
 from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
     ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE, REAL_SINGLE_TYPE, \
@@ -59,6 +59,7 @@ __all__ = ['TYPE_MAP_TO_PYTHON',
            'SymbolTable',
            'DataSymbol',
            'DataType',
+           'DataTypeSymbol',
            'LocalInterface',
            'GlobalInterface',
            'ArgumentInterface',
@@ -82,5 +83,4 @@ __all__ = ['TYPE_MAP_TO_PYTHON',
            'BOOLEAN_TYPE',
            'CHARACTER_TYPE',
            'DeferredType',
-           'RoutineSymbol',
-           'TypeSymbol']
+           'RoutineSymbol']

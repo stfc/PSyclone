@@ -46,7 +46,7 @@ import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Node, Reference
-from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
+from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, \
@@ -116,7 +116,7 @@ def test_lfricalgorithminvokecall_create(cls):
 
     '''
     routine = RoutineSymbol("hello")
-    klc = LFRicKernelFunctor.create(TypeSymbol("arg", StructureType()), [])
+    klc = LFRicKernelFunctor.create(DataTypeSymbol("arg", StructureType()), [])
     call = cls.create(routine, [klc], 0, description="describing an invoke")
     assert call._description == "describing an invoke"
     assert call.routine is routine
@@ -195,7 +195,7 @@ def test_lfricbuiltinfunctor():
     '''test that an instance of LFRicBuiltinFunctor class can be created.
 
     '''
-    routine = TypeSymbol("hello", StructureType())
+    routine = DataTypeSymbol("hello", StructureType())
     lbc = LFRicBuiltinFunctor(routine)
     assert isinstance(lbc, LFRicBuiltinFunctor)
     assert lbc._text_name == "LFRicBuiltinFunctor"
@@ -205,7 +205,7 @@ def test_lfrickernelfunctor():
     '''test that an instance of LFRicKernelFunctor class can be created.
 
     '''
-    routine = TypeSymbol("hello", StructureType())
+    routine = DataTypeSymbol("hello", StructureType())
     lbc = LFRicKernelFunctor(routine)
     assert isinstance(lbc, LFRicKernelFunctor)
     assert lbc._text_name == "LFRicKernelFunctor"

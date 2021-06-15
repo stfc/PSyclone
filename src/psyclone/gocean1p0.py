@@ -66,7 +66,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, \
+    ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
     REAL_TYPE, UnknownFortranType, LocalInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -2397,8 +2397,8 @@ class GOKernelArgument(KernelArgument):
             # r2d_type can have DeferredType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = self._call.root.symbol_table.symbol_from_tag(
-                "r2d_type", symbol_type=TypeSymbol, datatype=DeferredType(),
-                interface=UnresolvedInterface())
+                "r2d_type", symbol_type=DataTypeSymbol,
+                datatype=DeferredType(), interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER
