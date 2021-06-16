@@ -104,6 +104,21 @@ class Signature(object):
         '''Required to sort signatures. It just compares the tuples.'''
         return self._signature < other._signature
 
+    # ------------------------------------------------------------------------
+    def __le__(self, other):
+        '''Required to compare signatures. It just compares the tuples.'''
+        return self._signature <= other._signature
+
+    # ------------------------------------------------------------------------
+    def __gt__(self, other):
+        '''Required to compare signatures. It just compares the tuples.'''
+        return self._signature > other._signature
+
+    # ------------------------------------------------------------------------
+    def __ge__(self, other):
+        '''Required to compare signatures. It just compares the tuples.'''
+        return self._signature >= other._signature
+
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate

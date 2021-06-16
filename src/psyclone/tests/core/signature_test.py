@@ -109,5 +109,8 @@ def test_signature_comparison():
     assert not Signature(("a", "b")) != Signature(("a", "b"))
     assert Signature(("a", "b")) != Signature(("a", "c"))
     assert not Signature(("a", "b")) == Signature(("a", "c"))
+    assert Signature(("a", "c")) >= Signature(("a", "b"))
+    assert Signature(("a", "c")) > Signature(("a", "b"))
+    assert Signature(("a", "b")) <= Signature(("a", "c"))
     assert not Signature(("a", "b")) == 2
     assert Signature(("a", "b")) != 2
