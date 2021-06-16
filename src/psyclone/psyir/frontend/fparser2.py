@@ -1485,7 +1485,7 @@ class Fparser2Reader(object):
             if fort_type == "character" and type_spec.children[1]:
                 raise NotImplementedError(
                     "Length or kind attributes not supported on a character "
-                    "varaiable: '{0}'".format(str(type_spec)))
+                    "variable: '{0}'".format(str(type_spec)))
             base_type = ScalarType(data_name, precision)
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
