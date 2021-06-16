@@ -53,6 +53,8 @@
         18) #1273 for #1272. Fixes missing fparser initialisation when
         GOcean loop bounds are read from config file.
 
+        19) #1287 towards #1259. Rename TypeSymbol to DataTypeSymbol.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
