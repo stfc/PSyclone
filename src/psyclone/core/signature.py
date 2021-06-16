@@ -92,6 +92,14 @@ class Signature(object):
         return self._signature == other._signature
 
     # ------------------------------------------------------------------------
+    def __ne__(self, other):
+        '''Required for != comparisons of Signatures with python2.
+        Compares two objects (one of which might not be a Signature).'''
+        if not hasattr(other, "_signature"):
+            return True
+        return self._signature != other._signature
+
+    # ------------------------------------------------------------------------
     def __lt__(self, other):
         '''Required to sort signatures. It just compares the tuples.'''
         return self._signature < other._signature

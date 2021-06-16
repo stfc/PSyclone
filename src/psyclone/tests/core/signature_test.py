@@ -98,3 +98,16 @@ def test_signature_sort():
     sig_list.sort()
     assert str(sig_list) == "[Signature(a), Signature(a%b), Signature(a%c), " \
                             "Signature(b), Signature(b%a), Signature(c)]"
+
+
+def test_signature_comparison():
+    ''' Test that two Signatures can be compared for equality and not
+    equality.
+    '''
+    assert Signature(("a", "b")) == Signature(("a", "b"))
+    # pylint: disable=unneeded-not
+    assert not Signature(("a", "b")) != Signature(("a", "b"))
+    assert Signature(("a", "b")) != Signature(("a", "c"))
+    assert not Signature(("a", "b")) == Signature(("a", "c"))
+    assert not Signature(("a", "b")) == 2
+    assert Signature(("a", "b")) != 2
