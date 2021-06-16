@@ -371,7 +371,6 @@ def test_const_argument():
     dep_tools = DependencyTools()
     input_list = dep_tools.get_input_parameters(invoke.schedule)
     # Make sure the constant '0' is not listed
-    print("IL", input_list)
     assert input_list == [Signature('p_fld'),
                           Signature(('p_fld', 'grid', 'subdomain',
                                      'internal', 'xstop')),
