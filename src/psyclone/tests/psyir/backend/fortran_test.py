@@ -1959,7 +1959,7 @@ def test_fw_call_node(fortran_writer):
     '''
     # no args
     routine_symbol = RoutineSymbol("mysub")
-    call = Call(routine_symbol, [])
+    call = Call.create(routine_symbol, [])
     result = fortran_writer(call)
     assert result == "call mysub()\n"
 
