@@ -240,7 +240,7 @@ def test_arraytype_invalid_datatype():
             "or DataTypeSymbol but found 'NoneType'." in str(excinfo.value))
 
 
-def test_arraytype_typesymbol_only():
+def test_arraytype_datatypesymbol_only():
     ''' Test that we currently refuse to make an ArrayType with an intrinsic
     type of StructureType. (This limitation is the subject of #1031.) '''
     with pytest.raises(NotImplementedError) as err:
@@ -252,7 +252,7 @@ def test_arraytype_typesymbol_only():
             "StructureType instead." in str(err.value))
 
 
-def test_arraytype_typesymbol():
+def test_arraytype_datatypesymbol():
     ''' Test that we can correctly create an ArrayType when the type of the
     elements is specified as a DataTypeSymbol. '''
     tsym = DataTypeSymbol("my_type", DeferredType())

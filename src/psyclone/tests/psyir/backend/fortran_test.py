@@ -359,8 +359,8 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
 
 def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     ''' Check that gen_typedecl() works for a symbol of UnknownFortranType. '''
-    tsymbol = DataTypeSymbol("my_type",
-                         UnknownFortranType("type my_type\nend type my_type"))
+    tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
+        "type my_type\nend type my_type"))
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type my_type\nend type my_type")
 

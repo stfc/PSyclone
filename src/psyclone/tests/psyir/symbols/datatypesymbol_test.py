@@ -41,7 +41,7 @@ import pytest
 from psyclone.psyir.symbols import DataTypeSymbol, DeferredType
 
 
-def test_create_typesymbol():
+def test_create_datatypesymbol():
     ''' Check that a basic DataTypeSymbol can be created with the expected
     properties. '''
     sym = DataTypeSymbol("my_type", DeferredType())
@@ -50,7 +50,7 @@ def test_create_typesymbol():
     assert str(sym) == "my_type : DataTypeSymbol"
 
 
-def test_create_typesymbol_wrong_datatype():
+def test_create_datatypesymbol_wrong_datatype():
     ''' Check that attempting to specify the type of a DataTypeSymbol with an
     invalid type results in the expected error. '''
     sym = DataTypeSymbol("my_type", DeferredType())
