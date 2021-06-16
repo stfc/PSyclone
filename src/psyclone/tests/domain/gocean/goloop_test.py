@@ -39,12 +39,15 @@
 '''Tests for the GOLoop class.'''
 
 from __future__ import absolute_import, print_function
+
 import pytest
+from fparser.two.parser import ParserFactory
+
+from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
     Literal
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.errors import GenerationError
 from psyclone.tests.utilities import get_invoke
 
 API = "gocean1.0"
@@ -182,3 +185,34 @@ def test_goloop_lower_to_language_level(monkeypatch):
     goloop.lower_to_language_level()
     assert goloop.start_expr.value == '1'
     assert goloop.stop_expr.value == '1'
+
+
+@pytest.fixture()
+def clear_fparser():
+    ''' The next test assumes that fparser has not been initialised.
+    This is achieved by calling `_setup([])` with an empty list, which
+    will remove all currently existing parser classes and functions.
+    At the end of the tests re-initialse parser. This must be done in
+    a fixture, since in case of a failure we still have to make sure
+    that fparser gets properly re-initialised.
+    '''
+
+    # Remove all fparser classes and functions
+    ParserFactory()._setup([])
+
+    # Now execute all tests
+    yield
+
+    # We need to properly initialise fparser,
+    # otherwise followup tests will fail (if this test should fail)
+    ParserFactory().create(std="f2008")
+
+
+@pytest.mark.usefixtures("clear_fparser")
+def test_loop_bound_when_fparser_not_initialised():
+    '''This reproduces #1272: a gocean custom loop boundary could
+    not be parsed if the parser has not been initialised previously.
+    Reproduce this bug by re-initialising fparser with an empty
+    class list.
+    '''
+    GOLoop.add_bounds("go_offset_sw:go_ct:internal_we_halo:1:2:3:4")
