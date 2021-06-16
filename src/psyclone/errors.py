@@ -38,6 +38,7 @@
 
 ''' This module provides various error classes used in PSyclone'''
 
+
 class PSycloneError(Exception):
     ''' Provides a PSyclone specific error class as a generic parent class for
     all Pysclone exceptions.
@@ -65,6 +66,7 @@ class GenerationError(PSycloneError):
         PSycloneError.__init__(self, value)
         self.value = "Generation Error: "+str(value)
 
+
 class FieldNotFoundError(PSycloneError):
     ''' Provides a PSyclone-specific error class when a field with the
     requested property/ies is not found.
@@ -74,6 +76,7 @@ class FieldNotFoundError(PSycloneError):
     def __init__(self, value):
         PSycloneError.__init__(self, value)
         self.value = "Field not found error: "+str(value)
+
 
 class InternalError(PSycloneError):
     '''

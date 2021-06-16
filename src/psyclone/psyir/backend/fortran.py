@@ -47,7 +47,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
-    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, TypeSymbol
+    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, DataTypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Routine, Reference, Literal, DataNode, CodeBlock, Member, Range, Schedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -98,10 +98,10 @@ def gen_datatype(datatype, name):
     '''Given a DataType instance as input, return the Fortran datatype
     of the symbol including any specific precision properties.
 
-    :param datatype: the DataType or TypeSymbol describing the type of \
+    :param datatype: the DataType or DataTypeSymbol describing the type of \
                      the declaration.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
-                    :py:class:`psyclone.psyir.symbols.TypeSymbol`
+                    :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
     :param str name: the name of the symbol being declared (only used for \
                      error messages).
 
@@ -122,12 +122,12 @@ def gen_datatype(datatype, name):
         is an unsupported type.
 
     '''
-    if isinstance(datatype, TypeSymbol):
+    if isinstance(datatype, DataTypeSymbol):
         # Symbol is of derived type
         return "type({0})".format(datatype.name)
 
     if (isinstance(datatype, ArrayType) and
-            isinstance(datatype.intrinsic, TypeSymbol)):
+            isinstance(datatype.intrinsic, DataTypeSymbol)):
         # Symbol is an array of derived types
         return "type({0})".format(datatype.intrinsic.name)
 
@@ -482,22 +482,22 @@ class FortranWriter(PSyIRVisitor):
 
     def gen_typedecl(self, symbol):
         '''
-        Creates a derived-type declaration for the supplied TypeSymbol.
+        Creates a derived-type declaration for the supplied DataTypeSymbol.
 
         :param symbol: the derived-type to declare.
-        :type symbol: :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         :returns: the Fortran declaration of the derived type.
         :rtype: str
 
-        :raises VisitorError: if the supplied symbol is not a TypeSymbol.
+        :raises VisitorError: if the supplied symbol is not a DataTypeSymbol.
         :raises VisitorError: if the datatype of the symbol is of UnknownType \
                               but is not of UnknownFortranType.
 
         '''
-        if not isinstance(symbol, TypeSymbol):
+        if not isinstance(symbol, DataTypeSymbol):
             raise VisitorError(
-                "gen_typedecl expects a TypeSymbol as argument but "
+                "gen_typedecl expects a DataTypeSymbol as argument but "
                 "got: '{0}'".format(type(symbol).__name__))
 
         if isinstance(symbol.datatype, UnknownType):
@@ -671,7 +671,7 @@ class FortranWriter(PSyIRVisitor):
             declarations += self.gen_vardecl(symbol)
 
         # 3: Derived-type declarations
-        for symbol in symbol_table.local_typesymbols:
+        for symbol in symbol_table.local_datatypesymbols:
             declarations += self.gen_typedecl(symbol)
 
         return declarations
