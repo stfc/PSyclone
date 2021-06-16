@@ -40,7 +40,7 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol
-from psyclone.psyir.symbols.datatypesymbol import DataTypeSymbol
+from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 
 
 class DataSymbol(Symbol):

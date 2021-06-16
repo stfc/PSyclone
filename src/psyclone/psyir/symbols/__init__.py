@@ -41,7 +41,7 @@ from psyclone.psyir.symbols.symbol import Symbol, SymbolError, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
-from psyclone.psyir.symbols.datatypesymbol import DataTypeSymbol
+from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 from psyclone.psyir.symbols.symboltable import SymbolTable
 from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
