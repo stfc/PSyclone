@@ -1137,21 +1137,19 @@ class FortranWriter(PSyIRVisitor):
             # character string may include quotation marks, e.g. a format
             # specifier: "('hello',3A)". The outermost quotation marks are
             # not stored so we have to decide whether to use ' or ".
-            single_idx = node.value.find("'")
-            if single_idx == -1:
+            if "'" not in node.value:
                 # No single quotes in the string so use those
                 quote_symbol = "'"
             else:
-                dbl_idx = node.value.find('"')
-                if dbl_idx == -1:
-                    # No double quotes in the string so use those
-                    quote_symbol = '"'
-                else:
-                    if single_idx < dbl_idx:
-                        # Single quote appears before double
-                        quote_symbol = '"'
-                    else:
-                        quote_symbol = "'"
+                # There are single quotes in the string so we use double
+                # quotes (after verifying that there aren't both single *and*
+                # double quotes in the string).
+                if '"' in node.value:
+                    raise NotImplementedError(
+                        "Character literals containing both single and double "
+                        "quotes are not supported but found >>{0}<<".format(
+                            node.value))
+                quote_symbol = '"'
             result = quote_symbol + "{0}".format(node.value) + quote_symbol
         else:
             result = node.value
