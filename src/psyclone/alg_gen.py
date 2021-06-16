@@ -40,9 +40,9 @@ that can be compiled and linked with the generated PSy code.
 '''
 
 from __future__ import absolute_import
+from psyclone.errors import PSycloneError
 
-
-class NoInvokesError(Exception):
+class NoInvokesError(PSycloneError):
     '''Provides a PSyclone-specific error class for the situation when an
     algorithm code contains no invoke calls.
 
@@ -50,11 +50,8 @@ class NoInvokesError(Exception):
 
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Algorithm Error: "+value
-
-    def __str__(self):
-        return repr(self.value)
+        PSycloneError.__init__(self, value)
+        self.value = "Algorithm Error: "+str(value)
 
 
 # pylint: disable=too-few-public-methods
