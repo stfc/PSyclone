@@ -48,7 +48,6 @@ from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallAccArgList, KernStubArgList
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.parse.algorithm import parse
-from psyclone.parse.utils import ParseError
 from psyclone.psyGen import CodedKern, PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
@@ -141,7 +140,7 @@ def test_double_variable_lhs(parser):
     indirect_addressing = schedule[0]
     assert isinstance(indirect_addressing, Assignment)
     var_accesses = VariablesAccessInfo()
-    with pytest.raises(ParseError) as err:
+    with pytest.raises(NotImplementedError) as err:
         indirect_addressing.reference_accesses(var_accesses)
     assert "The variable 'g' appears more than once on the left-hand side "\
            "of an assignment." in str(err.value)
@@ -299,12 +298,12 @@ def test_goloop_field_accesses():
     cu_fld = var_accesses[Signature("cu_fld")]
     assert len(cu_fld.all_accesses) == 1
     assert cu_fld.all_accesses[0].access_type == AccessType.WRITE
-    assert cu_fld.all_accesses[0].indices == ["i", "j"]
+    assert cu_fld.all_accesses[0].component_indices == [["i", "j"]]
 
     # The stencil is defined to be GO_STENCIL(123,110,100)) for
     # p_fld. Make sure that these 9 accesses are indeed reported:
     p_fld = var_accesses[Signature("p_fld")]
-    all_indices = [access.indices for access in p_fld.all_accesses]
+    all_indices = [access.component_indices for access in p_fld.all_accesses]
 
     for test_index in [["i-1", "j+1"],
                        ["i", "j+1"], ["i", "j+2"],
@@ -312,7 +311,7 @@ def test_goloop_field_accesses():
                        ["i-1", "j"],
                        ["i", "j"],
                        ["i-1", "j-1"]]:
-        assert test_index in all_indices
+        assert [test_index] in all_indices
 
     # Since we have 9 different indices found (above), the following
     # test guarantees that we don't get any invalid accesses reported.
@@ -409,21 +408,14 @@ def test_location(parser):
     assert x_accesses[0].location == x_accesses[1].location
 
 
-@pytest.mark.xfail(reason="#1028 dependency analysis for structures needs "
-                   "to be implemented")
 def test_user_defined_variables(parser):
-    ''' Test reading and writing to user defined variables. This is
-    not supported atm because the dependence analysis for these PSyIR
-    nodes has not yet been implemented (#1028).
-
-    Also TODO #1028: is this a duplicate of test_derived_type in
-    tests/psyir/dependency_tools_test.py?
+    ''' Test reading and writing to user defined variables.
     '''
     reader = FortranStringReader('''program test_prog
                                        use some_mod, only: my_type
                                        type(my_type) :: a, e
                                        integer :: ji, jj, d
-                                       a%b%c(ji, jj) = d
+                                       a%b(ji)%c(ji, jj) = d
                                        e%f = d
                                     end program test_prog''')
     prog = parser(reader)
@@ -431,8 +423,8 @@ def test_user_defined_variables(parser):
     loops = psy.invokes.get("test_prog").schedule
 
     var_accesses = VariablesAccessInfo(loops)
-    assert var_accesses[Signature("a % b % c")].is_written
-    assert var_accesses[Signature("e % f")].is_written
+    assert var_accesses[Signature(("a", "b", "c"))].is_written
+    assert var_accesses[Signature(("e", "f"))].is_written
 
 
 def test_math_equal(parser):

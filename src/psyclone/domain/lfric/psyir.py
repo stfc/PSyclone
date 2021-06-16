@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 '''This module generates LFRic-specific PSyIR classes from lists of
 definitions.
@@ -44,6 +45,7 @@ from collections import namedtuple
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DeferredType, \
     GlobalInterface, ScalarType, ArrayType
 from psyclone.psyir.nodes import Literal
+from psyclone.domain.lfric import LFRicConstants
 
 # Define LFRic module symbols.
 
@@ -53,7 +55,8 @@ from psyclone.psyir.nodes import Literal
 
 Module = namedtuple('Module', ["name", "vars"])
 MODULES = [
-    Module("constants_mod", ["i_def", "r_def", "l_def"])]
+    Module(LFRicConstants().UTILITIES_MOD_MAP["constants"]["module"],
+           ["i_def", "r_def", "l_def"])]
 
 # Generate LFRic module symbols from definitions
 for module in MODULES:

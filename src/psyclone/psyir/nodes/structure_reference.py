@@ -32,12 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureReference node. '''
 
 from __future__ import absolute_import
 import six
+
+from psyclone.core import Signature
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
@@ -225,19 +228,21 @@ class StructureReference(Reference):
                     type(self).__name__, self.children))
         return self.children[0]
 
-    def reference_accesses(self, var_accesses):
-        '''
-        TODO #1028 dependency analysis for structures needs to be
-        implemented.
-
-        Get all variable access information. All variables used as indices
-        in the access of the array will be added as READ.
-
-        :param var_accesses: variable access information.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this structure reference, and \
+            a list of the indices used for each component (empty list \
+            if an access is not an array).
+        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
+            list of indices)
 
         '''
+        # Get the signature of self:
+        my_sig, my_index = \
+            super(StructureReference, self).get_signature_and_indices()
+        # Then the sub-signature of the member, and indices used:
+        sub_sig, indices = self.children[0].get_signature_and_indices()
+        # Combine signature and indices
+        return (Signature(my_sig, sub_sig), my_index + indices)
 
 
 # For AutoAPI documentation generation

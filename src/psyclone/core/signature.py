@@ -52,17 +52,31 @@ class Signature(object):
     sure two different signature objects containing the same variable
     can be used as a key, this class implements `__hash__` and other special
     functions.
+    The constructor also supports appending an existing signature to this
+    new signature using the `sub_sig` argument. This is used in
+    StructureReference to assemble the overall signature of a structure
+    access.
 
     :param variable: the variable that is accessed.
-    :type variable: can be str or a tuple of strings.
+    :type variable: str or tuple of str
+
+    :param sub_sig: a signature that is to be added to this new signature.
+    :type sub_sig: :py:class:`psyclone.core.Signature`
 
     '''
-    def __init__(self, variable):
+    def __init__(self, variable, sub_sig=None):
+        if sub_sig:
+            sub_tuple = sub_sig._signature
+        else:
+            # null-tuple
+            sub_tuple = ()
         if isinstance(variable, (str, six.text_type)):
             # str() required for python2 unicode support
-            self._signature = (str(variable),)
+            self._signature = (str(variable),) + sub_tuple
         elif isinstance(variable, tuple):
-            self._signature = variable
+            self._signature = variable + sub_tuple
+        elif isinstance(variable, Signature):
+            self._signature = variable._signature + sub_tuple
         else:
             raise InternalError("Got unexpected type '{0}' in Signature "
                                 "constructor".format(type(variable).__name__))
@@ -118,6 +132,15 @@ class Signature(object):
     def __ge__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
         return self._signature >= other._signature
+
+    # ------------------------------------------------------------------------
+    @property
+    def var_name(self):
+        ''':returns: the actual variable name, i.e. the first component of
+            the signature.
+        :rtype: str
+        '''
+        return self._signature[0]
 
 
 # ---------- Documentation utils -------------------------------------------- #

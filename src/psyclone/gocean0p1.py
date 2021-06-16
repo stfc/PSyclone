@@ -224,10 +224,10 @@ class GOInvokeSchedule(InvokeSchedule):
     supply our API-specific factories to the base InvokeSchedule class
     constructor. '''
 
-    def __init__(self, name, alg_calls, reserved_names=None):
+    def __init__(self, name, alg_calls, reserved_names=None, parent=None):
         InvokeSchedule.__init__(self, name, GOKernCallFactory,
                                 GOBuiltInCallFactory, alg_calls,
-                                reserved_names)
+                                reserved_names, parent=parent)
 
 
 class GOLoop(Loop):
