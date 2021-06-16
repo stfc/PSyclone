@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     StructureReference, ArrayOfStructuresReference, Assignment, \
     BinaryOperation, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
-    ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, TypeSymbol, \
+    ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, DataTypeSymbol,\
     GlobalInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
     DeferredType, Symbol
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -66,7 +66,7 @@ SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
 GRID_TYPE = StructureType.create([
     ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
     ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
-GRID_TYPE_SYMBOL = TypeSymbol("grid_type", GRID_TYPE)
+GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 CONTAINER_SYMBOL_TABLE.add(GRID_TYPE_SYMBOL)
 
 # Kernel symbol table, symbols and scalar datatypes
@@ -75,8 +75,8 @@ SYMBOL_TABLE = SymbolTable()
 CONT = ContainerSymbol("kernel_mod")
 SYMBOL_TABLE.add(CONT)
 
-DTYPE_SYMBOL = TypeSymbol("other_type", DeferredType(),
-                          interface=GlobalInterface(CONT))
+DTYPE_SYMBOL = DataTypeSymbol("other_type", DeferredType(),
+                              interface=GlobalInterface(CONT))
 SYMBOL_TABLE.add(DTYPE_SYMBOL)
 
 # Create the definition of the 'field_type'
@@ -86,7 +86,7 @@ FIELD_TYPE_DEF = StructureType.create(
      ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
       Symbol.Visibility.PUBLIC),
      ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC)])
-FIELD_TYPE_SYMBOL = TypeSymbol("field_type", FIELD_TYPE_DEF)
+FIELD_TYPE_SYMBOL = DataTypeSymbol("field_type", FIELD_TYPE_DEF)
 CONTAINER_SYMBOL_TABLE.add(FIELD_TYPE_SYMBOL)
 
 # Create an argument of this derived type. At this point we know only that

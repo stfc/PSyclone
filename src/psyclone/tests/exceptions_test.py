@@ -40,11 +40,9 @@ from psyclone.errors import PSycloneError
 
 import sys
 import pkgutil
-import pytest
-import psyclone
 import inspect
-import os
 import importlib
+
 
 class DummyPSycloneError(PSycloneError):
     ''' Provides a dummy PSyclone specific error class as for use in this test
@@ -59,7 +57,7 @@ def all_sub_exceptions(expt):
         the given exception class. '''
 
     new_sub_except = [add_except for sub_except in expt.__subclasses__()
-                     for add_except in all_sub_exceptions(sub_except)]
+                      for add_except in all_sub_exceptions(sub_except)]
     return set(expt.__subclasses__()).union(new_sub_except)
 
 
@@ -93,10 +91,10 @@ def test_exception_repr():
 
     modules = import_submodules("psyclone")
     for mod in modules:
-        package = importlib.import_module(mod)
+        _ = importlib.import_module(mod)
 
-    all_excpetions = all_sub_exceptions(Exception)
-    psy_excepts = [exc for exc in all_excpetions if "psyclone." in str(exc)]
+    all_exceptions = all_sub_exceptions(Exception)
+    psy_excepts = [exc for exc in all_exceptions if "psyclone." in str(exc)]
     psy_excepts.append(DummyPSycloneError)
 
     # Different vertions of pytest behave differently with repect to their

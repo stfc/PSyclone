@@ -76,7 +76,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
-    DeferredType, TypeSymbol, ContainerSymbol, GlobalInterface)
+    DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -8925,12 +8925,12 @@ class DynKernelArgument(KernelArgument):
         Infer the datatype of this kernel argument in the PSy layer using
         the LFRic API rules. If any LFRic infrastructure modules are required
         but are not already present then suitable ContainerSymbols are added
-        to the outermost symbol table. Similarly, TypeSymbols are added for
+        to the outermost symbol table. Similarly, DataTypeSymbols are added for
         any required LFRic derived types that are not already in the symbol
         table.
 
         TODO #1258 - ultimately this routine should not have to create any
-        TypeSymbols as that should already have been done.
+        DataTypeSymbols as that should already have been done.
 
         :param bool proxy: whether or not we want the type of the proxy \
             object for this kernel argument. Defaults to False (i.e.
@@ -8955,16 +8955,16 @@ class DynKernelArgument(KernelArgument):
 
         def _find_or_create_type(mod_name, type_name):
             '''
-            Utility to find or create a TypeSymbol with the supplied name,
+            Utility to find or create a DataTypeSymbol with the supplied name,
             imported from the named module.
 
             :param str mod_name: the name of the module from which the \
-                                 TypeSymbol should be imported.
+                                 DataTypeSymbol should be imported.
             :param str type_name: the name of the derived type for which to \
-                                  create a TypeSymbol.
+                                  create a DataTypeSymbol.
 
             :returns: the symbol for the requested type.
-            :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
+            :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
             '''
             try:
@@ -8977,7 +8977,7 @@ class DynKernelArgument(KernelArgument):
                 except KeyError:
                     fld_mod_container = ContainerSymbol(mod_name)
                     root_table.add(fld_mod_container)
-                fld_type = TypeSymbol(
+                fld_type = DataTypeSymbol(
                     type_name, DeferredType(),
                     interface=GlobalInterface(fld_mod_container))
                 root_table.add(fld_type)
@@ -9022,7 +9022,7 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_field:
 
-            # Find or create the TypeSymbol for the appropriate field type.
+            # Find or create the DataTypeSymbol for the appropriate field type.
             # TODO #1258 the names of the Fortran modules should come from
             # the config file.
             if self.intrinsic_type == 'real':
@@ -9040,7 +9040,8 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_operator:
 
-            # Find or create the TypeSymbol for the appropriate operator type.
+            # Find or create the DataTypeSymbol for the appropriate operator
+            # type.
             if self.argument_type == "gh_operator":
                 type_name = "operator{0}_type".format(proxy_str)
             elif self.argument_type == "gh_columnwise_operator":

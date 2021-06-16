@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol
-from psyclone.psyir.symbols.typesymbol import TypeSymbol
+from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 
 
 class DataSymbol(Symbol):
@@ -117,7 +117,7 @@ class DataSymbol(Symbol):
 
         :param value: new value for datatype.
         :type value: :py:class:`psyclone.psyir.symbols.DataType` or \
-                     :py:class:`psyclone.psyir.symbols.TypeSymbol`
+                     :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         :raises TypeError: if value is not of the correct type.
         :raises NotImplementedError: if the specified data type is invalid.
@@ -127,10 +127,10 @@ class DataSymbol(Symbol):
         # dependency with the datatypes module.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols import DataType
-        if not isinstance(value, (DataType, TypeSymbol)):
+        if not isinstance(value, (DataType, DataTypeSymbol)):
             raise TypeError(
                 "The datatype of a DataSymbol must be specified using either "
-                "a DataType or a TypeSymbol but got: '{0}'".format(
+                "a DataType or a DataTypeSymbol but got: '{0}'".format(
                     type(value).__name__))
         self._datatype = value
 

@@ -60,15 +60,15 @@ def create_structure_symbol(table):
     region_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
         ("ny", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("domain", symbols.TypeSymbol("dom_type", symbols.DeferredType()),
+        ("domain", symbols.DataTypeSymbol("dom_type", symbols.DeferredType()),
          symbols.Symbol.Visibility.PUBLIC)])
-    region_type_sym = symbols.TypeSymbol("grid_type", region_type)
+    region_type_sym = symbols.DataTypeSymbol("grid_type", region_type)
     region_array_type = symbols.ArrayType(region_type_sym, [2, 2])
     grid_type = symbols.StructureType.create([
         ("dx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
         ("area", region_type_sym, symbols.Symbol.Visibility.PUBLIC),
         ("levels", region_array_type, symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_sym = symbols.TypeSymbol("grid_type", grid_type)
+    grid_type_sym = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_var = symbols.DataSymbol("grid", grid_type_sym)
     table.add(grid_type_sym)
     table.add(grid_var)
