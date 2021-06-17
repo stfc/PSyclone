@@ -39,7 +39,7 @@
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference
 from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
-    GlobalInterface, RoutineSymbol
+    GlobalInterface, RoutineSymbol, NoType
 from psyclone.errors import GenerationError
 
 
@@ -161,7 +161,7 @@ class AlgorithmInvokeCall(Call):
 
         interface = GlobalInterface(ContainerSymbol(container_name))
         self.psylayer_routine_symbol = RoutineSymbol(
-            routine_name, interface=interface)
+            routine_name, NoType(), interface=interface)
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call

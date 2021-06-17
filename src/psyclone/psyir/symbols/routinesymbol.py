@@ -37,11 +37,12 @@
 ''' This module contains the RoutineSymbol.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
-class RoutineSymbol(Symbol):
+class RoutineSymbol(TypedSymbol):
     '''Symbol identifying a callable routine.'''
 
     def __str__(self):
-        return "{0} : {1}".format(self.name, type(self).__name__)
+        return "{0} : {1} <{2}>".format(self.name, type(self).__name__,
+                                        str(self.datatype))

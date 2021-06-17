@@ -72,6 +72,13 @@ class DeferredType(DataType):
         return "DeferredType"
 
 
+class NoType(DataType):
+    ''' Indicates that the associated symbol has no type. '''
+
+    def __str__(self):
+        return "NoType"
+
+
 @six.add_metaclass(abc.ABCMeta)
 class UnknownType(DataType):
     '''

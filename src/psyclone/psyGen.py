@@ -52,7 +52,7 @@ from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
-from psyclone.psyir.symbols.datatypes import UnknownFortranType
+from psyclone.psyir.symbols.datatypes import UnknownFortranType, NoType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
     Routine, PSyDataNode, Call, StructureReference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -1102,7 +1102,8 @@ class InvokeSchedule(Routine):
                 try:
                     self.symbol_table.lookup_with_tag(kernel)
                 except KeyError:
-                    self.symbol_table.add(RoutineSymbol(kernel), tag=kernel)
+                    self.symbol_table.add(RoutineSymbol(kernel, NoType()),
+                                          tag=kernel)
                 parent.add(
                     DeclGen(parent, datatype="integer", kind="c_intptr_t",
                             save=True, target=True, entity_decls=[kernel]))
@@ -3038,7 +3039,8 @@ class CodedKern(Kern):
 
         '''
         symtab = self.scope.symbol_table
-        rsymbol = RoutineSymbol(self._name)
+        # A kernel routine does not have a return type.
+        rsymbol = RoutineSymbol(self._name, NoType())
         symtab.add(rsymbol)
         call_node = Call(rsymbol)
 
@@ -3096,7 +3098,7 @@ class CodedKern(Kern):
             if not existing_symbol:
                 # If it doesn't exist already, module-inline the subroutine by:
                 # 1) Registering the subroutine symbol in the Container
-                self.root.symbol_table.add(RoutineSymbol(self._name))
+                self.root.symbol_table.add(RoutineSymbol(self._name, NoType()))
                 # 2) Converting the PSyIR kernel into a f2pygen node (of
                 # PSyIRGen kind) under the PSy-layer f2pygen module.
                 module.add(PSyIRGen(module, self.get_kernel_schedule()))
