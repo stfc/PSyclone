@@ -106,9 +106,9 @@ class TypedSymbol(Symbol):
         from psyclone.psyir.symbols import DataType
         if not isinstance(value, (DataType, DataTypeSymbol)):
             raise TypeError(
-                "The datatype of a TypedSymbol must be specified using either "
-                "a DataType or a DataTypeSymbol but got: '{0}'".format(
-                    type(value).__name__))
+                "The datatype of a {0} must be specified using either "
+                "a DataType or a DataTypeSymbol but got: '{1}'".format(
+                    type(self).__name__, type(value).__name__))
         self._datatype = value
 
     def copy(self):

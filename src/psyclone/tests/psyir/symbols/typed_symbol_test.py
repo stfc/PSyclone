@@ -110,12 +110,12 @@ def test_typed_symbol_init_errors():
 
     with pytest.raises(TypeError) as error:
         TSymbol('a', 'invalidtype')
-    assert ("datatype of a TypedSymbol must be specified using either a "
+    assert ("datatype of a TSymbol must be specified using either a "
             "DataType or a DataTypeSymbol but got: 'str'" in str(error.value))
 
     with pytest.raises(TypeError) as error:
         TSymbol('a', 3)
-    assert ("datatype of a TypedSymbol must be specified using either a "
+    assert ("datatype of a TSymbol must be specified using either a "
             "DataType or a DataTypeSymbol but got:" in str(error.value))
 
 
