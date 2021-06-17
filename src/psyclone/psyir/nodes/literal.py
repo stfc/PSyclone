@@ -147,4 +147,6 @@ class Literal(DataNode):
         :type: bool
         '''
 
+        if not isinstance(other, Literal):
+            return False
         return self.value == other.value

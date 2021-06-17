@@ -159,8 +159,6 @@ class NemoArrayAccess2LoopTrans(Transformation):
         from psyclone.psyir.nodes import Loop, Schedule
         while isinstance(location.parent, Schedule) and isinstance(location.parent.parent, Loop) and idx<len(symbols):
             if not symbols[idx] is location.parent.parent.variable:
-                print (symbols[idx].name)
-                print (location.parent.parent.variable.name)
                 raise InternalError("Validation method should pick this up.")
             idx += 1
             location = location.parent.parent
@@ -177,7 +175,6 @@ class NemoArrayAccess2LoopTrans(Transformation):
         # Replace array access loop variable.
         for array in assignment.walk(ArrayReference):
             if not array.ancestor(ArrayReference):
-                print (type(array.parent))
                 array.children[array_index] = Reference(loop_variable_symbol)
 
         # Create our new loop and add its children
@@ -200,20 +197,20 @@ class NemoArrayAccess2LoopTrans(Transformation):
         :type options: dict of string:values or None
 
         '''
-        # Am I a node?
+        # Not a node
         if not isinstance(node, Node):
             raise TransformationError(
                 "Error in NemoArrayAccess2LoopTrans transformation. The "
                 "supplied node argument should be a PSyIR Node, but found "
                 "'{0}'.".format(type(node).__name__))
-        # Am I within an array reference?
+        # Not within an array reference
         if not node.parent or not isinstance(node.parent, ArrayReference):
             raise TransformationError(
                 "Error in NemoArrayAccess2LoopTrans transformation. The "
                 "supplied node argument should be within an ArrayReference "
                 "node, but found '{0}'.".format(type(node.parent).__name__))
         array_ref = node.parent
-        # Is the array reference within an assignment?
+        # Array reference not within an assignment
         if not array_ref.parent or not isinstance(array_ref.parent,
                                                   Assignment):
             raise TransformationError(
@@ -222,26 +219,30 @@ class NemoArrayAccess2LoopTrans(Transformation):
                 "node that is within an Assignment node, but found '{0}'."
                 .format(type(array_ref.parent).__name__))
         assignment = array_ref.parent
-        # Is the array reference the lhs of the assignment?
+        # Array reference not on lhs of the assignment
         if assignment.lhs is not array_ref:
             raise TransformationError(
                 "Error in NemoArrayAccess2LoopTrans transformation. The "
                 "supplied node argument should be within an ArrayReference "
                 "node that is within the left-hand-side of an Assignment "
                 "node, but it is on the right-hand-side.")
-        # Not a range
+
+        # Contains a range node
         if node.walk(Range):
             raise TransformationError(
                 "Error in NemoArrayAccess2LoopTrans transformation. The "
                 "supplied node should not be or contain a Range node as it "
                 "should be single valued.")
-        # Not a loop index
+
+        # Capture loop iterator symbols in order
         iterator_symbols = []
         location = node.parent.parent
         while isinstance(location.parent, Schedule) and \
               isinstance(location.parent.parent, Loop):
             location = location.parent.parent
             iterator_symbols.append(location.variable)
+        
+        # Index contains a loop iterator
         for reference in node.walk(Reference):
             if reference.symbol in iterator_symbols:
                 raise TransformationError(
@@ -249,9 +250,52 @@ class NemoArrayAccess2LoopTrans(Transformation):
                     "supplied node should not be or contain a loop iterator, "
                     "it should be single valued.")
 
-        # TODO Loop indices before this index conform to expected
-        # ordering
-        # TODO indices on lhs and rhs are the same
+        # An index before this one has more than one loop iterator
+        array_access_iterators = []
+        for index in node.parent.children[:node.position]:
+            # Find any iterators in this index
+            index_iterators = [
+                my_index.symbol for my_index in index.walk(Reference)
+                if my_index.symbol in iterator_symbols]
+            iterator_names = [my_index.name for my_index in index_iterators]
+            if len(index_iterators) > 1:
+                raise TransformationError(
+                    "Only a single iterator per dimension is supported by "
+                    "this transformation, but found '{0}'."
+                    "".format(iterator_names))
+            if index_iterators:
+                array_access_iterators.append(index_iterators[0])
+
+        # Same iterator used in more than one loop index
+        if len(iterator_symbols) < len(array_access_iterators):
+            raise TransformationError(
+                "The same iterator is used in more than one loop index "
+                "'{0}' which is not supported by this transformation.".format(
+                    [iterator.name for iterator in array_access_iterators]))
+
+        # Iterators before this index are not in loop index order
+        for idx, array_access_iterator in enumerate(array_access_iterators):
+            if array_access_iterator != iterator_symbols[idx]:
+                raise TransformationError(
+                    "In array '{0}' expected iterator '{1}' at index '{2}' but found '{3}'."
+                    "".format(node.parent.name, iterator_symbols[idx].name,
+                              idx, array_access_iterator.name))
+        
+        # Indices on lhs and rhs array accesses are not the same
+        index_pos = node.position
+        assignment = node.parent.parent
+        for array_reference in assignment.rhs.walk(ArrayReference):
+            if array_reference.ancestor(ArrayReference):
+                # skip validation as this is an array reference within
+                # an array reference.
+                continue
+            if not array_reference.children[index_pos].math_equal(node):
+                raise TransformationError(
+                    "Expected index '{0}' for rhs array '{1}' to be the same "
+                    "as the lhs array '{2}', but they differ."
+                    "".format(
+                        index_pos, array_reference.symbol.name,
+                        node.parent.name))
 
     def __str__(self):
         return (
@@ -266,24 +310,6 @@ class NemoArrayAccess2LoopTrans(Transformation):
 
         '''
         return type(self).__name__
-
-
-def get_outer_index(array):
-    '''Find the outermost index of the array that is a Range node. If one
-    does not exist then raise an exception.
-
-    :param array: the array being examined.
-    :type array: :py:class:`psyclone.psyir.nodes.ArrayReference`
-
-    :returns: the outermost index of the array that is a Range node.
-
-    :raises IndexError: if the array does not contain a Range node.
-
-    '''
-    for child in reversed(array.children):
-        if isinstance(child, Range):
-            return child.position
-    raise IndexError
 
 
 # For automatic document generation
