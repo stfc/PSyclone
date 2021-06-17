@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Reference, Container, Assignment, Literal, \
     KernelSchedule, BinaryOperation
 from psyclone.psyir.symbols import Symbol, DataSymbol, SymbolError, \
     SymbolTable, REAL_TYPE, ContainerSymbol, ScalarType, UnresolvedInterface, \
-    RoutineSymbol
+    RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
 
 
@@ -216,6 +216,8 @@ def test_find_or_create_change_symbol_type():
     assert sym.datatype == REAL_TYPE
     # Search for 'my_sub' and specify that it should be a RoutineSymbol
     sym2 = _find_or_create_imported_symbol(assign, "my_sub",
-                                           symbol_type=RoutineSymbol)
+                                           symbol_type=RoutineSymbol,
+                                           datatype=NoType())
     assert sym2 is sub_sym
     assert type(sym2) == RoutineSymbol
+    assert isinstance(sym2.datatype, NoType)

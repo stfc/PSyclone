@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
     ArrayOfStructuresMember, ArrayMember, Literal, Reference, Range
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
-    DataTypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
+    DataTypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, NoType, \
     UnknownFortranType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.two import Fortran2003
@@ -93,7 +93,7 @@ def test_name_clash_derived_type(f2008_parser, type_name):
     symtab = fake_parent.symbol_table
     # Add a RoutineSymbol to the symbol table that clashes with the name
     # of the derived type.
-    symtab.add(RoutineSymbol("my_type"))
+    symtab.add(RoutineSymbol("my_type", NoType()))
     processor = Fparser2Reader()
     reader = FortranStringReader("subroutine my_sub()\n"
                                  "  type({0}) :: some_var\n"
@@ -115,7 +115,7 @@ def test_name_clash_derived_type_def(f2008_parser):
     symtab = fake_parent.symbol_table
     # Add a RoutineSymbol to the symbol table that will clash with the name
     # of the derived type.
-    symtab.add(RoutineSymbol("my_type"))
+    symtab.add(RoutineSymbol("my_type", NoType()))
     # Add a DataTypeSymbol to the symbol table. Make it appear that we've
     # already seen a definition of this symbol by making it of
     # UnknownFortranType.

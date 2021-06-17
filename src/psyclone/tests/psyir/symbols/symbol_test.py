@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
                                    DataSymbol, GlobalInterface, \
                                    INTEGER_SINGLE_TYPE, LocalInterface, \
                                    RoutineSymbol, Symbol, SymbolError, \
-                                   SymbolTable, UnresolvedInterface
+                                   SymbolTable, UnresolvedInterface, NoType
 from psyclone.psyir.symbols.symbol import SymbolInterface
 
 
@@ -293,20 +293,25 @@ def test_symbol_specialise():
     asym = Symbol("a")
     assert type(asym) is Symbol
     assert str(asym) == "a"
+    # TODO #1113 the specialise() method does not currently deal with setting
+    # any attributes in the class that were not in the original class.
+    # Therefore we have to set datatype explicitly below.
     asym.specialise(RoutineSymbol)
+    asym.datatype = NoType()
     assert type(asym) is RoutineSymbol
-    assert str(asym) == "a : RoutineSymbol"
+    assert str(asym) == "a : RoutineSymbol <NoType>"
 
 
-@pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
+@pytest.mark.parametrize("test_class, class_args",
+                         [(Symbol, ["a"]), (RoutineSymbol, ["a", NoType()])])
 @pytest.mark.parametrize("arg", [str, Symbol])
-def test_symbol_specialise_class_error(test_class, arg):
+def test_symbol_specialise_class_error(test_class, class_args, arg):
     '''Test the Symbol.specialise() method raises the expected
     exception if the supplied argument is a class that is not a
     subclass of the instance that calls specialise().
 
     '''
-    asym = test_class("a")
+    asym = test_class(*class_args)
     with pytest.raises(TypeError) as info:
         asym.specialise(arg)
     assert ("The specialise method in 'a', an instance of '{0}', expects "
@@ -315,14 +320,15 @@ def test_symbol_specialise_class_error(test_class, arg):
             in str(info.value))
 
 
-@pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
-def test_symbol_specialise_instance_error(test_class):
+@pytest.mark.parametrize("test_class, class_args",
+                         [(Symbol, ["a"]), (RoutineSymbol, ["a", NoType()])])
+def test_symbol_specialise_instance_error(test_class, class_args):
     '''Test the Symbol.specialise() method raises the expected exception
     if the supplied argument is not a class. Check using Symbol and a
     subclass of Symbol.
 
     '''
-    asym = test_class("a")
+    asym = test_class(*class_args)
     with pytest.raises(TypeError) as info:
         asym.specialise(None)
     assert ("The specialise method in 'a' expects the subclass "

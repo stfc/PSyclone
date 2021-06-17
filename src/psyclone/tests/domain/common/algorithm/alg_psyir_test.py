@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
     BinaryOperation
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    StructureType, Symbol, REAL_TYPE
+    StructureType, Symbol, REAL_TYPE, NoType
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.errors import GenerationError
@@ -116,7 +116,7 @@ def test_algorithminvokecall():
     created.
 
     '''
-    routine = RoutineSymbol("hello")
+    routine = RoutineSymbol("hello", NoType())
     call = AlgorithmInvokeCall(routine, 2)
     assert call._text_name == "AlgorithmInvokeCall"
     assert call._colour == "green"
@@ -129,7 +129,7 @@ def test_algorithminvokecall_error():
     the invoke argument has an invalid value.
 
     '''
-    routine = RoutineSymbol("hello")
+    routine = RoutineSymbol("hello", NoType())
     with pytest.raises(TypeError) as info:
         AlgorithmInvokeCall(routine, "error")
     assert ("AlgorithmInvokeCall index argument should be an int but found "
@@ -145,7 +145,7 @@ def test_aic_create():
     '''Check that the create method behaves as expected.'''
 
     kernel_functor = KernelFunctor(DataTypeSymbol("dummy", REAL_TYPE))
-    routine = RoutineSymbol("hello")
+    routine = RoutineSymbol("hello", NoType())
     index = 10
     aic = AlgorithmInvokeCall.create(routine, [kernel_functor], index)
     assert isinstance(aic, AlgorithmInvokeCall)
@@ -167,7 +167,7 @@ def test_aic_validate_child():
     assert AlgorithmInvokeCall._validate_child(0, kernel_functor)
     assert not AlgorithmInvokeCall._validate_child(0, "Invalid")
 
-    routine = RoutineSymbol("hello")
+    routine = RoutineSymbol("hello", NoType())
     call = AlgorithmInvokeCall(routine, 0)
     with pytest.raises(GenerationError) as info:
         call.children = ["invalid"]
@@ -183,7 +183,7 @@ def test_aic_defroutinerootname():
     '''
     symbol_name = "dummy"
     kernel_functor = KernelFunctor(DataTypeSymbol(symbol_name, REAL_TYPE))
-    routine = RoutineSymbol("hello")
+    routine = RoutineSymbol("hello", NoType())
     index = 3
     call = AlgorithmInvokeCall(routine, index)
     call.children = [kernel_functor]
