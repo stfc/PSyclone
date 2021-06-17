@@ -64,7 +64,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import colored
-from psyclone.psyir.symbols import ScalarType, TypeSymbol
+from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -1470,39 +1470,39 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     # Field argument.
     arg = call.arguments.args[1]
     dtype = arg.infer_datatype(proxy)
-    assert isinstance(dtype, TypeSymbol)
+    assert isinstance(dtype, DataTypeSymbol)
     assert dtype.name == "field{0}_type".format(proxy_str)
     # Repeat when the field(_proxy)_type symbol is missing.
     old_dtype = container_table._symbols.pop(dtype.name)
     dtype = arg.infer_datatype(proxy)
     assert dtype is not old_dtype
-    assert isinstance(dtype, TypeSymbol)
+    assert isinstance(dtype, DataTypeSymbol)
     assert dtype.name == "field{0}_type".format(proxy_str)
     # Repeat when both the field (proxy) type and associated container are
     # missing.
     old_dtype = container_table._symbols.pop(dtype.name)
     old_fld_mod = container_table._symbols.pop("field_mod")
     dtype3 = arg.infer_datatype(proxy)
-    assert isinstance(dtype3, TypeSymbol)
+    assert isinstance(dtype3, DataTypeSymbol)
     assert dtype3.name == "field{0}_type".format(proxy_str)
     assert dtype3 is not old_dtype
     assert old_fld_mod is not container_table.lookup("field_mod")
     # Integer field argument.
     monkeypatch.setattr(arg, "_intrinsic_type", "integer")
     dtype = arg.infer_datatype(proxy)
-    assert isinstance(dtype, TypeSymbol)
+    assert isinstance(dtype, DataTypeSymbol)
     assert dtype.name == "integer_field{0}_type".format(proxy_str)
     # Repeat when the integer_field(_proxy)_type symbol is missing.
     del container_table._symbols[dtype.name]
     dtype = arg.infer_datatype(proxy)
-    assert isinstance(dtype, TypeSymbol)
+    assert isinstance(dtype, DataTypeSymbol)
     assert dtype.name == "integer_field{0}_type".format(proxy_str)
     # Repeat when both the field (proxy) type and associated container are
     # missing.
     old_dtype = container_table._symbols.pop(dtype.name)
     old_fld_mod = container_table._symbols.pop("integer_field_mod")
     dtype = arg.infer_datatype(proxy)
-    assert isinstance(dtype, TypeSymbol)
+    assert isinstance(dtype, DataTypeSymbol)
     assert dtype is not old_dtype
     assert old_fld_mod is not container_table.lookup("integer_field_mod")
     assert dtype.name == "integer_field{0}_type".format(proxy_str)
@@ -1516,19 +1516,19 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     for op_name in ["gh_operator", "gh_columnwise_operator"]:
         monkeypatch.setattr(arg, "_argument_type", op_name)
         dtype = arg.infer_datatype(proxy)
-        assert isinstance(dtype, TypeSymbol)
+        assert isinstance(dtype, DataTypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
         # Repeat, ensuring that type symbol is deleted first.
         old_dtype = container_table._symbols.pop(dtype.name)
         dtype = arg.infer_datatype(proxy)
-        assert isinstance(dtype, TypeSymbol)
+        assert isinstance(dtype, DataTypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
         assert old_dtype is not dtype
         # Repeat, ensuring both type and container symbols deleted first.
         old_dtype = container_table._symbols.pop(dtype.name)
         old_mod = container_table._symbols.pop("operator_mod")
         dtype = arg.infer_datatype(proxy)
-        assert isinstance(dtype, TypeSymbol)
+        assert isinstance(dtype, DataTypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
         assert dtype is not old_dtype
         assert container_table.lookup("operator_mod") is not old_mod

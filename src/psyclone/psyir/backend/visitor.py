@@ -46,6 +46,7 @@ import six
 from psyclone.psyir.nodes import Node
 from psyclone.errors import PSycloneError
 
+
 class VisitorError(PSycloneError):
     '''Provides a PSyclone-specific error class for errors related to a
     PSyIR visitor.

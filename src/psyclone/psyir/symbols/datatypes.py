@@ -42,7 +42,7 @@ from collections import OrderedDict, namedtuple
 from enum import Enum
 import six
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import TypeSymbol, DataSymbol
+from psyclone.psyir.symbols import DataTypeSymbol, DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
@@ -226,11 +226,11 @@ class ScalarType(DataType):
 class ArrayType(DataType):
     '''Describes an array datatype. Can be an array of intrinsic types (e.g.
     integer) or of structure types. For the latter, the type must currently be
-    specified as a TypeSymbol (see #1031).
+    specified as a DataTypeSymbol (see #1031).
 
     :param datatype: the datatype of the array elements.
     :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` or \
-        :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
     :param list shape: shape of the symbol in column-major order \
         (leftmost index is contiguous in memory). Each entry \
         represents an array dimension. If it is \
@@ -246,7 +246,7 @@ class ArrayType(DataType):
 
     :raises TypeError: if the arguments are of the wrong type.
     :raises NotImplementedError: if a structure type does not have a \
-                                 TypeSymbol as its type.
+                                 DataTypeSymbol as its type.
     '''
     class Extent(Enum):
         '''
@@ -272,17 +272,17 @@ class ArrayType(DataType):
                 # TODO #1031 remove this restriction.
                 raise NotImplementedError(
                     "When creating an array of structures, the type of "
-                    "those structures must be supplied as a TypeSymbol but "
-                    "got a StructureType instead.")
+                    "those structures must be supplied as a DataTypeSymbol "
+                    "but got a StructureType instead.")
             self._intrinsic = datatype.intrinsic
             self._precision = datatype.precision
-        elif isinstance(datatype, TypeSymbol):
+        elif isinstance(datatype, DataTypeSymbol):
             self._intrinsic = datatype
             self._precision = None
         else:
             raise TypeError(
                 "ArrayType expected 'datatype' argument to be of type "
-                "DataType or TypeSymbol but found '{0}'."
+                "DataType or DataTypeSymbol but found '{0}'."
                 "".format(type(datatype).__name__))
         # We do not have a setter for shape as it is an immutable property,
         # therefore we have a separate validation routine.
@@ -477,7 +477,7 @@ class StructureType(DataType):
         :param str name: the name of the new component.
         :param datatype: the type of the new component.
         :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
-                        :py:class:`psyclone.psyir.symbols.TypeSymbol`
+                        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         :param visibility: whether this component is public or private.
         :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
@@ -488,10 +488,10 @@ class StructureType(DataType):
             raise TypeError(
                 "The name of a component of a StructureType must be a 'str' "
                 "but got '{0}'".format(type(name).__name__))
-        if not isinstance(datatype, (DataType, TypeSymbol)):
+        if not isinstance(datatype, (DataType, DataTypeSymbol)):
             raise TypeError(
                 "The type of a component of a StructureType must be a "
-                "'DataType' or 'TypeSymbol' but got '{0}'".format(
+                "'DataType' or 'DataTypeSymbol' but got '{0}'".format(
                     type(datatype).__name__))
         if not isinstance(visibility, Symbol.Visibility):
             raise TypeError(

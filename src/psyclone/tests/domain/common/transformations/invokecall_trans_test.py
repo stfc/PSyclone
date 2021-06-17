@@ -44,7 +44,7 @@ import pytest
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
     ArrayReference, Literal, BinaryOperation
-from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, Symbol, \
+from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, Symbol, \
     StructureType
 
 from psyclone.domain.common.algorithm import \
@@ -130,7 +130,7 @@ def test_parse_args_get_symbol(fortran_reader):
     with pytest.raises(KeyError):
         _ = code_block.scope.symbol_table.lookup("kern")
     symbol = InvokeCallTrans._get_symbol(code_block, code_block._fp2_nodes[0])
-    assert isinstance(symbol, TypeSymbol)
+    assert isinstance(symbol, DataTypeSymbol)
     assert symbol.name == "kern"
     symbol2 = code_block.scope.symbol_table.lookup("kern")
     assert symbol2 is symbol
@@ -148,7 +148,7 @@ def test_specialise_symbol():
 
     # Check that a Symbol is specialised
     InvokeCallTrans._specialise_symbol(symbol)
-    assert isinstance(symbol, TypeSymbol)
+    assert isinstance(symbol, DataTypeSymbol)
     # pylint: disable=no-member
     assert isinstance(symbol.datatype, StructureType)
 
