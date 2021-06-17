@@ -56,7 +56,8 @@ from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, SymbolTable
+    UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
+    SymbolTable
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -1448,13 +1449,13 @@ class Fparser2Reader(object):
 
         :returns: the type and precision specified by the type-spec.
         :rtype: 2-tuple of :py:class:`psyclone.psyir.symbols.ScalarType` or \
-            :py:class:`psyclone.psyir.symbols.TypeSymbol` and \
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol` and \
             :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
             :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
 
         :raises NotImplementedError: if an unsupported intrinsic type is found.
         :raises SymbolError: if a symbol already exists for the name of a \
-            derived type but is not a TypeSymbol.
+            derived type but is not a DataTypeSymbol.
         :raises NotImplementedError: if the supplied type specification is \
             not for an intrinsic type or a derived type.
 
@@ -1491,15 +1492,15 @@ class Fparser2Reader(object):
             # pylint: disable=unidiomatic-typecheck
             if type(type_symbol) == Symbol:
                 # We do but we didn't know what kind of symbol it was. Create
-                # a TypeSymbol to replace it.
-                new_symbol = TypeSymbol(type_name, DeferredType(),
-                                        interface=type_symbol.interface)
+                # a DataTypeSymbol to replace it.
+                new_symbol = DataTypeSymbol(type_name, DeferredType(),
+                                            interface=type_symbol.interface)
                 table = type_symbol.find_symbol_table(parent)
                 table.swap(type_symbol, new_symbol)
                 type_symbol = new_symbol
-            elif not isinstance(type_symbol, TypeSymbol):
+            elif not isinstance(type_symbol, DataTypeSymbol):
                 raise SymbolError(
-                    "Search for a TypeSymbol named '{0}' (required by "
+                    "Search for a DataTypeSymbol named '{0}' (required by "
                     "specification '{1}') found a '{2}' instead.".format(
                         type_name, str(type_spec), type(type_symbol).__name__))
             base_type = type_symbol
@@ -1754,8 +1755,8 @@ class Fparser2Reader(object):
                                     visibility_map):
         '''
         Process the supplied fparser2 parse tree for a derived-type
-        declaration. A TypeSymbol representing the derived-type is added to
-        the symbol table associated with the parent node.
+        declaration. A DataTypeSymbol representing the derived-type is added
+        to the symbol table associated with the parent node.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -1771,8 +1772,8 @@ class Fparser2Reader(object):
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
         :raises SymbolError: if a Symbol already exists with the same name \
-            as the derived type being defined and it is not a TypeSymbol or \
-            is not of DeferredType.
+            as the derived type being defined and it is not a DataTypeSymbol \
+            or is not of DeferredType.
 
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
@@ -1795,13 +1796,13 @@ class Fparser2Reader(object):
         # components as they may refer to it (e.g. for a linked list).
         if name in parent.symbol_table:
             # An entry already exists for this type.
-            # Check that it is a TypeSymbol
+            # Check that it is a DataTypeSymbol
             tsymbol = parent.symbol_table.lookup(name)
-            if not isinstance(tsymbol, TypeSymbol):
+            if not isinstance(tsymbol, DataTypeSymbol):
                 raise SymbolError(
                     "Error processing definition of derived type '{0}'. The "
                     "symbol table already contains an entry with this name but"
-                    " it is a '{1}' when it should be a 'TypeSymbol' (for "
+                    " it is a '{1}' when it should be a 'DataTypeSymbol' (for "
                     "the derived-type definition '{2}')".format(
                         name, type(tsymbol).__name__, str(decl)))
             # Since we are processing the definition of this symbol, the only
@@ -1809,13 +1810,13 @@ class Fparser2Reader(object):
             if not isinstance(tsymbol.datatype, DeferredType):
                 raise SymbolError(
                     "Error processing definition of derived type '{0}'. The "
-                    "symbol table already contains a TypeSymbol with this name"
-                    " but it is of type '{1}' when it should be of "
+                    "symbol table already contains a DataTypeSymbol with this "
+                    "name but it is of type '{1}' when it should be of "
                     "'DeferredType'".format(
                         name, type(tsymbol.datatype).__name__))
         else:
             # We don't already have an entry for this type so create one
-            tsymbol = TypeSymbol(name, dtype, visibility=dtype_symbol_vis)
+            tsymbol = DataTypeSymbol(name, dtype, visibility=dtype_symbol_vis)
             parent.symbol_table.add(tsymbol)
 
         # Populate this StructureType by processing the components of
@@ -1835,7 +1836,7 @@ class Fparser2Reader(object):
 
         except NotImplementedError:
             # Support for this declaration is not fully implemented so
-            # set the datatype of the TypeSymbol to UnknownFortranType.
+            # set the datatype of the DataTypeSymbol to UnknownFortranType.
             tsymbol.datatype = UnknownFortranType(str(decl))
 
     def process_declarations(self, parent, nodes, arg_list,

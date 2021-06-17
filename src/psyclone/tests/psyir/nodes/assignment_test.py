@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import Assignment, Reference, Literal, \
     ArrayOfStructuresReference, UnaryOperation
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, Symbol, \
     INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE, StructureType, \
-    TypeSymbol
+    DataTypeSymbol
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -154,13 +154,13 @@ def test_is_array_range():
     grid_type = StructureType.create([
         ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC),
         ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC)])
-    grid_type_symbol = TypeSymbol("grid_type", grid_type)
+    grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     # Create the definition of the 'field_type', contains array of grid_types
     field_type_def = StructureType.create(
         [("data", ArrayType(REAL_SINGLE_TYPE, [10]), Symbol.Visibility.PUBLIC),
          ("sub_meshes", ArrayType(grid_type_symbol, [3]),
           Symbol.Visibility.PUBLIC)])
-    field_type_symbol = TypeSymbol("field_type", field_type_def)
+    field_type_symbol = DataTypeSymbol("field_type", field_type_def)
     field_symbol = DataSymbol("wind", field_type_symbol)
 
     # Array reference to component of derived type using a range
@@ -309,7 +309,7 @@ def test_is_not_array_range():
     grid_type = StructureType.create([
         ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC),
         ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC)])
-    grid_type_symbol = TypeSymbol("grid_type", grid_type)
+    grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     grid_sym = DataSymbol("grid", grid_type_symbol)
     assignment = Assignment.create(StructureReference.create(grid_sym, ["dx"]),
                                    one.copy())

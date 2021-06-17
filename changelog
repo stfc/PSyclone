@@ -38,6 +38,23 @@
         14) PR #1236 for #1028. Extends the core variable-access analysis
         functionality to support structures (derived types).
 
+	15) PR #1239 towards #1237. Adds lower_to_language_level() method
+	for some LFRic builtins.
+
+        16) PR #1195 for #1194. Fixes some incorrect str(error) usage in the
+        tests, introduces a PSycloneError base class and adds tests to make
+        sure that it is used. Also adds tests to ensure that future accidental
+        use of str(error) will cause a failure.
+
+        17) #1243 for #1242. Bug fix for OpenCL code generation - ensures
+        synchronisation calls are added where necessary if kernels are running
+        on different command queues.
+
+        18) #1273 for #1272. Fixes missing fparser initialisation when
+        GOcean loop bounds are read from config file.
+
+        19) #1287 towards #1259. Rename TypeSymbol to DataTypeSymbol.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
