@@ -1935,12 +1935,12 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal('''('hello "',4A,'"')''', CHARACTER_TYPE)
     with pytest.raises(NotImplementedError) as err:
         _ = fortran_writer(lit1)
-    assert ('''supported but found >>('hello "',4A,'"')<<''' in str(err.value))
+    assert '''supported but found >>('hello "',4A,'"')<<''' in str(err.value)
     # Literals containing both single and double quotes are not supported.
     lit1 = Literal('''("hello '",4A,"'")''', CHARACTER_TYPE)
     with pytest.raises(NotImplementedError) as err:
         _ = fortran_writer(lit1)
-    assert ('''supported but found >>("hello '",4A,"'")<<''' in str(err.value))
+    assert '''supported but found >>("hello '",4A,"'")<<''' in str(err.value)
 
     lit1 = Literal('3.14', REAL_TYPE)
     result = fortran_writer(lit1)

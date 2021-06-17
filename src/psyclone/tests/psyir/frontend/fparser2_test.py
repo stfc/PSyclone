@@ -720,7 +720,8 @@ def test_process_declarations_accessibility():
     assert zsym.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_process_unsupported_declarations(f2008_parser, fortran_reader):
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_unsupported_declarations(fortran_reader):
     ''' Check that the frontend handles unsupported declarations by
     creating symbols of UnknownFortranType. '''
     fake_parent = KernelSchedule("dummy_schedule")
