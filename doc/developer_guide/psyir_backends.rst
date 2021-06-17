@@ -247,11 +247,11 @@ backends should not provide specific visitors for concepts that do not relate
 directly to the language domain (more information about the lowering step is
 provided in the :ref:`psy_layer_backends` section below). This step is done
 internally without exposing side effects (e.g. modifications to the provided
-tree). This is important because it allows to turn on or off the generation
-of backend code without altering the result, which is often convenient for
-debugging and development. For instance the walk statement in the following
-example will return the same nodes regardless of whether the print statement
-is commented out or not::
+tree). This is important because it permits the generation of backend code
+without altering the existing PSyIR tree, thus simplifying debugging and
+development. For instance the walk statement in the following example will
+return the same nodes, regardless of whether or not the print statement
+is commented out::
 
     print_hierarchy = PrintHierarchy()
     # print(print_hierarchy(psyir_tree))
@@ -267,8 +267,8 @@ is commented out or not::
     of the whole tree provided as an argument to the visitor functor. An
     alternative that was explored was modifying the lowering implementation
     so that it returned a new sub-tree instead of modifying the current one
-    in-place. This turned out complicated as the lowering method doesn't have
-    a well defined region where the modification can happen (e.g. a DSL
+    in-place. This turned out to be complicated as the lowering method doesn't
+    have a well defined region where the modification can happen (e.g. a DSL
     concept could need the addition of imports and new symbols defined in
     an ancestor symbol table).
 

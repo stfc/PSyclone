@@ -160,6 +160,9 @@ def test_psyirvisitor_lower_dsl_concepts():
         def lower_to_language_level(self):
             ''' MyDSLNode lowers to a return statement and adds a symbol
             if it is inside an scoping region. '''
+            # This will break if this Node does not have a parent with
+            # a scope. This is intentional to cause an error during the
+            # lowering step.
             self.scope.symbol_table.add(DataSymbol("val", REAL_TYPE))
             self.replace_with(Return())
 
@@ -187,6 +190,9 @@ def test_psyirvisitor_lower_dsl_concepts():
 
     # Visit DSL Node directly (the tree is also not modified)
     assert visitor(my_dsl_node) == "return"
+    assert isinstance(my_dsl_node, MyDSLNode)
+    assert isinstance(schedule.children[0], MyDSLNode)
+    assert len(my_dsl_node.scope.symbol_table.symbols) == 0
 
     # Visit DSL node without a parent, which is an invalid state to
     # lower this node

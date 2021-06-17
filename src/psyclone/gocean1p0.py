@@ -468,6 +468,8 @@ class GOLoop(Loop):
         :param str topology_name: optional opology of the loop (unused atm).
         :param str loop_type: loop type - must be 'inner' or 'outer'.
 
+        :raises GenerationError: if the loop is not inserted inside a
+            GOInvokeSchedule region.
     '''
     _bounds_lookup = {}
 
@@ -478,7 +480,7 @@ class GOLoop(Loop):
                       valid_loop_types=const.VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
-        # Check that the GOLoop in inside the GOcean PSy-layer
+        # Check that the GOLoop is inside the GOcean PSy-layer
         if not self.ancestor(GOInvokeSchedule):
             raise GenerationError(
                 "GOLoops must always be constructed with a parent which is"
@@ -498,6 +500,10 @@ class GOLoop(Loop):
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, const.VALID_LOOP_TYPES))
 
+        # In the GOcean API the loop iteration variables are declared in the
+        # Invoke routine scope in order to share them between all GOLoops.
+        # This is important because some transformations/scripts work with
+        # this assumption when moving or fusing loops.
         symtab = self.ancestor(InvokeSchedule).symbol_table
         try:
             self.variable = symtab.lookup_with_tag(tag)

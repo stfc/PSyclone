@@ -215,5 +215,4 @@ end subroutine invoke_0
 '''
 
     writer = FortranWriter()
-    sched.lower_to_language_level()
     assert writer(sched) == expected

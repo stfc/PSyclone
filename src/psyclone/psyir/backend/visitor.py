@@ -141,9 +141,11 @@ class PSyIRVisitor(object):
 
     def __call__(self, node):
         '''This method is called when an instance of the class is called
-        directly (like a function). This implementation is known as
-        a functor. It makes sense for this class as there is only one
-        main method - the `visit` method.
+        directly (like a function). It creates a copy of the whole tree of
+        the provided node (in order to return without any side-effects to
+        the original tree), then lower the DSL concepts into language level
+        nodes, and finally recurse down the node using the visitors defined
+        in this Visitor class.
 
         :param node: A PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -151,15 +153,16 @@ class PSyIRVisitor(object):
         :returns: text representation of the PSyIR tree.
         :rtype: str
 
+        :raises TypeError: if the provided argument is not a PSyIR Node.
         '''
         if not isinstance(node, Node):
             raise TypeError(
                 "The PSyIR visitor functor method only accepts a PSyIR Node "
                 "as argument, but found '{0}'.".format(type(node).__name__))
 
-        # The visitor must not have any side effect to the provided node, but
-        # if there are DSL concepts this will need to be lowered in-place and
-        # this operation often modifies the tree. Therefore, we first create a
+        # The visitor must not alter the provided node but if there are any
+        # DSL concepts then these will need to be lowered in-place and this
+        # operation often modifies the tree. Therefore, we first create a
         # copy of the full provided tree (as modifications can be above the
         # provided node - e.g. adding a symbol in the scope)
         tree_copy = node.root.copy()
@@ -177,7 +180,8 @@ class PSyIRVisitor(object):
                 "lowered from an ancestor in order to properly apply their "
                 "in-tree modifications.".format(node)), error)
 
-        # Find again the equivalent tree in case this has been replaced
+        # Find again the equivalent node in the lowered tree in case that it
+        # has been replaced
         lowered_node = tree_copy.walk(Node)[node.abs_position]
 
         return self._visit(lowered_node)

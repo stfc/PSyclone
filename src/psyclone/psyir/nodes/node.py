@@ -1156,9 +1156,9 @@ class Node(object):
         that represent high-level concepts.
 
         '''
-        # We recurse only the original children (hence [:]), this is because
-        # new nodes may be inserted during the lowering, but these must
-        # already be language_level.
+        # We recurse only over the original children (hence [:]), this is
+        # because new nodes may be inserted during the lowering, but these
+        # must already be language-level.
         for child in self.children[:]:
             child.lower_to_language_level()
 
