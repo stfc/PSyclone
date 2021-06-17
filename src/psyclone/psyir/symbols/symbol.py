@@ -43,10 +43,8 @@ class and its subclasses and the generic Symbol class.
 
 from __future__ import absolute_import
 from enum import Enum
-from psyclone.errors import PSycloneError
 import six
-
-from psyclone.errors import InternalError
+from psyclone.errors import PSycloneError, InternalError
 
 
 class SymbolError(PSycloneError):

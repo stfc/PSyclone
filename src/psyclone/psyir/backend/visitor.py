@@ -172,6 +172,7 @@ class PSyIRVisitor(object):
         node_copy = tree_copy.walk(Node)[node.abs_position]
 
         # Lower the DSL concepts starting from the selected node.
+        # pylint: disable=broad-except
         try:
             node_copy.lower_to_language_level()
         except Exception as error:
