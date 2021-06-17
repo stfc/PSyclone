@@ -268,6 +268,25 @@ def test_symbol_copy():
     assert new_sym.visibility == asym.visibility
 
 
+def test_symbol_copy_properties():
+    ''' Test the copy_properties() method. '''
+    csym = ContainerSymbol("some_mod")
+    sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
+                 interface=GlobalInterface(csym))
+    new_sym = Symbol("b")
+    new_sym.copy_properties(sym)
+    # Name and visibility should be unchanged
+    assert new_sym.name == "b"
+    assert new_sym.visibility == Symbol.Visibility.PUBLIC
+    # Interface should have been updated
+    assert new_sym.interface == sym.interface
+
+    with pytest.raises(TypeError) as err:
+        new_sym.copy_properties("hello")
+    assert ("Argument should be of type 'Symbol' but found 'str'" in
+            str(err.value))
+
+
 def test_symbol_specialise():
     '''Test the Symbol.specialise() method.'''
     # pylint: disable = unidiomatic-typecheck
