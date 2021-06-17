@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     GlobalInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
-    INTEGER_SINGLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE
+    INTEGER_SINGLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, NoType
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
@@ -81,7 +81,7 @@ def create_psyir_tree():
                                         symbol_type=DataSymbol,
                                         datatype=INTEGER_TYPE,
                                         constant_value=8)
-    routine_symbol = RoutineSymbol("my_sub")
+    routine_symbol = RoutineSymbol("my_sub", NoType())
 
     # Array using precision defined by another symbol
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
@@ -171,7 +171,7 @@ def create_psyir_tree():
 
     # Routine (specified as being a program)
     program_symbol_table = SymbolTable()
-    work_symbol = RoutineSymbol("work")
+    work_symbol = RoutineSymbol("work", NoType())
     container_symbol = ContainerSymbol("CONTAINER")
     work_symbol.interface = GlobalInterface(container_symbol)
     arg_symbol = program_symbol_table.new_symbol(root_name="arg",
