@@ -1393,6 +1393,62 @@ class ACCDirective(Directive):
                     type(self).__name__))
 
 
+class ACCUpdateDirective(ACCDirective):
+    ''' Class representing the !$ACC UPDATE directive of OpenACC in the PSyIR.
+    It includes a direction attribute that can be set to 'host' or 'device' and
+    the symbol that is being updated.
+
+    :param children: list of nodes which this directive should \
+                     have as children.
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`.
+    :param parent: the node in the InvokeSchedule to which to add this \
+                   directive as a child.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+    :param symbol: the symbol to synchronise with the accelerator.
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`.
+    :param str direction: the direction of the synchronisation.
+
+
+    :raises AttributeError: if the direction argument is not a string with \
+                            value 'host' or 'device'.
+    :raises AttributeError: if the symbol is not a DataSymbol.
+
+    '''
+
+    _VALID_DIRECTIONS = ("host", "device")
+
+    def __init__(self, symbol, direction, children=None, parent=None):
+        super(ACCUpdateDirective, self).__init__(children=children,
+                                                 parent=parent)
+        if not isinstance(direction, str) and direction not in \
+                self._VALID_DIRECTIONS:
+            raise AttributeError(
+                "The ACCUpdateDirective direction argument must be a string "
+                "with any of the values in '{0}' but found '{1}'.".format(
+                    self._VALID_DIRECTIONS, direction))
+
+        if not isinstance(symbol, DataSymbol):
+            raise AttributeError(
+                "The ACCUpdateDirective symbol argument must be a DataSymbol "
+                "but found '{1}'.".format(type(symbol).__name__))
+
+        self._direction = direction
+        self._symbol = symbol
+
+    def begin_string(self):
+        '''
+        Returns the beginning statement of this directive, i.e.
+        "acc update host(symbol)". The backend is responsible
+        for adding the correct characters to mark this as a directive (e.g.
+        "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        return "acc update " + self._direction + "(" + self._symbol.name + ")"
+
+
 @six.add_metaclass(abc.ABCMeta)
 class ACCEnterDataDirective(ACCDirective):
     '''
