@@ -36,12 +36,15 @@
 include ../common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod
 
 transform:
-	$(PSYAD) testkern_mod.f90
+	$(PSYAD) -oad testkernadj_mod.f90 testkern_mod.f90
+	$(PSYAD) -t testkern_mod.f90
 
-compile:
-	@echo "No compilation supported for the PSyAD examples"
+compile: transform
+	$(F90) -c testkern_mod.f90
+	$(F90) -c testkernadj_mod.f90
 
 run: compile
 	@echo "No run targets for the PSyAD examples"

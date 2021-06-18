@@ -40,6 +40,11 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 import logging
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
+    Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock
+from psyclone.psyir.symbols import SymbolTable, LocalInterface, \
+    GlobalInterface, REAL_TYPE, REAL_DOUBLE_TYPE, ContainerSymbol, \
+    RoutineSymbol, DataSymbol
 
 
 def generate_adjoint_str(tl_fortran_str):
@@ -103,4 +108,136 @@ def generate_adjoint(tl_psyir):
     return ad_psyir
 
 
-__all__ = ["generate_adjoint_str", "generate_adjoint"]
+def generate_adjoint_test_str(tl_fortran_str):
+    ''' '''
+    # TODO the information on the active variables will have to be
+    # extracted from markup in the TL kernel source.
+    active_variables = ['field']
+    # TODO not yet decided how the name of the adjoint kernel and associated
+    # module are made available to this routine.
+    adjoint_kernel_name = 'testkern_adj_code'
+    adjoint_module_name = 'testkern_adj_mod'
+
+    # Create the language-level PSyIR for the TL kernel.
+    # TODO this duplicates the work done in generate_adjoint_str.
+    reader = FortranReader()
+    tl_psyir = reader.psyir_from_source(tl_fortran_str)
+    # First Container is a FileContainer and that's not what we want
+    container = tl_psyir.walk(Container)[1]
+
+    routines = tl_psyir.walk(Routine)
+
+    if len(routines) != 1:
+        raise NotImplementedError(
+            "The supplied Fortran must contain one and only one Subroutine")
+
+    tl_kernel = routines[0]
+
+    symbol_table = SymbolTable()
+
+    # Create a symbol for the TL kernel
+    csym = ContainerSymbol(container.name)
+    symbol_table.add(csym)
+    tl_kernel_sym = tl_kernel.symbol_table.lookup(tl_kernel.name).copy()
+    tl_kernel_sym.interface = GlobalInterface(csym)
+    symbol_table.add(tl_kernel_sym)
+
+    # Create a symbol for the adjoint kernel
+    adj_container = ContainerSymbol(adjoint_module_name)
+    symbol_table.add(adj_container)
+    adj_kernel_sym = symbol_table.new_symbol(
+        adjoint_kernel_name, symbol_type=RoutineSymbol,
+        interface=GlobalInterface(adj_container))
+
+    # Create symbols for the results of the inner products
+    inner1 = symbol_table.new_symbol("inner1", symbol_type=DataSymbol,
+                                     datatype=REAL_DOUBLE_TYPE)
+    inner2 = symbol_table.new_symbol("inner2", symbol_type=DataSymbol,
+                                     datatype=REAL_DOUBLE_TYPE)
+
+    # Create necessary variables for the kernel arguments.
+    inputs = []
+    input_copies = []
+    for arg in tl_kernel.symbol_table.argument_datasymbols:
+        new_sym = arg.copy()
+        # The arguments will be local variables in the test program
+        new_sym.interface = LocalInterface()
+        symbol_table.add(new_sym)
+        # Create variables to hold a copy of the inputs
+        input_sym = symbol_table.new_symbol(new_sym.name+"_input",
+                                            symbol_type=type(new_sym),
+                                            datatype=new_sym.datatype)
+        inputs.append(new_sym)
+        input_copies.append(input_sym)
+
+    # Create additional variables for arguments to the adjoint kernel
+    # (using markup from the TL kernel to identify active arguments).
+    for var in active_variables:
+        input_sym = symbol_table.lookup(var)
+        symbol_table.new_symbol(var+"_out", symbol_type=type(input_sym),
+                                datatype=input_sym.datatype)
+
+    statements = []
+    # Initialise those variables and keep a copy of them
+    for sym, sym_copy in zip(inputs, input_copies):
+        statements.append(
+            Assignment.create(Reference(sym), Literal("0.5", REAL_TYPE)))
+        statements.append(
+            Assignment.create(Reference(sym_copy), Reference(sym)))
+
+    # Call the kernel for a single cell column
+    statements.append(Call.create(tl_kernel_sym,
+                                  [Reference(sym) for sym in inputs]))
+
+    # Compute the inner product of the result of the TL kernel
+    statements += create_inner_product(inner1,
+                                       [(sym, sym) for sym in inputs])
+
+    # Call the adjoint kernel using the outputs of the TL kernel as input
+    statements.append(Call.create(adj_kernel_sym,
+                                  [Reference(sym) for sym in inputs]))
+
+    # Compute inner product of result of adjoint kernel with original inputs
+    statements += create_inner_product(inner2,
+                                       zip(inputs, input_copies))
+
+    # Compare the inner products
+    tol_zero = Literal("1.0e-10", REAL_DOUBLE_TYPE)
+
+    diff = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                  Reference(inner1), Reference(inner2))
+    abs_diff = UnaryOperation.create(UnaryOperation.Operator.ABS, diff)
+    # TODO how do we record failure?
+    statements.append(
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.GT,
+                                              abs_diff, tol_zero.copy()),
+                       [Return()]))
+
+    # Create driver program
+    routine = Routine.create(
+        "adj_test", symbol_table, statements, is_program=True)
+
+    writer = FortranWriter()
+    return writer(routine)
+
+
+def create_inner_product(result, symbol_pairs):
+    ''' '''
+
+    zero = Literal("0.0", REAL_DOUBLE_TYPE)
+
+    statements = [Assignment.create(Reference(result), zero.copy())]
+    for (sym1, sym2) in symbol_pairs:
+
+        prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                      Reference(sym1), Reference(sym2))
+        statements.append(
+            Assignment.create(
+                Reference(result),
+                BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                       Reference(result), prod)))
+    return statements
+
+
+__all__ = ["generate_adjoint_str", "generate_adjoint",
+           "generate_adjoint_test_str"]

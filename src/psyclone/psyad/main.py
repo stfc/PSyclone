@@ -45,7 +45,8 @@ import sys
 import six
 
 from psyclone.generator import write_unicode_file
-from psyclone.psyad import generate_adjoint_str
+from psyclone.psyad.tl2ad import generate_adjoint_str, \
+    generate_adjoint_test_str
 
 
 def main(args):
@@ -64,6 +65,12 @@ def main(args):
     parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
+    parser.add_argument(
+        '-t', '--gen-test',
+        help='generate a standalone unit test for the adjoint code',
+        action='store_true')
+    parser.add_argument('-otest', help='filename for the unit test',
+                        dest='test_filename')
     parser.add_argument('-oad', help='filename for the transformed code')
     parser.add_argument('filename', help='LFRic tangent-linear kernel source')
 
@@ -87,6 +94,15 @@ def main(args):
         write_unicode_file(ad_fortran_str, args.oad)
     else:
         print(ad_fortran_str, file=sys.stdout)
+
+    # Create test framework if requested
+    if args.gen_test:
+        logger.info("Generating unit test of adjoint kernel")
+        test_fortran_str = generate_adjoint_test_str(tl_fortran_str)
+        if args.test_filename:
+            write_unicode_file(test_fortran_str, args.test_filename)
+        else:
+            print(test_fortran_str, file=sys.stdout)
 
 
 __all__ = ["main"]
