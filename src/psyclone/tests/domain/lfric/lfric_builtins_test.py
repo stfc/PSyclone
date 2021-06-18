@@ -48,7 +48,7 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.symbols import ScalarType, TypeSymbol, DataSymbol
+from psyclone.psyir.symbols import ScalarType, DataTypeSymbol, DataSymbol
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
@@ -415,7 +415,7 @@ def test_get_argument_symbols(monkeypatch):
             assert isinstance(sym.datatype, ScalarType)
             assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
         else:
-            assert isinstance(sym.datatype, TypeSymbol)
+            assert isinstance(sym.datatype, DataTypeSymbol)
             assert sym.datatype.name == "field_proxy_type"
     # Repeat but force the symbols for the scalar and field-proxy args to be
     # created
@@ -428,7 +428,7 @@ def test_get_argument_symbols(monkeypatch):
             assert isinstance(sym.datatype, ScalarType)
             assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
         else:
-            assert isinstance(sym.datatype, TypeSymbol)
+            assert isinstance(sym.datatype, DataTypeSymbol)
             assert sym.datatype.name == "field_proxy_type"
 
     # Monkeypatch the scalar argument so that it appears to be an operator.

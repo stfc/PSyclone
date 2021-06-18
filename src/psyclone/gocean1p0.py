@@ -50,29 +50,32 @@
 from __future__ import print_function
 import re
 import six
+
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+from fparser.two.parser import ParserFactory
+
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
 from psyclone.domain.gocean import GOceanConstants
-from psyclone.parse.kernel import Descriptor, KernelType
-from psyclone.parse.utils import ParseError
-from psyclone.parse.algorithm import Arg
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, \
-    REAL_TYPE, UnknownFortranType, LocalInterface
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.frontend.fortran import FortranReader
 import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
+from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.utils import ParseError
+from psyclone.parse.algorithm import Arg
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    CodedKern, Arguments, Argument, KernelArgument, args_filter, \
+    AccessType, ACCEnterDataDirective, HaloExchange
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
+    KernelSchedule, StructureReference, BinaryOperation, Reference, \
+    Call, Assignment
+from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
+    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
+    ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
+    REAL_TYPE, UnknownFortranType, LocalInterface
 
 # Specify which OpenCL command queue to use for management operations like
 # data transfers when generating an OpenCL PSy-layer
@@ -704,6 +707,11 @@ class GOLoop(Loop):
                                              "expression in an iteration "
                                              "space. But got "
                                              "{0}".format(bracket_expr))
+
+        # We need to make sure the fparser is properly initialised, which
+        # typically has not yet happened when the config file is read.
+        # Otherwise the Nonlabel_Do_Stmt cannot parse valid expressions.
+        ParserFactory().create(std="f2008")
 
         # Test both the outer loop indices (index 3 and 4) and inner
         # indices (index 5 and 6):
@@ -2438,8 +2446,8 @@ class GOKernelArgument(KernelArgument):
             # r2d_type can have DeferredType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = self._call.root.symbol_table.symbol_from_tag(
-                "r2d_type", symbol_type=TypeSymbol, datatype=DeferredType(),
-                interface=UnresolvedInterface())
+                "r2d_type", symbol_type=DataTypeSymbol,
+                datatype=DeferredType(), interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER

@@ -64,6 +64,8 @@ class Literal(DataNode):
     :raises ValueError: if the datatype is not one of \
                         self.VALID_DATA_TYPES.
     :raises TypeError: if the supplied value is not a string.
+    :raises ValueError: if the supplied value is an empty string and the \
+                        Literal is not a CHARACTER.
     :raises ValueError: if the Literal is a BOOLEAN and the value is not \
                         'true' or 'false'.
 
@@ -89,8 +91,8 @@ class Literal(DataNode):
                 "Literals must be supplied with a value encoded as a string "
                 "but found '{0}'".format(type(value).__name__))
 
-        if not value:
-            raise ValueError("A literal value can not be empty.")
+        if not value and datatype.intrinsic != ScalarType.Intrinsic.CHARACTER:
+            raise ValueError("A non-character literal value cannot be empty.")
 
         if (isinstance(datatype, ScalarType) and
                 datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN and
