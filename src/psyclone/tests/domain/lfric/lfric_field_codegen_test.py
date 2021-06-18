@@ -44,6 +44,7 @@ LFRic field arguments.
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
@@ -1005,12 +1006,13 @@ def test_int_real_field_invalid():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
+    const = LFRicConstants()
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("Field argument(s) ['n1'] in Invoke "
             "'invoke_integer_and_real_field' have different metadata for "
-            "data type (['gh_real', 'gh_integer']) in different kernels. "
-            "This is invalid." in str(err.value))
+            "data type ({0}) in different kernels. This is invalid.".
+            format(const.VALID_FIELD_DATA_TYPES) in str(err.value))
 
 
 def test_int_real_field_fs(dist_mem, tmpdir):

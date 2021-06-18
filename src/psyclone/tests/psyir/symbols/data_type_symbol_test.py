@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,48 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''Module containing pytest tests for the _program_handler method in
-the class Fparser2Reader. This handler deals with the translation of
-the fparser2 Program construct to PSyIR.'''
+''' This module contains pytest tests for the DataTypeSymbol class. '''
 
 from __future__ import absolute_import
-
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import FileContainer
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.backend.fortran import FortranWriter
+import pytest
+from psyclone.psyir.symbols import DataTypeSymbol, DeferredType
 
 
-def test_program_handler(parser):
-    '''Test that program handler works with multiple program units of
-    different types.
+def test_create_datatypesymbol():
+    ''' Check that a basic DataTypeSymbol can be created with the expected
+    properties. '''
+    sym = DataTypeSymbol("my_type", DeferredType())
+    assert sym.name == "my_type"
+    assert isinstance(sym.datatype, DeferredType)
+    assert str(sym) == "my_type : DataTypeSymbol"
 
-    '''
-    code = (
-        "module a\n"
-        "end module\n"
-        "program b\n"
-        "end program b\n"
-        "subroutine c\n"
-        "end subroutine")
-    expected = (
-        "module a\n"
-        "  implicit none\n\n"
-        "  contains\n\n"
-        "end module a\n"
-        "program b\n\n\n"
-        "end program b\n"
-        "subroutine c()\n\n\n"
-        "end subroutine c\n")
-    processor = Fparser2Reader()
-    reader = FortranStringReader(code)
-    parse_tree = parser(reader)
-    psyir = processor._program_handler(parse_tree, None)
-    # Check PSyIR nodes are being created
-    assert isinstance(psyir, FileContainer)
-    assert psyir.parent is None
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert result == expected
+
+def test_create_datatypesymbol_wrong_datatype():
+    ''' Check that attempting to specify the type of a DataTypeSymbol with an
+    invalid type results in the expected error. '''
+    sym = DataTypeSymbol("my_type", DeferredType())
+    with pytest.raises(TypeError) as err:
+        sym.datatype = "integer"
+    assert ("datatype of a DataTypeSymbol must be specified using a "
+            "DataType but got: 'str'" in str(err.value))

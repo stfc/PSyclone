@@ -42,8 +42,13 @@
     a given built-in call. '''
 
 from __future__ import absolute_import
+import abc
+import six
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
+from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
+from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
+    BinaryOperation
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.f2pygen import AssignGen
@@ -138,10 +143,11 @@ class LFRicBuiltInCallFactory(object):
         return dofloop
 
 
-# TODO #1140 'LFRicBuiltIn' should be an abstract class.
+@six.add_metaclass(abc.ABCMeta)
 class LFRicBuiltIn(BuiltIn):
     '''
-    Parent class for a call to an LFRic Built-in.
+    Abstract base class for a node representing a call to an LFRic Built-in.
+
     '''
     def __init__(self):
         # Builtins do not accept quadrature
@@ -150,18 +156,18 @@ class LFRicBuiltIn(BuiltIn):
         self.mesh = None
         super(LFRicBuiltIn, self).__init__()
 
+    @abc.abstractmethod
     def __str__(self):
-        ''' :raises NotImplementedError: if the method is called. '''
-        raise NotImplementedError("LFRicBuiltIn.__str__ must be overridden")
+        ''' Must be overridden by sub class. '''
 
     def load(self, call, parent=None):
         '''
         Populate the state of this object using the supplied call object.
 
-        :param call: The BuiltIn object from which to extract information
+        :param call: The BuiltIn object from which to extract information \
                      about this built-in call.
         :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
-        :param parent: The parent node of the kernel call in the AST
+        :param parent: The parent node of the kernel call in the PSyIR \
                        we are constructing. This will be a loop.
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
 
@@ -173,8 +179,7 @@ class LFRicBuiltIn(BuiltIn):
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
-        self._idx_name = \
-            self.root.symbol_table.symbol_from_tag("dof_loop_idx", "df").name
+        self._idx_name = self.get_dof_loop_index_symbol().name
         # Check that this built-in kernel is valid
         self._validate()
 
@@ -185,6 +190,8 @@ class LFRicBuiltIn(BuiltIn):
         :raises ParseError: if a built-in call does not iterate over DoFs.
         :raises ParseError: if an argument to a built-in kernel is not \
                             one of valid argument types.
+        :raises ParseError: if an argument to a built-in kernel has \
+                            an invalid data type.
         :raises ParseError: if a built-in kernel writes to more than \
                             one argument.
         :raises ParseError: if a built-in kernel does not have at least \
@@ -215,6 +222,14 @@ class LFRicBuiltIn(BuiltIn):
                     "must be one of {0} but kernel '{1}' has an argument of "
                     "type '{2}'.".format(const.VALID_BUILTIN_ARG_TYPES,
                                          self.name, arg.argument_type))
+            # Check valid data types
+            if arg.data_type not in const.VALID_BUILTIN_DATA_TYPES:
+                raise ParseError(
+                    "In the LFRic API an argument to a built-in kernel "
+                    "must have one of {0} as a data type but kernel '{1}' "
+                    "has an argument of data type '{2}'.".
+                    format(const.VALID_BUILTIN_DATA_TYPES,
+                           self.name, arg.data_type))
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
@@ -295,8 +310,10 @@ class LFRicBuiltIn(BuiltIn):
         '''
         return None
 
+    @abc.abstractmethod
     def gen_code(self, parent):
-        raise NotImplementedError("LFRicBuiltIn.gen_code must be overridden")
+        ''' Must be implemented in sub-class. Will generate the f2pygen AST
+        for this builtin. '''
 
     def cma_operation(self):
         '''
@@ -307,7 +324,6 @@ class LFRicBuiltIn(BuiltIn):
         :rtype: NoneType
 
         '''
-
         return None
 
     @property
@@ -331,6 +347,68 @@ class LFRicBuiltIn(BuiltIn):
         '''
         return self._fs_descriptors
 
+    def get_dof_loop_index_symbol(self):
+        '''
+        Finds or creates the symbol representing the index in any loops
+        over dofs.
+
+        :returns: symbol representing the dof loop index.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        table = self.scope.symbol_table
+        # The symbol representing the loop index is created in the DynLoop
+        # constructor.
+        # TODO #696 - 'df' should have KIND i_def.
+        return table.symbol_from_tag(tag="dof_loop_idx", root_name="df",
+                                     symbol_type=DataSymbol,
+                                     datatype=INTEGER_SINGLE_TYPE)
+
+    def get_argument_symbols(self):
+        '''
+        Finds or creates the symbols representing the arguments to this
+        Builtin kernel.
+
+        :returns: a symbol for each kernel argument.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises NotImplementedError: if an argument that is not a field or a \
+                                     scalar is encountered.
+        '''
+        table = self.scope.symbol_table
+
+        arg_symbols = []
+        for arg in self._arguments.args:
+            if arg.is_scalar:
+                try:
+                    scalar_sym = table.lookup(arg.name)
+                except KeyError:
+                    # TODO once #1258 is done the symbols should already exist
+                    # and therefore we should raise an exception if not.
+                    scalar_sym = table.new_symbol(
+                        arg.name, symbol_type=DataSymbol,
+                        datatype=arg.infer_datatype())
+                arg_symbols.append(scalar_sym)
+
+            elif arg.is_field:
+                # Although the argument to a Kernel is a field, the kernel
+                # itself accesses the data through a field_proxy because it is
+                # in-lined in the PSy layer.
+                try:
+                    sym = table.lookup(arg.proxy_name)
+                except KeyError:
+                    # TODO once #1258 is done the symbols should already exist
+                    # and therefore we should raise an exception if not.
+                    sym = table.new_symbol(
+                        arg.proxy_name, symbol_type=DataSymbol,
+                        datatype=arg.infer_datatype(proxy=True))
+                arg_symbols.append(sym)
+
+            else:
+                raise NotImplementedError(
+                    "Unsupported Builtin argument type: '{0}' is of type "
+                    "'{1}'".format(arg.name, arg.argument_type))
+        return arg_symbols
 
 # ******************************************************************* #
 # ************** Built-ins for real-valued fields ******************* #
@@ -366,6 +444,30 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name3,
                              rhs=field_name1 + " + " + field_name2))
 
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get symbols for each of the arguments.
+        arg_symbols = self.get_argument_symbols()
+
+        idx_sym = self.get_dof_loop_index_symbol()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
+        lhs = StructureReference.create(arg_symbols[0],
+                                        [("data", [Reference(idx_sym)])])
+        arg1 = StructureReference.create(arg_symbols[1],
+                                         [("data", [Reference(idx_sym)])])
+        arg2 = StructureReference.create(arg_symbols[2],
+                                         [("data", [Reference(idx_sym)])])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, arg1, arg2)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
 
 class LFRicIncXPlusYKern(LFRicBuiltIn):
     ''' Add the second, real-valued, field to the first field and return it.
@@ -389,6 +491,29 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name1,
                              rhs=field_name1 + " + " + field_name2))
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get symbols for both of the field (proxy) arguments.
+        arg_symbols = self.get_argument_symbols()
+
+        idx_sym = self.get_dof_loop_index_symbol()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy0%data(df) + proxy1%data(df)
+        lhs = StructureReference.create(arg_symbols[0],
+                                        [("data", [Reference(idx_sym)])])
+        arg2 = StructureReference.create(arg_symbols[1],
+                                         [("data", [Reference(idx_sym)])])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, lhs.copy(),
+                                     arg2)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicAPlusXKern(LFRicBuiltIn):
@@ -415,6 +540,29 @@ class LFRicAPlusXKern(LFRicBuiltIn):
         field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name2,
                              rhs=scalar_name + " + " + field_name1))
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get symbols for each of the kernel arguments.
+        arg_symbols = self.get_argument_symbols()
+
+        idx_sym = self.get_dof_loop_index_symbol()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar + proxy1%data(df)
+        lhs = StructureReference.create(arg_symbols[0],
+                                        [("data", [Reference(idx_sym)])])
+        arg2 = StructureReference.create(arg_symbols[2],
+                                         [("data", [Reference(idx_sym)])])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     Reference(arg_symbols[1]), arg2)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncAPlusXKern(LFRicBuiltIn):
@@ -1424,7 +1572,7 @@ class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
 
 class LFRicIntATimesXKern(LFRicATimesXKern):
     ''' Multiply each element of the first, integer-valued, field, `X`,
-     by an integer scalar, `a`, and return the result as a second,
+    by an integer scalar, `a`, and return the result as a second,
     integer-valued, field `Y` (`Y = a*X`).
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `LFRicATimesXKern`.
@@ -1615,3 +1763,56 @@ BUILTIN_MAP_CAPITALISED.update(INT_BUILTIN_MAP_CAPITALISED)
 # comparison purposes. This does not enforce case sensitivity to Fortran
 # built-in names.
 BUILTIN_MAP = get_lowercase_builtin_map(BUILTIN_MAP_CAPITALISED)
+
+
+# For AutoAPI documentation generation.
+__all__ = ['LFRicBuiltInCallFactory',
+           'LFRicBuiltIn',
+           'LFRicXPlusYKern',
+           'LFRicIncXPlusYKern',
+           'LFRicAPlusXKern',
+           'LFRicIncAPlusXKern',
+           'LFRicAXPlusYKern',
+           'LFRicIncAXPlusYKern',
+           'LFRicIncXPlusBYKern',
+           'LFRicAXPlusBYKern',
+           'LFRicIncAXPlusBYKern',
+           'LFRicAXPlusAYKern',
+           'LFRicXMinusYKern',
+           'LFRicIncXMinusYKern',
+           'LFRicAXMinusYKern',
+           'LFRicXMinusBYKern',
+           'LFRicIncXMinusBYKern',
+           'LFRicAXMinusBYKern',
+           'LFRicXTimesYKern',
+           'LFRicIncXTimesYKern',
+           'LFRicIncAXTimesYKern',
+           'LFRicATimesXKern',
+           'LFRicIncATimesXKern',
+           'LFRicXDividebyYKern',
+           'LFRicIncXDividebyYKern',
+           'LFRicADividebyXKern',
+           'LFRicIncADividebyXKern',
+           'LFRicIncXPowrealAKern',
+           'LFRicIncXPowintNKern',
+           'LFRicSetvalCKern',
+           'LFRicSetvalXKern',
+           'LFRicXInnerproductYKern',
+           'LFRicXInnerproductXKern',
+           'LFRicSumXKern',
+           'LFRicSignXKern',
+           'LFRicIntXKern',
+           'LFRicIntXPlusYKern',
+           'LFRicIntIncXPlusYKern',
+           'LFRicIntAPlusXKern',
+           'LFRicIntIncAPlusXKern',
+           'LFRicIntXMinusYKern',
+           'LFRicIntIncXMinusYKern',
+           'LFRicIntXTimesYKern',
+           'LFRicIntIncXTimesYKern',
+           'LFRicIntATimesXKern',
+           'LFRicIntIncATimesXKern',
+           'LFRicIntSetvalCKern',
+           'LFRicIntSetvalXKern',
+           'LFRicIntSignXKern',
+           'LFRicRealXKern']

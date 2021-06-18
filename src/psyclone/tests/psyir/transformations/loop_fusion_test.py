@@ -32,8 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modifies R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by I. Kavcic, Met Office
 
 '''This module tests the loop fusion transformation.
 '''
@@ -138,8 +138,8 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
     '''
     # TODO #1210: Apply transformation to convert PSyIR to Nemo PSY layer
     psyir = fortran_reader.psyir_from_source(fortran_code)
-    loop1 = psyir.children[0]
-    loop2 = psyir.children[1]
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
     fuse = NemoLoopFuseTrans()
     fuse.apply(loop1, loop2)
 
@@ -181,8 +181,8 @@ def test_fuse_ok(tmpdir, fortran_reader, fortran_writer):
 
     # Then fuse the inner ji loops
     fuse = NemoLoopFuseTrans()
-    fuse.apply(psyir[0].loop_body[0],
-               psyir[0].loop_body[1])
+    fuse.apply(psyir.children[0][0].loop_body[0],
+               psyir.children[0][0].loop_body[1])
 
     out = fortran_writer(psyir)
     expected = """
@@ -417,8 +417,8 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
     assert "Variable 's' is written to in one or both of the loops and the "\
-        "loop variable jj is used in different index locations (1 and 0) "\
-        "when accessing it." in str(err.value)
+        "loop variable jj is used in different index locations ((0, 1) and "\
+        "(0, 0)) when accessing it." in str(err.value)
 
     # This cannot be fused, since 's' is read in the
     # first iteration and written in the second with
@@ -441,8 +441,8 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
     assert "Variable 's' is written to in one or both of the loops and the " \
-           "loop variable jj is used in different index locations (0 and 1) " \
-           "when accessing it." in str(err.value)
+           "loop variable jj is used in different index locations ((0, 0) "\
+           "and (0, 1)) when accessing it." in str(err.value)
 
 
 # ----------------------------------------------------------------------------
@@ -605,9 +605,8 @@ def test_fuse_scalars_incorrect(fortran_reader, fortran_writer):
 # ----------------------------------------------------------------------------
 def test_fuse_no_symbol(fortran_reader, fortran_writer):
     '''Tests what happens if a variable name is not in the symbol table,
-    or not fully defined (i.e. likely imported from another module).
-    We have to patch the object (to replace the existing symbol table)
-    since otherwise all variables are in the symbol table.
+    e.g. because of a wildcard import. It also checks if a name is defined
+    in an outer module.
     '''
     # Case 1: assume that the array 't' is imported from mymod. In
     # this case the loop validation will find a Symbol (not a DataSymbol),
@@ -640,31 +639,8 @@ def test_fuse_no_symbol(fortran_reader, fortran_writer):
     enddo
   enddo""" in out
 
-    # Case 2: remove the symbol table, which means that not
-    # even a Symbol instance is returned. This should then look
-    # up the information in the variable access information
-    # to determine which variables are an array
-    loop = psyir.children[0]
-
-    # Remove the symbol 't' from the symbol table to
-    # trigger using the variable accesses to determine the type
-    symbol_table = loop.scope.symbol_table
-    symbol_table.remove(symbol_table.lookup("t"))
-
     fuse = NemoLoopFuseTrans()
-    # Since the psyir has already the fused outer loop, fuse the inner
-    # loops now:
-    fuse.apply(loop.loop_body.children[0], loop.loop_body.children[1])
-
-    out = fortran_writer(psyir)
-    assert """  do jj = 1, n, 1
-    do ji = 1, 10, 1
-      s(ji,jj) = t(ji,jj) + 1
-      t(ji,jj) = s(ji,jj) + t(ji,jj)
-    enddo
-  enddo""" in out
-
-    # Case 3: Symbol 't' is defined in outer module:
+    # Case 2: Symbol 't' is defined in outer module:
     code = '''
     module mymod
         integer, dimension(10, 10) :: t
@@ -687,8 +663,8 @@ def test_fuse_no_symbol(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     # First child is now the subroutine, which has
     # two children which are the two loops:
-    loop1 = psyir.children[0].children[0]
-    loop2 = psyir.children[0].children[1]
+    loop1 = psyir.children[0].children[0][0]
+    loop2 = psyir.children[0].children[0][1]
     fuse.apply(loop1, loop2)
 
     out = fortran_writer(psyir)

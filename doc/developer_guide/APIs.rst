@@ -980,6 +980,42 @@ that must be used.  Due to the set-up of the mesh hierarchy (see
 race conditions when updating shared quantities on either the fine or
 coarse mesh.
 
+Lowering
+--------
+
+As described in :ref:`psy_layer_backends`, the use of a PSyIR backend to
+generate code for the LFRic PSy layer requires that each LFRic-specific
+node be lowered to 'language-level' PSyIR. Although this is work in progress
+(see e.g. https://github.com/stfc/PSyclone/issues/1010), some nodes already
+have the ``lower_to_language_level()`` method implemented. These are
+described in the sub-sections below.
+
+BuiltIns
+++++++++
+
+In the LFRic PSyIR, calls to BuiltIn kernels are represented by a
+single Node which is a subclass of `LFRicBuiltIn
+<https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1domain_1_1lfric_1_1lfric__builtins_1_1LFRicBuiltIn.html>`_.
+The ``lower_to_language_level()`` methods of these BuiltIn nodes must
+therefore replace that single Node with the
+PSyIR for the arithmetic operations required by the particular BuiltIn.
+This PSyIR forms the new body of the dof loop containing the original
+BuiltIn node.
+
+In constructing this PSyIR, suitable Symbols for the loop
+variable and the various kernel arguments must be looked up. Since the
+migration to the use of language-level PSyIR for the LFRic PSy layer
+is at an early stage, in practise this often requires that suitable
+Symbols be constructed and inserted into the symbol table of the PSy
+layer routine. A lot of this work is currently performed in the
+``DynKernelArgument.infer_datatype()`` method but ultimately (see
+https://github.com/stfc/PSyclone/issues/1258) much of this will be
+removed.
+
+To date, the following LFRic BuiltIns have had
+``lower_to_language_level()`` methods implemented: ``LFRicXPlusYKern``,
+``LFRicIncXPlusYKern``, and ``LFRicAPlusXKern``.
+
 GOcean1.0
 =========
 
