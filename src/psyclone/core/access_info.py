@@ -41,6 +41,7 @@
 from __future__ import print_function, absolute_import
 
 from psyclone.core.access_type import AccessType
+from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
 from psyclone.errors import InternalError
 
@@ -63,8 +64,8 @@ class AccessInfo(object):
     :type access_type: :py:class:`psyclone.core.access_type.AccessType`
     :param int location: a number used in ordering the accesses.
     :param component_indices: indices used in the access, defaults to None
-    :type component_indices: list of lists of
-        :py:class:`psyclone.psyir.nodes.Node` (e.g. Reference, ...)
+    :type component_indices: \
+        :py:class:`psyclone.core.component_indices.ComponentIndices`
     :param node: Node in PSyIR in which the access happens.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -73,7 +74,10 @@ class AccessInfo(object):
         self._location = location
         self._access_type = access_type
         self._node = node
-        self.component_indices = component_indices
+        if not isinstance(component_indices, ComponentIndices):
+            self.component_indices = ComponentIndices(component_indices)
+        else:
+            self.component_indices = component_indices
 
     def __str__(self):
         '''Returns a string representating showing the access mode
@@ -98,14 +102,14 @@ class AccessInfo(object):
     @property
     def component_indices(self):
         '''
-        This function returns the list of accesses used for each component,
-        e.g. `a(i)%b(j,k)%c` will return `[ [i], [j, k], [] ]`. In the
-        case of a simple scalar variable `a` this function will
-        return `[ [] ]`. Each entry in this list of lists will be the PSyIR
-        for the index expression used.
+        This function returns the list of accesses used for each component
+        as an instance of ComponentIndices. For example, `a(i)%b(j,k)%c`
+        will return `[ [i], [j, k], [] ]` as ComponentIndices. In the
+        case of a simple scalar variable `a` the component_indices will
+        represent `[ [] ]`.
 
         :returns: the indices used in this access for each component.
-        :rtype: list of lists of :py:class:`psyclone.psyir.nodes.Node`
+        :rtype: :py:class:`psyclone.core.component_indices.ComponentIndices`
         '''
         return self._component_indices
 
@@ -117,23 +121,20 @@ class AccessInfo(object):
         `[ [i], [j, k], [] ]` (with each element being the PSyIR of the
         index expression).
 
-        :param component_indices: list of indices used in the access.
-        :type component_indices: list of lists of \
-            py:class:`psyclone.psyir.nodes.Node`
+        :param component_indices: indices used in the access.
+        :type component_indices: \
+            :py:class:`psyclone.core.component_indices.ComponentIndices`
 
-        :raises InternalError: if the component_indices is not a list of lists.
+        :raises InternalError: if the component_indices is not an instance \
+            of :py:class:`psyclone.core.component_indices.ComponentIndices`.
 
         '''
-        if component_indices:
-            if not isinstance(component_indices, list) or \
-                    not all(isinstance(grp, list)
-                            for grp in component_indices):
-                raise InternalError("component_indices in add_access must be "
-                                    "a list of lists or None, got '{0}'".
-                                    format(component_indices))
-            self._component_indices = component_indices[:]
-        else:
-            self._component_indices = [[]]
+
+        if not isinstance(component_indices, ComponentIndices):
+            raise InternalError("Index object in add_access must be "
+                                "an instance of ComponentIndices, got '{0}'".
+                                format(component_indices))
+        self._component_indices = component_indices
 
     def is_array(self):
         '''Test if any of the components has an index. E.g. an access like
@@ -143,7 +144,7 @@ class AccessInfo(object):
             the variable is an array.
         :rtype: bool
         '''
-        return any(grp for grp in self._component_indices)
+        return self._component_indices.is_array()
 
     @property
     def access_type(self):
@@ -250,7 +251,7 @@ class SingleVariableAccessInfo(object):
         return self._accesses
 
     def add_access_with_location(self, access_type, location, node,
-                                 component_indices=None):
+                                 component_indices):
         '''Adds access information to this variable.
 
         :param access_type: the type of access (READ, WRITE, ....)
@@ -258,12 +259,12 @@ class SingleVariableAccessInfo(object):
             :py:class:`psyclone.core.access_type.AccessType`
         :param location: location information
         :type location: int
-        :param component_indices: indices used for each component of the \
-            access (None if the variable is not an array). Defaults to None.
-        :type component_indices: list of lists of \
-            :py:class:`psyclone.psyir.nodes.Node`
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param component_indices: indices used for each component of the \
+            access.
+        :type component_indices:  \
+            :py:class:`psyclone.core.component_indices.ComponentIndices`
         '''
         self._accesses.append(AccessInfo(access_type, location, node,
                                          component_indices))
@@ -419,6 +420,9 @@ class VariablesAccessInfo(dict):
 
     def add_access(self, signature, access_type, node, component_indices=None):
         '''Adds access information for the variable with the given signature.
+        If the `component_indices` parameter is not an instance of
+        ComponentIndices, it is used to construct an instance. Therefore it
+        can be None, a list or a list of lists of PSyIR nodes.
 
         :param signature: the signature of the variable.
         :type signature: :py:class:`psyclone.core.Signature`
@@ -426,22 +430,23 @@ class VariablesAccessInfo(dict):
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node` instance
-        :param component_indices: list of lists of indices used in the \
-            access, one list for each component. None if the variable is \
-            not an array. Defaults to None, which is then converted to [[]].
-        :type component_indices: list of lists of \
-            :py:class:`psyclone.psyir.nodes.Node`
+        :param component_indices: index information for the access.
+        :type component_indices: \
+            :py:class:`psyclone.core.component_indices.ComponentIndices`, or \
+            any other type that can be used to construct a ComponentIndices \
+            instance (None, list or lists of \
+            :py:class:`psyclone.psyir.nodes.Node`)
 
         '''
-        # TODO 1268: Allow for more intuitive arguments, e.g. for simple
-        # arrays accept a non-nested list.
         if not isinstance(signature, Signature):
             raise InternalError("Got '{0}' of type '{1}' but expected it to "
                                 "be of type psyclone.core.Signature."
                                 .format(signature, type(signature).__name__))
 
-        if component_indices is None:
-            component_indices = [[]]
+        # To make it easier for the user, we allow to implicitly create the
+        # component indices instance here:
+        if not isinstance(component_indices, ComponentIndices):
+            component_indices = ComponentIndices(component_indices)
 
         if signature in self:
             self[signature].add_access_with_location(access_type,

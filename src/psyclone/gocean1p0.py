@@ -1145,7 +1145,7 @@ class GOKern(CodedKern):
                     i_expr = GOKern._format_access("i", i, current_depth)
                     j_expr = GOKern._format_access("j", j, current_depth)
                     var_accesses.add_access(signature, arg.access,
-                                            self, [[i_expr, j_expr]])
+                                            self, [i_expr, j_expr])
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
