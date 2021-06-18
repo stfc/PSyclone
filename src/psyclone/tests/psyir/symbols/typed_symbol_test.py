@@ -42,16 +42,16 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.symbols import TypedSymbol, ContainerSymbol, DataSymbol, \
-    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
-    REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
+    GlobalInterface, UnresolvedInterface, ScalarType, ArrayType, \
+    REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE, \
+    INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
     BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, DataTypeSymbol
-from psyclone.psyir.nodes import Literal, Reference, BinaryOperation, Return
+from psyclone.psyir.nodes import Literal, Reference
 
 
 class TSymbol(TypedSymbol):
     '''
-    Concrete class for testing.
+    Concrete sub-class of TypedSymbol for testing.
 
     '''
     def __str__(self):
@@ -66,8 +66,8 @@ def test_typed_symbol_abstract():
 
 
 def test_typed_symbol_initialisation():
-    '''Test that a DataSymbol instance can be created when valid arguments are
-    given, otherwise raise relevant exceptions.'''
+    '''Test that a TypedSymbol-subclass instance can be created when valid
+    arguments are given, otherwise raise relevant exceptions.'''
 
     # Test with valid arguments
     assert isinstance(TSymbol('a', REAL_SINGLE_TYPE), TypedSymbol)
@@ -76,7 +76,6 @@ def test_typed_symbol_initialisation():
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
     assert isinstance(TSymbol('a', real_kind_type), TypedSymbol)
-    # real constants are not currently supported
     assert isinstance(TSymbol('a', INTEGER_SINGLE_TYPE), TypedSymbol)
     assert isinstance(TSymbol('a', INTEGER_DOUBLE_TYPE), TypedSymbol)
     assert isinstance(TSymbol('a', INTEGER4_TYPE), TypedSymbol)
@@ -151,8 +150,7 @@ def test_typed_symbol_copy():
     assert symbol.shape == new_symbol.shape
 
     # Change the properties of the new symbol and check the original
-    # is not affected. Can't check constant_value yet as we have a
-    # shape value
+    # is not affected.
     new_symbol._name = "new"
     new_symbol.datatype = ArrayType(ScalarType(ScalarType.Intrinsic.INTEGER,
                                                ScalarType.Precision.DOUBLE),
@@ -188,10 +186,10 @@ def test_typed_symbol_copy_properties():
 
 
 def test_typed_symbol_resolve_deferred(monkeypatch):
-    ''' Test the datasymbol resolve_deferred method '''
+    ''' Test the TypedSymbol resolve_deferred method '''
     symbola = TSymbol('a', INTEGER_SINGLE_TYPE)
     new_sym = symbola.resolve_deferred()
-    # For a DataSymbol (unlike a Symbol), resolve_deferred should always
+    # For a TypedSymbol (unlike a Symbol), resolve_deferred should always
     # return the object on which it was called.
     assert new_sym is symbola
     module = ContainerSymbol("dummy_module")
