@@ -143,10 +143,9 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         '''
         self.validate(routine, options=options)
 
-        new_node = NemoInvokeSchedule.create(routine.name,
-                                             routine.symbol_table,
-                                             routine.pop_all_children(),
-                                             is_program=routine.is_program)
+        new_node = NemoInvokeSchedule.create(
+            routine.name, routine.symbol_table, routine.pop_all_children(),
+            is_program=routine.is_program, return_symbol=routine.return_symbol)
 
         # We need to replace the top node in the (possibly sub-) PSyIR
         # tree that we've been passed.

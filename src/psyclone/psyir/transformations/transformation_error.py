@@ -38,6 +38,7 @@
 
 from psyclone.errors import PSycloneError
 
+
 class TransformationError(PSycloneError):
     ''' Provides a PSyclone-specific error class for errors found during
         code transformation operations. '''

@@ -42,6 +42,7 @@ that can be compiled and linked with the generated PSy code.
 from __future__ import absolute_import
 from psyclone.errors import PSycloneError
 
+
 class NoInvokesError(PSycloneError):
     '''Provides a PSyclone-specific error class for the situation when an
     algorithm code contains no invoke calls.

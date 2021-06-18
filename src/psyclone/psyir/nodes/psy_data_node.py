@@ -52,7 +52,7 @@ from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import (SymbolTable, TypeSymbol, DataSymbol,
+from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
                                     ContainerSymbol, DeferredType,
                                     UnknownFortranType, GlobalInterface)
 
@@ -137,7 +137,8 @@ class PSyDataNode(Statement):
         # name of the PSyData derived type) but we keep a list for future
         # extensibility.
         _PSyDataSymbol = namedtuple("_PSyDataSymbol", "name symbol_type")
-        self.imported_symbols = [_PSyDataSymbol(self.type_name, TypeSymbol)]
+        self.imported_symbols = [_PSyDataSymbol(self.type_name,
+                                                DataTypeSymbol)]
 
         # Root of the name to use for variables associated with
         # PSyData regions
