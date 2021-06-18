@@ -62,6 +62,7 @@ else
   KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg genkernelstub
 endif
 
+PSYAD ?= psyad
 RM = rm -f
 PYTHON ?= python
 F90 ?= gfortran

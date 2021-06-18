@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,11 +30,19 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Laboratory
 
-'''PSyAD, the PSyclone adjoint generation module.'''
+include ../common.mk
 
-from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-__all__ = ["generate_adjoint_str", "generate_adjoint"]
+transform:
+	$(PSYAD) testkern_mod.f90
+
+compile:
+	@echo "No compilation supported for the PSyAD examples"
+
+run: compile
+	@echo "No run targets for the PSyAD examples"
+
