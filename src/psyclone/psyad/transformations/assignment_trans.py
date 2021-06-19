@@ -192,9 +192,10 @@ class AssignmentTrans(AdjointTransformation):
         if not node.lhs.name.lower() in self._active_variables:
             # There are active vars on RHS but not on LHS
             raise TangentLinearError(
-                "Assignment node has the following active variables on its "
-                "RHS '{0}' but its LHS '{1}' is not an active variable."
-                "".format(assignment_active_vars, node.lhs.name))
+                "Assignment node '{0}' has the following active variables on "
+                "its RHS '{1}' but its LHS '{2}' is not an active variable."
+                "".format(self._writer(node), assignment_active_vars,
+                          node.lhs.name))
 
         # Split the RHS of the assignment into <expr> +- <expr> +- <expr>
         rhs_terms, rhs_operators = self._split_nodes(
@@ -212,16 +213,17 @@ class AssignmentTrans(AdjointTransformation):
             if not active_vars:
                 # This term must contain an active variable
                 raise TangentLinearError(
-                    "Each term on the RHS of the assigment must have an "
-                    "active variable but '{0}' does not."
-                    "".format(str(rhs_term)))
+                    "Each term on the RHS of the assigment '{0}' must have an "
+                    "active variable but '{1}' does not."
+                    "".format(self._writer(node), self._writer(rhs_term)))
 
             if len(active_vars) > 1:
                 # This term can only contain one active variable
                 raise TangentLinearError(
-                    "Each term on the RHS of the assigment must not have more "
-                    "than one active variable but '{0}' has {1}."
-                    "".format(str(rhs_term), len(active_vars)))
+                    "Each term on the RHS of the assigment '{0}' must not "
+                    "have more than one active variable but '{1}' has {2}."
+                    "".format(self._writer(node), self._writer(rhs_term),
+                              len(active_vars)))
 
             if isinstance(rhs_term, Reference) and rhs_term.name.lower() \
                in self._active_variables:
@@ -242,24 +244,31 @@ class AssignmentTrans(AdjointTransformation):
                     break
             if not found:
                 raise TangentLinearError(
-                    "Each term on the RHS of the assignment must be an active "
-                    "variable multiplied or divided by an expression, but "
-                    "found '{0}'.".format(str(rhs_term)))
+                    "Each term on the RHS of the assignment '{0}' must be an "
+                    "active variable multiplied or divided by an expression, "
+                    "but found '{1}'.".format(
+                        self._writer(node), self._writer(rhs_term)))
+
+            # TODO TEST WHEN index=0. Need special case?????
+            # TODO TEST WHEN active var on LHS of A/x is OK????
 
             # The active variable must not be a divisor
             if expr_operators[index-1] == BinaryOperation.Operator.DIV:
                 raise TangentLinearError(
-                    "A term on the RHS of the assignment with a division "
-                    "must not have the active variable as a divisor "
-                    "but found '{0}'.".format(str(rhs_term)))
+                    "A term on the RHS of the assignment '{0}' with a "
+                    "division must not have the active variable as a divisor "
+                    "but found '{1}'.".format(
+                        self._writer(node), self._writer(rhs_term)))
                 
             # All terms must be Reference or operator
-            for node in rhs_term.walk(Node):
-                if not isinstance(node, (Reference, Operation)):
+            for tmp_node in rhs_term.walk(Node):
+                if not isinstance(tmp_node, (Reference, Operation)):
                     raise TangentLinearError(
-                        "A term on the RHS of the assignment contains an "
-                        "unsupported node type '{0}' in '{1}'."
-                        "".format(type(node).__name__, str(rhs_term)))
+                        "A term on the RHS of the assignment '{0}' contains "
+                        "an unsupported node type '{1}' ({2}) in '{3}'."
+                        "".format(
+                            self._writer(node), type(tmp_node).__name__,
+                            self._writer(tmp_node), self._writer(rhs_term)))
 
         # TODO Multi-increment raise error a = a + a + b as the
         # current logic does not work in this case. Will that still be
@@ -280,12 +289,12 @@ class AssignmentTrans(AdjointTransformation):
         '''
         if (isinstance(node, BinaryOperation)) and \
            (node.operator in binary_operator_list):
-            node_list, operator_list = self._split_nodes(
-                node.children[0], binary_operator_list)
-            tmp_node_list, tmp_op_list = self._split_nodes(
+            node_list = [node.children[0]]
+            operator_list = [node.operator]
+            rhs_node_list, rhs_op_list = self._split_nodes(
                 node.children[1], binary_operator_list)
-            node_list.extend(tmp_node_list)
-            operator_list.extend(tmp_op_list)
+            node_list.extend(rhs_node_list)
+            operator_list.extend(rhs_op_list)
             return (node_list, operator_list)
         else:
             return ([node], [None])

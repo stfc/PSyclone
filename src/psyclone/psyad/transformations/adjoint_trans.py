@@ -37,6 +37,7 @@ transformations.
 
 '''
 from psyclone.psyGen import Transformation
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
 class AdjointTransformation(Transformation):
@@ -44,10 +45,20 @@ class AdjointTransformation(Transformation):
     active variables to be passed when creating an instance of the
     class.
 
+    :param active_variables: a list of names of the active variables.
+    :type active_variables: list of str
+    :param writer: the writer to use when outputting error \
+        information. Defaults to FortranWriter.
+    :type writer: subclass of \
+        :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
+
     '''
-    def __init__(self, active_variables):
+    def __init__(self, active_variables, writer=FortranWriter()):
         super(AdjointTransformation, self).__init__()
         # TODO Check the active_variables argument has valid content
+        # TODO Check the writer argument is valid.
         self._active_variables = active_variables
+        # The writer to use when outputting error information
+        self._writer = writer
 
 __all__ = ["AdjointTransformation"]

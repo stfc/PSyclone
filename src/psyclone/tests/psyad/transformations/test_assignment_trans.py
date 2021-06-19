@@ -362,7 +362,6 @@ def test_increment_multi_add():
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 # TODO
-# check a = b + ya as a should be assigned after (test error)
 # check a = a + b + a i.e. multiple rhs increments
 # a = -b -yc
 # a(i) = a(i+1) + b(i) + b(i+1)
@@ -401,13 +400,14 @@ def test_validate_active_rhs():
     trans = AssignmentTrans(active_variables=["c", "aa", "b"])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Assignment node has the following active variables on its RHS "
-            "'['b']' but its LHS 'a' is not an active variable."
+    assert ("Assignment node 'a = b\n' has the following active variables on "
+            "its RHS '['b']' but its LHS 'a' is not an active variable."
             in str(info.value))
 
-@pytest.mark.parametrize("operator", [BinaryOperation.Operator.ADD,
-                                      BinaryOperation.Operator.SUB])
-def test_validate_rhs_term_active(operator):
+@pytest.mark.parametrize("operator, string",
+                         [(BinaryOperation.Operator.ADD, "+"),
+                          (BinaryOperation.Operator.SUB, "-")])
+def test_validate_rhs_term_active(operator, string):
     '''Test that the validate method returns the expected exception if one
     of the terms on the rhs does not contain an active variable. Split
     rhs terms with + and - to show both work.'''
@@ -420,8 +420,8 @@ def test_validate_rhs_term_active(operator):
     trans = AssignmentTrans(active_variables=["a", "b"])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assigment must have an active "
-            "variable but 'Reference[name:'c']' does not."
+    assert ("Each term on the RHS of the assigment 'a = b {0} c\n' must have "
+            "an active variable but 'c' does not.".format(string)
             in str(info.value))
 
 
@@ -438,9 +438,8 @@ def test_validate_rhs_term_multi_active():
     trans = AssignmentTrans(active_variables=["a", "b", "c"])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assigment must not have more than "
-            "one active variable but 'BinaryOperation[operator:'MUL']\n"
-            "Reference[name:'b']\nReference[name:'c']' has 2."
+    assert ("Each term on the RHS of the assigment 'a = b * c\n' must not "
+            "have more than one active variable but 'b * c' has 2."
             in str(info.value))
 
 
@@ -488,12 +487,34 @@ def test_validate_rhs_active_var_no_mul():
     trans = AssignmentTrans(active_variables=["a", "b"])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assignment must be an active "
-            "variable multiplied or divided by an expression, but found "
-            "'BinaryOperation[operator:'POW']\nReference[name:'b']\n"
-            "Reference[name:'x']'." in str(info.value))
+    assert ("Each term on the RHS of the assignment 'a = b ** x\n' must be "
+            "an active variable multiplied or divided by an expression, but "
+            "found 'b ** x'." in str(info.value))
 
-# TODO FAIL if x/A
+
+# TODO: Test this raises an exception too A = y*(B+z) + C
+# TODO TEST WHEN index=0. Need special case?????
+# TODO TEST WHEN active var on LHS of A/x is OK????
+
+def test_validate_rhs_active_divisor():
+    '''Test that the validate method raises the expected exception if a
+    term on the RHS of an assignment has an active variable as a
+    divisor.'''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    divide = BinaryOperation.create(
+        BinaryOperation.Operator.DIV, Reference(
+            rhs_symbol2), Reference(rhs_symbol1))
+    assignment = Assignment.create(Reference(lhs_symbol), divide)
+    trans = AssignmentTrans(active_variables=["a", "b"])
+    with pytest.raises(TangentLinearError) as info:
+        trans.validate(assignment)
+    assert ("A term on the RHS of the assignment 'a = x / b\n' with a "
+            "division must not have the active variable as a divisor but "
+            "found 'x / b'." in str(info.value))
+
+
 # TODO FAIL if A*func(a)
 
 # TODO Check validate tests work independent of case of variable (as use lower())
