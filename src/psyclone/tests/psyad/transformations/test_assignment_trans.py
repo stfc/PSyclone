@@ -66,10 +66,10 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
     print (input_code)
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
-    assignment = psyir.children[0]
+    assignment = psyir.children[0][0]
     assert isinstance(assignment, Assignment)
 
-    symbol_table = psyir.symbol_table
+    symbol_table = assignment.scope.symbol_table
     active_variables = []
     for variable_name in active_variable_names:
         active_variables.append(symbol_table.lookup(variable_name))
@@ -405,5 +405,102 @@ def test_validate_active_rhs():
             "'['b']' but its LHS 'a' is not an active variable."
             in str(info.value))
 
+@pytest.mark.parametrize("operator", [BinaryOperation.Operator.ADD,
+                                      BinaryOperation.Operator.SUB])
+def test_validate_rhs_term_active(operator):
+    '''Test that the validate method returns the expected exception if one
+    of the terms on the rhs does not contain an active variable. Split
+    rhs terms with + and - to show both work.'''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("c", REAL_TYPE)
+    addition = BinaryOperation.create(
+        operator, Reference(rhs_symbol1), Reference(rhs_symbol2))
+    assignment = Assignment.create(Reference(lhs_symbol), addition)
+    trans = AssignmentTrans(active_variables=["a", "b"])
+    with pytest.raises(TangentLinearError) as info:
+        trans.validate(assignment)
+    assert ("Each term on the RHS of the assigment must have an active "
+            "variable but 'Reference[name:'c']' does not."
+            in str(info.value))
 
-# Multi-increment raise error a = a + a + b as the current logic does not work in this case.
+
+def test_validate_rhs_term_multi_active():
+    '''Test that the validate method returns the expected exception if one
+    of the terms on the rhs contains more than one active variable.'''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("c", REAL_TYPE)
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(
+            rhs_symbol1), Reference(rhs_symbol2))
+    assignment = Assignment.create(Reference(lhs_symbol), multiply)
+    trans = AssignmentTrans(active_variables=["a", "b", "c"])
+    with pytest.raises(TangentLinearError) as info:
+        trans.validate(assignment)
+    assert ("Each term on the RHS of the assigment must not have more than "
+            "one active variable but 'BinaryOperation[operator:'MUL']\n"
+            "Reference[name:'b']\nReference[name:'c']' has 2."
+            in str(info.value))
+
+
+def test_validate_rhs_single_active_var():
+    '''Test that the validate method returns successfully if the
+    terms on the RHS of an assignment are single active variables.'''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
+    trans = AssignmentTrans(active_variables=["a", "b"])
+    trans.validate(assignment)
+
+
+@pytest.mark.parametrize("operator", [BinaryOperation.Operator.MUL,
+                                      BinaryOperation.Operator.DIV])
+def test_validate_rhs_active_var_mul(operator):
+    '''Test that the validate method returns successfully if the term on
+    the RHS of an assignment contains an active variable that is part
+    of a set of multiplications or divides.'''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    rhs_symbol3 = DataSymbol("y", REAL_TYPE)
+    multiply1 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(
+            rhs_symbol2), Reference(rhs_symbol1))
+    multiply2 = BinaryOperation.create(
+        operator, Reference(rhs_symbol3), multiply1)
+    assignment = Assignment.create(Reference(lhs_symbol), multiply2)
+    trans = AssignmentTrans(active_variables=["a", "b"])
+    trans.validate(assignment)
+
+
+def test_validate_rhs_active_var_no_mul():
+    '''Test that the validate method fails if the term on the RHS of the
+    assignment contains an active variable that is not part of a set
+    of multiplications or divides.'''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    power = BinaryOperation.create(
+        BinaryOperation.Operator.POW, Reference(
+            rhs_symbol1), Reference(rhs_symbol2))
+    assignment = Assignment.create(Reference(lhs_symbol), power)
+    trans = AssignmentTrans(active_variables=["a", "b"])
+    with pytest.raises(TangentLinearError) as info:
+        trans.validate(assignment)
+    assert ("Each term on the RHS of the assignment must be an active "
+            "variable multiplied or divided by an expression, but found "
+            "'BinaryOperation[operator:'POW']\nReference[name:'b']\n"
+            "Reference[name:'x']'." in str(info.value))
+
+# TODO FAIL if x/A
+# TODO FAIL if A*func(a)
+
+# TODO Check validate tests work independent of case of variable (as use lower())
+
+# Restructure apply (and make multi-increment work?)
+# Multi-increment raise error a = a + a + b as the current logic does not work in this case.???
+
+# TODO test _split_nodes
+# TODO test _process (after restructuring)
+# TODO check apply tests (after restructuring)

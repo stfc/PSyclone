@@ -39,7 +39,7 @@ assignment node with its adjoint form.
 from __future__ import absolute_import
 
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Literal
+    Literal, Node, Operation
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
 
@@ -160,7 +160,7 @@ class AssignmentTrans(AdjointTransformation):
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
-        AssignmentTran transformation to the supplied PSyIR Node.
+        AssignmentTrans transformation to the supplied PSyIR Node.
 
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
@@ -169,12 +169,17 @@ class AssignmentTrans(AdjointTransformation):
 
         :raises TransformationError: if the node argument is not an \
             Assignment.
+        :raises TangentLinearError: if the assignment does not conform \
+            to the required tangent linear structure.
 
         '''
+        # Check node argument is an assignment node
         if not isinstance(node, Assignment):
             raise TransformationError(
                 "Node argument in assignment transformation should be a PSyIR "
                 "Assignment, but found '{0}'.".format(type(node).__name__))
+
+        # If there are no active variables then return
         assignment_active_vars = [
             var.name.lower() for var in node.walk(Reference)
             if var.name.lower() in self._active_variables]
@@ -182,48 +187,109 @@ class AssignmentTrans(AdjointTransformation):
             # No active variables in this assigment so the assignment
             # remains unchanged.
             return
-        # Check that the assignment node has a valid tangent linear form
-        # i.e. DELTA_A [=|+=] X * DELTA_B + Y * DELTA_C + ...
+
+        # The lhs of the assignment node should be an active variable
         if not node.lhs.name.lower() in self._active_variables:
-            # 1: Active vars on RHS but not active on LHS
+            # There are active vars on RHS but not on LHS
             raise TangentLinearError(
                 "Assignment node has the following active variables on its "
                 "RHS '{0}' but its LHS '{1}' is not an active variable."
                 "".format(assignment_active_vars, node.lhs.name))
 
-        rhs_terms = self._split_nodes(node.rhs)
+        # Split the RHS of the assignment into <expr> +- <expr> +- <expr>
+        rhs_terms, rhs_operators = self._split_nodes(
+            node.rhs, [BinaryOperation.Operator.ADD,
+                       BinaryOperation.Operator.SUB])
 
+        # Check each expression term. It must be in the form
+        # A */ <expr> where A is an active variable.
         for rhs_term in rhs_terms:
+
             active_vars = [
                 ref for ref in rhs_term.walk(Reference) if ref.name.lower()
                 in self._active_variables]
+
             if not active_vars:
+                # This term must contain an active variable
                 raise TangentLinearError(
                     "Each term on the RHS of the assigment must have an "
-                    "active variable.")
+                    "active variable but '{0}' does not."
+                    "".format(str(rhs_term)))
+
             if len(active_vars) > 1:
+                # This term can only contain one active variable
                 raise TangentLinearError(
                     "Each term on the RHS of the assigment must not have more "
-                    "than one active variable.")
-            for node in rhs_term.walk(Node):
-                if node not in [Reference, Operator]:
-                    raise TransformationError(
-                        "Assignment node contains an unsupported node type "
-                        "'{0}'.".format(type(node).__name__))
-        # 4) RHS term with invalid form e.g. not kA or A/k
-        # Multi-increment raise error a = a + a + b as the current logic does not work in this case.
+                    "than one active variable but '{0}' has {1}."
+                    "".format(str(rhs_term), len(active_vars)))
 
-    def _split_nodes(self, node):
-        ''' xxx '''
+            if isinstance(rhs_term, Reference) and rhs_term.name.lower() \
+               in self._active_variables:
+                # This term is a single active variable and is therefore valid
+                continue
+
+            # Split the term into <expr> */ <expr> */ <expr>
+            expr_terms, expr_operators = self._split_nodes(
+                rhs_term, [BinaryOperation.Operator.MUL,
+                           BinaryOperation.Operator.DIV])
+
+            # One of expression terms must be an active variable
+            found = False
+            for index, expr_term in enumerate(expr_terms):
+                if (isinstance(expr_term, Reference) and
+                        expr_term.name.lower() in self._active_variables):
+                    found = True
+                    break
+            if not found:
+                raise TangentLinearError(
+                    "Each term on the RHS of the assignment must be an active "
+                    "variable multiplied or divided by an expression, but "
+                    "found '{0}'.".format(str(rhs_term)))
+
+            # The active variable must not be a divisor
+            if expr_operators[index-1] == BinaryOperation.Operator.DIV:
+                raise TangentLinearError(
+                    "A term on the RHS of the assignment with a division "
+                    "must not have the active variable as a divisor "
+                    "but found '{0}'.".format(str(rhs_term)))
+                
+            # All terms must be Reference or operator
+            for node in rhs_term.walk(Node):
+                if not isinstance(node, (Reference, Operation)):
+                    raise TangentLinearError(
+                        "A term on the RHS of the assignment contains an "
+                        "unsupported node type '{0}' in '{1}'."
+                        "".format(type(node).__name__, str(rhs_term)))
+
+        # TODO Multi-increment raise error a = a + a + b as the
+        # current logic does not work in this case. Will that still be
+        # true after restructuring apply() method????
+
+    def _split_nodes(self, node, binary_operator_list):
+        '''Utility to split an expression into a series of sub-expressions
+        separated by one of the binary operators specified in binary_operator_list.
+
+        :param node: xxx
+        :type node: xxx
+        :param binary_operator_list: xxx
+        :type binary_operator_list: list of xxx
+
+        :returns: xxx
+        :rtype: xxx
+
+        '''
         if (isinstance(node, BinaryOperation)) and \
-           (node.operator == BinaryOperation.Operator.ADD):
-            new_node_list = self._split_nodes(
-                node.children[0])
-            new_node_list.extend(
-                self._split_nodes(node.children[1]))
-            return new_node_list
+           (node.operator in binary_operator_list):
+            node_list, operator_list = self._split_nodes(
+                node.children[0], binary_operator_list)
+            tmp_node_list, tmp_op_list = self._split_nodes(
+                node.children[1], binary_operator_list)
+            node_list.extend(tmp_node_list)
+            operator_list.extend(tmp_op_list)
+            return (node_list, operator_list)
         else:
-            return [node]
+            return ([node], [None])
+
     def __str__(self):
         return "Convert a PSyIR Assignment to its adjoint form"
 
