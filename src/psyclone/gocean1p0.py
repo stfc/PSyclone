@@ -1193,7 +1193,7 @@ class GOKern(CodedKern):
                     # reference to (i,j) so it is properly recognised as
                     # an array access.
                     var_accesses.add_access(signature, arg.access,
-                                            self, [["i", "j"]])
+                                            self, ["i", "j"])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 

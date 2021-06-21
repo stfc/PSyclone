@@ -1878,7 +1878,7 @@ class LFRicMeshProperties(DynCollection):
                 if var_accesses is not None:
                     var_accesses.add_access(Signature(adj_face),
                                             AccessType.READ, self._kernel,
-                                            [[1]])
+                                            [1])
                 if not stub:
                     # This is a kernel call from within an invoke
                     cell_name = "cell"
