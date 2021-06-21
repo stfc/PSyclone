@@ -128,6 +128,27 @@ class AssignmentTrans(AdjointTransformation):
 
         parent = node.parent
 
+        # NEW WAY OF DOING THINGS. SHOULD BE MUCH SIMPLER.
+
+        # Split the RHS of the assignment into <term> +- <term> +- ...
+        rhs_terms, rhs_operators = self._split_nodes(
+            node.rhs, [BinaryOperation.Operator.ADD,
+                       BinaryOperation.Operator.SUB])
+
+        #increment= False
+        #for rhs_term in rhs_terms:
+        #    # Split the term into <active_variable> */ <expr>.
+        #    active_var, operator, expr = self._split_active_var(rhs_term)
+        #    if active_var.name.lower() == node.lhs.name.lower():
+        #        increment = True
+        #        # save values or add to a different list
+        #    else:
+        #        adjoint_assignment = ...
+        #        parent.children.insert(node.position, adjoint_assignment)
+        #node.detach()
+
+        # END NEW WAY
+
         # Create a list of adjoint assignments from the rhs terms
         adjoint_assignment_list = self._process(node.rhs, node.lhs)
 
