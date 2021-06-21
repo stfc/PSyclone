@@ -96,11 +96,11 @@ def teardown_function():
 # a set of unit tests for the generate function
 
 
-def test_non_existant_filename():
+def test_non_existent_filename():
     ''' checks that alg_gen raises appropriate error when a
-        non-existant filename is supplied '''
+        non-existent filename is supplied '''
     with pytest.raises(IOError):
-        generate("non_existant_file.f90")
+        generate("non_existent_file.f90")
 
 
 def test_invalid_api():
@@ -121,7 +121,7 @@ def test_invalid_kernel_paths():
                  api="dynamo0.1",
                  kernel_paths=[os.path.join(BASE_PATH, "dynamo0p1"),
                                "does_not_exist"])
-    assert "kernel search path 'does_not_exist' not found" in str(info.value)
+    assert "Kernel search path 'does_not_exist' not found" in str(info.value)
 
 
 def test_wrong_kernel_paths():
@@ -184,7 +184,7 @@ def test_script_file_not_found():
     with pytest.raises(IOError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="./non_existant.py")
+                        api="dynamo0.3", script_name="./non_existent.py")
 
 
 def test_script_file_not_found_relative():
@@ -195,7 +195,7 @@ def test_script_file_not_found_relative():
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="non_existant.py")
+                        api="dynamo0.3", script_name="non_existent.py")
 
 
 def test_script_file_too_short():
@@ -544,7 +544,7 @@ def test_main_directory_arg(capsys):
     with pytest.raises(SystemExit):
         main([filename, "-api", "dynamo0.3", "-d", "invalid"])
     _, output = capsys.readouterr()
-    assert "kernel search path 'invalid' not found" in output
+    assert "Kernel search path 'invalid' not found" in output
     # Multiple -d paths supplied
     main([filename, "-api", "dynamo0.3", "-d", DYN03_BASE_PATH,
           "-d", NEMO_BASE_PATH])
@@ -787,7 +787,7 @@ def test_invalid_kern_naming():
 
 
 def test_main_include_invalid(capsys, tmpdir):
-    ''' Check that the main function complains if a non-existant location
+    ''' Check that the main function complains if a non-existent location
     is specified as a search path for INCLUDE files. '''
     alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "nemo", "test_files", "include_stmt.f90"))

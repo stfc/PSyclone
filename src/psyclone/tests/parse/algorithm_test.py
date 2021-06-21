@@ -56,6 +56,8 @@ from psyclone.errors import InternalError
 
 LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                os.path.pardir, "test_files", "dynamo0p3")
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.path.pardir, "test_files", "gocean1p0")
 
 # This ParserFactory call needs to happen at the top-level in order for the
 # fparser.two.Fortran2003 import to work as expected.
@@ -82,7 +84,8 @@ def test_parse_kernel_paths():
     assert ("Supplied kernel search path does not exist or cannot be read"
             in str(info.value))
     # multiple kernel paths
-    parse(alg_name, api="dynamo0.3", kernel_paths=[LFRIC_BASE_PATH, "."])
+    parse(alg_name, api="dynamo0.3", kernel_paths=[
+        LFRIC_BASE_PATH, GOCEAN_BASE_PATH])
 
 # class parser() tests
 
@@ -102,7 +105,7 @@ def test_parser_init_kernel_paths():
     parser = Parser(kernel_paths=[])
     assert parser._kernel_paths == []
     # multiple kernel paths
-    paths = [LFRIC_BASE_PATH, "."]
+    paths = [LFRIC_BASE_PATH, GOCEAN_BASE_PATH]
     parser = Parser(kernel_paths=paths)
     assert parser._kernel_paths == paths
 
@@ -183,7 +186,7 @@ def test_parser_codedkernelcall_kernel_paths():
     assert ("Supplied kernel search path does not exist or cannot be read"
             in str(info.value))
     # multiple kernel paths
-    paths = [LFRIC_BASE_PATH, "."]
+    paths = [LFRIC_BASE_PATH, GOCEAN_BASE_PATH]
     parser._kernel_paths = paths
     parser.create_coded_kernel_call(kernel_name, args)
 

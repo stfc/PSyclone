@@ -237,9 +237,9 @@ specified directory:
     [code output]
 
 .. note:: The ``-d`` option can be repeated to add as many search
-    directories as is required, with the same constraint as before,
-    that there must be only one instance of the specified file within
-    (or below) the specified directories.
+    directories as is required, with the constraint that there must be
+    only one instance of the specified file within (or below) the
+    specified directories.
 
 Transformation script
 ---------------------

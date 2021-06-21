@@ -59,6 +59,8 @@ from psyclone.errors import InternalError
 
 LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                os.path.pardir, "test_files", "dynamo0p3")
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.path.pardir, "test_files", "gocean1p0")
 
 # Code fragment for testing standard kernel setup with
 # a type-bound procedure.
@@ -156,7 +158,7 @@ def test_getkernelfilepath_nodir():
 
     '''
     with pytest.raises(ParseError) as excinfo:
-        _ = get_kernel_filepath("test_mod", ["non/existant/file/path"], None)
+        _ = get_kernel_filepath("test_mod", ["non/existent/file/path"], None)
     assert ("Supplied kernel search path does not exist or cannot be "
             "read") in str(excinfo.value)
 
@@ -201,7 +203,8 @@ def test_getkernelfilepath_nomatch():
     kern_module_name = "testkern_mod"
     alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     with pytest.raises(ParseError) as info:
-        get_kernel_filepath(kern_module_name, ["."], alg_file_name)
+        get_kernel_filepath(
+            kern_module_name, [GOCEAN_BASE_PATH], alg_file_name)
     assert ("Kernel file 'testkern_mod.[fF]90' not found in"
             in str(info.value))
 
@@ -214,7 +217,7 @@ def test_getkernelfilepath_multidir():
     kern_module_name = "testkern_mod"
     alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     result = get_kernel_filepath(
-        kern_module_name, [".", LFRIC_BASE_PATH], alg_file_name)
+        kern_module_name, [GOCEAN_BASE_PATH, LFRIC_BASE_PATH], alg_file_name)
     assert "testkern_mod.F90" in result
 
 
@@ -273,7 +276,8 @@ def test_getkernelast_nomatch():
     kern_module_name = "testkern_mod"
     alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     with pytest.raises(ParseError) as info:
-        get_kernel_ast(kern_module_name, alg_file_name, ["."], False)
+        get_kernel_ast(
+            kern_module_name, alg_file_name, [GOCEAN_BASE_PATH], False)
     assert ("Kernel file 'testkern_mod.[fF]90' not found in"
             in str(info.value))
 
@@ -286,7 +290,8 @@ def test_getkernelast_multidir():
     kern_module_name = "testkern_mod"
     alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     result = get_kernel_ast(
-        kern_module_name, alg_file_name, [".", LFRIC_BASE_PATH], False)
+        kern_module_name, alg_file_name, [GOCEAN_BASE_PATH, LFRIC_BASE_PATH],
+        False)
     assert isinstance(result, BeginSource)
 
 # function get_kernel_interface
@@ -439,10 +444,10 @@ def test_kernelprocedure_notfound():
     module.
 
     '''
-    my_code = CODE.replace("=> test_code", "=> non_existant_code")
+    my_code = CODE.replace("=> test_code", "=> non_existent_code")
     with pytest.raises(ParseError) as excinfo:
         _ = create_kernelprocedure(my_code)
-    assert "Kernel subroutine 'non_existant_code' not found." \
+    assert "Kernel subroutine 'non_existent_code' not found." \
         in str(excinfo.value)
 
 
@@ -455,9 +460,9 @@ def test_kernelinterface_notfound():
     with pytest.raises(ParseError) as excinfo:
         my_code = CODE_INTERFACE.replace(
             "module procedure sub_code",
-            "module procedure sub_code, non_existant_code")
+            "module procedure sub_code, non_existent_code")
         _ = create_kernelprocedure(my_code)
-    assert "Kernel subroutine 'non_existant_code' not found." \
+    assert "Kernel subroutine 'non_existent_code' not found." \
         in str(excinfo.value)
 
 

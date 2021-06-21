@@ -71,9 +71,10 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
 
     :param str alg_filename: the file containing the algorithm \
         specification.
-    :param str api: the PSyclone API to use when parsing the code.
+    :param str api: the PSyclone API to use when parsing the \
+        code. Defaults to empty string.
     :param str invoke_name: the expected name of the invocation calls \
-        in the algorithm code.
+        in the algorithm code. Defaults to "invoke".
     :param kernel_paths: the paths to search for kernel source files \
         (if different from the location of the algorithm source). \
         Defaults to None.

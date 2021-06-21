@@ -431,7 +431,7 @@ def test_generate_schedule_empty_subroutine(parser):
     rsym = container.symbol_table.lookup("dummy_code")
     assert isinstance(rsym, RoutineSymbol)
 
-    # Test that we get an error for a nonexistant subroutine name
+    # Test that we get an error for a nonexistent subroutine name
     with pytest.raises(GenerationError) as error:
         schedule = processor.generate_schedule("nonexistent_code", ast)
     assert "Unexpected kernel AST. Could not find " \

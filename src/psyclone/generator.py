@@ -47,20 +47,26 @@
 '''
 
 from __future__ import absolute_import, print_function
+
 import argparse
-import sys
+import io
 import os
+import sys
 import traceback
+
+import six
+
+from psyclone import configuration
+from psyclone.alg_gen import Alg, NoInvokesError
+from psyclone.configuration import Config, ConfigurationError
+from psyclone.errors import GenerationError, InternalError
+from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError, InternalError
-from psyclone.alg_gen import NoInvokesError
-from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Loop
 from psyclone.version import __VERSION__
-from psyclone import configuration
-from psyclone.configuration import Config, ConfigurationError
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
@@ -102,11 +108,13 @@ def handle_script(script_name, psy):
         try:
             transmod = __import__(filename)
         except ImportError:
+            # pylint: disable=raise-missing-from
             raise GenerationError(
                 "generator: attempted to import '{0}' but script file "
                 "'{1}' has not been found".
                 format(filename, script_name))
         except SyntaxError:
+            # pylint: disable=raise-missing-from
             raise GenerationError(
                 "generator: attempted to import '{0}' but script file "
                 "'{1}' is not valid python".
@@ -120,6 +128,7 @@ def handle_script(script_name, psy):
                                                    exc_traceback)
                 e_str = '{\n' +\
                     ''.join('    ' + line for line in lines[2:]) + '}'
+                # pylint: disable=raise-missing-from
                 raise GenerationError(
                     "Generator: script file '{0}'\nraised the "
                     "following exception during execution "
@@ -153,6 +162,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     generate the modified algorithm code.
 
     :param str filename: the file containing the algorithm specification.
+    :param str api: the name of the API to use. Defaults to empty string.
     :param kernel_paths: the directories from which to recursively \
         search for the files containing the kernel source (if \
         different from the location of the algorithm specification). \
@@ -160,26 +170,26 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     :type kernel_paths: list of str or NoneType
     :param str script_name: a script file that can apply optimisations \
         to the PSy layer (can be a path to a file or a filename that \
-        relies on the PYTHONPATH to find the module).
+        relies on the PYTHONPATH to find the module). Defaults to None.
     :param bool line_length: a logical flag specifying whether we care \
         about line lengths being longer than 132 characters. If so, \
         the input (algorithm and kernel) code is checked to make sure \
         that it conforms. The default is False.
     :param bool distributed_memory: a logical flag specifying whether \
         to generate distributed memory code. The default is set in the \
-        config.py file.
+        'config.py' file.
     :param str kern_out_path: directory to which to write transformed \
-        kernel code.
+        kernel code. Defaults to empty string.
     :param bool kern_naming: the scheme to use when re-naming transformed \
-        kernels.
+        kernels. Defaults to "multiple".
     :return: 2-tuple containing fparser1 ASTs for the algorithm code and \
         the psy code.
     :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
              :py:class:`fparser.one.block_statements.Module`)
 
-    :raises IOError: if the filename or search path do not exist.
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
+    :raises IOError: if the filename or search path do not exist.
 
     For example:
 
@@ -211,37 +221,34 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     try:
         Config.get().kernel_naming = kern_naming
     except ValueError as verr:
-        raise GenerationError("Invalid kernel-renaming scheme supplied: {0}".
-                              format(str(verr)))
+        six.raise_from(
+            GenerationError("Invalid kernel-renaming scheme supplied: {0}".
+                            format(str(verr))), verr)
 
     if not os.path.isfile(filename):
-        raise IOError("file '{0}' not found".format(filename))
+        raise IOError("File '{0}' not found".format(filename))
     for kernel_path in kernel_paths:
         if not os.access(kernel_path, os.R_OK):
             raise IOError(
-                "kernel search path '{0}' not found".format(kernel_path))
-    try:
-        from psyclone.alg_gen import Alg
-        ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
-                                 kernel_paths=kernel_paths,
-                                 line_length=line_length)
-        psy = PSyFactory(api, distributed_memory=distributed_memory)\
-            .create(invoke_info)
-        if script_name is not None:
-            handle_script(script_name, psy)
+                "Kernel search path '{0}' not found".format(kernel_path))
 
-        # Add profiling nodes to schedule if automatic profiling has
-        # been requested.
-        from psyclone.psyir.nodes import Loop
-        for invoke in psy.invokes.invoke_list:
-            Profiler.add_profile_nodes(invoke.schedule, Loop)
+    ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
+                             kernel_paths=kernel_paths,
+                             line_length=line_length)
+    psy = PSyFactory(api, distributed_memory=distributed_memory)\
+        .create(invoke_info)
+    if script_name is not None:
+        handle_script(script_name, psy)
 
-        if api not in API_WITHOUT_ALGORITHM:
-            alg_gen = Alg(ast, psy).gen
-        else:
-            alg_gen = None
-    except Exception:
-        raise
+    # Add profiling nodes to schedule if automatic profiling has
+    # been requested.
+    for invoke in psy.invokes.invoke_list:
+        Profiler.add_profile_nodes(invoke.schedule, Loop)
+
+    if api not in API_WITHOUT_ALGORITHM:
+        alg_gen = Alg(ast, psy).gen
+    else:
+        alg_gen = None
 
     return alg_gen, psy.gen
 
@@ -438,9 +445,6 @@ def write_unicode_file(contents, filename):
     :raises InternalError: if an unrecognised Python version is found.
 
     '''
-    import six
-    import io
-
     if six.PY2:
         # In Python 2 a plain string must be encoded as unicode for the call
         # to write() below. unicode() does not exist in Python 3 since all

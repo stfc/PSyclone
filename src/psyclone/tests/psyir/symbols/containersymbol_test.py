@@ -141,7 +141,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     fminterface = FortranModuleInterface
     path = str(tmpdir)
 
-    # Try with a non-existant module and no include path
+    # Try with a non-existent module and no include path
     monkeypatch.setattr(Config.get(), "_include_paths", [])
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
@@ -149,7 +149,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
             "'fake_module.[f|F]90') not found in any of the include_paths "
             "directories []." in str(error.value))
 
-    # Try with a non-existant module and an existing directory
+    # Try with a non-existent module and an existing directory
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
