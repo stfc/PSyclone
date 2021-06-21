@@ -456,7 +456,7 @@ def test_get_scalar_argument_references(monkeypatch):
     # to trigger the error checking.
     for arg in kern._arguments.args:
         if arg.is_scalar:
-            monkeypatch.setattr(arg, "psyir_expression", lambda x: None)
+            monkeypatch.setattr(arg, "psyir_expression", lambda: None)
     with pytest.raises(InternalError) as err:
         kern.get_scalar_argument_references()
     assert ("Expected the PSyIR for a scalar argument to a BuiltIn kernel to "

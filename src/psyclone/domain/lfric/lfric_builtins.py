@@ -389,13 +389,11 @@ class LFRicBuiltIn(BuiltIn):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        table = self.scope.symbol_table
-
         arg_symbols = []
 
         for arg in self._arguments.args:
             if arg.is_field:
-                arg_symbols.append(arg.psyir_expression(table))
+                arg_symbols.append(arg.psyir_expression())
 
         return arg_symbols
 
@@ -412,14 +410,12 @@ class LFRicBuiltIn(BuiltIn):
             is not described by either a Symbol, a Literal or an Operation.
 
         '''
-        table = self.scope.symbol_table
-
         arg_symbols = []
 
         for arg in self._arguments.args:
             if not arg.is_scalar:
                 continue
-            psyir = arg.psyir_expression(table)
+            psyir = arg.psyir_expression()
             if isinstance(psyir, DataSymbol):
                 arg_symbols.append(Reference(psyir))
             elif isinstance(psyir, (Operation, Literal)):

@@ -64,7 +64,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import colored
-from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
+from psyclone.psyir.symbols import ScalarType, DataTypeSymbol, DataSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -1549,6 +1549,35 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     with pytest.raises(NotImplementedError) as err:
         arg.infer_datatype(proxy)
     assert "'f1' is not a scalar, field or operator argument" in str(err.value)
+
+
+def test_dynkernelargument_psyir_expression(monkeypatch):
+    ''' Tests for the psyir_expression() method of DynKernelArgument. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    # First argument should be a real scalar variable
+    first_arg = first_kernel.arguments.args[0]
+    psyir = first_arg.psyir_expression()
+    assert isinstance(psyir, DataSymbol)
+    assert psyir.name == "a"
+    assert isinstance(psyir.datatype, ScalarType)
+    assert psyir.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    # Second argument is a real-valued field
+    second_arg = first_kernel.arguments.args[1]
+    psyir = second_arg.psyir_expression()
+    assert isinstance(psyir, DataSymbol)
+    assert psyir.name == "f1_proxy"
+    assert isinstance(psyir.datatype, DataTypeSymbol)
+    assert psyir.datatype.name == "field_proxy_type"
+    # Break the argument type
+    monkeypatch.setattr(second_arg, "_argument_type", "gh_wrong")
+    with pytest.raises(NotImplementedError) as err:
+        second_arg.psyir_expression()
+    assert ("Unsupported kernel argument type: 'f1' is of type 'gh_wrong'"
+            in str(err))
 
 
 def test_arg_ref_name_method_error1():

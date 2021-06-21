@@ -8760,19 +8760,17 @@ class DynKernelArgument(KernelArgument):
             return self.proxy_name+"("+str(self._vector_size)+")"
         return self.proxy_name
 
-    def psyir_expression(self, symbol_table):
+    def psyir_expression(self):
         '''
         Looks up or creates a suitable Symbol for this kernel argument. If
         the argument is a scalar that has been provided as a literal (in the
         Algorithm layer) then the PSyIR of the expression is returned.
 
-        :param symbol_table: the SymbolTable in which to search and to which \
-                             any new symbols are added.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
         :raises NotImplementedError: if this argument is not a literal, scalar
                                      or field.
         '''
+        symbol_table = self._call.scope.symbol_table
+
         if self.is_literal:
             reader = FortranReader()
             return reader.psyir_from_literal_expression(self.name)
@@ -8789,9 +8787,8 @@ class DynKernelArgument(KernelArgument):
             return scalar_sym
 
         elif self.is_field:
-            # Although the argument to a Kernel is a field, the kernel
-            # itself accesses the data through a field_proxy because it is
-            # in-lined in the PSy layer.
+            # Although the argument to a Kernel is a field, the data itself
+            # is accessed through a field_proxy.
             try:
                 sym = symbol_table.lookup(self.proxy_name)
             except KeyError:
@@ -8804,7 +8801,7 @@ class DynKernelArgument(KernelArgument):
 
         else:
             raise NotImplementedError(
-                "Unsupported Builtin argument type: '{0}' is of type "
+                "Unsupported kernel argument type: '{0}' is of type "
                 "'{1}'".format(self.name, self.argument_type))
 
     @property
