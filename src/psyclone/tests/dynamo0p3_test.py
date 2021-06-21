@@ -62,8 +62,8 @@ from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
-from psyclone.psyir.nodes import colored
+from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
+from psyclone.psyir.nodes import colored, UnaryOperation
 from psyclone.psyir.symbols import ScalarType, DataTypeSymbol, DataSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
@@ -1578,6 +1578,16 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
         second_arg.psyir_expression()
     assert ("Unsupported kernel argument type: 'f1' is of type 'gh_wrong'"
             in str(err))
+    # Second argument to the (builtin) kernel is a literal expression
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.6.2_inc_X_powint_n_builtin.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.walk(BuiltIn)[1]
+    psyir = kern.arguments.args[1].psyir_expression()
+    assert isinstance(psyir, UnaryOperation)
+    assert psyir.operator == UnaryOperation.Operator.MINUS
 
 
 def test_arg_ref_name_method_error1():
