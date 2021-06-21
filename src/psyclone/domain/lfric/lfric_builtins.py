@@ -322,7 +322,7 @@ class LFRicBuiltIn(BuiltIn):
 
         '''
         # Ultimately this routine will be removed once the LFRic PSyIR
-        # has been full migrated to use the PSyIR backends (e.g. #1010).
+        # has been fully migrated to use the PSyIR backends (e.g. #1010).
         # For now we create a temporary copy of the PSyIR, lower it and
         # then create an f2pygen node from it.
         routine = Routine('dummy')
@@ -477,22 +477,6 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Increment a real-valued field"
 
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_X_plus_Y Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # We add each element of f1 to the corresponding element of f2
-        # and store the result back in f1 (real-valued fields).
-        field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
-        parent.add(AssignGen(parent, lhs=field_name1,
-                             rhs=field_name1 + " + " + field_name2))
-
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific builtin kernel to language-level PSyIR.
@@ -524,23 +508,6 @@ class LFRicAPlusXKern(LFRicBuiltIn):
     '''
     def __str__(self):
         return "Built-in: a_plus_X (real-valued fields)"
-
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
-        a_plus_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # We add a scalar value to each element of f1 and store the
-        # result in f2 (real-valued fields).
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name = self._arguments.args[1].name
-        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        parent.add(AssignGen(parent, lhs=field_name2,
-                             rhs=scalar_name + " + " + field_name1))
 
     def lower_to_language_level(self):
         '''
