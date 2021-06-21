@@ -8980,7 +8980,6 @@ class DynKernelArgument(KernelArgument):
         :raises NotImplementedError: if an unsupported argument type is found.
 
         '''
-        const = LFRicConstants()
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
         symbol_table = self._call.scope.symbol_table
@@ -9021,9 +9020,10 @@ class DynKernelArgument(KernelArgument):
         if self.is_scalar:
 
             api_config = Config.get().api_conf("dynamo0.3")
+            const = LFRicConstants()
 
             if self.intrinsic_type == 'real':
-                kind_name = api_config.default_kind["real"]
+                kind_name = const.DATA_TYPE_MAP["scalar"]["kind"]
                 prim_type = ScalarType.Intrinsic.REAL
             elif self.intrinsic_type == 'integer':
                 kind_name = api_config.default_kind["integer"]
@@ -9063,6 +9063,8 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_field:
 
+            const = LFRicConstants()
+
             # Find or create the DataTypeSymbol for the appropriate field type.
             # TODO #1258 the names of the Fortran modules should come from
             # the config file.
@@ -9085,6 +9087,8 @@ class DynKernelArgument(KernelArgument):
             return _find_or_create_type(mod_name, type_name)
 
         if self.is_operator:
+
+            const = LFRicConstants()
 
             # Find or create the DataTypeSymbol for the appropriate operator
             # type.
