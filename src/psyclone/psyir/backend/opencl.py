@@ -100,6 +100,7 @@ class OpenCLWriter(CWriter):
 
         :returns: text representation of the PSyIR tree.
         :rtype: str
+
         '''
         return self._visit(node)
 

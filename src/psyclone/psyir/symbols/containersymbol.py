@@ -59,11 +59,15 @@ class ContainerSymbol(Symbol):
         accessed in some other way). Defaults to \
         :py:class:`psyclone.psyir.symbols.FortranModuleInterface`
     :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
+
     '''
     def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY,
                  interface=None):
         super(ContainerSymbol, self).__init__(name, visibility=visibility)
 
+        # TODO #1298: ContainerSymbol currently defaults to
+        # FortranModuleInterface expecting externally defined containers
+        # which can be imported, but this is not always true.
         if interface is None:
             # By default it is a FortranModuleInterface
             self.interface = FortranModuleInterface()

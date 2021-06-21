@@ -154,6 +154,7 @@ class PSyIRVisitor(object):
         :rtype: str
 
         :raises TypeError: if the provided argument is not a PSyIR Node.
+
         '''
         if not isinstance(node, Node):
             raise TypeError(

@@ -468,8 +468,9 @@ class GOLoop(Loop):
         :param str topology_name: optional opology of the loop (unused atm).
         :param str loop_type: loop type - must be 'inner' or 'outer'.
 
-        :raises GenerationError: if the loop is not inserted inside a
+        :raises GenerationError: if the loop is not inserted inside a \
             GOInvokeSchedule region.
+
     '''
     _bounds_lookup = {}
 
