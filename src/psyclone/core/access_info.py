@@ -446,6 +446,21 @@ class VariablesAccessInfo(dict):
         # To make it easier for the user, we allow to implicitly create the
         # component indices instance here:
         if not isinstance(component_indices, ComponentIndices):
+            # Handle some convenient cases:
+            # 1. Add the right number of [] if component_indices is None:
+            if component_indices is None:
+                component_indices = [[]] * len(signature)
+            elif isinstance(component_indices, list):
+                # 2. If the argument is a simple list (not a list of lists),
+                # assume that the indices are for the last component, and
+                # add enough [] to give the right number of entries in the
+                # list that is used to create the ComponentIndices instance:
+                is_list_of_lists = all(isinstance(indx, list)
+                                       for indx in component_indices)
+                if not is_list_of_lists:
+                    component_indices = [[]] * (len(signature)-1) \
+                                      + [component_indices]
+
             component_indices = ComponentIndices(component_indices)
 
         if len(signature) != len(component_indices):

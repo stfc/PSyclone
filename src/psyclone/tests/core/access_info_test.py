@@ -249,6 +249,7 @@ def test_variables_access_info():
                                 "read_written: READ+WRITE, written: READ+WRITE"
 
 
+# -----------------------------------------------------------------------------
 def test_variables_access_info_errors():
     '''Tests if errors are handled correctly. '''
     var_accesses = VariablesAccessInfo()
@@ -277,6 +278,36 @@ def test_variables_access_info_errors():
                                 ComponentIndices([]))
     assert "Adding '[[]]' as indices for 'a%b', which do not have the same " \
            "number of components" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_component_indices_auto_extension():
+    '''To make it more convenient for the user certain combinations of
+    signature and component_indices in the add_location vall will
+    automatically add empty indices to the component_indices. For example.
+    adding "ssh_fld%grid%tmask" with indices ["i", "j"] will automatically
+    create compnent_indices based on [[], [], ["i", "j"]].
+    '''
+    var_accesses = VariablesAccessInfo()
+    node = Node()
+    sig = Signature(("a", "b", "c"))
+    # This should auto-extent the component indices,
+    # since they are specified as a simple list:
+    var_accesses.add_access(sig, AccessType.READ, node, ["i", "j"])
+    assert var_accesses[sig][0].component_indices.get() == [[], [], ["i", "j"]]
+
+    # This must trigger an exception, since a list of lists is used, which
+    # should not get any values added:
+    with pytest.raises(InternalError) as err:
+        var_accesses.add_access(sig, AccessType.READ, node, [["i", "j"]])
+    assert "Adding '[['i', 'j']]' as indices for 'a%b%c', which do not have " \
+           "the same number of components" in str(err.value)
+
+    component_indices = ComponentIndices(["i", "j"])
+    with pytest.raises(InternalError) as err:
+        var_accesses.add_access(sig, AccessType.READ, node, component_indices)
+    assert "Adding '[['i', 'j']]' as indices for 'a%b%c', which do not have " \
+           "the same number of components" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
