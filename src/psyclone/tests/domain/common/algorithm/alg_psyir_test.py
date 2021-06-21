@@ -47,7 +47,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
     BinaryOperation, Container
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
+from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, Symbol, REAL_TYPE
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
@@ -161,7 +161,7 @@ def test_algorithminvokecall_error():
 def test_aic_create():
     '''Check that the create method behaves as expected.'''
 
-    kernel_functor = KernelFunctor(TypeSymbol("dummy", REAL_TYPE))
+    kernel_functor = KernelFunctor(DataTypeSymbol("dummy", REAL_TYPE))
     routine = RoutineSymbol("hello")
     index = 10
     aic = AlgorithmInvokeCall.create(routine, [kernel_functor], index)
@@ -206,7 +206,7 @@ def test_aic_create_object(cls):
 def test_aic_validate_child():
     '''Check that the _validate_child method behaves as expected.'''
 
-    kernel_functor = KernelFunctor(TypeSymbol("dummy", REAL_TYPE))
+    kernel_functor = KernelFunctor(DataTypeSymbol("dummy", REAL_TYPE))
     assert AlgorithmInvokeCall._validate_child(0, kernel_functor)
     assert not AlgorithmInvokeCall._validate_child(0, "Invalid")
 
@@ -237,7 +237,7 @@ def test_aic_defroutinerootname():
 
     '''
     symbol_name = "dummy"
-    kernel_functor = KernelFunctor(TypeSymbol(symbol_name, REAL_TYPE))
+    kernel_functor = KernelFunctor(DataTypeSymbol(symbol_name, REAL_TYPE))
     routine = RoutineSymbol("hello")
     index = 3
     call = AlgorithmInvokeCall(routine, index)
@@ -452,7 +452,7 @@ def test_kernelfunctor():
     check that the symbol method works as expected.
 
     '''
-    symbol = TypeSymbol("hello", StructureType())
+    symbol = DataTypeSymbol("hello", StructureType())
     klr = KernelFunctor(symbol)
     assert klr._symbol == symbol
     assert klr.symbol == symbol
@@ -467,7 +467,7 @@ def test_kernelfunctor_parent():
 
     '''
     parent = Node()
-    symbol = TypeSymbol("hello", StructureType())
+    symbol = DataTypeSymbol("hello", StructureType())
     klr = KernelFunctor(symbol, parent=parent)
     assert klr.parent == parent
 
@@ -479,7 +479,7 @@ def test_kernelfunctor_invalid_symbol():
     '''
     with pytest.raises(TypeError) as info:
         _ = KernelFunctor(Symbol("hello"))
-    assert ("KernelFunctor symbol argument should be a TypeSymbol but "
+    assert ("KernelFunctor symbol argument should be a DataTypeSymbol but "
             "found 'Symbol'." in str(info.value))
 
 
@@ -493,7 +493,7 @@ def test_kernelfunctor_create(cls):
     '''Check that the create method of KernelFunctor works as expected.
 
     '''
-    symbol = TypeSymbol("hello", StructureType())
+    symbol = DataTypeSymbol("hello", StructureType())
     klr = cls.create(symbol, [])
     # pylint: disable=unidiomatic-typecheck
     assert type(klr) is cls
@@ -515,8 +515,8 @@ def test_kernelfunctor_create_invalid_symbol():
     symbol = Symbol("hello")
     with pytest.raises(GenerationError) as info:
         _ = KernelFunctor.create(symbol, [])
-    assert ("KernelFunctor create() symbol argument should be a TypeSymbol "
-            "but found 'Symbol'." in str(info.value))
+    assert ("KernelFunctor create() symbol argument should be a DataTypeSymbol"
+            " but found 'Symbol'." in str(info.value))
 
 
 def test_kernelfunctor_create_invalid_args1():
@@ -524,7 +524,7 @@ def test_kernelfunctor_create_invalid_args1():
     exception if the provided 'arguments' argument is not a list.
 
     '''
-    symbol = TypeSymbol("hello", StructureType())
+    symbol = DataTypeSymbol("hello", StructureType())
     with pytest.raises(GenerationError) as info:
         _ = KernelFunctor.create(symbol, "Not a list")
     assert ("KernelFunctor create() arguments argument should be a list "
@@ -538,7 +538,7 @@ def test_kernelfunctor_invalid_args2():
     variable)
 
     '''
-    symbol = TypeSymbol("hello", StructureType())
+    symbol = DataTypeSymbol("hello", StructureType())
     with pytest.raises(GenerationError) as info:
         _ = KernelFunctor.create(symbol, ["hello"])
     assert("Item 'str' can't be child 0 of 'KernelFunctor'. The valid "
@@ -548,7 +548,7 @@ def test_kernelfunctor_invalid_args2():
 def test_kernelfunctor_node_str():
     '''Check the node_str method of the KernelFunctor class.'''
 
-    symbol = TypeSymbol("hello", StructureType())
+    symbol = DataTypeSymbol("hello", StructureType())
     arg = Reference(Symbol("dummy"))
     klr = KernelFunctor.create(symbol, [arg])
     coloredtext = colored("KernelFunctor", KernelFunctor._colour)
@@ -558,7 +558,7 @@ def test_kernelfunctor_node_str():
 def test_kernelfunctor_str():
     '''Check the str method of the KernelFunctor class.'''
 
-    symbol = TypeSymbol("hello", StructureType())
+    symbol = DataTypeSymbol("hello", StructureType())
     arg = Reference(Symbol("dummy"))
     klr = KernelFunctor.create(symbol, [arg])
     assert klr.__str__() == "KernelFunctor[name='hello']"

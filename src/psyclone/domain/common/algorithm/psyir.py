@@ -41,7 +41,7 @@ import six
 
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference, Routine
-from psyclone.psyir.symbols import TypeSymbol, ContainerSymbol, \
+from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
     GlobalInterface, RoutineSymbol
 from psyclone.errors import GenerationError
 
@@ -269,19 +269,19 @@ class KernelFunctor(Reference):
         # pylint: disable=super-with-arguments
         super(KernelFunctor, self).__init__(symbol, parent=parent)
 
-        if not isinstance(symbol, TypeSymbol):
+        if not isinstance(symbol, DataTypeSymbol):
             raise TypeError(
-                "KernelFunctor symbol argument should be a TypeSymbol but "
+                "KernelFunctor symbol argument should be a DataTypeSymbol but "
                 "found '{0}'.".format(type(symbol).__name__))
 
     @classmethod
     def create(cls, symbol, arguments):
         '''Create an instance of the calling class given valid instances of a
-        TypeSymbol and a list of child nodes for its arguments.
+        DataTypeSymbol and a list of child nodes for its arguments.
 
         :param symbol: the name of the kernel type that this object \
             references.
-        :type symbol: py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :type symbol: py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         :param arguments: the arguments to this routine. These are \
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
@@ -290,10 +290,11 @@ class KernelFunctor(Reference):
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or subclass thereof.
 
         '''
-        if not isinstance(symbol, TypeSymbol):
+        if not isinstance(symbol, DataTypeSymbol):
             raise GenerationError(
                 "KernelFunctor create() symbol argument should be a "
-                "TypeSymbol but found '{0}'.".format(type(symbol).__name__))
+                "DataTypeSymbol but found '{0}'.".format(
+                    type(symbol).__name__))
         if not isinstance(arguments, list):
             raise GenerationError(
                 "KernelFunctor create() arguments argument should be a list "
