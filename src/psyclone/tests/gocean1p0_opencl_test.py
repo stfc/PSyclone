@@ -264,7 +264,7 @@ c_sizeof(field%grid%tmask(1,1))
       cl_mem = transfer(field%grid%tmask_device, cl_mem)
       ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
 size_in_bytes,c_loc(field%grid%tmask),0,c_null_ptr,c_null_ptr)
-      call check_status('"clenqueuewritebuffer tmask"', ierr)
+      call check_status('clenqueuewritebuffer tmask', ierr)
       size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%area_t(1,1))'''
     assert expected in generated_code
@@ -274,7 +274,7 @@ c_sizeof(field%grid%area_t(1,1))'''
                 "      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,"
                 "cl_true,0_8,size_in_bytes,c_loc(field%grid%{0}),0,"
                 "c_null_ptr,c_null_ptr)\n      call check_status("
-                "'\"clenqueuewritebuffer {0}_device\"', ierr)\n"
+                "'clenqueuewritebuffer {0}_device', ierr)\n"
                 "".format(grid_property))
         assert code in generated_code
 
@@ -363,10 +363,10 @@ def test_opencl_routines_initialisation(kernel_outputdir):
 (startx - 1)) * c_sizeof(to(1,1))
           ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_false,\
 offset_in_bytes,size_in_bytes,c_loc(to(startx,i)),0,c_null_ptr,c_null_ptr)
-          call check_status('"clenqueuereadbuffer"', ierr)
+          call check_status('clenqueuereadbuffer', ierr)
         end do
         if (blocking) then
-          call check_status('"clfinish on read"', clfinish(cmd_queues(1)))
+          call check_status('clfinish on read', clfinish(cmd_queues(1)))
         end if
       else
         size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
@@ -374,7 +374,7 @@ offset_in_bytes,size_in_bytes,c_loc(to(startx,i)),0,c_null_ptr,c_null_ptr)
 c_sizeof(to(1,1))
         ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_true,\
 offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
-        call check_status('"clenqueuereadbuffer"', ierr)
+        call check_status('clenqueuereadbuffer', ierr)
       end if
 
     end subroutine read_from_device'''
@@ -411,10 +411,10 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
 c_sizeof(from(1,1))
           ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_false,\
 offset_in_bytes,size_in_bytes,c_loc(from(startx,i)),0,c_null_ptr,c_null_ptr)
-          call check_status('"clenqueuewritebuffer"', ierr)
+          call check_status('clenqueuewritebuffer', ierr)
         end do
         if (blocking) then
-          call check_status('"clfinish on write"', clfinish(cmd_queues(1)))
+          call check_status('clfinish on write', clfinish(cmd_queues(1)))
         end if
       else
         size_in_bytes = int(size(from, 1) * ny, 8) * c_sizeof(from(1,1))
@@ -422,7 +422,7 @@ offset_in_bytes,size_in_bytes,c_loc(from(startx,i)),0,c_null_ptr,c_null_ptr)
 c_sizeof(from(1,1))
         ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,\
 offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
-        call check_status('"clenqueuewritebuffer"', ierr)
+        call check_status('clenqueuewritebuffer', ierr)
       end if
 
     end subroutine write_to_device'''
@@ -615,9 +615,6 @@ ystart - 1, ystop - 1)'''
 (mandatory in OpenCL < 2.0).", -1)
       END IF'''
 
-    expected += '''
-      ! Launch the kernel'''
-
     if debug_mode:
         # Check that there is no pending error in the queue before launching
         # the kernel
@@ -626,6 +623,7 @@ ystart - 1, ystop - 1)'''
       CALL check_status('Errors before compute_cu_code launch', ierr)'''
 
     expected += '''
+      ! Launch the kernel
       ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
 2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
 C_NULL_PTR)
@@ -777,6 +775,52 @@ def test_opencl_options_effects():
     generated_code = str(psy.gen)
     assert "! Block until all kernels have finished" not in generated_code
     assert "ierr = clFinish(cmd_queues(2))" not in generated_code
+
+
+@pytest.mark.parametrize("dist_mem", [True, False])
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_multiple_command_queues(dist_mem):
+    ''' Check that barriers (with clFinish) are inserted when a kernel (or a
+    haloexchange in distributed memory) is dispatched to a different queue than
+    its dependency predecessor. '''
+    psy, _ = get_invoke("single_invoke_two_identical_kernels.f90", API, idx=0,
+                        dist_mem=dist_mem)
+    sched = psy.invokes.invoke_list[0].schedule
+
+    # Set the boundaries inside the kernel
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+
+    # Set each kernel to run in a different OpenCL queue (kernel1 will run in
+    # queue 2 and kernel2 will run in queue 3. This is also different from the
+    # OCL_MANAGEMENT_QUEUE used by the haloexchange data transfer which will
+    # use queue 1, therefore barriers will always be needed in this example.
+    for idx, kernel in enumerate(sched.coded_kernels()):
+        trans.apply(kernel)
+        kernel.set_opencl_options({'queue_number': idx+2})
+
+    # Apply OpenCL transformation
+    otrans = OCLTrans()
+    otrans.apply(sched)
+
+    generated_code = str(psy.gen)
+
+    kernelbarrier = '''
+      ierr = clFinish(cmd_queues(2))
+      ! Launch the kernel'''
+
+    haloexbarrier = '''
+      ierr = clFinish(cmd_queues(2))
+      CALL cu_fld%halo_exchange(depth=1)'''
+
+    if dist_mem:
+        # In distributed memory the command_queue synchronisation happens
+        # before the HaloExchange (so it is not necessary before the kernel)
+        assert kernelbarrier not in generated_code
+        assert haloexbarrier in generated_code
+    else:
+        # Without distributed memory we need a barrier for the first
+        # command queue before launching the second kernel
+        assert kernelbarrier in generated_code
 
 
 def test_set_kern_args(kernel_outputdir):

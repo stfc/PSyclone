@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (Node, ProfileNode, Literal, Assignment,
                                   Reference, Return, KernelSchedule, Loop,
                                   CodeBlock)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
-    ContainerSymbol, TypeSymbol, UnknownFortranType, GlobalInterface
+    ContainerSymbol, DataTypeSymbol, UnknownFortranType, GlobalInterface
 from psyclone.profiler import Profiler
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
@@ -82,7 +82,7 @@ def test_profile_node_create():
     assert isinstance(csym, ContainerSymbol)
     # A type symbol for the derived type used to capture profiling data
     type_sym = table.lookup("profile_PSyDataType")
-    assert isinstance(type_sym, TypeSymbol)
+    assert isinstance(type_sym, DataTypeSymbol)
     assert isinstance(type_sym.interface, GlobalInterface)
     assert type_sym.interface.container_symbol is csym
     # A symbol of derived type to contain the profiling data. As it must
