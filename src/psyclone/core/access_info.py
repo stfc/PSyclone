@@ -448,6 +448,12 @@ class VariablesAccessInfo(dict):
         if not isinstance(component_indices, ComponentIndices):
             component_indices = ComponentIndices(component_indices)
 
+        if len(signature) != len(component_indices):
+            raise InternalError("Adding '{0}' as indices for '{1}', which "
+                                "do not have the same number of components."
+                                .format(str(component_indices),
+                                        str(signature)))
+
         if signature in self:
             self[signature].add_access_with_location(access_type,
                                                      self._location, node,

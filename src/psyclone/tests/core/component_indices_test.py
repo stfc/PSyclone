@@ -49,6 +49,7 @@ def test_component_indices():
     component_indices = ComponentIndices()
     assert component_indices.get() == [[]]
     assert str(component_indices) == "[[]]"
+    assert len(component_indices) == 1
 
     component_indices = ComponentIndices(["a"])
     assert component_indices.get() == [["a"]]
@@ -59,6 +60,7 @@ def test_component_indices():
     assert component_indices == [["a", "b"], ["c"]]
     assert component_indices[0] == ["a", "b"]
     assert component_indices[1] == ["c"]
+    assert len(component_indices) == 2
 
 
 # -----------------------------------------------------------------------------

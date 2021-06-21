@@ -60,6 +60,7 @@ def test_signature():
     assert sig[2] == "c"
     assert sig[-1] == "c"
     assert sig[0:2] == ("a", "b")
+    assert len(sig) == 3
     assert Signature(["a", "b", "c"]).is_structure
     assert not Signature(("a")).is_structure
 

@@ -92,6 +92,12 @@ class Signature(object):
         return len(self._signature) > 1
 
     # ------------------------------------------------------------------------
+    def __len__(self):
+        ''':returns: the number of components of this signature.
+        :rtype: int'''
+        return len(self._signature)
+
+    # ------------------------------------------------------------------------
     def __getitem__(self, indx):
         return self._signature[indx]
 

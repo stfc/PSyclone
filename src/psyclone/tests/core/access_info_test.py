@@ -53,7 +53,6 @@ def test_access_info():
     access_info = AccessInfo(AccessType.READ, location, Node())
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
-    print(str(access_info.component_indices))
     assert access_info.component_indices.get() == [[]]
     assert not access_info.is_array()
     assert str(access_info) == "READ(12)"
@@ -249,7 +248,13 @@ def test_variables_access_info():
     assert str(var_accesses) == "new_var: READ, read: READ, " \
                                 "read_written: READ+WRITE, written: READ+WRITE"
 
-    with pytest.raises(KeyError):
+
+def test_variables_access_info_errors():
+    '''Tests if errors are handled correctly. '''
+    var_accesses = VariablesAccessInfo()
+    node = Node()
+    var_accesses.add_access(Signature("read"), AccessType.READ, node)
+    with pytest.raises(KeyError) as err:
         _ = var_accesses[Signature("does_not_exist")]
     with pytest.raises(KeyError):
         var_accesses.is_read(Signature("does_not_exist"))
@@ -265,6 +270,13 @@ def test_variables_access_info():
 
     assert "Got 'no-signature' of type 'str' but expected it to be of type " \
            "psyclone.core.Signature." in str(err.value)
+
+    # Check for consistency between signature and component indices:
+    with pytest.raises(InternalError) as err:
+        var_accesses.add_access(Signature(("a", "b")), AccessType.READ, node,
+                                ComponentIndices([]))
+    assert "Adding '[[]]' as indices for 'a%b', which do not have the same " \
+           "number of components" in str(err.value)
 
 
 # -----------------------------------------------------------------------------

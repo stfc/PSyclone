@@ -89,6 +89,12 @@ class ComponentIndices(object):
         return self._component_indices[indx]
 
     # ------------------------------------------------------------------------
+    def __len__(self):
+        ''':returns: the number of components in this class.
+        :rtype: int '''
+        return len(self._component_indices)
+
+    # ------------------------------------------------------------------------
     def get(self):
         ''':returns: the component indices list of lists.
         :rtype: list of list of :py:class:`psyclone.psyir.nodes.Node`
