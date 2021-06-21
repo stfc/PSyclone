@@ -8613,7 +8613,7 @@ class DynKernelArgument(KernelArgument):
         # types of arguments (precision is already initialised to None
         # in the parent class).
         arg_datatype = self.infer_datatype(proxy=False)
-        if arg_datatype.name:
+        if hasattr(arg_datatype, "name"):
             self._datatype = arg_datatype.name
         else:
             self._datatype = None
