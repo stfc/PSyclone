@@ -8982,7 +8982,12 @@ class DynKernelArgument(KernelArgument):
         '''
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
-        symbol_table = self._call.scope.symbol_table
+        if self._call and hasattr(self._call.root, 'symbol_table'):
+            symbol_table = self._call.root.symbol_table
+        else:
+            # TODO 719 The symtab is not connected to other parts of the
+            # Stub generation.
+            symbol_table = SymbolTable()
         root_table = symbol_table
         while root_table.parent_symbol_table():
             root_table = root_table.parent_symbol_table()
@@ -9055,8 +9060,8 @@ class DynKernelArgument(KernelArgument):
                         const.UTILITIES_MOD_MAP["constants"]["module"])
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
-                        kind_name, INTEGER_SINGLE_TYPE,
-                        interface=GlobalInterface(constants_container))
+                    kind_name, INTEGER_SINGLE_TYPE,
+                    interface=GlobalInterface(constants_container))
                 root_table.add(kind_symbol)
 
             return ScalarType(prim_type, kind_symbol)
