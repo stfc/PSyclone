@@ -8607,6 +8607,20 @@ class DynKernelArgument(KernelArgument):
         # it. Note, issue #79 is also related to this.
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
 
+        # Initialise argument datatype (currently supported for scalars,
+        # fields and operators). Note: due to how infer_datatype is set up,
+        # this also sets up the precision of the argument data for these
+        # types of arguments (precision is already initialised to None
+        # in the parent class).
+        arg_datatype = self.infer_datatype(proxy=False)
+        if arg_datatype.name:
+            self._datatype = arg_datatype.name
+        else:
+            self._datatype = None
+        # Initialise argument proxy datatype to None (it can be retrieved
+        # for fields and operators via the appropriate property call).
+        self._proxy_datatype = None
+
     def ref_name(self, function_space=None):
         '''
         Returns the name used to dereference this type of argument (depends
@@ -8725,6 +8739,27 @@ class DynKernelArgument(KernelArgument):
         :rtype: str
         '''
         return self._intrinsic_type
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the type of this argument as defined in LFRic infrastructure.
+        :rtype: str or NoneType
+
+        '''
+        return self._datatype
+
+    @property
+    def proxy_datatype(self):
+        '''
+        :returns: the type of this argument's proxy (if it exists) as \
+                  defined in LFRic infrastructure.
+        :rtype: str or NoneType
+
+        '''
+        if self.is_field or self.is_operator:
+            return self.infer_datatype(proxy=True).name
+        return None
 
     @property
     def mesh(self):
@@ -8945,16 +8980,13 @@ class DynKernelArgument(KernelArgument):
         :raises NotImplementedError: if an unsupported argument type is found.
 
         '''
+        const = LFRicConstants()
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
         symbol_table = self._call.scope.symbol_table
         root_table = symbol_table
         while root_table.parent_symbol_table():
             root_table = root_table.parent_symbol_table()
-
-        proxy_str = ""
-        if proxy:
-            proxy_str = "_proxy"
 
         def _find_or_create_type(mod_name, type_name):
             '''
@@ -8971,20 +9003,20 @@ class DynKernelArgument(KernelArgument):
 
             '''
             try:
-                fld_type = symbol_table.lookup(type_name)
+                arg_datatype = symbol_table.lookup(type_name)
             except KeyError:
                 # TODO Once #1258 is done we should already have symbols for
                 # the various types at this point.
                 try:
-                    fld_mod_container = symbol_table.lookup(mod_name)
+                    arg_mod_container = symbol_table.lookup(mod_name)
                 except KeyError:
-                    fld_mod_container = ContainerSymbol(mod_name)
-                    root_table.add(fld_mod_container)
-                fld_type = DataTypeSymbol(
+                    arg_mod_container = ContainerSymbol(mod_name)
+                    root_table.add(arg_mod_container)
+                arg_datatype = DataTypeSymbol(
                     type_name, DeferredType(),
-                    interface=GlobalInterface(fld_mod_container))
-                root_table.add(fld_type)
-            return fld_type
+                    interface=GlobalInterface(arg_mod_container))
+                root_table.add(arg_datatype)
+            return arg_datatype
 
         if self.is_scalar:
 
@@ -9003,24 +9035,30 @@ class DynKernelArgument(KernelArgument):
                 raise NotImplementedError(
                     "Unsupported scalar type '{0}'".format(
                         self.intrinsic_type))
+
+            # Set scalar precision from the kind_name
+            self._precision = kind_name
+            # Add precision information to the SymbolTable
             try:
                 kind_symbol = symbol_table.lookup(kind_name)
             except KeyError:
                 try:
                     constants_container = symbol_table.lookup(
-                        "constants_mod")
+                        const.UTILITIES_MOD_MAP["constants"]["module"])
                 except KeyError:
                     # TODO Once #696 is done, we should *always* have a
                     # symbol for this container at this point so should
                     # raise an exception if we haven't. Also, the name
                     # of the Fortran module should be read from the config
                     # file.
-                    constants_container = ContainerSymbol("constants_mod")
+                    constants_container = ContainerSymbol(
+                        const.UTILITIES_MOD_MAP["constants"]["module"])
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
                         kind_name, INTEGER_SINGLE_TYPE,
                         interface=GlobalInterface(constants_container))
                 root_table.add(kind_symbol)
+
             return ScalarType(prim_type, kind_symbol)
 
         if self.is_field:
@@ -9029,15 +9067,20 @@ class DynKernelArgument(KernelArgument):
             # TODO #1258 the names of the Fortran modules should come from
             # the config file.
             if self.intrinsic_type == 'real':
-                mod_name = "field_mod"
-                type_name = "field{0}_type".format(proxy_str)
+                argtype = "field"
             elif self.intrinsic_type == 'integer':
-                mod_name = "integer_field_mod"
-                type_name = "integer_field{0}_type".format(proxy_str)
+                argtype = "integer_field"
             else:
                 raise NotImplementedError(
                     "Fields may only be of 'real' or 'integer' type but found "
                     "'{0}'".format(self.intrinsic_type))
+            # Retrieve module name, (proxy_)datatype and precision
+            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
+            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+            if proxy:
+                type_name = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+            else:
+                type_name = const.DATA_TYPE_MAP[argtype]["type"]
 
             return _find_or_create_type(mod_name, type_name)
 
@@ -9046,16 +9089,23 @@ class DynKernelArgument(KernelArgument):
             # Find or create the DataTypeSymbol for the appropriate operator
             # type.
             if self.argument_type == "gh_operator":
-                type_name = "operator{0}_type".format(proxy_str)
+                argtype = "lma_operator"
             elif self.argument_type == "gh_columnwise_operator":
-                type_name = "columnwise_operator{0}_type".format(proxy_str)
+                argtype = "cma_operator"
             else:
                 raise NotImplementedError(
                     "Operators may only be of 'gh_operator' or 'gh_columnwise_"
                     "operator' type but found '{0}'".format(
                         self.argument_type))
+            # Retrieve module name, datatype and precision
+            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
+            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+            if proxy:
+                type_name = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+            else:
+                type_name = const.DATA_TYPE_MAP[argtype]["type"]
 
-            return _find_or_create_type("operator_mod", type_name)
+            return _find_or_create_type(mod_name, type_name)
 
         raise NotImplementedError(
             "'{0}' is not a scalar, field or operator argument"
