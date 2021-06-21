@@ -2771,7 +2771,7 @@ class LFRicFields(DynCollection):
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
         if real_fld_arg_list:
-            fld_type = const.DATA_TYPE_MAP["field"]["type"]
+            fld_type = real_fld_args[0].datatype
             fld_mod = const.DATA_TYPE_MAP["field"]["module"]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=real_fld_arg_list,
@@ -2779,7 +2779,7 @@ class LFRicFields(DynCollection):
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
         if int_fld_arg_list:
-            fld_type = const.DATA_TYPE_MAP["integer_field"]["type"]
+            fld_type = int_fld_args[0].datatype
             fld_mod = const.DATA_TYPE_MAP["integer_field"]["module"]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=int_fld_arg_list,
@@ -2799,16 +2799,14 @@ class LFRicFields(DynCollection):
                                argument data.
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
         const = LFRicConstants()
-        intr_infmod = {"real": "field", "integer": "integer_field"}
 
         fld_args = psyGen.args_filter(
             self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
         for fld in fld_args:
             undf_name = fld.function_space.undf_name
             fld_dtype = fld.intrinsic_type
-            fld_kind = const.DATA_TYPE_MAP[intr_infmod[fld_dtype]]["kind"]
+            fld_kind = fld.precision
 
             # Check for invalid descriptor data type
             fld_ad_dtype = fld.descriptor.data_type
@@ -3337,13 +3335,12 @@ class LFRicScalarArgs(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
         const = LFRicConstants()
         # Real scalar arguments
-        dtype = const.MAPPING_DATA_TYPES["gh_real"]
-        dkind = api_config.default_kind[dtype]
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
+                dtype = self._real_scalars[intent][0].intrinsic_type
+                dkind = self._real_scalars[intent][0].precision
                 real_scalar_names = [arg.declaration_name for arg
                                      in self._real_scalars[intent]]
                 parent.add(
@@ -3352,10 +3349,10 @@ class LFRicScalarArgs(DynCollection):
                             intent=intent))
 
         # Integer scalar arguments
-        dtype = const.MAPPING_DATA_TYPES["gh_integer"]
-        dkind = api_config.default_kind[dtype]
         for intent in FORTRAN_INTENT_NAMES:
             if self._integer_scalars[intent]:
+                dtype = self._integer_scalars[intent][0].intrinsic_type
+                dkind = self._integer_scalars[intent][0].precision
                 integer_scalar_names = [arg.declaration_name for arg
                                         in self._integer_scalars[intent]]
                 parent.add(
@@ -3364,10 +3361,10 @@ class LFRicScalarArgs(DynCollection):
                             intent=intent))
 
         # Logical scalar arguments
-        dtype = const.MAPPING_DATA_TYPES["gh_logical"]
-        dkind = api_config.default_kind[dtype]
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
+                dtype = self._logical_scalars[intent][0].intrinsic_type
+                dkind = self._logical_scalars[intent][0].precision
                 if self._invoke:
                     const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
                     (self._invoke.invokes.psy.
@@ -3395,7 +3392,6 @@ class DynLMAOperators(DynCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
-        const = LFRicConstants()
 
         lma_args = psyGen.args_filter(
             self._kernel.arguments.args, arg_types=["gh_operator"])
@@ -3406,7 +3402,7 @@ class DynLMAOperators(DynCollection):
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
             op_dtype = arg.intrinsic_type
-            op_kind = const.DATA_TYPE_MAP["lma_operator"]["kind"]
+            op_kind = arg.precision
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
@@ -3437,7 +3433,7 @@ class DynLMAOperators(DynCollection):
         # Create a list of operator names
         op_arg_list = [arg.declaration_name for arg in op_args]
         if op_arg_list:
-            op_type = const.DATA_TYPE_MAP["lma_operator"]["type"]
+            op_type = op_args[0].datatype
             op_mod = const.DATA_TYPE_MAP["lma_operator"]["module"]
             parent.add(TypeDeclGen(parent, datatype=op_type,
                                    entity_decls=op_arg_list,
@@ -3467,7 +3463,6 @@ class DynCMAOperators(DynCollection):
 
     def __init__(self, node):
         super(DynCMAOperators, self).__init__(node)
-        const = LFRicConstants()
 
         # Look at every kernel call and generate a set of
         # the unique CMA operators involved. For each one we create a
@@ -3504,8 +3499,7 @@ class DynCMAOperators(DynCollection):
                         self._cma_ops[arg.name]["intent"] = arg.intent
                         self._cma_ops[arg.name]["datatype"] = \
                             arg.intrinsic_type
-                        self._cma_ops[arg.name]["kind"] = \
-                            const.DATA_TYPE_MAP["cma_operator"]["kind"]
+                        self._cma_ops[arg.name]["kind"] = arg.precision
                         # Keep a reference to the first CMA argument
                         if not self._first_cma_arg:
                             self._first_cma_arg = arg
@@ -3588,7 +3582,7 @@ class DynCMAOperators(DynCollection):
         # Create a list of column-wise operator names
         cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
         if cma_op_arg_list:
-            op_type = const.DATA_TYPE_MAP["cma_operator"]["type"]
+            op_type = cma_op_args[0].datatype
             op_mod = const.DATA_TYPE_MAP["cma_operator"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
