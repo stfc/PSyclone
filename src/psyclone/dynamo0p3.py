@@ -3037,22 +3037,28 @@ class DynProxies(DynCollection):
         '''
         # Declarations of real and integer field proxies
         const = LFRicConstants()
-        real_field_proxy_decs = self._invoke.unique_proxy_declarations(
+        # Real field proxies
+        real_field_proxies = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
+        real_field_proxy_decs = [arg.proxy_declaration_name for
+                                 arg in real_field_proxies]
         if real_field_proxy_decs:
-            fld_type = const.DATA_TYPE_MAP["field"]["proxy_type"]
+            fld_type = real_field_proxies[0].proxy_datatype
             fld_mod = const.DATA_TYPE_MAP["field"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_type,
                                    entity_decls=real_field_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
              add(fld_type))
-        int_field_proxy_decs = self._invoke.unique_proxy_declarations(
+        # Integer field proxies
+        int_field_proxies = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
+        int_field_proxy_decs = [arg.proxy_declaration_name for
+                                arg in int_field_proxies]
         if int_field_proxy_decs:
-            fld_type = const.DATA_TYPE_MAP["integer_field"]["proxy_type"]
+            fld_type = int_field_proxies.proxy_datatype
             fld_mod = const.DATA_TYPE_MAP["integer_field"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_type,
@@ -3061,10 +3067,10 @@ class DynProxies(DynCollection):
              add(fld_type))
 
         # Declarations of LMA operator proxies
-        op_proxy_decs = self._invoke.unique_proxy_declarations(
-            ["gh_operator"])
+        op_proxies = self._invoke.unique_proxy_declarations(["gh_operator"])
+        op_proxy_decs = [arg.proxy_declaration_name for arg in op_proxies]
         if op_proxy_decs:
-            op_type = const.DATA_TYPE_MAP["lma_operator"]["proxy_type"]
+            op_type = op_proxies[0].proxy_datatype
             op_mod = const.DATA_TYPE_MAP["lma_operator"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
@@ -3073,10 +3079,12 @@ class DynProxies(DynCollection):
              add(op_type))
 
         # Declarations of CMA operator proxies
-        cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
+        cma_op_proxies = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
+        cma_op_proxy_decs = [arg.proxy_declaration_name for
+                             arg in cma_op_proxies]
         if cma_op_proxy_decs:
-            op_type = const.DATA_TYPE_MAP["cma_operator"]["proxy_type"]
+            op_type = cma_op_proxies[0].proxy_datatype
             op_mod = const.DATA_TYPE_MAP["cma_operator"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
@@ -5171,9 +5179,10 @@ class DynInvoke(Invoke):
         :param intrinsic_type: optional intrinsic type of argument data.
         :type intrinsic_type: str
 
-        :returns: a list of all required proxy declarations for the \
-                  specified argument type.
-        :rtype: list of str
+        :returns: a list of all declared kernel arguments for the for the \
+                  specified argument type for which proxy declarations \
+                  are required.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
 
         :raises InternalError: if the supplied argument types are invalid.
         :raises InternalError: if an invalid access is specified, i.e. \
@@ -5210,7 +5219,7 @@ class DynInvoke(Invoke):
                     continue
                 if arg.text and arg.argument_type in argument_types \
                         and arg.proxy_declaration_name not in declarations:
-                    declarations.append(arg.proxy_declaration_name)
+                    declarations.append(arg)
         return declarations
 
     def arg_for_funcspace(self, fspace):
