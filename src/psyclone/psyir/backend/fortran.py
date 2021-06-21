@@ -1264,10 +1264,11 @@ class FortranWriter(PSyIRVisitor):
                 parent_fort_oper = get_fortran_operator(parent.operator)
                 if not is_fortran_intrinsic(parent_fort_oper):
                     return "({0}{1})".format(fort_oper, content)
-            if (isinstance(parent, BinaryOperation) and
-                    parent.operator in [BinaryOperation.Operator.POW,
-                                        BinaryOperation.Operator.SUB]):
-                return "({0}{1})".format(fort_oper, content)
+            if isinstance(parent, BinaryOperation):
+                if (parent.operator == BinaryOperation.Operator.POW or
+                        (parent.operator == BinaryOperation.Operator.SUB and
+                         node is parent.children[1])):
+                    return "({0}{1})".format(fort_oper, content)
             return "{0}{1}".format(fort_oper, content)
 
         except KeyError:
