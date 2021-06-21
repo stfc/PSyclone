@@ -3879,7 +3879,10 @@ class Argument(object):
             self._orig_name = ""
             self._form = ""
             self._is_literal = False
+        # Initialise access
         self._access = access
+        # Initialise precision to None
+        self._precision = None
 
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
@@ -4007,6 +4010,16 @@ class Argument(object):
         :rtype: str
 
         '''
+
+    @property
+    def precision(self):
+        '''
+        :returns: the precision of this argument. Default value is None, \
+                  with the specific implementations in different APIs.
+        :rtype: str or NoneType
+
+        '''
+        return self._precision
 
     @property
     def call(self):
