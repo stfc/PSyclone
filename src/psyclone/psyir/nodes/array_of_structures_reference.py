@@ -38,6 +38,8 @@
 node. '''
 
 from __future__ import absolute_import
+
+# Circular import if only '...nodes' is used:
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir import symbols
 from psyclone.psyir.nodes.array_of_structures_mixin import \
@@ -56,6 +58,7 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
     _children_valid_format = "MemberReference, [DataNode | Range]+"
     _text_name = "ArrayOfStructuresReference"
 
+    # pylint: disable=arguments-differ
     @staticmethod
     def create(symbol, indices, members):
         '''
@@ -64,7 +67,7 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
 
         The symbol to be referred to must be of DeferredType, UnknownType or
         ArrayType. If the latter then the 'intrinsic' type of the array must
-        be specified with a TypeSymbol. The member of the
+        be specified with a DataTypeSymbol. The member of the
         structure that is accessed is specified using the 'members'
         argument. e.g. for a reference to "field(idx)%bundle(2)%flag" this
         argument would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].

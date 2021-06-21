@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, TypeSymbol
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, DataTypeSymbol
 from psyclone.psyir.nodes import Literal, Reference, BinaryOperation, Return
 
 
@@ -98,8 +98,8 @@ def test_datasymbol_initialisation():
     assert isinstance(
         DataSymbol('a', REAL_SINGLE_TYPE,
                    visibility=Symbol.Visibility.PRIVATE), DataSymbol)
-    assert isinstance(DataSymbol('field', TypeSymbol("field_type",
-                                                     DeferredType())),
+    assert isinstance(DataSymbol('field', DataTypeSymbol("field_type",
+                                                         DeferredType())),
                       DataSymbol)
 
 
@@ -115,12 +115,12 @@ def test_datasymbol_init_errors():
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 'invalidtype')
     assert ("datatype of a DataSymbol must be specified using either a "
-            "DataType or a TypeSymbol but got: 'str'" in str(error.value))
+            "DataType or a DataTypeSymbol but got: 'str'" in str(error.value))
 
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 3)
     assert ("datatype of a DataSymbol must be specified using either a "
-            "DataType or a TypeSymbol but got:" in str(error.value))
+            "DataType or a DataTypeSymbol but got:" in str(error.value))
 
 
 def test_datasymbol_can_be_printed():

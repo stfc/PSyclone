@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,24 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''This module provides the TransformationError class.
-'''
+''' This module contains pytest tests for the DataTypeSymbol class. '''
 
-from psyclone.errors import PSycloneError
-
-
-class TransformationError(PSycloneError):
-    ''' Provides a PSyclone-specific error class for errors found during
-        code transformation operations. '''
-
-    def __init__(self, value):
-        PSycloneError.__init__(self, value)
-        self.value = "Transformation Error: "+str(value)
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir.symbols import DataTypeSymbol, DeferredType
 
 
-# TODO #1280: This currenetly causes 'more than one target for cross-reference'
-#             warnings when building the reference guide.
-# For AutoAPI documentation generation
-# __all__ = ["TransformationError"]
+def test_create_datatypesymbol():
+    ''' Check that a basic DataTypeSymbol can be created with the expected
+    properties. '''
+    sym = DataTypeSymbol("my_type", DeferredType())
+    assert sym.name == "my_type"
+    assert isinstance(sym.datatype, DeferredType)
+    assert str(sym) == "my_type : DataTypeSymbol"
+
+
+def test_create_datatypesymbol_wrong_datatype():
+    ''' Check that attempting to specify the type of a DataTypeSymbol with an
+    invalid type results in the expected error. '''
+    sym = DataTypeSymbol("my_type", DeferredType())
+    with pytest.raises(TypeError) as err:
+        sym.datatype = "integer"
+    assert ("datatype of a DataTypeSymbol must be specified using a "
+            "DataType but got: 'str'" in str(err.value))

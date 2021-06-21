@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,45 +44,103 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend import fparser2
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     get_literal_precision
-from psyclone.psyir.symbols import ScalarType, DataSymbol, INTEGER_TYPE
-from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule
+from psyclone.psyir.symbols import ScalarType, DataSymbol, INTEGER_TYPE, \
+    UnknownFortranType
+from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule, Assignment
 from psyclone.errors import InternalError
 
 
 @pytest.mark.parametrize("code, dtype",
                          [("'hello'", ScalarType.Intrinsic.CHARACTER),
+                          ('''"('hello: ',3A)"''',
+                           ScalarType.Intrinsic.CHARACTER),
+                          ('"hello"', ScalarType.Intrinsic.CHARACTER),
                           ("1", ScalarType.Intrinsic.INTEGER),
                           ("1.0", ScalarType.Intrinsic.REAL),
                           (".tRue.", ScalarType.Intrinsic.BOOLEAN),
                           (".false.", ScalarType.Intrinsic.BOOLEAN)])
-@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_literal(code, dtype):
     ''' Check that the fparser2 frontend can handle literals of all
     supported datatypes. Note that signed literals are represented in the
     PSyIR as a Unary operation on an unsigned literal.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
+    Note that because of fparser issue #295 we must include the quotation marks
+    with supplied character literals. Once that issue is done, these can
+    be removed.
+
     '''
     reader = FortranStringReader("x=" + code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
+    # Ensure the symbol table has an entry for "x"
+    fake_parent.symbol_table.add(DataSymbol("x",
+                                            UnknownFortranType("blah :: x")))
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.datatype.intrinsic == dtype
-    if dtype != ScalarType.Intrinsic.BOOLEAN:
-        assert literal.value == code
+    if dtype == ScalarType.Intrinsic.BOOLEAN:
+        # Remove wrapping dots and lower the case
+        assert literal.value == code.lower()[1:-1]
+    elif dtype == ScalarType.Intrinsic.CHARACTER:
+        # Remove wrapping quotes
+        assert literal.value == code[1:-1]
     else:
-        assert literal.value == code.lower()[1:-1]  # Remove wrapping dots
+        assert literal.value == code
+
+
+def test_handling_literal_char(fortran_reader):
+    ''' Check that the special cases where '' must be interpreted as ' and
+    "" as " result in CodeBlocks. (See Note 4.12 in the Fortran 2003
+    standard.) Also tests that any empty string is handled correctly. '''
+    code = """program my_prog
+  implicit none
+  character(len=32) :: my_str1, my_str2, my_str3, my_str4, fmt_str
+  my_str1 = 'a cat''s mat'
+  my_str2 = "a cat""s mat"
+  my_str3 = "a cat''s mat"
+  my_str4 = 'a cat""s mat'
+  fmt_str = "('Let''s see a cat''s mat')"
+  my_str3 = ''
+  my_str4 = ""
+
+end program my_prog
+"""
+    prog = fortran_reader.psyir_from_source(code)
+    assigns = prog.walk(Assignment)
+    for assign in assigns[:5]:
+        assert isinstance(assign.rhs, CodeBlock)
+    for assign in assigns[5:]:
+        assert isinstance(assign.rhs, Literal)
+        assert assign.rhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+        assert assign.rhs.value == ""
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_literal_char_without_quotes_error():
+    ''' Test that the check in the handler that the provided string is quoted
+    works as expected. This will need to be changed once fparser #295 is
+    done. '''
+    reader = FortranStringReader("x = 'hello'")
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    # Edit the resulting parse tree to remove the quotes
+    astmt.children[2].items = ("hello", None)
+    sched = Schedule()
+    sched.symbol_table.add(DataSymbol("x", UnknownFortranType("blah :: x")))
+    processor = Fparser2Reader()
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(sched, [astmt])
+    assert ("Char literal handler expects a quoted value but got: >>hello<<"
+            in str(err.value))
 
 
 @pytest.mark.parametrize("value,dprecision,intrinsic",
                          [("0.0", "rdef", ScalarType.Intrinsic.REAL),
                           ("1", "idef", ScalarType.Intrinsic.INTEGER),
-                          ("'hello'", "cdef", ScalarType.Intrinsic.CHARACTER),
+                          ("'hEllo'", "cdef", ScalarType.Intrinsic.CHARACTER),
                           (".tRue.", "ldef", ScalarType.Intrinsic.BOOLEAN),
                           (".false.", "ldef", ScalarType.Intrinsic.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
@@ -109,6 +167,8 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
     assert literal.datatype.intrinsic == intrinsic
     if intrinsic == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
+    elif intrinsic == ScalarType.Intrinsic.CHARACTER:
+        assert "'{0}'".format(literal.value) == value
     else:
         assert literal.value == value
     assert isinstance(literal.datatype.precision, DataSymbol)
@@ -122,16 +182,14 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
 @pytest.mark.parametrize("value,dprecision,intrinsic",
                          [("0.0", 16, ScalarType.Intrinsic.REAL),
                           ("1", 8, ScalarType.Intrinsic.INTEGER),
-                          ("'hello'", 1, ScalarType.Intrinsic.CHARACTER),
+                          ("'hellO'", 1, ScalarType.Intrinsic.CHARACTER),
                           (".tRue.", 4, ScalarType.Intrinsic.BOOLEAN),
                           (".false.", 8, ScalarType.Intrinsic.BOOLEAN)])
-@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_literal_precision_2(value, dprecision, intrinsic):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision value.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     if intrinsic == ScalarType.Intrinsic.CHARACTER:
         code = "x={0}_{1}".format(dprecision, value)
@@ -140,6 +198,9 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
+    # Ensure the symbol table has an entry for "x"
+    fake_parent.symbol_table.add(
+        DataSymbol("x", ScalarType(ScalarType.Intrinsic.INTEGER, 4)))
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -148,6 +209,8 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
     assert literal.datatype.intrinsic == intrinsic
     if intrinsic == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
+    elif intrinsic == ScalarType.Intrinsic.CHARACTER:
+        assert "'{0}'".format(literal.value) == value
     else:
         assert literal.value == value
     assert isinstance(literal.datatype.precision, int)

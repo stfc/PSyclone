@@ -562,10 +562,10 @@ def test_main_expected_fatal_error(capsys):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = ("\"Parse Error: Kernel 'testkern_type' called from the "
+    expected_output = ("Parse Error: Kernel 'testkern_type' called from the "
                        "algorithm layer with an insufficient number of "
                        "arguments as specified by the metadata. Expected at "
-                       "least '5' but found '4'.\"\n")
+                       "least '5' but found '4'.\n")
     assert output == expected_output
 
 
@@ -655,8 +655,8 @@ def test_main_no_invoke_alg_stdout(capsys):
 
     kern_file = open(kern_filename)
     kern_str = kern_file.read()
-    expected_output = ("Warning: 'Algorithm Error: Algorithm file contains no "
-                       "invoke() calls: refusing to generate empty PSy code'\n"
+    expected_output = ("Warning: Algorithm Error: Algorithm file contains no "
+                       "invoke() calls: refusing to generate empty PSy code\n"
                        "Transformed algorithm code:\n") + kern_str + "\n"
     assert expected_output == out
 
@@ -707,9 +707,9 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
     # check stdout contains warning
     kern_file = open(kern_filename)
     kern_str = kern_file.read()
-    expected_stdout = ("Warning: 'Algorithm Error: Algorithm file contains "
+    expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
                        "no invoke() calls: refusing to generate empty PSy "
-                       "code'\n")
+                       "code\n")
     assert expected_stdout == stdout
 
     # check alg file has same output as input file

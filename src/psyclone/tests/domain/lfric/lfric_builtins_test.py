@@ -47,12 +47,13 @@ import pytest
 
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes import Loop
+from psyclone.psyir.symbols import ScalarType, DataTypeSymbol, DataSymbol
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
-from psyclone.domain.lfric.lfric_builtins import (
-    LFRicBuiltInCallFactory, LFRicBuiltIn)
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -73,6 +74,16 @@ def setup():
 
 
 # ------------- Tests for built-ins methods and arguments ------------------- #
+
+
+def test_lfric_builtin_abstract_methods():
+    ''' Check that the LFRicBuiltIn class is abstract and that the __str__ and
+    gen_code() methods are abstract. '''
+    with pytest.raises(TypeError) as err:
+        lfric_builtins.LFRicBuiltIn()
+    assert "abstract class LFRicBuiltIn" in str(err.value)
+    assert "__str__" in str(err.value)
+    assert "gen_code" in str(err.value)
 
 
 def test_lfricbuiltin_missing_defs(monkeypatch):
@@ -365,36 +376,6 @@ def test_invalid_builtin_kernel():
             "recognised built-in" in str(excinfo.value))
 
 
-def test_lfricbuiltin_str(dist_mem):
-    ''' Check that we raise an error if we attempt to call the __str__
-    method on the parent LFRicBuiltIn class. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.12.3_single_pointwise_builtin.f90"),
-        api=API)
-    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    with pytest.raises(NotImplementedError) as excinfo:
-        LFRicBuiltIn.__str__(kern)
-    assert "LFRicBuiltIn.__str__ must be overridden" in str(excinfo.value)
-
-
-def test_lfricbuiltin_gen_code(dist_mem):
-    ''' Check that we raise an error if we attempt to call the gen_code()
-    method on the parent LFRicBuiltIn class. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.12.3_single_pointwise_builtin.f90"),
-        api=API)
-    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    with pytest.raises(NotImplementedError) as excinfo:
-        LFRicBuiltIn.gen_code(kern, None)
-    assert "LFRicBuiltIn.gen_code must be overridden" in str(excinfo.value)
-
-
 def test_lfricbuiltin_cma(dist_mem):
     ''' Check that an LFRicBuiltIn returns None for CMA type (because
     built-ins don't work with CMA operators). '''
@@ -416,14 +397,75 @@ def test_lfricbuiltfactory_str():
     assert "Factory for a call to an LFRic built-in." in str(factory)
 
 
+def test_get_argument_symbols(monkeypatch):
+    ''' Test the LFRicBuiltIn.get_argument_symbols() method.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.8_a_plus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    kern = loop.loop_body[0]
+    symbols = kern.get_argument_symbols()
+    for sym in symbols:
+        assert isinstance(sym, DataSymbol)
+        if sym.name == "a":
+            # We should have a symbol of ScalarType for the scalar
+            assert isinstance(sym.datatype, ScalarType)
+            assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+        else:
+            assert isinstance(sym.datatype, DataTypeSymbol)
+            assert sym.datatype.name == "field_proxy_type"
+    # Repeat but force the symbols for the scalar and field-proxy args to be
+    # created
+    del loop.parent.symbol_table._symbols["a"]
+    del kern.parent.symbol_table._symbols["f2_proxy"]
+    symbols = kern.get_argument_symbols()
+    for sym in symbols:
+        if sym.name == "a":
+            # We should have a symbol of ScalarType for the scalar
+            assert isinstance(sym.datatype, ScalarType)
+            assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+        else:
+            assert isinstance(sym.datatype, DataTypeSymbol)
+            assert sym.datatype.name == "field_proxy_type"
+
+    # Monkeypatch the scalar argument so that it appears to be an operator.
+    monkeypatch.setattr(kern._arguments.args[1], "_argument_type",
+                        LFRicConstants().VALID_OPERATOR_NAMES[0])
+    with pytest.raises(NotImplementedError) as err:
+        kern.get_argument_symbols()
+    assert ("Unsupported Builtin argument type: 'a' is of type "
+            "'{0}'".format(LFRicConstants().VALID_OPERATOR_NAMES[0]) in
+            str(err.value))
+
+
+def test_get_dof_loop_index_symbol():
+    ''' Test the LFRicBuiltIn.get_dof_loop_index_symbol() method. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.8_a_plus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    kern = loop.loop_body[0]
+    sym = kern.get_dof_loop_index_symbol()
+    assert sym.name == "df"
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+
+
 # ------------- Adding (scaled) real fields --------------------------------- #
 
 
-def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicXPlusYKern returns the expected
-    string and 2) we generate correct code for the built-in Z = X + Y
-    where X and Y are real-valued fields. Also check that we generate correct
-    bounds when Config.api_conf(API)._compute_annexed_dofs is False and True.
+def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that:
+    1) the str method of LFRicXPlusYKern returns the expected
+       string;
+    2) we generate correct code for the built-in Z = X + Y
+       where X and Y are real-valued fields;
+    3) that we generate correct bounds when
+       Config.api_conf(API)._compute_annexed_dofs is False and True;
+    4) that the lower_to_language_level() method works as expected.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -437,6 +479,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Add real-valued fields"
+
     # Test code generation
     code = str(psy.gen)
 
@@ -467,6 +510,15 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower-to-language method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f3, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      !\n"
@@ -488,11 +540,12 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     X = X + Y where X and Y are real-valued fields. Test with and without
     annexed dofs being computed as this affects the generated code.
+    Also test the lower_to_language_level() method for this builtin.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -522,6 +575,15 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lowering to language-level PSyIR
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output = (
             "      ! Call kernels and communication routines\n"
@@ -546,6 +608,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
     operation Y = a + X where 'a' is a real scalar and X and Y
     are real-valued fields. Test with and without annexed dofs being
     computed as this affects the generated code.
+    Also test the lower_to_language_level() method.
 
     '''
     api_config = Config.get().api_conf(API)

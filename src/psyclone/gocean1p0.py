@@ -50,29 +50,38 @@
 from __future__ import print_function
 import re
 import six
+
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+from fparser.two.parser import ParserFactory
+
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
 from psyclone.domain.gocean import GOceanConstants
-from psyclone.parse.kernel import Descriptor, KernelType
-from psyclone.parse.utils import ParseError
-from psyclone.parse.algorithm import Arg
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, \
-    REAL_TYPE, UnknownFortranType, LocalInterface
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.frontend.fortran import FortranReader
 import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
+from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.utils import ParseError
+from psyclone.parse.algorithm import Arg
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    CodedKern, Arguments, Argument, KernelArgument, args_filter, \
+    AccessType, ACCEnterDataDirective, HaloExchange
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
+    KernelSchedule, StructureReference, BinaryOperation, Reference, \
+    Call, Assignment
+from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
+    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
+    ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
+    REAL_TYPE, UnknownFortranType, LocalInterface
+
+# Specify which OpenCL command queue to use for management operations like
+# data transfers when generating an OpenCL PSy-layer
+# TODO #1134: This value should be moved to the OCLTrans when the
+# transformation logic is also moved there.
+_OCL_MANAGEMENT_QUEUE = 1
 
 
 class GOPSy(PSy):
@@ -369,14 +378,17 @@ class GOInvokeSchedule(InvokeSchedule):
     :param reserved_names: optional list of names that are not allowed in the \
                            new InvokeSchedule SymbolTable.
     :type reserved_names: list of str
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
     '''
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, name, alg_calls, reserved_names=None):
+    def __init__(self, name, alg_calls, reserved_names=None, parent=None):
         InvokeSchedule.__init__(self, name, GOKernCallFactory,
                                 GOBuiltInCallFactory,
-                                alg_calls, reserved_names)
+                                alg_calls, reserved_names, parent=parent)
 
         # The GOcean Constants Loops Bounds Optimization is implemented using
         # a flag parameter. It defaults to False and can be turned on applying
@@ -695,6 +707,11 @@ class GOLoop(Loop):
                                              "expression in an iteration "
                                              "space. But got "
                                              "{0}".format(bracket_expr))
+
+        # We need to make sure the fparser is properly initialised, which
+        # typically has not yet happened when the config file is read.
+        # Otherwise the Nonlabel_Do_Stmt cannot parse valid expressions.
+        ParserFactory().create(std="f2008")
 
         # Test both the outer loop indices (index 3 and 4) and inner
         # indices (index 5 and 6):
@@ -1135,7 +1152,7 @@ class GOKern(CodedKern):
                     i_expr = GOKern._format_access("i", i, current_depth)
                     j_expr = GOKern._format_access("j", j, current_depth)
                     var_accesses.add_access(Signature(var_name), arg.access,
-                                            self, [i_expr, j_expr])
+                                            self, [[i_expr, j_expr]])
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -1175,7 +1192,7 @@ class GOKern(CodedKern):
                     # reference to (i,j) so it is properly recognised as
                     # an array access.
                     var_accesses.add_access(Signature(var_name), arg.access,
-                                            self, ["i", "j"])
+                                            self, [["i", "j"]])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 
@@ -1308,11 +1325,42 @@ class GOKern(CodedKern):
         qlist = symtab.lookup_with_tag("opencl_cmd_queues").name
         flag = symtab.lookup_with_tag("opencl_error").name
 
-        # Then we call clEnqueueNDRangeKernel
-        parent.add(CommentGen(parent, " Launch the kernel"))
-        cnull = "C_NULL_PTR"
+        # Choose the command queue number to which to dispatch this kernel. We
+        # have do deal with possible dependencies to kernels dispatched in
+        # different command queues as the order of execution is not guaranteed.
         queue_number = self._opencl_options['queue_number']
         cmd_queue = qlist + "({0})".format(queue_number)
+        outer_loop = self.parent.parent.parent.parent
+        dependency = outer_loop.backward_dependence()
+
+        # If the dependency is a loop containing a kernel, add a barrier if the
+        # previous kernels were dispatched in a different command queue
+        if dependency and dependency.coded_kernels():
+            for kernel_dep in dependency.coded_kernels():
+                # TODO #1134: The OpenCL options should not leak from the
+                # OpenCL transformation.
+                # pylint: disable=protected-access
+                previous_queue = kernel_dep._opencl_options['queue_number']
+                if previous_queue != queue_number:
+                    # If the backward dependency is being executed in another
+                    # queue we add a barrier to make sure the previous kernel
+                    # has finished before this one starts.
+                    parent.add(AssignGen(
+                        parent,
+                        lhs=flag,
+                        rhs="clFinish({0}({1}))".format(
+                            qlist, str(previous_queue))))
+
+        # If the dependency is something other than a kernel, currently we
+        # dispatch everything else to queue _OCL_MANAGEMENT_QUEUE, so add a
+        # barrier if this kernel is not on queue _OCL_MANAGEMENT_QUEUE.
+        if dependency and not dependency.coded_kernels() and \
+                queue_number != _OCL_MANAGEMENT_QUEUE:
+            parent.add(AssignGen(
+                parent,
+                lhs=flag,
+                rhs="clFinish({0}({1}))".format(
+                    qlist, str(_OCL_MANAGEMENT_QUEUE))))
 
         if api_config.debug_mode:
             # Check that everything has succeeded before the kernel launch,
@@ -1325,6 +1373,9 @@ class GOKern(CodedKern):
                 parent, "check_status",
                 ["'Errors before {0} launch'".format(self.name), flag]))
 
+        # Then we call clEnqueueNDRangeKernel
+        parent.add(CommentGen(parent, " Launch the kernel"))
+        cnull = "C_NULL_PTR"
         args = ", ".join([
             # OpenCL Command Queue
             cmd_queue,
@@ -1721,24 +1772,24 @@ class GOKern(CodedKern):
             size_in_bytes = int({0} * {1}, 8) * &
                             c_sizeof(field%grid%tmask(1,1))
             cl_mem = transfer(field%grid%tmask_device, cl_mem)
-            ierr = clEnqueueWriteBuffer(cmd_queues(1), &
+            ierr = clEnqueueWriteBuffer(cmd_queues({2}), &
                         cl_mem, CL_TRUE, 0_8, size_in_bytes, &
                         C_LOC(field%grid%tmask), 0, C_NULL_PTR, C_NULL_PTR)
             CALL check_status("clEnqueueWriteBuffer tmask", ierr)
             ! Real grid buffers
             size_in_bytes = int({0} * {1}, 8) * &
                             c_sizeof(field%grid%area_t(1,1))
-        '''.format(num_x, num_y)
+        '''.format(num_x, num_y, _OCL_MANAGEMENT_QUEUE)
         write_str = '''
             cl_mem = transfer(field%grid%{0}_device, cl_mem)
-            ierr = clEnqueueWriteBuffer(cmd_queues(1), &
+            ierr = clEnqueueWriteBuffer(cmd_queues({1}), &
                        cl_mem, CL_TRUE, 0_8, size_in_bytes, &
                        C_LOC(field%grid%{0}), 0, C_NULL_PTR, C_NULL_PTR)
             CALL check_status("clEnqueueWriteBuffer {0}_device", ierr)
         '''
         for grid_prop in ['area_t', 'area_u', 'area_v', 'dx_u', 'dx_v',
                           'dx_t', 'dy_u', 'dy_v', 'dy_t', 'gphiu', 'gphiv']:
-            code += write_str.format(grid_prop)
+            code += write_str.format(grid_prop, _OCL_MANAGEMENT_QUEUE)
         code += "end subroutine write_device_grid"
 
         # Obtain the PSyIR representation of the code above
@@ -1977,14 +2028,14 @@ class GOKern(CodedKern):
                     size_in_bytes = int(nx, 8) * c_sizeof(to(1,1))
                     offset_in_bytes = int(size(to, 1) * (i-1) + (startx-1)) &
                                       * c_sizeof(to(1,1))
-                    ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
+                    ierr = clEnqueueReadBuffer(cmd_queues({0}), cl_mem, &
                         CL_FALSE, offset_in_bytes, size_in_bytes, &
                         C_LOC(to(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
                     CALL check_status("clEnqueueReadBuffer", ierr)
                 enddo
                 if (blocking) then
                     CALL check_status("clFinish on read", &
-                        clFinish(cmd_queues(1)))
+                        clFinish(cmd_queues({0})))
                 endif
             else
                 ! Copy across the whole starty:starty+ny rows in a single
@@ -1992,13 +2043,13 @@ class GOKern(CodedKern):
                 size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
                 offset_in_bytes = int(size(to,1)*(starty-1), 8) &
                                   * c_sizeof(to(1,1))
-                ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
+                ierr = clEnqueueReadBuffer(cmd_queues({0}), cl_mem, &
                     CL_TRUE, offset_in_bytes, size_in_bytes, &
                     C_LOC(to(1,starty)), 0, C_NULL_PTR, C_NULL_PTR)
                 CALL check_status("clEnqueueReadBuffer", ierr)
             endif
         end subroutine read_sub
-        '''
+        '''.format(_OCL_MANAGEMENT_QUEUE)
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
@@ -2069,14 +2120,14 @@ class GOKern(CodedKern):
                     size_in_bytes = int(nx, 8) * c_sizeof(from(1,1))
                     offset_in_bytes = int(size(from, 1) * (i-1) + (startx-1)) &
                                       * c_sizeof(from(1,1))
-                    ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
+                    ierr = clEnqueueWriteBuffer(cmd_queues({0}), cl_mem, &
                         CL_FALSE, offset_in_bytes, size_in_bytes, &
                         C_LOC(from(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
                     CALL check_status("clEnqueueWriteBuffer", ierr)
                 enddo
                 if (blocking) then
                     CALL check_status("clFinish on write", &
-                        clFinish(cmd_queues(1)))
+                        clFinish(cmd_queues({0})))
                 endif
             else
                 ! Copy across the whole starty:starty+ny rows in a single
@@ -2084,13 +2135,13 @@ class GOKern(CodedKern):
                 size_in_bytes = int(size(from,1) * ny, 8) * c_sizeof(from(1,1))
                 offset_in_bytes = int(size(from,1) * (starty-1)) &
                                   * c_sizeof(from(1,1))
-                ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
+                ierr = clEnqueueWriteBuffer(cmd_queues({0}), cl_mem, &
                     CL_TRUE, offset_in_bytes, size_in_bytes, &
                     C_LOC(from(1, starty)), 0, C_NULL_PTR, C_NULL_PTR)
                 CALL check_status("clEnqueueWriteBuffer", ierr)
             endif
         end subroutine write_sub
-        '''
+        '''.format(_OCL_MANAGEMENT_QUEUE)
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
@@ -2381,7 +2432,7 @@ class GOKernelArgument(KernelArgument):
         ''' Infer the datatype of this argument using the API rules.
 
         :returns: the datatype of this argument.
-        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+        :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         :raises InternalError: if this Argument type is not "field" or \
                                "scalar".
@@ -2394,8 +2445,8 @@ class GOKernelArgument(KernelArgument):
             # r2d_type can have DeferredType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = self._call.root.symbol_table.symbol_from_tag(
-                "r2d_type", symbol_type=TypeSymbol, datatype=DeferredType(),
-                interface=UnresolvedInterface())
+                "r2d_type", symbol_type=DataTypeSymbol,
+                datatype=DeferredType(), interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER
@@ -3147,6 +3198,32 @@ class GOHaloExchange(HaloExchange):
 
         # TODO 886: Currently only stencils of depth 1 are accepted by this
         # API, so the HaloExchange is hardcoded to depth 1.
+
+        if self.ancestor(InvokeSchedule).opencl:
+            # If the dependency is a Kernel dispatched in a different command
+            # queue than _OCL_MANAGEMENT_QUEUE, in order to guarantee that the
+            # haloexchange data transfer happens after the kernel is finished,
+            # we need to add a barrier to that previous queue.
+            dependency = self.backward_dependence()
+            if dependency and dependency.coded_kernels():
+                for kernel_dep in dependency.coded_kernels():
+                    # TODO #1134: The OpenCL options should not leak from the
+                    # OpenCL transformation.
+                    # pylint: disable=protected-access
+                    previous_queue = kernel_dep._opencl_options['queue_number']
+                    if previous_queue != _OCL_MANAGEMENT_QUEUE:
+                        # If the backward dependency is being executed in
+                        # another queue we add a barrier to make sure the
+                        # previous kernel has finished.
+                        stab = self.scope.symbol_table
+                        qlist = stab.lookup_with_tag("opencl_cmd_queues").name
+                        flag = stab.lookup_with_tag("opencl_error").name
+                        parent.add(AssignGen(
+                            parent,
+                            lhs=flag,
+                            rhs="clFinish({0}({1}))".format(
+                                qlist, str(previous_queue))))
+
         parent.add(
             CallGen(
                 parent, name=self._field.name +
