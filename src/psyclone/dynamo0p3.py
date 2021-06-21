@@ -73,6 +73,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
                              CodedKern, ACCEnterDataDirective,
                              OMPParallelDoDirective)
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
@@ -8758,6 +8759,53 @@ class DynKernelArgument(KernelArgument):
         if self._vector_size > 1:
             return self.proxy_name+"("+str(self._vector_size)+")"
         return self.proxy_name
+
+    def psyir_expression(self, symbol_table):
+        '''
+        Looks up or creates a suitable Symbol for this kernel argument. If
+        the argument is a scalar that has been provided as a literal (in the
+        Algorithm layer) then the PSyIR of the expression is returned.
+
+        :param symbol_table: the SymbolTable in which to search and to which \
+                             any new symbols are added.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :raises NotImplementedError: if this argument is not a literal, scalar
+                                     or field.
+        '''
+        if self.is_literal:
+            reader = FortranReader()
+            return reader.psyir_from_literal_expression(self.name)
+
+        elif self.is_scalar:
+            try:
+                scalar_sym = symbol_table.lookup(self.name)
+            except KeyError:
+                # TODO once #1258 is done the symbols should already exist
+                # and therefore we should raise an exception if not.
+                scalar_sym = symbol_table.new_symbol(
+                    self.name, symbol_type=DataSymbol,
+                    datatype=self.infer_datatype())
+            return scalar_sym
+
+        elif self.is_field:
+            # Although the argument to a Kernel is a field, the kernel
+            # itself accesses the data through a field_proxy because it is
+            # in-lined in the PSy layer.
+            try:
+                sym = symbol_table.lookup(self.proxy_name)
+            except KeyError:
+                # TODO once #1258 is done the symbols should already exist
+                # and therefore we should raise an exception if not.
+                sym = symbol_table.new_symbol(
+                    self.proxy_name, symbol_type=DataSymbol,
+                    datatype=self.infer_datatype(proxy=True))
+            return sym
+
+        else:
+            raise NotImplementedError(
+                "Unsupported Builtin argument type: '{0}' is of type "
+                "'{1}'".format(self.name, self.argument_type))
 
     @property
     def declaration_name(self):
