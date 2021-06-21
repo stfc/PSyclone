@@ -35,9 +35,12 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
+import six
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Assignment
+from psyclone.psyir.symbols import SymbolError
 
 
 class FortranReader(object):
@@ -60,11 +63,37 @@ class FortranReader(object):
 
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
         '''
         string_reader = FortranStringReader(source_code)
         parse_tree = self._parser(string_reader)
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
+
+    def psyir_from_literal_expression(self, source_code):
+        '''
+        Generate the PSyIR tree for the supplied Fortran literal expression.
+
+        :param str source_code: text of the expression to be parsed.
+
+        :returns: PSyIR representing the provided Fortran expression.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises NotImplementedError: if the supplied expression contains \
+                                     any variable symbols.
+        '''
+        from fparser.two.Fortran2003 import Expr
+        parse_tree = Expr(source_code)
+        # An Assignment has no symbol table so any attempts to lookup
+        # symbols in the supplied expression will raise a Symbol Error
+        fake_assign = Assignment()
+        try:
+            self._processor.process_nodes(fake_assign, [parse_tree])
+        except SymbolError as err:
+            six.raise_from(
+                NotImplementedError("Expression must contain only literals: "
+                                    "'{0}'".format(source_code)), err)
+        return fake_assign.children[0].detach()
 
     def psyir_from_file(self, file_path):
         ''' Generate the PSyIR tree representing the given Fortran file.
