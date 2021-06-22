@@ -3531,7 +3531,7 @@ class CodedKern(Kern):
         # in the kernel metadata as otherwise various compilation tests
         # fail.
         container_table = kern_schedule.root.symbol_table
-        for sym in container_table.local_typesymbols:
+        for sym in container_table.local_datatypesymbols:
             if isinstance(sym.datatype, UnknownFortranType):
                 orig_declaration = sym.datatype.declaration
                 sym.datatype.declaration = orig_declaration.replace(

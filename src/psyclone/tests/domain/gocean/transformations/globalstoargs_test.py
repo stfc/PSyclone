@@ -40,7 +40,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InvokeSchedule
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     CHARACTER_TYPE, Symbol
 from psyclone.transformations import KernelGlobalsToArguments, \
@@ -371,7 +371,8 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     monkeypatch.setattr(Symbol, "resolve_deferred", create_real)
 
     # Add 'rdt' into the symbol table
-    kernel.root.symbol_table.add(DataSymbol("rdt", REAL_TYPE))
+    kernel.ancestor(InvokeSchedule).symbol_table.add(
+        DataSymbol("rdt", REAL_TYPE))
 
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:

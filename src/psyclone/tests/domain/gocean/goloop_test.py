@@ -39,12 +39,15 @@
 '''Tests for the GOLoop class.'''
 
 from __future__ import absolute_import, print_function
+
 import pytest
+from fparser.two.parser import ParserFactory
+
+from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
     Literal, Loop
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.errors import GenerationError
 from psyclone.tests.utilities import get_invoke
 
 API = "gocean1.0"
@@ -53,7 +56,7 @@ API = "gocean1.0"
 def test_goloop_no_parent():
     ''' Attempt to generate code for a loop that has no GOInvokeSchedule
     as a parent '''
-    # First attempt to create with a  generic Schedule
+    # Attempt to create a GOLoop within a generic Schedule
     schedule = Schedule()
     with pytest.raises(GenerationError) as err:
         goloop = GOLoop(loop_type="inner", parent=schedule)
@@ -214,3 +217,34 @@ def test_goloop_validate_loop():
     assert ("All Kernels must expect the same grid offset but kernel 'kernel2'"
             " has offset 'offset_sw' which does not match 'offset_se'."
             in str(err.value))
+
+
+@pytest.fixture()
+def clear_fparser():
+    ''' The next test assumes that fparser has not been initialised.
+    This is achieved by calling `_setup([])` with an empty list, which
+    will remove all currently existing parser classes and functions.
+    At the end of the tests re-initialse parser. This must be done in
+    a fixture, since in case of a failure we still have to make sure
+    that fparser gets properly re-initialised.
+    '''
+
+    # Remove all fparser classes and functions
+    ParserFactory()._setup([])
+
+    # Now execute all tests
+    yield
+
+    # We need to properly initialise fparser,
+    # otherwise followup tests will fail (if this test should fail)
+    ParserFactory().create(std="f2008")
+
+
+@pytest.mark.usefixtures("clear_fparser")
+def test_loop_bound_when_fparser_not_initialised():
+    '''This reproduces #1272: a gocean custom loop boundary could
+    not be parsed if the parser has not been initialised previously.
+    Reproduce this bug by re-initialising fparser with an empty
+    class list.
+    '''
+    GOLoop.add_bounds("go_offset_sw:go_ct:internal_we_halo:1:2:3:4")

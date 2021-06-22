@@ -243,7 +243,7 @@ and ``INTEGER_DOUBLE_TYPE``;
 Array DataType
 --------------
 
-An Array datatype itself has another datatype (or TypeSymbol)
+An Array datatype itself has another datatype (or ``DataTypeSymbol``)
 specifying the type of its elements and a shape. The shape can have an
 arbitrary number of dimensions. Each dimension captures what is known
 about its extent. It is necessary to distinguish between four cases:
@@ -308,7 +308,7 @@ For example:
       ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
       ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
 
-  GRID_TYPE_SYMBOL = TypeSymbol("grid_type", GRID_TYPE)
+  GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 
   # A structure-type containing other structure types
   FIELD_TYPE_DEF = StructureType.create(

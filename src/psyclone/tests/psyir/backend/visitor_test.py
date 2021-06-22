@@ -185,6 +185,62 @@ def test_psyirvisitor_lower_dsl_concepts():
 
 
 
+def test_psyirvisitor_lower_dsl_concepts():
+    ''' Test that DSL concepts are lowered by the visitors but the node is not
+    modified after the visitor has finished. '''
+
+    class MyDSLNode(Statement):
+        ''' DSL Concept that lowers to a return statement '''
+        _text_name = "MyDSLNode"
+
+        def lower_to_language_level(self):
+            ''' MyDSLNode lowers to a return statement and adds a symbol
+            if it is inside an scoping region. '''
+            # This will break if this Node does not have a parent with
+            # a scope. This is intentional to cause an error during the
+            # lowering step.
+            self.scope.symbol_table.add(DataSymbol("val", REAL_TYPE))
+            self.replace_with(Return())
+
+    class MyVisitor(PSyIRVisitor):
+        ''' Simple Visitor for Schedules and Return statements '''
+        def return_node(self, _):
+            ''' Return node visitor '''
+            return "return"
+
+        def schedule_node(self, node):
+            ''' Schedule node visitor '''
+            return "schedule(" + self._visit(node.children[0]) + ")"
+
+    # Create a custom visitor and dsl-level node
+    visitor = MyVisitor(indent_string=" ", initial_indent_depth=4)
+    schedule = Schedule()
+    my_dsl_node = MyDSLNode()
+    schedule.addchild(my_dsl_node)
+
+    # Visit DSL Node in a tree (the tree should not be modified)
+    assert visitor(schedule) == "schedule(return)"
+    assert isinstance(schedule.children[0], MyDSLNode)
+    assert schedule.children[0] is my_dsl_node
+    assert len(schedule.symbol_table.symbols) == 0
+
+    # Visit DSL Node directly (the tree is also not modified)
+    assert visitor(my_dsl_node) == "return"
+    assert isinstance(my_dsl_node, MyDSLNode)
+    assert isinstance(schedule.children[0], MyDSLNode)
+    assert len(my_dsl_node.scope.symbol_table.symbols) == 0
+
+    # Visit DSL node without a parent, which is an invalid state to
+    # lower this node
+    my_dsl_node.detach()
+    with pytest.raises(VisitorError) as excinfo:
+        visitor(my_dsl_node)
+    assert (
+        "Failed to lower 'MyDSLNode[]'. Note that some nodes need to be "
+        "lowered from an ancestor in order to properly apply their in-tree "
+        "modifications." in str(excinfo.value))
+
+
 def test_psyirvisitor_visit_no_method1():
     '''Check that an exception is raised if the method for the Node class
     does not exist.

@@ -113,7 +113,7 @@ class AccessInfo(object):
     def component_indices(self, component_indices):
         '''Sets the indices for this AccessInfo instance. The component_indices
         contains a list of indices for each component of the signature,
-        e.g. for `a(i)%b(j,k)%c` the indices group will be
+        e.g. for `a(i)%b(j,k)%c` the component_indices will be
         `[ [i], [j, k], [] ]` (with each element being the PSyIR of the
         index expression).
 

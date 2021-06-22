@@ -45,7 +45,7 @@ import copy
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
-    ContainerSymbol, TypeSymbol, RoutineSymbol, SymbolError
+    ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError
 from psyclone.errors import InternalError
 
 
@@ -900,13 +900,13 @@ class SymbolTable(object):
                                                           ContainerSymbol)]
 
     @property
-    def local_typesymbols(self):
+    def local_datatypesymbols(self):
         '''
-        :returns: the local TypeSymbols present in the Symbol Table.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :returns: the local DataTypeSymbols present in the Symbol Table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
         return [sym for sym in self.symbols if
-                (isinstance(sym, TypeSymbol) and sym.is_local)]
+                (isinstance(sym, DataTypeSymbol) and sym.is_local)]
 
     @property
     def iteration_indices(self):

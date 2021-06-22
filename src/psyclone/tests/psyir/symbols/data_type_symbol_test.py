@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,38 +34,38 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains pytest tests for the TypeSymbol class. '''
+''' This module contains pytest tests for the DataTypeSymbol class. '''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import TypeSymbol, DeferredType, Symbol, \
+from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, Symbol, \
     UnresolvedInterface
 
 
-def test_create_typesymbol():
-    ''' Check that a basic TypeSymbol can be created with the expected
+def test_create_datatypesymbol():
+    ''' Check that a basic DataTypeSymbol can be created with the expected
     properties. '''
-    sym = TypeSymbol("my_type", DeferredType())
+    sym = DataTypeSymbol("my_type", DeferredType())
     assert sym.name == "my_type"
     assert isinstance(sym.datatype, DeferredType)
-    assert str(sym) == "my_type : TypeSymbol"
+    assert str(sym) == "my_type : DataTypeSymbol"
 
 
-def test_create_typesymbol_wrong_datatype():
-    ''' Check that attempting to specify the type of a TypeSymbol with an
+def test_create_datatypesymbol_wrong_datatype():
+    ''' Check that attempting to specify the type of a DataTypeSymbol with an
     invalid type results in the expected error. '''
-    sym = TypeSymbol("my_type", DeferredType())
+    sym = DataTypeSymbol("my_type", DeferredType())
     with pytest.raises(TypeError) as err:
         sym.datatype = "integer"
-    assert ("datatype of a TypeSymbol must be specified using a "
+    assert ("datatype of a DataTypeSymbol must be specified using a "
             "DataType but got: 'str'" in str(err.value))
 
 
-def test_typesymbol_copy():
-    ''' Check that a TypeSymbol can be copied. '''
-    symbol = TypeSymbol("my_type", DeferredType(),
-                        visibility=Symbol.Visibility.PRIVATE,
-                        interface=UnresolvedInterface())
+def test_datatypesymbol_copy():
+    ''' Check that a DataTypeSymbol can be copied. '''
+    symbol = DataTypeSymbol("my_type", DeferredType(),
+                            visibility=Symbol.Visibility.PRIVATE,
+                            interface=UnresolvedInterface())
     new_symbol = symbol.copy()
     assert new_symbol is not symbol
     assert new_symbol.name == "my_type"

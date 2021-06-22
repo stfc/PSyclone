@@ -56,7 +56,7 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, GlobalInterface, ScalarType, INTEGER_TYPE, \
-    ArgumentInterface, TypeSymbol
+    ArgumentInterface, DataTypeSymbol
 from psyclone.psyir.nodes import Node, StructureReference, Member, \
     StructureMember, Reference
 
@@ -1430,8 +1430,8 @@ def test_gokernelargument_infer_datatype():
     assert datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert datatype.precision.name == "go_wp"
 
-    # The second argument is a r2d_field (imported TypeSymbol)
-    assert isinstance(argument_list.args[1].infer_datatype(), TypeSymbol)
+    # The second argument is a r2d_field (imported DataTypeSymbol)
+    assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
     assert argument_list.args[1].infer_datatype().name == "r2d_field"
 
     # Parse an invoke with a scalar int and a field
@@ -1449,8 +1449,8 @@ def test_gokernelargument_infer_datatype():
     # The first argument is a scalar Integer
     assert argument_list.args[0].infer_datatype() == INTEGER_TYPE
 
-    # The second argument is a r2d_field (imported TypeSymbol)
-    assert isinstance(argument_list.args[1].infer_datatype(), TypeSymbol)
+    # The second argument is a r2d_field (imported DataTypeSymbol)
+    assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
     assert argument_list.args[1].infer_datatype().name == "r2d_field"
 
     # Test an incompatible Kernel Argument
