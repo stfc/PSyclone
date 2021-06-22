@@ -3414,6 +3414,11 @@ class Fparser2Reader(object):
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
                 routine_symbol.specialise(RoutineSymbol)
+                # TODO #1113 - the above specialise() call does not yet
+                # support adding properties to the symbol so we have to
+                # manually set the datatype of the RoutineSymbol. As this is
+                # a call, it must be a subroutine which has no associated type.
+                routine_symbol.datatype = NoType()
             elif type(routine_symbol) is RoutineSymbol:
                 # This symbol is already the expected type
                 pass
