@@ -1013,62 +1013,83 @@ def test_args_filter2():
     assert len(args) == len(expected_output)
 
 
-def test_reduction_var_error():
+def test_reduction_var_no_scalar_error(dist_mem):
     ''' Check that we raise an exception if the zero_reduction_variable()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        call = schedule.kernels()[0]
-        # args[1] is of type gh_field
-        call._reduction_arg = call.arguments.args[1]
-        with pytest.raises(GenerationError) as err:
-            call.zero_reduction_variable(None)
-        assert ("Kern.zero_reduction_variable() should be a scalar but "
-                "found 'gh_field'." in str(err.value))
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    call = schedule.kernels()[0]
+    # args[1] is of type gh_field
+    call._reduction_arg = call.arguments.args[1]
+    with pytest.raises(GenerationError) as err:
+        call.zero_reduction_variable(None)
+    assert("Kern.zero_reduction_variable() should be a scalar but "
+           "found 'gh_field'." in str(err.value))
 
 
-def test_reduction_sum_error():
+def test_reduction_var_invalid_scalar_error(dist_mem):
+    ''' Check that we raise an exception if the zero_reduction_variable()
+    method is provided with an incorrect intrinsic type of scalar
+    argument (other than 'real' or 'integer'.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.7_single_invoke_3scalar.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    call = schedule.kernels()[0]
+    # args[5] is a scalar of data type gh_logical
+    call._reduction_arg = call.arguments.args[5]
+    with pytest.raises(GenerationError) as err:
+        call.zero_reduction_variable(None)
+    assert("Kern.zero_reduction_variable() should be either a 'real' "
+           "or an 'integer' scalar but found scalar of type 'logical'."
+           in str(err.value))
+
+
+def test_reduction_sum_error(dist_mem):
     ''' Check that we raise an exception if the reduction_sum_loop()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        call = schedule.kernels()[0]
-        # args[1] is of type gh_field
-        call._reduction_arg = call.arguments.args[1]
-        with pytest.raises(GenerationError) as err:
-            call.reduction_sum_loop(None)
-        assert (
-            "Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
-            "reduction_sum_loop(). Expected one of ['gh_sum']."
-            in str(err.value))
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    call = schedule.kernels()[0]
+    # args[1] is of type gh_field
+    call._reduction_arg = call.arguments.args[1]
+    with pytest.raises(GenerationError) as err:
+        call.reduction_sum_loop(None)
+    assert(
+        "Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
+        "reduction_sum_loop(). Expected one of ['gh_sum']."
+        in str(err.value))
 
 
-def test_call_multi_reduction_error(monkeypatch):
+def test_call_multi_reduction_error(monkeypatch, dist_mem):
     '''Check that we raise an exception if we try to create a Call (a
     Kernel or a Builtin) with more than one reduction in it. Since we have
     a rule that only Builtins can write to scalars we need a built-in that
-    attempts to perform two reductions. '''
+    attempts to perform two reductions.
+
+    '''
     monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "multi_reduction_builtins_mod.f90"))
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
-            api="dynamo0.3")
-        with pytest.raises(GenerationError) as err:
-            _ = PSyFactory("dynamo0.3",
-                           distributed_memory=dist_mem).create(invoke_info)
-        assert (
-            "PSyclone currently only supports a single reduction in a kernel "
-            "or builtin" in str(err.value))
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
+        api="dynamo0.3")
+    with pytest.raises(GenerationError) as err:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=dist_mem).create(invoke_info)
+    assert(
+        "PSyclone currently only supports a single reduction in a kernel "
+        "or builtin" in str(err.value))
 
 
 def test_invokes_wrong_schedule_gen_code():
