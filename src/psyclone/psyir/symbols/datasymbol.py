@@ -183,7 +183,7 @@ class DataSymbol(TypedSymbol):
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        return type(self)(self.name, self.datatype, visibility=self.visibility,
+        return DataSymbol(self.name, self.datatype, visibility=self.visibility,
                           interface=self.interface,
                           constant_value=self.constant_value)
 
