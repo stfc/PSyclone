@@ -38,8 +38,8 @@
         14) PR #1236 for #1028. Extends the core variable-access analysis
         functionality to support structures (derived types).
 
-	15) PR #1239 towards #1237. Adds lower_to_language_level() method
-	for some LFRic builtins.
+        15) PR #1239 towards #1237. Adds lower_to_language_level() method
+        for some LFRic builtins.
 
         16) PR #1195 for #1194. Fixes some incorrect str(error) usage in the
         tests, introduces a PSycloneError base class and adds tests to make
@@ -55,9 +55,15 @@
 
         19) #1287 towards #1259. Rename TypeSymbol to DataTypeSymbol.
 
-	20) #1265 for #1260. Fixes various bugs to better support PSyIR
-	code generation. Includes function return values and string
-	storage in PSyIR.
+        20) #1265 for #1260. Fixes various bugs to better support PSyIR
+        code generation. Includes function return values and string
+        storage in PSyIR.
+
+        21) #1293 for #1178, #1179, #1285. Update installation instructions
+        to include autoapi and tex-gyre, and added allclean target to
+        reference guide to clean up all automatically created files.
+
+        22) #1278 for #1271. Updates dependency tools to use Signatures.
 
 release 2.0.0 28th April 2021
 
