@@ -21,7 +21,6 @@
 <text text-anchor="start" x="179.5" y="-175.3" font-family="Times,serif" font-size="14.00" fill="#000000">gen_code()</text>
 <text text-anchor="start" x="179.5" y="-160.3" font-family="Times,serif" font-size="14.00" fill="#000000">is_coloured()</text>
 <text text-anchor="start" x="179.5" y="-145.3" font-family="Times,serif" font-size="14.00" fill="#000000">unique_fss()</text>
-<text text-anchor="start" x="179.5" y="-130.3" font-family="Times,serif" font-size="14.00" fill="#000000">unique_proxy_declarations()</text>
 </g>
 <!-- 35 -->
 <g id="node3" class="node">

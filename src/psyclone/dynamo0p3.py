@@ -2735,20 +2735,20 @@ class LFRicFields(DynCollection):
         fld_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES)
         # Filter field arguments by intent and intrinsic type
-        real_fld_args = self._invoke.unique_declarations(
+        real_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        int_fld_args = self._invoke.unique_declarations(
+        int_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
 
         # Create lists of field names for real- and integer-valued fields
         fld_arg_list = [arg.declaration_name for arg in fld_args]
-        real_fld_arg_list = [arg.declaration_name for arg in real_fld_args]
-        int_fld_arg_list = [arg.declaration_name for arg in int_fld_args]
+        real_field_arg_list = [arg.declaration_name for arg in real_field_args]
+        int_field_arg_list = [arg.declaration_name for arg in int_field_args]
         # Check for unsupported intrinsic types
         fld_inv = (set(fld_arg_list) -
-                   set(real_fld_arg_list).union(set(int_fld_arg_list)))
+                   set(real_field_arg_list).union(set(int_field_arg_list)))
         if fld_inv:
             raise InternalError(
                 "Found unsupported intrinsic types for the field "
@@ -2759,7 +2759,7 @@ class LFRicFields(DynCollection):
         # integer field lists (for instance if passed to one kernel as a
         # real-valued and to another kernel as an integer-valued field)
         fld_multi_type = \
-            set(real_fld_arg_list).intersection(set(int_fld_arg_list))
+            set(real_field_arg_list).intersection(set(int_field_arg_list))
         if fld_multi_type:
             raise GenerationError(
                 "Field argument(s) {0} in Invoke '{1}' have different "
@@ -2770,19 +2770,19 @@ class LFRicFields(DynCollection):
 
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
-        if real_fld_arg_list:
-            fld_type = real_fld_args[0].datatype
+        if real_field_arg_list:
+            fld_type = real_field_args[0].datatype
             fld_mod = const.DATA_TYPE_MAP["field"]["module"]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=real_fld_arg_list,
+                                   entity_decls=real_field_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
-        if int_fld_arg_list:
-            fld_type = int_fld_args[0].datatype
+        if int_field_arg_list:
+            fld_type = int_field_args[0].datatype
             fld_mod = const.DATA_TYPE_MAP["integer_field"]["module"]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=int_fld_arg_list,
+                                   entity_decls=int_field_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
@@ -3038,13 +3038,13 @@ class DynProxies(DynCollection):
         # Declarations of real and integer field proxies
         const = LFRicConstants()
         # Real field proxies
-        real_field_proxies = self._invoke.unique_proxy_declarations(
-            const.VALID_FIELD_NAMES,
+        real_field_args = self._invoke.unique_declarations(
+            argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
         real_field_proxy_decs = [arg.proxy_declaration_name for
-                                 arg in real_field_proxies]
+                                 arg in real_field_args]
         if real_field_proxy_decs:
-            fld_type = real_field_proxies[0].proxy_datatype
+            fld_type = real_field_args[0].proxy_datatype
             fld_mod = const.DATA_TYPE_MAP["field"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_type,
@@ -3052,13 +3052,13 @@ class DynProxies(DynCollection):
             (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
              add(fld_type))
         # Integer field proxies
-        int_field_proxies = self._invoke.unique_proxy_declarations(
-            const.VALID_FIELD_NAMES,
+        int_field_args = self._invoke.unique_declarations(
+            argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
         int_field_proxy_decs = [arg.proxy_declaration_name for
-                                arg in int_field_proxies]
+                                arg in int_field_args]
         if int_field_proxy_decs:
-            fld_type = int_field_proxies[0].proxy_datatype
+            fld_type = int_field_args[0].proxy_datatype
             fld_mod = const.DATA_TYPE_MAP["integer_field"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_type,
@@ -3067,10 +3067,11 @@ class DynProxies(DynCollection):
              add(fld_type))
 
         # Declarations of LMA operator proxies
-        op_proxies = self._invoke.unique_proxy_declarations(["gh_operator"])
-        op_proxy_decs = [arg.proxy_declaration_name for arg in op_proxies]
+        op_args = self._invoke.unique_declarations(
+            argument_types=["gh_operator"])
+        op_proxy_decs = [arg.proxy_declaration_name for arg in op_args]
         if op_proxy_decs:
-            op_type = op_proxies[0].proxy_datatype
+            op_type = op_args[0].proxy_datatype
             op_mod = const.DATA_TYPE_MAP["operator"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
@@ -3079,12 +3080,12 @@ class DynProxies(DynCollection):
              add(op_type))
 
         # Declarations of CMA operator proxies
-        cma_op_proxies = self._invoke.unique_proxy_declarations(
-            ["gh_columnwise_operator"])
+        cma_op_args = self._invoke.unique_declarations(
+            argument_types=["gh_columnwise_operator"])
         cma_op_proxy_decs = [arg.proxy_declaration_name for
-                             arg in cma_op_proxies]
+                             arg in cma_op_args]
         if cma_op_proxy_decs:
-            op_type = cma_op_proxies[0].proxy_datatype
+            op_type = cma_op_args[0].proxy_datatype
             op_mod = const.DATA_TYPE_MAP[
                 "columnwise_operator"]["module"]
             parent.add(TypeDeclGen(parent,
@@ -5162,66 +5163,6 @@ class DynInvoke(Invoke):
                         unique=True):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
-
-    def unique_proxy_declarations(self, argument_types, access=None,
-                                  intrinsic_type=None):
-        '''
-        Returns a list of all required proxy declarations for the specified
-        argument types. If access is supplied (e.g. "AccessType.WRITE")
-        then only declarations with that access are returned. If an intrinsic
-        type is supplied then only declarations with that intrinsic type
-        are returned.
-
-        :param argument_types: argument types that proxy declarations are \
-                               searched for.
-        :type argument_types: list of str
-        :param access: optional AccessType for the specified argument type.
-        :type access: :py:class:`psyclone.core.access_type.AccessType`
-        :param intrinsic_type: optional intrinsic type of argument data.
-        :type intrinsic_type: str
-
-        :returns: a list of all declared kernel arguments for the for the \
-                  specified argument type for which proxy declarations \
-                  are required.
-        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
-
-        :raises InternalError: if the supplied argument types are invalid.
-        :raises InternalError: if an invalid access is specified, i.e. \
-                               not of type AccessType.
-        :raises InternalError: if an invalid intrinsic type is specified.
-
-        '''
-        const = LFRicConstants()
-        # First check for invalid argument types, access and intrinsic type
-        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
-               argtype in argument_types):
-            raise InternalError(
-                "Expected one of {0} as a valid argument type but found {1}.".
-                format(str(const.VALID_ARG_TYPE_NAMES),
-                       str(argument_types)))
-        if access and not isinstance(access, AccessType):
-            api_config = Config.get().api_conf("dynamo0.3")
-            valid_names = api_config.get_valid_accesses_api()
-            raise InternalError(
-                "Expected one of {0} as a valid access type but found '{1}'.".
-                format(valid_names, access))
-        if (intrinsic_type and intrinsic_type not in
-                const.VALID_INTRINSIC_TYPES):
-            raise InternalError(
-                "Expected one of {0} as a valid intrinsic type but found "
-                "'{1}'.".format(const.VALID_INTRINSIC_TYPES, intrinsic_type))
-        # Create declarations list
-        declarations = []
-        for call in self.schedule.kernels():
-            for arg in call.arguments.args:
-                if intrinsic_type and arg.intrinsic_type != intrinsic_type:
-                    continue
-                if access and arg.access != access:
-                    continue
-                if arg.text and arg.argument_type in argument_types \
-                        and arg.proxy_declaration_name not in declarations:
-                    declarations.append(arg)
-        return declarations
 
     def arg_for_funcspace(self, fspace):
         ''' Returns an argument object which is on the requested

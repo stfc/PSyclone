@@ -548,116 +548,60 @@ def test_invoke_uniq_declns_invalid_intrinsic():
             format(const.VALID_INTRINSIC_TYPES) in str(excinfo.value))
 
 
-def test_invoke_uniq_declns_valid_access():
-    ''' Tests that all valid access modes for user-defined arguments
+def test_invoke_uniq_declns_valid_access_field():
+    ''' Tests that all valid access modes for user-defined field arguments
     (AccessType.READ, AccessType.INC, AccessType.WRITE, AccessType.READWRITE)
-    are accepted by Invoke.unique_declarations(). '''
+    are accepted by Invoke.unique_declarations(). Also test the correctness
+    of names of arguments and their proxies.
 
+    '''
     # Test READ and INC
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_read_args = psy.invokes.invoke_list[0]\
-        .unique_declarations(["gh_field"], access=AccessType.READ)
+    fields_read_args = (psy.invokes.invoke_list[0].unique_declarations(
+                        ["gh_field"], access=AccessType.READ))
     fields_read = [arg.declaration_name for arg in fields_read_args]
+    fields_proxy_read = [arg.proxy_declaration_name for arg in
+                         fields_read_args]
     assert fields_read == ["f2", "m1", "m2"]
-    fields_incremented_args = psy.invokes.invoke_list[0]\
-        .unique_declarations(["gh_field"], access=AccessType.INC)
+    assert fields_proxy_read == ["f2_proxy", "m1_proxy", "m2_proxy"]
+    fields_incremented_args = (psy.invokes.invoke_list[0].unique_declarations(
+                               ["gh_field"], access=AccessType.INC))
     fields_incremented = [arg.declaration_name for arg in
                           fields_incremented_args]
+    fields_proxy_incremented = [arg.proxy_declaration_name for arg in
+                                fields_incremented_args]
     assert fields_incremented == ["f1"]
+    assert fields_proxy_incremented == ["f1_proxy"]
 
     # Test WRITE
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke_w3_only_vector.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_written_args = psy.invokes.invoke_list[0]\
-        .unique_declarations(["gh_field"], access=AccessType.WRITE)
+    fields_written_args = (psy.invokes.invoke_list[0].unique_declarations(
+                          ["gh_field"], access=AccessType.WRITE))
     fields_written = [arg.declaration_name for arg in fields_written_args]
+    fields_proxy_written = [arg.proxy_declaration_name for arg in
+                            fields_written_args]
     assert fields_written == ["f1(3)"]
+    assert fields_proxy_written == ["f1_proxy(3)"]
 
     # Test READWRITE
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke_w2v.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_readwritten_args = psy.invokes.invoke_list[0]\
-        .unique_declarations(["gh_field"], access=AccessType.READWRITE)
+    fields_readwritten_args = (psy.invokes.invoke_list[0].unique_declarations(
+                              ["gh_field"], access=AccessType.READWRITE))
     fields_readwritten = [arg.declaration_name for arg in
                           fields_readwritten_args]
+    fields_proxy_readwritten = [arg.proxy_declaration_name for arg in
+                                fields_readwritten_args]
     assert fields_readwritten == ["f1"]
-
-
-def test_invoke_uniq_proxy_declns():
-    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid argument type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_proxy_declarations(["not_a_type"])
-    const = LFRicConstants()
-    assert ("Expected one of {0} as a valid argument type but found "
-            "['not_a_type'].".format(const.VALID_ARG_TYPE_NAMES)
-            in str(excinfo.value))
-
-
-def test_uniq_proxy_declns_invalid_access():
-    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid access type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    api_config = Config.get().api_conf("dynamo0.3")
-    valid_access_names = api_config.get_valid_accesses_api()
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_proxy_declarations(
-            ["gh_field"],
-            access="invalid_acc")
-    assert ("Expected one of {0} as a valid access type but found "
-            "'invalid_acc'.".format(valid_access_names) in str(excinfo.value))
-
-
-def test_uniq_proxy_declns_invalid_intrinsic_type():
-    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid intrinsic type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_proxy_declarations(
-            ["gh_field"], intrinsic_type="not_intrinsic_type")
-    const = LFRicConstants()
-    assert ("Expected one of {0} as a valid intrinsic type but found "
-            "'not_intrinsic_type'.".format(const.VALID_INTRINSIC_TYPES)
-            in str(excinfo.value))
-
-
-def test_uniq_proxy_declns_valid_parameters():
-    ''' Tests that valid intrinsic_type and access are accepted,
-    and will be correctly handled.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
-        ["gh_field"], intrinsic_type="integer")
-    assert decl == []
-    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
-        ["gh_field"], intrinsic_type="real")
-    assert decl == ['f1_proxy', 'f2_proxy', 'm1_proxy', 'm2_proxy']
-
-    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
-        ["gh_field"], access=AccessType.READ)
-    assert decl == ['f2_proxy', 'm1_proxy', 'm2_proxy']
-    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
-        ["gh_field"], access=AccessType.WRITE)
-    assert decl == []
+    assert fields_proxy_readwritten == ["f1_proxy"]
 
 
 def test_dyninvoke_first_access():
