@@ -3074,7 +3074,7 @@ class KernelGlobalsToArguments(Transformation):
 
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table
-        invoke_symtab = node.root.symbol_table
+        invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
         count_global_vars_removed = 0
 
         # Transform each global variable into an argument.

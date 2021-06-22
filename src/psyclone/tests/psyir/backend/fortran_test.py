@@ -48,12 +48,12 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
-    StructureReference, Schedule, Routine, Return
+    StructureReference, Schedule, Routine, Return, FileContainer
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
     DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType, \
-    TypeSymbol, StructureType
+    DataTypeSymbol, StructureType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
@@ -283,7 +283,7 @@ def test_gen_datatype_kind_precision(type_name, result):
 def test_gen_datatype_derived_type():
     ''' Check that gen_datatype handles derived types. '''
     # A symbol representing a single derived type
-    tsym = TypeSymbol("my_type", DeferredType())
+    tsym = DataTypeSymbol("my_type", DeferredType())
     assert gen_datatype(tsym, "my_type") == "type(my_type)"
     # An array of derived types
     atype = ArrayType(tsym, [10])
@@ -343,12 +343,12 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
     ''' Test the various validation checks in gen_typedecl(). '''
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_typedecl("hello")
-    assert ("gen_typedecl expects a TypeSymbol as argument but got: 'str'" in
-            str(err.value))
+    assert ("gen_typedecl expects a DataTypeSymbol as argument but got: 'str'"
+            in str(err.value))
     # UnknownType is abstract so we create an UnknownFortranType and then
     # monkeypatch it.
-    tsymbol = TypeSymbol("my_type",
-                         UnknownFortranType("type my_type\nend type my_type"))
+    tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
+        "type my_type\nend type my_type"))
     monkeypatch.setattr(tsymbol.datatype, "__class__", UnknownType)
 
     with pytest.raises(VisitorError) as err:
@@ -359,8 +359,8 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
 
 def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     ''' Check that gen_typedecl() works for a symbol of UnknownFortranType. '''
-    tsymbol = TypeSymbol("my_type",
-                         UnknownFortranType("type my_type\nend type my_type"))
+    tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
+        "type my_type\nend type my_type"))
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type my_type\nend type my_type")
 
@@ -369,7 +369,7 @@ def test_gen_typedecl(fortran_writer):
     ''' Test normal operation of gen_typedecl(). '''
     atype = ArrayType(REAL_TYPE, [3, 5])
     dynamic_atype = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED])
-    tsymbol = TypeSymbol("grid_type", DeferredType())
+    tsymbol = DataTypeSymbol("grid_type", DeferredType())
     dtype = StructureType.create([
         # Scalar integer
         ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
@@ -381,7 +381,7 @@ def test_gen_typedecl(fortran_writer):
         ("data", dynamic_atype, Symbol.Visibility.PUBLIC),
         # Derived type
         ("grid", tsymbol, Symbol.Visibility.PRIVATE)])
-    tsymbol = TypeSymbol("my_type", dtype)
+    tsymbol = DataTypeSymbol("my_type", dtype)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type :: my_type\n"
             "  integer :: flag\n"
@@ -390,7 +390,8 @@ def test_gen_typedecl(fortran_writer):
             "  real, allocatable, dimension(:) :: data\n"
             "  type(grid_type), private :: grid\n"
             "end type my_type\n")
-    private_tsymbol = TypeSymbol("my_type", dtype, Symbol.Visibility.PRIVATE)
+    private_tsymbol = DataTypeSymbol("my_type", dtype,
+                                     Symbol.Visibility.PRIVATE)
     gen_code = fortran_writer.gen_typedecl(private_tsymbol)
     assert gen_code.startswith("type, private :: my_type\n")
 
@@ -646,11 +647,11 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(local_variable)
     dtype = StructureType.create([
         ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    dtype_variable = TypeSymbol("field", dtype)
+    dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
-    grid_type = TypeSymbol("grid_type", DeferredType(),
-                           interface=GlobalInterface(
-                               symbol_table.lookup("my_module")))
+    grid_type = DataTypeSymbol("grid_type", DeferredType(),
+                               interface=GlobalInterface(
+                                   symbol_table.lookup("my_module")))
     symbol_table.add(grid_type)
     grid_variable = DataSymbol("grid", grid_type)
     symbol_table.add(grid_variable)
@@ -793,6 +794,70 @@ def test_fw_exception(fortran_writer):
     assert "Unsupported node 'Node' found" in str(excinfo.value)
 
 
+def test_fw_filecontainer_1(fortran_writer):
+    '''Check the FortranWriter class outputs nothing when a
+    FileContainer node with no content is found.
+
+    '''
+    file_container = FileContainer("None")
+    result = fortran_writer(file_container)
+    assert not result
+
+
+def test_fw_filecontainer_2(fortran_writer):
+    '''Check that an instance of the FortranWriter class outputs the
+    expected code when a FileContainer contains multiple nodes (in
+    this case a Container (module) and a Routine (subroutine).
+
+    '''
+    container = Container("mod_name")
+    routine = Routine("sub_name")
+    file_container = FileContainer.create(
+        "None", SymbolTable(), [container, routine])
+    result = fortran_writer(file_container)
+    expected = (
+        "module mod_name\n"
+        "  implicit none\n\n"
+        "  contains\n\n"
+        "end module mod_name\n"
+        "subroutine sub_name()\n\n\n"
+        "end subroutine sub_name\n")
+    assert result == expected
+
+
+def test_fw_filecontainer_error1(fortran_writer):
+    '''Check that an instance of the FortranWriter class raises the
+    expected exception if the symbol table associated with a
+    FileContainer node contains any symbols.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(Symbol("x"))
+    file_container = FileContainer.create("None", symbol_table, [])
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(file_container)
+    assert(
+        "In the Fortran backend, a file container should not have any "
+        "symbols associated with it, but found 1." in str(info.value))
+
+
+def test_fw_filecontainer_error2(fortran_writer):
+    '''Check that an instance of the FortranWriter class raises the
+    expected exception if a FileContainer node contains more than one
+    Routine node with is_program set (as only one program is allowed).
+
+    '''
+    program1 = Routine.create("prog1", SymbolTable(), [], is_program=True)
+    program2 = Routine.create("prog2", SymbolTable(), [], is_program=True)
+    file_container = FileContainer.create(
+        "None", SymbolTable(), [program1, program2])
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(file_container)
+    assert (
+        "In the Fortran backend, a file container should contain at most one "
+        "routine node that is a program, but found 2." in str(info.value))
+
+
 def test_fw_container_1(fortran_writer, monkeypatch):
     '''Check the FortranWriter class outputs correct code when a Container
     node with no content is found. Also tests that an exception is
@@ -849,7 +914,7 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
         "end module test\n" in result)
     assert Compile(tmpdir).string_compiles(result)
 
-    container.children.append(Container("child"))
+    container.children[0].children.append(Container("child"))
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(container)
     assert ("The Fortran back-end requires all children of a Container "
@@ -873,7 +938,8 @@ def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):
         "end subroutine tmp\n"
         "end module test")
     container = fortran_reader.psyir_from_source(code)
-    symbol = container.symbol_table.lookup("a")
+    module = container.children[0]
+    symbol = module.symbol_table.lookup("a")
     monkeypatch.setattr(symbol, "_interface", ArgumentInterface())
 
     with pytest.raises(VisitorError) as excinfo:
@@ -927,8 +993,8 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
         "  endif\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = fortran_reader.psyir_from_source(code).children[0]
-
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
 
@@ -1012,6 +1078,34 @@ def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
         "  real :: a\n\n"
         "  a = 0.0\n\n"
         "end program test\n" in result)
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir):
+    ''' Check that the FortranWriter outputs a function when a routine node
+    is found with return_symbol set.
+
+    '''
+    code = ("module test\n"
+            "implicit none\n"
+            "real :: a\n"
+            "contains\n"
+            "function tmp(b) result(val)\n"
+            "  real :: val\n"
+            "  real :: b\n"
+            "  val = a + b\n"
+            "end function tmp\n"
+            "end module test")
+    container = fortran_reader.psyir_from_source(code)
+    # Generate Fortran from PSyIR
+    result = fortran_writer(container)
+    assert(
+        "  contains\n"
+        "  function tmp(b) result(val)\n"
+        "    real, intent(inout) :: b\n"
+        "    real :: val\n\n"
+        "    val = a + b\n\n"
+        "  end function tmp\n" in result)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -1403,13 +1497,13 @@ def test_fw_structureref(fortran_writer):
     region_type = StructureType.create([
         ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
         ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    region_type_sym = TypeSymbol("grid_type", region_type)
+    region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     grid_type = StructureType.create([
         ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
         ("area", region_type_sym, Symbol.Visibility.PUBLIC),
         ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
     assert fortran_writer.structurereference_node(grid_ref) == "grid%area%nx"
@@ -1436,7 +1530,7 @@ def test_fw_arrayofstructuresref(fortran_writer):
     ''' Test the FortranWriter support for ArrayOfStructuresReference. '''
     grid_type = StructureType.create([
         ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_array_type = ArrayType(grid_type_sym, [10])
     grid_var = DataSymbol("grid", grid_array_type)
     grid_ref = ArrayOfStructuresReference.create(grid_var,
@@ -1464,12 +1558,12 @@ def test_fw_arrayofstructuresmember(fortran_writer):
     region_type = StructureType.create([
         ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
         ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    region_type_sym = TypeSymbol("grid_type", region_type)
+    region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
     grid_type = StructureType.create([
         ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to an element of an array that is a structure
     level_ref = StructureReference.create(grid_var,
@@ -1825,6 +1919,33 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal('a', CHARACTER_TYPE)
     result = fortran_writer(lit1)
     assert result == "'a'"
+    # An empty character string is valid
+    lit1 = Literal('', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == "''"
+
+    # Check that we generate the correct quotation marks if the literal itself
+    # includes quotation marks within it. (Note that the values of character
+    # literals are stored in the PSyIR without any enclosing quotation marks.)
+    lit1 = Literal('''('hello ',4A)''', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '''"('hello ',4A)"'''
+    lit1 = Literal('"a"', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == """'"a"'"""
+    lit1 = Literal("apostrophe's", CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '''"apostrophe's"'''
+    # Literals containing both single and double quotes are not supported.
+    lit1 = Literal('''('hello "',4A,'"')''', CHARACTER_TYPE)
+    with pytest.raises(NotImplementedError) as err:
+        _ = fortran_writer(lit1)
+    assert '''supported but found >>('hello "',4A,'"')<<''' in str(err.value)
+    # Literals containing both single and double quotes are not supported.
+    lit1 = Literal('''("hello '",4A,"'")''', CHARACTER_TYPE)
+    with pytest.raises(NotImplementedError) as err:
+        _ = fortran_writer(lit1)
+    assert '''supported but found >>("hello '",4A,"'")<<''' in str(err.value)
 
     lit1 = Literal('3.14', REAL_TYPE)
     result = fortran_writer(lit1)

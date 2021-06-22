@@ -139,7 +139,7 @@ class DependencyTools(object):
         return True
 
     # -------------------------------------------------------------------------
-    def is_array_parallelisable(self, loop_variable, var_info):
+    def array_access_parallelisable(self, loop_variable, var_info):
         '''Tries to determine if the access pattern for a variable
         given in var_info allows parallelisation along the variable
         loop_variable. Additional messages might be provided to the
@@ -153,7 +153,7 @@ class DependencyTools(object):
         :return: whether the variable can be used in parallel.
         :rtype: bool
         '''
-
+        # pylint: disable=too-many-locals
         # If a variable is read-only, it can be parallelised
         if var_info.is_read_only():
             return True
@@ -164,39 +164,60 @@ class DependencyTools(object):
         # a(i,j) and a(j+2, i-1) in one loop:
         # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
         # be accessed. Since the variable is written somewhere (read-only
-        # was tested above), the variable can not be used in parallel.
+        # was tested above), the variable cannot be used in parallel.
+
+        # This variable will store two indices as a tuple: first the
+        # component index in which the loop variable was used, and then
+        # in which dimension for the component. For example, `a%b%c(i,j)`
+        # would store (2,1) for an access to j - component 2 (which is c),
+        # and 2nd dimension (j).
+        # TODO #1269: code duplicated with nemo_loop_fuse
+        found_dimension_index = None
+
         # Additionally, collect all indices that are actually used, since
         # they are needed in a test further down.
-        found_dimension_index = -1
         all_indices = []
 
         # Loop over all the accesses of this variable
         for access in var_info.all_accesses:
-            list_of_indices = access.indices
+            component_indices = access.component_indices
+
             # Now determine all dimensions that depend
-            # on the parallel variable:
-            for dimension_index, index_expression in \
-                    enumerate(list_of_indices):
-                accesses = VariablesAccessInfo()
+            # on the parallel variable. This outer loop is over
+            # the indices used for each component, e.g.
+            # a(i,j)%b(k) it would first handle `(i,j)`, then
+            # `(k)`.
+            for component_index, index_expressions in \
+                    enumerate(component_indices):
 
-                index_expression.reference_accesses(accesses)
-                if Signature(loop_variable) not in accesses:
-                    continue
+                # This inner loop loop over all indices for the
+                # current component, i.e. `[i, j]` for the first
+                # component above, then `[k]`.
+                for dimension_index, index_expression in \
+                        enumerate(index_expressions):
+                    # Add all the variables used in the index expression
+                    accesses = VariablesAccessInfo()
+                    index_expression.reference_accesses(accesses)
+                    if Signature(loop_variable) not in accesses:
+                        continue
 
-                # if a previously identified index location does not match
-                # the current index location (e.g. a(i,j), and a(j,i) ), then
-                # the loop can not be parallelised
-                if found_dimension_index > -1 and \
-                        found_dimension_index != dimension_index:
-                    self._add_warning("Variable '{0}' is using loop "
-                                      "variable {1} in index {2} and {3}."
-                                      .format(var_info.var_name,
-                                              loop_variable,
-                                              found_dimension_index,
-                                              dimension_index))
-                    return False
-                found_dimension_index = dimension_index
-                all_indices.append(index_expression)
+                    # if a previously identified index location does not match
+                    # the current index location (e.g. a(i,j), and a(j,i) ),
+                    # then the loop can not be parallelised
+                    ind_pair = (component_index, dimension_index)
+                    if found_dimension_index and \
+                            found_dimension_index != ind_pair:
+                        # TODO #1268: improve error message
+                        self._add_warning("Variable '{0}' is using loop "
+                                          "variable '{1}' in index '{2}'' "
+                                          "and '{3}'."
+                                          .format(var_info.var_name,
+                                                  loop_variable,
+                                                  found_dimension_index,
+                                                  ind_pair))
+                        return False
+                    found_dimension_index = ind_pair
+                    all_indices.append(index_expression)
 
         if not all_indices:
             # An array is used that is not actually dependent on the parallel
@@ -286,7 +307,7 @@ class DependencyTools(object):
     def can_loop_be_parallelised(self, loop, loop_variable=None,
                                  only_nested_loops=True,
                                  test_all_variables=False,
-                                 variables_to_ignore=None,
+                                 signatures_to_ignore=None,
                                  var_accesses=None):
         # pylint: disable=too-many-arguments, too-many-branches
         # pylint: disable=too-many-locals
@@ -306,11 +327,11 @@ class DependencyTools(object):
                                         otherwise it will stop after the first\
                                         variable is found that can not be\
                                         parallelised.
-        :param variables_to_ignore: list of variables for which to skip the\
-                                    checks on how they are accessed.
-        :type variables_to_ignore: list of str
+        :param signatures_to_ignore: list of signatures for which to skip \
+                                     the access checks.
+        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
         :param var_accesses: optional argument containing the variable access\
-                           pattern of the loop (default: None).
+                             pattern of the loop (default: None).
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
@@ -340,8 +361,8 @@ class DependencyTools(object):
         if not var_accesses:
             var_accesses = VariablesAccessInfo()
             loop.reference_accesses(var_accesses)
-        if not variables_to_ignore:
-            variables_to_ignore = []
+        if not signatures_to_ignore:
+            signatures_to_ignore = []
 
         # Collect all variables used as loop variable:
         loop_vars = [loop.variable.name for loop in loop.walk(Loop)]
@@ -349,32 +370,29 @@ class DependencyTools(object):
         result = True
         # Now check all variables used in the loop
         for signature in var_accesses.all_signatures:
+            # This string contains derived type information, e.g.
+            # "a%b"
+            var_string = str(signature)
             # Ignore all loop variables - they look like reductions because of
             # the write-read access in the loop:
-            var_name = str(signature)
-            if var_name in loop_vars:
+            if var_string in loop_vars:
                 continue
-            if var_name in variables_to_ignore:
+            if signature in signatures_to_ignore:
                 continue
 
+            # This returns the first component of the signature,
+            # i.e. in case of "a%b" it will only return "a"
+            var_name = signature.var_name
             var_info = var_accesses[signature]
             symbol_table = loop.scope.symbol_table
-            if var_name not in symbol_table:
-                # TODO #845: Once we have symbol tables, any variable should
-                # be in a symbol table, so we have to raise an exception here.
-                # We need to fall-back to the old-style test, since we do not
-                # have information in a symbol table. So check if the access
-                # information stored an index:
-                is_array = var_info[0].indices is not None
-            else:
-                # Find the symbol for this variable
-                symbol = symbol_table.lookup(var_name)
-                is_array = symbol.is_array
+            symbol = symbol_table.lookup(var_name)
+            # TODO #1270 - the is_array_access function might be moved
+            is_array = symbol.is_array_access(access_info=var_info)
 
             if is_array:
                 # Handle arrays
-                par_able = self.is_array_parallelisable(loop_variable,
-                                                        var_info)
+                par_able = self.array_access_parallelisable(loop_variable,
+                                                            var_info)
             else:
                 # Handle scalar variable
                 par_able = self.is_scalar_parallelisable(var_info)
@@ -401,8 +419,8 @@ class DependencyTools(object):
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
 
-        :returns: a list of all variable names that are read.
-        :rtype: list of str
+        :returns: a list of all variable signatures that are read.
+        :rtype: list of :py:class:`psyclone.core.Signature`
 
         '''
         # Collect the information about all variables used:
@@ -418,7 +436,7 @@ class DependencyTools(object):
             # If the first access is a write, the variable is not an input
             # parameter and does not need to be saved.
             if first_access.access_type != AccessType.WRITE:
-                input_list.append(str(signature))
+                input_list.append(signature)
 
         return input_list
 
@@ -435,15 +453,15 @@ class DependencyTools(object):
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
 
-        :returns: a list of all variable names that are written.
-        :rtype: list of str
+        :returns: a list of all variable signatures that are written.
+        :rtype: list of :py:class:`psyclone.core.Signature`
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list)
 
-        return [str(signature) for signature in variables_info.all_signatures
+        return [signature for signature in variables_info.all_signatures
                 if variables_info.is_written(signature)]
 
     # -------------------------------------------------------------------------
@@ -458,7 +476,7 @@ class DependencyTools(object):
 
         :returns: a 2-tuple of two lists, the first one containing \
             the input parameters, the second the output paramters.
-        :rtype: 2-tuple of list of str
+        :rtype: 2-tuple of list of :py:class:`psyclone.core.Signature`
 
         '''
         variables_info = VariablesAccessInfo(node_list)

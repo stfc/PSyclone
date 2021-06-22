@@ -52,7 +52,16 @@ def test_signature():
     assert repr(Signature("a")) == "Signature(a)"
     assert repr(Signature(("a",))) == "Signature(a)"
     assert repr(Signature(("a", "b", "c"))) == "Signature(a%b%c)"
+    assert repr(Signature(["a", "b", "c"])) == "Signature(a%b%c)"
     assert Signature("a") != "a"
+    sig = Signature(("a", "b", "c"))
+    assert sig.is_structure
+    assert sig[0] == "a"
+    assert sig[2] == "c"
+    assert sig[-1] == "c"
+    assert sig[0:2] == ("a", "b")
+    assert Signature(["a", "b", "c"]).is_structure
+    assert not Signature(("a")).is_structure
 
 
 def test_signature_errors():
@@ -83,6 +92,26 @@ def test_signature_dict():
     test_dict[sig4] = "ac"
 
     assert len(test_dict) == 3
+
+
+def test_concatenate_signature():
+    '''Tests that signature can be concatenated.'''
+    sig_b = Signature("b")
+    sig_a_b = Signature("a", sig_b)
+    assert str(sig_a_b) == "a%b"
+    sig_b_a_b = Signature(sig_b, sig_a_b)
+    assert str(sig_b_a_b) == "b%a%b"
+    sig_c_d_b_a_b = Signature(("c", "d"), sig_b_a_b)
+    assert str(sig_c_d_b_a_b) == "c%d%b%a%b"
+
+
+def test_var_name():
+    '''Test that the variable name is returned as expected.'''
+    sig_a = Signature("a")
+    assert sig_a.var_name == "a"
+    sig_a_b = Signature(sig_a, Signature("b"))
+    assert str(sig_a_b) == "a%b"
+    assert sig_a_b.var_name == "a"
 
 
 def test_signature_sort():

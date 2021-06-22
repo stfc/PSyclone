@@ -46,9 +46,9 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, ScalarType, ArrayType, UnknownType, DeferredType, \
-    UnknownFortranType, \
-    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, TypeSymbol
+    ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
+    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, DataTypeSymbol, \
+    DeferredType
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Routine, Reference, Literal, DataNode, CodeBlock, Member, Range, Schedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -99,10 +99,10 @@ def gen_datatype(datatype, name):
     '''Given a DataType instance as input, return the Fortran datatype
     of the symbol including any specific precision properties.
 
-    :param datatype: the DataType or TypeSymbol describing the type of \
+    :param datatype: the DataType or DataTypeSymbol describing the type of \
                      the declaration.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
-                    :py:class:`psyclone.psyir.symbols.TypeSymbol`
+                    :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
     :param str name: the name of the symbol being declared (only used for \
                      error messages).
 
@@ -123,12 +123,12 @@ def gen_datatype(datatype, name):
         is an unsupported type.
 
     '''
-    if isinstance(datatype, TypeSymbol):
+    if isinstance(datatype, DataTypeSymbol):
         # Symbol is of derived type
         return "type({0})".format(datatype.name)
 
     if (isinstance(datatype, ArrayType) and
-            isinstance(datatype.intrinsic, TypeSymbol)):
+            isinstance(datatype.intrinsic, DataTypeSymbol)):
         # Symbol is an array of derived types
         return "type({0})".format(datatype.intrinsic.name)
 
@@ -491,22 +491,22 @@ class FortranWriter(PSyIRVisitor):
 
     def gen_typedecl(self, symbol):
         '''
-        Creates a derived-type declaration for the supplied TypeSymbol.
+        Creates a derived-type declaration for the supplied DataTypeSymbol.
 
         :param symbol: the derived-type to declare.
-        :type symbol: :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         :returns: the Fortran declaration of the derived type.
         :rtype: str
 
-        :raises VisitorError: if the supplied symbol is not a TypeSymbol.
+        :raises VisitorError: if the supplied symbol is not a DataTypeSymbol.
         :raises VisitorError: if the datatype of the symbol is of UnknownType \
                               but is not of UnknownFortranType.
 
         '''
-        if not isinstance(symbol, TypeSymbol):
+        if not isinstance(symbol, DataTypeSymbol):
             raise VisitorError(
-                "gen_typedecl expects a TypeSymbol as argument but "
+                "gen_typedecl expects a DataTypeSymbol as argument but "
                 "got: '{0}'".format(type(symbol).__name__))
 
         if isinstance(symbol.datatype, UnknownType):
@@ -683,7 +683,7 @@ class FortranWriter(PSyIRVisitor):
 
         # 3: Derived-type declarations. These must come before any declarations
         #    of symbols of these types.
-        for symbol in symbol_table.local_typesymbols:
+        for symbol in symbol_table.local_datatypesymbols:
             declarations += self.gen_typedecl(symbol)
 
         # 4: Local variable declarations.
@@ -693,6 +693,44 @@ class FortranWriter(PSyIRVisitor):
             declarations += self.gen_vardecl(symbol)
 
         return declarations
+
+    def filecontainer_node(self, node):
+        '''This method is called when a FileContainer instance is found in
+        the PSyIR tree.
+
+        A file container node requires no explicit text in the Fortran
+        back end.
+
+        :param node: a Container PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: if the attached symbol table contains \
+            any data symbols.
+        :raises VisitorError: if more than one child is a Routine Node \
+            with is_program set to True.
+
+        '''
+        if node.symbol_table.symbols:
+            raise VisitorError(
+                "In the Fortran backend, a file container should not have "
+                "any symbols associated with it, but found {0}."
+                "".format(len(node.symbol_table.symbols)))
+
+        program_nodes = len([child for child in node.children if
+                             isinstance(child, Routine) and child.is_program])
+        if program_nodes > 1:
+            raise VisitorError(
+                "In the Fortran backend, a file container should contain at "
+                "most one routine node that is a program, but found {0}."
+                "".format(program_nodes))
+
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result
 
     def container_node(self, node):
         '''This method is called when a Container instance is found in
@@ -761,14 +799,14 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when a Routine node is found in
         the PSyIR tree.
 
-        :param node: a KernelSchedule PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :param node: a Routine PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
 
-        :returns: the Fortran code as a string.
+        :returns: the Fortran code for this node.
         :rtype: str
 
         :raises VisitorError: if the name attribute of the supplied \
-        node is empty or None.
+                              node is empty or None.
 
         '''
         if not node.name:
@@ -776,11 +814,20 @@ class FortranWriter(PSyIRVisitor):
 
         if node.is_program:
             result = ("{0}program {1}\n".format(self._nindent, node.name))
+            routine_type = "program"
         else:
             args = [symbol.name for symbol in node.symbol_table.argument_list]
-            result = (
-                "{0}subroutine {1}({2})\n"
-                "".format(self._nindent, node.name, ", ".join(args)))
+            suffix = ""
+            if node.return_symbol:
+                # This Routine has a return value and is therefore a Function
+                routine_type = "function"
+                if node.return_symbol.name != node.name:
+                    suffix = " result({0})".format(node.return_symbol.name)
+            else:
+                routine_type = "subroutine"
+            result = "{0}{1} {2}({3}){4}\n".format(self._nindent, routine_type,
+                                                   node.name, ", ".join(args),
+                                                   suffix)
 
         self._depth += 1
 
@@ -818,13 +865,9 @@ class FortranWriter(PSyIRVisitor):
             "".format(imports, declarations, exec_statements))
 
         self._depth -= 1
-        if node.is_program:
-            keyword = "program"
-        else:
-            keyword = "subroutine"
         result += (
             "{0}end {1} {2}\n"
-            "".format(self._nindent, keyword, node.name))
+            "".format(self._nindent, routine_type, node.name))
 
         return result
 
@@ -1102,7 +1145,7 @@ class FortranWriter(PSyIRVisitor):
         :param node: a Literal PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Literal`
 
-        :returns: the Fortran code as a string.
+        :returns: the Fortran code for the literal.
         :rtype: str
 
         '''
@@ -1110,7 +1153,24 @@ class FortranWriter(PSyIRVisitor):
             # Booleans need to be converted to Fortran format
             result = '.' + node.value + '.'
         elif node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-            result = "'{0}'".format(node.value)
+            # Need to take care with which quotation symbol to use since a
+            # character string may include quotation marks, e.g. a format
+            # specifier: "('hello',3A)". The outermost quotation marks are
+            # not stored so we have to decide whether to use ' or ".
+            if "'" not in node.value:
+                # No single quotes in the string so use those
+                quote_symbol = "'"
+            else:
+                # There are single quotes in the string so we use double
+                # quotes (after verifying that there aren't both single *and*
+                # double quotes in the string).
+                if '"' in node.value:
+                    raise NotImplementedError(
+                        "Character literals containing both single and double "
+                        "quotes are not supported but found >>{0}<<".format(
+                            node.value))
+                quote_symbol = '"'
+            result = quote_symbol + "{0}".format(node.value) + quote_symbol
         else:
             result = node.value
         precision = node.datatype.precision
