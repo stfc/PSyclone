@@ -309,7 +309,7 @@ def test_single_node_ompparalleldo_gocean1p0_with_workaround():
       CALL extract_psy_data%ProvideVariable("p_fld", p_fld)
       CALL extract_psy_data%ProvideVariable("v_fld", v_fld)
       CALL extract_psy_data%PreEnd
-      !$omp parallel do default(shared), private(i,j), schedule(static)
+      !$omp parallel do default(shared) private(i,j) schedule(static)
       DO j=cv_fld%internal%ystart,cv_fld%internal%ystop
         DO i=cv_fld%internal%xstart,cv_fld%internal%xstop
           CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)

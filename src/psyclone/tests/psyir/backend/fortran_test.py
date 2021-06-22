@@ -362,7 +362,7 @@ def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
         "type my_type\nend type my_type"))
     assert (fortran_writer.gen_typedecl(tsymbol) ==
-            "type my_type\nend type my_type")
+            "type my_type\nend type my_type\n")
 
 
 def test_gen_typedecl(fortran_writer):
