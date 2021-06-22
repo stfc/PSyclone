@@ -388,6 +388,49 @@ def test_fsdesc_fs_not_in_argdesc():
         'meta_args' in str(excinfo.value)
 
 
+def test_invoke_uniq_declns_valid_access_op():
+    ''' Tests that all valid access modes for user-defined LMA operator
+    arguments (AccessType.READ, AccessType.WRITE, AccessType.READWRITE)
+    are accepted by Invoke.unique_declarations(). Also test the
+    correctness of names of arguments and their proxies.
+
+    '''
+    # Test READ
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5.2_multikernel_invokes.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    ops_read_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.READ))
+    ops_read = [arg.declaration_name for arg in ops_read_args]
+    ops_proxy_read = [arg.proxy_declaration_name for arg in ops_read_args]
+    assert ops_read == ["op", "op3", "op4", "op5"]
+    assert ops_proxy_read == ["op_proxy", "op3_proxy",
+                              "op4_proxy", "op5_proxy"]
+
+    # Test READWRITE
+    ops_readwritten_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.READWRITE))
+    ops_readwritten = [arg.declaration_name for arg in ops_readwritten_args]
+    ops_proxy_readwritten = [arg.proxy_declaration_name for arg in
+                             ops_readwritten_args]
+    assert ops_readwritten == ["op", "op2"]
+    assert ops_proxy_readwritten == ["op_proxy", "op2_proxy"]
+
+    # Test WRITE
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    ops_written_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.WRITE))
+    ops_written = [arg.declaration_name for arg in ops_written_args]
+    ops_proxy_written = [arg.proxy_declaration_name for arg
+                         in ops_written_args]
+    assert ops_written == ["op4"]
+    assert ops_proxy_written == ["op4_proxy"]
+
+
 def test_operator(tmpdir):
     ''' Tests that an LMA operator is implemented correctly in the PSy
     layer. '''

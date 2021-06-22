@@ -46,6 +46,7 @@ from fparser import api as fpapi
 
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
 from psyclone.dynamo0p3 import DynDofmaps, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
@@ -345,6 +346,48 @@ def test_cma_mdata_asm_fld_stencil_error():
     assert ("Kernel 'testkern_cma_type' takes a CMA operator but has an "
             "argument with a stencil access ('x1d'). This is forbidden."
             in str(excinfo.value))
+
+
+def test_invoke_uniq_declns_valid_access_cma_op():
+    ''' Tests that all valid access modes for user-defined CMA operator
+    arguments (AccessType.READ, AccessType.WRITE, AccessType.READWRITE)
+    are accepted by Invoke.unique_declarations(). Also test the
+    correctness of names of arguments and their proxies.
+
+    '''
+    # Test READ
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.5_multi_cma_invoke.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    cma_ops_read_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_columnwise_operator"], access=AccessType.READ))
+    cma_ops_read = [arg.declaration_name for arg in cma_ops_read_args]
+    cma_ops_proxy_read = [arg.proxy_declaration_name for arg in
+                          cma_ops_read_args]
+    assert cma_ops_read == ["cma_op1", "cma_opb"]
+    assert cma_ops_proxy_read == ["cma_op1_proxy", "cma_opb_proxy"]
+
+    # Test READWRITE
+    cma_ops_readwritten_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_columnwise_operator"], access=AccessType.READWRITE))
+    cma_ops_readwritten = [arg.declaration_name for arg in
+                           cma_ops_readwritten_args]
+    cma_ops_proxy_readwritten = [arg.proxy_declaration_name for arg in
+                                 cma_ops_readwritten_args]
+    assert cma_ops_readwritten == ["cma_opc"]
+    assert cma_ops_proxy_readwritten == ["cma_opc_proxy"]
+
+    # Test WRITE
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.0_cma_assembly.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    cma_ops_written_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_columnwise_operator"], access=AccessType.WRITE))
+    cma_ops_written = [arg.declaration_name for arg in cma_ops_written_args]
+    cma_ops_proxy_written = [arg.proxy_declaration_name for arg
+                             in cma_ops_written_args]
+    assert cma_ops_written == ["cma_op1"]
+    assert cma_ops_proxy_written == ["cma_op1_proxy"]
 
 
 CMA_APPLY = '''

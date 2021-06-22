@@ -561,14 +561,14 @@ def test_invoke_uniq_declns_valid_access_field():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     fields_read_args = (psy.invokes.invoke_list[0].unique_declarations(
-                        ["gh_field"], access=AccessType.READ))
+        ["gh_field"], access=AccessType.READ))
     fields_read = [arg.declaration_name for arg in fields_read_args]
     fields_proxy_read = [arg.proxy_declaration_name for arg in
                          fields_read_args]
     assert fields_read == ["f2", "m1", "m2"]
     assert fields_proxy_read == ["f2_proxy", "m1_proxy", "m2_proxy"]
     fields_incremented_args = (psy.invokes.invoke_list[0].unique_declarations(
-                               ["gh_field"], access=AccessType.INC))
+        ["gh_field"], access=AccessType.INC))
     fields_incremented = [arg.declaration_name for arg in
                           fields_incremented_args]
     fields_proxy_incremented = [arg.proxy_declaration_name for arg in
@@ -582,7 +582,7 @@ def test_invoke_uniq_declns_valid_access_field():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     fields_written_args = (psy.invokes.invoke_list[0].unique_declarations(
-                          ["gh_field"], access=AccessType.WRITE))
+        ["gh_field"], access=AccessType.WRITE))
     fields_written = [arg.declaration_name for arg in fields_written_args]
     fields_proxy_written = [arg.proxy_declaration_name for arg in
                             fields_written_args]
@@ -595,7 +595,7 @@ def test_invoke_uniq_declns_valid_access_field():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     fields_readwritten_args = (psy.invokes.invoke_list[0].unique_declarations(
-                              ["gh_field"], access=AccessType.READWRITE))
+        ["gh_field"], access=AccessType.READWRITE))
     fields_readwritten = [arg.declaration_name for arg in
                           fields_readwritten_args]
     fields_proxy_readwritten = [arg.proxy_declaration_name for arg in
