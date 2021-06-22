@@ -1026,7 +1026,7 @@ class DynamoPSy(PSy):
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
                        const.DATA_TYPE_MAP["integer_field"]["module"],
-                       const.DATA_TYPE_MAP["lma_operator"]["module"]]
+                       const.DATA_TYPE_MAP["operator"]["module"]]
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
         # Get configuration for valid argument kinds (start with
@@ -3058,7 +3058,7 @@ class DynProxies(DynCollection):
         int_field_proxy_decs = [arg.proxy_declaration_name for
                                 arg in int_field_proxies]
         if int_field_proxy_decs:
-            fld_type = int_field_proxies.proxy_datatype
+            fld_type = int_field_proxies[0].proxy_datatype
             fld_mod = const.DATA_TYPE_MAP["integer_field"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_type,
@@ -3071,7 +3071,7 @@ class DynProxies(DynCollection):
         op_proxy_decs = [arg.proxy_declaration_name for arg in op_proxies]
         if op_proxy_decs:
             op_type = op_proxies[0].proxy_datatype
-            op_mod = const.DATA_TYPE_MAP["lma_operator"]["module"]
+            op_mod = const.DATA_TYPE_MAP["operator"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
                                    entity_decls=op_proxy_decs))
@@ -3085,7 +3085,8 @@ class DynProxies(DynCollection):
                              arg in cma_op_proxies]
         if cma_op_proxy_decs:
             op_type = cma_op_proxies[0].proxy_datatype
-            op_mod = const.DATA_TYPE_MAP["cma_operator"]["module"]
+            op_mod = const.DATA_TYPE_MAP[
+                "columnwise_operator"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
                                    entity_decls=cma_op_proxy_decs))
@@ -3442,7 +3443,7 @@ class DynLMAOperators(DynCollection):
         op_arg_list = [arg.declaration_name for arg in op_args]
         if op_arg_list:
             op_type = op_args[0].datatype
-            op_mod = const.DATA_TYPE_MAP["lma_operator"]["module"]
+            op_mod = const.DATA_TYPE_MAP["operator"]["module"]
             parent.add(TypeDeclGen(parent, datatype=op_type,
                                    entity_decls=op_arg_list,
                                    intent="in"))
@@ -3591,7 +3592,7 @@ class DynCMAOperators(DynCollection):
         cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
         if cma_op_arg_list:
             op_type = cma_op_args[0].datatype
-            op_mod = const.DATA_TYPE_MAP["cma_operator"]["module"]
+            op_mod = const.DATA_TYPE_MAP["columnwise_operator"]["module"]
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
                                    entity_decls=cma_op_arg_list,
@@ -9101,9 +9102,9 @@ class DynKernelArgument(KernelArgument):
             # Find or create the DataTypeSymbol for the appropriate operator
             # type.
             if self.argument_type == "gh_operator":
-                argtype = "lma_operator"
+                argtype = "operator"
             elif self.argument_type == "gh_columnwise_operator":
-                argtype = "cma_operator"
+                argtype = "columnwise_operator"
             else:
                 raise NotImplementedError(
                     "Operators may only be of 'gh_operator' or 'gh_columnwise_"
