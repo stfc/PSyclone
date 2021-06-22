@@ -1193,10 +1193,12 @@ def test_deep_copy():
     # Create an initial SymbolTable
     dummy = Schedule()
     symtab = SymbolTable(node=dummy)
+    mod = ContainerSymbol("my_mod")
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
-    sym2 = Symbol("symbol2")
+    sym2 = Symbol("symbol2", interface=GlobalInterface(mod))
+    symtab.add(mod)
     symtab.add(sym1)
     symtab.add(sym2, tag="tag1")
     symtab.specify_argument_list([sym1])
@@ -1216,6 +1218,11 @@ def test_deep_copy():
     assert symtab2.lookup_with_tag("tag1") is not sym2
     assert sym1 not in symtab2.argument_list
     assert symtab2.lookup("symbol1") not in symtab.argument_list
+
+    # Check that the internal links between GlobalInterfaces and
+    # ContainerSymbols have been updated
+    assert symtab2.lookup("symbol2").interface.container_symbol is \
+        symtab2.lookup("my_mod")
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table

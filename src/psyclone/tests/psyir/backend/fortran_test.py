@@ -946,7 +946,7 @@ def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):
     monkeypatch.setattr(symbol, "_interface", ArgumentInterface())
 
     with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer(container)
+        _ = fortran_writer._visit(container)
     assert ("Arguments are not allowed in this context but this symbol table "
             "contains argument(s): '['a']'." in str(excinfo.value))
 
@@ -1515,15 +1515,15 @@ def test_fw_structureref(fortran_writer):
                                Literal("2", INTEGER_TYPE)]), 'ny'])
     assert fortran_writer(level_ref) == "grid%levels(1,2)%ny"
     # Make the number of children invalid
-    level_ref._children = ["1", "2"]
+    level_ref._children = []
     with pytest.raises(VisitorError) as err:
         fortran_writer(level_ref)
     assert ("StructureReference must have a single child but the reference "
-            "to symbol 'grid' has 2" in str(err.value))
+            "to symbol 'grid' has 0" in str(err.value))
     # Single child but not of the right type
     level_ref._children = [Literal("1", INTEGER_TYPE)]
     with pytest.raises(VisitorError) as err:
-        fortran_writer(level_ref)
+        fortran_writer._visit(level_ref)
     assert ("StructureReference must have a single child which is a sub-"
             "class of Member but the reference to symbol 'grid' has a child "
             "of type 'Literal'" in str(err.value))
@@ -1988,7 +1988,7 @@ def test_fw_call_node(fortran_writer):
     '''
     # no args
     routine_symbol = RoutineSymbol("mysub")
-    call = Call(routine_symbol, [])
+    call = Call.create(routine_symbol, [])
     result = fortran_writer(call)
     assert result == "call mysub()\n"
 
