@@ -286,7 +286,7 @@ def test_component_indices_auto_extension():
     signature and component_indices in the add_location vall will
     automatically add empty indices to the component_indices. For example.
     adding "ssh_fld%grid%tmask" with indices ["i", "j"] will automatically
-    create compnent_indices based on [[], [], ["i", "j"]].
+    create component_indices like [[], [], ["i", "j"]].
     '''
     var_accesses = VariablesAccessInfo()
     node = Node()
