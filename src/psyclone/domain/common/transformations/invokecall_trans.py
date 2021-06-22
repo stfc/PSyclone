@@ -42,7 +42,7 @@ from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock
 from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
-    RoutineSymbol, NoType
+    RoutineSymbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.psyGen import Transformation
@@ -72,7 +72,7 @@ class InvokeCallTrans(Transformation):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        dummy_call = Call(RoutineSymbol("dummy", NoType()),
+        dummy_call = Call(RoutineSymbol("dummy"),
                           parent=code_block.parent)
         fparser2 = Fparser2Reader()
         for arg in fp2_node.children[1].children:

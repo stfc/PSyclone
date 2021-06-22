@@ -44,7 +44,8 @@ from psyclone.psyir.symbols import RoutineSymbol, Symbol, UnresolvedInterface,\
 
 def test_routinesymbol_init():
     '''Test that a RoutineSymbol instance can be created.'''
-    jo_sym = RoutineSymbol('jo', NoType())
+    # A RoutineSymbol should be of type NoType by default.
+    jo_sym = RoutineSymbol('jo')
     assert isinstance(jo_sym, RoutineSymbol)
     assert isinstance(jo_sym.datatype, NoType)
     ellie_sym = RoutineSymbol('ellie', INTEGER_TYPE,
@@ -68,7 +69,7 @@ def test_routinesymbol_init_error():
 
     '''
     with pytest.raises(TypeError) as error:
-        _ = RoutineSymbol(None, NoType())
+        _ = RoutineSymbol(None)
     assert ("RoutineSymbol 'name' attribute should be of type 'str' but "
             "'NoneType' found." in str(error.value))
     with pytest.raises(TypeError) as error:
@@ -79,7 +80,7 @@ def test_routinesymbol_init_error():
 
 def test_routinesymbol_str():
     '''Test that the __str__ method in routinesymbol behaves as expected.'''
-    routine_symbol = RoutineSymbol("roo", NoType())
+    routine_symbol = RoutineSymbol("roo")
     assert routine_symbol.__str__() == "roo : RoutineSymbol <NoType>"
     routine_symbol = RoutineSymbol("roo", INTEGER_TYPE)
     assert (routine_symbol.__str__() ==

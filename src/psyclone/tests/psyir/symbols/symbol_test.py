@@ -302,16 +302,15 @@ def test_symbol_specialise():
     assert str(asym) == "a : RoutineSymbol <NoType>"
 
 
-@pytest.mark.parametrize("test_class, class_args",
-                         [(Symbol, ["a"]), (RoutineSymbol, ["a", NoType()])])
+@pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
 @pytest.mark.parametrize("arg", [str, Symbol])
-def test_symbol_specialise_class_error(test_class, class_args, arg):
+def test_symbol_specialise_class_error(test_class, arg):
     '''Test the Symbol.specialise() method raises the expected
     exception if the supplied argument is a class that is not a
     subclass of the instance that calls specialise().
 
     '''
-    asym = test_class(*class_args)
+    asym = test_class("a")
     with pytest.raises(TypeError) as info:
         asym.specialise(arg)
     assert ("The specialise method in 'a', an instance of '{0}', expects "
@@ -320,15 +319,14 @@ def test_symbol_specialise_class_error(test_class, class_args, arg):
             in str(info.value))
 
 
-@pytest.mark.parametrize("test_class, class_args",
-                         [(Symbol, ["a"]), (RoutineSymbol, ["a", NoType()])])
-def test_symbol_specialise_instance_error(test_class, class_args):
+@pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
+def test_symbol_specialise_instance_error(test_class):
     '''Test the Symbol.specialise() method raises the expected exception
     if the supplied argument is not a class. Check using Symbol and a
     subclass of Symbol.
 
     '''
-    asym = test_class(*class_args)
+    asym = test_class("a")
     with pytest.raises(TypeError) as info:
         asym.specialise(None)
     assert ("The specialise method in 'a' expects the subclass "

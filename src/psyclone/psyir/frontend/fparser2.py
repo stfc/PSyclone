@@ -3423,7 +3423,7 @@ class Fparser2Reader(object):
         except KeyError:
             # A call must be to a subroutine which has no type in Fortran.
             routine_symbol = RoutineSymbol(
-                call_name, NoType(), interface=UnresolvedInterface())
+                call_name, interface=UnresolvedInterface())
             symbol_table.add(routine_symbol)
 
         call = Call(routine_symbol, parent=parent)

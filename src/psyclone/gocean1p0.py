@@ -1441,9 +1441,8 @@ class GOKern(CodedKern):
         try:
             self.root.symbol_table.lookup(sub_name)
         except KeyError:
-            self.root.symbol_table.add(RoutineSymbol(sub_name, NoType()),
-                                       tag=sub_name)
-        argsetter_st.add(RoutineSymbol(sub_name, NoType()), tag=sub_name)
+            self.root.symbol_table.add(RoutineSymbol(sub_name), tag=sub_name)
+        argsetter_st.add(RoutineSymbol(sub_name), tag=sub_name)
 
         # Create the f2pygen Subroutine node, the subroutine arguments are not
         # provided yet as they have to be processed to avoid name clashes
@@ -1622,7 +1621,7 @@ class GOKern(CodedKern):
             if arg.argument_type == "field":
                 # Insert call to write_to_device method
                 call = Call.create(
-                    RoutineSymbol(arg.name+"%write_to_device()", NoType()), [])
+                    RoutineSymbol(arg.name+"%write_to_device()"), [])
                 parent.add(PSyIRGen(parent, call))
             elif arg.argument_type == "grid_property" and not arg.is_scalar:
                 there_is_a_grid_buffer = True
@@ -1748,7 +1747,7 @@ class GOKern(CodedKern):
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = symtab.new_symbol(
             "write_grid_buffers", symbol_type=RoutineSymbol,
-            datatype=NoType(), tag="ocl_write_grid_buffers").name
+            tag="ocl_write_grid_buffers").name
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean1.0")
@@ -1831,7 +1830,7 @@ class GOKern(CodedKern):
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = symtab.new_symbol(
             "initialise_device_buffer", symbol_type=RoutineSymbol,
-            datatype=NoType(), tag="ocl_init_buffer_func").name
+            tag="ocl_init_buffer_func").name
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean1.0")
@@ -1907,7 +1906,7 @@ class GOKern(CodedKern):
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = symtab.new_symbol(
             "initialise_grid_device_buffers", symbol_type=RoutineSymbol,
-            datatype=NoType(), tag="ocl_init_grid_buffers").name
+            tag="ocl_init_grid_buffers").name
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean1.0")
@@ -1998,7 +1997,7 @@ class GOKern(CodedKern):
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = symtab.new_symbol(
             "read_from_device", symbol_type=RoutineSymbol,
-            datatype=NoType(), tag="ocl_read_func").name
+            tag="ocl_read_func").name
 
         # Code of the subroutine in Fortran
         code = '''
@@ -2090,7 +2089,7 @@ class GOKern(CodedKern):
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = symtab.new_symbol(
             "write_to_device", symbol_type=RoutineSymbol,
-            datatype=NoType(), tag="ocl_write_func").name
+            tag="ocl_write_func").name
 
         # Code of the subroutine in Fortran
         code = '''

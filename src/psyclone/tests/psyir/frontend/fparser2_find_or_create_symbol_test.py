@@ -216,8 +216,7 @@ def test_find_or_create_change_symbol_type():
     assert sym.datatype == REAL_TYPE
     # Search for 'my_sub' and specify that it should be a RoutineSymbol
     sym2 = _find_or_create_imported_symbol(assign, "my_sub",
-                                           symbol_type=RoutineSymbol,
-                                           datatype=NoType())
+                                           symbol_type=RoutineSymbol)
     assert sym2 is sub_sym
     assert type(sym2) == RoutineSymbol
     assert isinstance(sym2.datatype, NoType)

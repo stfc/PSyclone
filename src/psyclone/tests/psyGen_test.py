@@ -73,7 +73,7 @@ from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
     Literal, Node, Schedule, KernelSchedule, Call, Loop, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     GlobalInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
-    SymbolTable, NoType
+    SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
@@ -520,7 +520,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
 
     # Check that if a subroutine with the same name already exists and it is
     # not identical, it fails.
-    schedule.symbol_table.add(RoutineSymbol("ru_code", NoType()))
+    schedule.symbol_table.add(RoutineSymbol("ru_code"))
     with pytest.raises(NotImplementedError) as err:
         gen = str(psy.gen)
     assert ("Can not inline subroutine 'ru_code' because another subroutine "

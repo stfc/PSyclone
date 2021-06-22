@@ -388,7 +388,7 @@ def test_remove_routineymbols():
     ''' Test that the remove method removes RoutineSymbols from the symbol
     table.'''
     sym_table = SymbolTable()
-    symbol_a = RoutineSymbol("a", NoType())
+    symbol_a = RoutineSymbol("a")
     sym_table.add(symbol_a)
     assert "a" in sym_table
     sym_table.remove(symbol_a)
@@ -1358,8 +1358,7 @@ def test_new_symbol():
             in str(error.value))
 
     # New symbols can be given a Symbol sub-type
-    sym1 = symtab.new_symbol("routine", symbol_type=RoutineSymbol,
-                             datatype=NoType())
+    sym1 = symtab.new_symbol("routine", symbol_type=RoutineSymbol)
     sym2 = symtab.new_symbol("data", symbol_type=DataSymbol,
                              datatype=INTEGER_TYPE)
     assert sym1.name == "routine"

@@ -48,7 +48,7 @@ This should output a Fortran representation of the LFRic-PSyIR.
 from __future__ import print_function
 from psyclone.psyir.nodes import Call, Reference, Container, KernelSchedule
 from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, \
-    ArgumentInterface, NoType
+    ArgumentInterface
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -111,7 +111,7 @@ SYMBOL_TABLE.specify_argument_list(
      WEIGHTS_Z, BASIS_W3, DIFF_BASIS_W3])
 
 # Routine symbol
-ROUTINE_SYMBOL = RoutineSymbol("my_sub", NoType())
+ROUTINE_SYMBOL = RoutineSymbol("my_sub")
 
 # Call
 CALL = Call.create(ROUTINE_SYMBOL,
