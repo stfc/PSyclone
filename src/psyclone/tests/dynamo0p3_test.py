@@ -1565,8 +1565,20 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     assert psyir.name == "a"
     assert isinstance(psyir.datatype, ScalarType)
     assert psyir.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    # Repeat but force the symbol for 'a' to be created
+    del first_invoke.schedule.symbol_table._symbols["a"]
+    psyir = first_arg.psyir_expression()
+    assert isinstance(psyir, DataSymbol)
+    assert psyir.name == "a"
     # Second argument is a real-valued field
     second_arg = first_kernel.arguments.args[1]
+    psyir = second_arg.psyir_expression()
+    assert isinstance(psyir, DataSymbol)
+    assert psyir.name == "f1_proxy"
+    assert isinstance(psyir.datatype, DataTypeSymbol)
+    assert psyir.datatype.name == "field_proxy_type"
+    # Repeat but force the symbol for 'f1_proxy' to be created
+    del first_kernel.scope.symbol_table._symbols["f1_proxy"]
     psyir = second_arg.psyir_expression()
     assert isinstance(psyir, DataSymbol)
     assert psyir.name == "f1_proxy"

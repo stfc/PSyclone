@@ -409,26 +409,8 @@ def test_get_field_argument_symbols(monkeypatch):
     symbols = kern.get_field_argument_symbols()
     for sym in symbols:
         assert isinstance(sym, DataSymbol)
-        if sym.name == "a":
-            # We should have a symbol of ScalarType for the scalar
-            assert isinstance(sym.datatype, ScalarType)
-            assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-        else:
-            assert isinstance(sym.datatype, DataTypeSymbol)
-            assert sym.datatype.name == "field_proxy_type"
-    # Repeat but force the symbols for the scalar and field-proxy args to be
-    # created
-    del loop.parent.symbol_table._symbols["a"]
-    del kern.parent.symbol_table._symbols["f2_proxy"]
-    symbols = kern.get_field_argument_symbols()
-    for sym in symbols:
-        if sym.name == "a":
-            # We should have a symbol of ScalarType for the scalar
-            assert isinstance(sym.datatype, ScalarType)
-            assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-        else:
-            assert isinstance(sym.datatype, DataTypeSymbol)
-            assert sym.datatype.name == "field_proxy_type"
+        assert isinstance(sym.datatype, DataTypeSymbol)
+        assert sym.datatype.name == "field_proxy_type"
 
 
 def test_get_scalar_argument_references(monkeypatch):
