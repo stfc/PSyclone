@@ -30,6 +30,9 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford STFC Daresbury Lab
+!
+! Example with an undeclared symbol that could be provided via a
+! wildcard module (wildcard_mod).
 
 module self_symbols_use
 

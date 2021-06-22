@@ -30,6 +30,9 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford STFC Daresbury Lab
+!
+! Example where complex structures are used (% and array indexing are
+! used multiple times) when passing variables into an invoke.
 
 module self_symbols_structure
 
@@ -38,6 +41,7 @@ module self_symbols_structure
   use r_solver_operator_mod, only : r_solver_operator_type
   use quadrature_xyoz_mod, only : quadrature_xyoz_type
   use testkern_operator_mod, only : testkern_operator_type
+  use bundle_type_mod, only : bundletype
 
   type :: my_type
      type(quadrature_xyoz_type), pointer :: qr => null

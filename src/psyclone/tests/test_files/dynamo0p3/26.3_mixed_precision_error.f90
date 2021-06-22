@@ -30,6 +30,11 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford STFC Daresbury Lab
+!
+! Example where a symbol name has more than one type in an algorithm
+! file. In this case the variable 'a' in 'my_type' and in subroutine
+! 'dummy' have the same declaration. However, the variable 'a' in
+! subroutine 'dummy2' is not declared with precision 'r_solver'.
 
 module self_symbols_clash_example
 

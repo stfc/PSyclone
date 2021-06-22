@@ -154,7 +154,9 @@ class Parser(object):
         self._api = api
 
         self._arg_name_to_module_name = {}
-        # Holds variable name, type and precision information.
+        # Dict holding a 2-tuple consisting of type and precision
+        # information for each variable declared in the algorithm
+        # file, indexed by variable name.
         self._arg_type_defns = {}
         self._unique_invoke_labels = []
 
@@ -203,9 +205,11 @@ class Parser(object):
 
     def invoke_info(self, alg_parse_tree):
         '''Takes an fparser2 representation of a PSyclone-conformant algorithm
-        code as input and outputs an object containing information
+        code as input and returns an object containing information
         about the 'invoke' calls in the algorithm file and any
-        associated kernels within the invoke calls.
+        associated kernels within the invoke calls. Also captures the
+        type and precision of every variable declaration within the
+        parse tree.
 
         :param alg_parse_tree: the fparser2 representation of the \
             algorithm code.
@@ -241,11 +245,22 @@ class Parser(object):
 
         self._unique_invoke_labels = []
         self._arg_name_to_module_name = OrderedDict()
-        # Holds variable name, type and precision information.
+        # Dict holding a 2-tuple consisting of type and precision
+        # information for each variable declared in the algorithm
+        # file, indexed by variable name.
         self._arg_type_defns = dict()
         invoke_calls = []
 
-        for statement in walk(alg_parse_tree.content):
+        # Find all invoke calls and capture information about
+        # them. Also find information about use statements and find
+        # all declarations within the supplied parse
+        # tree. Declarations will include the definitions of any
+        # components of derived types that are defined within the
+        # code.
+        for statement in walk(alg_parse_tree.content,
+                              types=(Type_Declaration_Stmt,
+                                     Data_Component_Def_Stmt,
+                                     Use_Stmt, Call_Stmt)):
             if isinstance(statement,
                           (Type_Declaration_Stmt, Data_Component_Def_Stmt)):
                 # Capture datatype information for the variable
@@ -269,7 +284,12 @@ class Parser(object):
                         "".format(type(spec).__name__))
                 for decl in walk(statement.children[2], (
                         Entity_Decl, Component_Decl)):
-                    # Determine the variables names
+                    # Determine the variables names. Note that if a
+                    # variable declaration is a component of a derived
+                    # type, its name is stored 'as is'. This means
+                    # that e.g. real :: a will clash with a
+                    # derived-type definition if the latter has a
+                    # component named 'a' and their datatypes differ.
                     my_var_name = decl.children[0].string.lower()
                     if my_var_name in self._arg_type_defns and (
                             self._arg_type_defns[my_var_name][0] != my_type or
@@ -613,6 +633,11 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
         :py:class:`fparser.two.Fortran2003.Structure_Constructor`
     :param str alg_filename: The file containing the algorithm code.
 
+    :param arg_type_defns: dictionary holding a 2-tuple consisting of \
+        type and precision information for each variable declared in \
+        the algorithm layer, indexed by variable name.
+    :type arg_type_defns: Dict[str] = (str, str or NoneType)
+
     :returns: a 2-tuple with the name of the kernel being called and a \
         list of 'Arg' instances containing the required information for \
         the arguments being passed from the algorithm layer. The list \
@@ -711,10 +736,7 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                         "Name, but found '{0}'."
                         "".format(type(rhs_node).__name__))
                 arg = rhs_node.string.lower()
-            try:
-                datatype = arg_type_defns[arg]
-            except KeyError:
-                datatype = None
+            datatype = arg_type_defns.get(arg)
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
             arguments.append(Arg('variable', full_text,
@@ -767,8 +789,10 @@ def create_var_name(arg_parse_tree):
     if isinstance(tree, Part_Ref):
         return str(tree.items[0])
     if isinstance(tree, Proc_Component_Ref):
-        # RHS is always a Name but LHS could be more complex so call
-        # function again.
+        # Proc_Component_Ref is of the form 'variable %
+        # proc-name'. It's RHS (proc-name) is always a Name but its
+        # LHS (variable) could be more complex, so call the function
+        # again for the LHS.
         return "{0}_{1}".format(
             create_var_name(tree.items[0]), tree.items[2])
     if isinstance(tree, Data_Ref):

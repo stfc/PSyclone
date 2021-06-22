@@ -30,6 +30,10 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford STFC Daresbury Lab
+!
+! Example where variables (fields, operators, scalars etc) that are
+! within a type that contains a type bound procedure (which uses self
+! % x to access variables) are used within an invoke.
 
 module self_example
 

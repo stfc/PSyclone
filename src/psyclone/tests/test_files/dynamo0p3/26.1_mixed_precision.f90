@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,8 +29,10 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Author: R. W. Ford, STFC Daresbury Lab
+!
+! Mixed precision example where an operator, field and scalar with
+! precision r_solver are passed to a kernel.
 
 program operator_example
 
@@ -49,14 +51,9 @@ program operator_example
   type(r_solver_FIELD_type)           :: COORD(3)
   type(r_solver_operator_TYPE)        :: MM_w0
   type(Quadrature_xyoz_type), pointer :: qr => null
-  integer(I_DEF)                      :: mesh_id = 1
-  integer(i_def)                      :: element_order = 0
   real(R_solver)                      :: a
 
   a = 1.0_r_solver
-  mm_w0 = operator_type(function_space_collection%get_fs(mesh_id,element_order,W0), &
-                        function_space_collection%get_fs(mesh_id,element_order,W0))
-
   call invoke(testkern_operator_type(mm_W0, coord, A, Qr))
 
 end program operator_example

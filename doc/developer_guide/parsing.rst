@@ -227,9 +227,9 @@ implementation could be improved but in practice the lfric code does
 not fall foul of this restriction.
 
 There is also a constraint that invoke arguments cannot be expressions
-or functions as it is then difficult to determine the datatype of the
-argument. However, arbitrary structures and arrays are supported as
-are literal expressions.
+(involving variables) or functions as it is then difficult to
+determine the datatype of the argument. However, arbitrary structures
+and arrays are supported, as are literal expressions.
 
 .. highlight:: fortran
 

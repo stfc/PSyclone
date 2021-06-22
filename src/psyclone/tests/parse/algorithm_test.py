@@ -54,7 +54,7 @@ from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
 
 LFRIC_TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "..", "test_files", "dynamo0p3")
+                               os.path.pardir, "test_files", "dynamo0p3")
 # This ParserFactory call needs to happen at the top-level in order for the
 # fparser.two.Fortran2003 import to work as expected.
 ParserFactory().create(std="f2008")
@@ -279,7 +279,7 @@ def test_parser_invokeinfo_structure_error():
 
 def test_parser_invokeinfo_internalerror():
     '''Test that the invoke_info method in the Parser class raises the
-    expected exception if an unexpected child or Type_Declaration_Stmt
+    expected exception if an unexpected child of Type_Declaration_Stmt
     or Data_Component_Def_Stmt is found.
 
     '''
