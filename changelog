@@ -55,6 +55,10 @@
 
         19) #1287 towards #1259. Rename TypeSymbol to DataTypeSymbol.
 
+	20) #1265 for #1260. Fixes various bugs to better support PSyIR
+	code generation. Includes function return values and string
+	storage in PSyIR.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

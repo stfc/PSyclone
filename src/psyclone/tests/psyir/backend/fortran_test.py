@@ -1914,6 +1914,33 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal('a', CHARACTER_TYPE)
     result = fortran_writer(lit1)
     assert result == "'a'"
+    # An empty character string is valid
+    lit1 = Literal('', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == "''"
+
+    # Check that we generate the correct quotation marks if the literal itself
+    # includes quotation marks within it. (Note that the values of character
+    # literals are stored in the PSyIR without any enclosing quotation marks.)
+    lit1 = Literal('''('hello ',4A)''', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '''"('hello ',4A)"'''
+    lit1 = Literal('"a"', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == """'"a"'"""
+    lit1 = Literal("apostrophe's", CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '''"apostrophe's"'''
+    # Literals containing both single and double quotes are not supported.
+    lit1 = Literal('''('hello "',4A,'"')''', CHARACTER_TYPE)
+    with pytest.raises(NotImplementedError) as err:
+        _ = fortran_writer(lit1)
+    assert '''supported but found >>('hello "',4A,'"')<<''' in str(err.value)
+    # Literals containing both single and double quotes are not supported.
+    lit1 = Literal('''("hello '",4A,"'")''', CHARACTER_TYPE)
+    with pytest.raises(NotImplementedError) as err:
+        _ = fortran_writer(lit1)
+    assert '''supported but found >>("hello '",4A,"'")<<''' in str(err.value)
 
     lit1 = Literal('3.14', REAL_TYPE)
     result = fortran_writer(lit1)
