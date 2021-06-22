@@ -116,21 +116,33 @@ class Signature(object):
     # ------------------------------------------------------------------------
     def __lt__(self, other):
         '''Required to sort signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'<' not supported between instances of "
+                            "'Signature' and '{0}'.".format(type(other)))
         return self._signature < other._signature
 
     # ------------------------------------------------------------------------
     def __le__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'<=' not supported between instances of "
+                            "'Signature' and '{0}'.".format(type(other)))
         return self._signature <= other._signature
 
     # ------------------------------------------------------------------------
     def __gt__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'>' not supported between instances of "
+                            "'Signature' and '{0}'.".format(type(other)))
         return self._signature > other._signature
 
     # ------------------------------------------------------------------------
     def __ge__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'>=' not supported between instances of "
+                            "'Signature' and '{0}'.".format(type(other)))
         return self._signature >= other._signature
 
     # ------------------------------------------------------------------------
