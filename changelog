@@ -65,6 +65,10 @@
 
         22) #1278 for #1271. Updates dependency tools to use Signatures.
 
+        23) #1286 for #1274. Updates the Visitors so that they perform
+        any necessary lowering and do so on a *copy* of the PSyIR tree
+        so that there are no side effects.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
