@@ -720,7 +720,8 @@ def test_process_declarations_accessibility():
     assert zsym.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_process_unsupported_declarations(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_unsupported_declarations(fortran_reader):
     ''' Check that the frontend handles unsupported declarations by
     creating symbols of UnknownFortranType. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -780,14 +781,15 @@ def test_process_unsupported_declarations(f2008_parser):
     assert c2sym.datatype.declaration == "COMPLEX :: c2"
 
     # Char lengths are not supported
-    # TODO: It would be simpler to do just a Specification_Part(reader) instead
-    # of parsing a full program, but fparser/169 needs to be fixed first.
-    reader = FortranStringReader("program dummy\ncharacter :: l*4"
-                                 "\nend program")
-    program = f2008_parser(reader)
-    fparser2spec = program.content[0].content[1].content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert isinstance(fake_parent.symbol_table.lookup("l").datatype,
+    psyir = fortran_reader.psyir_from_source("program dummy\n"
+                                             "character :: l*4\n"
+                                             "end program")
+    assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
+                      UnknownFortranType)
+    psyir = fortran_reader.psyir_from_source("program dummy\n"
+                                             "character(len=4) :: l\n"
+                                             "end program")
+    assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
                       UnknownFortranType)
 
     # Unsupported initialisation of a parameter which comes after a valid

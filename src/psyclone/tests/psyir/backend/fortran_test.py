@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
     DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType, \
-    TypeSymbol, StructureType
+    DataTypeSymbol, StructureType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
@@ -283,7 +283,7 @@ def test_gen_datatype_kind_precision(type_name, result):
 def test_gen_datatype_derived_type():
     ''' Check that gen_datatype handles derived types. '''
     # A symbol representing a single derived type
-    tsym = TypeSymbol("my_type", DeferredType())
+    tsym = DataTypeSymbol("my_type", DeferredType())
     assert gen_datatype(tsym, "my_type") == "type(my_type)"
     # An array of derived types
     atype = ArrayType(tsym, [10])
@@ -343,12 +343,12 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
     ''' Test the various validation checks in gen_typedecl(). '''
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_typedecl("hello")
-    assert ("gen_typedecl expects a TypeSymbol as argument but got: 'str'" in
-            str(err.value))
+    assert ("gen_typedecl expects a DataTypeSymbol as argument but got: 'str'"
+            in str(err.value))
     # UnknownType is abstract so we create an UnknownFortranType and then
     # monkeypatch it.
-    tsymbol = TypeSymbol("my_type",
-                         UnknownFortranType("type my_type\nend type my_type"))
+    tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
+        "type my_type\nend type my_type"))
     monkeypatch.setattr(tsymbol.datatype, "__class__", UnknownType)
 
     with pytest.raises(VisitorError) as err:
@@ -359,8 +359,8 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
 
 def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     ''' Check that gen_typedecl() works for a symbol of UnknownFortranType. '''
-    tsymbol = TypeSymbol("my_type",
-                         UnknownFortranType("type my_type\nend type my_type"))
+    tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
+        "type my_type\nend type my_type"))
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type my_type\nend type my_type")
 
@@ -369,7 +369,7 @@ def test_gen_typedecl(fortran_writer):
     ''' Test normal operation of gen_typedecl(). '''
     atype = ArrayType(REAL_TYPE, [3, 5])
     dynamic_atype = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED])
-    tsymbol = TypeSymbol("grid_type", DeferredType())
+    tsymbol = DataTypeSymbol("grid_type", DeferredType())
     dtype = StructureType.create([
         # Scalar integer
         ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
@@ -381,7 +381,7 @@ def test_gen_typedecl(fortran_writer):
         ("data", dynamic_atype, Symbol.Visibility.PUBLIC),
         # Derived type
         ("grid", tsymbol, Symbol.Visibility.PRIVATE)])
-    tsymbol = TypeSymbol("my_type", dtype)
+    tsymbol = DataTypeSymbol("my_type", dtype)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type :: my_type\n"
             "  integer :: flag\n"
@@ -390,7 +390,8 @@ def test_gen_typedecl(fortran_writer):
             "  real, allocatable, dimension(:) :: data\n"
             "  type(grid_type), private :: grid\n"
             "end type my_type\n")
-    private_tsymbol = TypeSymbol("my_type", dtype, Symbol.Visibility.PRIVATE)
+    private_tsymbol = DataTypeSymbol("my_type", dtype,
+                                     Symbol.Visibility.PRIVATE)
     gen_code = fortran_writer.gen_typedecl(private_tsymbol)
     assert gen_code.startswith("type, private :: my_type\n")
 
@@ -649,11 +650,11 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(local_variable)
     dtype = StructureType.create([
         ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    dtype_variable = TypeSymbol("field", dtype)
+    dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
-    grid_type = TypeSymbol("grid_type", DeferredType(),
-                           interface=GlobalInterface(
-                               symbol_table.lookup("my_module")))
+    grid_type = DataTypeSymbol("grid_type", DeferredType(),
+                               interface=GlobalInterface(
+                                   symbol_table.lookup("my_module")))
     symbol_table.add(grid_type)
     grid_variable = DataSymbol("grid", grid_type)
     symbol_table.add(grid_variable)
@@ -944,7 +945,7 @@ def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):
     monkeypatch.setattr(symbol, "_interface", ArgumentInterface())
 
     with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer(container)
+        _ = fortran_writer._visit(container)
     assert ("Arguments are not allowed in this context but this symbol table "
             "contains argument(s): '['a']'." in str(excinfo.value))
 
@@ -1498,13 +1499,13 @@ def test_fw_structureref(fortran_writer):
     region_type = StructureType.create([
         ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
         ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    region_type_sym = TypeSymbol("grid_type", region_type)
+    region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     grid_type = StructureType.create([
         ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
         ("area", region_type_sym, Symbol.Visibility.PUBLIC),
         ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
     assert fortran_writer.structurereference_node(grid_ref) == "grid%area%nx"
@@ -1513,15 +1514,15 @@ def test_fw_structureref(fortran_writer):
                                Literal("2", INTEGER_TYPE)]), 'ny'])
     assert fortran_writer(level_ref) == "grid%levels(1,2)%ny"
     # Make the number of children invalid
-    level_ref._children = ["1", "2"]
+    level_ref._children = []
     with pytest.raises(VisitorError) as err:
         fortran_writer(level_ref)
     assert ("StructureReference must have a single child but the reference "
-            "to symbol 'grid' has 2" in str(err.value))
+            "to symbol 'grid' has 0" in str(err.value))
     # Single child but not of the right type
     level_ref._children = [Literal("1", INTEGER_TYPE)]
     with pytest.raises(VisitorError) as err:
-        fortran_writer(level_ref)
+        fortran_writer._visit(level_ref)
     assert ("StructureReference must have a single child which is a sub-"
             "class of Member but the reference to symbol 'grid' has a child "
             "of type 'Literal'" in str(err.value))
@@ -1531,7 +1532,7 @@ def test_fw_arrayofstructuresref(fortran_writer):
     ''' Test the FortranWriter support for ArrayOfStructuresReference. '''
     grid_type = StructureType.create([
         ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_array_type = ArrayType(grid_type_sym, [10])
     grid_var = DataSymbol("grid", grid_array_type)
     grid_ref = ArrayOfStructuresReference.create(grid_var,
@@ -1559,12 +1560,12 @@ def test_fw_arrayofstructuresmember(fortran_writer):
     region_type = StructureType.create([
         ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
         ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    region_type_sym = TypeSymbol("grid_type", region_type)
+    region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
     grid_type = StructureType.create([
         ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to an element of an array that is a structure
     level_ref = StructureReference.create(grid_var,
@@ -1913,6 +1914,33 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal('a', CHARACTER_TYPE)
     result = fortran_writer(lit1)
     assert result == "'a'"
+    # An empty character string is valid
+    lit1 = Literal('', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == "''"
+
+    # Check that we generate the correct quotation marks if the literal itself
+    # includes quotation marks within it. (Note that the values of character
+    # literals are stored in the PSyIR without any enclosing quotation marks.)
+    lit1 = Literal('''('hello ',4A)''', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '''"('hello ',4A)"'''
+    lit1 = Literal('"a"', CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == """'"a"'"""
+    lit1 = Literal("apostrophe's", CHARACTER_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '''"apostrophe's"'''
+    # Literals containing both single and double quotes are not supported.
+    lit1 = Literal('''('hello "',4A,'"')''', CHARACTER_TYPE)
+    with pytest.raises(NotImplementedError) as err:
+        _ = fortran_writer(lit1)
+    assert '''supported but found >>('hello "',4A,'"')<<''' in str(err.value)
+    # Literals containing both single and double quotes are not supported.
+    lit1 = Literal('''("hello '",4A,"'")''', CHARACTER_TYPE)
+    with pytest.raises(NotImplementedError) as err:
+        _ = fortran_writer(lit1)
+    assert '''supported but found >>("hello '",4A,"'")<<''' in str(err.value)
 
     lit1 = Literal('3.14', REAL_TYPE)
     result = fortran_writer(lit1)
@@ -1959,7 +1987,7 @@ def test_fw_call_node(fortran_writer):
     '''
     # no args
     routine_symbol = RoutineSymbol("mysub")
-    call = Call(routine_symbol, [])
+    call = Call.create(routine_symbol, [])
     result = fortran_writer(call)
     assert result == "call mysub()\n"
 

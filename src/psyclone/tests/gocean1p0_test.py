@@ -56,7 +56,7 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
-    ArgumentInterface, TypeSymbol
+    ArgumentInterface, DataTypeSymbol
 from psyclone.psyir.nodes import Node, StructureReference, Member, \
     StructureMember, Reference
 
@@ -387,11 +387,13 @@ def test_scalar_float_arg_from_module():
     # This test expects constant loop bounds
     psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
 
-    # Substitute 'a_scalar' with a global
+    # Substitute 'a_scalar' argument with a global
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
-    schedule.symbol_table._symbols['a_scalar'] = DataSymbol(
-        'a_scalar', REAL_TYPE, interface=GlobalInterface(my_mod))
+    symtab = schedule.symbol_table
+    symtab.add(my_mod)
+    symtab.lookup("a_scalar").interface = GlobalInterface(my_mod)
+    symtab.specify_argument_list([schedule.symbol_table.lookup("ssh_fld")])
 
     # Generate the code. 'a_scalar' should now come from a module instead of a
     # declaration.
@@ -1419,8 +1421,8 @@ def test_gokernelargument_infer_datatype():
     # The first argument is a scalar Real
     assert argument_list.args[0].infer_datatype() == REAL_TYPE
 
-    # The second argument is a r2d_type (imported TypeSymbol)
-    assert isinstance(argument_list.args[1].infer_datatype(), TypeSymbol)
+    # The second argument is a r2d_type (imported DataTypeSymbol)
+    assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
     assert argument_list.args[1].infer_datatype().name == "r2d_type"
 
     # Parse an invoke with a scalar int and a field
@@ -1438,8 +1440,8 @@ def test_gokernelargument_infer_datatype():
     # The first argument is a scalar Integer
     assert argument_list.args[0].infer_datatype() == INTEGER_TYPE
 
-    # The second argument is a r2d_type (imported TypeSymbol)
-    assert isinstance(argument_list.args[1].infer_datatype(), TypeSymbol)
+    # The second argument is a r2d_type (imported DataTypeSymbol)
+    assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
     assert argument_list.args[1].infer_datatype().name == "r2d_type"
 
     # Test an incompatible Kernel Argument
