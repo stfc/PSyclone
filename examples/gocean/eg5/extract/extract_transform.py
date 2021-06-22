@@ -63,6 +63,10 @@ def trans(psy):
 
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
+    # TODO #969: this view is required, otherwise the loop
+    # boundaries are undefined, and will not be written
+    # to the output file
+    schedule.view()
     _, _ = extract.apply(schedule.children,
                          {"create_driver": True,
                           "region_name": ("main", "init")})

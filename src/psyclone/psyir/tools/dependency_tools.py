@@ -419,8 +419,8 @@ class DependencyTools(object):
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
 
-        :returns: a list of all variable names that are read.
-        :rtype: list of str
+        :returns: a list of all variable signatures that are read.
+        :rtype: list of :py:class:`psyclone.core.Signature`
 
         '''
         # Collect the information about all variables used:
@@ -436,7 +436,7 @@ class DependencyTools(object):
             # If the first access is a write, the variable is not an input
             # parameter and does not need to be saved.
             if first_access.access_type != AccessType.WRITE:
-                input_list.append(str(signature))
+                input_list.append(signature)
 
         return input_list
 
@@ -453,15 +453,15 @@ class DependencyTools(object):
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
 
-        :returns: a list of all variable names that are written.
-        :rtype: list of str
+        :returns: a list of all variable signatures that are written.
+        :rtype: list of :py:class:`psyclone.core.Signature`
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list)
 
-        return [str(signature) for signature in variables_info.all_signatures
+        return [signature for signature in variables_info.all_signatures
                 if variables_info.is_written(signature)]
 
     # -------------------------------------------------------------------------
@@ -476,7 +476,7 @@ class DependencyTools(object):
 
         :returns: a 2-tuple of two lists, the first one containing \
             the input parameters, the second the output paramters.
-        :rtype: 2-tuple of list of str
+        :rtype: 2-tuple of list of :py:class:`psyclone.core.Signature`
 
         '''
         variables_info = VariablesAccessInfo(node_list)
