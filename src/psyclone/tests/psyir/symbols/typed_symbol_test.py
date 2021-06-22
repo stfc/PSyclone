@@ -61,7 +61,7 @@ class TSymbol(TypedSymbol):
 def test_typed_symbol_abstract():
     ''' Check that TypedSymbol is abstract. '''
     with pytest.raises(TypeError) as err:
-        _ = TypedSymbol('a', REAL_SINGLE_TYPE)
+        TypedSymbol('a', REAL_SINGLE_TYPE)
     assert "instantiate abstract class TypedSymbol" in str(err.value)
 
 

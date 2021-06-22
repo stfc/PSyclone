@@ -63,9 +63,6 @@ class TypedSymbol(Symbol):
         :py:class:`psyclone.psyir.symbols.LocalInterface`
     :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
-    :raises TypeError: if the name is not a str or visibility is not an \
-                       instance of Visibility.
-
     '''
     def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
                  interface=None):
@@ -97,13 +94,12 @@ class TypedSymbol(Symbol):
                      :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         :raises TypeError: if value is not of the correct type.
-        :raises NotImplementedError: if the specified data type is invalid.
 
         '''
         # We can't do this import at the toplevel as we get a circular
         # dependency with the datatypes module.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols import DataType
+        from psyclone.psyir.symbols.datatypes import DataType
         if not isinstance(value, (DataType, DataTypeSymbol)):
             raise TypeError(
                 "The datatype of a {0} must be specified using either "
@@ -174,7 +170,10 @@ class TypedSymbol(Symbol):
         :rtype: bool
 
         '''
-        from psyclone.psyir.symbols import ScalarType
+        # This import has to be local to this method to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import ScalarType
         return isinstance(self.datatype, ScalarType)
 
     @property
@@ -184,7 +183,10 @@ class TypedSymbol(Symbol):
         :rtype: bool
 
         '''
-        from psyclone.psyir.symbols import ArrayType
+        # This import has to be local to this method to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import ArrayType
         return isinstance(self.datatype, ArrayType)
 
     @property
@@ -198,8 +200,8 @@ class TypedSymbol(Symbol):
                   extent. If it is an empty list then the symbol \
                   represents a scalar.
         :rtype: list
+
         '''
-        from psyclone.psyir.symbols import ArrayType
-        if isinstance(self._datatype, ArrayType):
+        if self.is_array:
             return self._datatype.shape
         return []

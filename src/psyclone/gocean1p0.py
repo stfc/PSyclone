@@ -73,7 +73,7 @@ from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
     Call, Assignment
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, NoType, DataSymbol, ArgumentInterface, RoutineSymbol, \
+    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
     ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
     REAL_TYPE, UnknownFortranType, LocalInterface
 

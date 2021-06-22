@@ -73,7 +73,8 @@ class DeferredType(DataType):
 
 
 class NoType(DataType):
-    ''' Indicates that the associated symbol has no type. '''
+    ''' Indicates that the associated symbol has an empty type (equivalent
+    to `void` in C). '''
 
     def __str__(self):
         return "NoType"

@@ -673,6 +673,8 @@ def _process_routine_symbols(module_ast, symbol_table,
                                  Fortran2003.Function_Subprogram))
     # A subroutine has no type but a function does. However, we don't know what
     # it is at this stage so we give all functions a DeferredType.
+    # TODO #924 should this type be required at any point then hopefully
+    # TypedSymbol.resolve_deferred() will do the job.
     type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
                 Fortran2003.Function_Subprogram: DeferredType()}
     for routine in routines:
