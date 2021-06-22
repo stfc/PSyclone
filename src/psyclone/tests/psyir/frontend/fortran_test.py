@@ -87,6 +87,9 @@ def test_fortran_psyir_from_literal_expression():
     ''' Test that the psyir_from_literal_expression method generates the
     expected PSyIR. '''
     fortran_reader = FortranReader()
+    psyir = fortran_reader.psyir_from_literal_expression("3.0")
+    assert isinstance(psyir, Literal)
+    assert psyir.value == "3.0"
     psyir = fortran_reader.psyir_from_literal_expression("-3.0 + 1.0")
     assert isinstance(psyir, BinaryOperation)
     assert psyir.operator == BinaryOperation.Operator.ADD
@@ -94,6 +97,12 @@ def test_fortran_psyir_from_literal_expression():
     assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
     assert isinstance(psyir.children[0].children[0], Literal)
     assert psyir.children[0].children[0].value == "3.0"
+    psyir = fortran_reader.psyir_from_literal_expression("ABS(-3.0)")
+    assert isinstance(psyir, UnaryOperation)
+    assert psyir.operator == UnaryOperation.Operator.ABS
+    assert isinstance(psyir.children[0], UnaryOperation)
+    assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
+    assert isinstance(psyir.children[0].children[0], Literal)
     with pytest.raises(NotImplementedError) as err:
         fortran_reader.psyir_from_literal_expression("3.0 + a")
     assert "Expression must contain only literals: '3.0 + a'" in str(err.value)

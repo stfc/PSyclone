@@ -36,8 +36,9 @@
 ''' This module provides the PSyIR Fortran front-end.'''
 
 import six
-from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.parser import ParserFactory
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.symbols import SymbolError
@@ -82,8 +83,7 @@ class FortranReader(object):
         :raises NotImplementedError: if the supplied expression contains \
                                      any variable symbols.
         '''
-        from fparser.two.Fortran2003 import Expr
-        parse_tree = Expr(source_code)
+        parse_tree = Fortran2003.Expr(source_code)
         # An Assignment has no symbol table so any attempts to lookup
         # symbols in the supplied expression will raise a Symbol Error
         fake_assign = Assignment()
