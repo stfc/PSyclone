@@ -106,23 +106,13 @@ class Member(Node):
     def __str__(self):
         return self.node_str(False)
 
-    def get_signature_and_indices(self, max_depth=None):
-        '''
-        Constructs and returns the Signature (and empty indices list) for this
-        structure member access.
-
-        :param int max_depth: the maximum depth to recurse down into a \
-            structure type. Not used here because a Member is a leaf in a \
-            structure access.
-
-        :returns: the Signature of this member access, and a list \
-            of lists of the indices used for each component, which is empty \
-            in this case since it is not an array access.
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this member access, and a list \
+        of list of the indices used for each component, which is empty \
+        in this case since it is not an array access.
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
-
         '''
-        # pylint: disable=unused-argument
         return (Signature(self.name), [[]])
 
 

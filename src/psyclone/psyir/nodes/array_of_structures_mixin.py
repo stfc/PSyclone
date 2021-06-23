@@ -106,32 +106,16 @@ class ArrayOfStructuresMixin(ArrayMixin):
                         type(self).__name__, idx, type(child).__name__))
         return self._children[1:]
 
-    def get_signature_and_indices(self, max_depth=None):
-        '''
-        Constructs and returns the Signature and indices for this array of
-        structures. If supplied, max_depth limits how far down the structure
-        access to recurse when constructing the signature.
-
-        :param int max_depth: the maximum depth to recurse down into a \
-            structure type.
-
-        :returns: the Signature of this array of structure reference, \
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this array of structure reference, \
             and a list of lists of the indices used for each component.
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
 
         '''
+        sub_sig, indices = self.children[0].get_signature_and_indices()
         sig = Signature(self.name)
-
-        if max_depth is None or max_depth > 0:
-            new_depth = None
-            if max_depth:
-                new_depth = max_depth - 1
-            sub_sig, indices = self.member.get_signature_and_indices(
-                max_depth=new_depth)
-            return (Signature(sig, sub_sig), [self.indices]+indices)
-
-        return Signature(sig), [self.indices]
+        return (Signature(sig, sub_sig), [self.indices]+indices)
 
 
 # For AutoAPI documentation generation
