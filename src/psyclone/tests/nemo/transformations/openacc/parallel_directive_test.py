@@ -40,7 +40,7 @@
 
 from __future__ import print_function, absolute_import
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo, ACCParallelDirective
+from psyclone.psyGen import PSyFactory, TransInfo
 
 
 # The PSyclone API under test
@@ -73,8 +73,8 @@ def test_parallel_single_loop(parser):
 
     assert ("program do_loop\n"
             "  use kind_params_mod, only : wp\n"
-            "  integer :: ji\n"
             "  integer, parameter :: jpj = 128\n"
+            "  integer :: ji\n"
             "  real(kind=wp), dimension(jpj) :: sto_tmp\n"
             "\n"
             "  !$acc data copyout(sto_tmp)\n"
@@ -110,8 +110,8 @@ def test_parallel_two_loops(parser):
     data_trans.apply(schedule[0])
     code = str(psy.gen).lower()
     assert ("program do_loop\n"
-            "  integer :: ji\n"
             "  integer, parameter :: jpi = 11\n"
+            "  integer :: ji\n"
             "  real, dimension(jpi) :: sto_tmp\n"
             "  real, dimension(jpi) :: sto_tmp2\n"
             "\n"
