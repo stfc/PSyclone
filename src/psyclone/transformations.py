@@ -60,13 +60,12 @@ from psyclone.gocean1p0 import GOLoop, GOInvokeSchedule
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule, \
     ACCLoopDirective, OMPDoDirective
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
+from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, Routine
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 from psyclone.undoredo import Memento
-from psyclone.nemo import NemoInvokeSchedule
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -474,8 +473,9 @@ class OMPLoopTrans(ParallelLoopTrans):
                                    Config.get().reproducible_reductions)
 
         # Add variable names for OMP functions into the InvokeSchedule
-        # symboltable if they don't already exist
-        root = node.ancestor(NemoInvokeSchedule)
+        # (a Routine) symboltable if they don't already exist
+        root = node.ancestor(Routine)
+
         symtab = root.symbol_table
         try:
             symtab.lookup_with_tag("omp_thread_index")
@@ -2842,8 +2842,8 @@ class ACCKernelsTrans(RegionTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises NotImplementedError: if the supplied Nodes do not belong to \
-                                     a NemoInvokeSchedule.
+        :raises NotImplementedError: if the supplied Nodes belong to \
+                                     a GOInvokeSchedule.
         :raises TransformationError: if there are no Loops within the \
                                      proposed region.
 
@@ -2853,11 +2853,7 @@ class ACCKernelsTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Check that the front-end is valid
-        # TODO can no longer check for a NemoInvokeSchedule as generic frontend
-        # just produces a Schedule now.
-        #sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
         sched = node_list[0].ancestor(GOInvokeSchedule)
-        #if not sched:
         if sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "

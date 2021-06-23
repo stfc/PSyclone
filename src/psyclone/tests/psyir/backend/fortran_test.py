@@ -656,13 +656,12 @@ def test_gen_decls(fortran_writer):
     grid_variable = DataSymbol("grid", grid_type)
     symbol_table.add(grid_variable)
     result = fortran_writer.gen_decls(symbol_table)
-    assert (result ==
-            "integer :: arg\n"
-            "integer :: local\n"
-            "type(grid_type) :: grid\n"
-            "type :: field\n"
-            "  integer :: flag\n"
-            "end type field\n")
+    assert (result == "integer :: arg\n"
+                      "type :: field\n"
+                      "  integer :: flag\n"
+                      "end type field\n"
+                      "integer :: local\n"
+                      "type(grid_type) :: grid\n")
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_decls(symbol_table, args_allowed=False)
     assert ("Arguments are not allowed in this context but this symbol table "
