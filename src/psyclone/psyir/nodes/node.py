@@ -1156,7 +1156,10 @@ class Node(object):
         that represent high-level concepts.
 
         '''
-        for child in self.children:
+        # We recurse only over the original children (hence [:]), this is
+        # because new nodes may be inserted during the lowering, but these
+        # must already be language-level.
+        for child in self.children[:]:
             child.lower_to_language_level()
 
     def reference_accesses(self, var_accesses):
