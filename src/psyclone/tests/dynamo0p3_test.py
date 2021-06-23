@@ -548,8 +548,8 @@ def test_invoke_uniq_declns_invalid_intrinsic():
             format(const.VALID_INTRINSIC_TYPES) in str(excinfo.value))
 
 
-def test_invoke_uniq_declns_valid_access_field():
-    ''' Tests that all valid access modes for user-defined field arguments
+def test_invoke_uniq_declns_valid_access():
+    ''' Tests that all valid access modes for user-defined arguments
     (AccessType.READ, AccessType.INC, AccessType.WRITE, AccessType.READWRITE)
     are accepted by Invoke.unique_declarations(). Also test the correctness
     of names of arguments and their proxies.

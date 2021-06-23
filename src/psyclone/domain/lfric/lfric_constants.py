@@ -277,12 +277,25 @@ class LFRicConstants(object):
         # Data structure type mandates its proxy name, Fortran intrinsic type
         # of its data and the kind (precision) for the intrinsic type.
         LFRicConstants.DATA_TYPE_MAP = {
-            # 'real'-valued scalar of kind 'r_def' (used for global
+            # 'real'-valued scalar of kind 'r_def' (also used for global
             # reductions of "field_type" data)
             "scalar": {"module": "scalar_mod",
                        "type": "scalar_type",
+                       "proxy_type": None,
                        "intrinsic": "real",
                        "kind": api_config.default_kind["real"]},
+            # 'integer'-valued scalar of kind 'i_def'
+            "integer_scalar": {"module": None,
+                               "type": None,
+                               "proxy_type": None,
+                               "intrinsic": "integer",
+                               "kind": api_config.default_kind["integer"]},
+            # 'logical'-valued scalar of kind 'l_def'
+            "logical_scalar": {"module": None,
+                               "type": None,
+                               "proxy_type": None,
+                               "intrinsic": "logical",
+                               "kind": api_config.default_kind["logical"]},
             # 'real'-valued field with data of kind 'r_def'
             "field": {"module": "field_mod",
                       "type": "field_type",
