@@ -49,7 +49,6 @@ from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     UnknownFortranType, DataSymbol, INTEGER_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _create_struct_reference
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
 

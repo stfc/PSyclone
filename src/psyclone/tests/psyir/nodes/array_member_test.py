@@ -86,7 +86,7 @@ def test_am_is_lower_upper_bound():
         [one.copy(), nodes.Literal("2", symbols.INTEGER_TYPE)])
     assert amem1.is_lower_bound(0) is False
     assert amem1.is_upper_bound(0) is False
-    grid_type = symbols.TypeSymbol("grid_type", symbols.DeferredType())
+    grid_type = symbols.DataTypeSymbol("grid_type", symbols.DeferredType())
     sym = symbols.DataSymbol("grid_var", grid_type)
     ref = nodes.StructureReference.create(sym, ["data"])
     # Start and stop for the range are binary operators but not the right ones
@@ -154,7 +154,7 @@ def test_am_matching_access():
         nodes.Reference(symbols.DataSymbol("fake",
                                            symbols.INTEGER_TYPE)))
     assert result is False
-    grid_type = symbols.TypeSymbol("grid_type", symbols.DeferredType())
+    grid_type = symbols.DataTypeSymbol("grid_type", symbols.DeferredType())
     sym1 = symbols.DataSymbol("grid_var", grid_type)
     sym2 = symbols.DataSymbol("grid_var2", grid_type)
     ref1 = nodes.StructureReference.create(sym1, ["data"])
