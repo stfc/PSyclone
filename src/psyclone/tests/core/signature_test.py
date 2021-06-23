@@ -124,19 +124,25 @@ def test_signature_comparison():
     ''' Test that two Signatures can be compared for equality and not
     equality.
     '''
-    assert Signature(("a", "b")) == Signature(("a", "b"))
     # pylint: disable=unneeded-not
-    assert not Signature(("a", "b")) != Signature(("a", "b"))
-    assert Signature(("a", "b")) != Signature(("a", "c"))
+    assert Signature(("a", "b")) == Signature(("a", "b"))
     assert not Signature(("a", "b")) == Signature(("a", "c"))
+
+    assert Signature(("a", "b")) != Signature(("a", "c"))
+    assert not Signature(("a", "b")) != Signature(("a", "b"))
     assert Signature(("a", "c")) >= Signature(("a", "b"))
+    assert not Signature(("a", "b")) >= Signature(("a", "c"))
     assert Signature(("a", "c")) > Signature(("a", "b"))
+    assert not Signature(("a", "b")) > Signature(("a", "c"))
     assert Signature(("a", "b")) <= Signature(("a", "c"))
+    assert not Signature(("a", "c")) <= Signature(("a", "b"))
     assert Signature(("a", "b")) < Signature(("a", "c"))
+    assert not Signature(("a", "c")) < Signature(("a", "b"))
 
     # Comparison with other types should work for == and !=:
     assert not Signature(("a", "b")) == 2
     assert Signature(("a", "b")) != 2
+    # pylint: enable=unneeded-not
 
     # Error cases: comparison of signature with other type.
     with pytest.raises(TypeError) as err:
