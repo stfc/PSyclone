@@ -38,10 +38,8 @@
 '''
 
 from psyclone.configuration import Config
-from psyclone.nemo import NemoInvoke
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
-from psyclone.psyGen import InvokeSchedule, OMPDoDirective, ACCDirective, \
-    ACCLoopDirective
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, FileContainer
+from psyclone.psyGen import OMPDoDirective, ACCDirective, ACCLoopDirective
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -231,12 +229,14 @@ class PSyDataTrans(RegionTrans):
         # Get useful references
         parent = node_list[0].parent
         position = node_list[0].position
-        root = node_list[0].root
 
-        # We always use the outermost symbol table so that any name clashes
-        # due to multiple applications of this transformation are handled
-        # automatically.
-        table = parent.root.symbol_table
+        # We always use the outermost symbol table (that is not associated with
+        # a FileContainer) so that any name clashes due to multiple
+        # applications of this transformation are handled automatically.
+        root = node_list[0].root
+        if isinstance(root, FileContainer):
+            root = root.children[0]
+        table = root.symbol_table
 
         # Create a memento of the tree root and the proposed transformation
         keep = Memento(root, self)

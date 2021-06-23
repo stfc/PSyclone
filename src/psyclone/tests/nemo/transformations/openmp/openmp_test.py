@@ -67,12 +67,12 @@ def test_omp_explicit_gen():
 
     expected = (
         "program explicit_do\n"
-        "  integer :: ji\n"
-        "  integer :: jj\n"
-        "  integer :: jk\n"
         "  integer, parameter :: jpi = 2\n"
         "  integer, parameter :: jpj = 4\n"
         "  integer, parameter :: jpk = 6\n"
+        "  integer :: ji\n"
+        "  integer :: jj\n"
+        "  integer :: jk\n"
         "  real :: r\n"
         "  real, dimension(jpi,jpj,jpk) :: umask\n"
         "\n"

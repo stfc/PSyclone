@@ -267,7 +267,7 @@ def test_profile_inside_if2(parser):
 
 
 def test_profile_single_line_if(parser):
-    ''' Test that we can put a single-line if statement inside a
+    ''' Test that we can put the body of a single-line if statement inside a
     profiling region. '''
     psy, schedule = get_nemo_schedule(
         parser,
@@ -279,24 +279,15 @@ def test_profile_single_line_if(parser):
         "logical, parameter :: do_this = .true.\n"
         "if(do_this) write(*,*) sto_tmp2(ji)\n"
         "end subroutine one_line_if_test\n")
-    # Check that we refuse to attempt to split the body of the If from
-    # its parent (as it is a one-line statement). This limitation will
-    # be removed once we use the PSyIR Fortran backend in the NEMO API
-    # (as opposed to manipulating the fparser2 parse tree).
-    # TODO #435
-    with pytest.raises(TransformationError) as err:
-        PTRANS.apply(schedule[0].if_body)
-    assert "single-line if statement" in str(err.value)
-    # But we should be able to put the whole If statement in a profiling
-    # region...
-    PTRANS.apply(schedule[0])
+    PTRANS.apply(schedule[0].if_body)
     gen_code = str(psy.gen).lower()
     assert (
-        "  call profile_psy_data % prestart('one_line_if_test', 'r0', 0, 0)\n"
         "  if (do_this) then\n"
+        "    call profile_psy_data % prestart('one_line_if_test', 'r0', 0, "
+        "0)\n"
         "    write(*, *) sto_tmp2(ji)\n"
-        "  end if\n"
-        "  call profile_psy_data % postend\n" in gen_code)
+        "    call profile_psy_data % postend\n"
+        "  end if\n" in gen_code)
 
 
 def test_profiling_case(parser):
@@ -370,7 +361,7 @@ def test_profiling_case(parser):
     assert ("        enddo\n"
             "        call profile_psy_data % postend\n"
             "      end if\n" in code)
-    assert ("  if (cd_op == ''vol'') then\n"
+    assert ("  if (cd_op == 'vol') then\n"
             "    call profile_psy_data_1 % prestart('my_test', 'r1', 0, 0)\n"
             in code)
     assert ("    call profile_psy_data_1 % postend\n"
