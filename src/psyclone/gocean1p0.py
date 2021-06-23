@@ -468,16 +468,24 @@ class GOLoop(Loop):
         :param str topology_name: optional opology of the loop (unused atm).
         :param str loop_type: loop type - must be 'inner' or 'outer'.
 
+        :raises GenerationError: if the loop is not inserted inside a \
+            GOInvokeSchedule region.
+
     '''
     _bounds_lookup = {}
 
-    def __init__(self, parent=None,
-                 topology_name="", loop_type=""):
+    def __init__(self, parent=None, topology_name="", loop_type=""):
         # pylint: disable=unused-argument
         const = GOceanConstants()
         Loop.__init__(self, parent=parent,
                       valid_loop_types=const.VALID_LOOP_TYPES)
         self.loop_type = loop_type
+
+        # Check that the GOLoop is inside the GOcean PSy-layer
+        if not self.ancestor(GOInvokeSchedule):
+            raise GenerationError(
+                "GOLoops must always be constructed with a parent which is"
+                " inside (directly or indirectly) of a GOInvokeSchedule")
 
         # We set the loop variable name in the constructor so that it is
         # available when we're determining which vars should be OpenMP
@@ -493,7 +501,11 @@ class GOLoop(Loop):
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, const.VALID_LOOP_TYPES))
 
-        symtab = self.scope.symbol_table
+        # In the GOcean API the loop iteration variables are declared in the
+        # Invoke routine scope in order to share them between all GOLoops.
+        # This is important because some transformations/scripts work with
+        # this assumption when moving or fusing loops.
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         try:
             self.variable = symtab.lookup_with_tag(tag)
         except KeyError:
@@ -1128,12 +1140,13 @@ class GOKern(CodedKern):
             return var_name + "+" + str(depth)
         return var_name
 
-    def _record_stencil_accesses(self, var_name, arg, var_accesses):
+    def _record_stencil_accesses(self, signature, arg, var_accesses):
         '''This function adds accesses to a field depending on the
         meta-data declaration for this argument (i.e. accounting for
         any stencil accesses).
 
-        :param str var_name: name of the variable.
+        :param signature: signature of the variable.
+        :type signature: :py:class:`psyclone.core.Signature`
         :param arg:  the meta-data information for this argument.
         :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
         :param var_accesses: VariablesAccessInfo instance that stores the\
@@ -1151,7 +1164,7 @@ class GOKern(CodedKern):
                 for current_depth in range(1, depth+1):
                     i_expr = GOKern._format_access("i", i, current_depth)
                     j_expr = GOKern._format_access("j", j, current_depth)
-                    var_accesses.add_access(Signature(var_name), arg.access,
+                    var_accesses.add_access(signature, arg.access,
                                             self, [[i_expr, j_expr]])
 
     def reference_accesses(self, var_accesses):
@@ -1176,22 +1189,22 @@ class GOKern(CodedKern):
             else:
                 var_name = arg.name
 
+            signature = Signature(var_name.split("%"))
             if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
-                    var_accesses.add_access(Signature(var_name), arg.access,
-                                            self)
+                    var_accesses.add_access(signature, arg.access, self)
             else:
                 if arg.argument_type == "field":
                     # Now add 'artificial' accesses to this field depending
                     # on meta-data (access-mode and stencil information):
-                    self._record_stencil_accesses(var_name, arg,
+                    self._record_stencil_accesses(signature, arg,
                                                   var_accesses)
                 else:
                     # In case of an array for now add an arbitrary array
                     # reference to (i,j) so it is properly recognised as
                     # an array access.
-                    var_accesses.add_access(Signature(var_name), arg.access,
+                    var_accesses.add_access(signature, arg.access,
                                             self, [["i", "j"]])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()

@@ -38,7 +38,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import DataTypeSymbol, DeferredType
+from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, Symbol, \
+    UnresolvedInterface
 
 
 def test_create_datatypesymbol():
@@ -58,3 +59,16 @@ def test_create_datatypesymbol_wrong_datatype():
         sym.datatype = "integer"
     assert ("datatype of a DataTypeSymbol must be specified using a "
             "DataType but got: 'str'" in str(err.value))
+
+
+def test_datatypesymbol_copy():
+    ''' Check that a DataTypeSymbol can be copied. '''
+    symbol = DataTypeSymbol("my_type", DeferredType(),
+                            visibility=Symbol.Visibility.PRIVATE,
+                            interface=UnresolvedInterface())
+    new_symbol = symbol.copy()
+    assert new_symbol is not symbol
+    assert new_symbol.name == "my_type"
+    assert isinstance(new_symbol.datatype, DeferredType)
+    assert new_symbol.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(new_symbol.interface, UnresolvedInterface)
