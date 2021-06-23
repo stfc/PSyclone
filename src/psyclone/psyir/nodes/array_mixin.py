@@ -219,7 +219,7 @@ class ArrayMixin(object):
         # This node is somewhere within a structure access so we need to
         # get the parent Reference and keep a record of how deep this node
         # is within the structure access. e.g. if this node was the
-        # StructureMember 'b' in a%c%b%d then its depth would be two.
+        # StructureMember 'b' in a%c%b%d then its depth would be 2.
         current = self
         depth = 1
         while current.parent and not isinstance(current.parent, Reference):
@@ -230,12 +230,10 @@ class ArrayMixin(object):
             return False
 
         # Now we have the parent Reference and the depth, we can construct the
-        # Signatures for the two accesses to the required depth.
-        self_sig, self_indices = parent_ref.get_signature_and_indices(
-            max_depth=depth)
-        node_sig, node_indices = node.get_signature_and_indices(
-            max_depth=depth)
-        if self_sig != node_sig:
+        # Signatures and compare them to the required depth.
+        self_sig, self_indices = parent_ref.get_signature_and_indices()
+        node_sig, node_indices = node.get_signature_and_indices()
+        if self_sig[:depth+1] != node_sig[:depth+1]:
             return False
 
         # We use the FortranWriter to simplify the job of comparing array-index
@@ -245,7 +243,7 @@ class ArrayMixin(object):
         fwriter = FortranWriter()
 
         # Examine the indices, ignoring any on the innermost accesses.
-        for indices in zip(self_indices[:-1], node_indices[:-1]):
+        for indices in zip(self_indices[:depth], node_indices[:depth]):
             if ("".join(fwriter(idx) for idx in indices[0]) !=
                     "".join(fwriter(idx) for idx in indices[1])):
                 return False
