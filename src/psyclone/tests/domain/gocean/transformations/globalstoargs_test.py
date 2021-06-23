@@ -336,10 +336,10 @@ def test_globalstoarguments_noglobals(fortran_writer):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    before_code = fortran_writer(psy.container)
-
-    trans = KernelGlobalsToArguments()
     kernel = invoke.schedule.coded_kernels()[0]
+
+    before_code = fortran_writer(psy.container)
+    trans = KernelGlobalsToArguments()
     trans.apply(kernel)
     after_code = fortran_writer(psy.container)
 

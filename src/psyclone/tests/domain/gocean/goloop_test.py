@@ -109,6 +109,30 @@ def test_goloop_unsupp_offset():
         goiloop.gen_code(None)
 
 
+def test_goloop_unmatched_offsets():
+    ''' Attempt to generate code for a loop with constant bounds with
+    two different index offsets '''
+    gosched = GOInvokeSchedule('name', [])
+    gojloop = GOLoop(parent=gosched, loop_type="outer")
+    gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
+    gojloop.loop_body.addchild(goiloop)
+    gokern1 = GOKern()
+    gokern2 = GOKern()
+    # Set the index-offset of this kernel to a value that is not
+    # supported when using constant loop bounds
+    gokern1._index_offset = "go_offset_ne"
+    gokern2._index_offset = "go_offset_sw"
+    goiloop.loop_body.addchild(gokern1)
+    goiloop.loop_body.addchild(gokern2)
+    with pytest.raises(GenerationError) as excinfo:
+        goiloop.gen_code(None)
+    # Note that the kernels do not have a name, so there are empty quotes
+    assert "All Kernels must expect the same grid offset but kernel '' " \
+        "has offset 'go_offset_sw' which does not match 'go_offset_ne'" \
+        in str(excinfo.value)
+
+
 def test_goloop_bounds_invalid_iteration_space():
     ''' Check that the _upper/lower_bound() methods raise the expected error
     if the iteration space is not recognised. '''

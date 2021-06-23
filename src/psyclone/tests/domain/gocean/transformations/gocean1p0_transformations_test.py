@@ -206,52 +206,42 @@ def test_loop_fuse_error(monkeypatch):
     assert 'Unexpected exception' in str(excinfo.value)
 
 
-def test_omp_parallel_loop(tmpdir):
+def test_omp_parallel_loop(tmpdir, fortran_writer):
     '''Test that we can generate an OMP PARALLEL DO correctly,
     independent of whether or not we are generating constant loop bounds '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
-    original_schedule = schedule.copy()
 
     omp = GOceanOMPParallelLoopTrans()
     cbtrans = GOConstLoopBoundsTrans()
     omp.apply(schedule[0])
     cbtrans.apply(schedule, {"const_bounds": True})
 
-    gen = str(psy.gen)
-    gen = gen.lower()
+    gen = fortran_writer(psy.container)
     expected = ("!$omp parallel do default(shared), private(i,j), "
                 "schedule(static)\n"
-                "      do j = 2, jstop, 1\n"
-                "        do i = 2, istop+1, 1\n"
-                "          call compute_cu_code(i, j, cu_fld%data, "
+                "    do j = 2, jstop, 1\n"
+                "      do i = 2, istop+1, 1\n"
+                "        call compute_cu_code(i, j, cu_fld%data, "
                 "p_fld%data, u_fld%data)\n"
-                "        end do\n"
-                "      end do\n"
-                "      !$omp end parallel do")
+                "      enddo\n"
+                "    enddo\n"
+                "    !$omp end parallel do")
     assert expected in gen
 
-    # Also test it with the const_bounds set to false
-    # TODO #1276 and #1274: We could copy the invoke schedule instead of parse
-    # the whole file again.
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-    omp.apply(schedule[0])
     cbtrans.apply(schedule, {"const_bounds": False})
-    gen = str(psy.gen)
-    gen = gen.lower()
+    gen = fortran_writer(psy.container)
     expected = (
-        "      !$omp parallel do default(shared), private(i,j), "
+        "    !$omp parallel do default(shared), private(i,j), "
         "schedule(static)\n"
-        "      do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
-        "        do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
-        "          call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+        "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
+        "        call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        end do\n"
-        "      end do\n"
-        "      !$omp end parallel do")
+        "      enddo\n"
+        "    enddo\n"
+        "    !$omp end parallel do")
     assert expected in gen
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 

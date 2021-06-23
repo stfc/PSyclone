@@ -50,9 +50,11 @@
 from __future__ import print_function
 import re
 import six
+
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, Comment
 from fparser.two.parser import ParserFactory
+
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
 from psyclone.domain.gocean import GOceanConstants
@@ -63,19 +65,19 @@ from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment, CodeBlock, PSyDataNode
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange, ACCParallelDirective, \
     ACCKernelsDirective
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
+    KernelSchedule, StructureReference, BinaryOperation, Reference, \
+    Call, Assignment, CodeBlock, PSyDataNode
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
     ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
     UnknownFortranType, LocalInterface, BOOLEAN_TYPE
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.frontend.fortran import FortranReader
 
 
 # Specify which OpenCL command queue to use for management operations like
@@ -352,7 +354,7 @@ class GOInvoke(Invoke):
 
         def sort_by_interface(symbol_names):
             ''' Utility to filter arguments and local symbols from a given
-            list of symbols names.
+            list of symbols names, other symbols are ignored.
 
             :param symbol_names: a list of symbols to categorise.
             :type symbol_names: list of str
