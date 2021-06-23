@@ -47,7 +47,7 @@ import pytest
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Node, Reference
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    StructureType, NoType
+    StructureType
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, \
     LFRicBuiltinFunctor
@@ -78,7 +78,7 @@ def test_lfricalgorithminvokecall():
     created.
 
     '''
-    routine = RoutineSymbol("hello", NoType())
+    routine = RoutineSymbol("hello")
     index = 2
     call = LFRicAlgorithmInvokeCall(routine, index)
     assert call._description is None
@@ -95,7 +95,7 @@ def test_lfricalgorithminvokecall_options():
 
     '''
     node = Node()
-    routine = RoutineSymbol("hello", NoType())
+    routine = RoutineSymbol("hello")
     call = LFRicAlgorithmInvokeCall(
         routine, 0, description="describing an invoke", parent=node)
     assert call._description == "describing an invoke"
@@ -115,7 +115,7 @@ def test_lfricalgorithminvokecall_create(cls):
     expected object.
 
     '''
-    routine = RoutineSymbol("hello", NoType())
+    routine = RoutineSymbol("hello")
     klc = LFRicKernelFunctor.create(DataTypeSymbol("arg", StructureType()), [])
     call = cls.create(routine, [klc], 0, description="describing an invoke")
     assert call._description == "describing an invoke"
@@ -131,7 +131,7 @@ def test_lfricalgorithminvokecall_create_nodescription():
     description to None if it is not provided.
 
     '''
-    routine = RoutineSymbol("hello", NoType())
+    routine = RoutineSymbol("hello")
     call = LFRicAlgorithmInvokeCall.create(routine, [], 0)
     assert call._description is None
 
@@ -184,7 +184,7 @@ def test_lfricalgorithminvokecall_node_str():
     expected object.
 
     '''
-    routine = RoutineSymbol("hello", NoType())
+    routine = RoutineSymbol("hello")
     call = LFRicAlgorithmInvokeCall.create(
         routine, [], 0, description="describing an invoke")
     assert ("LFRicAlgorithmInvokeCall[description=\"describing an invoke\"]"

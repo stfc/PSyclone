@@ -486,8 +486,8 @@ def test_fw_gen_use(fortran_writer):
     symbol = DataSymbol("dummy1", DeferredType(),
                         interface=GlobalInterface(container_symbol))
     symbol_table.add(symbol)
-    symbol = RoutineSymbol("my_sub",
-                           interface=GlobalInterface(container_symbol))
+    symbol = RoutineSymbol(
+        "my_sub", interface=GlobalInterface(container_symbol))
     symbol_table.add(symbol)
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert result == "use my_module, only : dummy1, my_sub\n"
@@ -725,8 +725,7 @@ def test_gen_decls_routine(fortran_writer):
     '''
     symbol_table = SymbolTable()
     # Check that a RoutineSymbol representing an intrinsic is OK
-    symbol_table.add(RoutineSymbol("nint", INTEGER_TYPE,
-                                   interface=UnresolvedInterface()))
+    symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
     result = fortran_writer.gen_decls(symbol_table)
     assert result == ""
     # Now add a user-defined routine symbol but with an (unsupported)
