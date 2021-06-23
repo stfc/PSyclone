@@ -242,8 +242,6 @@ def test_replicated_loop(parser, tmpdir):
     assert Compile(tmpdir).string_compiles(gen_code)
 
 
-@pytest.mark.xfail(reason="Dependence analysis does not support derived"
-                   " types.")
 def test_data_ref(parser):
     '''Check code generation with an array accessed via a derived type.
 
@@ -286,7 +284,7 @@ def test_data_ref_read(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    assert "COPYIN(fld,fld%data)" in gen_code
+    assert "copyin(fld,fld%data)" in gen_code
 
 
 def test_array_section():
