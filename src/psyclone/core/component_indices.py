@@ -85,7 +85,34 @@ class ComponentIndices(object):
         return str(self._component_indices)
 
     # ------------------------------------------------------------------------
+    def iterate(self):
+        '''Allows iterating over all component indices. It returns a tuple
+        with two elements, the first one indicating the component, the second
+        the dimension for which the index is. The return tuple can be used
+        in a dictionary access (see __getitem__) of this object.
+        :returns: a tuple of the component index and index.
+        :rtype: tuple(int, int)
+
+        '''
+        for comp_ind, component in enumerate(self._component_indices):
+            for indx in range(len(component)):
+                yield (comp_ind, indx)
+
+    # ------------------------------------------------------------------------
     def __getitem__(self, indx):
+        '''Allows to use this class as a dictionary. If 'indx' is an integer,
+        the list of indices for the specified compnent is returned. If 'indx'
+        is a tuple (as returned from 'iterate'), it will return the index
+        for the specified component at the specified dimension.
+
+        :returns: either the list of indices for a component, or the index \
+            PSyIR node for the specified tuple.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`, or \
+            :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        if isinstance(indx, tuple):
+            return self._component_indices[indx[0]][indx[1]]
         return self._component_indices[indx]
 
     # ------------------------------------------------------------------------

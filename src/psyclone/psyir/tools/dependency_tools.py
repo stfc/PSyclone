@@ -182,42 +182,31 @@ class DependencyTools(object):
         for access in var_info.all_accesses:
             component_indices = access.component_indices
 
-            # Now determine all dimensions that depend
-            # on the parallel variable. This outer loop is over
-            # the indices used for each component, e.g.
-            # a(i,j)%b(k) it would first handle `(i,j)`, then
-            # `(k)`.
-            for component_index, index_expressions in \
-                    enumerate(component_indices):
+            # Now verify that the index variable is always used
+            # at the same place:
+            for indx in component_indices.iterate():
+                index_expression = component_indices[indx]
+                accesses = VariablesAccessInfo(index_expression)
 
-                # This inner loop loop over all indices for the
-                # current component, i.e. `[i, j]` for the first
-                # component above, then `[k]`.
-                for dimension_index, index_expression in \
-                        enumerate(index_expressions):
-                    # Add all the variables used in the index expression
-                    accesses = VariablesAccessInfo()
-                    index_expression.reference_accesses(accesses)
-                    if Signature(loop_variable) not in accesses:
-                        continue
+                if Signature(loop_variable) not in accesses:
+                    continue
 
-                    # if a previously identified index location does not match
-                    # the current index location (e.g. a(i,j), and a(j,i) ),
-                    # then the loop can not be parallelised
-                    ind_pair = (component_index, dimension_index)
-                    if found_dimension_index and \
-                            found_dimension_index != ind_pair:
-                        # TODO #1268: improve error message
-                        self._add_warning("Variable '{0}' is using loop "
-                                          "variable '{1}' in index '{2}'' "
-                                          "and '{3}'."
-                                          .format(var_info.var_name,
-                                                  loop_variable,
-                                                  found_dimension_index,
-                                                  ind_pair))
-                        return False
-                    found_dimension_index = ind_pair
-                    all_indices.append(index_expression)
+                # if a previously identified index location does not match
+                # the current index location (e.g. a(i,j), and a(j,i) ),
+                # then the loop can not be parallelised
+                if found_dimension_index and \
+                        found_dimension_index != indx:
+                    # TODO #1268: improve error message
+                    self._add_warning("Variable '{0}' is using loop "
+                                      "variable '{1}' in index '{2}'' "
+                                      "and '{3}'."
+                                      .format(var_info.var_name,
+                                              loop_variable,
+                                              found_dimension_index,
+                                              indx))
+                    return False
+                found_dimension_index = indx
+                all_indices.append(index_expression)
 
         if not all_indices:
             # An array is used that is not actually dependent on the parallel

@@ -86,3 +86,18 @@ def test_component_indices_exceptions():
     with pytest.raises(InternalError) as err:
         _ = ComponentIndices([[], 123])
     assert "ComponentIndices: Invalid list parameter '" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_iterating():
+    '''Tests that iterating works, and that the returned values from the
+    iterator can be used in dictionary-like accesses.
+    '''
+
+    component_indices = ComponentIndices([["a", "b"], ["c"]])
+    correct_index_pairs = [(0, 0), (0, 1), (1, 0)]
+    correct = ["a", "b", "c"]
+
+    for count, indx in enumerate(component_indices.iterate()):
+        assert correct_index_pairs[count] == indx
+        assert correct[count] == component_indices[indx]
