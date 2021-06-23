@@ -45,8 +45,9 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.symbols import DataSymbol, ScalarType
-from psyclone.psyir.nodes import Container, Routine, CodeBlock
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    TYPE_MAP_FROM_FORTRAN
 
 # subroutine no declarations
 SUB1_IN = (
@@ -136,42 +137,46 @@ def test_function_handler(fortran_reader, fortran_writer):
     assert result == expected
 
 
-@pytest.mark.parametrize("basic_type", ["real", "integer"])
-def test_function_type_prefix(fortran_reader, fortran_writer, basic_type):
+@pytest.mark.parametrize("basic_type, rhs_val", [("real", "1.0"),
+                                                 ("integer", "1"),
+                                                 ("logical", ".false."),
+                                                 ("character", "'b'")])
+def test_function_type_prefix(fortran_reader, fortran_writer,
+                              basic_type, rhs_val):
     '''
     Test the handler when the function definition has a type prefix but no
-    result suffix.
+    result suffix. Includes test that handling is not case sensitive.
 
     '''
     code = (
         "module a\n"
         "contains\n"
-        "  {0} function my_func()\n"
-        "    my_func = 1\n"
+        "  {0} function my_fUnc()\n"
+        "    my_Func = {1}\n"
         "  end function my_func\n"
-        "end module\n".format(basic_type))
+        "end module\n".format(basic_type, rhs_val))
     expected = (
         "module a\n"
         "  implicit none\n\n"
-        "  public :: my_func\n\n"
+        "  public :: my_fUnc\n\n"
         "  contains\n"
-        "  function my_func()\n"
-        "    {0} :: my_func\n"
+        "  function my_fUnc()\n"
+        "    {0} :: my_fUnc\n"
         "\n"
-        "    my_func = 1\n"
+        "    my_fUnc = {1}\n"
         "\n"
-        "  end function my_func\n"
+        "  end function my_fUnc\n"
         "\n"
-        "end module a\n".format(basic_type))
+        "end module a\n".format(basic_type, rhs_val))
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir, Container)
-    assert isinstance(psyir.children[0], Routine)
-    return_sym = psyir.children[0].return_symbol
+    assert isinstance(psyir, FileContainer)
+    module = psyir.children[0]
+    assert isinstance(module, Container)
+    routine = module.children[0]
+    assert isinstance(routine, Routine)
+    return_sym = routine.return_symbol
     assert isinstance(return_sym, DataSymbol)
-    if basic_type == "real":
-        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    else:
-        assert return_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
     result = fortran_writer(psyir)
     assert result == expected
 
@@ -240,7 +245,7 @@ def test_function_missing_return_type(fortran_reader):
         "  end function my_func\n"
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0], CodeBlock)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
 
 
 @pytest.mark.parametrize("fn_prefix",
@@ -256,4 +261,19 @@ def test_unsupported_function_prefix(fortran_reader, fn_prefix):
         "  end function my_func\n"
         "end module\n".format(fn_prefix))
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0], CodeBlock)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
+
+
+def test_unsupported_char_len_function(fortran_reader):
+    ''' Check that we get a CodeBlock if a Fortran function is of character
+    type with a specified length. '''
+    code = ("module a\n"
+            "contains\n"
+            "  character(len=2) function my_func()\n"
+            "    my_func = 'aa'\n"
+            "  end function my_func\n"
+            "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    cblock = psyir.children[0].children[0]
+    assert isinstance(cblock, CodeBlock)
+    assert "LEN = 2" in str(cblock.get_ast_nodes[0])

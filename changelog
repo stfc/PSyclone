@@ -30,6 +30,51 @@
         11) PR #1257 for #1248. Adds support for logical, read-only, scalar
         arguments to LFRic user-supplied kernels.
 
+        12) PR #1234 for #1230. Adds FileContainer node.
+
+        13) PR #1264 towards #1258. Adds mappings for the LFRic infrastructure
+        types to their Fortran modules to the LFRic Constants class.
+
+        14) PR #1236 for #1028. Extends the core variable-access analysis
+        functionality to support structures (derived types).
+
+        15) PR #1239 towards #1237. Adds lower_to_language_level() method
+        for some LFRic builtins.
+
+        16) PR #1195 for #1194. Fixes some incorrect str(error) usage in the
+        tests, introduces a PSycloneError base class and adds tests to make
+        sure that it is used. Also adds tests to ensure that future accidental
+        use of str(error) will cause a failure.
+
+        17) #1243 for #1242. Bug fix for OpenCL code generation - ensures
+        synchronisation calls are added where necessary if kernels are running
+        on different command queues.
+
+        18) #1273 for #1272. Fixes missing fparser initialisation when
+        GOcean loop bounds are read from config file.
+
+        19) #1287 towards #1259. Rename TypeSymbol to DataTypeSymbol.
+
+        20) #1265 for #1260. Fixes various bugs to better support PSyIR
+        code generation. Includes function return values and string
+        storage in PSyIR.
+
+        21) #1293 for #1178, #1179, #1285. Update installation instructions
+        to include autoapi and tex-gyre, and added allclean target to
+        reference guide to clean up all automatically created files.
+
+        22) #1278 for #1271. Updates dependency tools to use Signatures.
+
+        23) #1286 for #1274. Updates the Visitors so that they perform
+        any necessary lowering and do so on a *copy* of the PSyIR tree
+        so that there are no side effects.
+
+        24) #1290 for #2183. Adds support for != and other comparison
+        operators to the Signature class.
+
+        25) #1262 for #920. Adds capturing of algorithm-layer datatypes
+        which are then stored in the algorithm.py Arg class.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

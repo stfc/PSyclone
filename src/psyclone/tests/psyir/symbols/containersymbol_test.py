@@ -55,13 +55,19 @@ def create_dummy_module(path, filename="dummy_module.f90"):
     purposes'''
 
     source = '''
-    module dummy_module
+    module ignore_me
+    end module ignore_me
+    subroutine ignore_me_too()
+    end subroutine ignore_me_too
+    module Dummy_Module
 
         integer :: a
         real :: b
         real, parameter :: c = 3.14
 
     end module dummy_module
+    program also_ignore_me
+    end program also_ignore_me
     '''
     with open(os.path.join(path, filename), "w") as mfile:
         mfile.write(source)
@@ -84,6 +90,26 @@ def test_containersymbol_initialisation():
         sym = ContainerSymbol(None)
     assert "ContainerSymbol 'name' attribute should be of type 'str'" \
         in str(error.value)
+
+    with pytest.raises(TypeError) as error:
+        sym = ContainerSymbol("name", interface="interface")
+    assert ("A ContainerSymbol interface must be of type "
+            "'FortranModuleInterface' but found 'str' for Container 'name'."
+            in str(error.value))
+
+
+def test_containersymbol_can_be_copied():
+    '''Test that a ContainerSymbol instance can be copied. '''
+    symbol = ContainerSymbol("my_mod")
+    symbol.wildcard_import = True
+    new_symbol = symbol.copy()
+
+    assert new_symbol is not symbol
+    assert new_symbol.name == "my_mod"
+    assert isinstance(new_symbol._interface, FortranModuleInterface)
+    # Disable false positive no-member pylint error
+    # pylint: disable=no-member
+    assert new_symbol.wildcard_import is True
 
 
 def test_containersymbol_str():
@@ -155,7 +181,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     create_dummy_module(path)
     container = fminterface.import_container("dummy_module")
     assert isinstance(container, Container)
-    assert container.name == "dummy_module"
+    assert container.name.lower() == "dummy_module"
 
     # Import the wrong module, additionally it tests that the uppercase
     # F90 extension is also being imported as it does not produce a file
@@ -163,9 +189,10 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     create_dummy_module(path, "different_name_module.F90")
     with pytest.raises(ValueError) as error:
         container = fminterface.import_container("different_name_module")
-    assert ("Error importing the Fortran module 'different_name_module' into "
-            "a PSyIR container. The imported module has the unexpected name: "
-            "'dummy_module'." in str(error.value))
+    assert ("Error importing the Fortran module 'different_name_module' "
+            "into a PSyIR container. The file with filename "
+            "'different_name_module.F90' does not contain the expected "
+            "module." in str(error.value))
 
 
 def test_containersymbol_wildcard_import():

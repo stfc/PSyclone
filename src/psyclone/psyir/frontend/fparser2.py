@@ -32,6 +32,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -42,18 +43,21 @@ from __future__ import absolute_import
 from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
+from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
+    Data_Ref, If_Then_Stmt, Array_Section
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine
+    Call, Routine, FileContainer
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, SymbolTable
+    UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
+    SymbolTable
 
 #: The list of Fortran instrinsic functions that we know about (and can
 #: therefore distinguish from array accesses). These are taken from
@@ -855,8 +859,8 @@ class Fparser2Reader(object):
         :return: 3-tuple of list of inputs, list of outputs, list of in-outs
         :rtype: (list of str, list of str, list of str)
         '''
-        from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
-            Data_Ref, If_Then_Stmt, Array_Section
+        # pylint: disable=too-many-locals,too-many-nested-blocks
+        # pylint: disable=too-many-branches, too-many-statements
         readers = set()
         writers = set()
         readwrites = set()
@@ -879,14 +883,16 @@ class Fparser2Reader(object):
                 for node2 in walk(rhs):
                     if isinstance(node2, Part_Ref):
                         name = node2.items[0].string
+                        if structure_name_str:
+                            name = "{0}%{1}".format(structure_name_str, name)
+                            structure_name_str = None
                         if name.upper() not in FORTRAN_INTRINSICS:
                             if name not in writers:
                                 readers.add(name)
                     if isinstance(node2, Data_Ref):
-                        # TODO we need a robust implementation - issue #309.
-                        raise NotImplementedError(
-                            "get_inputs_outputs: derived-type references on "
-                            "the RHS of assignments are not yet supported.")
+                        structure_name_str = node2.items[0].string
+                        readers.add(structure_name_str)
+
                 # Now do LHS
                 if isinstance(lhs, Data_Ref):
                     # This is a structure which contains an array access.
@@ -1467,13 +1473,13 @@ class Fparser2Reader(object):
 
         :returns: the type and precision specified by the type-spec.
         :rtype: 2-tuple of :py:class:`psyclone.psyir.symbols.ScalarType` or \
-            :py:class:`psyclone.psyir.symbols.TypeSymbol` and \
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol` and \
             :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
             :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
 
         :raises NotImplementedError: if an unsupported intrinsic type is found.
         :raises SymbolError: if a symbol already exists for the name of a \
-            derived type but is not a TypeSymbol.
+            derived type but is not a DataTypeSymbol.
         :raises NotImplementedError: if the supplied type specification is \
             not for an intrinsic type or a derived type.
 
@@ -1500,6 +1506,11 @@ class Fparser2Reader(object):
                 precision = self._process_precision(type_spec, parent)
             if not precision:
                 precision = default_precision(data_name)
+            # We don't support len or kind specifiers for character variables
+            if fort_type == "character" and type_spec.children[1]:
+                raise NotImplementedError(
+                    "Length or kind attributes not supported on a character "
+                    "variable: '{0}'".format(str(type_spec)))
             base_type = ScalarType(data_name, precision)
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
@@ -1510,15 +1521,15 @@ class Fparser2Reader(object):
             # pylint: disable=unidiomatic-typecheck
             if type(type_symbol) == Symbol:
                 # We do but we didn't know what kind of symbol it was. Create
-                # a TypeSymbol to replace it.
-                new_symbol = TypeSymbol(type_name, DeferredType(),
-                                        interface=type_symbol.interface)
+                # a DataTypeSymbol to replace it.
+                new_symbol = DataTypeSymbol(type_name, DeferredType(),
+                                            interface=type_symbol.interface)
                 table = type_symbol.find_symbol_table(parent)
                 table.swap(type_symbol, new_symbol)
                 type_symbol = new_symbol
-            elif not isinstance(type_symbol, TypeSymbol):
+            elif not isinstance(type_symbol, DataTypeSymbol):
                 raise SymbolError(
-                    "Search for a TypeSymbol named '{0}' (required by "
+                    "Search for a DataTypeSymbol named '{0}' (required by "
                     "specification '{1}') found a '{2}' instead.".format(
                         type_name, str(type_spec), type(type_symbol).__name__))
             base_type = type_symbol
@@ -1770,8 +1781,8 @@ class Fparser2Reader(object):
                                     visibility_map):
         '''
         Process the supplied fparser2 parse tree for a derived-type
-        declaration. A TypeSymbol representing the derived-type is added to
-        the symbol table associated with the parent node.
+        declaration. A DataTypeSymbol representing the derived-type is added
+        to the symbol table associated with the parent node.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -1787,8 +1798,8 @@ class Fparser2Reader(object):
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
         :raises SymbolError: if a Symbol already exists with the same name \
-            as the derived type being defined and it is not a TypeSymbol or \
-            is not of DeferredType.
+            as the derived type being defined and it is not a DataTypeSymbol \
+            or is not of DeferredType.
 
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
@@ -1811,13 +1822,13 @@ class Fparser2Reader(object):
         # components as they may refer to it (e.g. for a linked list).
         if name in parent.symbol_table:
             # An entry already exists for this type.
-            # Check that it is a TypeSymbol
+            # Check that it is a DataTypeSymbol
             tsymbol = parent.symbol_table.lookup(name)
-            if not isinstance(tsymbol, TypeSymbol):
+            if not isinstance(tsymbol, DataTypeSymbol):
                 raise SymbolError(
                     "Error processing definition of derived type '{0}'. The "
                     "symbol table already contains an entry with this name but"
-                    " it is a '{1}' when it should be a 'TypeSymbol' (for "
+                    " it is a '{1}' when it should be a 'DataTypeSymbol' (for "
                     "the derived-type definition '{2}')".format(
                         name, type(tsymbol).__name__, str(decl)))
             # Since we are processing the definition of this symbol, the only
@@ -1825,13 +1836,13 @@ class Fparser2Reader(object):
             if not isinstance(tsymbol.datatype, DeferredType):
                 raise SymbolError(
                     "Error processing definition of derived type '{0}'. The "
-                    "symbol table already contains a TypeSymbol with this name"
-                    " but it is of type '{1}' when it should be of "
+                    "symbol table already contains a DataTypeSymbol with this "
+                    "name but it is of type '{1}' when it should be of "
                     "'DeferredType'".format(
                         name, type(tsymbol.datatype).__name__))
         else:
             # We don't already have an entry for this type so create one
-            tsymbol = TypeSymbol(name, dtype, visibility=dtype_symbol_vis)
+            tsymbol = DataTypeSymbol(name, dtype, visibility=dtype_symbol_vis)
             parent.symbol_table.add(tsymbol)
 
         # Populate this StructureType by processing the components of
@@ -1851,7 +1862,7 @@ class Fparser2Reader(object):
 
         except NotImplementedError:
             # Support for this declaration is not fully implemented so
-            # set the datatype of the TypeSymbol to UnknownFortranType.
+            # set the datatype of the DataTypeSymbol to UnknownFortranType.
             tsymbol.datatype = UnknownFortranType(str(decl))
 
     def process_declarations(self, parent, nodes, arg_list,
@@ -3377,6 +3388,9 @@ class Fparser2Reader(object):
     def _char_literal_handler(self, node, parent):
         '''
         Transforms an fparser2 character literal into a PSyIR literal.
+        Currently does not support the use of a double '' or double "" to
+        represent a single instance of one of those characters within a string
+        delimited by the same character.
 
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
@@ -3390,7 +3404,23 @@ class Fparser2Reader(object):
         # pylint: disable=no-self-use
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
-        return Literal(str(node.items[0]), character_type)
+        # fparser issue #295 - the value of the character string currently
+        # contains the quotation symbols themselves. Once that's fixed this
+        # check will need to be changed.
+        char_value = str(node.items[0])
+        if not ((char_value.startswith("'") and char_value.endswith("'")) or
+                (char_value.startswith('"') and char_value.endswith('"'))):
+            raise InternalError(
+                "Char literal handler expects a quoted value but got: "
+                ">>{0}<<".format(char_value))
+        # In Fortran "x""x" or 'x''x' represents a string containing x"x
+        # or x'x, respectively. (See Note 4.12 in the Fortran 2003 standard.)
+        # However, checking whether we have e.g. 'that''s a cat''s mat' is
+        # difficult and so, for now, we don't support it.
+        if len(char_value) > 2 and ("''" in char_value or '""' in char_value):
+            raise NotImplementedError()
+        # Strip the wrapping quotation chars before storing the value.
+        return Literal(char_value[1:-1], character_type)
 
     def _bool_literal_handler(self, node, parent):
         '''
@@ -3677,10 +3707,7 @@ class Fparser2Reader(object):
     def _program_handler(self, node, parent):
         '''Processes an fparser2 Program statement. Program is the top level
         node of a complete fparser2 tree and may contain one or more
-        program-units. At the moment PSyIR does not support the
-        concept of multiple program-units so can only support
-        one. Therefore this handler simply checks that this constraint
-        is observed in the supplied tree.
+        program-units. This is captured with a FileContainer node.
 
         :param node: top level node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Program`
@@ -3690,16 +3717,13 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of the program.
         :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises NotImplementedError: if more than one program-unit is \
-            found in the fparser2 parse tree.
-
         '''
-        if not len(node.children) == 1:
-            raise GenerationError(
-                "The PSyIR is currently limited to a single top level "
-                "module/subroutine/program/function, but {0} were found."
-                "".format(len(node.children)))
-        return self._create_child(node.children[0], parent)
+        # fparser2 does not keep the original filename (if there was
+        # one) so this can't be provided as the name of the
+        # FileContainer.
+        file_container = FileContainer("None", parent=parent)
+        self.process_nodes(file_container, node.children)
+        return file_container
 
 
 # For Sphinx AutoAPI documentation generation

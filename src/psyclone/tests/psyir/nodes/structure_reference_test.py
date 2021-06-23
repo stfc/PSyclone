@@ -38,18 +38,20 @@
 ''' Module containing pytest tests for the StructureReference class. '''
 
 from __future__ import absolute_import
+
 import pytest
+
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import check_links
-from psyclone.core.access_info import VariablesAccessInfo
 
 
 def test_struc_ref_create():
     ''' Tests for the create method. '''
     region_type = symbols.StructureType.create([
         ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    region_type_symbol = symbols.TypeSymbol("region_type", region_type)
+    region_type_symbol = symbols.DataTypeSymbol("region_type", region_type)
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
         ("region", region_type_symbol, symbols.Symbol.Visibility.PRIVATE),
@@ -57,7 +59,7 @@ def test_struc_ref_create():
          symbols.Symbol.Visibility.PUBLIC),
         ("data", symbols.ArrayType(symbols.REAL_TYPE, [10, 10]),
          symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
     sref = nodes.StructureReference.create(ssym, ["nx"])
@@ -120,7 +122,7 @@ def test_struc_ref_create_errors():
             "got an empty list for symbol 'grid'" in str(err.value))
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    tsymbol_known = symbols.TypeSymbol("grid_type", grid_type)
+    tsymbol_known = symbols.DataTypeSymbol("grid_type", grid_type)
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", tsymbol_known), [1])
@@ -141,7 +143,7 @@ def test_struc_ref_validate_child():
     ''' Tests for the _validate_child method. '''
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
     sref = nodes.StructureReference.create(ssym, ["nx"])
@@ -161,7 +163,7 @@ def test_struc_ref_str():
     ''' Test the __str__ method of StructureReference. '''
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
     sref = nodes.StructureReference.create(ssym, ["nx"])
@@ -170,23 +172,26 @@ def test_struc_ref_str():
 
 
 def test_reference_accesses():
-    ''' Test that the reference_accesses method does nothing. This will
-    be addressed by #1028. '''
-    var_access_info = VariablesAccessInfo()
+    ''' Test the reference_accesses method.
+    '''
     dref = nodes.StructureReference.create(
         symbols.DataSymbol(
             "grid",
-            symbols.TypeSymbol("grid_type", symbols.DeferredType())),
+            symbols.DataTypeSymbol("grid_type", symbols.DeferredType())),
         ["data"])
+    var_access_info = VariablesAccessInfo()
     dref.reference_accesses(var_access_info)
-    assert var_access_info.all_signatures == []
+
+    assert var_access_info.all_signatures == [Signature(("grid", "data"))]
+    # By default all accesses are marked as read
+    assert str(var_access_info) == "grid%data: READ"
 
 
 def test_struc_ref_semantic_nav():
     ''' Test the 'member' property of the StructureReference. '''
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
     sref = nodes.StructureReference.create(ssym, ["nx"])

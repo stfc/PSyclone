@@ -66,7 +66,7 @@ def trans(psy):
     ocl_trans.apply(sched, options={"end_barrier": True})
 
     # Provide kernel-specific OpenCL optimization options
-    for kern in sched.kernels():
+    for idx, kern in enumerate(sched.kernels()):
         # Move the PSy-layer loop boundaries inside the kernel as a kernel
         # mask, this allows to iterate through the whole domain
         move_boundaries_trans.apply(kern)
@@ -74,6 +74,9 @@ def trans(psy):
         # previous transformation
         fold_trans.apply(kern.get_kernel_schedule())
         # Specify the OpenCL queue and workgroup size of the kernel
-        kern.set_opencl_options({"queue_number": 1, 'local_size': 4})
+        # In this case we dispatch each kernel in a different queue to check
+        # that the output code has the necessary barriers to guarantee the
+        # kernel execution order.
+        kern.set_opencl_options({"queue_number": idx+1, 'local_size': 4})
 
     return psy

@@ -74,7 +74,9 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              CodedKern, ACCEnterDataDirective,
                              OMPParallelDoDirective)
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
+from psyclone.psyir.symbols import (
+    INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
+    DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -1020,14 +1022,17 @@ class DynamoPSy(PSy):
         # Initialise the dictionary that holds the names of the required
         # LFRic constants, data structures and data structure proxies for
         # the "use" statements in modules that contain PSy-layer routines.
-        infmod_list = ["constants_mod", "field_mod", "integer_field_mod",
-                       "operator_mod"]
+        const = LFRicConstants()
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
+                       const.DATA_TYPE_MAP["integer_field"]["module"],
+                       const.DATA_TYPE_MAP["lma_operator"]["module"]]
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
         # Get configuration for valid argument kinds (start with
         # 'real' and 'integer' kinds)
         api_config = Config.get().api_conf("dynamo0.3")
-        self._infrastructure_modules["constants_mod"] = {
+        self._infrastructure_modules[const_mod] = {
             api_config.default_kind["real"],
             api_config.default_kind["integer"]}
 
@@ -1692,12 +1697,13 @@ class DynStencils(DynCollection):
             stencil_map_names.append(map_name)
             stencil_type = arg.descriptor.stencil['type']
             if stencil_type == "cross2d":
-                parent.add(UseGen(parent, name="stencil_2D_dofmap_mod",
-                                  only=True,
-                                  funcnames=["stencil_2D_dofmap_type",
-                                             "STENCIL_2D_CROSS"]))
+                smap_type = const.STENCIL_TYPE_MAP["stencil_2D_dofmap"]["type"]
+                smap_mod = const.STENCIL_TYPE_MAP[
+                    "stencil_2D_dofmap"]["module"]
+                parent.add(UseGen(parent, name=smap_mod, only=True,
+                                  funcnames=[smap_type, "STENCIL_2D_CROSS"]))
                 parent.add(TypeDeclGen(parent, pointer=True,
-                                       datatype="stencil_2D_dofmap_type",
+                                       datatype=smap_type,
                                        entity_decls=[map_name +
                                                      " => null()"]))
                 parent.add(DeclGen(parent, datatype="integer",
@@ -1717,14 +1723,16 @@ class DynStencils(DynCollection):
                                    entity_decls=[self.max_branch_length_name(
                                        symtab, arg)]))
             else:
-                parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True,
-                                  funcnames=["stencil_dofmap_type"]))
+                smap_type = const.STENCIL_TYPE_MAP["stencil_dofmap"]["type"]
+                smap_mod = const.STENCIL_TYPE_MAP["stencil_dofmap"]["module"]
+                parent.add(UseGen(parent, name=smap_mod,
+                                  only=True, funcnames=[smap_type]))
                 if stencil_type == 'xory1d':
-                    parent.add(UseGen(parent, name="flux_direction_mod",
+                    drct_mod = const.STENCIL_TYPE_MAP["direction"]["module"]
+                    parent.add(UseGen(parent, name=drct_mod,
                                       only=True, funcnames=["x_direction",
                                                             "y_direction"]))
-                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                    parent.add(UseGen(parent, name=smap_mod,
                                       only=True, funcnames=["STENCIL_1DX",
                                                             "STENCIL_1DY"]))
                 else:
@@ -1736,11 +1744,11 @@ class DynStencils(DynCollection):
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
                                    str(const.STENCIL_MAPPING))), err)
-                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                    parent.add(UseGen(parent, name=smap_mod,
                                       only=True, funcnames=[stencil_name]))
 
                 parent.add(TypeDeclGen(parent, pointer=True,
-                                       datatype="stencil_dofmap_type",
+                                       datatype=smap_type,
                                        entity_decls=[map_name+" => null()"]))
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
@@ -1869,7 +1877,8 @@ class LFRicMeshProperties(DynCollection):
                     "adjacent_face").name
                 if var_accesses is not None:
                     var_accesses.add_access(Signature(adj_face),
-                                            AccessType.READ, self._kernel, [1])
+                                            AccessType.READ, self._kernel,
+                                            [[1]])
                 if not stub:
                     # This is a kernel call from within an invoke
                     cell_name = "cell"
@@ -2195,12 +2204,15 @@ class DynReferenceElement(DynCollection):
             return
 
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
-        parent.add(UseGen(parent, name="reference_element_mod", only=True,
-                          funcnames=["reference_element_type"]))
+        refelem_type = const.REFELEMENT_TYPE_MAP["refelement"]["type"]
+        refelem_mod = const.REFELEMENT_TYPE_MAP["refelement"]["module"]
+        parent.add(UseGen(parent, name=refelem_mod, only=True,
+                          funcnames=[refelem_type]))
         parent.add(
             TypeDeclGen(parent, pointer=True, is_class=True,
-                        datatype="reference_element_type",
+                        datatype=refelem_type,
                         entity_decls=[self._ref_elem_name + " => null()"]))
 
         parent.add(DeclGen(parent, datatype="integer",
@@ -2759,19 +2771,21 @@ class LFRicFields(DynCollection):
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
         if real_fld_arg_list:
-            dtype = "field_type"
-            parent.add(TypeDeclGen(parent, datatype=dtype,
+            fld_type = const.DATA_TYPE_MAP["field"]["type"]
+            fld_mod = const.DATA_TYPE_MAP["field"]["module"]
+            parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=real_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["field_mod"].add(dtype))
+             infrastructure_modules[fld_mod].add(fld_type))
         if int_fld_arg_list:
-            dtype = "integer_field_type"
-            parent.add(TypeDeclGen(parent, datatype=dtype,
+            fld_type = const.DATA_TYPE_MAP["integer_field"]["type"]
+            fld_mod = const.DATA_TYPE_MAP["integer_field"]["module"]
+            parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=int_fld_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
-             infrastructure_modules["integer_field_mod"].add(dtype))
+             infrastructure_modules[fld_mod].add(fld_type))
 
     def _stub_declarations(self, parent):
         '''
@@ -2842,8 +2856,13 @@ class LFRicRunTimeChecks(DynCollection):
         '''
         if Config.get().api_conf("dynamo0.3").run_time_checks:
             # Only add if run-time checks are requested
-            parent.add(UseGen(parent, name="fs_continuity_mod"))
-            parent.add(UseGen(parent, name="log_mod", only=True,
+            const = LFRicConstants()
+            parent.add(
+                UseGen(parent, name=const.
+                       FUNCTION_SPACE_TYPE_MAP["fs_continuity"]["module"]))
+            parent.add(UseGen(parent, name=const.
+                              UTILITIES_MOD_MAP["logging"]["module"],
+                              only=True,
                               funcnames=["log_event", "LOG_LEVEL_ERROR"]))
 
     def _check_field_fs(self, parent):
@@ -3025,44 +3044,48 @@ class DynProxies(DynCollection):
             const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
         if real_field_proxy_decs:
-            dtype = "field_proxy_type"
+            fld_type = const.DATA_TYPE_MAP["field"]["proxy_type"]
+            fld_mod = const.DATA_TYPE_MAP["field"]["module"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=fld_type,
                                    entity_decls=real_field_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
-             add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
+             add(fld_type))
         int_field_proxy_decs = self._invoke.unique_proxy_declarations(
             const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
         if int_field_proxy_decs:
-            dtype = "integer_field_proxy_type"
+            fld_type = const.DATA_TYPE_MAP["integer_field"]["proxy_type"]
+            fld_mod = const.DATA_TYPE_MAP["integer_field"]["module"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=fld_type,
                                    entity_decls=int_field_proxy_decs))
-            (self._invoke.invokes.psy.
-             infrastructure_modules["integer_field_mod"].add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
+             add(fld_type))
 
         # Declarations of LMA operator proxies
         op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_operator"])
         if op_proxy_decs:
-            dtype = "operator_proxy_type"
+            op_type = const.DATA_TYPE_MAP["lma_operator"]["proxy_type"]
+            op_mod = const.DATA_TYPE_MAP["lma_operator"]["module"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=op_type,
                                    entity_decls=op_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
-             add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
+             add(op_type))
 
         # Declarations of CMA operator proxies
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
         if cma_op_proxy_decs:
-            dtype = "columnwise_operator_proxy_type"
+            op_type = const.DATA_TYPE_MAP["cma_operator"]["proxy_type"]
+            op_mod = const.DATA_TYPE_MAP["cma_operator"]["module"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=op_type,
                                    entity_decls=cma_op_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
-             add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
+             add(op_type))
 
     def initialise(self, parent):
         '''
@@ -3347,8 +3370,9 @@ class LFRicScalarArgs(DynCollection):
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
                 if self._invoke:
+                    const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
                     (self._invoke.invokes.psy.
-                     infrastructure_modules["constants_mod"].add(dkind))
+                     infrastructure_modules[const_mod].add(dkind))
                 if self._kernel:
                     self._kernel.argument_kinds.add(dkind)
                 logical_scalar_names = [arg.declaration_name for arg
@@ -3407,17 +3431,19 @@ class DynLMAOperators(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for operators
+        const = LFRicConstants()
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
         # Create a list of operator names
         op_arg_list = [arg.declaration_name for arg in op_args]
         if op_arg_list:
-            dtype = "operator_type"
-            parent.add(TypeDeclGen(parent, datatype=dtype,
+            op_type = const.DATA_TYPE_MAP["lma_operator"]["type"]
+            op_mod = const.DATA_TYPE_MAP["lma_operator"]["module"]
+            parent.add(TypeDeclGen(parent, datatype=op_type,
                                    entity_decls=op_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
-             add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
+             add(op_type))
 
 
 class DynCMAOperators(DynCollection):
@@ -3546,6 +3572,7 @@ class DynCMAOperators(DynCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -3558,13 +3585,14 @@ class DynCMAOperators(DynCollection):
         # Create a list of column-wise operator names
         cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
         if cma_op_arg_list:
-            dtype = "columnwise_operator_type"
+            op_type = const.DATA_TYPE_MAP["cma_operator"]["type"]
+            op_mod = const.DATA_TYPE_MAP["cma_operator"]["module"]
             parent.add(TypeDeclGen(parent,
-                                   datatype=dtype,
+                                   datatype=op_type,
                                    entity_decls=cma_op_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
-             add(dtype))
+            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
+             add(op_type))
 
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
@@ -3780,26 +3808,31 @@ class DynMeshes(object):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        const = LFRicConstants()
 
         # Since we're now generating code, any transformations must
         # have been applied so we can set-up colourmap information
         self._colourmap_init()
 
         # We'll need various typedefs from the mesh module
+        mtype = const.MESH_TYPE_MAP["mesh"]["type"]
+        mmod = const.MESH_TYPE_MAP["mesh"]["module"]
+        mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
+        mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
         if self._mesh_names:
-            parent.add(UseGen(parent, name="mesh_mod", only=True,
-                              funcnames=["mesh_type"]))
+            parent.add(UseGen(parent, name=mmod, only=True,
+                              funcnames=[mtype]))
         if self._ig_kernels:
-            parent.add(UseGen(parent, name="mesh_map_mod", only=True,
-                              funcnames=["mesh_map_type"]))
+            parent.add(UseGen(parent, name=mmap_mod, only=True,
+                              funcnames=[mmap_type]))
         # Declare the mesh object(s)
         for name in self._mesh_names:
-            parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
+            parent.add(TypeDeclGen(parent, pointer=True, datatype=mtype,
                                    entity_decls=[name + " => null()"]))
         # Declare the inter-mesh map(s) and cell map(s)
         for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
-                                   datatype="mesh_map_type",
+                                   datatype=mmap_type,
                                    entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
@@ -4399,9 +4432,10 @@ class DynBasisFunctions(DynCollection):
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
         if self._qr_vars or self._eval_targets:
-            parent.add(UseGen(parent, name="function_space_mod",
-                              only=True,
-                              funcnames=["BASIS", "DIFF_BASIS"]))
+            parent.add(
+                UseGen(parent, name=const.
+                       FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
+                       only=True, funcnames=["BASIS", "DIFF_BASIS"]))
 
         if self._qr_vars:
             parent.add(CommentGen(parent, ""))
@@ -5330,11 +5364,15 @@ class DynInvokeSchedule(InvokeSchedule):
     :param reserved_names: optional list of names that are not allowed in the \
                            new InvokeSchedule SymbolTable.
     :type reserved_names: list of str
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
     '''
 
-    def __init__(self, name, arg, reserved_names=None):
+    def __init__(self, name, arg, reserved_names=None, parent=None):
         InvokeSchedule.__init__(self, name, DynKernCallFactory,
-                                LFRicBuiltInCallFactory, arg, reserved_names)
+                                LFRicBuiltInCallFactory, arg, reserved_names,
+                                parent=parent)
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
@@ -5396,13 +5434,16 @@ class DynGlobalSum(GlobalSum):
 
         '''
         name = self._scalar.name
+        const = LFRicConstants()
         # Use InvokeSchedule SymbolTable to share the same symbol for all
         # GlobalSums in the Invoke.
         sum_name = self.ancestor(InvokeSchedule).symbol_table.\
             symbol_from_tag("global_sum").name
-        parent.add(UseGen(parent, name="scalar_mod", only=True,
-                          funcnames=["scalar_type"]))
-        parent.add(TypeDeclGen(parent, datatype="scalar_type",
+        sum_type = const.DATA_TYPE_MAP["scalar"]["type"]
+        sum_mod = const.DATA_TYPE_MAP["scalar"]["module"]
+        parent.add(UseGen(parent, name=sum_mod, only=True,
+                          funcnames=[sum_type]))
+        parent.add(TypeDeclGen(parent, datatype=sum_type,
                                entity_decls=[sum_name]))
         parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
@@ -6569,6 +6610,7 @@ class DynLoop(Loop):
             try:
                 self.variable = symtab.lookup_with_tag(tag)
             except KeyError:
+                # TODO #696 - each loop variable should have KIND i_def.
                 self.variable = symtab.new_symbol(
                     suggested_name, tag, symbol_type=DataSymbol,
                     datatype=INTEGER_TYPE)
@@ -7767,8 +7809,10 @@ class DynKern(CodedKern):
 
         # Add "use" statement with kinds (precisions) of all arguments
         sub_stub.add(
-            UseGen(sub_stub, name="constants_mod", only=True,
-                   funcnames=sorted(list(self._argument_kinds), reverse=True)))
+            UseGen(sub_stub,
+                   name=const.UTILITIES_MOD_MAP["constants"]["module"],
+                   only=True, funcnames=sorted(list(self._argument_kinds),
+                                               reverse=True)))
 
         # Create the arglist
         create_arg_list = KernStubArgList(self)
@@ -8508,7 +8552,6 @@ class DynKernelArgument(KernelArgument):
     '''
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
-        KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
@@ -8547,18 +8590,19 @@ class DynKernelArgument(KernelArgument):
         try:
             const = LFRicConstants()
             self._intrinsic_type = const.MAPPING_DATA_TYPES[
-                self.descriptor.data_type]
+                arg_meta_data.data_type]
         except KeyError as err:
             six.raise_from(InternalError(
                 "DynKernelArgument.__init__(): Found unsupported data "
                 "type '{0}' in the kernel argument descriptor '{1}'.".
-                format(self.descriptor.data_type, self.descriptor)), err)
+                format(arg_meta_data.data_type, arg_meta_data)), err)
 
         # Addressing issue #753 will allow us to perform static checks
         # for consistency between the algorithm and the kernel
         # metadata. This will include checking that a field on a read
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
+        KernelArgument.__init__(self, arg_meta_data, arg_info, call)
 
     def ref_name(self, function_space=None):
         '''
@@ -8875,6 +8919,144 @@ class DynKernelArgument(KernelArgument):
 
         '''
         self._stencil = value
+
+    def infer_datatype(self, proxy=False):
+        '''
+        Infer the datatype of this kernel argument in the PSy layer using
+        the LFRic API rules. If any LFRic infrastructure modules are required
+        but are not already present then suitable ContainerSymbols are added
+        to the outermost symbol table. Similarly, DataTypeSymbols are added for
+        any required LFRic derived types that are not already in the symbol
+        table.
+
+        TODO #1258 - ultimately this routine should not have to create any
+        DataTypeSymbols as that should already have been done.
+
+        :param bool proxy: whether or not we want the type of the proxy \
+            object for this kernel argument. Defaults to False (i.e.
+            return the type rather than the proxy type).
+
+        :returns: the datatype of this argument.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        :raises NotImplementedError: if an unsupported argument type is found.
+
+        '''
+        # We want to put any Container symbols in the outermost scope so find
+        # the corresponding symbol table.
+        symbol_table = self._call.scope.symbol_table
+        root_table = symbol_table
+        while root_table.parent_symbol_table():
+            root_table = root_table.parent_symbol_table()
+
+        proxy_str = ""
+        if proxy:
+            proxy_str = "_proxy"
+
+        def _find_or_create_type(mod_name, type_name):
+            '''
+            Utility to find or create a DataTypeSymbol with the supplied name,
+            imported from the named module.
+
+            :param str mod_name: the name of the module from which the \
+                                 DataTypeSymbol should be imported.
+            :param str type_name: the name of the derived type for which to \
+                                  create a DataTypeSymbol.
+
+            :returns: the symbol for the requested type.
+            :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+
+            '''
+            try:
+                fld_type = symbol_table.lookup(type_name)
+            except KeyError:
+                # TODO Once #1258 is done we should already have symbols for
+                # the various types at this point.
+                try:
+                    fld_mod_container = symbol_table.lookup(mod_name)
+                except KeyError:
+                    fld_mod_container = ContainerSymbol(mod_name)
+                    root_table.add(fld_mod_container)
+                fld_type = DataTypeSymbol(
+                    type_name, DeferredType(),
+                    interface=GlobalInterface(fld_mod_container))
+                root_table.add(fld_type)
+            return fld_type
+
+        if self.is_scalar:
+
+            api_config = Config.get().api_conf("dynamo0.3")
+
+            if self.intrinsic_type == 'real':
+                kind_name = api_config.default_kind["real"]
+                prim_type = ScalarType.Intrinsic.REAL
+            elif self.intrinsic_type == 'integer':
+                kind_name = api_config.default_kind["integer"]
+                prim_type = ScalarType.Intrinsic.INTEGER
+            elif self.intrinsic_type == 'logical':
+                kind_name = api_config.default_kind["logical"]
+                prim_type = ScalarType.Intrinsic.BOOLEAN
+            else:
+                raise NotImplementedError(
+                    "Unsupported scalar type '{0}'".format(
+                        self.intrinsic_type))
+            try:
+                kind_symbol = symbol_table.lookup(kind_name)
+            except KeyError:
+                try:
+                    constants_container = symbol_table.lookup(
+                        "constants_mod")
+                except KeyError:
+                    # TODO Once #696 is done, we should *always* have a
+                    # symbol for this container at this point so should
+                    # raise an exception if we haven't. Also, the name
+                    # of the Fortran module should be read from the config
+                    # file.
+                    constants_container = ContainerSymbol("constants_mod")
+                    root_table.add(constants_container)
+                kind_symbol = DataSymbol(
+                        kind_name, INTEGER_SINGLE_TYPE,
+                        interface=GlobalInterface(constants_container))
+                root_table.add(kind_symbol)
+            return ScalarType(prim_type, kind_symbol)
+
+        if self.is_field:
+
+            # Find or create the DataTypeSymbol for the appropriate field type.
+            # TODO #1258 the names of the Fortran modules should come from
+            # the config file.
+            if self.intrinsic_type == 'real':
+                mod_name = "field_mod"
+                type_name = "field{0}_type".format(proxy_str)
+            elif self.intrinsic_type == 'integer':
+                mod_name = "integer_field_mod"
+                type_name = "integer_field{0}_type".format(proxy_str)
+            else:
+                raise NotImplementedError(
+                    "Fields may only be of 'real' or 'integer' type but found "
+                    "'{0}'".format(self.intrinsic_type))
+
+            return _find_or_create_type(mod_name, type_name)
+
+        if self.is_operator:
+
+            # Find or create the DataTypeSymbol for the appropriate operator
+            # type.
+            if self.argument_type == "gh_operator":
+                type_name = "operator{0}_type".format(proxy_str)
+            elif self.argument_type == "gh_columnwise_operator":
+                type_name = "columnwise_operator{0}_type".format(proxy_str)
+            else:
+                raise NotImplementedError(
+                    "Operators may only be of 'gh_operator' or 'gh_columnwise_"
+                    "operator' type but found '{0}'".format(
+                        self.argument_type))
+
+            return _find_or_create_type("operator_mod", type_name)
+
+        raise NotImplementedError(
+            "'{0}' is not a scalar, field or operator argument"
+            "".format(str(self)))
 
 
 class DynKernCallFactory(object):

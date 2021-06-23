@@ -51,11 +51,11 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans
 
 # --------------------------------------------------------------------------- #
-# ================== Extract Transformation tests =========================== #
+# ================== ReadOnly Transformation tests ========================== #
 # --------------------------------------------------------------------------- #
 
 
-def test_extract_trans():
+def test_readonly_trans():
     '''Tests basic functions in ReadOnlyVerifyTrans.'''
     read_only = ReadOnlyVerifyTrans()
     assert str(read_only) == "Create a sub-tree of the PSyIR that has " \
@@ -64,7 +64,7 @@ def test_extract_trans():
 
 
 # -----------------------------------------------------------------------------
-def test_malformed_extract_node(monkeypatch):
+def test_malformed_readonly_node(monkeypatch):
     ''' Check that we raise the expected error if a ReadOnlyVerifyNode does
     not have a single Schedule node as its child. '''
     read_node = ReadOnlyVerifyNode()
