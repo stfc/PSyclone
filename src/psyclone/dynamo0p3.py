@@ -2771,16 +2771,16 @@ class LFRicFields(DynCollection):
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
         if real_field_arg_list:
-            fld_type = real_field_args[0].datatype
-            fld_mod = const.DATA_TYPE_MAP["field"]["module"]
+            fld_type = real_field_args[0].data_type
+            fld_mod = real_field_args[0].data_module
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=real_field_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
         if int_field_arg_list:
-            fld_type = int_field_args[0].datatype
-            fld_mod = const.DATA_TYPE_MAP["integer_field"]["module"]
+            fld_type = int_field_args[0].data_type
+            fld_mod = int_field_args[0].data_module
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=int_field_arg_list,
                                    intent="in"))
@@ -3044,8 +3044,8 @@ class DynProxies(DynCollection):
         real_field_proxy_decs = [arg.proxy_declaration_name for
                                  arg in real_field_args]
         if real_field_proxy_decs:
-            fld_type = real_field_args[0].proxy_datatype
-            fld_mod = const.DATA_TYPE_MAP["field"]["module"]
+            fld_type = real_field_args[0].proxy_data_type
+            fld_mod = real_field_args[0].data_module
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_type,
                                    entity_decls=real_field_proxy_decs))
@@ -3058,8 +3058,8 @@ class DynProxies(DynCollection):
         int_field_proxy_decs = [arg.proxy_declaration_name for
                                 arg in int_field_args]
         if int_field_proxy_decs:
-            fld_type = int_field_args[0].proxy_datatype
-            fld_mod = const.DATA_TYPE_MAP["integer_field"]["module"]
+            fld_type = int_field_args[0].proxy_data_type
+            fld_mod = int_field_args[0].data_module
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_type,
                                    entity_decls=int_field_proxy_decs))
@@ -3071,8 +3071,8 @@ class DynProxies(DynCollection):
             argument_types=["gh_operator"])
         op_proxy_decs = [arg.proxy_declaration_name for arg in op_args]
         if op_proxy_decs:
-            op_type = op_args[0].proxy_datatype
-            op_mod = const.DATA_TYPE_MAP["operator"]["module"]
+            op_type = op_args[0].proxy_data_type
+            op_mod = op_args[0].data_module
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
                                    entity_decls=op_proxy_decs))
@@ -3085,9 +3085,8 @@ class DynProxies(DynCollection):
         cma_op_proxy_decs = [arg.proxy_declaration_name for
                              arg in cma_op_args]
         if cma_op_proxy_decs:
-            op_type = cma_op_args[0].proxy_datatype
-            op_mod = const.DATA_TYPE_MAP[
-                "columnwise_operator"]["module"]
+            op_type = cma_op_args[0].proxy_data_type
+            op_mod = cma_op_args[0].data_module
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
                                    entity_decls=cma_op_proxy_decs))
@@ -3437,14 +3436,13 @@ class DynLMAOperators(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for operators
-        const = LFRicConstants()
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
         # Create a list of operator names
         op_arg_list = [arg.declaration_name for arg in op_args]
         if op_arg_list:
-            op_type = op_args[0].datatype
-            op_mod = const.DATA_TYPE_MAP["operator"]["module"]
+            op_type = op_args[0].data_type
+            op_mod = op_args[0].data_module
             parent.add(TypeDeclGen(parent, datatype=op_type,
                                    entity_decls=op_arg_list,
                                    intent="in"))
@@ -3579,7 +3577,6 @@ class DynCMAOperators(DynCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
-        const = LFRicConstants()
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -3592,8 +3589,8 @@ class DynCMAOperators(DynCollection):
         # Create a list of column-wise operator names
         cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
         if cma_op_arg_list:
-            op_type = cma_op_args[0].datatype
-            op_mod = const.DATA_TYPE_MAP["columnwise_operator"]["module"]
+            op_type = cma_op_args[0].data_type
+            op_mod = cma_op_args[0].data_module
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
                                    entity_decls=cma_op_arg_list,
@@ -8552,19 +8549,23 @@ class DynKernelArgument(KernelArgument):
         # it. Note, issue #79 is also related to this.
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
 
-        # Initialise argument datatype (currently supported for scalars,
+        # Initialise name of the LFRic infrastructure module that
+        # declares the argument data type.
+        self._data_module = None
+        # Initialise argument proxy datatype to None (it can be retrieved
+        # for fields and operators via the appropriate property call).
+        self._proxy_data_type = None
+        # Initialise argument data type (currently supported for scalars,
         # fields and operators). Note: due to how infer_datatype is set up,
         # this also sets up the precision of the argument data for these
         # types of arguments (precision is already initialised to None
-        # in the parent class).
+        # in the parent class) and the name of the related LFRic
+        # infrastructure module where the
         arg_datatype = self.infer_datatype(proxy=False)
         if hasattr(arg_datatype, "name"):
-            self._datatype = arg_datatype.name
+            self._data_type = arg_datatype.name
         else:
-            self._datatype = None
-        # Initialise argument proxy datatype to None (it can be retrieved
-        # for fields and operators via the appropriate property call).
-        self._proxy_datatype = None
+            self._data_type = None
 
     def ref_name(self, function_space=None):
         '''
@@ -8686,16 +8687,16 @@ class DynKernelArgument(KernelArgument):
         return self._intrinsic_type
 
     @property
-    def datatype(self):
+    def data_type(self):
         '''
         :returns: the type of this argument as defined in LFRic infrastructure.
         :rtype: str or NoneType
 
         '''
-        return self._datatype
+        return self._data_type
 
     @property
-    def proxy_datatype(self):
+    def proxy_data_type(self):
         '''
         :returns: the type of this argument's proxy (if it exists) as \
                   defined in LFRic infrastructure.
@@ -8705,6 +8706,16 @@ class DynKernelArgument(KernelArgument):
         if self.is_field or self.is_operator:
             return self.infer_datatype(proxy=True).name
         return None
+
+    @property
+    def data_module(self):
+        '''
+        :returns: the name of the LFRic infrastructure module that \
+                  declares the argument data type.
+        :rtype: str or NoneType
+
+        '''
+        return self._data_module
 
     @property
     def mesh(self):
@@ -9027,14 +9038,14 @@ class DynKernelArgument(KernelArgument):
                     "Fields may only be of 'real' or 'integer' type but found "
                     "'{0}'".format(self.intrinsic_type))
             # Retrieve module name, (proxy_)datatype and precision
-            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
+            self._data_module = const.DATA_TYPE_MAP[argtype]["module"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
             if proxy:
                 type_name = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             else:
                 type_name = const.DATA_TYPE_MAP[argtype]["type"]
 
-            return _find_or_create_type(mod_name, type_name)
+            return _find_or_create_type(self._data_module, type_name)
 
         if self.is_operator:
 
@@ -9052,14 +9063,14 @@ class DynKernelArgument(KernelArgument):
                     "operator' type but found '{0}'".format(
                         self.argument_type))
             # Retrieve module name, datatype and precision
-            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
+            self._data_module = const.DATA_TYPE_MAP[argtype]["module"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
             if proxy:
                 type_name = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             else:
                 type_name = const.DATA_TYPE_MAP[argtype]["type"]
 
-            return _find_or_create_type(mod_name, type_name)
+            return _find_or_create_type(self._data_module, type_name)
 
         raise NotImplementedError(
             "'{0}' is not a scalar, field or operator argument"
