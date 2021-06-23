@@ -1938,13 +1938,14 @@ class Fparser2Reader(object):
                     raise NotImplementedError()
                 name = names[0].string
                 vis = visibility_map.get(name, default_visibility)
-                # Strictly speaking, this should be a RoutineSymbol but we
-                # don't yet allow those to have types and we need to capture
-                # the 'type information' so that we have the interface
-                # definition when re-generating Fortran.
+                # A named interface block corresponds to a RoutineSymbol.
+                # (There will be calls to it although there will be no
+                # corresponding implementation with that name.)
+                # We store its definition using an UnknownFortranType so that
+                # we can recreate it in the Fortran backend.
                 parent.symbol_table.add(
-                    DataSymbol(name, UnknownFortranType(str(node).lower()),
-                               visibility=vis))
+                    RoutineSymbol(name, UnknownFortranType(str(node).lower()),
+                                  visibility=vis))
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
