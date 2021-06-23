@@ -1502,7 +1502,7 @@ def test_fw_range_structureref(fortran_writer):
     '''
     Check the FortranWriter for Range nodes within structure references.
     '''
-    grid_type = TypeSymbol("grid_type", DeferredType())
+    grid_type = DataTypeSymbol("grid_type", DeferredType())
     symbol = DataSymbol("my_grid", grid_type)
     grid_array_type = ArrayType(grid_type, [5, 5])
     array_symbol = DataSymbol("my_grids", grid_array_type)
