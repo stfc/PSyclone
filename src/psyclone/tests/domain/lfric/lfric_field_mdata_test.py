@@ -49,7 +49,7 @@ import fparser
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicFields
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, LFRicFields
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -546,6 +546,37 @@ def test_field_invoke_uniq_declns_valid_intrinsic():
     fields_int = [arg.declaration_name for arg in fields_int_args]
     assert fields_int == ["i1", "i2", "n1", "n2", "i3", "i4", "n3", "n4",
                           "i5", "i6", "n5", "n6", "i7", "i8", "n7"]
+
+
+def test_field_arg_lfricconst_properties():
+    ''' Tests that properties of all supported types of field arguments
+    ('real'-valued 'field_type' and 'integer'-valued 'integer_field_type')
+    defined in LFRicConstants are correctly set up in the DynKernelArgument
+    class.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
+    name = "testkern_field_type"
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+
+    # Test 'real'-valued fields of 'field_type'
+    field_arg = kernel.arguments.args[1]
+    assert field_arg.data_module == "field_mod"
+    assert field_arg.data_type == "field_type"
+    assert field_arg.proxy_data_type == "field_proxy_type"
+    assert field_arg.intrinsic_type == "real"
+    assert field_arg.precision == "r_def"
+
+    # Test 'integer'-valued fields of 'integer_field_type'
+    field_arg = kernel.arguments.args[3]
+    assert field_arg.data_module == "integer_field_mod"
+    assert field_arg.data_type == "integer_field_type"
+    assert field_arg.proxy_data_type == "integer_field_proxy_type"
+    assert field_arg.intrinsic_type == "integer"
+    assert field_arg.precision == "i_def"
 
 
 def test_multiple_updated_field_args():

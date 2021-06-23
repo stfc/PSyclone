@@ -48,7 +48,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import DynDofmaps, DynKernMetadata
+from psyclone.dynamo0p3 import DynDofmaps, DynKern, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -388,6 +388,27 @@ def test_invoke_uniq_declns_valid_access_cma_op():
                              in cma_ops_written_args]
     assert cma_ops_written == ["cma_op1"]
     assert cma_ops_proxy_written == ["cma_op1_proxy"]
+
+
+def test_cma_operator_arg_lfricconst_properties():
+    ''' Tests that properties of supported CMA operator arguments
+    ('real'-valued 'columnwise_operator_type') defined in LFRicConstants are
+    correctly set up in the DynKernelArgument class.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
+    name = "testkern_cma_type"
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+
+    cma_op_arg = kernel.arguments.args[1]
+    assert cma_op_arg.data_module == "operator_mod"
+    assert cma_op_arg.data_type == "columnwise_operator_type"
+    assert cma_op_arg.proxy_data_type == "columnwise_operator_proxy_type"
+    assert cma_op_arg.intrinsic_type == "real"
+    assert cma_op_arg.precision == "r_def"
 
 
 CMA_APPLY = '''

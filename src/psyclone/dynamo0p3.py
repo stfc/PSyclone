@@ -8549,23 +8549,18 @@ class DynKernelArgument(KernelArgument):
         # it. Note, issue #79 is also related to this.
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
 
-        # Initialise name of the LFRic infrastructure module that
-        # declares the argument data type.
+        # Name of the LFRic infrastructure module that declares the argument
+        # data type
         self._data_module = None
-        # Initialise argument proxy datatype to None (it can be retrieved
-        # for fields and operators via the appropriate property call).
+        # Argument data type (if/as defined in the LFRic infrastructure)
+        self._data_type = None
+        # Argument proxy data type (if/as defined in LFRic infrastructure)
         self._proxy_data_type = None
-        # Initialise argument data type (currently supported for scalars,
-        # fields and operators). Note: due to how infer_datatype is set up,
-        # this also sets up the precision of the argument data for these
-        # types of arguments (precision is already initialised to None
-        # in the parent class) and the name of the related LFRic
-        # infrastructure module where the
-        arg_datatype = self.infer_datatype(proxy=False)
-        if hasattr(arg_datatype, "name"):
-            self._data_type = arg_datatype.name
-        else:
-            self._data_type = None
+        # Use 'infer_datatype' to set up kernel argument information: module
+        # name, data type, proxy data type and precision (precision is
+        # already initialised. This is currently supported for scalars,
+        # fields and operators.
+        _ = self.infer_datatype(proxy=False)
 
     def ref_name(self, function_space=None):
         '''
@@ -8752,9 +8747,7 @@ class DynKernelArgument(KernelArgument):
         :rtype: str or NoneType
 
         '''
-        if self.is_field or self.is_operator:
-            return self.infer_datatype(proxy=True).name
-        return None
+        return self._proxy_data_type
 
     @property
     def proxy_name(self):
@@ -9030,8 +9023,6 @@ class DynKernelArgument(KernelArgument):
             const = LFRicConstants()
 
             # Find or create the DataTypeSymbol for the appropriate field type.
-            # TODO #1258 the names of the Fortran modules should come from
-            # the config file.
             if self.intrinsic_type == 'real':
                 argtype = "field"
             elif self.intrinsic_type == 'integer':
@@ -9040,13 +9031,17 @@ class DynKernelArgument(KernelArgument):
                 raise NotImplementedError(
                     "Fields may only be of 'real' or 'integer' type but found "
                     "'{0}'".format(self.intrinsic_type))
-            # Retrieve module name, (proxy_)datatype and precision
+
+            # Set field properties as defined in the LFRic infrastructure
             self._data_module = const.DATA_TYPE_MAP[argtype]["module"]
+            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+
             if proxy:
-                type_name = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+                type_name = self._proxy_data_type
             else:
-                type_name = const.DATA_TYPE_MAP[argtype]["type"]
+                type_name = self._data_type
 
             return _find_or_create_type(self._data_module, type_name)
 
@@ -9065,13 +9060,17 @@ class DynKernelArgument(KernelArgument):
                     "Operators may only be of 'gh_operator' or 'gh_columnwise_"
                     "operator' type but found '{0}'".format(
                         self.argument_type))
-            # Retrieve module name, datatype and precision
+
+            # Set operator properties as defined in the LFRic infrastructure
             self._data_module = const.DATA_TYPE_MAP[argtype]["module"]
+            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+
             if proxy:
-                type_name = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+                type_name = self._proxy_data_type
             else:
-                type_name = const.DATA_TYPE_MAP[argtype]["type"]
+                type_name = self._data_type
 
             return _find_or_create_type(self._data_module, type_name)
 

@@ -431,6 +431,26 @@ def test_invoke_uniq_declns_valid_access_op():
     assert ops_proxy_written == ["op4_proxy"]
 
 
+def test_operator_arg_lfricconst_properties():
+    ''' Tests that properties of supported LMA operator arguments
+    ('real'-valued 'operator_type') defined in LFRicConstants are
+    correctly set up in the DynKernelArgument class.
+
+    '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+
+    op_arg = kernel.arguments.args[3]
+    assert op_arg.data_module == "operator_mod"
+    assert op_arg.data_type == "operator_type"
+    assert op_arg.proxy_data_type == "operator_proxy_type"
+    assert op_arg.intrinsic_type == "real"
+    assert op_arg.precision == "r_def"
+
+
 def test_operator(tmpdir):
     ''' Tests that an LMA operator is implemented correctly in the PSy
     layer. '''

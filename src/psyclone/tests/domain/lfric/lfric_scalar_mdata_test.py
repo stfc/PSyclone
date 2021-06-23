@@ -48,7 +48,8 @@ import six
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicScalarArgs, LFRicConstants
+from psyclone.dynamo0p3 import (DynKern, DynKernMetadata,
+                                LFRicScalarArgs, LFRicConstants)
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -399,6 +400,44 @@ def test_scalar_invoke_uniq_declns_valid_intrinsic():
         const.VALID_SCALAR_NAMES, intrinsic_type="logical")
     scalars_logical = [arg.declaration_name for arg in scalars_logical_args]
     assert scalars_logical == ["lswitch"]
+
+
+def test_scalar_arg_lfricconst_properties():
+    ''' Tests that properties of all supported types of scalar arguments
+    ('real', 'integer' and 'logical') defined in LFRicConstants are
+    correctly set up in the DynKernelArgument class.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+
+    # Test 'real' scalars
+    scalar_arg = kernel.arguments.args[0]
+    assert scalar_arg.data_module == "scalar_mod"
+    assert scalar_arg.data_type == "scalar_type"
+    assert scalar_arg.proxy_data_type is None
+    assert scalar_arg.intrinsic_type == "real"
+    assert scalar_arg.precision == "r_def"
+
+    # Test 'integer' scalars
+    scalar_arg = kernel.arguments.args[6]
+    assert scalar_arg.data_module is None
+    assert scalar_arg.data_type is None
+    assert scalar_arg.proxy_data_type is None
+    assert scalar_arg.intrinsic_type == "integer"
+    assert scalar_arg.precision == "i_def"
+
+    # Test 'logical' scalars
+    scalar_arg = kernel.arguments.args[5]
+    assert scalar_arg.data_module is None
+    assert scalar_arg.data_type is None
+    assert scalar_arg.proxy_data_type is None
+    assert scalar_arg.intrinsic_type == "logical"
+    assert scalar_arg.precision == "l_def"
 
 
 def test_multiple_updated_scalar_args():
