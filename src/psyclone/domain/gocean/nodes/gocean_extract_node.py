@@ -104,16 +104,16 @@ class GOceanExtractNode(ExtractNode):
     def update_vars_and_postname(self):
         '''
         This function prevents any name clashes that can occur when adding
-        the postfix to output variable names (e.g. if there is an output
-        variable 'a', and an input variable 'a_post'. Writing the output value
-        of 'a' would create the key 'a_post', same as the input variable).
-        We change the postfix to make sure we have unique keys (by adding a
-        number to the end, e.g. "post0", then "post1", ...).
-
+        the postfix to output variable names. For example, if there is an
+        output variable 'a' and an input variable 'a_post', then the output
+        file would contain two identical keys 'a_post'. In order to avoid
+        this, the suffix 'post' is changed (to post0, post1, ...) until any
+        name clashes are avoided. This works for structured and non-structured
+        types.
         '''
         suffix = ""
         # The signatures in the input/output list need to be converted
-        # back to strings to easily append the suffix
+        # back to strings to easily append the suffix.
         input_string = [str(input_var) for input_var in self._input_list]
         while any(str(out_sig)+self._post_name+str(suffix) in input_string
                   for out_sig in self._output_list):
@@ -218,14 +218,11 @@ class GOceanExtractNode(ExtractNode):
             # in the example above), and pass this variable to the
             # instrumented code.
             var_name = str(signature)
-            if signature.is_structure:
-                # Strip off the derived type, and only leave the last
-                # field, which is used as the local variable name.
-                local_name = signature[-1]
-            else:
-                # No derived type, so we can just use the
-                # variable name directly in the driver
-                local_name = var_name
+
+            # In case of a derived type, this will only leave the last
+            # component, which is used as the local variable name. For
+            # non-derived type this is just the name of the variable anyway.
+            local_name = signature[-1]
 
             unique_local_name = sym_table.new_symbol(local_name).name
             rename_variable[local_name] = unique_local_name
