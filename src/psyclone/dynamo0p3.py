@@ -5379,13 +5379,12 @@ class DynGlobalSum(GlobalSum):
 
         '''
         name = self._scalar.name
-        const = LFRicConstants()
         # Use InvokeSchedule SymbolTable to share the same symbol for all
         # GlobalSums in the Invoke.
         sum_name = self.ancestor(InvokeSchedule).symbol_table.\
             symbol_from_tag("global_sum").name
-        sum_type = const.DATA_TYPE_MAP["scalar"]["type"]
-        sum_mod = const.DATA_TYPE_MAP["scalar"]["module"]
+        sum_type = self._scalar.data_type
+        sum_mod = self._scalar.data_module
         parent.add(UseGen(parent, name=sum_mod, only=True,
                           funcnames=[sum_type]))
         parent.add(TypeDeclGen(parent, datatype=sum_type,

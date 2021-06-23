@@ -2735,10 +2735,10 @@ class Kern(Statement):
         # to the initial reduction value
         if var_arg.precision:
             kind_type = var_arg.precision
-            zero = "_".join([data_value, kind_type])
+            zero_sum_variable = "_".join([data_value, kind_type])
         else:
-            zero = data_value
-        parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
+            zero_sum_variable = data_value
+        parent.add(AssignGen(parent, lhs=var_name, rhs=zero_sum_variable),
                    position=position)
         if self.reprod_reduction:
             parent.add(DeclGen(parent, datatype=var_data_type,
@@ -2756,7 +2756,7 @@ class Kern(Statement):
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
-                                 rhs=zero), position=position)
+                                 rhs=zero_sum_variable), position=position)
 
     def reduction_sum_loop(self, parent):
         '''
