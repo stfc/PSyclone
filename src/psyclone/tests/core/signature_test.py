@@ -139,28 +139,22 @@ def test_signature_comparison():
     assert Signature(("a", "b")) != 2
 
     # Error cases: comparison of signature with other type.
-    # We don't check for the other type name in the message,
-    # since this varies between python 2 and 3.
     with pytest.raises(TypeError) as err:
         _ = Signature(("a", "b")) < 1
-
-    assert "'<' not supported between instances of 'Signature' and" \
+    assert "'<' not supported between instances of 'Signature' and 'int'" \
         in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        _ = Signature(("a", "b")) <= 1
-
-    assert "'<=' not supported between instances of 'Signature' and" \
+        _ = Signature(("a", "b")) <= "a"
+    assert "'<=' not supported between instances of 'Signature' and 'str'" \
         in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        _ = Signature(("a", "b")) > 1
-
-    assert "'>' not supported between instances of 'Signature' and" \
+        _ = Signature(("a", "b")) > [1]
+    assert "'>' not supported between instances of 'Signature' and 'list'" \
         in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        _ = Signature(("a", "b")) >= 1
-
-    assert "'>=' not supported between instances of 'Signature' and" \
+        _ = Signature(("a", "b")) >= (1, 2)
+    assert "'>=' not supported between instances of 'Signature' and 'tuple'" \
         in str(err.value)

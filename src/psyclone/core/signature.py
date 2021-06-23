@@ -118,7 +118,8 @@ class Signature(object):
         '''Required to sort signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
             raise TypeError("'<' not supported between instances of "
-                            "'Signature' and '{0}'.".format(type(other)))
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
         return self._signature < other._signature
 
     # ------------------------------------------------------------------------
@@ -126,7 +127,8 @@ class Signature(object):
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
             raise TypeError("'<=' not supported between instances of "
-                            "'Signature' and '{0}'.".format(type(other)))
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
         return self._signature <= other._signature
 
     # ------------------------------------------------------------------------
@@ -134,7 +136,8 @@ class Signature(object):
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
             raise TypeError("'>' not supported between instances of "
-                            "'Signature' and '{0}'.".format(type(other)))
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
         return self._signature > other._signature
 
     # ------------------------------------------------------------------------
@@ -142,7 +145,8 @@ class Signature(object):
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
             raise TypeError("'>=' not supported between instances of "
-                            "'Signature' and '{0}'.".format(type(other)))
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
         return self._signature >= other._signature
 
     # ------------------------------------------------------------------------
