@@ -8696,18 +8696,6 @@ class DynKernelArgument(KernelArgument):
         return self._data_type
 
     @property
-    def proxy_data_type(self):
-        '''
-        :returns: the type of this argument's proxy (if it exists) as \
-                  defined in LFRic infrastructure.
-        :rtype: str or NoneType
-
-        '''
-        if self.is_field or self.is_operator:
-            return self.infer_datatype(proxy=True).name
-        return None
-
-    @property
     def data_module(self):
         '''
         :returns: the name of the LFRic infrastructure module that \
@@ -8735,6 +8723,40 @@ class DynKernelArgument(KernelArgument):
         return self._vector_size
 
     @property
+    def name_indexed(self):
+        '''
+        :returns: the name for this argument with an additional index \
+                  which accesses the first element for a vector argument.
+        :rtype: str
+        '''
+        if self._vector_size > 1:
+            return self._name+"(1)"
+        return self._name
+
+    @property
+    def declaration_name(self):
+        '''
+        :returns: the name for this argument with the array dimensions \
+                  added if required.
+        :rtype: str
+        '''
+        if self._vector_size > 1:
+            return self._name+"("+str(self._vector_size)+")"
+        return self._name
+
+    @property
+    def proxy_data_type(self):
+        '''
+        :returns: the type of this argument's proxy (if it exists) as \
+                  defined in LFRic infrastructure.
+        :rtype: str or NoneType
+
+        '''
+        if self.is_field or self.is_operator:
+            return self.infer_datatype(proxy=True).name
+        return None
+
+    @property
     def proxy_name(self):
         '''
         :returns: the proxy name for this argument.
@@ -8754,17 +8776,6 @@ class DynKernelArgument(KernelArgument):
         return self.proxy_name
 
     @property
-    def declaration_name(self):
-        '''
-        :returns: the name for this argument with the array dimensions \
-                  added if required.
-        :rtype: str
-        '''
-        if self._vector_size > 1:
-            return self._name+"("+str(self._vector_size)+")"
-        return self._name
-
-    @property
     def proxy_name_indexed(self):
         '''
         :returns: the proxy name for this argument with an additional \
@@ -8775,17 +8786,6 @@ class DynKernelArgument(KernelArgument):
         if self._vector_size > 1:
             return self._name+"_proxy(1)"
         return self._name+"_proxy"
-
-    @property
-    def name_indexed(self):
-        '''
-        :returns: the name for this argument with an additional index \
-                  which accesses the first element for a vector argument.
-        :rtype: str
-        '''
-        if self._vector_size > 1:
-            return self._name+"(1)"
-        return self._name
 
     @property
     def function_space(self):
@@ -8980,28 +8980,31 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_scalar:
 
-            api_config = Config.get().api_conf("dynamo0.3")
             const = LFRicConstants()
 
-            if self.intrinsic_type == 'real':
-                kind_name = const.DATA_TYPE_MAP["scalar"]["kind"]
+            if self.intrinsic_type == "real":
                 prim_type = ScalarType.Intrinsic.REAL
-            elif self.intrinsic_type == 'integer':
-                kind_name = api_config.default_kind["integer"]
+                argtype = "scalar"
+            elif self.intrinsic_type == "integer":
                 prim_type = ScalarType.Intrinsic.INTEGER
-            elif self.intrinsic_type == 'logical':
-                kind_name = api_config.default_kind["logical"]
+                argtype = "integer_scalar"
+            elif self.intrinsic_type == "logical":
                 prim_type = ScalarType.Intrinsic.BOOLEAN
+                argtype = "logical_scalar"
             else:
                 raise NotImplementedError(
                     "Unsupported scalar type '{0}'".format(
                         self.intrinsic_type))
 
-            # Set scalar precision from the kind_name
-            self._precision = kind_name
+            # Set scalar properties as defined in the LFRic infrastructure
+            self._data_module = const.DATA_TYPE_MAP[argtype]["module"]
+            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+
             # Add precision information to the SymbolTable
             try:
-                kind_symbol = symbol_table.lookup(kind_name)
+                kind_symbol = symbol_table.lookup(self._precision)
             except KeyError:
                 try:
                     constants_container = symbol_table.lookup(
@@ -9016,7 +9019,7 @@ class DynKernelArgument(KernelArgument):
                         const.UTILITIES_MOD_MAP["constants"]["module"])
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
-                    kind_name, INTEGER_SINGLE_TYPE,
+                    self._precision, INTEGER_SINGLE_TYPE,
                     interface=GlobalInterface(constants_container))
                 root_table.add(kind_symbol)
 
