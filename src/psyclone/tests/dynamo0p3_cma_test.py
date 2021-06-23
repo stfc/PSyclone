@@ -351,7 +351,7 @@ def test_cma_mdata_asm_fld_stencil_error():
 def test_invoke_uniq_declns_valid_access_cma_op():
     ''' Tests that all valid access modes for user-defined CMA operator
     arguments (AccessType.READ, AccessType.WRITE, AccessType.READWRITE)
-    are accepted by Invoke.unique_declarations(). Also test the
+    are accepted by Invoke.unique_declarations(). Also tests the
     correctness of names of arguments and their proxies.
 
     '''
@@ -392,8 +392,8 @@ def test_invoke_uniq_declns_valid_access_cma_op():
 
 def test_cma_operator_arg_lfricconst_properties():
     ''' Tests that properties of supported CMA operator arguments
-    ('real'-valued 'columnwise_operator_type') defined in LFRicConstants are
-    correctly set up in the DynKernelArgument class.
+    ('real'-valued 'columnwise_operator_type') defined in LFRicConstants
+    are correctly set up in the DynKernelArgument class.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)

@@ -391,7 +391,7 @@ def test_fsdesc_fs_not_in_argdesc():
 def test_invoke_uniq_declns_valid_access_op():
     ''' Tests that all valid access modes for user-defined LMA operator
     arguments (AccessType.READ, AccessType.WRITE, AccessType.READWRITE)
-    are accepted by Invoke.unique_declarations(). Also test the
+    are accepted by Invoke.unique_declarations(). Also tests the
     correctness of names of arguments and their proxies.
 
     '''

@@ -1033,7 +1033,7 @@ def test_reduction_var_no_scalar_error(dist_mem):
 def test_reduction_var_invalid_scalar_error(dist_mem):
     ''' Check that we raise an exception if the zero_reduction_variable()
     method is provided with an incorrect intrinsic type of scalar
-    argument (other than 'real' or 'integer'.
+    argument (other than 'real' or 'integer').
 
     '''
     _, invoke_info = parse(

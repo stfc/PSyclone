@@ -8558,8 +8558,8 @@ class DynKernelArgument(KernelArgument):
         self._proxy_data_type = None
         # Use 'infer_datatype' to set up kernel argument information: module
         # name, data type, proxy data type and precision (precision is
-        # already initialised. This is currently supported for scalars,
-        # fields and operators.
+        # already initialised to 'None' in the parent class). This is
+        # currently supported for scalars, fields and operators.
         _ = self.infer_datatype(proxy=False)
 
     def ref_name(self, function_space=None):
@@ -8684,7 +8684,8 @@ class DynKernelArgument(KernelArgument):
     @property
     def data_type(self):
         '''
-        :returns: the type of this argument as defined in LFRic infrastructure.
+        :returns: the data type of this argument as defined in the \
+                  LFRic infrastructure.
         :rtype: str or NoneType
 
         '''

@@ -2731,7 +2731,7 @@ class Kern(Statement):
                 "Kern.zero_reduction_variable() should be either a 'real' "
                 "or an 'integer' scalar but found scalar of type '{0}'.".
                 format(var_arg.intrinsic_type))
-        # Retrieve the precision information (if set) and append
+        # Retrieve the precision information (if set) and append it
         # to the initial reduction value
         if var_arg.precision:
             kind_type = var_arg.precision
@@ -3889,7 +3889,7 @@ class Argument(object):
             self._is_literal = False
         # Initialise access
         self._access = access
-        # Initialise precision to None
+        # Initialise precision to 'None'
         self._precision = None
 
         if self._orig_name is None:
