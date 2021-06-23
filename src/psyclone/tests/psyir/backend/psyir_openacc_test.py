@@ -109,9 +109,9 @@ def test_acc_data_region(parser):
 
 
 # ----------------------------------------------------------------------------
-def test_acc_data_region_no_struct(parser):
+def test_acc_data_region_contains_struct(parser, fortran_writer):
     '''
-    Test that we refuse to generate code if a data region includes references
+    Test that we generate correct code if a data region includes references
     to structures.
     '''
     reader = FortranStringReader('''
@@ -126,6 +126,7 @@ subroutine tmp()
   do i = 1, 20, 2
     b(i) = b(i) + i + grid%flag
     grid%data(i) = i
+    grid%weights(i) = 1.0
   enddo
 end subroutine tmp
 end module test''')
@@ -134,14 +135,16 @@ end module test''')
     sched = psy.invokes.invoke_list[0].schedule
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
-    fvisitor = FortranWriter()
-    with pytest.raises(NotImplementedError) as err:
-        _ = fvisitor(sched)
-    # Allow for the vagaries of py2 output versus py3
-    err_msg = str(err.value).replace("u'", "'")
-    assert ("Structure (derived-type) references are not yet supported within "
-            "OpenACC data regions but found: ['grid%flag', 'grid%data(i)']" in
-            err_msg)
+    gen = fortran_writer(sched)
+    assert ("  !$acc data copyin(grid,grid%flag) "
+            "copyout(grid,grid%data,grid%weights) "
+            "copy(b)\n"
+            "  do i = 1, 20, 2\n"
+            "    b(i) = b(i) + i + grid%flag\n"
+            "    grid%data(i) = i\n"
+            "    grid%weights(i) = 1.0\n"
+            "  enddo\n"
+            "  !$acc end data\n" in gen)
 
 
 # ----------------------------------------------------------------------------
