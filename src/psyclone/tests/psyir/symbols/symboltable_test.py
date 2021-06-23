@@ -116,7 +116,8 @@ def test_parent_symbol_table():
     # Provide a wrong scope_limit parameter
     with pytest.raises(TypeError) as err:
         _ = inner_symbol_table.parent_symbol_table(scope_limit=2)
-    assert "The scope_limit argument '2', is not of type `Node`." in str(err)
+    assert ("The scope_limit argument '2', is not of type `Node`." in
+            str(err.value))
 
 
 def test_next_available_name_1():
@@ -1192,10 +1193,12 @@ def test_deep_copy():
     # Create an initial SymbolTable
     dummy = Schedule()
     symtab = SymbolTable(node=dummy)
+    mod = ContainerSymbol("my_mod")
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
-    sym2 = Symbol("symbol2")
+    sym2 = Symbol("symbol2", interface=GlobalInterface(mod))
+    symtab.add(mod)
     symtab.add(sym1)
     symtab.add(sym2, tag="tag1")
     symtab.specify_argument_list([sym1])
@@ -1215,6 +1218,11 @@ def test_deep_copy():
     assert symtab2.lookup_with_tag("tag1") is not sym2
     assert sym1 not in symtab2.argument_list
     assert symtab2.lookup("symbol1") not in symtab.argument_list
+
+    # Check that the internal links between GlobalInterfaces and
+    # ContainerSymbols have been updated
+    assert symtab2.lookup("symbol2").interface.container_symbol is \
+        symtab2.lookup("my_mod")
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
@@ -1399,7 +1407,7 @@ def test_new_symbol():
         sym1 = symtab.new_symbol("wrong", symbol_type=str,
                                  visibility=Symbol.Visibility.PRIVATE)
     assert ("The symbol_type parameter should be a type class of Symbol or"
-            " one of its sub-classes but found" in str(err))
+            " one of its sub-classes but found" in str(err.value))
 
 
 def test_symbol_from_tag():
@@ -1451,7 +1459,7 @@ def test_symbol_from_tag():
     with pytest.raises(SymbolError) as err:
         symtab.symbol_from_tag("tag3", symbol_type=RoutineSymbol)
     assert ("Expected symbol with tag 'tag3' to be of type 'RoutineSymbol' "
-            "but found type 'DataSymbol'." in str(err))
+            "but found type 'DataSymbol'." in str(err.value))
 
     # TODO #1057: It should also fail the symbol is found but the properties
     # are different than the requested ones.

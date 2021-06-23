@@ -47,7 +47,7 @@ from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
+from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol, StructureType, \
     DeferredType, UnknownType
 from psyclone.errors import InternalError
 
@@ -124,7 +124,7 @@ class StructureReference(Reference):
         :param symbol: the symbol that this reference is to.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param symbol_type: the type of the symbol being referenced.
-        :type symbol_type: :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :type symbol_type: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         :param members: the component(s) of the structure that are being \
             accessed. Any components that are array references must \
             provide the name of the array and a list of DataNodes describing \
@@ -145,7 +145,7 @@ class StructureReference(Reference):
             do not have full type information available.
 
         '''
-        if not isinstance(symbol_type, (StructureType, TypeSymbol,
+        if not isinstance(symbol_type, (StructureType, DataTypeSymbol,
                                         DeferredType, UnknownType)):
             raise TypeError(
                 "A StructureReference must refer to a symbol that is (or "

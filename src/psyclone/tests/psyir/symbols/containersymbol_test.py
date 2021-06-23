@@ -91,6 +91,26 @@ def test_containersymbol_initialisation():
     assert "ContainerSymbol 'name' attribute should be of type 'str'" \
         in str(error.value)
 
+    with pytest.raises(TypeError) as error:
+        sym = ContainerSymbol("name", interface="interface")
+    assert ("A ContainerSymbol interface must be of type "
+            "'FortranModuleInterface' but found 'str' for Container 'name'."
+            in str(error.value))
+
+
+def test_containersymbol_can_be_copied():
+    '''Test that a ContainerSymbol instance can be copied. '''
+    symbol = ContainerSymbol("my_mod")
+    symbol.wildcard_import = True
+    new_symbol = symbol.copy()
+
+    assert new_symbol is not symbol
+    assert new_symbol.name == "my_mod"
+    assert isinstance(new_symbol._interface, FortranModuleInterface)
+    # Disable false positive no-member pylint error
+    # pylint: disable=no-member
+    assert new_symbol.wildcard_import is True
+
 
 def test_containersymbol_str():
     '''Test that a ContainerSymbol instance can be stringified'''

@@ -34,13 +34,13 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the TypeSymbol. '''
+''' This module contains the DataTypeSymbol. '''
 
 from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol
 
 
-class TypeSymbol(Symbol):
+class DataTypeSymbol(Symbol):
     '''
     Symbol identifying a user-defined type (e.g. a derived type in Fortran).
 
@@ -56,11 +56,24 @@ class TypeSymbol(Symbol):
     def __init__(self, name, datatype,
                  visibility=Symbol.DEFAULT_VISIBILITY,
                  interface=None):
-        super(TypeSymbol, self).__init__(name, visibility, interface)
+        super(DataTypeSymbol, self).__init__(name, visibility, interface)
 
         # The following attribute has a setter method (with error checking)
         self._datatype = None
         self.datatype = datatype
+
+    def copy(self):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this \
+                  symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
+
+        '''
+        return type(self)(self.name, self.datatype, visibility=self.visibility,
+                          interface=self.interface)
 
     def __str__(self):
         return "{0} : {1}".format(self.name, type(self).__name__)
@@ -68,14 +81,14 @@ class TypeSymbol(Symbol):
     @property
     def datatype(self):
         '''
-        :returns: datatype that this TypeSymbol represents.
+        :returns: datatype that this DataTypeSymbol represents.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
         return self._datatype
 
     @datatype.setter
     def datatype(self, value):
-        ''' Setter for TypeSymbol datatype. Since C permits the programmer
+        ''' Setter for DataTypeSymbol datatype. Since C permits the programmer
         to typedef anything, we place no restriction on the type other
         than that it must be an instance of DataType.
 
@@ -90,10 +103,10 @@ class TypeSymbol(Symbol):
         from psyclone.psyir.symbols import DataType
         if not isinstance(value, DataType):
             raise TypeError(
-                "The datatype of a TypeSymbol must be specified using a "
+                "The datatype of a DataTypeSymbol must be specified using a "
                 "DataType but got: '{0}'".format(type(value).__name__))
         self._datatype = value
 
 
 # For automatic documentation generation
-__all__ = ['TypeSymbol']
+__all__ = ['DataTypeSymbol']

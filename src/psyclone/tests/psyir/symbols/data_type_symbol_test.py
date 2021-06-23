@@ -31,53 +31,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: S. Siso, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-the invokes. When the transformed program is compiled and run, it
-will create one NetCDF file for each of the two invokes. A separate
-driver program is also created for each invoke which can read the
-created NetCDF files, execute the invokes and then compare the results.
-At this stage it does not compile (TODO: #644), and the comparison is
-missing (TODO: #647)
-'''
+''' This module contains pytest tests for the DataTypeSymbol class. '''
 
-from __future__ import print_function
-from psyclone.domain.gocean.transformations import GOceanExtractTrans
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, Symbol, \
+    UnresolvedInterface
 
 
-def trans(psy):
-    '''
-    Take the supplied psy object, and add kernel extraction code.
+def test_create_datatypesymbol():
+    ''' Check that a basic DataTypeSymbol can be created with the expected
+    properties. '''
+    sym = DataTypeSymbol("my_type", DeferredType())
+    assert sym.name == "my_type"
+    assert isinstance(sym.datatype, DeferredType)
+    assert str(sym) == "my_type : DataTypeSymbol"
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
 
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+def test_create_datatypesymbol_wrong_datatype():
+    ''' Check that attempting to specify the type of a DataTypeSymbol with an
+    invalid type results in the expected error. '''
+    sym = DataTypeSymbol("my_type", DeferredType())
+    with pytest.raises(TypeError) as err:
+        sym.datatype = "integer"
+    assert ("datatype of a DataTypeSymbol must be specified using a "
+            "DataType but got: 'str'" in str(err.value))
 
-    '''
-    extract = GOceanExtractTrans()
 
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
-    # TODO #969: this view is required, otherwise the loop
-    # boundaries are undefined, and will not be written
-    # to the output file
-    schedule.view()
-    _, _ = extract.apply(schedule.children,
-                         {"create_driver": True,
-                          "region_name": ("main", "init")})
-
-    invoke = psy.invokes.get("invoke_1_update_field")
-    schedule = invoke.schedule
-
-    # Enclose everything in a extract region
-    extract.apply(schedule.children,
-                  {"create_driver": True,
-                   "region_name": ("main", "update")})
-
-    schedule.view()
-    return psy
+def test_datatypesymbol_copy():
+    ''' Check that a DataTypeSymbol can be copied. '''
+    symbol = DataTypeSymbol("my_type", DeferredType(),
+                            visibility=Symbol.Visibility.PRIVATE,
+                            interface=UnresolvedInterface())
+    new_symbol = symbol.copy()
+    assert new_symbol is not symbol
+    assert new_symbol.name == "my_type"
+    assert isinstance(new_symbol.datatype, DeferredType)
+    assert new_symbol.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(new_symbol.interface, UnresolvedInterface)

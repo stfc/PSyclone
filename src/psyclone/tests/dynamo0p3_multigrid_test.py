@@ -108,8 +108,8 @@ def test_invalid_mesh_type():
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("mesh_arg must be one of [\\'gh_coarse\\', "
-            "\\'gh_fine\\'] but got gh_rubbish" in str(excinfo.value))
+    assert ("mesh_arg must be one of ['gh_coarse', "
+            "'gh_fine'] but got gh_rubbish" in str(excinfo.value))
 
 
 def test_invalid_mesh_specifier():

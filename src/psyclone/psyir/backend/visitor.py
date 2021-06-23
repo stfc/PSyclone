@@ -44,9 +44,10 @@ back ends.
 import inspect
 import six
 from psyclone.psyir.nodes import Node
+from psyclone.errors import PSycloneError
 
 
-class VisitorError(Exception):
+class VisitorError(PSycloneError):
     '''Provides a PSyclone-specific error class for errors related to a
     PSyIR visitor.
 
@@ -54,11 +55,8 @@ class VisitorError(Exception):
 
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Visitor Error: "+value
-
-    def __str__(self):
-        return str(self.value)
+        PSycloneError.__init__(self, value)
+        self.value = "Visitor Error: "+str(value)
 
 
 class PSyIRVisitor(object):
@@ -143,9 +141,11 @@ class PSyIRVisitor(object):
 
     def __call__(self, node):
         '''This method is called when an instance of the class is called
-        directly (like a function). This implementation is known as
-        a functor. It makes sense for this class as there is only one
-        main method - the `visit` method.
+        directly (like a function). It creates a copy of the whole tree of
+        the provided node (in order to return without any side-effects to
+        the original tree), then lower the DSL concepts into language level
+        nodes, and finally recurse down the node using the visitors defined
+        in this Visitor class.
 
         :param node: A PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -153,8 +153,40 @@ class PSyIRVisitor(object):
         :returns: text representation of the PSyIR tree.
         :rtype: str
 
+        :raises TypeError: if the provided argument is not a PSyIR Node.
+
         '''
-        return self._visit(node)
+        if not isinstance(node, Node):
+            raise TypeError(
+                "The PSyIR visitor functor method only accepts a PSyIR Node "
+                "as argument, but found '{0}'.".format(type(node).__name__))
+
+        # The visitor must not alter the provided node but if there are any
+        # DSL concepts then these will need to be lowered in-place and this
+        # operation often modifies the tree. Therefore, we first create a
+        # copy of the full provided tree (as modifications can be above the
+        # provided node - e.g. adding a symbol in the scope)
+        tree_copy = node.root.copy()
+
+        # Get the node in the new tree with equivalent position to the provided
+        # node
+        node_copy = tree_copy.walk(Node)[node.abs_position]
+
+        # Lower the DSL concepts starting from the selected node.
+        # pylint: disable=broad-except
+        try:
+            node_copy.lower_to_language_level()
+        except Exception as error:
+            six.raise_from(VisitorError(
+                "Failed to lower '{0}'. Note that some nodes need to be "
+                "lowered from an ancestor in order to properly apply their "
+                "in-tree modifications.".format(node)), error)
+
+        # Find again the equivalent node in the lowered tree in case that it
+        # has been replaced
+        lowered_node = tree_copy.walk(Node)[node.abs_position]
+
+        return self._visit(lowered_node)
 
     def _visit(self, node):
         '''Implements the PSyIR callbacks. Callbacks are implemented by using

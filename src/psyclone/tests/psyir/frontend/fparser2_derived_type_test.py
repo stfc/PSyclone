@@ -45,10 +45,11 @@ from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresMember, ArrayMember, Literal, Reference, Range, \
     BinaryOperation
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
-    TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
+    DataTypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
     UnknownFortranType, DataSymbol, INTEGER_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _create_struct_reference
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
 
@@ -103,7 +104,7 @@ def test_create_struct_reference():
 @pytest.mark.usefixtures("f2008_parser")
 @pytest.mark.parametrize("type_name", ["my_type", "MY_TYPE", "mY_type"])
 def test_deferred_derived_type(type_name):
-    ''' Check that we get a symbol with a type given by a TypeSymbol (which
+    ''' Check that we get a symbol with a type given by a DataTypeSymbol (which
     itself is of DeferredType) for a declaration using an unresolved derived
     type. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -114,10 +115,10 @@ def test_deferred_derived_type(type_name):
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     vsym = symtab.lookup("var")
-    assert isinstance(vsym.datatype, TypeSymbol)
+    assert isinstance(vsym.datatype, DataTypeSymbol)
     assert isinstance(vsym.datatype.datatype, DeferredType)
     tsym = symtab.lookup("my_type")
-    assert isinstance(tsym, TypeSymbol)
+    assert isinstance(tsym, DataTypeSymbol)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -153,9 +154,9 @@ def test_name_clash_derived_type(f2008_parser, type_name):
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert ("Search for a TypeSymbol named '{0}' (required by specification"
-            " 'TYPE({0})') found a 'RoutineSymbol' instead".format(type_name)
-            in str(err.value))
+    assert ("Search for a DataTypeSymbol named '{0}' (required by "
+            "specification 'TYPE({0})') found a 'RoutineSymbol' instead".
+            format(type_name) in str(err.value))
 
 
 def test_name_clash_derived_type_def(f2008_parser):
@@ -166,9 +167,10 @@ def test_name_clash_derived_type_def(f2008_parser):
     # Add a RoutineSymbol to the symbol table that will clash with the name
     # of the derived type.
     symtab.add(RoutineSymbol("my_type"))
-    # Add a TypeSymbol to the symbol table. Make it appear that we've already
-    # seen a definition of this symbol by making it of UnknownFortranType.
-    symtab.new_symbol("my_type2", symbol_type=TypeSymbol,
+    # Add a DataTypeSymbol to the symbol table. Make it appear that we've
+    # already seen a definition of this symbol by making it of
+    # UnknownFortranType.
+    symtab.new_symbol("my_type2", symbol_type=DataTypeSymbol,
                       datatype=UnknownFortranType("huh"))
     processor = Fparser2Reader()
     fparser2spec = f2008_parser(
@@ -183,11 +185,11 @@ def test_name_clash_derived_type_def(f2008_parser):
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert ("Error processing definition of derived type 'my_type'. The "
             "symbol table already contains an entry with this name but it is a"
-            " 'RoutineSymbol' when it should be a 'TypeSymbol' (for the "
+            " 'RoutineSymbol' when it should be a 'DataTypeSymbol' (for the "
             "derived-type definition 'TYPE :: my_type\n  INTEGER :: flag\n"
             "END TYPE my_type')" in str(err.value))
     # Repeat but with a derived-type name that will clash with our existing
-    # TypeSymbol
+    # DataTypeSymbol
     fparser2spec = f2008_parser(
         FortranStringReader("subroutine my_sub2()\n"
                             "  type :: my_type2\n"
@@ -197,8 +199,8 @@ def test_name_clash_derived_type_def(f2008_parser):
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert ("Error processing definition of derived type 'my_type2'. The "
-            "symbol table already contains a TypeSymbol with this name but it "
-            "is of type 'UnknownFortranType' when it should be of "
+            "symbol table already contains a DataTypeSymbol with this name but"
+            " it is of type 'UnknownFortranType' when it should be of "
             "'DeferredType'" in str(err.value))
 
 
@@ -208,7 +210,7 @@ def test_name_clash_derived_type_def(f2008_parser):
                                       "use grid_mod"])
 @pytest.mark.parametrize("type_name", ["GRID_TYPE", "grid_type"])
 def test_parse_derived_type(use_stmt, type_name):
-    ''' Check that the fronted correctly creates a TypeSymbol of type
+    ''' Check that the fronted correctly creates a DataTypeSymbol of type
     StructureType from the declaration of a derived type. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
@@ -224,13 +226,13 @@ def test_parse_derived_type(use_stmt, type_name):
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
-    assert isinstance(sym, TypeSymbol)
+    assert isinstance(sym, DataTypeSymbol)
     assert isinstance(sym.datatype, StructureType)
     flag = sym.datatype.lookup("flag")
     assert isinstance(flag.datatype, ScalarType)
     assert flag.visibility == Symbol.Visibility.PUBLIC
     grid = sym.datatype.lookup("grid")
-    assert isinstance(grid.datatype, TypeSymbol)
+    assert isinstance(grid.datatype, DataTypeSymbol)
     assert isinstance(grid.datatype.datatype, DeferredType)
     assert grid.visibility == Symbol.Visibility.PRIVATE
     posn = sym.datatype.lookup("posn")
@@ -244,7 +246,7 @@ def test_parse_derived_type(use_stmt, type_name):
 def test_derived_type_self_ref(type_name):
     ''' Test that we can parse a derived type that contains a pointer
     reference of that same type. The 'pointer' attribute is not supported
-    so we get a TypeSymbol of UnknownFortranType. '''
+    so we get a DataTypeSymbol of UnknownFortranType. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
@@ -256,7 +258,7 @@ def test_derived_type_self_ref(type_name):
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
-    assert isinstance(sym, TypeSymbol)
+    assert isinstance(sym, DataTypeSymbol)
     assert isinstance(sym.datatype, UnknownFortranType)
     assert symtab.lookup("var").datatype is sym
 
@@ -278,7 +280,7 @@ def test_derived_type_accessibility():
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
-    assert isinstance(sym, TypeSymbol)
+    assert isinstance(sym, DataTypeSymbol)
     flag = sym.datatype.lookup("flag")
     assert flag.visibility == Symbol.Visibility.PRIVATE
     scale = sym.datatype.lookup("scale")

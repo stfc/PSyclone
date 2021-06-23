@@ -41,7 +41,7 @@ which uses specialised classes.
 from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock
-from psyclone.psyir.symbols import Symbol, TypeSymbol, StructureType, \
+from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
     RoutineSymbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
@@ -100,23 +100,23 @@ class InvokeCallTrans(Transformation):
         try:
             type_symbol = symbol_table.lookup(name)
         except KeyError:
-            type_symbol = TypeSymbol(name, StructureType())
+            type_symbol = DataTypeSymbol(name, StructureType())
             symbol_table.add(type_symbol)
         return type_symbol
 
     @staticmethod
     def _specialise_symbol(symbol):
         '''If the symbol argument is a Symbol then change it into a
-        TypeSymbol.
+        DataTypeSymbol.
 
-        :param symbol: a symbol that will be modified to a TypeSymbol \
+        :param symbol: a symbol that will be modified to a DataTypeSymbol \
             if it is a Symbol.
         :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # pylint: disable=unidiomatic-typecheck
         if type(symbol) is Symbol:
-            symbol.specialise(TypeSymbol)
+            symbol.specialise(DataTypeSymbol)
             symbol.datatype = StructureType()
 
     def _validate_fp2_node(self, fp2_node):
