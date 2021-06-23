@@ -37,11 +37,41 @@
 ''' This module contains the RoutineSymbol.'''
 
 from __future__ import absolute_import
+from psyclone.psyir.symbols.datatypes import NoType
 from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
-class RoutineSymbol(Symbol):
-    '''Symbol identifying a callable routine.'''
+class RoutineSymbol(TypedSymbol):
+    '''Symbol identifying a callable routine.
+
+    :param str name: name of the routine.
+    :param datatype: data type returned by the routine. Defaults to NoType.
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or `NoneType`
+    :param visibility: the visibility of the symbol.
+    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :param interface: optional object describing the interface to this \
+        symbol (i.e. whether it is local or accessed from some Container) \
+        Defaults to :py:class:`psyclone.psyir.symbols.LocalInterface`.
+    :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
+
+    '''
+    def __init__(self, name, datatype=None,
+                 visibility=Symbol.DEFAULT_VISIBILITY,
+                 interface=None):
+        # We override the constructor purely to add a default datatype
+        local_datatype = datatype
+        if local_datatype is None:
+            local_datatype = NoType()
+
+        super(RoutineSymbol, self).__init__(name, local_datatype,
+                                            visibility=visibility,
+                                            interface=interface)
 
     def __str__(self):
-        return "{0} : {1}".format(self.name, type(self).__name__)
+        return "{0} : {1} <{2}>".format(self.name, type(self).__name__,
+                                        str(self.datatype))
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["RoutineSymbol"]

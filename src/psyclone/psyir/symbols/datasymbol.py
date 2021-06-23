@@ -40,10 +40,10 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol
-from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
-class DataSymbol(Symbol):
+class DataSymbol(TypedSymbol):
     '''
     Symbol identifying a data element. It contains information about:
     the datatype, the shape (in column-major order) and the interface
@@ -70,86 +70,11 @@ class DataSymbol(Symbol):
     '''
     def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
                  constant_value=None, interface=None):
-        super(DataSymbol, self).__init__(name, visibility, interface)
+        super(DataSymbol, self).__init__(name, datatype, visibility, interface)
 
-        # The following attributes have setter methods (with error checking)
-        self._datatype = None
-        self.datatype = datatype
+        # The following attribute has a setter method (with error checking)
         self._constant_value = None
         self.constant_value = constant_value
-
-    def resolve_deferred(self):
-        ''' If the symbol has a deferred datatype, find where it is defined
-        (i.e. an external container) and obtain the properties of the symbol.
-
-        :returns: this DataSymbol with its properties updated. This is for \
-                  consistency with the equivalent method in the Symbol \
-                  class which returns a new Symbol object.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        '''
-        # This import has to be local to this method to avoid circular
-        # dependencies.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import DeferredType
-        if isinstance(self.datatype, DeferredType):
-            # Copy all the symbol properties but the interface and
-            # visibility (the latter is determined by the current
-            # scoping unit)
-            tmp = self.interface
-            extern_symbol = self.get_external_symbol()
-            self.copy_properties(extern_symbol)
-            self.interface = tmp
-
-        return self
-
-    @property
-    def datatype(self):
-        '''
-        :returns: datatype of the DataSymbol.
-        :rtype: str
-        '''
-        return self._datatype
-
-    @datatype.setter
-    def datatype(self, value):
-        ''' Setter for DataSymbol datatype.
-
-        :param value: new value for datatype.
-        :type value: :py:class:`psyclone.psyir.symbols.DataType` or \
-                     :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-
-        :raises TypeError: if value is not of the correct type.
-        :raises NotImplementedError: if the specified data type is invalid.
-
-        '''
-        # We can't do this import at the toplevel as we get a circular
-        # dependency with the datatypes module.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols import DataType
-        if not isinstance(value, (DataType, DataTypeSymbol)):
-            raise TypeError(
-                "The datatype of a DataSymbol must be specified using either "
-                "a DataType or a DataTypeSymbol but got: '{0}'".format(
-                    type(value).__name__))
-        self._datatype = value
-
-    @property
-    def shape(self):
-        '''
-        :returns: shape of the symbol in column-major order (leftmost \
-                  index is contiguous in memory). Each entry represents \
-                  an array dimension. If it is 'None' the extent of that \
-                  dimension is unknown, otherwise it holds an integer \
-                  literal or a reference to an integer symbol with the \
-                  extent. If it is an empty list then the symbol \
-                  represents a scalar.
-        :rtype: list
-        '''
-        from psyclone.psyir.symbols import ArrayType
-        if isinstance(self._datatype, ArrayType):
-            return self._datatype.shape
-        return []
 
     @property
     def is_constant(self):
@@ -160,26 +85,6 @@ class DataSymbol(Symbol):
 
         '''
         return self._constant_value is not None
-
-    @property
-    def is_scalar(self):
-        '''
-        :returns: True if this symbol is a scalar and False otherwise.
-        :rtype: bool
-
-        '''
-        from psyclone.psyir.symbols import ScalarType
-        return isinstance(self.datatype, ScalarType)
-
-    @property
-    def is_array(self):
-        '''
-        :returns: True if this symbol is an array and False otherwise.
-        :rtype: bool
-
-        '''
-        from psyclone.psyir.symbols import ArrayType
-        return isinstance(self.datatype, ArrayType)
 
     @property
     def constant_value(self):
@@ -295,7 +200,5 @@ class DataSymbol(Symbol):
         if not isinstance(symbol_in, DataSymbol):
             raise TypeError("Argument should be of type 'DataSymbol' but found"
                             " '{0}'.".format(type(symbol_in).__name__))
-
-        self._datatype = symbol_in.datatype
+        super(DataSymbol, self).copy_properties(symbol_in)
         self._constant_value = symbol_in.constant_value
-        self._interface = symbol_in.interface

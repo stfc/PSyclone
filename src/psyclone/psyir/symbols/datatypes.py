@@ -42,7 +42,8 @@ from collections import OrderedDict, namedtuple
 from enum import Enum
 import six
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataTypeSymbol, DataSymbol
+from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
@@ -69,6 +70,14 @@ class DeferredType(DataType):
 
         '''
         return "DeferredType"
+
+
+class NoType(DataType):
+    ''' Indicates that the associated symbol has an empty type (equivalent
+    to `void` in C). '''
+
+    def __str__(self):
+        return "NoType"
 
 
 @six.add_metaclass(abc.ABCMeta)

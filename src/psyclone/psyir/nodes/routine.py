@@ -40,7 +40,7 @@
 import six
 
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, DeferredType
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols.symboltable import SymbolTable
 
@@ -178,13 +178,15 @@ class Routine(Schedule):
         if not self._name:
             self._name = new_name
             self.symbol_table.add(
-                    RoutineSymbol(new_name), tag='own_routine_symbol')
+                RoutineSymbol(new_name, DeferredType()),
+                tag='own_routine_symbol')
         elif self._name != new_name:
             old_symbol = self.symbol_table.lookup(self._name)
             self.symbol_table.remove(old_symbol)
             self._name = new_name
             self.symbol_table.add(
-                    RoutineSymbol(new_name), tag='own_routine_symbol')
+                RoutineSymbol(new_name, old_symbol.datatype),
+                tag='own_routine_symbol')
 
     def __str__(self):
         result = self.node_str(False) + ":\n"

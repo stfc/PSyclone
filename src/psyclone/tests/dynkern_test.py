@@ -299,7 +299,7 @@ def test_validate_kernel_code_arg(monkeypatch):
     # scalar in order to force the required exception. We do this by
     # changing the ScalarType as it is used when determining whether
     # the symbol is a scalar.
-    monkeypatch.setattr(psyclone.psyir.symbols, "ScalarType", str)
+    monkeypatch.setattr(psyclone.psyir.symbols.datatypes, "ScalarType", str)
     with pytest.raises(InternalError) as info:
         kernel._validate_kernel_code_arg(
             lfric_real_scalar_symbol, lfric_real_scalar_symbol)

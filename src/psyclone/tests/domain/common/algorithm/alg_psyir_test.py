@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
     BinaryOperation
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    StructureType, Symbol, REAL_TYPE
+    StructureType, Symbol, REAL_TYPE, NoType
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.errors import GenerationError

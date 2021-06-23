@@ -57,7 +57,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
     UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
-    SymbolTable
+    SymbolTable, NoType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -199,7 +199,7 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
                         # specialise the existing symbol.
                         # TODO Use the API developed in #1113 to specialise
                         # the symbol.
-                        sym.__class__ = expected_type
+                        sym.specialise(expected_type)
                         sym.__init__(sym.name, **kargs)
                 return sym
             except KeyError:
@@ -671,12 +671,18 @@ def _process_routine_symbols(module_ast, symbol_table,
     '''
     routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
                                  Fortran2003.Function_Subprogram))
+    # A subroutine has no type but a function does. However, we don't know what
+    # it is at this stage so we give all functions a DeferredType.
+    # TODO #924 should this type be required at any point then hopefully
+    # TypedSymbol.resolve_deferred() will do the job.
+    type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
+                Fortran2003.Function_Subprogram: DeferredType()}
     for routine in routines:
         name = str(routine.children[0].children[1])
         vis = visibility_map.get(name, default_visibility)
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
-        rsymbol = RoutineSymbol(name, visibility=vis,
+        rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
                                 interface=LocalInterface())
         symbol_table.add(rsymbol)
 
@@ -3291,6 +3297,11 @@ class Fparser2Reader(object):
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
                 routine_symbol.specialise(RoutineSymbol)
+                # TODO #1113 - the above specialise() call does not yet
+                # support adding properties to the symbol so we have to
+                # manually set the datatype of the RoutineSymbol. As this is
+                # a call, it must be a subroutine which has no associated type.
+                routine_symbol.datatype = NoType()
             elif type(routine_symbol) is RoutineSymbol:
                 # This symbol is already the expected type
                 pass
@@ -3300,6 +3311,7 @@ class Fparser2Reader(object):
                     "'RoutineSymbol', but found '{1}'.".format(
                         call_name, type(routine_symbol).__name__))
         except KeyError:
+            # A call must be to a subroutine which has no type in Fortran.
             routine_symbol = RoutineSymbol(
                 call_name, interface=UnresolvedInterface())
             symbol_table.add(routine_symbol)
