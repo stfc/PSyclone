@@ -37,8 +37,8 @@
 ''' This module contains the implementation of the ArrayMember node.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.member import Member
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.errors import GenerationError
 
 

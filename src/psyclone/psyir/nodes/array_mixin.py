@@ -73,14 +73,10 @@ class ArrayMixin(object):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
-    def get_signature_and_indices(self, max_depth=None):
+    def get_signature_and_indices(self):
         '''
         Constructs the Signature of this array access and a list of the
         indices used.
-
-        :param int max_depth: the maximum depth to recurse down into a \
-            structure type. Not used in this method (because it doesn't \
-            handle structure members).
 
         :returns: the Signature of this array reference, and \
             a list of the indices used for each component (empty list \
@@ -90,7 +86,6 @@ class ArrayMixin(object):
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
         '''
-        # pylint: disable=unused-argument
         sig, _ = super(ArrayMixin, self).get_signature_and_indices()
         return (sig, [self.indices[:]])
 
@@ -242,7 +237,8 @@ class ArrayMixin(object):
         from psyclone.psyir.backend.fortran import FortranWriter
         fwriter = FortranWriter()
 
-        # Examine the indices, ignoring any on the innermost accesses.
+        # Examine the indices, ignoring any on the innermost accesses (hence
+        # the slice to `depth` rather than `depth + 1` below).
         for indices in zip(self_indices[:depth], node_indices[:depth]):
             if ("".join(fwriter(idx) for idx in indices[0]) !=
                     "".join(fwriter(idx) for idx in indices[1])):
