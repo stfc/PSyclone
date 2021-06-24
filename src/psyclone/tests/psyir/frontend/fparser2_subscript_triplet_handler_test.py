@@ -64,13 +64,13 @@ def test_subscript_triplet_handler_error():
             "but got 'Schedule' when processing ':'" in str(err.value))
 
 
-def test_ubound_lbound_arg_error(fortran_reader):
+def test_ubound_lbound_arg_error():
     ''' Check that the _copy_full_base_reference utility method raises the
     expected error if the supplied node is of the wrong type. '''
     with pytest.raises(InternalError) as err:
         _copy_full_base_reference(Schedule())
-    assert ("supplied node must be an instance of either ArrayReference or "
-            "StructureReference but got 'Schedule'" in str(err.value))
+    assert ("supplied node must be an instance of either Reference or "
+            "Member but got 'Schedule'" in str(err.value))
 
 
 def test_ubound_lbound_arg(fortran_reader):

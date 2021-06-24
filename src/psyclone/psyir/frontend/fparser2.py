@@ -476,7 +476,7 @@ def _copy_full_base_reference(node):
     if isinstance(node, Reference):
         return Reference(node.symbol)
 
-    elif isinstance(node, Member):
+    if isinstance(node, Member):
         # We have to take care with derived types:
         # grid(1)%data(:...) becomes
         # grid(1)%data(lbound(grid(1)%data,1):...)
@@ -503,8 +503,8 @@ def _copy_full_base_reference(node):
         return arg
 
     raise InternalError(
-        "The supplied node must be an instance of either ArrayReference "
-        "or StructureReference but got '{0}'.".format(type(node).__name__))
+        "The supplied node must be an instance of either Reference "
+        "or Member but got '{0}'.".format(type(node).__name__))
 
 
 def _kind_symbol_from_name(name, symbol_table):
