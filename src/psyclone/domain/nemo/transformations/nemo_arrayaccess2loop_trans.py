@@ -43,18 +43,14 @@ tranformation to indicate which array index should be transformed.
 
 from __future__ import absolute_import
 
+from psyclone.configuration import Config
+from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
+    Assignment, Literal, Node, Schedule, Loop
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType
-from psyclone.psyir.symbols.datatypes import ScalarType
-from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
-    Assignment, Literal, Operation, BinaryOperation, Node, Schedule, Loop
-from psyclone.nemo import NemoLoop
-from psyclone.configuration import Config
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
-    import CreateNemoKernelTrans
 
 
 class NemoArrayAccess2LoopTrans(Transformation):
@@ -119,15 +115,12 @@ class NemoArrayAccess2LoopTrans(Transformation):
         '''
         self.validate(node)
 
-        array_reference = node.parent
         array_index = node.position
+        array_reference = node.parent
         assignment = array_reference.parent
-        parent = assignment.parent
         symbol_table = node.scope.symbol_table
 
         node_copy = node.copy()
-
-        # assignment.view()
 
         # See if there is any configuration information for this array index
         loop_type_order = Config.get().api_conf("nemo").get_index_order()
@@ -142,24 +135,15 @@ class NemoArrayAccess2LoopTrans(Transformation):
         except IndexError:
             loop_variable_name = symbol_table.next_available_name("idx")
 
-        # ************************************************************
-        # TBD: We need better evaluation of symbols in the code below
-        # as we might have expressions, lookups and/or multiple
-        # symbols within indices. The problem is demonstrated by an
-        # failing test.
-        # ************************************************************
-
-        # Work out where to add the new loop (at 'location') as there may be existing
-        # inner loops
+        # Work out where to add the new loop (at 'location'), as there
+        # may be existing loops that should be inside this one.
         symbols = [ref.symbol for ref in array_reference.children[:array_index]
-                if isinstance(ref, Reference)]
-
+                   if isinstance(ref, Reference)]
         location = assignment
         idx = 0
-        from psyclone.psyir.nodes import Loop, Schedule
-        while isinstance(location.parent, Schedule) and isinstance(location.parent.parent, Loop) and idx<len(symbols):
-            if not symbols[idx] is location.parent.parent.variable:
-                raise InternalError("Validation method should pick this up.")
+        while (isinstance(location.parent, Schedule) and
+               isinstance(location.parent.parent, Loop) and
+               idx < len(symbols)):
             idx += 1
             location = location.parent.parent
 
@@ -175,13 +159,16 @@ class NemoArrayAccess2LoopTrans(Transformation):
         # Replace array access loop variable.
         for array in assignment.walk(ArrayReference):
             if not array.ancestor(ArrayReference):
+                # This is not a nested access e.g. a(b(n)).
                 array.children[array_index] = Reference(loop_variable_symbol)
 
-        # Create our new loop and add its children
+        # Create the new single-trip loop and add its children.
         step = Literal("1", INTEGER_TYPE)
         loop = NemoLoop.create(loop_variable_symbol, node_copy,
                                node_copy.copy(), step, [location.copy()])
 
+        # Replace the original assignment with a loop containing the
+        # modified assignment.
         location.replace_with(loop)
 
     def validate(self, node, options=None):
@@ -197,7 +184,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
         :type options: dict of string:values or None
 
         '''
-        # Not a node
+        # Not a PSyIR node
         if not isinstance(node, Node):
             raise TransformationError(
                 "Error in NemoArrayAccess2LoopTrans transformation. The "
@@ -237,11 +224,11 @@ class NemoArrayAccess2LoopTrans(Transformation):
         # Capture loop iterator symbols in order
         iterator_symbols = []
         location = node.parent.parent
-        while isinstance(location.parent, Schedule) and \
-              isinstance(location.parent.parent, Loop):
+        while (isinstance(location.parent, Schedule) and
+               isinstance(location.parent.parent, Loop)):
             location = location.parent.parent
             iterator_symbols.append(location.variable)
-        
+
         # Index contains a loop iterator
         for reference in node.walk(Reference):
             if reference.symbol in iterator_symbols:
@@ -277,10 +264,11 @@ class NemoArrayAccess2LoopTrans(Transformation):
         for idx, array_access_iterator in enumerate(array_access_iterators):
             if array_access_iterator != iterator_symbols[idx]:
                 raise TransformationError(
-                    "In array '{0}' expected iterator '{1}' at index '{2}' but found '{3}'."
-                    "".format(node.parent.name, iterator_symbols[idx].name,
-                              idx, array_access_iterator.name))
-        
+                    "In array '{0}' expected iterator '{1}' at index '{2}' "
+                    "but found '{3}'.".format(
+                        node.parent.name, iterator_symbols[idx].name,
+                        idx, array_access_iterator.name))
+
         # Indices on lhs and rhs array accesses are not the same
         index_pos = node.position
         assignment = node.parent.parent

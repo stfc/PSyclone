@@ -41,23 +41,14 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.psyir.nodes import Assignment, ArrayReference, Literal
 from psyclone.psyGen import Transformation
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType, DeferredType
-from psyclone.psyir.transformations import TransformationError
-from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
-    import get_outer_index
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import get_invoke
-from psyclone.nemo import NemoKern, NemoLoop
-from psyclone.psyir.nodes import Schedule, Node
-from psyclone.errors import InternalError
-from psyclone.configuration import Config
-
-
 from psyclone.domain.nemo.transformations import NemoArrayAccess2LoopTrans
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Assignment, ArrayReference, Literal, Node
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
+    ArrayType
+from psyclone.psyir.transformations import TransformationError
 
 # Constants
 API = "nemo"
@@ -170,6 +161,24 @@ def test_apply_third_dim_expr():
     check_transformation(code, expected_result, index=2)
 
 
+def test_apply_fifth_dim_expr():
+    '''Check that the expected code is produced for a 5D array where there
+    is no loop index information in the nemo api for the outermost
+    dimension so a new loop variable name is required.
+
+    '''
+    code = (
+        "  real :: a(10,10,10,10,10)\n"
+        "  a(1,1,1,1,1) = 0.0\n")
+    expected_result = (
+        "  real, dimension(10,10,10,10,10) :: a\n"
+        "  integer :: idx\n\n"
+        "  do idx = 1, 1, 1\n"
+        "    a(1,1,1,1,idx) = 0.0\n"
+        "  enddo\n\n")
+    check_transformation(code, expected_result, index=4)
+
+
 def test_apply_indirection():
     '''Check that the expected code is produced for a 1D array where the
     access to its 1st dimension index is via a lookup (that does not
@@ -243,41 +252,6 @@ def test_apply_ranges():
     check_transformation(code, expected_result, index=2)
 
 
-# TODO loop variable expression - what is this for ????
-#def test_example9():
-#    '''Check that the expected code is produced for a 3D array where its
-#    inner two dimensions are array ranges (array notation), its outer
-#    dimension is a variable and the outer dimension is provided to the
-#    transformation.
-#
-#    '''
-#    ''' loop variable expression '''
-#    code = (
-#        "  real :: a(10,10,10), b(10,10,10)\n"
-#        "  integer :: lookup(10)\n"
-#        "  integer :: ji, jj, n\n"
-#        "  do jj = 1, n\n"
-#        "    do ji = 1, n\n"
-#        "      a(ji+n+1,jj-1+lookup(jj),n) = b(ji,jj,n)\n"
-#        "    end do\n"
-#        "  end do\n")
-#    expected_result = (
-#        "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
-#        "  integer, dimension(10) :: lookup\n"
-#        "  integer :: ji\n  integer :: jj\n  integer :: n\n  integer :: jk\n\n"
-#        "  do jk = n, n, 1\n"
-#        "    do jj = 1, n, 1\n"
-#        "      do ji = 1, n, 1\n"
-#        "        a(ji + n + 1,jj - 1,jk) = b(ji,jj,jk)\n"
-#        "      enddo\n"
-#        "    enddo\n"
-#        "  enddo\n\n")
-#    check_transformation(code, expected_result, index=2)
-# TODO different lhs and rhs indexing
-# loop variable lookup/function
-# multiple loop iterators error
-
-
 def test_apply_calls_validate():
     '''Check that the apply() method calls the validate method.'''
     trans = NemoArrayAccess2LoopTrans()
@@ -323,7 +297,7 @@ def test_validate_assignment():
     '''
     dim_access = Literal("1", INTEGER_TYPE)
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
-    array_ref = ArrayReference.create(array_symbol, [dim_access])
+    ArrayReference.create(array_symbol, [dim_access])
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(dim_access)
@@ -331,6 +305,7 @@ def test_validate_assignment():
         "Error in NemoArrayAccess2LoopTrans transformation. The supplied node "
         "argument should be within an ArrayReference node that is within an "
         "Assignment node, but found 'NoneType'." in str(info.value))
+
 
 def test_validate_lhs_assignment():
     '''Check that the validate() method raises the expected exception if
@@ -342,7 +317,7 @@ def test_validate_lhs_assignment():
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
     array_ref = ArrayReference.create(array_symbol, [dim_access])
     lhs = array_ref.copy()
-    assignment = Assignment.create(lhs, array_ref)
+    Assignment.create(lhs, array_ref)
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(dim_access)
@@ -351,6 +326,7 @@ def test_validate_lhs_assignment():
         "node argument should be within an ArrayReference node that is "
         "within the left-hand-side of an Assignment node, but it is on the "
         "right-hand-side." in str(info.value))
+
 
 def test_validate_range():
     '''Check that the validate() method raises the expected exception if
@@ -412,7 +388,9 @@ def test_validate_multi_iterator():
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
     trans = NemoArrayAccess2LoopTrans()
-    index_node = psyir.children[0].children[0].loop_body[0].loop_body[0].lhs.children[1]
+    outer_loop = psyir.children[0].children[0]
+    assignment = outer_loop.loop_body[0].loop_body[0]
+    index_node = assignment.lhs.children[1]
     with pytest.raises(TransformationError) as info:
         trans.apply(index_node)
     assert(
@@ -464,7 +442,9 @@ def test_validate_index_order_error():
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
     trans = NemoArrayAccess2LoopTrans()
-    index_node = psyir.children[0].children[0].loop_body[0].loop_body[0].lhs.children[2]
+    outer_loop = psyir.children[0].children[0]
+    assignment = outer_loop.loop_body[0].loop_body[0]
+    index_node = assignment.lhs.children[2]
     with pytest.raises(TransformationError) as info:
         trans.apply(index_node)
     assert(
@@ -505,6 +485,7 @@ def test_validate_same_index_error():
     assert(
         "Expected index '0' for rhs array 'b' to be the same as the lhs "
         "array 'a', but they differ." in str(info.value))
+
 
 def test_validate_indirection():
     '''Check that validation works with valid indirection.'''
