@@ -126,9 +126,48 @@ class Signature(object):
         return self._signature == other._signature
 
     # ------------------------------------------------------------------------
+    def __ne__(self, other):
+        '''Required for != comparisons of Signatures with python2.
+        Compares two objects (one of which might not be a Signature).'''
+        if not hasattr(other, "_signature"):
+            return True
+        return self._signature != other._signature
+
+    # ------------------------------------------------------------------------
     def __lt__(self, other):
         '''Required to sort signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'<' not supported between instances of "
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
         return self._signature < other._signature
+
+    # ------------------------------------------------------------------------
+    def __le__(self, other):
+        '''Required to compare signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'<=' not supported between instances of "
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
+        return self._signature <= other._signature
+
+    # ------------------------------------------------------------------------
+    def __gt__(self, other):
+        '''Required to compare signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'>' not supported between instances of "
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
+        return self._signature > other._signature
+
+    # ------------------------------------------------------------------------
+    def __ge__(self, other):
+        '''Required to compare signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'>=' not supported between instances of "
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
+        return self._signature >= other._signature
 
     # ------------------------------------------------------------------------
     @property
