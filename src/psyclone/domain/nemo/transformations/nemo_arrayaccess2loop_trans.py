@@ -162,14 +162,23 @@ class NemoArrayAccess2LoopTrans(Transformation):
                 # This is not a nested access e.g. a(b(n)).
                 array.children[array_index] = Reference(loop_variable_symbol)
 
+        # As this transformation affects ancestor nodes of the
+        # supplied node we need to be careful here not to lose
+        # existing ancestor nodes as they might be
+        # referenced. Therefore use detach() and insert,() rather than
+        # copy() and replace_with().
+        
+        # Find location.parent and location_index
+        loc_parent = location.parent
+        loc_index = location.position
+
         # Create the new single-trip loop and add its children.
         step = Literal("1", INTEGER_TYPE)
         loop = NemoLoop.create(loop_variable_symbol, node_copy,
-                               node_copy.copy(), step, [location.copy()])
-
+                               node_copy.copy(), step, [location.detach()])
         # Replace the original assignment with a loop containing the
         # modified assignment.
-        location.replace_with(loop)
+        loc_parent.children.insert(loc_index, loop)
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
