@@ -641,6 +641,10 @@ class FortranWriter(PSyIRVisitor):
                     "Routine symbol '{0}' is passed as an argument (has an "
                     "ArgumentInterface). This is not supported by the Fortran"
                     " back-end.".format(sym.name))
+            if isinstance(sym.datatype, UnknownFortranType):
+                # If a RoutineSymbols is of UnknownFortranType then we
+                # re-create its declaration here because it is an Interface.
+                declarations += self.gen_vardecl(sym)
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)

@@ -74,8 +74,8 @@ def test_fw_unknown_interface_decln(fortran_writer):
     interface_code = ("interface eos\n"
                       "  module procedure eos1d, eos2d\n"
                       "end interface")
-    sym = DataSymbol("eos", UnknownFortranType(interface_code),
-                     visibility=Symbol.Visibility.PRIVATE)
+    sym = RoutineSymbol("eos", UnknownFortranType(interface_code),
+                        visibility=Symbol.Visibility.PRIVATE)
     assert interface_code in fortran_writer.gen_vardecl(sym)
     container.symbol_table.add(sym)
     code = fortran_writer(container)
