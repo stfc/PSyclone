@@ -1323,7 +1323,7 @@ class Fparser2Reader(object):
         return (default_visibility, visibility_map)
 
     @staticmethod
-    def _process_use_stmts(parent, nodes):
+    def _process_use_stmts(parent, nodes, default_visibility):
         '''
         Process all of the USE statements in the fparser2 parse tree
         supplied as a list of nodes. Imported symbols are added to
@@ -1334,13 +1334,17 @@ class Fparser2Reader(object):
         :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         :param nodes: fparser2 AST nodes to search for use statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param default_visibility: the default visibility of symbols in the \
+            scope containing this USE statement.
+        :type default_visibility: \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
         :raises GenerationError: if the parse tree for a use statement has an \
-                                 unrecognised structure.
+            unrecognised structure.
         :raises SymbolError: if a symbol imported via a use statement is \
-                             already present in the symbol table.
+            already present in the symbol table.
         :raises NotImplementedError: if the form of use statement is not \
-                                     supported.
+            supported.
 
         '''
         for decl in walk(nodes, Fortran2003.Use_Stmt):
@@ -1365,7 +1369,8 @@ class Fparser2Reader(object):
             # purposes in the code below.
             if mod_name not in parent.symbol_table:
                 new_container = True
-                container = ContainerSymbol(mod_name)
+                container = ContainerSymbol(mod_name,
+                                            visibility=default_visibility)
                 parent.symbol_table.add(container)
             else:
                 new_container = False
@@ -1391,10 +1396,10 @@ class Fparser2Reader(object):
                         # in the *current* scope therefore we do not check
                         # any ancestor symbol tables; we just create a
                         # new symbol. Since we don't yet know anything about
-                        # this symbol apart from its name we create a generic
-                        # Symbol.
+                        # the type of this symbol we create a generic Symbol.
                         parent.symbol_table.add(
                             Symbol(sym_name,
+                                   visibility=default_visibility,
                                    interface=GlobalInterface(container)))
                     else:
                         # There's already a symbol with this name
@@ -1892,7 +1897,7 @@ class Fparser2Reader(object):
                 default_visibility = Symbol.Visibility.PUBLIC
 
         # Look at any USE statements
-        self._process_use_stmts(parent, nodes)
+        self._process_use_stmts(parent, nodes, default_visibility)
 
         # Handle any derived-type declarations/definitions before we look
         # at general variable declarations in case any of the latter use

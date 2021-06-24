@@ -42,8 +42,8 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import ContainerSymbol, SymbolError
-from psyclone.psyir.nodes import KernelSchedule
+from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol
+from psyclone.psyir.nodes import KernelSchedule, Container
 from psyclone.psyGen import GenerationError
 
 
@@ -64,6 +64,8 @@ def test_use_stmt():
     for module_name in ["my_mod", "this_mod", "other_mod"]:
         container = symtab.lookup(module_name)
         assert isinstance(container, ContainerSymbol)
+        # Default visibility is public
+        assert container.visibility == Symbol.Visibility.PUBLIC
         assert container.name == module_name
         # Container reference is not updated until explicitly requested
         assert not container._reference
@@ -248,3 +250,21 @@ def test_use_local_symbol_error():
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert "'fred' is imported from module 'mod2' but is" in str(err.value)
+
+
+def test_use_symbol_visibility():
+    ''' Check that all container symbols imported into a module are given
+    the default visibility defined in that module.
+
+    '''
+    fake_parent = Container("dummy_mod")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("use mod2, only: fred\n"
+                                 "use mod3\n"
+                                 "private\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    csym2 = fake_parent.symbol_table.lookup("mod2")
+    assert csym2.visibility == Symbol.Visibility.PRIVATE
+    csym3 = fake_parent.symbol_table.lookup("mod3")
+    assert csym3.visibility == Symbol.Visibility.PRIVATE
