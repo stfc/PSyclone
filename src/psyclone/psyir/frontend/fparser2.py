@@ -451,11 +451,11 @@ def _is_range_full_extent(my_range):
     return is_lower and is_upper and is_step
 
 
-def _create_array_bound_arg(node):
+def _copy_full_base_reference(node):
     '''
     Given the supplied node, creates a new node with the same access
-    apart from the final array access, suitable for use as an
-    argument to either LBOUND or UBOUND.
+    apart from the final array access. Such a node is then suitable for use
+    as an argument to either e.g. LBOUND or UBOUND.
 
     e.g. if `node` is an ArrayMember representing the inner access in
     'grid%data(:)' then this routine will return a PSyIR node for
@@ -3410,7 +3410,7 @@ class Fparser2Reader(object):
             # a(:...) becomes a(lbound(a,1):...)
             lbound = BinaryOperation.create(
                 BinaryOperation.Operator.LBOUND,
-                _create_array_bound_arg(parent),
+                _copy_full_base_reference(parent),
                 Literal(dimension, integer_type))
             my_range.children.append(lbound)
 
@@ -3423,7 +3423,7 @@ class Fparser2Reader(object):
             # a(...:) becomes a(...:ubound(a,1))
             ubound = BinaryOperation.create(
                 BinaryOperation.Operator.UBOUND,
-                _create_array_bound_arg(parent),
+                _copy_full_base_reference(parent),
                 Literal(dimension, integer_type))
             my_range.children.append(ubound)
 
