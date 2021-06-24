@@ -39,7 +39,7 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes import Container, CodeBlock
-from psyclone.psyir.symbols import DataSymbol, Symbol, UnknownFortranType
+from psyclone.psyir.symbols import RoutineSymbol, Symbol, UnknownFortranType
 
 
 def test_named_interface(fortran_reader):
@@ -65,11 +65,12 @@ def test_named_interface(fortran_reader):
       end subroutine eos_insitu_2d
     end module dummy_mod
     '''
-    container = fortran_reader.psyir_from_source(dummy_module)
+    file_container = fortran_reader.psyir_from_source(dummy_module)
+    container = file_container.children[0]
     assert isinstance(container, Container)
     assert container.symbol_table.lookup("eos_insitu")
     eos = container.symbol_table.lookup("eos")
-    assert isinstance(eos, DataSymbol)
+    assert isinstance(eos, RoutineSymbol)
     assert isinstance(eos.datatype, UnknownFortranType)
     assert (eos.datatype.declaration == "interface eos\n"
             "  module procedure eos_insitu, eos_insitu_2d\n"
@@ -98,8 +99,8 @@ def test_generic_interface(fortran_reader):
       END INTERFACE
     end module dummy_mod
     '''
-    container = fortran_reader.psyir_from_source(dummy_module)
-    assert isinstance(container, CodeBlock)
+    file_container = fortran_reader.psyir_from_source(dummy_module)
+    assert isinstance(file_container.children[0], CodeBlock)
 
 
 def test_operator_interface(fortran_reader):
@@ -115,8 +116,8 @@ def test_operator_interface(fortran_reader):
       END INTERFACE OPERATOR ( * )
     end module dummy_mod
     '''
-    container = fortran_reader.psyir_from_source(dummy_module)
-    assert isinstance(container, CodeBlock)
+    file_container = fortran_reader.psyir_from_source(dummy_module)
+    assert isinstance(file_container.children[0], CodeBlock)
 
 
 def test_assignment_interface(fortran_reader):
@@ -138,5 +139,5 @@ def test_assignment_interface(fortran_reader):
     END INTERFACE ASSIGNMENT ( = )
     end module dummy_mod
     '''
-    container = fortran_reader.psyir_from_source(dummy_module)
-    assert isinstance(container, CodeBlock)
+    file_container = fortran_reader.psyir_from_source(dummy_module)
+    assert isinstance(file_container.children[0], CodeBlock)
