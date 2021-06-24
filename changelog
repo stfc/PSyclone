@@ -58,10 +58,22 @@
         20) #1265 for #1260. Fixes various bugs to better support PSyIR
         code generation. Includes function return values and string
         storage in PSyIR.
+
         21) #1293 for #1178, #1179, #1285. Update installation instructions
         to include autoapi and tex-gyre, and added allclean target to
         reference guide to clean up all automatically created files.
 
+        22) #1278 for #1271. Updates dependency tools to use Signatures.
+
+        23) #1286 for #1274. Updates the Visitors so that they perform
+        any necessary lowering and do so on a *copy* of the PSyIR tree
+        so that there are no side effects.
+
+        24) #1290 for #2183. Adds support for != and other comparison
+        operators to the Signature class.
+
+        25) #1262 for #920. Adds capturing of algorithm-layer datatypes
+        which are then stored in the algorithm.py Arg class.
 
 release 2.0.0 28th April 2021
 
