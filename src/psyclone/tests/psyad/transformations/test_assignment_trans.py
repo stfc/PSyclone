@@ -80,6 +80,7 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
     writer = FortranWriter()
     ad_fortran = writer(psyir)
 
+    print (expected_output_code)
     print (ad_fortran)
     assert ad_fortran == expected_output_code
 
@@ -222,7 +223,7 @@ def test_single_valued_assign():
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real :: n\n  integer :: i\n  integer :: j\n\n"
-        "  b(j) = b(j) + 3 * n * a(i)\n"
+        "  b(j) = b(j) + a(i) * (3 * n)\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
@@ -246,9 +247,9 @@ def test_multi_add():
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
         "  integer :: i\n  integer :: j\n  integer :: n\n\n"
-        "  d(n) = d(n) + a(i + 2)\n"
+        "  b(j) = b(j) + a(i + 2) * (3 / n)\n"
         "  c(1) = c(1) + a(i + 2) / (2 * n)\n"
-        "  b(j) = b(j) + 3 / n * a(i + 2)\n"
+        "  d(n) = d(n) + a(i + 2)\n"
         "  a(i + 2) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
@@ -290,7 +291,7 @@ def test_increment_mult():
     ad_fortran = (
         "  integer :: n\n"
         "  real, dimension(n) :: a\n\n"
-        "  a(n) = 5 * a(n)\n\n")
+        "  a(n) = a(n) * 5\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -332,7 +333,7 @@ def test_increment_add_reorder():
         "  real, dimension(10) :: b\n"
         "  integer :: k\n\n"
         "  b(1) = b(1) + a(1)\n"
-        "  a(1) = k * a(1)\n\n")
+        "  a(1) = a(1) * k\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -355,10 +356,10 @@ def test_increment_multi_add():
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
         "  real, dimension(10) :: w\n  real :: x\n"
         "  real, dimension(10) :: y\n  real :: z\n\n"
-        "  d(1) = d(1) + z * a(1)\n"
-        "  c(1) = c(1) + y(1) * a(1)\n"
-        "  b(1) = b(1) + x * a(1)\n"
-        "  a(1) = w(1) * a(1)\n\n")
+        "  b(1) = b(1) + a(1) * x\n"
+        "  c(1) = c(1) + a(1) * y(1)\n"
+        "  d(1) = d(1) + a(1) * z\n"
+        "  a(1) = a(1) * w(1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 # TODO

@@ -50,69 +50,6 @@ from psyclone.psyad.transformations import AdjointTransformation, \
 class AssignmentTrans(AdjointTransformation):
     ''' xxx '''
 
-    def _process(self, rhs_node, lhs_node):
-        if (isinstance(rhs_node, BinaryOperation)) and \
-           (rhs_node.operator == BinaryOperation.Operator.ADD):
-            new_node_list = self._process(
-                rhs_node.children[0], lhs_node)
-            new_node_list.extend(
-                self._process(rhs_node.children[1], lhs_node))
-            return new_node_list
-        else:
-            if isinstance(rhs_node, Literal):
-                # There is no active variable
-                return []
-            elif isinstance(rhs_node, BinaryOperation) and \
-                 (rhs_node.operator in (BinaryOperation.Operator.MUL, BinaryOperation.Operator.DIV)):
-                # Find the active variable and remove it from the constant
-                constant = rhs_node.copy()
-                # To ensure constant has a parent to support replacement.
-                for node in constant.walk(Reference):
-                    if node.symbol in self._active_variables:
-                        active_var = node.copy()
-                        mult = node.parent
-                        if mult.children[0] is node:
-                            keep = mult.children[1]
-                        else:
-                            keep = mult.children[0]
-                        keep.detach()
-                        if mult.parent:
-                            mult.replace_with(keep)
-                        else:
-                            constant = keep
-                        break
-            elif isinstance(rhs_node, Reference):
-                constant = None
-                active_var = rhs_node.copy()
-            else:
-                print ("UNSUPPORTED NODE TYPE FOUND")
-                print (type(rhs_node).__name__)
-                exit(1)
-            new_lhs = active_var.copy()
-            if constant and rhs_node.operator == BinaryOperation.Operator.MUL:
-                # output in the form x*A
-                new_rhs_part = BinaryOperation.create(
-                    rhs_node.operator, constant, lhs_node.copy())
-            elif constant and rhs_node.operator == BinaryOperation.Operator.DIV:
-                # output in the form A/x
-                new_rhs_part = BinaryOperation.create(
-                    rhs_node.operator, lhs_node.copy(), constant)
-            else:
-                new_rhs_part = lhs_node.copy()
-            if active_var.name == lhs_node.name:
-                if constant:
-                    # Adjoint is lhs_node = constant * lhs_node
-                    new_assignment = Assignment.create(new_lhs, new_rhs_part)
-                else:
-                    return []
-            else:
-                # Adjoint is rhs_node = rhs_node + constant * lhs_node
-                new_rhs = BinaryOperation.create(
-                    BinaryOperation.Operator.ADD, active_var.copy(), new_rhs_part)
-                new_assignment = Assignment.create(new_lhs, new_rhs)
-            return [new_assignment]
-
-
     def apply(self, node, options=None):
         '''Apply the Assignment transformation to the specified node. The node
         must be a valid tangent linear assignment . The assignment is
@@ -128,55 +65,65 @@ class AssignmentTrans(AdjointTransformation):
 
         parent = node.parent
 
-        # NEW WAY OF DOING THINGS. SHOULD BE MUCH SIMPLER.
-
         # Split the RHS of the assignment into <term> +- <term> +- ...
         rhs_terms, rhs_operators = self._split_nodes(
             node.rhs, [BinaryOperation.Operator.ADD,
                        BinaryOperation.Operator.SUB])
 
-        #increment= False
-        #for rhs_term in rhs_terms:
-        #    # Split the term into <active_variable> */ <expr>.
-        #    active_var, operator, expr = self._split_active_var(rhs_term)
-        #    if active_var.name.lower() == node.lhs.name.lower():
-        #        increment = True
-        #        # save values or add to a different list
-        #    else:
-        #        adjoint_assignment = ...
-        #        parent.children.insert(node.position, adjoint_assignment)
-        #node.detach()
+        is_increment_assignment = False
 
-        # END NEW WAY
+        defer = []
+        # For each term
+        for idx, rhs_term in enumerate(rhs_terms):
+            # Split the term into <active_variable> */ <expr>.
+            active_var, operator, expr = self._split_active_var(rhs_term)
 
-        # Create a list of adjoint assignments from the rhs terms
-        adjoint_assignment_list = self._process(node.rhs, node.lhs)
+            if not active_var:
+                # This is an expression without an active
+                # variable. There is therefore nothing to output.
+                continue
 
-        # Sort adjoint assignment list to ensure that any nodes
-        # associated with increments are at the end of the list. Also
-        # determine whether the TL assignment is an increment or not.
-        inc_nodes = []
-        new_list = []
-        for assignment in adjoint_assignment_list:
-            if assignment.lhs.name.lower() == node.lhs.name.lower():
-                inc_nodes.append(assignment)
+            # Is this term an increment?
+            if active_var.name.lower() == node.lhs.name.lower():
+                # This is an increment.
+                is_increment_assignment = True
+                if expr:
+                    # Adjoint is lhs_active_var = lhs_active_var */ expr
+                    lhs = active_var.copy()
+                    rhs = BinaryOperation.create(operator, active_var.copy(), expr.copy())
+                    # We need to defer increment assignments until after all
+                    # other assignments.
+                    defer.append(Assignment.create(lhs, rhs))
+                else:
+                    # Adjoint is lhs_active_var = lhs_active_var so just skip
+                    pass
+                continue
             else:
-                new_list.append(assignment)
-        adjoint_assignment_list = inc_nodes + new_list
-        # Deal with the adjoint wrt the lhs
-        increment_node = False
-        for reference in node.rhs.walk(Reference):
-            if node.lhs.name == reference.name:
-                increment_node = True
-                break
-        if not increment_node:
-            # lhs is not an increment so set x=0
-            new_rhs = Literal("0.0", REAL_TYPE)
-            adjoint_assignment_list.insert(
-                0, Assignment.create(node.lhs.copy(), new_rhs))
-        # replace original node with new nodes
-        for adjoint_assignment in reversed(adjoint_assignment_list):
-            node.parent.children.insert(node.position, adjoint_assignment)
+                # Adjoint is active_var = active_var +- lhs_active_var */ expr
+                if expr:
+                    tmp = BinaryOperation.create(operator, node.lhs.copy(), expr.copy())
+                else:
+                    tmp = node.lhs.copy()
+                if idx == 0:
+                    rhs_operator = BinaryOperation.Operator.ADD
+                else:
+                    rhs_operator = rhs_operators[idx-1]
+                rhs = BinaryOperation.create(rhs_operator, active_var.copy(), tmp)
+                assignment = Assignment.create(active_var.copy(), rhs)
+
+            node.parent.children.insert(node.position, assignment)
+
+        # Output any defered (increment) assignments
+        for assignment in defer:
+            node.parent.children.insert(node.position, assignment)
+
+        if not is_increment_assignment:
+            # If the assignment is not an increment then the LHS
+            # active variable needs to be zero'ed.
+            assignment = Assignment.create(node.lhs.copy(), Literal("0.0", REAL_TYPE))
+            node.parent.children.insert(node.position, assignment)
+
+        # Remove the original node
         node.detach()
 
     def validate(self, node, options=None):
@@ -310,15 +257,60 @@ class AssignmentTrans(AdjointTransformation):
         '''
         if (isinstance(node, BinaryOperation)) and \
            (node.operator in binary_operator_list):
-            node_list = [node.children[0]]
-            operator_list = [node.operator]
+            lhs_node_list, lhs_op_list = self._split_nodes(
+                node.children[0], binary_operator_list)
             rhs_node_list, rhs_op_list = self._split_nodes(
                 node.children[1], binary_operator_list)
-            node_list.extend(rhs_node_list)
-            operator_list.extend(rhs_op_list)
-            return (node_list, operator_list)
+            return(lhs_node_list + rhs_node_list, lhs_op_list + [node.operator] + rhs_op_list)
         else:
-            return ([node], [None])
+            return ([node], [])
+
+    def _split_active_var(self, term):
+        '''Utility to split the term into an active variable, an expression
+        and an operator that acts on the two. As validation has been
+        performed we can assume that there is at most one active
+        variable in the term and that it will be a sub-term i.e. when
+        the term is split into sub-terms separated by * or / it will
+        be one of the sub-terms.
+
+        :param term: xxx
+        :type term: yyy
+
+        :returns: tuple containing the active variable or None if
+            there is no active variable, the operator that combines
+            the active variable with an expression or None if there is
+            no operator and the expression or None if there is no
+            expression.
+
+        :rtype: (x or NoneType, y or NoneType, z or NoneType)
+
+        '''
+        # Split term into <sub-term> */ <sub-term> */ <sub-term> */ ...
+        sub_term_exprs, sub_term_operators = self._split_nodes(
+            term, [BinaryOperation.Operator.MUL, BinaryOperation.Operator.DIV])
+
+        # Default to no information
+        term_active_var = None
+        term_operator = None
+        term_expr = None
+
+        # For each sub-term
+        for idx, sub_term_expr in enumerate(sub_term_exprs):
+            if isinstance(sub_term_expr, Reference) and sub_term_expr.symbol in self._active_variables:
+                # Active variable
+                term_active_var = sub_term_expr.copy()
+                if idx == 0:
+                    if sub_term_operators:
+                        term_operator = sub_term_operators[idx]
+                else:
+                    term_operator = sub_term_operators[idx-1]
+            else:
+                if idx == 0 or term_expr is None:
+                    term_expr = sub_term_expr
+                else:
+                    term_expr = BinaryOperation.create(sub_term_operators[idx-1], term_expr.copy(), sub_term_expr.copy())
+
+        return (term_active_var, term_operator, term_expr)
 
     def __str__(self):
         return "Convert a PSyIR Assignment to its adjoint form"
