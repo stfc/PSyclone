@@ -39,7 +39,7 @@ assignment node with its adjoint form.
 from __future__ import absolute_import
 
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Literal, Node, Operation
+    Literal, Node, Operation, UnaryOperation
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
 
@@ -70,56 +70,92 @@ class AssignmentTrans(AdjointTransformation):
             node.rhs, [BinaryOperation.Operator.ADD,
                        BinaryOperation.Operator.SUB])
 
-        is_increment_assignment = False
+        #print ("****")
+        #for rhs_term in rhs_terms:
+        #    print (self._writer(rhs_term))
+        #print ("****")
+        #for op in rhs_operators:
+        #    print (op)
+        #print ("****")
 
-        defer = []
+        pure_inc = False
+        deferred_inc = []
         # For each term
         for idx, rhs_term in enumerate(rhs_terms):
             # Split the term into <active_variable> */ <expr>.
             active_var, operator, expr = self._split_active_var(rhs_term)
+
+            #if active_var is None:
+            #    print ("ACTIVE_VAR is NONE")
+            #else:
+            #    print (self._writer(active_var))
+            #print (operator)
+            #if expr is None:
+            #    print ("EXPR is NONE")
+            #else:
+            #    print (type(expr).__name__)
+            #    print (self._writer(expr))
 
             if not active_var:
                 # This is an expression without an active
                 # variable. There is therefore nothing to output.
                 continue
 
-            # Is this term an increment?
             if active_var.name.lower() == node.lhs.name.lower():
-                # This is an increment.
-                is_increment_assignment = True
+                # This is an increment. We need to defer any output as
+                # other terms must be completed before the LHS TL
+                # active variable is modified. There may be multiple
+                # increments on the rhs. The solution is the following:
+                # A = A + xA - A/y => A = A * (1 + x - 1/y). At this
+                # point we gather all the RHS terms (1, x, 1/y) and
+                # save them.
+
+                # TODO WORK WITH NEGATIVE VALUES. ONLY WORKS WITH + AT THE MOMENT
                 if expr:
-                    # Adjoint is lhs_active_var = lhs_active_var */ expr
-                    lhs = active_var.copy()
-                    rhs = BinaryOperation.create(operator, active_var.copy(), expr.copy())
-                    # We need to defer increment assignments until after all
-                    # other assignments.
-                    defer.append(Assignment.create(lhs, rhs))
+                    if operator == BinaryOperation.Operator.DIV:
+                        # DIV so store 1.0/expr
+                        tmp = BinaryOperation.create(operator, Literal("1.0", REAL_TYPE), expr.copy())
+                        deferred_inc.append(tmp)
+                    else:
+                        # MUL so store expr
+                        deferred_inc.append(expr.copy())
                 else:
-                    # Adjoint is lhs_active_var = lhs_active_var so just skip
-                    pass
+                    pure_inc = True
+                    # A = A so store 1.0
+                    deferred_inc.append(Literal("1.0", REAL_TYPE))
                 continue
+
+            # Adjoint is active_var = active_var +- lhs_active_var */ expr
+            if expr:
+                tmp = BinaryOperation.create(operator, node.lhs.copy(), expr.copy())
             else:
-                # Adjoint is active_var = active_var +- lhs_active_var */ expr
-                if expr:
-                    tmp = BinaryOperation.create(operator, node.lhs.copy(), expr.copy())
-                else:
-                    tmp = node.lhs.copy()
-                if idx == 0:
-                    rhs_operator = BinaryOperation.Operator.ADD
-                else:
-                    rhs_operator = rhs_operators[idx-1]
-                rhs = BinaryOperation.create(rhs_operator, active_var.copy(), tmp)
-                assignment = Assignment.create(active_var.copy(), rhs)
-
+                tmp = node.lhs.copy()
+            if idx == 0:
+                rhs_operator = BinaryOperation.Operator.ADD
+            else:
+                rhs_operator = rhs_operators[idx-1]
+            rhs = BinaryOperation.create(rhs_operator, active_var.copy(), tmp)
+            assignment = Assignment.create(active_var.copy(), rhs)
             node.parent.children.insert(node.position, assignment)
 
-        # Output any defered (increment) assignments
-        for assignment in defer:
-            node.parent.children.insert(node.position, assignment)
-
-        if not is_increment_assignment:
-            # If the assignment is not an increment then the LHS
-            # active variable needs to be zero'ed.
+        if deferred_inc:
+            if pure_inc and len(deferred_inc) == 1:
+                # No need to output anything as it is A = A
+                pass
+            else:
+                # Output the deferred increment assignment.
+                add = None
+                for expr in deferred_inc:
+                    if not add:
+                        add = expr.copy()
+                    else:
+                        add = BinaryOperation.create(BinaryOperation.Operator.ADD, add, expr.copy())
+                rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, node.lhs.copy(), add)
+                assignment = Assignment.create(node.lhs.copy(), rhs)
+                node.parent.children.insert(node.position, assignment)
+        else:
+            # The assignment is not an increment. The LHS active
+            # variable needs to be zero'ed.
             assignment = Assignment.create(node.lhs.copy(), Literal("0.0", REAL_TYPE))
             node.parent.children.insert(node.position, assignment)
 
@@ -217,9 +253,6 @@ class AssignmentTrans(AdjointTransformation):
                     "but found '{1}'.".format(
                         self._writer(node), self._writer(rhs_term)))
 
-            # TODO TEST WHEN index=0. Need special case?????
-            # TODO TEST WHEN active var on LHS of A/x is OK????
-
             # The active variable must not be a divisor
             if expr_operators[index-1] == BinaryOperation.Operator.DIV:
                 raise TangentLinearError(
@@ -237,10 +270,6 @@ class AssignmentTrans(AdjointTransformation):
                         "".format(
                             self._writer(node), type(tmp_node).__name__,
                             self._writer(tmp_node), self._writer(rhs_term)))
-
-        # TODO Multi-increment raise error a = a + a + b as the
-        # current logic does not work in this case. Will that still be
-        # true after restructuring apply() method????
 
     def _split_nodes(self, node, binary_operator_list):
         '''Utility to split an expression into a series of sub-expressions
@@ -296,6 +325,20 @@ class AssignmentTrans(AdjointTransformation):
 
         # For each sub-term
         for idx, sub_term_expr in enumerate(sub_term_exprs):
+            #print ("++++++++++")
+            #print (self._writer(sub_term_expr))
+            #print (type(sub_term_expr))
+            #print (isinstance(sub_term_expr, UnaryOperation))
+            #print (sub_term_expr.operator in [UnaryOperation.Operator.MINUS, UnaryOperation.Operator.PLUS])
+            #print ("++++++++++")
+            negate_active_var = False
+            # Sort out any unary + or - associated with an active variable
+            if isinstance(sub_term_expr, UnaryOperation) and sub_term_expr.operator in [UnaryOperation.Operator.MINUS, UnaryOperation.Operator.PLUS] and isinstance(sub_term_expr.children[0], Reference) and sub_term_expr.children[0].symbol in self._active_variables:
+                if sub_term_expr.operator == UnaryOperation.Operator.MINUS:
+                    #print ("NEGATE!")
+                    negate_active_var = True
+                # Remove unary operator
+                sub_term_expr = sub_term_expr.children[0]
             if isinstance(sub_term_expr, Reference) and sub_term_expr.symbol in self._active_variables:
                 # Active variable
                 term_active_var = sub_term_expr.copy()
@@ -309,7 +352,13 @@ class AssignmentTrans(AdjointTransformation):
                     term_expr = sub_term_expr
                 else:
                     term_expr = BinaryOperation.create(sub_term_operators[idx-1], term_expr.copy(), sub_term_expr.copy())
-
+            if negate_active_var:
+                if term_expr:
+                    term_expr = BinaryOperator.create(BinaryOperator.Operator.MUL, Literal("-1.0", REAL_TYPE), term_exr)
+                else:
+                    term_expr = Literal("-1.0", REAL_TYPE)
+                    term_operator = BinaryOperation.Operator.MUL
+                          
         return (term_active_var, term_operator, term_expr)
 
     def __str__(self):

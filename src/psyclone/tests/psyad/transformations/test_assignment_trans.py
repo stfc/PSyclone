@@ -362,14 +362,134 @@ def test_increment_multi_add():
         "  a(1) = a(1) * w(1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
-# TODO
-# check a = a + b + a i.e. multiple rhs increments
-# a = -b -yc
+
+def test_multi_increment():
+    '''Test that the adjoint transformation with an assignment containing
+    multiple increments 
+    A = A + xA.
+
+    '''
+    tl_fortran = (
+        "  real a(10)\n"
+        "  real x\n"
+        "  a(1) = a(1)+x*a(1)\n")
+    active_variables = ["a"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n"
+        "  real :: x\n\n"
+        "  a(1) = a(1) * (1.0 + x)\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
+def test_single_valued_sub():
+    '''Test that the adjoint transformation with an assignment of the form
+    A = -B. This tests that the transformation works when there is one
+    active variable on the rhs that is negated with
+    the active variable on the lhs being a write, not an
+    increment.
+
+    A=-B -> B*=B*-A*;A*=0.0
+
+    '''
+    tl_fortran = (
+        "  real a(10), b(10)\n"
+        "  integer :: i,j\n"
+        "  a(i) = -b(j)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  integer :: i\n  integer :: j\n\n"
+        "  b(j) = b(j) + a(i) * -1.0\n"
+        "  a(i) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
+def test_multi_valued_sub():
+    '''Test that the adjoint transformation with an assignment of the form
+    A = -B -x(+C) + (-D)y. This tests that the transformation works
+    when there are multiple active variable on the rhs that have unary
+    plus and minus operators as well as minus separating the
+    terms. The active variable on the lhs is a write, not an
+    increment.
+
+    A=-B-x(+C)+(-D)y -> B*=B*-A*;C*=C*-xA*; D*=D*-yA*; A*=0.0
+
+    '''
+    tl_fortran = (
+        "  real a(10), b(10), c(10), d(10)\n"
+        "  real :: x, y\n"
+        "  integer :: i,j\n"
+        "  a(i) = -b(j)-x*(+c(i))+(-d(j))*y\n")
+    active_variables = ["a", "b", "c", "d"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
+        "  real :: x\n  real :: y\n  integer :: i\n  integer :: j\n\n"
+        "  b(j) = b(j) + a(i) * -1.0\n"
+        "  c(i) = c(i) - a(i) * x\n"
+        "  d(j) = d(j) + a(i) * (-1.0 * y)\n"
+        "  a(i) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
+def test_inc_sub():
+    '''Test that the adjoint transformation with an assignment of the form
+    A = -A. This tests that the transformation works
+    when there is a single increment with a minus operator.
+
+    A=-A -> A*=-A*
+
+    '''
+    tl_fortran = (
+        "  real a(10)\n"
+        "  integer :: i\n"
+        "  a(i) = -a(i)\n")
+    active_variables = ["a"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n"
+        "  integer :: i\n\n"
+        "  a(i) = a(i) * -1.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
+# a = -a -x*a + b - a/y
+def test_multi_inc_sub():
+    '''Test that the adjoint transformation with an assignment of the form
+    A = -A -xA + B + A/y. This tests that the transformation works
+    when there is are multiple increments with and without a minus
+    operator interspersed with another active variable.
+
+    A=-A-xA+B+A/y -> B*=B*+A*; A*=A*(-1.0-x+1.0/y)
+
+    '''
+    tl_fortran = (
+        "  real a(10), b(10)\n"
+        "  integer :: i\n"
+        "  real :: x,y\n"
+        "  a(i) = -a(i)-x*a(i)+b(i)+a(i)/y\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  integer :: i\n"
+        "  real :: x\n  real :: y\n\n"
+        "  b(i) = b(i) + a(i)\n"
+        "  a(i) = a(i) * (-1.0 + x + 1.0 / y)\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
 # a(i) = a(i+1) + b(i) + b(i+1)
+#
+# Mixed case for variables and definitions of active vars.
+
 # * other datatypes (assuming all real for the moment) and ignoring precision
+
+# TODO TEST WHEN active var on LHS of A/x is OK???? Test correct use of divide when multiple terms
 
 # Validate method
 
+#
+# Check Error if rhs term does not have any active variables in it as it does not seem to be working.
+#
 
 def test_validate_node():
     '''Check that the expected exception is raised if the provided node
@@ -514,7 +634,6 @@ def test_validate_rhs_active_divisor():
     assert ("A term on the RHS of the assignment 'a = x / b\n' with a "
             "division must not have the active variable as a divisor but "
             "found 'x / b'." in str(info.value))
-
 
 # TODO FAIL if A*func(a)
 
