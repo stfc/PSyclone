@@ -945,7 +945,7 @@ def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):
     monkeypatch.setattr(symbol, "_interface", ArgumentInterface())
 
     with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer(container)
+        _ = fortran_writer._visit(container)
     assert ("Arguments are not allowed in this context but this symbol table "
             "contains argument(s): '['a']'." in str(excinfo.value))
 
@@ -1419,10 +1419,7 @@ def test_fw_arrayreference_incomplete(fortran_writer):
 
 def test_fw_range(fortran_writer):
     '''Check the FortranWriter class range_node and arrayreference_node methods
-    produce the expected code when an array section is specified. We
-    can't test the Range node in isolation as one of the checks in the
-    Range code requires access to the (ArrayReference) parent (to
-    determine the array index of a Range node).
+    produce the expected code when an array section is specified.
 
     '''
     array_type = ArrayType(REAL_TYPE, [10, 10])
@@ -1454,9 +1451,16 @@ def test_fw_range(fortran_writer):
         BinaryOperation.Operator.ADD,
         Reference(DataSymbol("b", REAL_TYPE)),
         Reference(DataSymbol("c", REAL_TYPE)))
+    range1 = Range.create(one.copy(), dim1_bound_stop)
+    range2 = Range.create(dim2_bound_start, plus, step=three)
+    # Check the ranges in isolation
+    result = fortran_writer(range1)
+    assert result == "1:UBOUND(a, 1)"
+    result = fortran_writer(range2)
+    assert result == "LBOUND(a, 2):b + c:3"
+    # Check the ranges in context
     array = ArrayReference.create(
-        symbol, [Range.create(one.copy(), dim1_bound_stop),
-                 Range.create(dim2_bound_start, plus, step=three)])
+        symbol, [range1, range2])
     result = fortran_writer.arrayreference_node(array)
     assert result == "a(1:,:b + c:3)"
 
@@ -1494,6 +1498,36 @@ def test_fw_range(fortran_writer):
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
 
 
+def test_fw_range_structureref(fortran_writer):
+    '''
+    Check the FortranWriter for Range nodes within structure references.
+    '''
+    grid_type = DataTypeSymbol("grid_type", DeferredType())
+    symbol = DataSymbol("my_grid", grid_type)
+    grid_array_type = ArrayType(grid_type, [5, 5])
+    array_symbol = DataSymbol("my_grids", grid_array_type)
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    data_ref = StructureReference.create(symbol, ["data"])
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   data_ref.copy(), one.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  data_ref.copy(), one.copy())
+    ref = StructureReference.create(symbol, [("data",
+                                              [Range.create(start, stop)])])
+    result = fortran_writer(ref)
+    assert result == "my_grid%data(:)"
+    data_ref = Reference(array_symbol)
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   data_ref.copy(), two.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  data_ref.copy(), two.copy())
+    aref = ArrayOfStructuresReference.create(
+        array_symbol, [one.copy(), Range.create(start, stop)], ["flag"])
+    result = fortran_writer(aref)
+    assert result == "my_grids(1,:)%flag"
+
+
 def test_fw_structureref(fortran_writer):
     ''' Test the FortranWriter support for StructureReference. '''
     region_type = StructureType.create([
@@ -1514,15 +1548,15 @@ def test_fw_structureref(fortran_writer):
                                Literal("2", INTEGER_TYPE)]), 'ny'])
     assert fortran_writer(level_ref) == "grid%levels(1,2)%ny"
     # Make the number of children invalid
-    level_ref._children = ["1", "2"]
+    level_ref._children = []
     with pytest.raises(VisitorError) as err:
         fortran_writer(level_ref)
     assert ("StructureReference must have a single child but the reference "
-            "to symbol 'grid' has 2" in str(err.value))
+            "to symbol 'grid' has 0" in str(err.value))
     # Single child but not of the right type
     level_ref._children = [Literal("1", INTEGER_TYPE)]
     with pytest.raises(VisitorError) as err:
-        fortran_writer(level_ref)
+        fortran_writer._visit(level_ref)
     assert ("StructureReference must have a single child which is a sub-"
             "class of Member but the reference to symbol 'grid' has a child "
             "of type 'Literal'" in str(err.value))
@@ -1987,7 +2021,7 @@ def test_fw_call_node(fortran_writer):
     '''
     # no args
     routine_symbol = RoutineSymbol("mysub")
-    call = Call(routine_symbol, [])
+    call = Call.create(routine_symbol, [])
     result = fortran_writer(call)
     assert result == "call mysub()\n"
 

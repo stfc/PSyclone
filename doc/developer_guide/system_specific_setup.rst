@@ -77,14 +77,14 @@ the instructions for Ubuntu and OpenSUSE only install a minimal subset.
 
 Installing LaTeX on Ubuntu
 ++++++++++++++++++++++++++
-The following three packages need to be installed to create the pdf documentation.
+The following four packages need to be installed to create the pdf documentation.
 It is recommended to install the packages in one ``apt-get`` command, since
 otherwise, depending on your filesystem, unnecessary snapshots might be created
 that take up additional space. The ``--no-install-recommends`` option
 significantly reduces the number of installed packages::
 
    > sudo apt-get install --no-install-recommends texlive \
-   texlive-latex-extra latexmk
+   texlive-latex-extra latexmk tex-gyre
 
 Installing LaTeX on OpenSUSE
 ++++++++++++++++++++++++++++

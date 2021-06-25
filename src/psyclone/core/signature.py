@@ -58,7 +58,7 @@ class Signature(object):
     access.
 
     :param variable: the variable that is accessed.
-    :type variable: str or tuple of str
+    :type variable: str or tuple of str or list of str
 
     :param sub_sig: a signature that is to be added to this new signature.
     :type sub_sig: :py:class:`psyclone.core.Signature`
@@ -75,11 +75,25 @@ class Signature(object):
             self._signature = (str(variable),) + sub_tuple
         elif isinstance(variable, tuple):
             self._signature = variable + sub_tuple
+        elif isinstance(variable, list):
+            self._signature = tuple(variable) + sub_tuple
         elif isinstance(variable, Signature):
             self._signature = variable._signature + sub_tuple
         else:
             raise InternalError("Got unexpected type '{0}' in Signature "
                                 "constructor".format(type(variable).__name__))
+
+    # ------------------------------------------------------------------------
+    @property
+    def is_structure(self):
+        ''':returns: True if this signature represents a structure.
+        :rtype: bool
+        '''
+        return len(self._signature) > 1
+
+    # ------------------------------------------------------------------------
+    def __getitem__(self, indx):
+        return self._signature[indx]
 
     # ------------------------------------------------------------------------
     def __str__(self):
@@ -106,9 +120,48 @@ class Signature(object):
         return self._signature == other._signature
 
     # ------------------------------------------------------------------------
+    def __ne__(self, other):
+        '''Required for != comparisons of Signatures with python2.
+        Compares two objects (one of which might not be a Signature).'''
+        if not hasattr(other, "_signature"):
+            return True
+        return self._signature != other._signature
+
+    # ------------------------------------------------------------------------
     def __lt__(self, other):
         '''Required to sort signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'<' not supported between instances of "
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
         return self._signature < other._signature
+
+    # ------------------------------------------------------------------------
+    def __le__(self, other):
+        '''Required to compare signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'<=' not supported between instances of "
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
+        return self._signature <= other._signature
+
+    # ------------------------------------------------------------------------
+    def __gt__(self, other):
+        '''Required to compare signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'>' not supported between instances of "
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
+        return self._signature > other._signature
+
+    # ------------------------------------------------------------------------
+    def __ge__(self, other):
+        '''Required to compare signatures. It just compares the tuples.'''
+        if not isinstance(other, Signature):
+            raise TypeError("'>=' not supported between instances of "
+                            "'Signature' and '{0}'."
+                            .format(type(other).__name__))
+        return self._signature >= other._signature
 
     # ------------------------------------------------------------------------
     @property
