@@ -38,12 +38,14 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 
 '''
 import logging
+from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock
+    Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
+    CodeBlock
 from psyclone.psyir.symbols import SymbolTable, LocalInterface, \
-    GlobalInterface, REAL_TYPE, REAL_DOUBLE_TYPE, ContainerSymbol, \
+    GlobalInterface, REAL_DOUBLE_TYPE, ContainerSymbol, \
     RoutineSymbol, DataSymbol
 
 
@@ -109,7 +111,14 @@ def generate_adjoint(tl_psyir):
 
 
 def generate_adjoint_test_str(tl_fortran_str):
-    ''' '''
+    '''
+
+    :param tl_fortran_str: text containing the tangent-linear kernel code.
+
+    :raises NotImplementedError: if the supplied Fortran contains more than \
+        one subroutine or function.
+
+    '''
     # TODO the information on the active variables will have to be
     # extracted from markup in the TL kernel source.
     active_variables = ['field']
@@ -129,7 +138,8 @@ def generate_adjoint_test_str(tl_fortran_str):
 
     if len(routines) != 1:
         raise NotImplementedError(
-            "The supplied Fortran must contain one and only one Subroutine")
+            "The supplied Fortran must contain one and only one Subroutine "
+            "but found: {0}".format([sub.name for sub in routines]))
 
     tl_kernel = routines[0]
 
@@ -177,11 +187,16 @@ def generate_adjoint_test_str(tl_fortran_str):
         symbol_table.new_symbol(var+"_out", symbol_type=type(input_sym),
                                 datatype=input_sym.datatype)
 
+    # The PSyIR doesn't support the RANF Fortran intrinsic so we
+    # create a CodeBlock for it.
+    ptree = Fortran2003.Expr("RANF()")
+    ranf_codeblock = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
+
     statements = []
     # Initialise those variables and keep a copy of them
     for sym, sym_copy in zip(inputs, input_copies):
         statements.append(
-            Assignment.create(Reference(sym), Literal("0.5", REAL_TYPE)))
+            Assignment.create(Reference(sym), ranf_codeblock.copy()))
         statements.append(
             Assignment.create(Reference(sym_copy), Reference(sym)))
 
