@@ -166,8 +166,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     :returns: the PSyIR of the test harness.
     :rtype: :py:class:`psyclone.psyir.Routine`
 
-    :raises NotImplementedError: if the supplied Fortran contains more than \
-        one subroutine or function.
+    :raises NotImplementedError: if the supplied PSyIR contains more than \
+        one Routine.
 
     '''
     # TODO the information on the active variables will have to be
@@ -213,6 +213,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                                      datatype=REAL_DOUBLE_TYPE)
     inner2 = symbol_table.new_symbol("inner2", symbol_type=DataSymbol,
                                      datatype=REAL_DOUBLE_TYPE)
+    # Create symbol for result of the diff of the inner products
+    diff_sym = symbol_table.new_symbol("abs_diff", symbol_type=DataSymbol,
+                                       datatype=REAL_DOUBLE_TYPE)
 
     # Identify any arguments to the kernel that are used to dimension other
     # arguments.
@@ -236,6 +239,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         new_sym = arg.copy()
         # The arguments will be local variables in the test program
         new_sym.interface = LocalInterface()
+        # Since they are dimensioning variables, they have to be given a value
         new_sym.constant_value = array_dim_size
         symbol_table.add(new_sym)
 
@@ -271,7 +275,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     # TODO #1247 we need to add comments to the generated code!
     for sym, sym_copy in zip(inputs, input_copies):
         # The PSyIR doesn't support the random_number Fortran intrinsic so we
-        # create a CodeBlock for it.
+        # create a CodeBlock for it. Happily, the intrinsic will initialise
+        # all elements of an array passed to it so we don't have to take any
+        # special action.
         ptree = Fortran2003.Call_Stmt(
             "call random_number({0})".format(sym.name))
         statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
@@ -300,13 +306,27 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     diff = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                   Reference(inner1), Reference(inner2))
     abs_diff = UnaryOperation.create(UnaryOperation.Operator.ABS, diff)
-    # TODO how do we record failure?
+    statements.append(Assignment.create(Reference(diff_sym), abs_diff))
+
+    # If the test fails then the harness will print a message and return early.
+    ptree = Fortran2003.Write_Stmt(
+        "write(*,*) 'Test of adjoint of ''{0}'' failed: diff = ', {1}".format(
+            tl_kernel.name, diff_sym.name))
+
     statements.append(
         IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.GT,
-                                              abs_diff, tol_zero.copy()),
-                       [Return()]))
+                                              Reference(diff_sym),
+                                              tol_zero.copy()),
+                       [CodeBlock([ptree], CodeBlock.Structure.STATEMENT),
+                        Return()]))
 
-    # Create driver program
+    # Otherwise the harness prints a message reporting that all is well.
+    ptree = Fortran2003.Write_Stmt(
+        "write(*,*) 'Test of adjoint of ''{0}'' passed: diff = ', {1}".format(
+            tl_kernel.name, diff_sym.name))
+    statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+
+    # Finally, create driver program from the list of statements.
     routine = Routine.create(
         "adj_test", symbol_table, statements, is_program=True)
 
@@ -318,10 +338,12 @@ def create_inner_product(result, symbol_pairs):
     Creates PSyIR that computes the inner product of each pair of symbols
     in the supplied list and adds it to the supplied `result` variable.
 
-    :param result:
-    :type result:
-    :param symbol_pairs:
-    :type symbol_pairs:
+    :param result: symbol which will accumulate result.
+    :type result: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param symbol_pairs: list of pairs of symbols for which to compute inner \
+                         products.
+    :type symbol_pairs: list of 2-tuples of \
+                        :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: PSyIR that performs the inner product and accumulates the result\
         in the variable represented by the `result` Symbol.
