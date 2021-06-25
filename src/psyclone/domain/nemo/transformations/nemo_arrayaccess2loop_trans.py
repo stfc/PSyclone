@@ -44,7 +44,7 @@ tranformation to indicate which array index should be transformed.
 from __future__ import absolute_import
 
 from psyclone.configuration import Config
-from psyclone.nemo import NemoLoop
+from psyclone.nemo import NemoLoop, NemoKern
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Node, Schedule, Loop
@@ -234,10 +234,11 @@ class NemoArrayAccess2LoopTrans(Transformation):
         iterator_symbols = []
         location = node.parent.parent
         while (isinstance(location.parent, Schedule) and
-               isinstance(location.parent.parent, Loop)):
+               isinstance(location.parent.parent, (Loop, NemoKern))):
             location = location.parent.parent
-            iterator_symbols.append(location.variable)
-
+            if isinstance(location, Loop):
+                iterator_symbols.append(location.variable)
+        
         # Index contains a loop iterator
         for reference in node.walk(Reference):
             if reference.symbol in iterator_symbols:

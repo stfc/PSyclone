@@ -41,13 +41,11 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.psyGen import Transformation
 from psyclone.domain.nemo.transformations import NemoAllArrayAccess2LoopTrans
+from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Assignment, ArrayReference, Literal, Node
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType
+from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.transformations import TransformationError
 
 # Constants
@@ -196,9 +194,9 @@ def test_validate_arg():
     trans = NemoAllArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert("Error in NemoAllArrayAccess2LoopTrans transformation. The supplied "
-           "node argument should be a PSyIR Assignment, but found 'NoneType'."
-           in str(info.value))
+    assert("Error in NemoAllArrayAccess2LoopTrans transformation. The "
+           "supplied node argument should be a PSyIR Assignment, but "
+           "found 'NoneType'." in str(info.value))
 
 # str() and name() methods
 

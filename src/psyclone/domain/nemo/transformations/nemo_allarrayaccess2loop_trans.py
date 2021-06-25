@@ -41,13 +41,9 @@ iterators) to single trip loops.
 
 from __future__ import absolute_import
 
-from psyclone.configuration import Config
-from psyclone.nemo import NemoLoop
 from psyclone.domain.nemo.transformations import NemoArrayAccess2LoopTrans
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
-    Assignment, Literal, Node, Schedule, Loop
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -114,7 +110,7 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
                 trans.apply(index)
             except TransformationError:
                 pass
-        
+
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
         NemoArrayAccess2LoopTrans transformation to the supplied PSyIR Node.
