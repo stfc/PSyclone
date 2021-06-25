@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
     CodeBlock, FileContainer
 from psyclone.psyir.symbols import SymbolTable, LocalInterface, \
-    GlobalInterface, REAL_DOUBLE_TYPE, ContainerSymbol, \
+    GlobalInterface, REAL_DOUBLE_TYPE, ContainerSymbol, ScalarType, \
     RoutineSymbol, DataSymbol
 
 
@@ -173,6 +173,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     # TODO the information on the active variables will have to be
     # extracted from markup in the TL kernel source.
     active_variables = ['field']
+    # TODO provide some way of dimensioning the test arrays
+    array_dim_size = 20
 
     # Get the Container and Routine names from the PSyIR of the adjoint.
     adjoint_kernel_name = ad_psyir.walk(Routine)[0].name
@@ -212,14 +214,44 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     inner2 = symbol_table.new_symbol("inner2", symbol_type=DataSymbol,
                                      datatype=REAL_DOUBLE_TYPE)
 
+    # Identify any arguments to the kernel that are used to dimension other
+    # arguments.
+    integer_scalars = []
+    for arg in tl_kernel.symbol_table.argument_datasymbols:
+        if arg.is_scalar and (arg.datatype.intrinsic ==
+                              ScalarType.Intrinsic.INTEGER):
+            integer_scalars.append(arg)
+    dimensioning_args = set()
+    for arg in tl_kernel.symbol_table.argument_datasymbols:
+        if arg.is_array:
+            for dim in arg.shape:
+                refs = dim.walk(Reference)
+                for ref in refs:
+                    if ref.symbol in integer_scalars:
+                        dimensioning_args.add(ref.symbol)
+
+    # Create local versions of these dimensioning variables in the test
+    # program.
+    for arg in dimensioning_args:
+        new_sym = arg.copy()
+        # The arguments will be local variables in the test program
+        new_sym.interface = LocalInterface()
+        new_sym.constant_value = array_dim_size
+        symbol_table.add(new_sym)
+
     # Create necessary variables for the kernel arguments.
     inputs = []
     input_copies = []
-    for arg in tl_kernel.symbol_table.argument_datasymbols:
+    new_arg_list = []
+    for arg in tl_kernel.symbol_table.argument_list:
+        if arg in dimensioning_args:
+            new_arg_list.append(symbol_table.lookup(arg.name))
+            continue
         new_sym = arg.copy()
         # The arguments will be local variables in the test program
         new_sym.interface = LocalInterface()
         symbol_table.add(new_sym)
+        new_arg_list.append(new_sym)
         # Create variables to hold a copy of the inputs
         input_sym = symbol_table.new_symbol(new_sym.name+"_input",
                                             symbol_type=type(new_sym),
@@ -234,23 +266,21 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         symbol_table.new_symbol(var+"_out", symbol_type=type(input_sym),
                                 datatype=input_sym.datatype)
 
-    # The PSyIR doesn't support the RANF Fortran intrinsic so we
-    # create a CodeBlock for it.
-    ptree = Fortran2003.Expr("RANF()")
-    ranf_codeblock = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
-
     statements = []
     # Initialise those variables and keep a copy of them.
     # TODO #1247 we need to add comments to the generated code!
     for sym, sym_copy in zip(inputs, input_copies):
-        statements.append(
-            Assignment.create(Reference(sym), ranf_codeblock.copy()))
+        # The PSyIR doesn't support the random_number Fortran intrinsic so we
+        # create a CodeBlock for it.
+        ptree = Fortran2003.Call_Stmt(
+            "call random_number({0})".format(sym.name))
+        statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
         statements.append(
             Assignment.create(Reference(sym_copy), Reference(sym)))
 
     # Call the kernel for a single cell column
     statements.append(Call.create(tl_kernel_sym,
-                                  [Reference(sym) for sym in inputs]))
+                                  [Reference(sym) for sym in new_arg_list]))
 
     # Compute the inner product of the result of the TL kernel
     statements += create_inner_product(inner1,
@@ -258,7 +288,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
     # Call the adjoint kernel using the outputs of the TL kernel as input
     statements.append(Call.create(adj_kernel_sym,
-                                  [Reference(sym) for sym in inputs]))
+                                  [Reference(sym) for sym in new_arg_list]))
 
     # Compute inner product of result of adjoint kernel with original inputs
     statements += create_inner_product(inner2,
@@ -284,22 +314,63 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
 
 def create_inner_product(result, symbol_pairs):
-    ''' '''
+    '''
+    Creates PSyIR that computes the inner product of each pair of symbols
+    in the supplied list and adds it to the supplied `result` variable.
+
+    :param result:
+    :type result:
+    :param symbol_pairs:
+    :type symbol_pairs:
+
+    :returns: PSyIR that performs the inner product and accumulates the result\
+        in the variable represented by the `result` Symbol.
+    :rtype: list of :py:class:`psyclone.psyir.nodes.Assignment`
+
+    :raises TypeError: if any pair of symbols represent different datatypes.
+    :raises NotImplementedError: if any of the symbols represent arrays with \
+                                 more than one dimension.
+
+    '''
 
     zero = Literal("0.0", REAL_DOUBLE_TYPE)
 
     statements = [Assignment.create(Reference(result), zero.copy())]
     for (sym1, sym2) in symbol_pairs:
 
-        prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
-                                      Reference(sym1), Reference(sym2))
-        statements.append(
-            Assignment.create(
-                Reference(result),
-                BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                       Reference(result), prod)))
+        if sym1.datatype != sym2.datatype:
+            raise TypeError(
+                "Cannot compute inner product of Symbols '{0}' and '{1}' "
+                "because they represent different datatypes.".format(
+                    sym1.name, sym2.name))
+
+        if sym1.is_scalar:
+            prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                          Reference(sym1), Reference(sym2))
+            statements.append(
+                Assignment.create(
+                    Reference(result),
+                    BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                           Reference(result), prod)))
+        elif sym1.is_array:
+
+            if len(sym1.datatype.shape) > 1:
+                raise NotImplementedError(
+                    "Cannot compute the inner product of arrays with rank > 1 "
+                    "but '{0}' has rank {1}".format(sym1.name,
+                                                    len(sym1.datatype.shape)))
+            # TODO PSyIR does not support the DOT_PRODUCT (Fortran) intrinsic
+            # so we create a CodeBlock.
+            ptree = Fortran2003.Expr("DOT_PRODUCT({0}, {1})".format(
+                sym1.name, sym2.name))
+            cblock = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
+            statements.append(
+                Assignment.create(
+                    Reference(result),
+                    BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                           Reference(result), cblock)))
+
     return statements
 
 
-__all__ = ["generate_adjoint_str", "generate_adjoint",
-           "generate_adjoint_test_str"]
+__all__ = ["generate_adjoint_str", "generate_adjoint", "generate_adjoint_test"]
