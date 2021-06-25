@@ -522,6 +522,46 @@ class FortranWriter(PSyIRVisitor):
         result += "{0}end type {1}\n".format(self._nindent, symbol.name)
         return result
 
+    def gen_access_stmt(self, symbol_table):
+        '''
+        Generates the access statement for a module - either "private" or
+        "public". Since the PSyIR captures the visibility of every Symbol
+        explicitly, this information is only actually required in order
+        to ensure the correct visibility of symbols that have been imported
+        into the current module from another one using a wildcard import
+        (i.e. a `use` without an `only` clause).
+
+        :returns: text containing the access statement line.
+        :rtype: str
+
+        '''
+        containers = symbol_table.containersymbols
+        if containers:
+            vis = containers[0].visibility
+            if not all(csym.visibility == vis for csym in containers):
+                # Sanity check that all container symbols have the same
+                # visibility.
+                parts = ["{0}({1})".format(csym.name, str(csym.visibility))
+                         for csym in containers]
+                raise VisitorError(
+                    "In the Fortran backend all ContainerSymbols in a symbol "
+                    "table must have the same visibility but found: {0}".
+                    format(parts))
+        else:
+            # There are no ContainerSymbols so we can safely set the default
+            # visibility to 'public'
+            vis = Symbol.Visibility.PUBLIC
+
+        if vis == Symbol.Visibility.PUBLIC:
+            return "public\n"
+        if vis == Symbol.Visibility.PRIVATE:
+            return "private\n"
+
+        raise InternalError(
+            "Unrecognised visibility ('{0}') found when attempting to generate"
+            " access statement. Should be either 'Symbol.Visibility.PUBLIC' "
+            "or 'Symbol.Visibility.PRIVATE'\n".format(str(vis)))
+
     def gen_routine_access_stmts(self, symbol_table):
         '''
         Creates the accessibility statements (R518) for any routine symbols
@@ -754,6 +794,9 @@ class FortranWriter(PSyIRVisitor):
         # Declare the Container's data and specify that Containers do
         # not allow argument declarations.
         declarations = self.gen_decls(node.symbol_table, args_allowed=False)
+
+        # Generate the access statement (PRIVATE or PUBLIC)
+        declarations += self.gen_access_stmt(node.symbol_table)
 
         # Accessibility statements for routine symbols
         declarations += self.gen_routine_access_stmts(node.symbol_table)
