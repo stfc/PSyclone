@@ -106,6 +106,58 @@ class Signature(object):
         return "%".join(self._signature)
 
     # ------------------------------------------------------------------------
+    def to_fortran(self, component_indices):
+        '''Converts this signature back to a Fortran expression using the
+        provided component indices.
+
+        :param component_indices: the indices for each component of \
+            the signature.
+        :type component_indices: \
+            :py:class:`psyclone.core.component_indices.ComponentIndices`
+
+        :raises InternalError: if the number of components in this signature \
+            is different from the number of indices in component_indices.
+        '''
+
+        # Check if number of components between self and component_indices
+        # is consistent:
+        if len(self._signature) != len(component_indices):
+            raise InternalError("Signature {0} has {1} components, but "
+                                "component_indices {2} has {3}."
+                                .format(self, len(self._signature),
+                                        component_indices,
+                                        len(component_indices)))
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.fortran import FortranWriter
+        from psyclone.psyir.nodes import Node
+
+        writer = FortranWriter()
+
+        # out_list collects the string representation of the components
+        # including indices
+        out_list = []
+
+        for i, component in enumerate(self._signature):
+            indices = component_indices[i]
+            if not indices:
+                out_list.append(component)
+            else:
+                # If there are indices, add the "(ind1, ind2, ...)"
+                index_list = []
+                for dimension in indices:
+                    if isinstance(dimension, Node):
+                        index_list.append(writer(dimension))
+                    else:
+                        # Some tests and work in progress still uses strings
+                        # so support strings as indices as well:
+                        index_list.append(str(dimension))
+                out_list.append(component+"("+",".join(index_list)+")")
+
+        # Combine the components in out_list to form the Fortran string:
+        return "%".join(out_list)
+
+    # ------------------------------------------------------------------------
     def __repr__(self):
         return "Signature({0})".format("%".join(self._signature))
 

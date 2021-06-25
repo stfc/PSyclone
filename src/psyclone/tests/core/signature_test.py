@@ -38,8 +38,10 @@
 from __future__ import absolute_import
 import pytest
 
-from psyclone.core import Signature
+from psyclone.core import ComponentIndices, Signature
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 
 
 def test_signature():
@@ -174,3 +176,35 @@ def test_signature_comparison():
         _ = Signature(("a", "b")) >= (1, 2)
     assert "'>=' not supported between instances of 'Signature' and 'tuple'" \
         in str(err.value)
+
+
+def test_to_fortran():
+    '''Test that conversion of a Signature with a ComponentIndices argument
+    gives the expected results.
+    '''
+    sig = Signature("a")
+    comp = ComponentIndices()
+    assert sig.to_fortran(comp) == "a"
+
+    comp = ComponentIndices(["i"])
+    assert sig.to_fortran(comp) == "a(i)"
+
+    ref = Reference(DataSymbol("j", INTEGER_SINGLE_TYPE))
+    comp = ComponentIndices([ref])
+    assert sig.to_fortran(comp) == "a(j)"
+
+    # Test error condition if number of components in signature does not
+    # math the number of indices in ComponentIndices
+    comp = ComponentIndices([[1], [2]])
+    with pytest.raises(InternalError) as err:
+        sig.to_fortran(comp)
+    assert "Signature a has 1 components, but component_indices [[1], [2]] " \
+           "has 2." in str(err.value)
+
+    sig = Signature(("a", "b", "c"))
+    comp = ComponentIndices([[1], [], ["i", "j"]])
+    assert sig.to_fortran(comp) == "a(1)%b%c(i,j)"
+    comp = ComponentIndices([[1, 2], [], []])
+    assert sig.to_fortran(comp) == "a(1,2)%b%c"
+    comp = ComponentIndices([[], [], []])
+    assert sig.to_fortran(comp) == "a%b%c"
