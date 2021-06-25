@@ -45,8 +45,7 @@ import sys
 import six
 
 from psyclone.generator import write_unicode_file
-from psyclone.psyad.tl2ad import generate_adjoint_str, \
-    generate_adjoint_test_str
+from psyclone.psyad.tl2ad import generate_adjoint_str
 
 
 def main(args):
@@ -86,19 +85,19 @@ def main(args):
         tl_fortran_str = my_file.read()
         tl_fortran_str = six.text_type(tl_fortran_str)
 
-    ad_fortran_str = generate_adjoint_str(tl_fortran_str)
+    # Create the adjoint (and associated test framework if requested)
+    ad_fortran_str, test_fortran_str = generate_adjoint_str(tl_fortran_str,
+                                                            args.gen_test)
 
-    # AD Fortran code
+    # Output the Fortran code for the adjoint kernel
     if args.oad:
         logger.info("Writing adjoint of kernel to file %s", args.oad)
         write_unicode_file(ad_fortran_str, args.oad)
     else:
         print(ad_fortran_str, file=sys.stdout)
 
-    # Create test framework if requested
+    # Output test framework if requested
     if args.gen_test:
-        logger.info("Generating unit test of adjoint kernel")
-        test_fortran_str = generate_adjoint_test_str(tl_fortran_str)
         if args.test_filename:
             write_unicode_file(test_fortran_str, args.test_filename)
         else:
