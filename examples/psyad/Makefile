@@ -36,16 +36,21 @@
 include ../common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
-GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod
+GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod \
+                   test_harness.exe
 
 transform:
 	$(PSYAD) -oad testkernadj_mod.f90 testkern_mod.f90
-	$(PSYAD) -t testkern_mod.f90
+	$(PSYAD) -t -otest test_harness.f90 testkern_mod.f90
 
 compile: transform
 	$(F90) -c testkern_mod.f90
 	$(F90) -c testkernadj_mod.f90
+	$(F90) -c test_harness.f90
+	$(F90) -o test_harness.exe testkern_mod.o testkernadj_mod.o test_harness.o
 
 run: compile
-	@echo "No run targets for the PSyAD examples"
+	@echo "Running PSyAD-generated test harness..."
+	./test_harness.exe
+	@echo "...done."
 
