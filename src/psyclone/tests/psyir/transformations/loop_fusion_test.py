@@ -416,9 +416,9 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
 
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Variable 's' is written to in one or both of the loops and the "\
-        "loop variable jj is used in different index locations ((0, 1) and "\
-        "(0, 0)) when accessing it." in str(err.value)
+    assert "Variable 's' is written to and the "\
+           "loop variable 'jj' is used differently: s(ji,jj) and s(jj,ji)." \
+           in str(err.value)
 
     # This cannot be fused, since 's' is read in the
     # first iteration and written in the second with
@@ -440,9 +440,31 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
 
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Variable 's' is written to in one or both of the loops and the " \
-           "loop variable jj is used in different index locations ((0, 0) "\
-           "and (0, 1)) when accessing it." in str(err.value)
+    assert "Variable 's' is written to and the loop variable 'jj' is " \
+           "used differently: s(jj,ji) and s(ji,jj)." in str(err.value)
+
+    # Same test using a structure type:
+    code = '''subroutine sub()
+              use my_module
+              integer :: ji, jj, n
+              type(my_type) :: s, t, u
+              do jj=1, n+1
+                 do ji=1, 10
+                    u%comp1(ji)%comp2(jj)=s%comp1(jj)%comp2(ji)+1
+                 enddo
+              enddo
+              do jj=1, n+1
+                 do ji=1, 10
+                    s%comp1(ji)%comp2(jj)=t%comp1(ji)%comp2(jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(code, fortran_reader, fortran_writer)
+    assert "Variable 's' is written to and the loop variable 'jj' is used " \
+           "differently: s%comp1(jj)%comp2(ji) and s%comp1(ji)%comp2(jj)." \
+           in str(err.value)
 
 
 # ----------------------------------------------------------------------------

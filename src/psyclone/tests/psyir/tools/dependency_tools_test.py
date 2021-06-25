@@ -94,15 +94,16 @@ def test_nested_loop_detection(parser):
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     loops = psy.invokes.get("test").schedule
+    jk_symbol = loops.scope.symbol_table.lookup("jk")
     dep_tools = DependencyTools(["levels", "lat"])
 
     # Not a nested loop
-    parallel = dep_tools.can_loop_be_parallelised(loops[0], "jk")
+    parallel = dep_tools.can_loop_be_parallelised(loops[0], jk_symbol)
     assert not parallel
     assert "Not a nested loop" in dep_tools.get_all_messages()[0]
 
     # Now disable the test for nested loops:
-    parallel = dep_tools.can_loop_be_parallelised(loops[0], "jk", False)
+    parallel = dep_tools.can_loop_be_parallelised(loops[0], jk_symbol, False)
     assert parallel
     # Make sure can_loop_be_parallelised clears old messages automatically
     assert not dep_tools.get_all_messages()
@@ -172,19 +173,21 @@ def test_arrays_parallelise(parser):
     assert "Variable 'mask' is written to, and does not depend on the loop "\
            "variable 'jj'" in dep_tools.get_all_messages()[0]
 
+    jj_symbol = loops.scope.symbol_table.lookup("jj")
     # Write to array that does not depend on parallel loop variable
-    parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
+    parallel = dep_tools.can_loop_be_parallelised(loops[1], jj_symbol)
     assert parallel
     assert not dep_tools.get_all_messages()
 
     # Use parallel loop variable in more than one dimension
-    parallel = dep_tools.can_loop_be_parallelised(loops[2], "jj")
+    parallel = dep_tools.can_loop_be_parallelised(loops[2], jj_symbol)
     assert not parallel
-    assert "Variable 'mask' is using loop variable 'jj' in index '(0, 0)'' " \
-        "and '(0, 1)'" in dep_tools.get_all_messages()[0]
+    assert "Variable 'mask' is written to and the loop variable 'jj' is " \
+           "used differently: mask(jj,jj) and mask(jj,jj)" \
+           in dep_tools.get_all_messages()[0]
 
     # Use a stencil access (with write), which prevents parallelisation
-    parallel = dep_tools.can_loop_be_parallelised(loops[3], "jj")
+    parallel = dep_tools.can_loop_be_parallelised(loops[3], jj_symbol)
     assert not parallel
     assert "Variable mask is written and is accessed using indices jj + 1 "\
            "and jj and can therefore not be parallelised" \
@@ -248,22 +251,25 @@ def test_scalar_parallelise(declaration, variable, parser):
     loops = psy.invokes.get("test").schedule
     dep_tools = DependencyTools(["levels", "lat"])
 
+    # Test if supplying the loop name as symbol also works:
+    jj_symbol = loops.scope.symbol_table.lookup("jj")
+
     # Read only scalar variable: a(ji, jj) = b
-    parallel = dep_tools.can_loop_be_parallelised(loops[0], "jj")
+    parallel = dep_tools.can_loop_be_parallelised(loops[0], jj_symbol)
     assert parallel
 
     # Write only scalar variable: a(ji, jj) = b
-    parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
+    parallel = dep_tools.can_loop_be_parallelised(loops[1], jj_symbol)
     assert not parallel
     assert "Scalar variable '{0}' is only written once".format(variable) \
         in dep_tools.get_all_messages()[0]
 
     # Write to scalar variable happens first
-    parallel = dep_tools.can_loop_be_parallelised(loops[2], "jj")
+    parallel = dep_tools.can_loop_be_parallelised(loops[2], jj_symbol)
     assert parallel
 
     # Reduction operation on scalar variable
-    parallel = dep_tools.can_loop_be_parallelised(loops[3], "jj")
+    parallel = dep_tools.can_loop_be_parallelised(loops[3], jj_symbol)
     assert not parallel
     assert "Variable '{0}' is read first, which indicates a reduction."\
         .format(variable) in dep_tools.get_all_messages()[0]
@@ -293,17 +299,17 @@ def test_derived_type(parser):
     loops = psy.invokes.get("test").schedule
     dep_tools = DependencyTools(["levels", "lat"])
 
-    parallel = dep_tools.can_loop_be_parallelised(loops[0], "jj")
+    parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert not parallel
 
     # Test that testing is stopped with the first unparallelisable statement
-    parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
+    parallel = dep_tools.can_loop_be_parallelised(loops[1])
     assert not parallel
     # Test that only one message is stored, i.e. no message for the
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
 
-    parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj",
+    parallel = dep_tools.can_loop_be_parallelised(loops[1],
                                                   test_all_variables=True)
     assert not parallel
     # Now we must have two messages, one for each of the two assignments
@@ -311,7 +317,7 @@ def test_derived_type(parser):
 
     # Test that variables are ignored as expected.
     parallel = dep_tools.\
-        can_loop_be_parallelised(loops[1], "jj",
+        can_loop_be_parallelised(loops[1],
                                  signatures_to_ignore=[Signature(("a", "b"))])
     assert not parallel
     assert len(dep_tools.get_all_messages()) == 1
@@ -319,7 +325,7 @@ def test_derived_type(parser):
     # If both derived types are ignored, the loop should be marked
     # to be parallelisable
     parallel = dep_tools.\
-        can_loop_be_parallelised(loops[1], "jj",
+        can_loop_be_parallelised(loops[1],
                                  signatures_to_ignore=[Signature(("a", "b")),
                                                        Signature(("b", "b"))])
     assert len(dep_tools.get_all_messages()) == 0

@@ -109,6 +109,84 @@ class DependencyTools(object):
         return self._messages
 
     # -------------------------------------------------------------------------
+    def array_accesses_consistent(self, signature, loop_variable, var_infos):
+        '''Check if all accesses to the array have consistent usage of the
+        loop variable in both VariableAccessInfo objects (used e.g. toverify
+        if loop can be fused by providing the access information of the each
+        loop in `var_info1` and `var_info2`).
+        For example, `a(i,j)` and `a(j,i)` would be inconsistent. It does not
+        test for index values (e.g. `a(i,j)` and `a(i+3,j)`).
+        The caller needs to query the error messages managed by this object
+        to detect error(s), see `get_all_messages`.
+        This function returns the list of all accesses that use the loop
+        variable. This is an additional convenient result that can simplify
+        further tests (but can also be ignored).
+
+        :param signature: the signature of the variable tested.
+        :type signature: :py:class:`psyclone.core.signature.Signature`
+        :param loop_variable: symbol of the variable associated with the \
+            loops being fused.
+        :type loop_variable: \
+            :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`
+        :param var_infos: access information for an array. Can be either a \
+            single object, or a list of access objects.
+        :type var_infos: a list or a single instance of \
+            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
+
+        '''
+
+        if not isinstance(var_infos, list):
+            all_accesses = var_infos.all_accesses
+        else:
+            all_accesses = []
+            for var_info in var_infos:
+                all_accesses = all_accesses + var_info.all_accesses
+
+        # The variable 'first_index' will store the index details of the
+        # first access to the variable ('index detail' being the information
+        # returned by the iterator in ComponentIndices). In
+        # 'first_component_indices' it will also store the ComponentIndices
+        # of the first access - this is used for more informative error
+        # messages if required.
+        first_index = None
+        first_component_indices = None
+        # Additionally, collect all indices that are actually used as
+        # a convenience value for the user
+        all_indices = []
+
+        # Loop over all the accesses of this variable
+        for access in all_accesses:
+            component_indices = access.component_indices
+            # Now verify that the index variable is always used
+            # at the same place:
+            for indx in component_indices.iterate():
+                index_expression = component_indices[indx]
+                accesses = VariablesAccessInfo(index_expression)
+
+                # If the loop variable is not used at all, no need to
+                # check indices
+                if Signature(loop_variable.name) not in accesses:
+                    continue
+                # Store the first access information:
+                if not first_index:
+                    first_index = indx
+                    first_component_indices = component_indices
+                elif first_index != indx:
+                    # If a previously identified index location does not match
+                    # the current index location (e.g. a(i,j), and a(j,i) ),
+                    # then add an error message:
+                    self._add_error(
+                        "Variable '{0}' is written to and the loop variable "
+                        "'{1}' is used differently: {2} and {3}."
+                        .format(signature.var_name,
+                                loop_variable.name,
+                                signature.to_fortran(first_component_indices),
+                                signature.to_fortran(component_indices)))
+                all_indices.append(index_expression)
+
+        return all_indices
+
+    # -------------------------------------------------------------------------
     def _is_loop_suitable_for_parallel(self, loop, only_nested_loops=True):
         '''Simple first test to see if a loop should even be considered to
         be parallelised. The default implementation tests whether the loop
@@ -139,7 +217,7 @@ class DependencyTools(object):
         return True
 
     # -------------------------------------------------------------------------
-    def array_access_parallelisable(self, loop_variable, var_info):
+    def array_access_parallelisable(self, signature, loop_variable, var_info):
         '''Tries to determine if the access pattern for a variable
         given in var_info allows parallelisation along the variable
         loop_variable. Additional messages might be provided to the
@@ -165,48 +243,15 @@ class DependencyTools(object):
         # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
         # be accessed. Since the variable is written somewhere (read-only
         # was tested above), the variable cannot be used in parallel.
-
-        # This variable will store two indices as a tuple: first the
-        # component index in which the loop variable was used, and then
-        # in which dimension for the component. For example, `a%b%c(i,j)`
-        # would store (2,1) for an access to j - component 2 (which is c),
-        # and 2nd dimension (j).
-        # TODO #1269: code duplicated with nemo_loop_fuse
-        found_dimension_index = None
-
         # Additionally, collect all indices that are actually used, since
         # they are needed in a test further down.
-        all_indices = []
 
-        # Loop over all the accesses of this variable
-        for access in var_info.all_accesses:
-            component_indices = access.component_indices
-
-            # Now verify that the index variable is always used
-            # at the same place:
-            for indx in component_indices.iterate():
-                index_expression = component_indices[indx]
-                accesses = VariablesAccessInfo(index_expression)
-
-                if Signature(loop_variable) not in accesses:
-                    continue
-
-                # if a previously identified index location does not match
-                # the current index location (e.g. a(i,j), and a(j,i) ),
-                # then the loop can not be parallelised
-                if found_dimension_index and \
-                        found_dimension_index != indx:
-                    # TODO #1268: improve error message
-                    self._add_warning("Variable '{0}' is using loop "
-                                      "variable '{1}' in index '{2}'' "
-                                      "and '{3}'."
-                                      .format(var_info.var_name,
-                                              loop_variable,
-                                              found_dimension_index,
-                                              indx))
-                    return False
-                found_dimension_index = indx
-                all_indices.append(index_expression)
+        # Detect if this variable adds a new message, and if so, abort early
+        old_num_messages = len(self.get_all_messages())
+        all_indices = \
+            self.array_accesses_consistent(signature, loop_variable, var_info)
+        if len(self.get_all_messages()) > old_num_messages:
+            return False
 
         if not all_indices:
             # An array is used that is not actually dependent on the parallel
@@ -229,7 +274,7 @@ class DependencyTools(object):
                               "does not depend on the loop "
                               "variable '{1}'."
                               .format(var_info.var_name,
-                                      loop_variable))
+                                      loop_variable.name))
             return False
 
         # Now we have confirmed that all parallel accesses to the variable
@@ -337,7 +382,7 @@ class DependencyTools(object):
                             "instance of class Loop but got '{0}'".
                             format(type(loop).__name__))
         if not loop_variable:
-            loop_variable = loop.variable.name
+            loop_variable = loop.variable
 
         # Check if the loop type should be parallelised, e.g. to avoid
         # parallelising inner loops which might not have enough work. This
@@ -377,10 +422,10 @@ class DependencyTools(object):
             symbol = symbol_table.lookup(var_name)
             # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)
-
             if is_array:
                 # Handle arrays
-                par_able = self.array_access_parallelisable(loop_variable,
+                par_able = self.array_access_parallelisable(signature,
+                                                            loop_variable,
                                                             var_info)
             else:
                 # Handle scalar variable

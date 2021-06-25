@@ -36,7 +36,7 @@
 '''This module contains the NEMO-specific loop fusion transformation.
 '''
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import LoopFuseTrans
 
@@ -109,14 +109,15 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             if var_info1.is_read_only() and var_info2.is_read_only():
                 continue
 
-            symbol = symbol_table.lookup(var_name)
+            symbol = symbol_table.lookup(signature.var_name)
             # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info1)
 
             if not is_array:
                 NemoLoopFuseTrans.validate_written_scalar(var_info1, var_info2)
             else:
-                NemoLoopFuseTrans.validate_written_array(var_info1, var_info2,
+                NemoLoopFuseTrans.validate_written_array(signature,
+                                                         var_info1, var_info2,
                                                          loop_var1)
 
     # -------------------------------------------------------------------------
@@ -153,12 +154,14 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def validate_written_array(var_info1, var_info2, loop_variable):
+    def validate_written_array(signature, var_info1, var_info2, loop_variable):
         '''Validates if the accesses to an array, which is at least written
         once, allows loop fusion. The access pattern to this array is
-        specified in the two parameters (which includes the name of the
-        variable).
+        specified in the two parameters `var_info1` and `var_info2`. The
+        signature is used to provide better error messages.
 
+        :param signature: the signature of the variable validated.
+        :type signature: :py:class:`psyclone.core.signature.Signature`
         :param var_info1: access information for variable in the first loop.
         :type var_info1: \
             :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
@@ -174,59 +177,16 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             inconsistent indices, e.g. a(i,j) and a(j,i).
 
         '''
-        # First check if all accesses to the array have the same dimension
-        # based on the loop variable
-        # Now detect which dimension(s) is/are used in the loop. For example
-        # if a "do j..." loop is one of the fused loops, consider expressions
-        # like a(i,j) and a(j+2, i-1) in the two loops:
-        # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
-        # be accessed. Since the variable is written somewhere (read-only
-        # was tested above), loop fusion will likely result in invalid code.
-        all_accesses = var_info1.all_accesses + var_info2.all_accesses
 
-        # This variable will store two indices as a tuple: first the
-        # component index in which the loop variable was used, and then
-        # in which dimension for the component. For example, `a%b%c(i,j)`
-        # would store (2,1) for an access to j - component 2 (which is c),
-        # and 2nd dimension (j).
-        # TODO 1269: code duplicated with dependency_tools
-        found_dimension_index = None
+        from psyclone.psyir.tools import DependencyTools
+        dep_tools = DependencyTools()
+        all_indices = \
+            dep_tools.array_accesses_consistent(signature, loop_variable,
+                                                [var_info1, var_info2])
+        errors = dep_tools.get_all_messages()
 
-        # Additionally, collect all indices that are actually used, since
-        # they are needed in a test further down.
-        all_indices = []
-
-        # Loop over all the accesses of this variable
-        for access in all_accesses:
-            component_indices = access.component_indices
-
-            # Now verify that the index variable is always used
-            # at the same place:
-            for indx in component_indices.iterate():
-                index_expression = component_indices[indx]
-                accesses = VariablesAccessInfo(index_expression)
-                # If the loop variable is not used at all, no need to
-                # check indices
-                if Signature(loop_variable.name) not in accesses:
-                    continue
-                # If a previously identified index location does not match
-                # the current index location (e.g. a(i,j), and a(j,i) ),
-                # then the loop in general cannot be fused.
-                if found_dimension_index and \
-                        found_dimension_index != indx:
-                    # TODO #1268: improve error message
-                    raise TransformationError(
-                        "Variable '{0}' is written to in one or both of "
-                        "the loops and the loop variable {1} is used in "
-                        "different index locations ({2} and {3}) when "
-                        "accessing it."
-                        .format(var_info1.var_name,
-                                loop_variable.name,
-                                found_dimension_index,
-                                indx))
-
-                found_dimension_index = indx
-                all_indices.append(index_expression)
+        if errors:
+            raise TransformationError(errors[0])
 
         if not all_indices:
             # An array is used that is not actually dependent on the
