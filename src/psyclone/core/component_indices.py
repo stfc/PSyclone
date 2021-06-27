@@ -50,7 +50,7 @@ class ComponentIndices(object):
     would have `[ [], [] ]`.
 
     As a shortcut, the `indices` parameter can be None or an empty list
-    (which then creates the component indices as `[[]]`), a list l (which
+    (which then creates the component indices as `[[]]`), a list `l` (which
     will then create the component indices as `[l]`).
 
     :param indices: the indices from which to create this object.
@@ -89,7 +89,8 @@ class ComponentIndices(object):
         '''Allows iterating over all component indices. It returns a tuple
         with two elements, the first one indicating the component, the second
         the dimension for which the index is. The return tuple can be used
-        in a dictionary access (see __getitem__) of this object.
+        in a dictionary access (see `__getitem__`) of this object.
+
         :returns: a tuple of the component index and index.
         :rtype: tuple(int, int)
 
@@ -100,9 +101,9 @@ class ComponentIndices(object):
 
     # ------------------------------------------------------------------------
     def __getitem__(self, indx):
-        '''Allows to use this class as a dictionary. If 'indx' is an integer,
-        the list of indices for the specified compnent is returned. If 'indx'
-        is a tuple (as returned from 'iterate'), it will return the index
+        '''Allows to use this class as a dictionary. If `indx` is an integer,
+        the list of indices for the specified component is returned. If `indx`
+        is a tuple (as returned from `iterate`), it will return the index
         for the specified component at the specified dimension.
 
         :returns: either the list of indices for a component, or the index \
