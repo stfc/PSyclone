@@ -75,6 +75,8 @@
         25) #1262 for #920. Adds capturing of algorithm-layer datatypes
         which are then stored in the algorithm.py Arg class.
 
+        26) #1252 for #1251. Fix Ranges inside StructureType accesses.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
