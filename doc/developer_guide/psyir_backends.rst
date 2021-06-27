@@ -255,7 +255,7 @@ is commented out::
 
     print_hierarchy = PrintHierarchy()
     # print(print_hierarchy(psyir_tree))
-    psyir_tree.walk(APIHaloExchagne)
+    psyir_tree.walk(APIHaloExchange)
 
 .. warning::
     The OpenCL backend does not use a `__call__` method with lowering. This
