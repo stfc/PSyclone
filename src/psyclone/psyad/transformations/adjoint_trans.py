@@ -38,6 +38,8 @@ transformations.
 '''
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.transformations import TransformationError
 
 
 class AdjointTransformation(Transformation):
@@ -56,8 +58,14 @@ class AdjointTransformation(Transformation):
     def __init__(self, active_variables, writer=FortranWriter()):
         super(AdjointTransformation, self).__init__()
         # TODO Check the active_variables argument has valid content
+        if not isinstance(active_variables, list):
+            raise TransformationError("active variables should be a list")
+        for active_variable in active_variables:
+            if not (isinstance(active_variable, DataSymbol)):
+                raise TransformationError("active variables should be of type DataSymbol")
         # TODO Check the writer argument is valid.
         self._active_variables = active_variables
+        # print (self._active_variables)
         # The writer to use when outputting error information
         self._writer = writer
 

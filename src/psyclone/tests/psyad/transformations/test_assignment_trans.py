@@ -38,7 +38,7 @@ import pytest
 
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, SymbolTable
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
-    Routine
+    Routine, Literal, UnaryOperation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.transformations import TransformationError
@@ -69,6 +69,8 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
     assignment = psyir.children[0][0]
     assert isinstance(assignment, Assignment)
 
+    # Find the symbols in the symbol table associated with the
+    # supplied strings.
     symbol_table = assignment.scope.symbol_table
     active_variables = []
     for variable_name in active_variable_names:
@@ -84,7 +86,7 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
     print (ad_fortran)
     assert ad_fortran == expected_output_code
 
-
+@pytest.mark.xfail(message="NO ACTIVE VAR ON RHS. WHAT IS THE RULE????")
 def test_zero():
     '''Test that the adjoint transformation with an assignment of the form
     A = 0. This tests that the transformation works when there are no
@@ -210,7 +212,8 @@ def test_single_valued_assign():
     A = xB. This tests that the transformation works when there is one
     active variable on the rhs that is multipled by a factor and with
     the active variable on the lhs being a write, not an
-    increment.
+    increment. Also test mixed case active variables list and actual
+    variables.
 
     A=xB -> B*=B*+xA*;A*=0.0
 
@@ -219,7 +222,7 @@ def test_single_valued_assign():
         "  real a(10), b(10), n\n"
         "  integer :: i,j\n"
         "  a(i) = 3*n*b(j)\n")
-    active_variables = ["a", "b"]
+    active_variables = ["A", "B"]
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real :: n\n  integer :: i\n  integer :: j\n\n"
@@ -228,18 +231,20 @@ def test_single_valued_assign():
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
+@pytest.mark.xfail(name="issue #xxx literal math_equal() does "
+                   "not work properly.")
 def test_multi_add():
     '''Test that the adjoint transformation with an assignment of the form
     A = xB + yC + D. This tests that the transformation works when
     there are many active variables on the rhs with some of them being
     multipled by a factor and with the active variable on the lhs
-    being a write, not an increment.
+    being a write, not an increment. Also test mixed case declarations.
 
     A=xB+yC+D -> D*=D*+A; C*=C*+yA*; B*=B*+xA*; A*=0.0
 
     '''
     tl_fortran = (
-        "  real a(10), b(10), c(10), d(10)\n"
+        "  real A(10), B(10), C(10), D(10)\n"
         "  integer :: i, j, n\n"
         "  a(i+2) = (3/n)*b(j) + c(1)/(2*n) + d(n)\n")
     active_variables = ["a", "b", "c", "d"]
@@ -278,7 +283,8 @@ def test_increment():
 def test_increment_mult():
     '''Test that the adjoint transformation with an assignment of the form
     A = xA. This tests that the transformation works when there are no
-    additions on the rhs with the lhs being a scaled increment.
+    additions on the rhs with the lhs being a scaled increment. Also
+    test mixed case variables.
 
     A=xA -> A*=xA*
 
@@ -286,7 +292,7 @@ def test_increment_mult():
     tl_fortran = (
         "  integer :: n\n"
         "  real a(n)\n"
-        "  a(n) = 5*a(n)\n")
+        "  A(n) = 5*A(n)\n")
     active_variables = ["a"]
     ad_fortran = (
         "  integer :: n\n"
@@ -298,14 +304,15 @@ def test_increment_mult():
 def test_increment_add():
     '''Test that the adjoint transformation with an assignment of the form
     A = A + B. This tests that the transformation works when there is
-    a single addition on the rhs with the lhs being an increment.
+    a single addition on the rhs with the lhs being an increment. ALso
+    test mixed case variables.
 
     A+=B -> B*+=A*; A*=A*
 
     '''
     tl_fortran = (
         "  real a(10), b(10)\n"
-        "  a(1) = a(1)+b(1)\n")
+        "  a(1) = A(1)+B(1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
         "  real, dimension(10) :: a\n"
@@ -452,7 +459,6 @@ def test_inc_sub():
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
-# a = -a -x*a + b - a/y
 def test_multi_inc_sub():
     '''Test that the adjoint transformation with an assignment of the form
     A = -A -xA + B + A/y. This tests that the transformation works
@@ -477,19 +483,129 @@ def test_multi_inc_sub():
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
-# a(i) = a(i+1) + b(i) + b(i+1)
-#
-# Mixed case for variables and definitions of active vars.
+def test_multi_rhs():
+    '''Test that the adjoint transformation with an assignment of the form
+    A = B + xB +B/y. This tests that the transformation works when
+    there is are multiple terms on the rhs of an assignment with the
+    same active variable.
 
-# * other datatypes (assuming all real for the moment) and ignoring precision
+    A=B+xB+B/y -> B*=B*+A*;B*=B*+xA*;B*=B*+A*/y
 
-# TODO TEST WHEN active var on LHS of A/x is OK???? Test correct use of divide when multiple terms
+    '''
+    tl_fortran = (
+        "  real a(10), b(10)\n"
+        "  real :: x,y\n"
+        "  a = b + x*b + b/y\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  real :: x\n  real :: y\n\n"
+        "  b = b + a\n"
+        "  b = b + a * x\n"
+        "  b = b + a / y\n"
+        "  a = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
+def test_different_indices():
+    '''Test that the adjoint transformation recognises that an access is
+    not an increment when the indices of an array are different. For
+    example a(i) = a(i+1) + b(i)
+
+    A(i)=A(i+1)+B(i) -> B*(i)=B*(i)*+A*(i);A*(i+1)=A*(i+1)+A*(i);A*(i)=0.0
+
+    '''
+    tl_fortran = (
+        "  real a(10), b(10)\n"
+        "  integer :: i\n"
+        "  a(i) = a(i+1)+b(i)+b(i-1)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  integer :: i\n\n"
+        "  a(i + 1) = a(i + 1) + a(i)\n"
+        "  b(i) = b(i) + a(i)\n"
+        "  b(i - 1) = b(i - 1) + a(i)\n"
+        "  a(i) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
+@pytest.mark.xfail(name="issue #xxx literal math_equal() does "
+                   "not work properly.")
+def test_same_indices_ordering():
+    '''Test that the adjoint transformation recognises that an access is
+    an increment when the indices of an array are the same but in a
+    different order. For example a(i+1) = a(1+i) + b(i)
+
+    A(i+1)=A(1+i)+B(i) -> B*(i)=B*(i)*+A*(i+1)
+
+    '''
+    tl_fortran = (
+        "  real a(10), b(10)\n"
+        "  integer :: i\n"
+        "  a(i+1) = a(1+i)+b(i)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  integer :: i\n\n"
+        "  b(i) = b(i) + a(i + 1)\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
+@pytest.mark.xfail(name="issue #1075: Better symbolic comparison of indices "
+                   "is needed.")
+def test_same_indices_ordering2():
+    '''Test that the adjoint transformation recognises that an access is
+    an increment when the indices of an array are the same but are
+    written in a different way. For example a(2*i) = a(i+i) + b(i)
+
+    A(2*i)=A(i+i)+B(i) -> B*(i)=B*(i)*+A*(2 * i);
+
+    '''
+    tl_fortran = (
+        "  real a(10), b(10)\n"
+        "  integer :: i\n"
+        "  a(2*i) = a(i+i)+b(i)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  integer :: i\n\n"
+        "  b(i) = b(i) + a(2 * i)\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
+@pytest.mark.xfail(name="issue #xxx structure_reference math_equal() does "
+                   "not work properly.")
+def test_different_structures():
+    '''Test that the adjoint transformation recognises that an access is
+    not an increment when a structure access differs. For
+    example a%data(i) = a%data(i+1) + a%x(i)
+
+    '''
+    tl_fortran = (
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: a\n"
+        "  integer :: n\n"
+        "  a%data(n) = a%data(n+1) + a%atad(n)\n\n")
+    active_variables = ["a"]
+    ad_fortran = (
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: a\n"
+        "  integer :: n\n\n"
+        "  a%data(n+1) = a%data(n+1) + a%data(n)\n"
+        "  a%atad(n) = a%atad(n) + a%data(n)\n"
+        "  a%data(n) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
+
+
+# Create issues for failing tests
 
 # Validate method
 
 #
 # Check Error if rhs term does not have any active variables in it as it does not seem to be working.
 #
+# Check specified active variables are real (if there type is known).
 
 def test_validate_node():
     '''Check that the expected exception is raised if the provided node
@@ -507,7 +623,9 @@ def test_validate_not_active():
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
     assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
-    trans = AssignmentTrans(active_variables=["c", "aa", "ab"])
+    trans = AssignmentTrans(active_variables=[
+        DataSymbol("c", REAL_TYPE), DataSymbol("aa", REAL_TYPE),
+        DataSymbol("ab", REAL_TYPE)])
     trans.validate(assignment)
 
 
@@ -518,7 +636,9 @@ def test_validate_active_rhs():
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
     assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
-    trans = AssignmentTrans(active_variables=["c", "aa", "b"])
+    trans = AssignmentTrans(active_variables=[
+        DataSymbol("c", REAL_TYPE), DataSymbol("aa", REAL_TYPE),
+        rhs_symbol])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
     assert ("Assignment node 'a = b\n' has the following active variables on "
@@ -538,7 +658,7 @@ def test_validate_rhs_term_active(operator, string):
     addition = BinaryOperation.create(
         operator, Reference(rhs_symbol1), Reference(rhs_symbol2))
     assignment = Assignment.create(Reference(lhs_symbol), addition)
-    trans = AssignmentTrans(active_variables=["a", "b"])
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
     assert ("Each term on the RHS of the assigment 'a = b {0} c\n' must have "
@@ -556,7 +676,8 @@ def test_validate_rhs_term_multi_active():
         BinaryOperation.Operator.MUL, Reference(
             rhs_symbol1), Reference(rhs_symbol2))
     assignment = Assignment.create(Reference(lhs_symbol), multiply)
-    trans = AssignmentTrans(active_variables=["a", "b", "c"])
+    trans = AssignmentTrans(active_variables=[
+        lhs_symbol, rhs_symbol1, rhs_symbol2])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
     assert ("Each term on the RHS of the assigment 'a = b * c\n' must not "
@@ -570,7 +691,7 @@ def test_validate_rhs_single_active_var():
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
     assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
-    trans = AssignmentTrans(active_variables=["a", "b"])
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol])
     trans.validate(assignment)
 
 
@@ -590,7 +711,7 @@ def test_validate_rhs_active_var_mul(operator):
     multiply2 = BinaryOperation.create(
         operator, Reference(rhs_symbol3), multiply1)
     assignment = Assignment.create(Reference(lhs_symbol), multiply2)
-    trans = AssignmentTrans(active_variables=["a", "b"])
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     trans.validate(assignment)
 
 
@@ -605,7 +726,7 @@ def test_validate_rhs_active_var_no_mul():
         BinaryOperation.Operator.POW, Reference(
             rhs_symbol1), Reference(rhs_symbol2))
     assignment = Assignment.create(Reference(lhs_symbol), power)
-    trans = AssignmentTrans(active_variables=["a", "b"])
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
     assert ("Each term on the RHS of the assignment 'a = b ** x\n' must be "
@@ -614,7 +735,6 @@ def test_validate_rhs_active_var_no_mul():
 
 
 # TODO: Test this raises an exception too A = y*(B+z) + C
-# TODO TEST WHEN index=0. Need special case?????
 # TODO TEST WHEN active var on LHS of A/x is OK????
 
 def test_validate_rhs_active_divisor():
@@ -628,7 +748,7 @@ def test_validate_rhs_active_divisor():
         BinaryOperation.Operator.DIV, Reference(
             rhs_symbol2), Reference(rhs_symbol1))
     assignment = Assignment.create(Reference(lhs_symbol), divide)
-    trans = AssignmentTrans(active_variables=["a", "b"])
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
     assert ("A term on the RHS of the assignment 'a = x / b\n' with a "
@@ -636,12 +756,121 @@ def test_validate_rhs_active_divisor():
             "found 'x / b'." in str(info.value))
 
 # TODO FAIL if A*func(a)
+# TODO FAIL if unary operators on active variable
+# TODO check apply tests
 
-# TODO Check validate tests work independent of case of variable (as use lower())
+# _split_nodes()
 
-# Restructure apply (and make multi-increment work?)
-# Multi-increment raise error a = a + a + b as the current logic does not work in this case.???
 
-# TODO test _split_nodes
-# TODO test _process (after restructuring)
-# TODO check apply tests (after restructuring)
+def test_splitnodes_single():
+    '''Test that _split_node returns a single entry node_list and an empty
+    op_list when there is nothing to split.
+
+    '''
+    trans = AssignmentTrans([])
+    node = Literal("0.0", REAL_TYPE)
+    node_list, op_list = trans._split_nodes(node, [BinaryOperation.Operator.ADD])
+    assert isinstance(node_list, list)
+    assert len(node_list) == 1
+    assert node_list[0] == node
+    assert isinstance(op_list, list)
+    assert not op_list
+
+
+def test_splitnodes_multi():
+    '''Test that _split_node returns a multiple entry node_list and
+    op_list when there are multiple things to split in both lhs and
+    rhs.
+
+    '''
+    trans = AssignmentTrans([])
+    term1 = Literal("1.0", REAL_TYPE)
+    term2 = Literal("2.0", REAL_TYPE)
+    term3 = Literal("3.0", REAL_TYPE)
+    term4 = Literal("4.0", REAL_TYPE)
+    add_lhs = BinaryOperation.create(BinaryOperation.Operator.ADD, term1, term2)
+    add_rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, term3, term4)
+    add = BinaryOperation.create(BinaryOperation.Operator.ADD, add_lhs, add_rhs)
+    node_list, op_list = trans._split_nodes(add, [BinaryOperation.Operator.ADD])
+    assert isinstance(node_list, list)
+    assert node_list == [term1, term2, term3, term4]
+    assert isinstance(op_list, list)
+    assert op_list == [BinaryOperation.Operator.ADD, BinaryOperation.Operator.ADD, BinaryOperation.Operator.ADD]
+
+
+def test_splitnodes_multiop():
+    '''Test that _split_node returns a multiple entry node_list and
+    op_list when there are multiple things to split in both lhs and
+    rhs and multiple operators.
+
+    '''
+    trans = AssignmentTrans([])
+    term1 = Literal("1.0", REAL_TYPE)
+    term2 = Literal("2.0", REAL_TYPE)
+    term3 = Literal("3.0", REAL_TYPE)
+    term4 = Literal("4.0", REAL_TYPE)
+    add_lhs = BinaryOperation.create(BinaryOperation.Operator.ADD, term1, term2)
+    add_rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, term3, term4)
+    add = BinaryOperation.create(BinaryOperation.Operator.SUB, add_lhs, add_rhs)
+    node_list, op_list = trans._split_nodes(add, [BinaryOperation.Operator.ADD, BinaryOperation.Operator.SUB])
+    assert isinstance(node_list, list)
+    assert node_list == [term1, term2, term3, term4]
+    assert isinstance(op_list, list)
+    assert op_list == [BinaryOperation.Operator.ADD, BinaryOperation.Operator.SUB, BinaryOperation.Operator.ADD]
+
+# _split_active_var()
+
+
+def test_splitactivevar_single():
+    '''Test that _split_active_var returns the expected results when there
+    is a single active var with no other operations.
+
+    '''
+    symbol = DataSymbol("a", REAL_TYPE)
+    trans = AssignmentTrans([symbol])
+    node = Reference(symbol)
+    active_var, operator, expr = trans._split_active_var(node)
+    assert active_var == node
+    assert operator is None
+    assert expr is None
+
+
+def test_splitactivevar_unaryminus():
+    '''Test that _split_active_var returns the expected results when there
+    is a single active var preceded by a unary -. The - is replaced
+    with a multiplication of the var by -1.0.
+
+    '''
+    symbol = DataSymbol("a", REAL_TYPE)
+    reference = Reference(symbol)
+    trans = AssignmentTrans([symbol])
+    node = UnaryOperation.create(UnaryOperation.Operator.MINUS, reference)
+    active_var, operator, expr = trans._split_active_var(node)
+    assert active_var == reference
+    assert operator == BinaryOperation.Operator.MUL
+    assert expr.math_equal(Literal("-1.0", REAL_TYPE)) 
+
+
+# One active var with unary +
+def test_splitactivevar_unaryplus():
+    '''Test that _split_active_var returns the expected results when there
+    is a single active var preceded by a unary +. The + is removed as
+    it is not required.
+
+    '''
+    symbol = DataSymbol("a", REAL_TYPE)
+    reference = Reference(symbol)
+    trans = AssignmentTrans([symbol])
+    node = UnaryOperation.create(UnaryOperation.Operator.PLUS, reference)
+    active_var, operator, expr = trans._split_active_var(node)
+    assert active_var == reference
+    assert operator == None
+    assert expr == None
+
+
+
+# TODO TEST WHEN active var on LHS of A/x is OK???? Test correct use of divide when multiple terms
+# Multi * : a = a*x*y
+# Multi mixed a = a/x*y
+# Multi op later1 a = x*a/y
+# Multi op later2 a = x/y*a
