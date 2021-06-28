@@ -1072,29 +1072,34 @@ class Node(object):
 
     def following(self):
         '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me in
-        the schedule. Ordering is depth first.
+        the current InvokeSchedule. Ordering is depth first.
 
-        :returns: a list of nodes
+        :returns: a list of nodes.
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        all_nodes = self.root.walk(Node)
+        from psyclone.psyGen import InvokeSchedule
+        root = self.ancestor(InvokeSchedule)
+        all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         return all_nodes[position+1:]
 
     def preceding(self, reverse=None):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me
-        in the schedule. Ordering is depth first. If the `reverse` argument
-        is set to `True` then the node ordering is reversed
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me in
+        this InvokeSchedule. Ordering is depth first. If the `reverse`
+        argument is set to `True` then the node ordering is reversed
         i.e. returning the nodes closest to me first
 
-        :param: reverse: An optional, default `False`, boolean flag
+        :param: reverse: an optional, default `False`, boolean flag.
         :type: reverse: bool
-        :returns: A list of nodes
+
+        :returns: a list of nodes.
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        all_nodes = self.root.walk(Node)
+        from psyclone.psyGen import InvokeSchedule
+        root = self.ancestor(InvokeSchedule)
+        all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         nodes = all_nodes[:position]
         if reverse:
