@@ -132,6 +132,22 @@ outer_do: DO i = 1, 10
 END DO outer_do
 END PROGRAM my_test'''
     psyir = fortran_reader.psyir_from_source(code)
-    prog = psyir.walk(Routine)
+    prog = psyir.walk(Routine)[0]
+    assert len(prog.children) == 1
+    assert isinstance(prog.children[0], CodeBlock)
+
+
+def test_unhandled_labelled_do(fortran_reader):
+    ''' Check that a labelled DO results in a CodeBlock. '''
+    code = '''PROGRAM my_test
+integer :: i
+real, dimension(10) :: a
+111 DO i = 1, 10
+  a(i) = 1.0
+END DO
+GOTO 111
+END PROGRAM my_test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    prog = psyir.walk(Routine)[0]
     assert len(prog.children) == 1
     assert isinstance(prog.children[0], CodeBlock)
