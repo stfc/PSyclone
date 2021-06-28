@@ -44,8 +44,9 @@ from __future__ import print_function
 
 import copy
 import six
-from psyclone.psyir.symbols import SymbolError
+
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.symbols import SymbolError
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -1072,21 +1073,22 @@ class Node(object):
 
     def following(self):
         '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me in
-        the current InvokeSchedule. Ordering is depth first.
+        this Routine. Ordering is depth first.
 
         :returns: a list of nodes.
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        from psyclone.psyGen import InvokeSchedule
-        root = self.ancestor(InvokeSchedule)
+        # Import here to avoid circular dependencies
+        from psyclone.psyir.nodes import Routine
+        root = self.ancestor(Routine)
         all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         return all_nodes[position+1:]
 
     def preceding(self, reverse=None):
         '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me in
-        this InvokeSchedule. Ordering is depth first. If the `reverse`
+        this Routine. Ordering is depth first. If the `reverse`
         argument is set to `True` then the node ordering is reversed
         i.e. returning the nodes closest to me first
 
@@ -1097,8 +1099,9 @@ class Node(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        from psyclone.psyGen import InvokeSchedule
-        root = self.ancestor(InvokeSchedule)
+        # Import here to avoid circular dependencies
+        from psyclone.psyir.nodes import Routine
+        root = self.ancestor(Routine)
         all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         nodes = all_nodes[:position]
