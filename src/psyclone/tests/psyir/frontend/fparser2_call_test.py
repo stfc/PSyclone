@@ -43,7 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import RoutineSymbol, UnresolvedInterface, \
-    GlobalInterface
+    GlobalInterface, NoType
 from psyclone.psyir.nodes import Literal, CodeBlock, Schedule, Call, \
     Reference, BinaryOperation
 from psyclone.errors import GenerationError
@@ -74,6 +74,7 @@ def test_call_noargs():
     assert isinstance(routine_symbol.interface, UnresolvedInterface)
     assert routine_symbol.name == "kernel"
     assert routine_symbol in call_node.scope.symbol_table.symbols
+    assert isinstance(routine_symbol.datatype, NoType)
 
     assert (str(call_node)) == "Call[name='kernel']"
 
@@ -104,6 +105,7 @@ def test_call_declared_routine(f2008_parser):
         assert isinstance(routine_symbol.interface, GlobalInterface)
         assert routine_symbol.name == "kernel"
         assert routine_symbol in call_node.scope.symbol_table.symbols
+        assert isinstance(routine_symbol.datatype, NoType)
 
 
 def test_call_incorrect_type(f2008_parser):

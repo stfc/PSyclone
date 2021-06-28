@@ -41,7 +41,7 @@ import pytest
 from psyclone.psyir.nodes import Call, Reference, ArrayReference, Schedule
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
-    RoutineSymbol
+    RoutineSymbol, NoType
 from psyclone.errors import GenerationError
 
 
@@ -55,7 +55,7 @@ def test_call_init():
 
     '''
     # routine argument
-    routine = RoutineSymbol("jo")
+    routine = RoutineSymbol("jo", NoType())
     call = Call(routine)
     assert call._routine is routine
     assert call.routine is call._routine
@@ -85,7 +85,7 @@ def test_call_init_error():
 def test_call_create(cls):
     '''Test that the create method creates a valid call with arguments'''
 
-    routine = RoutineSymbol("ellie")
+    routine = RoutineSymbol("ellie", INTEGER_TYPE)
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
     arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
                  ArrayReference(DataSymbol("arg2", array_type))]
@@ -112,7 +112,7 @@ def test_call_create_error1():
 def test_call_error2():
     '''Test that the appropriate exception is raised if the arguments
     argument to the create method is not a list'''
-    routine = RoutineSymbol("isaac")
+    routine = RoutineSymbol("isaac", NoType())
     with pytest.raises(GenerationError) as info:
         _ = Call.create(routine, None)
     assert ("Call create arguments argument should be a list but found "
@@ -125,7 +125,7 @@ def test_call_error3():
     DataNode.
 
     '''
-    routine = RoutineSymbol("roo")
+    routine = RoutineSymbol("roo", INTEGER_TYPE)
     with pytest.raises(GenerationError) as info:
         _ = Call.create(
             routine, [Reference(DataSymbol("arg1", INTEGER_TYPE)), None])
@@ -135,7 +135,7 @@ def test_call_error3():
 
 def test_call_node_str():
     ''' Test that the node_str method behaves as expected '''
-    routine = RoutineSymbol("isaac")
+    routine = RoutineSymbol("isaac", NoType())
     call = Call(routine)
     colouredtext = colored("Call", Call._colour)
     assert call.node_str() == colouredtext+"[name='isaac']"
@@ -143,6 +143,6 @@ def test_call_node_str():
 
 def test_call_str():
     ''' Test that the str method behaves as expected '''
-    routine = RoutineSymbol("roo")
+    routine = RoutineSymbol("roo", NoType())
     call = Call(routine)
     assert str(call) == "Call[name='roo']"
