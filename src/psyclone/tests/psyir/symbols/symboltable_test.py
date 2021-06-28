@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
-    SymbolError, RoutineSymbol
+    SymbolError, RoutineSymbol, NoType
 from psyclone.errors import InternalError
 
 
@@ -1010,7 +1010,7 @@ def test_global_symbols():
     assert len(gsymbols) == 1
     assert sym_table.lookup("gvar2") not in gsymbols
     # Add another global symbol
-    sym_table.add(RoutineSymbol("my_sub",
+    sym_table.add(RoutineSymbol("my_sub", INTEGER_TYPE,
                                 interface=GlobalInterface(
                                     ContainerSymbol("my_mod"))))
     assert sym_table.lookup("my_sub") in sym_table.global_symbols
@@ -1379,6 +1379,7 @@ def test_new_symbol():
     assert sym2.visibility is Symbol.Visibility.PUBLIC
     assert isinstance(sym1.interface, LocalInterface)
     assert isinstance(sym2.interface, LocalInterface)
+    assert isinstance(sym1.datatype, NoType)
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is None
 
@@ -1386,6 +1387,7 @@ def test_new_symbol():
     # keyword parameters
     sym1 = symtab.new_symbol("routine",
                              symbol_type=RoutineSymbol,
+                             datatype=DeferredType(),
                              visibility=Symbol.Visibility.PRIVATE)
     sym2 = symtab.new_symbol("data", symbol_type=DataSymbol,
                              datatype=INTEGER_TYPE,
@@ -1399,6 +1401,7 @@ def test_new_symbol():
     assert symtab.lookup("data_1") is sym2
     assert sym1.visibility is Symbol.Visibility.PRIVATE
     assert sym2.visibility is Symbol.Visibility.PRIVATE
+    assert isinstance(sym1.datatype, DeferredType)
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is not None
 
