@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ def test_do_construct(parser):
     assert isinstance(new_loop.loop_body[0], Assignment)
 
 
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("parser")
 def test_do_construct_while():
     ''' Check that do while constructs are placed in Codeblocks. '''
     reader = FortranStringReader('''
@@ -101,7 +101,6 @@ def test_do_construct_while():
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-@pytest.mark.usefixtures("parser")
 def test_unhandled_do(parser):
     ''' Test that a DO without any control logic results in a CodeBlock. '''
     lines = ["SUBROUTINE a_loop()",
@@ -121,3 +120,18 @@ def test_unhandled_do(parser):
     processor = Fparser2Reader()
     sched = processor.generate_schedule("a_loop", fp2spec)
     assert isinstance(sched[0], CodeBlock)
+
+
+def test_unhandled_named_do(fortran_reader):
+    ''' Check that a named DO results in a CodeBlock. '''
+    code = '''PROGRAM my_test
+integer :: i
+real, dimension(10) :: a
+outer_do: DO i = 1, 10
+  a(i) = 1.0
+END DO outer_do
+END PROGRAM my_test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert psyir.walk(Loop) == []
+    cblocks = psyir.walk(CodeBlock)
+    assert len(cblocks) == 1
