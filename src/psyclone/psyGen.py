@@ -3038,6 +3038,7 @@ class CodedKern(Kern):
 
         '''
         symtab = self.scope.symbol_table
+        # A kernel routine does not have a return type.
         rsymbol = RoutineSymbol(self._name)
         symtab.add(rsymbol)
         call_node = Call(rsymbol)

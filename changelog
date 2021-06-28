@@ -77,6 +77,8 @@
 
         26) #1252 for #1251. Fix Ranges inside StructureType accesses.
 
+        27) #1294 towards #1259. Add the TypedSymbol abstract class.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
