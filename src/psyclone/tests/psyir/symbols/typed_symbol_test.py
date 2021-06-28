@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Perform pytest tests on the psygen.psyir.symbols.typed_symbol file '''
+''' Perform pytest tests on the psyclone.psyir.symbols.typed_symbol file. '''
 
 from __future__ import absolute_import
 import pytest

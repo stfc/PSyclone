@@ -45,7 +45,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
     ArrayReference, Literal, BinaryOperation
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, Symbol, \
-    StructureType, NoType
+    StructureType
 
 from psyclone.domain.common.algorithm import \
     AlgorithmInvokeCall, KernelFunctor
@@ -188,7 +188,7 @@ def test_invoke_error():
     '''
     invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(Call(RoutineSymbol("hello", NoType())))
+        invoke_trans.validate(Call(RoutineSymbol("hello")))
     assert ("Error in InvokeCallTrans transformation. The supplied call "
             "argument should be a `Call` node with name 'invoke' but "
             "found 'hello'." in str(info.value))
