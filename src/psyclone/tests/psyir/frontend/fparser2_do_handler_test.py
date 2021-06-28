@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment
+from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -132,6 +132,6 @@ outer_do: DO i = 1, 10
 END DO outer_do
 END PROGRAM my_test'''
     psyir = fortran_reader.psyir_from_source(code)
-    assert psyir.walk(Loop) == []
-    cblocks = psyir.walk(CodeBlock)
-    assert len(cblocks) == 1
+    prog = psyir.walk(Routine)
+    assert len(prog.children) == 1
+    assert isinstance(prog.children[0], CodeBlock)

@@ -2308,8 +2308,19 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         :raises NotImplementedError: if the fparser2 tree has an unsupported \
-            structure (e.g. DO WHILE or a DO with no loop control).
+            structure (e.g. DO WHILE or a DO with no loop control or a named \
+            DO).
         '''
+        nonlabel_do = walk(node.content, Fortran2003.Nonlabel_Do_Stmt)[0]
+        if nonlabel_do.item is not None:
+            # If the associated line has a label or a name then it is not
+            # supported (primarily because we don't support references to
+            # such things, e.g. `EXIT outer_loop`).
+            label = nonlabel_do.item.label
+            name = nonlabel_do.item.name
+            if label or name:
+                raise NotImplementedError()
+
         ctrl = walk(node.content, Fortran2003.Loop_Control)
         if not ctrl:
             # TODO #359 a DO with no loop control is put into a CodeBlock
