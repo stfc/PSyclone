@@ -353,8 +353,9 @@ class GOInvoke(Invoke):
         '''
 
         def sort_by_interface(symbol_names):
-            ''' Utility to filter arguments and local symbols from a given
-            list of symbols names, other symbols are ignored.
+            ''' Utility to help differentiate between arguments and local
+            symbols from a given list of symbols names. Other symbols are
+            ignored.
 
             :param symbol_names: a list of symbols to categorise.
             :type symbol_names: list of str

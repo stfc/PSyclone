@@ -1527,30 +1527,26 @@ def test_acc_parallel_not_a_loop():
     assert "'int'>" in str(error.value)
 
 
-def test_acc_parallel_trans(tmpdir):
+def test_acc_parallel_trans(tmpdir, fortran_writer):
     ''' Test that we can apply an OpenACC parallel transformation
     to a loop '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
 
-    acct = ACCParallelTrans()
-    accdt = ACCEnterDataTrans()
-
     # Apply the OpenACC Parallel transformation to the first loop of the
     # schedule
+    acct = ACCParallelTrans()
     acct.apply(schedule.children[0])
 
     with pytest.raises(GenerationError) as err:
-        _ = str(psy.gen)
+        _ = fortran_writer(psy.container)
     assert ("An ACC parallel region must either be preceded by an ACC enter "
             "data directive or enclosed within an ACC data region but in "
             "'invoke_0' this is not the case" in str(err.value))
 
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-    acct.apply(schedule.children[0])
+    # Apply the OpenACC EnterData transformation
+    accdt = ACCEnterDataTrans()
     accdt.apply(schedule)
     code = str(psy.gen)
 
@@ -1754,7 +1750,7 @@ def test_accdata_duplicate():
         accdt.apply(schedule)
 
 
-def test_accloop(tmpdir):
+def test_accloop(tmpdir, fortran_writer):
     ''' Tests that we can apply a '!$acc loop' directive to a loop '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
@@ -1764,6 +1760,7 @@ def test_accloop(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
+
     # This test expects constant loop bounds
     cbtrans.apply(schedule, {"const_bounds": True})
 
@@ -1780,14 +1777,10 @@ def test_accloop(tmpdir):
     # Code generation should fail at this point because there's no
     # enclosing parallel region
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        _ = fortran_writer(psy.container)
     assert ("ACCLoopDirective must have an ACCParallelDirective or "
             "ACCKernelsDirective as an ancestor in the Schedule" in
             str(err.value))
-
-    # TODO 1247: Manually remove CodeBlock from comment line while comments
-    # are not in the PSyIR
-    schedule.children[0].detach()
 
     # Add an enclosing parallel region
     accpara.apply(schedule.children)
@@ -1795,35 +1788,22 @@ def test_accloop(tmpdir):
     # Code generation should still fail because there's no 'enter data'
     # directive and we need one for the parallel region to work
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        _ = fortran_writer(psy.container)
     assert ("An ACC parallel region must either be preceded by an ACC enter "
             "data directive or enclosed within an ACC data region but in "
             "'invoke_0' this is not the case." in str(err.value))
 
-    # Since the psy.gen have lowered the kernels, we have to start again to
-    # successfully apply all the transformations.
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-
-    cbtrans.apply(schedule, {"const_bounds": True})
-    # Apply an OpenACC loop directive to each loop
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            acclpt.apply(child)
-    # Add an enclosing parallel region
-    accpara.apply(schedule.children)
     # Add a data region
     accdata.apply(schedule)
 
-    gen = str(psy.gen)
+    gen = fortran_writer(psy.container)
     assert '''\
-      !$acc parallel default(present)
-      !$acc loop independent
-      DO j = 2, jstop, 1''' in gen
-    assert ("END DO\n"
-            "      !$acc loop independent\n"
-            "      DO j = 2, jstop+1, 1" in gen)
+            !$acc parallel default(present)
+            !$acc loop independent
+            do j = 2, jstop, 1''' in gen
+    assert ("enddo\n"
+            "            !$acc loop independent\n"
+            "            do j = 2, jstop+1, 1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
