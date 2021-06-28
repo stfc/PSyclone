@@ -31,11 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author A. R. Porter, STFC Daresbury Lab
 
-'''Module containing pytest tests for the _module_handler method in
-the class Fparser2Reader. This handler deals with the translation of
-the fparser2 Module construct to PSyIR.'''
+'''Module containing pytest tests for the handling of labelled format
+statements.'''
 
 from __future__ import absolute_import
 from fparser.two import Fortran2003

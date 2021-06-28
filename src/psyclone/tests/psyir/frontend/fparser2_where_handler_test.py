@@ -119,6 +119,18 @@ def test_missing_array_notation_expr():
 
 
 @pytest.mark.usefixtures("parser")
+def test_labelled_where():
+    ''' Check that we get a code block if the WHERE statement has a label.
+
+    '''
+    fake_parent, _ = process_where("100 WHERE (ptsu /= 0._wp)\n"
+                                   "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["ptsu", "wp", "z1_st"])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+@pytest.mark.usefixtures("parser")
 def test_missing_array_notation_lhs():
     ''' Check that we get a code block if the WHERE does not use explicit
     array syntax on the LHS of an assignment within the body.
