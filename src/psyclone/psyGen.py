@@ -1414,8 +1414,8 @@ class ACCEnterDataDirective(ACCDirective):
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-        # The _variables_to_copy are computed dynamically until the _node_lowered
-        # flag is set to True, after that re-use the stored ones.
+        # The _variables_to_copy are computed dynamically until the
+        # _node_lowered flag is set to True, after that re-use the stored ones.
         self._variables_to_copy = []
         self._node_lowered = False
 
@@ -3175,6 +3175,8 @@ class CodedKern(Kern):
         '''
         # Check for name clashes
         try:
+            # Disable false positive no-member issue
+            # pylint: disable=no-member
             existing_symbol = self.scope.symbol_table.lookup(self._name)
         except KeyError:
             existing_symbol = None

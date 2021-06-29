@@ -192,7 +192,7 @@ class GOInvokes(Invokes):
         GOcean redefines the Invokes.gen_code() to start using the PSyIR
         backend when possible. In cases where the backend can not be used yet
         (e.g. OpenCL and PSyDataNodes) the parent class will be called. This
-        is a temporal workaround to avoid modifying the generator file while
+        is a temporary workaround to avoid modifying the generator file while
         other APIs still use the f2pygen module for code generation.
         Once the PSyIR backend has generated an output, this is added into a
         f2pygen PSyIRGen block in the f2pygen AST for each Invoke in the
@@ -262,7 +262,10 @@ class GOInvokes(Invokes):
         # Lower the GOcean PSyIR to language level so it can be visited
         # by the backends
         invoke.schedule.root.lower_to_language_level()
-        # Then insert it into a f2pygen AST as a PSyIRGen node
+        # Then insert it into a f2pygen AST as a PSyIRGen node.
+        # Note that other routines besides the Invoke could have been
+        # inserted during the lowering (e.g. module-inlined kernels),
+        # so have to iterate over all current children of root.
         for child in invoke.schedule.root.children:
             parent.add(PSyIRGen(parent, child))
 
@@ -561,7 +564,7 @@ class GOLoop(Loop):
                       valid_loop_types=const.VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
-        # Check that the GOLoop in inside the GOcean PSy-layer
+        # Check that the GOLoop is inside the GOcean PSy-layer
         if not self.ancestor(GOInvokeSchedule):
             raise GenerationError(
                 "GOLoops must always be constructed with a parent which is"

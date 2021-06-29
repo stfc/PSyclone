@@ -41,6 +41,7 @@ from __future__ import absolute_import
 import os
 import pytest
 
+from psyclone.tests.utilities import get_invoke
 from psyclone.configuration import Config, ConfigurationError, GOceanConfig
 from psyclone.generator import main
 from psyclone.gocean1p0 import GOLoop
@@ -350,8 +351,6 @@ def test_properties():
 def test_valid_config_files():
     ''' Test if valid config files lead to the expected new loop boundaries
     '''
-    from psyclone.tests.utilities import get_invoke
-
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
