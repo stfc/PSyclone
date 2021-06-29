@@ -1419,10 +1419,7 @@ def test_fw_arrayreference_incomplete(fortran_writer):
 
 def test_fw_range(fortran_writer):
     '''Check the FortranWriter class range_node and arrayreference_node methods
-    produce the expected code when an array section is specified. We
-    can't test the Range node in isolation as one of the checks in the
-    Range code requires access to the (ArrayReference) parent (to
-    determine the array index of a Range node).
+    produce the expected code when an array section is specified.
 
     '''
     array_type = ArrayType(REAL_TYPE, [10, 10])
@@ -1454,9 +1451,16 @@ def test_fw_range(fortran_writer):
         BinaryOperation.Operator.ADD,
         Reference(DataSymbol("b", REAL_TYPE)),
         Reference(DataSymbol("c", REAL_TYPE)))
+    range1 = Range.create(one.copy(), dim1_bound_stop)
+    range2 = Range.create(dim2_bound_start, plus, step=three)
+    # Check the ranges in isolation
+    result = fortran_writer(range1)
+    assert result == "1:UBOUND(a, 1)"
+    result = fortran_writer(range2)
+    assert result == "LBOUND(a, 2):b + c:3"
+    # Check the ranges in context
     array = ArrayReference.create(
-        symbol, [Range.create(one.copy(), dim1_bound_stop),
-                 Range.create(dim2_bound_start, plus, step=three)])
+        symbol, [range1, range2])
     result = fortran_writer.arrayreference_node(array)
     assert result == "a(1:,:b + c:3)"
 
@@ -1492,6 +1496,36 @@ def test_fw_range(fortran_writer):
     result = fortran_writer.arrayreference_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
+
+
+def test_fw_range_structureref(fortran_writer):
+    '''
+    Check the FortranWriter for Range nodes within structure references.
+    '''
+    grid_type = DataTypeSymbol("grid_type", DeferredType())
+    symbol = DataSymbol("my_grid", grid_type)
+    grid_array_type = ArrayType(grid_type, [5, 5])
+    array_symbol = DataSymbol("my_grids", grid_array_type)
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    data_ref = StructureReference.create(symbol, ["data"])
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   data_ref.copy(), one.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  data_ref.copy(), one.copy())
+    ref = StructureReference.create(symbol, [("data",
+                                              [Range.create(start, stop)])])
+    result = fortran_writer(ref)
+    assert result == "my_grid%data(:)"
+    data_ref = Reference(array_symbol)
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   data_ref.copy(), two.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  data_ref.copy(), two.copy())
+    aref = ArrayOfStructuresReference.create(
+        array_symbol, [one.copy(), Range.create(start, stop)], ["flag"])
+    result = fortran_writer(aref)
+    assert result == "my_grids(1,:)%flag"
 
 
 def test_fw_structureref(fortran_writer):
@@ -2019,3 +2053,44 @@ def test_fw_call_node(fortran_writer):
     result = fortran_writer(schedule)
     expected = "  call my_sub(a * b, MAX(a, b))\n"
     assert expected in result
+
+
+def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
+    '''Test that a PSyIR call node with arguments represented by CodeBlocks
+    is translated to the required Fortran code.
+
+    '''
+    # It's not easy to construct CodeBlocks from scratch as we need bits of
+    # an fparser2 parse tree. Therefore just use the frontend.
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine test()\n"
+        "  use my_mod, only : kernel\n"
+        "  real :: a, b\n"
+        "  call kernel(a, 'not'//'nice', name=\"roo\", b)\n"
+        "end subroutine")
+    call_node = psyir.walk(Call)[0]
+    cblocks = psyir.walk(CodeBlock)
+    assert len(cblocks) == 2
+    gen = fortran_writer(call_node)
+    assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
+
+
+def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
+    ''' Check that the FortranWriter raises the expected error if it
+    encounters an UnknownType that is not an UnknownFortranType. '''
+    # We can't create an UnknownType() object directly as it is abstract.
+    # Therefore we create a symbol of UnknownFortranType and then
+    # monkeypatch it.
+    sym = DataSymbol("b", UnknownFortranType("int b;"))
+    monkeypatch.setattr(sym.datatype, "__class__", UnknownType)
+    with pytest.raises(VisitorError) as err:
+        fortran_writer.gen_vardecl(sym)
+    assert ("cannot handle the declaration of a symbol of 'UnknownType'" in
+            str(err.value))
+
+
+def test_fw_unknown_decln(fortran_writer):
+    ''' Check that the FortranWriter recreates a declaration that is of
+    UnknownFortranType. '''
+    sym = DataSymbol("b", UnknownFortranType("integer, value :: b"))
+    assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)
