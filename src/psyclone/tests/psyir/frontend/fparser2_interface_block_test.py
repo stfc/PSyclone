@@ -38,13 +38,15 @@
     PSyIR front-end. '''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes import Container, CodeBlock
-from psyclone.psyir.symbols import DataSymbol, Symbol, UnknownFortranType
+
+from fparser.two import Fortran2003
+from psyclone.psyir.nodes import Container, CodeBlock, FileContainer
+from psyclone.psyir.symbols import RoutineSymbol, Symbol, UnknownFortranType
 
 
 def test_named_interface(fortran_reader):
-    ''' Test that the frontend creates a symbol of UnknownFortranType for
-        a named interface block.'''
+    ''' Test that the frontend creates a RoutineSymbol of UnknownFortranType
+    for a named interface block.'''
     dummy_module = '''
     module dummy_mod
       private
@@ -65,11 +67,12 @@ def test_named_interface(fortran_reader):
       end subroutine eos_insitu_2d
     end module dummy_mod
     '''
-    container = fortran_reader.psyir_from_source(dummy_module)
+    file_container = fortran_reader.psyir_from_source(dummy_module)
+    container = file_container.children[0]
     assert isinstance(container, Container)
     assert container.symbol_table.lookup("eos_insitu")
     eos = container.symbol_table.lookup("eos")
-    assert isinstance(eos, DataSymbol)
+    assert isinstance(eos, RoutineSymbol)
     assert isinstance(eos.datatype, UnknownFortranType)
     assert (eos.datatype.declaration == "interface eos\n"
             "  module procedure eos_insitu, eos_insitu_2d\n"
@@ -99,7 +102,10 @@ def test_generic_interface(fortran_reader):
     end module dummy_mod
     '''
     container = fortran_reader.psyir_from_source(dummy_module)
-    assert isinstance(container, CodeBlock)
+    assert isinstance(container, FileContainer)
+    assert len(container.children) == 1
+    assert isinstance(container.children[0], CodeBlock)
+    assert isinstance(container.children[0].ast, Fortran2003.Module)
 
 
 def test_operator_interface(fortran_reader):
@@ -116,7 +122,10 @@ def test_operator_interface(fortran_reader):
     end module dummy_mod
     '''
     container = fortran_reader.psyir_from_source(dummy_module)
-    assert isinstance(container, CodeBlock)
+    assert isinstance(container, FileContainer)
+    assert len(container.children) == 1
+    assert isinstance(container.children[0], CodeBlock)
+    assert isinstance(container.children[0].ast, Fortran2003.Module)
 
 
 def test_assignment_interface(fortran_reader):
@@ -124,19 +133,22 @@ def test_assignment_interface(fortran_reader):
     defining an assignment. '''
     dummy_module = '''
     module dummy_mod
-    INTERFACE ASSIGNMENT ( = )
-    SUBROUTINE LOGICAL_TO_NUMERIC (N, B)
-    INTEGER, INTENT (OUT) :: N
-    LOGICAL, INTENT (IN) :: B
-    END SUBROUTINE LOGICAL_TO_NUMERIC
-    SUBROUTINE CHAR_TO_STRING (S, C)
-    USE STRING_MODULE
-    ! Contains definition of type STRING
-    TYPE (STRING), INTENT (OUT) :: S ! A variable-length string
-    CHARACTER (*), INTENT (IN) :: C
-    END SUBROUTINE CHAR_TO_STRING
-    END INTERFACE ASSIGNMENT ( = )
+      INTERFACE ASSIGNMENT ( = )
+        SUBROUTINE LOGICAL_TO_NUMERIC (N, B)
+          INTEGER, INTENT (OUT) :: N
+          LOGICAL, INTENT (IN) :: B
+        END SUBROUTINE LOGICAL_TO_NUMERIC
+        SUBROUTINE CHAR_TO_STRING (S, C)
+          USE STRING_MODULE
+          ! Contains definition of type STRING
+          TYPE (STRING), INTENT (OUT) :: S ! A variable-length string
+          CHARACTER (*), INTENT (IN) :: C
+        END SUBROUTINE CHAR_TO_STRING
+      END INTERFACE ASSIGNMENT ( = )
     end module dummy_mod
     '''
     container = fortran_reader.psyir_from_source(dummy_module)
-    assert isinstance(container, CodeBlock)
+    assert isinstance(container, FileContainer)
+    assert len(container.children) == 1
+    assert isinstance(container.children[0], CodeBlock)
+    assert isinstance(container.children[0].ast, Fortran2003.Module)

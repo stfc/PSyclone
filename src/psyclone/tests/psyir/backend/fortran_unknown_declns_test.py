@@ -43,7 +43,7 @@ import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import Symbol, DataSymbol, RoutineSymbol, \
-    UnknownType, UnknownFortranType
+    UnknownType, UnknownFortranType, GlobalInterface, ContainerSymbol
 
 
 def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
@@ -74,8 +74,8 @@ def test_fw_unknown_interface_decln(fortran_writer):
     interface_code = ("interface eos\n"
                       "  module procedure eos1d, eos2d\n"
                       "end interface")
-    sym = DataSymbol("eos", UnknownFortranType(interface_code),
-                     visibility=Symbol.Visibility.PRIVATE)
+    sym = RoutineSymbol("eos", UnknownFortranType(interface_code),
+                        visibility=Symbol.Visibility.PRIVATE)
     assert interface_code in fortran_writer.gen_vardecl(sym)
     container.symbol_table.add(sym)
     code = fortran_writer(container)
@@ -86,3 +86,38 @@ def test_fw_unknown_interface_decln(fortran_writer):
     code = fortran_writer(container)
     assert "private :: eos\n" in code
     assert "public :: my_sub\n" in code
+
+
+def test_fw_unknowntype_routine_symbols_error(fortran_writer):
+    ''' Check that the backend raises the expected error if a RoutineSymbol
+    of UnknownType or non-local interface is encountered.
+
+    '''
+    class OtherType(UnknownType):
+        ''' UnknownType is abstract so sub-class it for this test '''
+        def __str__(self):
+            return "OtherType"
+
+    container = Container("my_mod")
+    container.symbol_table.add(RoutineSymbol("eos", OtherType("some code")))
+    with pytest.raises(VisitorError) as err:
+        fortran_writer.gen_decls(container.symbol_table)
+    assert ("Routine symbol 'eos' is of UnknownType rather than "
+            "UnknownFortranType. This is not supported by the Fortran "
+            "back-end" in str(err.value))
+
+
+def test_fw_unknowntype_nonlocal_routine_symbols_error(fortran_writer):
+    ''' Check that the backend raises the expected error if a RoutineSymbol
+    of UnknownFortranType with a non-local interface is encountered. '''
+    container = Container("my_mod")
+    csym = ContainerSymbol("other_mod")
+    container.symbol_table.add(csym)
+    sym = RoutineSymbol("eos", UnknownFortranType("some code"),
+                        interface=GlobalInterface(csym))
+    container.symbol_table.add(sym)
+    with pytest.raises(VisitorError) as err:
+        fortran_writer.gen_decls(container.symbol_table)
+    assert ("Routine symbol 'eos' is of UnknownFortranType but has interface "
+            "'Global(container='other_mod')' instead of LocalInterface" in
+            str(err.value))

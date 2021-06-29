@@ -47,7 +47,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
-    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, DataTypeSymbol
+    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, DataTypeSymbol, \
+    LocalInterface
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Routine, Literal, DataNode, CodeBlock, Member, Range, Schedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -632,6 +633,22 @@ class FortranWriter(PSyIRVisitor):
                     "Routine symbol '{0}' is passed as an argument (has an "
                     "ArgumentInterface). This is not supported by the Fortran"
                     " back-end.".format(sym.name))
+            # Interfaces to module procedures are captured by the frontend as
+            # RoutineSymbols of UnknownFortranType. These must therefore be
+            # declared.
+            if isinstance(sym.datatype, UnknownType):
+                if not isinstance(sym.datatype, UnknownFortranType):
+                    raise VisitorError(
+                        "Routine symbol '{0}' is of UnknownType rather than "
+                        "UnknownFortranType. This is not supported by the "
+                        "Fortran back-end.".format(sym.name))
+                if not isinstance(sym.interface, LocalInterface):
+                    raise VisitorError(
+                        "Routine symbol '{0}' is of UnknownFortranType but has"
+                        " interface '{1}' instead of LocalInterface. This is "
+                        "not supported. by the Fortran back-end.".format(
+                            sym.name, sym.interface))
+                declarations += self.gen_vardecl(sym)
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)
