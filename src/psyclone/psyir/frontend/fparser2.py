@@ -2264,7 +2264,7 @@ class Fparser2Reader(object):
             isn't a handler for the provided child type.
 
         '''
-        # We don't support statements with labels
+        # We don't support statements with labels.
         if isinstance(child, BlockBase):
             # An instance of BlockBase describes a block of code (no surprise
             # there), so we have to examine the first statement within it.
@@ -2333,15 +2333,19 @@ class Fparser2Reader(object):
 
         :raises NotImplementedError: if the fparser2 tree has an unsupported \
             structure (e.g. DO WHILE or a DO with no loop control or a named \
-            DO).
+            DO containing a reference to that name).
         '''
         nonlabel_do = walk(node.content, Fortran2003.Nonlabel_Do_Stmt)[0]
         if nonlabel_do.item is not None:
-            # If the associated line has a name then it is not
-            # supported (primarily because we don't support references to
-            # such things, e.g. `EXIT outer_loop`).
+            # If the associated line has a name that is referenced inside the
+            # loop then it isn't supported , e.g. `EXIT outer_loop`.
             if nonlabel_do.item.name:
-                raise NotImplementedError()
+                construct_name = nonlabel_do.item.name
+                # Check that the construct-name is not referred to inside
+                # the Loop (but exclude the END DO from this check).
+                names = walk(node.content[:-1], Fortran2003.Name)
+                if construct_name in [name.string for name in names]:
+                    raise NotImplementedError()
 
         ctrl = walk(node.content, Fortran2003.Loop_Control)
         if not ctrl:
