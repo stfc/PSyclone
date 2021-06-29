@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
-    ArrayType, UnknownFortranType, DataSymbol, StructureType, \
+    ArrayType, UnknownFortranType, DataSymbol, StructureType, NoType, \
     INTEGER_TYPE, REAL_TYPE, Symbol, DataTypeSymbol, SymbolTable
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
     Container, KernelSchedule
@@ -68,6 +68,16 @@ def test_deferredtype_str():
     '''Test that the DeferredType class str method works as expected.'''
     data_type = DeferredType()
     assert str(data_type) == "DeferredType"
+
+
+# NoType class
+
+def test_notype():
+    ''' Check that the NoType class can be instantiated successfully and
+    that its str method works as expected. '''
+    data_type = NoType()
+    assert isinstance(data_type, NoType)
+    assert str(data_type) == "NoType"
 
 
 # ScalarType class
