@@ -164,6 +164,7 @@ def test_call_args(f2008_parser):
     assert (str(call_node)) == "Call[name='kernel']"
 
 
+@pytest.mark.usefixtures("f2008_parser")
 def test_labelled_call():
     '''Test that fparser2reader transforms a labelled Fortran subroutine call
     into a CodeBlock.

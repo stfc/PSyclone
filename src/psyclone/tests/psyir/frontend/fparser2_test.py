@@ -1571,7 +1571,7 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     assert " has not been handled." in str(error.value)
 
 
-@pytest.mark.usefixtures("parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_assignment_stmt():
     ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
@@ -1592,7 +1592,7 @@ def test_handling_assignment_stmt():
     assert len(new_node.children) == 2
 
 
-@pytest.mark.usefixtures("parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_labelled_assignment_stmt():
     ''' Test that a labelled assignment is represented by a CodeBlock. '''
     reader = FortranStringReader("111 x=1")
@@ -2081,7 +2081,7 @@ def test_handling_array_product():
     assert not fake_parent.walk(CodeBlock)
 
 
-@pytest.mark.usefixtures("parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_if_stmt():
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
@@ -2104,7 +2104,7 @@ def test_handling_if_stmt():
     assert len(new_node.children) == 2
 
 
-@pytest.mark.usefixtures("parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_labelled_if_stmt():
     ''' Test that a labelled fparser2 If_Stmt is converted to a CodeBlock.
 
@@ -2248,7 +2248,7 @@ def test_handling_if_construct_errors():
             "expected, but found") in str(error.value)
 
 
-@pytest.mark.usefixtures("parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_labelled_if_construct():
     ''' Test that a labelled if construct is captured as a CodeBlock.
 
@@ -2730,7 +2730,7 @@ def test_handling_return_stmt():
     assert not new_node.children
 
 
-@pytest.mark.usefixtures("parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_labelled_return_stmt():
     ''' Test that a labelled fparser2 Return_Stmt is converted to a CodeBlock.
     '''

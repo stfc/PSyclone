@@ -39,7 +39,6 @@ statements.'''
 from __future__ import absolute_import
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Container, Routine, CodeBlock
-from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def test_format_handler(fortran_reader):
@@ -68,6 +67,3 @@ end program my_test'''
     assert isinstance(cbnode, CodeBlock)
     assert isinstance(cbnode._fp2_nodes[0], Fortran2003.Format_Stmt)
     assert cbnode._fp2_nodes[0].item.label == 111
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert '111 FORMAT("(A)")' in result

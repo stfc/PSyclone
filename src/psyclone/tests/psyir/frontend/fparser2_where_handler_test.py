@@ -118,7 +118,7 @@ def test_missing_array_notation_expr():
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-@pytest.mark.usefixtures("parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_labelled_where():
     ''' Check that we get a code block if the WHERE statement has a label.
 
