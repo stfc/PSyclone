@@ -2055,6 +2055,26 @@ def test_fw_call_node(fortran_writer):
     assert expected in result
 
 
+def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
+    '''Test that a PSyIR call node with arguments represented by CodeBlocks
+    is translated to the required Fortran code.
+
+    '''
+    # It's not easy to construct CodeBlocks from scratch as we need bits of
+    # an fparser2 parse tree. Therefore just use the frontend.
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine test()\n"
+        "  use my_mod, only : kernel\n"
+        "  real :: a, b\n"
+        "  call kernel(a, 'not'//'nice', name=\"roo\", b)\n"
+        "end subroutine")
+    call_node = psyir.walk(Call)[0]
+    cblocks = psyir.walk(CodeBlock)
+    assert len(cblocks) == 2
+    gen = fortran_writer(call_node)
+    assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
+
+
 def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
     ''' Check that the FortranWriter raises the expected error if it
     encounters an UnknownType that is not an UnknownFortranType. '''
