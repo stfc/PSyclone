@@ -347,12 +347,14 @@ def test_inout_parameters_nemo(parser):
     input_list = dep_tools.get_input_parameters(loops)
     # Use set to be order independent
     input_set = set(input_list)
-    assert input_set == set(["b", "c", "jpi", "jpj"])
+    assert input_set == set([Signature("b"), Signature("c"),
+                             Signature("jpi"), Signature("jpj")])
 
     output_list = dep_tools.get_output_parameters(loops)
     # Use set to be order independent
     output_set = set(output_list)
-    assert output_set == set(["jj", "ji", "a"])
+    assert output_set == set([Signature("jj"), Signature("ji"),
+                              Signature("a")])
 
     in_list1, out_list1 = dep_tools.get_in_out_parameters(loops)
 
@@ -369,5 +371,7 @@ def test_const_argument():
     dep_tools = DependencyTools()
     input_list = dep_tools.get_input_parameters(invoke.schedule)
     # Make sure the constant '0' is not listed
-    assert input_list == ['p_fld', 'p_fld%grid%subdomain%internal%xstop',
-                          'p_fld%grid%tmask']
+    assert input_list == [Signature('p_fld'),
+                          Signature(('p_fld', 'grid', 'subdomain',
+                                     'internal', 'xstop')),
+                          Signature(('p_fld', 'grid', 'tmask'))]

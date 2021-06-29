@@ -45,11 +45,11 @@ import pytest
 
 from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor, \
     Data_Ref, Proc_Component_Ref, Name, Call_Stmt, Use_Stmt, \
-    Actual_Arg_Spec
+    Actual_Arg_Spec, Program
 from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
-    parse
+    parse, FileInfo
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
 
@@ -87,7 +87,7 @@ def test_parse_kernel_paths():
     parse(alg_name, api="dynamo0.3", kernel_paths=[
         LFRIC_BASE_PATH, GOCEAN_BASE_PATH])
 
-# class parser() tests
+# class Parser() tests
 
 
 def test_parser_init_kernel_paths():
@@ -110,22 +110,261 @@ def test_parser_init_kernel_paths():
     assert parser._kernel_paths == paths
 
 
-def test_parser_parse(tmpdir):
-    '''Test that if no relevant code is found in the algorithm file then
-    the appropriate exception is raised.
+# Parser.parse() method tests
+
+
+def test_parser_parse_linelength():
+    '''Check that the parse() method in the Parser() class raises an
+    exception if one or more of the lines is too long (>132
+    characters) in the supplied input file when _line_length is set to
+    True and does not raise an exception by default.
 
     '''
-    tmp = Parser()
-    filename = str(tmpdir.join("empty.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
-    with pytest.raises(ParseError) as excinfo:
-        _ = tmp.parse(filename)
-    assert ("Program, module, function or subroutine not found in parse tree "
-            "for file") in str(excinfo.value)
+    parser = Parser()
+    parser.parse(os.path.join(LFRIC_BASE_PATH, "13_alg_long_line.f90"))
 
-# create_invoke_call tests
+    parser = Parser(line_length=True)
+    with pytest.raises(ParseError) as info:
+        parser.parse(os.path.join(LFRIC_BASE_PATH, "13_alg_long_line.f90"))
+    assert ("the file does not conform to the specified 132 line length "
+            "limit" in str(info.value))
+
+
+def test_parser_parse_nemo():
+    '''Check that the parse() method in the Parser() class returns the
+    expected results (None, and an fparser2 ast) when using the NEMO
+    API. We actually use an LFRic algorithm file here but it does not
+    matter as we are only parsing the code.
+
+    '''
+    parser = Parser(api="nemo")
+    res1, res2 = parser.parse(os.path.join(
+        LFRIC_BASE_PATH, "1_single_invoke.f90"))
+    assert res1 is None
+    assert isinstance(res2, Program)
+    assert "PROGRAM single_invoke" in str(res2)
+
+
+def test_parser_parse():
+    '''Check that the parse() method in the Parser() class returns the
+    expected results (fparser2 ast and a FileInfo instance) when using
+    an API other than the NEMO API. Also test that the filename is
+    stored in _alg_filename.
+
+    '''
+    parser = Parser(api="dynamo0.3")
+    assert parser._alg_filename is None
+    res1, res2 = parser.parse(os.path.join(
+        LFRIC_BASE_PATH, "1_single_invoke.f90"))
+    assert "1_single_invoke.f90" in parser._alg_filename
+    assert isinstance(res1, Program)
+    assert "PROGRAM single_invoke" in str(res1)
+    assert isinstance(res2, FileInfo)
+    assert res2.name == "single_invoke"
+
+# Parser.invoke_info() method tests
+
+
+def test_parser_invokeinfo_nocode(tmpdir):
+    '''Check that the invoke_info() method in the Parser() class raises
+    the expected exception if no relevant code (subroutine, module
+    etc.) is found in the supplied fparser2 tree.
+
+    '''
+    parser = Parser()
+    alg_filename = str(tmpdir.join("empty.f90"))
+    with open(alg_filename, "w") as ffile:
+        ffile.write("")
+    alg_parse_tree = parse_fp2(alg_filename)
+    with pytest.raises(ParseError) as info:
+        parser.invoke_info(alg_parse_tree)
+    assert ("Program, module, function or subroutine not found in fparser2 "
+            "parse tree.") in str(info.value)
+
+
+def test_parser_invokeinfo_first(tmpdir):
+    '''Check that the invoke_info() method in the Parser() class evaluates
+    the first subroutine, module, etc if more than one exist in the
+    supplied fparser2 tree.
+
+    '''
+    parser = Parser()
+    alg_filename = str(tmpdir.join("two_routines.f90"))
+    with open(alg_filename, "w") as ffile:
+        ffile.write(
+            "subroutine first()\n"
+            "end subroutine first\n"
+            "subroutine second()\n"
+            "end subroutine second\n")
+    alg_parse_tree = parse_fp2(alg_filename)
+    res = parser.invoke_info(alg_parse_tree)
+    assert isinstance(res, FileInfo)
+    assert res.name == "first"
+
+
+@pytest.mark.parametrize("code,name", [
+    ("program prog\nend program prog\n", "prog"),
+    ("module mod\nend module mod\n", "mod"),
+    ("subroutine sub()\nend subroutine sub\n", "sub"),
+    ("function func()\nend function func\n", "func")])
+def test_parser_invokeinfo_containers(tmpdir, code, name):
+    '''Check that the invoke_info() method in the Parser() class works
+    with program, module, subroutine and function.
+
+    '''
+    parser = Parser()
+    alg_filename = str(tmpdir.join("container.f90"))
+    with open(alg_filename, "w") as ffile:
+        ffile.write(code)
+    alg_parse_tree = parse_fp2(alg_filename)
+    res = parser.invoke_info(alg_parse_tree)
+    assert isinstance(res, FileInfo)
+    assert res.name == name
+
+
+def test_parser_invokeinfo_datatypes():
+    '''Test that the invoke_info method in the Parser class
+    captures the required datatype information for "standard" fields,
+    operators and scalars i.e. defined as field_type, operator_type
+    and r_def respectively. We also capture the datatype of quadrature
+    but don't care. field_type is actually a vector which shows that
+    the code works with arrays as well as individual types.
+
+    '''
+    alg_filename = os.path.join(LFRIC_BASE_PATH, "10_operator.f90")
+    parser = Parser(kernel_path=LFRIC_BASE_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype == ("operator_type", None)
+    assert args[1]._datatype == ("field_type", None)
+    assert args[2]._datatype == ("real", "r_def")
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
+
+
+def test_parser_invokeinfo_datatypes_mixed():
+    '''Test that the invoke_info method in the Parser class captures the
+    required datatype information with mixed-precision fields,
+    operators and scalars e.g. defined as r_solver_field_type,
+    r_solver_operator_type and r_solver respectively.
+
+    Also tests that the datatype information is always lower case
+    irrespective of the case of the declaration and argument. This
+    covers the situation where the variable is declared and used with
+    different case e.g. real a\n call invoke(kern(A))
+
+    '''
+    alg_filename = os.path.join(
+        LFRIC_BASE_PATH, "26.1_mixed_precision.f90")
+    parser = Parser(kernel_path=LFRIC_BASE_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype == ("r_solver_operator_type", None)
+    assert args[1]._datatype == ("r_solver_field_type", None)
+    assert args[2]._datatype == ("real", "r_solver")
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
+
+
+def test_parser_invokeinfo_datatypes_self():
+    '''Test that the invoke_info method in the Parser class captures the
+    required datatype information when the argument is part of a class
+    and is referenced via self.
+
+    '''
+    alg_filename = os.path.join(
+        LFRIC_BASE_PATH, "26.2_mixed_precision_self.f90")
+    parser = Parser(kernel_path=LFRIC_BASE_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype == ("r_solver_operator_type", None)
+    assert args[1]._datatype == ("r_solver_field_type", None)
+    assert args[2]._datatype == ("real", "r_solver")
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
+
+
+def test_parser_invokeinfo_use_error():
+    '''Test that the invoke_info method in the Parser class
+    provides None as the datatype to the associated Arg class if an
+    argument to an invoke comes from a use statement (as we then do
+    not know its datatype). Also check for the same behaviour if the
+    variable is not declared at all i.e. is included via a wildcard
+    use statement, or implicit none is not specified.
+
+    '''
+    alg_filename = os.path.join(
+        LFRIC_BASE_PATH, "26.4_mixed_precision_use.f90")
+    parser = Parser(kernel_path=LFRIC_BASE_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype is None
+    assert args[1]._datatype == ("r_solver_field_type", None)
+    assert args[2]._datatype is None
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
+
+
+def test_parser_invokeinfo_structure_error():
+    '''Test that the invoke_info method in the Parser class
+    provides None as the datatype to the associated Arg class if an
+    argument to an invoke is a structure that comes from a use
+    statement (as we then do not know its datatype), but that the
+    datatype for a structure is found if the structure is declared
+    within the code.
+
+    '''
+    alg_filename = os.path.join(
+        LFRIC_BASE_PATH, "26.5_mixed_precision_structure.f90")
+    parser = Parser(kernel_path=LFRIC_BASE_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
+    args = info.calls[0].kcalls[0].args
+    assert args[0]._datatype is None
+    assert args[1]._datatype == ("r_solver_field_type", None)
+    assert args[2]._datatype == ("real", "r_def")
+    assert args[3]._datatype == ("quadrature_xyoz_type", None)
+
+
+def test_parser_invokeinfo_internalerror():
+    '''Test that the invoke_info method in the Parser class raises the
+    expected exception if an unexpected child of Type_Declaration_Stmt
+    or Data_Component_Def_Stmt is found.
+
+    '''
+    alg_filename = os.path.join(
+        LFRIC_BASE_PATH, "26.1_mixed_precision.f90")
+    parser = Parser(kernel_path=LFRIC_BASE_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    # Modify parse tree to make it invalid
+    alg_parse_tree.children[0].children[1].children[9].items = ["hello"]
+    with pytest.raises(InternalError) as info:
+        parser.invoke_info(alg_parse_tree)
+    assert (
+        "Expected first child of Type_Declaration_Stmt or "
+        "Data_Component_Def_Stmt to be Declaration_Type_Spec or "
+        "Intrinsic_Type_Spec but found 'str'" in str(info.value))
+
+
+def test_parser_invokeinfo_datatypes_clash():
+    '''Test that the invoke_info method in the Parser class
+    allows multiple symbols with the same name and type but raises an
+    exception if a symbol has the same name but a different type. This
+    is simply a limitation of the current implementation as we do not
+    capture the context of a symbol so do not deal with variable
+    scope. This limitation will disapear when the PSyIR is used to
+    determine datatypes, see issue #753.
+
+    '''
+    alg_filename = os.path.join(
+        LFRIC_BASE_PATH, "26.3_mixed_precision_error.f90")
+    parser = Parser(kernel_path=LFRIC_BASE_PATH)
+    alg_parse_tree = parse_fp2(alg_filename)
+    with pytest.raises(NotImplementedError) as info:
+        parser.invoke_info(alg_parse_tree)
+    assert ("The same symbol 'a' is used for different datatypes, 'real, "
+            "r_solver' and 'real, None'. This is not currently supported."
+            in str(info.value))
 
 
 def test_parser_createinvokecall():
@@ -221,6 +460,10 @@ def test_parser_caseinsensitive2(monkeypatch):
     statement is case insensitive.
 
     '''
+    parser = Parser()
+    use = Use_Stmt("use testkern_mod, only : TESTKERN_TYPE")
+    parser.update_arg_to_module_map(use)
+
     def dummy_func(arg1, arg2, arg3, arg4):
         '''A dummy function used by monkeypatch to override the get_kernel_ast
         function. We don't care about the arguments as we just want to
@@ -228,11 +471,7 @@ def test_parser_caseinsensitive2(monkeypatch):
 
         '''
         raise NotImplementedError("test_parser_caseinsensitive2")
-
-    monkeypatch.setattr("psyclone.parse.kernel.get_kernel_ast", dummy_func)
-    parser = Parser()
-    use = Use_Stmt("use my_mod, only : MY_KERN")
-    parser.update_arg_to_module_map(use)
+    monkeypatch.setattr("psyclone.parse.algorithm.get_kernel_ast", dummy_func)
     with pytest.raises(NotImplementedError) as excinfo:
         # We have monkeypatched the function 'get_kernel_ast' to
         # return 'NotImplementedError' with a string associated with
@@ -241,7 +480,7 @@ def test_parser_caseinsensitive2(monkeypatch):
         # really care about is before this function is called (and it
         # raises a ParseError) so we know that if we don't get a
         # ParseError then all is well.
-        parser.create_coded_kernel_call("My_Kern", None)
+        parser.create_coded_kernel_call("TestKern_Type", None)
     # Sanity check that the exception is the monkeypatched one.
     assert str(excinfo.value) == "test_parser_caseinsensitive2"
 
@@ -285,7 +524,7 @@ def test_getkernel_invalid_tree():
 
     '''
     with pytest.raises(InternalError) as excinfo:
-        _ = get_kernel("invalid", "dummy.f90")
+        _ = get_kernel("invalid", "dummy.f90", None)
     assert (
         "Expected a parse tree (type Part_Ref or Structure_Constructor) but "
         "found instance of ") in str(excinfo.value)
@@ -304,7 +543,7 @@ def test_getkernel_invalid_children(cls, monkeypatch):
     parse_tree = cls("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
-        _ = get_kernel(parse_tree, "dummy.f90")
+        _ = get_kernel(parse_tree, "dummy.f90", None)
     assert ("Expected Part_Ref or Structure_Constructor to have 2 children "
             "but found 3.") in str(excinfo.value)
 
@@ -320,7 +559,7 @@ def test_getkernel_invalid_arg(monkeypatch):
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, "invalid"])
     with pytest.raises(InternalError) as excinfo:
-        _ = get_kernel(parse_tree, "dummy.f90")
+        _ = get_kernel(parse_tree, "dummy.f90", None)
     assert (
         "Unsupported argument structure") in str(excinfo.value)
     assert (
@@ -337,7 +576,7 @@ def test_getkernel_isliteral(content):
 
     '''
     tree = Structure_Constructor("sub({0})".format(content))
-    kern_name, args = get_kernel(tree, "dummy.f90")
+    kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
     arg = args[0]
@@ -345,18 +584,22 @@ def test_getkernel_isliteral(content):
     assert arg.is_literal()
     assert arg.text == content
     assert arg.varname is None
+    assert arg._datatype is None
 
 
 @pytest.mark.parametrize('content',
                          ["a_rg", "a_rg(n)", "a % rg", "a % rg(n)",
                           "a % rg()"])
 def test_getkernel_isarg(content):
-    '''Test that the get_kernel function recognises standard arguments,
-    including a function reference, and returns them correctly
+    '''Test that the get_kernel function recognises standard arguments and
+    returns them correctly. Tests for Name, Part_Ref, Data_Ref and
+    Function_Reference, but does not include Proc_Component_Ref
+    (i.e. an argument to a Structure Constructor) which is tested
+    separately in test_getkernel_proc_component.
 
     '''
     tree = Part_Ref("sub({0})".format(content))
-    kern_name, args = get_kernel(tree, "dummy.f90")
+    kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
     arg = args[0]
@@ -364,6 +607,82 @@ def test_getkernel_isarg(content):
     assert not arg.is_literal()
     assert arg.text == content
     assert arg.varname == "a_rg"
+    assert arg._datatype is None
+    kern_name, args = get_kernel(
+        tree, "dummy.f90", {"a_rg": ("info"), "rg": ("info")})
+    arg = args[0]
+    if content == "a % rg()":
+        # Datatype information is not captured for function references
+        assert arg._datatype is None
+    else:
+        assert arg._datatype == ("info")
+
+
+@pytest.mark.parametrize('content', ["self % a_b", "self % a % b"])
+def test_getkernel_proc_component(content):
+    '''Test that the get_kernel function recognises procedure components -
+    Proc_Component_Ref - (within a structure constructor) and returns
+    them correctly. The real literal in the call forces fparser to
+    treat the argument to the call as a structure constructor. Note,
+    if we make the rhs an array access (e.g. self%a(1)), fparser no
+    longer treats it as a structure constructor.
+
+    '''
+    tree = Call_Stmt("call x(y({0}, 1.0))".format(content))
+    kernel = tree.children[1].children[0]
+    kern_name, args = get_kernel(kernel, "dummy.f90", {})
+    assert kern_name == "y"
+    assert len(args) == 2
+    arg = args[0]
+    assert isinstance(arg, Arg)
+    assert not arg.is_literal()
+    assert arg.text == content
+    assert arg.varname == "self_a_b"
+    assert arg._datatype is None
+    kern_name, args = get_kernel(
+        kernel, "dummy.f90", {"a_b": ("info"), "b": ("info")})
+    arg = args[0]
+    assert arg._datatype == ("info")
+
+
+def test_getkernel_proccomponent_error():
+    '''Check that the expected exception is raised if the 3rd child of a
+    Proc_Component_Ref is not of type Name. In theory this should be
+    possible but in practice fparser2 does not generate a parse tree
+    in this form. We therefore need to manually modify the tree to
+    raise this exception.
+
+    '''
+    tree = Call_Stmt("call x(y(self%a, 1.0))")
+    kernel = tree.children[1].children[0]
+    proc_comp_ref = kernel.children[1].children[0]
+    # Modify tree
+    proc_comp_ref.items = (proc_comp_ref.items[0],
+                           proc_comp_ref.items[1], "hello")
+    with pytest.raises(InternalError) as info:
+        get_kernel(kernel, "dummy.f90", {})
+    assert ("The third argument to to a Proc_Component_Ref is expected "
+            "to be a Name, but found 'str'." in str(info.value))
+
+
+def test_getkernel_dataref_error():
+    '''Check that the expected exception is raised if the last child of a
+    Data_Ref is not a Name or a Part_Ref whose first child is not a
+    Name. fparser2 does not generate a parse tree in this form. We
+    therefore need to manually modify the tree to raise this
+    exception.
+
+    '''
+    tree = Call_Stmt("call x(y(self%a))")
+    kernel = tree.children[1].children[0]
+    data_ref = kernel.children[1].children[0]
+    # Modify tree
+    data_ref.items = (data_ref.items[0], "hello")
+    with pytest.raises(InternalError) as info:
+        get_kernel(kernel, "dummy.f90", {})
+    assert ("The last child of a Data_Ref is expected to be a Name or a "
+            "Part_Ref whose first child is a Name, but found 'str'."
+            in str(info.value))
 
 
 @pytest.mark.parametrize('content',
@@ -377,7 +696,7 @@ def test_getkernel_noexpr(content):
     '''
     tree = Part_Ref("sub({0})".format(content))
     with pytest.raises(NotImplementedError) as excinfo:
-        _, _ = get_kernel(tree, "dummy.f90")
+        _, _ = get_kernel(tree, "dummy.f90", None)
     assert "Expressions containing variables are not yet supported" \
         in str(excinfo.value)
 
@@ -390,7 +709,7 @@ def test_getkernel_argerror(monkeypatch):
     tree = Part_Ref("sub(dummy)")
     monkeypatch.setattr(tree, "items", ["sub", None])
     with pytest.raises(InternalError) as excinfo:
-        _, _ = get_kernel(tree, "dummy.f90")
+        _, _ = get_kernel(tree, "dummy.f90", None)
     assert "Unsupported argument structure " in str(excinfo.value)
 
 # function create_var_name() tests
@@ -505,3 +824,14 @@ def test_arg_str():
     tmp = Arg("indexed_variable", "my_arg(2)", "my_arg")
     assert str(tmp) == ("Arg(form='indexed_variable',text='my_arg(2)',"
                         "varname='my_arg')")
+
+
+def test_arg_datatype():
+    '''Check that the datatype argument defaults to None and that any
+    datatype content is stored correctly.
+
+    '''
+    tmp = Arg("literal", "0.0")
+    assert tmp._datatype is None
+    tmp = Arg("variable", "var", varname="var", datatype=("info"))
+    assert tmp._datatype == ("info")

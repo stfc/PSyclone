@@ -43,10 +43,8 @@ class and its subclasses and the generic Symbol class.
 
 from __future__ import absolute_import
 from enum import Enum
-from psyclone.errors import PSycloneError
 import six
-
-from psyclone.errors import InternalError
+from psyclone.errors import PSycloneError, InternalError
 
 
 class SymbolError(PSycloneError):
@@ -258,6 +256,21 @@ class Symbol(object):
         # first positional argument.
         return type(self)(self.name, visibility=self.visibility,
                           interface=self.interface)
+
+    def copy_properties(self, symbol_in):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name (which is immutable) and visibility.
+
+        :param symbol_in: the symbol from which the properties are copied.
+        :type symbol_in: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises TypeError: if the argument is not the expected type.
+
+        '''
+        if not isinstance(symbol_in, Symbol):
+            raise TypeError("Argument should be of type 'Symbol' but "
+                            "found '{0}'.".format(type(symbol_in).__name__))
+        self._interface = symbol_in.interface
 
     def specialise(self, subclass):
         '''Specialise this symbol so that it becomes an instance of the class
