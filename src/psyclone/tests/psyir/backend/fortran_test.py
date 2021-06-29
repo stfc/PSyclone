@@ -2056,7 +2056,7 @@ def test_fw_call_node(fortran_writer):
 
 
 def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
-    '''Test the PSyIR call node with arguments represented by CodeBlocks
+    '''Test that a PSyIR call node with arguments represented by CodeBlocks
     is translated to the required Fortran code.
 
     '''
