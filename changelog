@@ -79,6 +79,9 @@
 
         27) #1294 towards #1259. Add the TypedSymbol abstract class.
 
+        28) #1311 for #1303. Fortran frontend do not merge CodeBlocks
+		when these are not full statements.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

@@ -2213,9 +2213,7 @@ class Fparser2Reader(object):
     def process_nodes(self, parent, nodes):
         '''
         Create the PSyIR of the supplied list of nodes in the
-        fparser2 AST. Currently also inserts parent information back
-        into the fparser2 AST. This is a workaround until fparser2
-        itself generates and stores this information.
+        fparser2 AST.
 
         :param parent: Parent node in the PSyIR we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -2232,6 +2230,12 @@ class Fparser2Reader(object):
                 # If child type implementation not found, add them on the
                 # ongoing code_block node list.
                 code_block_nodes.append(child)
+                if not isinstance(parent, Schedule):
+                    # If we're not processing a statement then we create a
+                    # separate CodeBlock for each node in the parse tree.
+                    # (Otherwise it is hard to correctly reconstruct e.g.
+                    # the arguments to a Call.)
+                    self.nodes_to_code_block(parent, code_block_nodes)
             else:
                 if psy_child:
                     self.nodes_to_code_block(parent, code_block_nodes)
