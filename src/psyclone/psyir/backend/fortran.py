@@ -309,6 +309,7 @@ class FortranWriter(PSyIRVisitor):
     def _gen_dims(self, shape):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
+        This is used both for array references and array declarations.
 
         :param shape: list of PSyIR nodes.
         :type shape: list of :py:class:`psyclone.psyir.symbols.Node`
@@ -328,8 +329,8 @@ class FortranWriter(PSyIRVisitor):
                 expression = self._visit(index)
                 dims.append(expression)
             elif isinstance(index, ArrayType.ArrayBounds):
-                # Lower and upper bounds specified by literal constant,
-                # symbol reference, or computed dimension
+                # Lower and upper bounds of an array declaration specified
+                # by literal constant, symbol reference, or computed dimension
                 lower_expression = self._visit(index.lower)
                 upper_expression = self._visit(index.upper)
                 if lower_expression == "1":
