@@ -1385,14 +1385,41 @@ def test_parse_array_dimensions_attributes():
     reader = FortranStringReader("dimension(3,5)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
-    assert shape == [3, 5]
+    assert len(shape) == 2
+    assert shape[0].value == "3"
+    assert shape[1].value == "5"
 
     sym_table.add(DataSymbol('var1', INTEGER_TYPE))
+    sym_table.add(DataSymbol('var1_upper', INTEGER_TYPE))
+
     reader = FortranStringReader("dimension(var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
     assert shape[0].symbol == sym_table.lookup('var1')
+
+    reader = FortranStringReader("dimension(0:3,var1)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    # First dim is specified with both lower and upper bounds so should
+    # have a tuple
+    assert isinstance(shape[0], tuple)
+    assert len(shape[0]) == 2
+    assert shape[0][0].value == "0"
+    assert shape[0][1].value == "3"
+    assert shape[1].symbol is sym_table.lookup('var1')
+
+    reader = FortranStringReader("dimension(0:3,var1:var1_upper)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    assert isinstance(shape[0], tuple)
+    assert len(shape[0]) == 2
+    assert shape[0][0].value == "0"
+    assert shape[0][1].value == "3"
+    assert isinstance(shape[1], tuple)
+    assert len(shape[1]) == 2
+    assert shape[1][0].symbol is sym_table.lookup('var1')
+    assert shape[1][1].symbol is sym_table.lookup('var1_upper')
 
     # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
@@ -1410,7 +1437,7 @@ def test_parse_array_dimensions_attributes():
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
-            "explicit shape array declarations.") in str(error.value)
+            "explicit-shape array declarations.") in str(error.value)
 
     # Explicit shape symbols can only be Literal or Symbol
     with pytest.raises(NotImplementedError) as error:
@@ -1421,7 +1448,7 @@ def test_parse_array_dimensions_attributes():
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
-            "explicit shape array declarations.") in str(error.value)
+            "explicit-shape array declarations.") in str(error.value)
 
     # Shape specified by an unknown Symbol
     reader = FortranStringReader("dimension(var3)")

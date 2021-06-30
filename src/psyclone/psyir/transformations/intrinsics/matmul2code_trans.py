@@ -77,12 +77,9 @@ def _get_array_bound(array, index):
     from psyclone.psyir.transformations import TransformationError
 
     my_dim = array.symbol.shape[index]
-    if isinstance(my_dim, DataNode):
-        lower_bound = Literal("1", INTEGER_TYPE)
-        upper_bound = my_dim
-    elif isinstance(my_dim, DataSymbol):
-        lower_bound = Literal("1", INTEGER_TYPE)
-        upper_bound = Reference(my_dim)
+    if isinstance(my_dim, ArrayType.ArrayBounds):
+        lower_bound = my_dim.lower
+        upper_bound = my_dim.upper
     elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
         lower_bound = BinaryOperation.create(
             BinaryOperation.Operator.LBOUND, Reference(array.symbol),

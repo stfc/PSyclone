@@ -1203,6 +1203,7 @@ def test_symtab_implementation_for_opencl():
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
             " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=["
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]:"
             "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>' for "
             "kernel 'test'." in str(err.value))
 

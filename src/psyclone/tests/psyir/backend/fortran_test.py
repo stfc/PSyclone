@@ -111,11 +111,11 @@ def test_gen_dims(fortran_writer):
     one = Literal("1", scalar_type)
     arg_plus_1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(arg), one)
-    array_type = ArrayType(INTEGER_TYPE,
-                           [Reference(arg), 2, literal, arg_plus_1,
-                            ArrayType.Extent.ATTRIBUTE])
-    assert fortran_writer._gen_dims(array_type.shape) == ["arg", "2", "4",
-                                                          "arg + 1_4", ":"]
+    array_type = ArrayType(
+        INTEGER_TYPE, [Reference(arg), 2, (0, 4), literal, arg_plus_1,
+                       (2, arg_plus_1.copy()), ArrayType.Extent.ATTRIBUTE])
+    assert (fortran_writer._gen_dims(array_type.shape) ==
+            ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4", ":"])
 
 
 def test_gen_dims_error(monkeypatch, fortran_writer):
@@ -1363,8 +1363,6 @@ def test_fw_reference(fortran_reader, fortran_writer, tmpdir):
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
 
-    # The asserts need to be split as the declaration order can change
-    # between different versions of Python.
     assert (
         "  subroutine tmp(a, n)\n"
         "    integer, intent(in) :: n\n"

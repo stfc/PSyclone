@@ -327,6 +327,16 @@ class FortranWriter(PSyIRVisitor):
                 # dimension
                 expression = self._visit(index)
                 dims.append(expression)
+            elif isinstance(index, ArrayType.ArrayBounds):
+                # Lower and upper bounds specified by literal constant,
+                # symbol reference, or computed dimension
+                lower_expression = self._visit(index.lower)
+                upper_expression = self._visit(index.upper)
+                if lower_expression == "1":
+                    # Lower bound of 1 is the default in Fortran
+                    dims.append(upper_expression)
+                else:
+                    dims.append(lower_expression+":"+upper_expression)
             elif isinstance(index, ArrayType.Extent):
                 # unknown extent
                 dims.append(":")
