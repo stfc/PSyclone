@@ -47,7 +47,8 @@ import abc
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.f2pygen import DirectiveGen, CommentGen
+from psyclone.f2pygen import DirectiveGen, CommentGen, CallGen, PSyIRGen, \
+    UseGen
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
@@ -1413,6 +1414,11 @@ class ACCEnterDataDirective(ACCDirective):
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
+        # The _variables_to_copy are computed dynamically until the
+        # _node_lowered flag is set to True, after that re-use the stored ones.
+        self._variables_to_copy = []
+        self._node_lowered = False
+
     def node_str(self, colour=True):
         '''
         Returns the name of this node with appropriate control codes
@@ -1454,7 +1460,7 @@ class ACCEnterDataDirective(ACCDirective):
         self._acc_dirs = self.ancestor(InvokeSchedule).walk(
             (ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
-        #    the kernels it contains (this list is given by var_list)
+        #    the kernels it contains (this list is given by ref_list)
         #    and add it to our list if we don't already have it
         var_list = []
         # TODO grid properties are effectively duplicated in this list (but
@@ -1480,6 +1486,63 @@ class ACCEnterDataDirective(ACCDirective):
         # additional declarations are required.
         self.data_on_device(parent)
         parent.add(CommentGen(parent, ""))
+
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of this directive concept into language level
+        PSyIR constructs.
+
+        '''
+        if not self._node_lowered:
+            # We must generate a list of all of the fields accessed by
+            # OpenACC kernels (calls within an OpenACC parallel or kernels
+            # directive)
+            # 1. Find all parallel and kernels directives. We store this list
+            # for later use in any sub-class.
+            self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                    (ACCParallelDirective, ACCKernelsDirective))
+            # 2. For each directive, loop over each of the fields used by
+            #    the kernels it contains (this list is given by ref_list)
+            #    and add it to our list if we don't already have it
+            self._variables_to_copy = []
+            # TODO grid properties are effectively duplicated in this list (but
+            # the OpenACC deep-copy support should spot this).
+            for pdir in self._acc_dirs:
+                for var in pdir.ref_list:
+                    if var not in self._variables_to_copy:
+                        self._variables_to_copy.append(var)
+            self._node_lowered = True
+
+        super(ACCEnterDataDirective, self).lower_to_language_level()
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive. The visitor is
+        responsible for adding the correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # The enter data clauses are given by the _variables_to_copy list
+        var_str = ",".join(self._variables_to_copy)
+        if var_str:
+            copy_in_str = "copyin("+var_str+")"
+        else:
+            # There should be at least one variable to copyin.
+            raise GenerationError(
+                "ACCEnterData directive did not find any data to copyin. "
+                "Perhaps there are no ACCParallel or ACCKernels directives "
+                "within the region.")
+
+        return "acc enter data " + copy_in_str
+
+    def end_string(self):
+        '''
+        :returns: the closing statement for this directive.
+        :rtype: str
+        '''
+        # pylint: disable=no-self-use
+        return ""
 
     @abc.abstractmethod
     def data_on_device(self, parent):
@@ -1564,7 +1627,8 @@ class ACCParallelDirective(ACCDirective):
         '''
         self.validate_global_constraints()
 
-        parent.add(DirectiveGen(parent, *self.begin_string().split()))
+        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
+                                "default(present)"))
 
         for child in self.children:
             child.gen_code(parent)
@@ -1574,7 +1638,7 @@ class ACCParallelDirective(ACCDirective):
     def begin_string(self):
         '''
         Returns the beginning statement of this directive, i.e.
-        "acc begin parallel" plus any qualifiers. The backend is responsible
+        "acc parallel" plus any qualifiers. The backend is responsible
         for adding the correct characters to mark this as a directive (e.g.
         "!$").
 
@@ -1587,7 +1651,7 @@ class ACCParallelDirective(ACCDirective):
         # all data required by the parallel region is already present
         # on the device. If we've made a mistake and it isn't present
         # then we'll get a run-time error.
-        return "acc begin parallel default(present)"
+        return "acc parallel default(present)"
 
     def end_string(self):
         '''
@@ -1902,7 +1966,7 @@ class OMPParallelDirective(OMPDirective):
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
-        self._not_within_omp_parallel_region()
+        self.validate_global_constraints()
 
         # Check that this OpenMP PARALLEL directive encloses other
         # OpenMP directives. Although it is valid OpenMP if it doesn't,
@@ -2057,9 +2121,14 @@ class OMPParallelDirective(OMPDirective):
         list_result.sort()
         return list_result
 
-    def _not_within_omp_parallel_region(self):
-        ''' Check that this Directive is not within any other
-            parallel region '''
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPDoDirective is not enclosed \
+                            within some OpenMP parallel region.
+        '''
         if self.ancestor(OMPParallelDirective) is not None:
             raise GenerationError("Cannot nest OpenMP parallel regions.")
 
@@ -2299,7 +2368,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
-        self._not_within_omp_parallel_region()
+        self.validate_global_constraints()
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
@@ -2314,8 +2383,30 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         # make sure the directive occurs straight after the loop body
         position = parent.previous_loop()
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
+        parent.add(DirectiveGen(parent, *self.end_string().split()),
                    position=["after", position])
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp do ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        private_str = ",".join(self._get_private_list())
+        return ("omp parallel do default(shared), private({0}), "
+                "schedule({1})".format(private_str, self._omp_schedule) +
+                self._reduction_string())
+
+    def end_string(self):
+        '''
+        :returns: the closing statement for this directive.
+        :rtype: str
+        '''
+        # pylint: disable=no-self-use
+        return "omp end parallel do"
 
     def update(self):
         '''
@@ -3047,23 +3138,107 @@ class CodedKern(Kern):
         routine with the appropriate arguments.
 
         '''
-        symtab = self.scope.symbol_table
-        rsymbol = RoutineSymbol(self._name)
-        symtab.add(rsymbol)
-        call_node = Call(rsymbol)
+        # If the kernel has been transformed and it is not module inlined
+        # then we rename it.
+        if not self.module_inline:
+            self.rename_and_write()
+        else:
+            # Inline the kernel subroutine
+            self._insert_module_inlined_kernel()
 
-        # Create argument expressions as children of the new node
-        for argument in self.arguments.psyir_expressions():
-            call_node.addchild(argument)
+        # Create the appropriate symbols
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        try:
+            rsymbol = symtab.lookup(self._name)
+        except KeyError:
+            rsymbol = RoutineSymbol(self._name)
+            symtab.add(rsymbol)
+            if not self.module_inline:
+                # Import subroutine symbol
+                try:
+                    csymbol = symtab.lookup(self._module_name)
+                except KeyError:
+                    csymbol = ContainerSymbol(self._module_name)
+                    symtab.add(csymbol)
+                rsymbol.interface = GlobalInterface(csymbol)
+
+        # Create Call to the rsymbol with the argument expressions as children
+        # of the new node
+        call_node = Call.create(rsymbol, self.arguments.psyir_expressions())
 
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
 
-        if not self.module_inline:
-            # Import subroutine symbol
-            csymbol = ContainerSymbol(self._module_name)
-            symtab.add(csymbol)
-            rsymbol.interface = GlobalInterface(csymbol)
+    def _insert_module_inlined_kernel(self, f2pygen_parent=None):
+        ''' Module-inline this kernel into the tree if it hasn't been inlined
+        previously yet. Currently this needs to be done for the PSyIR tree and
+        the f2pygen tree. If the f2pygen_parent argument is None it will be
+        inlined in the PSyIR tree, otherwise it will be inlined in the provided
+        parent
+
+        :param parent: The parent of this kernel call in the f2pygen AST.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen` or NoneType
+
+        :raises NotImplementedError: if there is a name clash that prevents \
+            the kernel from being module-inlined without changing its name.
+
+        '''
+        # Check for name clashes
+        try:
+            # Disable false positive no-member issue
+            # pylint: disable=no-member
+            existing_symbol = self.scope.symbol_table.lookup(self._name)
+        except KeyError:
+            existing_symbol = None
+
+        if not existing_symbol:
+            # If it doesn't exist already, module-inline the subroutine by:
+            # 1) Registering the subroutine symbol in the Container
+            self.root.symbol_table.add(RoutineSymbol(self._name))
+            # 2) Insert the relevant code into the tree.
+            inlined_code = self.get_kernel_schedule()
+            if f2pygen_parent:
+                # If we are building a f2pygen tree add it to a PSyIRGen node
+                # under the PSy-layer f2pygen module.
+                module = f2pygen_parent
+                while module.parent:
+                    module = module.parent
+                module.add(PSyIRGen(module, inlined_code))
+            else:
+                # Otherwise just add it to the current PSyIR tree
+                self.root.addchild(inlined_code.detach())
+
+        else:
+            # If the symbol already exists, make sure it refers
+            # to the exact same subroutine.
+            if not isinstance(existing_symbol, RoutineSymbol):
+                raise NotImplementedError(
+                    "Can not module-inline subroutine '{0}' because symbol"
+                    "'{1}' with the same name already exists and changing"
+                    " names of module-inlined subroutines is not "
+                    "implemented yet.".format(self._name, existing_symbol))
+
+            # Make sure the generated code is an exact match by creating
+            # the f2pygen node (which in turn creates the fparser1) of the
+            # kernel_schedule and then compare it to the fparser1 trees of
+            # the PSyIRGen f2pygen nodes children of module.
+            if f2pygen_parent:
+                module = f2pygen_parent
+                while module.parent:
+                    module = module.parent
+                search = PSyIRGen(module, self.get_kernel_schedule()).root
+                for child in module.children:
+                    if isinstance(child, PSyIRGen):
+                        if child.root == search:
+                            # If there is an exact match (the implementation is
+                            # the same), it is safe to continue.
+                            break
+                else:
+                    raise NotImplementedError(
+                        "Can not inline subroutine '{0}' because another, "
+                        "different, subroutine with the same name already "
+                        "exists and versioning of module-inlined subroutines "
+                        "is not implemented yet.".format(self._name))
 
     def gen_code(self, parent):
         '''
@@ -3073,11 +3248,7 @@ class CodedKern(Kern):
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
-        :raises NotImplementedError: if there is a name clash that prevents \
-            the kernel from being module-inlined without changing its name.
         '''
-        from psyclone.f2pygen import CallGen, UseGen, PSyIRGen
-
         # If the kernel has been transformed then we rename it. If it
         # is *not* being module inlined then we also write it to file.
         self.rename_and_write()
@@ -3092,51 +3263,7 @@ class CodedKern(Kern):
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
         else:
-            # Find the root f2pygen module
-            module = parent
-            while module.parent:
-                module = module.parent
-
-            # Check for name clashes
-            try:
-                existing_symbol = self.scope.symbol_table.lookup(self._name)
-            except KeyError:
-                existing_symbol = None
-
-            if not existing_symbol:
-                # If it doesn't exist already, module-inline the subroutine by:
-                # 1) Registering the subroutine symbol in the Container
-                self.root.symbol_table.add(RoutineSymbol(self._name))
-                # 2) Converting the PSyIR kernel into a f2pygen node (of
-                # PSyIRGen kind) under the PSy-layer f2pygen module.
-                module.add(PSyIRGen(module, self.get_kernel_schedule()))
-            else:
-                # If the symbol already exists, make sure it refers
-                # to the exact same subroutine.
-                if not isinstance(existing_symbol, RoutineSymbol):
-                    raise NotImplementedError(
-                        "Can not module-inline subroutine '{0}' because symbol"
-                        "'{1}' with the same name already exists and changing"
-                        " names of module-inlined subroutines is not "
-                        "implemented yet.".format(self._name, existing_symbol))
-
-                # Make sure the generated code is an exact match by creating
-                # the f2pygen node (which in turn creates the fparser1) of the
-                # kernel_schedule and then compare it to the fparser1 trees of
-                # the PSyIRGen f2pygen nodes children of module.
-                search = PSyIRGen(module, self.get_kernel_schedule()).root
-                for child in module.children:
-                    if isinstance(child, PSyIRGen):
-                        if child.root == search:
-                            # If there is an exact match (the implementation is
-                            # the same), it is safe to continue.
-                            break
-                else:
-                    raise NotImplementedError(
-                        "Can not inline subroutine '{0}' because another "
-                        "subroutine with the same name already exists and"
-                        " versioning of module-inlined subroutines is not"
-                        " implemented yet.".format(self._name))
+            self._insert_module_inlined_kernel(parent)
 
     def gen_arg_setter_code(self, parent):
         '''
@@ -3912,14 +4039,7 @@ class Argument(object):
                 tag = "AlgArgs_" + self._text
 
                 # Prepare the Argument Interface Access value
-                if access and access.name == "READ":
-                    argument_access = ArgumentInterface.Access.READ
-                elif access and access.name == "WRITE":
-                    argument_access = ArgumentInterface.Access.WRITE
-                else:
-                    # If access is READWRITE, INC, SUM, UNKNOWN or no access
-                    # is given, use a READWRITE argument interface.
-                    argument_access = ArgumentInterface.Access.READWRITE
+                argument_access = ArgumentInterface.Access.READWRITE
 
                 # Find the tag or create a new symbol with expected attributes
                 new_argument = symtab.symbol_from_tag(
@@ -3930,7 +4050,8 @@ class Argument(object):
 
                 # Unless the argument already exists with another interface
                 # (e.g. globals) they come from the invoke argument list
-                if isinstance(new_argument.interface, ArgumentInterface):
+                if (isinstance(new_argument.interface, ArgumentInterface) and
+                        new_argument not in previous_arguments):
                     symtab.specify_argument_list(previous_arguments +
                                                  [new_argument])
 

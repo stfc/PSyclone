@@ -523,8 +523,8 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     schedule.symbol_table.add(RoutineSymbol("ru_code"))
     with pytest.raises(NotImplementedError) as err:
         gen = str(psy.gen)
-    assert ("Can not inline subroutine 'ru_code' because another subroutine "
-            "with the same name already exists and versioning of "
+    assert ("Can not inline subroutine 'ru_code' because another, different, "
+            "subroutine with the same name already exists and versioning of "
             "module-inlined subroutines is not implemented "
             "yet.") in str(err.value)
 
@@ -2065,6 +2065,15 @@ def test_accenterdatadirective_gencode_1():
     acc_enter_trans.apply(sched)
     with pytest.raises(GenerationError) as excinfo:
         str(psy.gen)
+    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
+            "there are no ACCParallel or ACCKernels directives within the "
+            "region." in str(excinfo.value))
+
+    # Test that the same error is produced by the begin_string() which is used
+    # by the PSyIR backend
+    sched[0].lower_to_language_level()
+    with pytest.raises(GenerationError) as excinfo:
+        sched[0].begin_string()
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
             "region." in str(excinfo.value))
