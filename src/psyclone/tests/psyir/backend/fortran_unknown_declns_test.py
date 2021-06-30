@@ -41,9 +41,11 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import Symbol, DataSymbol, RoutineSymbol, \
-    UnknownType, UnknownFortranType, GlobalInterface, ContainerSymbol
+    UnknownType, UnknownFortranType, GlobalInterface, ContainerSymbol, \
+    SymbolTable, ArgumentInterface, INTEGER_TYPE
+from psyclone.tests.utilities import Compile
 
 
 def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
@@ -67,7 +69,7 @@ def test_fw_unknown_decln(fortran_writer):
     assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)
 
 
-def test_fw_unknown_interface_decln(fortran_writer):
+def test_fw_unknown_interface_decln(tmpdir, fortran_writer):
     ''' Check that the backend recreates an interface declaration stored as
     an unknown type and adds an appropriate access statement. '''
     container = Container("my_mod")
@@ -86,6 +88,20 @@ def test_fw_unknown_interface_decln(fortran_writer):
     code = fortran_writer(container)
     assert "private :: eos\n" in code
     assert "public :: my_sub\n" in code
+    # Add remaining structures so that we can generate compilable code
+    container.symbol_table.add(RoutineSymbol("eos1d"))
+    container.symbol_table.add(RoutineSymbol("eos2d"))
+    # We have to make the interfaces to the two 'module procedures' different
+    # so we give 'eos1d' an integer argument.
+    arg = DataSymbol("var1", datatype=INTEGER_TYPE,
+                     interface=ArgumentInterface())
+    eos1d_table = SymbolTable()
+    eos1d_table.add(arg)
+    eos1d_table.specify_argument_list([arg])
+    container.addchild(Routine.create("eos1d", eos1d_table, []))
+    container.addchild(Routine.create("eos2d", SymbolTable(), []))
+    container.addchild(Routine.create("my_sub", SymbolTable(), []))
+    assert Compile(tmpdir).string_compiles(fortran_writer(container))
 
 
 def test_fw_unknowntype_routine_symbols_error(fortran_writer):

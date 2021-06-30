@@ -39,7 +39,10 @@
 
 from __future__ import absolute_import
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import Container, KernelSchedule
@@ -227,6 +230,30 @@ def test_parse_access_statements_invalid(parser):
     assert ("Failed to process 'not-private'. Found an accessibility "
             "attribute of 'not-private' but expected either 'public' or "
             "'private'" in str(err.value))
+
+
+def test_access_stmt_no_module(parser):
+    ''' Check that we raise the expected error if we encounter multiple access
+    statements (without access-id-lists) that are not within a module (this is
+    invalid Fortran but fparser doesn't catch it). '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "use some_mod\n"
+        "private\n"
+        "integer :: var3\n"
+        "public\n"
+        "end module modulename")
+    module = parser(reader).children[0]
+    assert isinstance(module, Fortran2003.Module)
+    # Break 'module' so that it is no longer an instance of Fortran2003.Module
+    module.__class__ = Fortran2003.Program
+    spec_part = module.children[1]
+    with pytest.raises(GenerationError) as err:
+        processor._parse_access_statements([spec_part])
+    assert ("Found multiple access statements with omitted access-id-lists "
+            "and no enclosing Module. Both of these things are invalid "
+            "Fortran." in str(err.value))
 
 
 def test_access_stmt_routine_name(parser):

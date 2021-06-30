@@ -780,6 +780,12 @@ def test_gen_routine_access_stmts(fortran_writer):
         fortran_writer.gen_routine_access_stmts(symbol_table)
     assert ("Unrecognised visibility ('broken') found for symbol 'my_sub2'"
             in str(err.value))
+    symbol_table.remove(sub2)
+    # Check that we don't generate an accessibility statement for a
+    # RoutineSymbol tagged with 'own_routine_symbol'
+    symbol_table.add(RoutineSymbol("my_routine"), tag='own_routine_symbol')
+    code = fortran_writer.gen_routine_access_stmts(symbol_table)
+    assert "my_routine" not in code
 
 
 def test_fw_exception(fortran_writer):
