@@ -74,9 +74,11 @@ DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def delete_module(modname):
-    '''a function to remove a module from Python's internal modules
-       list. This is useful as some tests affect others by importing
-       modules.'''
+    '''A function to remove a module from Python's internal modules
+    list. This is useful as some tests affect others by importing
+    modules.
+
+    '''
     del modules[modname]
     for mod in modules.values():
         try:
@@ -89,6 +91,7 @@ def teardown_function():
     '''This teardown function is called at the end of each test and makes
     sure that we wipe the Config object so we get a fresh/default one
     for any further test (and not a left-over one from a test here).
+
     '''
     Config._instance = None
 
@@ -97,24 +100,30 @@ def teardown_function():
 
 
 def test_non_existent_filename():
-    ''' checks that alg_gen raises appropriate error when a
-        non-existent filename is supplied '''
+    '''Checks that alg_gen raises appropriate error when a non-existent
+    filename is supplied.
+
+    '''
     with pytest.raises(IOError):
         generate("non_existent_file.f90")
 
 
 def test_invalid_api():
-    ''' checks that alg_gen raises appropriate error when an invalid
-        api is supplied '''
+    '''Checks that alg_gen raises appropriate error when an invalid api
+    is supplied.
+
+    '''
     with pytest.raises(GenerationError):
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
                               "1_single_function.f90"), api="invalid")
 
 
 def test_invalid_kernel_paths():
-    ''' checks that alg_gen raises appropriate error when an invalid
-        search path for kernel source files is supplied, even if a
-        valid path is also supplied. '''
+    '''Checks that alg_gen raises appropriate error when an invalid search
+    path for kernel source files is supplied, even if a valid path is
+    also supplied.
+
+    '''
     with pytest.raises(IOError) as info:
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
                               "1_single_function.f90"),
@@ -125,8 +134,10 @@ def test_invalid_kernel_paths():
 
 
 def test_wrong_kernel_paths():
-    ''' checks that alg_gen raises appropriate error when the kernel
-        code cannot be found in the specified search path '''
+    '''Checks that alg_gen raises appropriate error when the kernel code
+    cannot be found in the specified search path.
+
+    '''
     with pytest.raises(ParseError):
         generate(os.path.join(BASE_PATH, "dynamo0p3",
                               "1.1.0_single_invoke_xyoz_qr.f90"),
@@ -135,10 +146,11 @@ def test_wrong_kernel_paths():
 
 
 def test_correct_kernel_paths():
-    ''' checks that alg_gen succeeds when the location of the kernel
-        source code is *not* the same as that of the algorithm
-        code. Also adds a path that does not contain the required
-        kernel. '''
+    '''Checks that alg_gen succeeds when the location of the kernel source
+    code is *not* the same as that of the algorithm code. Also adds a
+    path that does not contain the required kernel.
+
+    '''
     _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
                                  "1_single_function.f90"),
                     api="dynamo0.1",
@@ -149,16 +161,18 @@ def test_correct_kernel_paths():
 
 
 def test_same_kernel_paths():
-    ''' checks that the generator succeeds when the search directory
-        is the same as the algorithm code directory and a path is
-        specified '''
+    '''Checks that the generator succeeds when the search directory is the
+    same as the algorithm code directory and a path is specified.
+
+    '''
     path = os.path.join(BASE_PATH, "dynamo0p1", "algorithm")
     _, _ = generate(os.path.join(path, "1_single_function.f90"),
                     api="dynamo0.1", kernel_paths=[path])
 
 
 def test_similar_kernel_name():
-    ''' checks that the generator does not match incorrect files '''
+    '''Checks that the generator does not match incorrect files.'''
+
     _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1",
                                  "algorithm", "1_single_function.f90"),
                     api="dynamo0.1",
@@ -167,9 +181,11 @@ def test_similar_kernel_name():
 
 
 def test_recurse_correct_kernel_paths():
-    '''checks that the generator succeeds when the location of the kernel
-       source code is *not* the same as that of the algorithm code and
-       recursion through subdirectories is required'''
+    '''Checks that the generator succeeds when the location of the kernel
+    source code is *not* the same as that of the algorithm code and
+    recursion through subdirectories is required.
+
+    '''
     _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1",
                                  "algorithm", "1_single_function.f90"),
                     api="dynamo0.1",
@@ -178,9 +194,11 @@ def test_recurse_correct_kernel_paths():
 
 
 def test_script_file_not_found():
-    ''' checks that generator.py raises an appropriate error when a
-        script file is supplied that can't be found in the Python path.
-        In this case the script path is supplied'''
+    '''Checks that generator.py raises an appropriate error when a script
+    file is supplied that can't be found in the Python path.  In this
+    case the script path is supplied.
+
+    '''
     with pytest.raises(IOError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
@@ -188,10 +206,12 @@ def test_script_file_not_found():
 
 
 def test_script_file_not_found_relative():
-    ''' checks that generator.py raises an appropriate error when a script
-        file is supplied that can't be found in the Python path. In
-        this case the script path is not supplied so must be found via the
-        PYTHONPATH variable'''
+    '''Checks that generator.py raises an appropriate error when a script
+    file is supplied that can't be found in the Python path. In this
+    case the script path is not supplied so must be found via the
+    PYTHONPATH variable.
+
+    '''
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
@@ -199,8 +219,10 @@ def test_script_file_not_found_relative():
 
 
 def test_script_file_too_short():
-    ''' checks that generator.py raises an appropriate error when a
-        script file name is too short to contain the '.py' extension'''
+    '''Checks that generator.py raises an appropriate error when a script
+    file name is too short to contain the '.py' extension.
+
+    '''
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
@@ -210,8 +232,10 @@ def test_script_file_too_short():
 
 
 def test_script_file_no_extension():
-    ''' checks that generator.py raises an appropriate error when a
-        script file does not have an extension'''
+    '''Checks that generator.py raises an appropriate error when a script
+    file does not have an extension.
+
+    '''
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
@@ -221,8 +245,10 @@ def test_script_file_no_extension():
 
 
 def test_script_file_wrong_extension():
-    ''' checks that generator.py raises an appropriate error when a
-        script file does not have the '.py' extension'''
+    '''Checks that generator.py raises an appropriate error when a script
+    file does not have the '.py' extension.
+
+    '''
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
@@ -232,8 +258,10 @@ def test_script_file_wrong_extension():
 
 
 def test_script_invalid_content():
-    ''' checks that generator.py raises an appropriate error when a
-        script file does not contain valid python '''
+    '''Checks that generator.py raises an appropriate error when a script
+    file does not contain valid python.
+
+    '''
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
@@ -243,9 +271,11 @@ def test_script_invalid_content():
 
 
 def test_script_invalid_content_runtime():
-    ''' checks that generator.py raises an appropriate error when a
-        script file contains valid python syntactically but produces a
-        runtime exception. '''
+    '''Checks that generator.py raises an appropriate error when a script
+    file contains valid python syntactically but produces a runtime
+    exception.
+
+    '''
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
@@ -255,8 +285,10 @@ def test_script_invalid_content_runtime():
 
 
 def test_script_no_trans():
-    ''' checks that generator.py raises an appropriate error when a
-        script file does not contain a trans() function '''
+    '''Checks that generator.py raises an appropriate error when a script
+    file does not contain a trans() function.
+
+    '''
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
@@ -267,10 +299,12 @@ def test_script_no_trans():
 
 
 def test_script_attr_error():
-    ''' checks that generator.py raises an appropriate error when a
-        script file contains a trans() function which raises an
-        attribute error. This is what we previously used to check for
-        a script file not containing a trans() function.'''
+    '''Checks that generator.py raises an appropriate error when a script
+    file contains a trans() function which raises an attribute
+    error. This is what we previously used to check for a script file
+    not containing a trans() function.
+
+    '''
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
@@ -282,11 +316,12 @@ def test_script_attr_error():
 
 
 def test_script_null_trans():
-    ''' checks that generator.py works correctly when the trans()
-        function in a valid script file does no transformations (it
-        simply passes input to output). In this case the valid
-        script file has an explicit path and must therefore exist at
-        this location. '''
+    '''Checks that generator.py works correctly when the trans() function
+    in a valid script file does no transformations (it simply passes
+    input to output). In this case the valid script file has an
+    explicit path and must therefore exist at this location.
+
+    '''
     alg1, psy1 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
                           api="dynamo0.3")
@@ -307,11 +342,12 @@ def test_script_null_trans():
 
 
 def test_script_null_trans_relative():
-    ''' checks that generator.py works correctly when the trans()
-        function in a valid script file does no transformations (it
-        simply passes input to output). In this case the valid
-        script file contains no path and must therefore be found via
-        the PYTHOPATH path list. '''
+    '''Checks that generator.py works correctly when the trans() function
+    in a valid script file does no transformations (it simply passes
+    input to output). In this case the valid script file contains no
+    path and must therefore be found via the PYTHOPATH path list.
+
+    '''
     alg1, psy1 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
                           api="dynamo0.3")
@@ -331,10 +367,9 @@ def test_script_null_trans_relative():
 
 
 def test_script_trans():
-    ''' Checks that generator.py works correctly when a
-        transformation is provided as a script, i.e. it applies the
-        transformations correctly. We use loop fusion as an
-        example.
+    '''Checks that generator.py works correctly when a transformation is
+    provided as a script, i.e. it applies the transformations
+    correctly. We use loop fusion as an example.
 
     '''
     root_path = os.path.dirname(os.path.abspath(__file__))
@@ -361,10 +396,12 @@ def test_script_trans():
 
 
 def test_alg_lines_too_long_tested():
-    ''' Test that the generate function causes an exception if the
+    '''Test that the generate function causes an exception if the
     line_length argument is set to True and the algorithm file has
     lines longer than 132 characters. We use the dynamo0.3 API in this
-    case but could have chosen any. '''
+    case but could have chosen any.
+
+    '''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="dynamo0.3", line_length=True)
@@ -372,19 +409,23 @@ def test_alg_lines_too_long_tested():
 
 
 def test_alg_lines_too_long_not_tested():
-    ''' Test that the generate function returns successfully if the
+    '''Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when the algorithm file has lines longer than 132 characters. We
-    use the dynamo0.3 API in this case but could have chosen any.'''
+    use the dynamo0.3 API in this case but could have chosen any.
+
+    '''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
     _, _ = generate(alg_filename, api="dynamo0.3")
 
 
 def test_kern_lines_too_long_tested():
-    ''' Test that the generate function raises an exception if the
-    line_length argument is set to True and a Kernel file has
-    lines longer than 132 characters. We use the dynamo0.3 API in this
-    case but could have chosen any. '''
+    '''Test that the generate function raises an exception if the
+    line_length argument is set to True and a Kernel file has lines
+    longer than 132 characters. We use the dynamo0.3 API in this case
+    but could have chosen any.
+
+    '''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="dynamo0.3", line_length=True)
@@ -392,18 +433,22 @@ def test_kern_lines_too_long_tested():
 
 
 def test_kern_lines_too_long_not_tested():
-    ''' Test that the generate function returns successfully if the
+    '''Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
-    when a kernel file has lines longer than 132 characters. We
-    use the dynamo0.3 API in this case but could have chosen any.'''
+    when a kernel file has lines longer than 132 characters. We use
+    the dynamo0.3 API in this case but could have chosen any.
+
+    '''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
     _, _ = generate(alg_filename, api="dynamo0.3")
 
 
 def test_continuators():
     '''Tests that input files with long lines that already have
-       continuators to make the code conform to the line length limit
-       do not cause an error '''
+    continuators to make the code conform to the line length limit do
+    not cause an error.
+
+    '''
     _, _ = generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1.1.0_single_invoke_xyoz_qr.f90"),
@@ -412,6 +457,7 @@ def test_continuators():
 
 def test_main_version(capsys):
     '''Tests that the version info is printed correctly.'''
+
     # First test if -h includes the right version info:
     with pytest.raises(SystemExit):
         main(["-h"])
@@ -428,7 +474,9 @@ def test_main_version(capsys):
 
 
 def test_main_profile(capsys):
-    '''Tests that the profiling command line flags are working as expected.
+    '''Tests that the profiling command line flags are working as
+    expected.
+
     '''
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "test_files", "gocean1p0",
@@ -473,8 +521,10 @@ def test_main_profile(capsys):
 
 
 def test_main_invalid_api(capsys):
-    '''Tests that we get the expected output and the code exits
-    with an error if the supplied API is not known'''
+    '''Tests that we get the expected output and the code exits with an
+    error if the supplied API is not known.
+
+    '''
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "1_single_invoke.f90"))
@@ -490,8 +540,10 @@ def test_main_invalid_api(capsys):
 
 
 def test_main_api():
-    '''Tests the three ways of specifying an API: command line, config file,
-    or relying on the default.'''
+    '''Tests the three ways of specifying an API: command line, config
+    file, or relying on the default.
+
+    '''
 
     # 1) Make sure if no paramenters are given,
     #   config will give us the default API
@@ -537,6 +589,7 @@ def test_main_api():
 
 def test_main_directory_arg(capsys):
     '''Test the -d option in main().'''
+
     # No -d option supplied
     filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
     main([filename, "-api", "dynamo0.3"])
@@ -553,7 +606,9 @@ def test_main_directory_arg(capsys):
 def test_main_expected_fatal_error(capsys):
     '''Tests that we get the expected output and the code exits with an
     error when an expected fatal error is returned from the generate
-    function.'''
+    function.
+
+    '''
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "2_incorrect_number_of_args.f90"))
@@ -570,10 +625,11 @@ def test_main_expected_fatal_error(capsys):
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
-    ''' Tests that we get the expected output and the code exits with an
+    '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
-    function. '''
+    function.
 
+    '''
     # Make sure the attribute VALID_ARG_TYPE_NAMES exist
     # before we modify it.
     _ = LFRicConstants()
@@ -602,8 +658,11 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
 def test_main_fort_line_length(capsys, limit):
     '''Tests that the Fortran line length object works correctly. Without
     the -l option one of the generated psy-layer lines would be longer
-    than 132 characters. Since it is in the output code, both the 'all' and
-   'output' options should cause the limit to be applied. '''
+    than 132 characters. Since it is in the output code, both the
+    'all' and 'output' options should cause the limit to be
+    applied.
+
+    '''
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
@@ -614,9 +673,11 @@ def test_main_fort_line_length(capsys, limit):
 
 @pytest.mark.parametrize("limit", [[], ['-l', 'off']])
 def test_main_fort_line_length_off(capsys, limit):
-    '''Tests that the Fortran line-length limiting is off by default and is
-    also disabled by `-l off`. One of the generated psy-layer lines should be
-    longer than 132 characters. '''
+    '''Tests that the Fortran line-length limiting is off by default and
+    is also disabled by `-l off`. One of the generated psy-layer lines
+    should be longer than 132 characters.
+
+    '''
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
@@ -626,8 +687,11 @@ def test_main_fort_line_length_off(capsys, limit):
 
 
 def test_main_fort_line_length_output_only(capsys):
-    ''' Check that the '-l output' option disables the line-length check on
-    input files but still limits the line lengths in the output. '''
+    '''Check that the '-l output' option disables the line-length check
+    on input files but still limits the line lengths in the
+    output.
+
+    '''
     alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
     # If line-length checking is enabled then we should abort
     with pytest.raises(SystemExit):
@@ -643,9 +707,10 @@ def test_main_fort_line_length_output_only(capsys):
 
 def test_main_no_invoke_alg_stdout(capsys):
     '''Tests that the main() function outputs the original algorithm input
-    file to stdout when the algorithm file does not contain an invoke and that
-    it does not produce any psy output.'''
+    file to stdout when the algorithm file does not contain an invoke
+    and that it does not produce any psy output.
 
+    '''
     # pass in a kernel file as that has no invokes in it
     kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "test_files", "dynamo0p3",
@@ -663,8 +728,9 @@ def test_main_no_invoke_alg_stdout(capsys):
 
 def test_main_write_psy_file(capsys, tmpdir):
     '''Tests that the main() function outputs successfully writes the
-    generated psy output to a specified file'''
+    generated psy output to a specified file.
 
+    '''
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
@@ -689,9 +755,10 @@ def test_main_write_psy_file(capsys, tmpdir):
 
 def test_main_no_invoke_alg_file(capsys, tmpdir):
     '''Tests that the main() function outputs the original algorithm input
-    file to file when the algorithm file does not contain an invoke and that
-    it does not produce any psy output.'''
+    file to file when the algorithm file does not contain an invoke
+    and that it does not produce any psy output.
 
+    '''
     # pass in a kernel file as that has no invokes in it
     kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "test_files", "dynamo0p3",
@@ -723,8 +790,10 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
 
 
 def test_main_kern_output_no_dir(capsys):
-    ''' Test for when the specified output directory (for transformed
-    kernels) does not exist. '''
+    '''Test for when the specified output directory (for transformed
+    kernels) does not exist.
+
+    '''
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
@@ -737,8 +806,10 @@ def test_main_kern_output_no_dir(capsys):
 
 
 def test_main_kern_output_no_write(tmpdir, capsys):
-    ''' Test for when the specified output directory (for transformed
-    kernels) cannot be written to. '''
+    '''Test for when the specified output directory (for transformed
+    kernels) cannot be written to.
+
+    '''
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
@@ -755,7 +826,8 @@ def test_main_kern_output_no_write(tmpdir, capsys):
 
 
 def test_main_kern_output_dir(tmpdir):
-    ''' Test that we can specify a valid kernel output directory. '''
+    '''Test that we can specify a valid kernel output directory.'''
+
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
@@ -771,8 +843,10 @@ def test_main_kern_output_dir(tmpdir):
 
 
 def test_invalid_kern_naming():
-    ''' Check that we raise the expected error if an invalid kernel-renaming
-    scheme is supplied. '''
+    '''Check that we raise the expected error if an invalid
+    kernel-renaming scheme is supplied.
+
+    '''
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
@@ -787,8 +861,10 @@ def test_invalid_kern_naming():
 
 
 def test_main_include_invalid(capsys, tmpdir):
-    ''' Check that the main function complains if a non-existent location
-    is specified as a search path for INCLUDE files. '''
+    '''Check that the main function complains if a non-existent location
+    is specified as a search path for INCLUDE files.
+
+    '''
     alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "nemo", "test_files", "include_stmt.f90"))
     fake_path = tmpdir.join('does_not_exist')
@@ -800,8 +876,10 @@ def test_main_include_invalid(capsys, tmpdir):
 
 
 def test_main_include_path(capsys):
-    ''' Test that the main function supplies any INCLUDE paths to
-    fparser. '''
+    '''Test that the main function supplies any INCLUDE paths to
+    fparser.
+
+    '''
     # This algorithm file INCLUDE's a file that defines a variable called
     # "some_fake_mpi_handle"
     alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -828,7 +906,7 @@ def test_main_include_path(capsys):
 
 
 def test_write_utf_file(tmpdir, monkeypatch):
-    ''' Unit tests for the write_unicode_file utility routine. '''
+    '''Unit tests for the write_unicode_file utility routine.'''
 
     # First for plain ASCII
     out_file1 = os.path.join(str(tmpdir), "out1.txt")
@@ -862,8 +940,10 @@ def test_write_utf_file(tmpdir, monkeypatch):
 
 
 def test_utf_char(tmpdir):
-    ''' Test that the generate method works OK when both the Algorithm and
-    Kernel code contain utf-encoded chars. '''
+    '''Test that the generate method works OK when both the Algorithm and
+    Kernel code contain utf-encoded chars.
+
+    '''
     algfile = os.path.join(str(tmpdir), "alg.f90")
     main([os.path.join(BASE_PATH, "gocean1p0", "test29_utf_chars.f90"),
           "-api", "gocean1.0", "-oalg", algfile])

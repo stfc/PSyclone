@@ -146,7 +146,8 @@ CODE_DOUBLE_PROCEDURE = (
 @pytest.fixture(scope="module", params=[CODE, CODE_INTERFACE],
                 name="get_code_fragment")
 def get_code_fragment_fixture(request):
-    '''Fixture for testing two code versions'''
+    '''Fixture for testing two code versions.'''
+
     return request.param
 
 # function get_kernel_filepath
@@ -298,8 +299,10 @@ def test_getkernelast_multidir():
 
 
 def test_get_kernel_interface_no_match():
-    ''' Tests that get_kernel_interface() returns None when searching
-        a parse tree that does not contain an interface. '''
+    '''Tests that get_kernel_interface() returns None when searching a
+    parse tree that does not contain an interface.
+
+    '''
     module_parse_tree = parse(CODE)
     kernel_type_name = "no_interface_found"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
@@ -308,7 +311,8 @@ def test_get_kernel_interface_no_match():
 
 
 def test_get_kernel_interface_match_caseinsensitive():
-    ''' Tests that the interface name is case insensitive'''
+    '''Tests that the interface name is case insensitive.'''
+
     module_parse_tree = parse(CODE_INTERFACE.replace("test_code", "TeST_CoDe"))
     kernel_type_name = "interface_found"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
@@ -317,7 +321,8 @@ def test_get_kernel_interface_match_caseinsensitive():
 
 
 def test_get_kernel_interface_match_no_name():
-    ''' Tests that the interface with no name returns None'''
+    '''Tests that the interface with no name returns None.'''
+
     module_parse_tree = parse(CODE_INTERFACE.replace("test_code", ""))
     kernel_type_name = "interface_withnoname"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
@@ -326,8 +331,11 @@ def test_get_kernel_interface_match_no_name():
 
 
 def test_get_kernel_interface_match_correct():
-    ''' Tests that the get_kernel_interface has correct return when searching
-        for an interface that defines more than one module procedure. '''
+    '''Tests that the get_kernel_interface has correct return when
+    searching for an interface that defines more than one module
+    procedure.
+
+    '''
     module_parse_tree = parse(CODE_DOUBLE_PROCEDURE)
     kernel_type_name = "interface_procedures"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
@@ -338,16 +346,20 @@ def test_get_kernel_interface_match_correct():
 
 
 def test_two_module_procedures():
-    ''' Tests that 'None' is returned as the ast if there are more than
-        one module procedure.'''
+    '''Tests that 'None' is returned as the ast if there are more than one
+    module procedure.
+
+    '''
     kp = create_kernelprocedure(CODE_DOUBLE_PROCEDURE)
     assert kp.name == "test_code"
     assert kp.ast is None
 
 
 def test_get_kernel_interface_double_interface():
-    ''' Tests that parse error occurs when the parse tree
-        contains two interfaces.'''
+    '''Tests that parse error occurs when the parse tree contains two
+    interfaces.
+
+    '''
     module_parse_tree = parse(CODE_DOUBLE_INTERFACE)
     kernel_type_name = "double_interface_kernel"
     with pytest.raises(ParseError) as excinfo:
@@ -373,8 +385,8 @@ def test_get_kernel_metadata_no_match(get_code_fragment):
 
 
 def test_get_kernel_metadata_match_case_insensitive(get_code_fragment):
-    '''Test that searching for a kernel is not dependent upon the
-    case of the name.
+    '''Test that searching for a kernel is not dependent upon the case of
+    the name.
 
     '''
     module_parse_tree = parse(get_code_fragment)
@@ -406,8 +418,7 @@ def test_builtinfactory_metadataerror(monkeypatch):
 
 
 def test_descriptor_repr():
-    '''Test that the __repr__ method in Descriptor() behaves as
-    expected.
+    '''Test that the __repr__ method in Descriptor() behaves as expected.
 
     '''
     tmp = Descriptor("gh_inc", "w1")
@@ -562,7 +573,10 @@ def test_kerneltype_nargs():
 
 
 def test_kerneltype_repr():
-    '''Test that the __repr__ method in KernelType() behaves as expected.'''
+    '''Test that the __repr__ method in KernelType() behaves as
+    expected.
+
+    '''
     parse_tree = parse(CODE)
 
     tmp = KernelType(parse_tree)
@@ -571,7 +585,8 @@ def test_kerneltype_repr():
 
 @pytest.mark.parametrize('operates', ["cell_column", "dof"])
 def test_kerneltype_operates_on(operates):
-    ''' Test the parsing of the 'operates_on' metadata element. '''
+    '''Test the parsing of the 'operates_on' metadata element.'''
+
     code = CODE.replace("cell_column", operates)
     parse_tree = parse(code)
     ktype = KernelType(parse_tree)
@@ -584,9 +599,9 @@ def test_kerneltype_operates_on(operates):
 
 
 def test_kerneltype_both_operates_on_iterates_over():
-    ''' Check that KernelType raises the expected error if the kernel
-    metadata specifies *both* operates_on and iterates_over (the GOcean API
-    uses iterates_over while LFRic uses operates_on).
+    '''Check that KernelType raises the expected error if the kernel
+    metadata specifies *both* operates_on and iterates_over (the
+    GOcean API uses iterates_over while LFRic uses operates_on).
 
     TODO #1204 this test can be removed once the check for this metadata
     has been moved into the API-specific subclasses.
@@ -628,8 +643,10 @@ end module dummy_mod
 
 
 def test_get_integer_variable():
-    ''' Test that the KernelType get_integer_variable method works as
-    expected. '''
+    '''Test that the KernelType get_integer_variable method works as
+    expected.
+
+    '''
     parse_tree = parse(DIFF_BASIS)
     tmp = KernelType(parse_tree)
     # Check that we return None if the matched name is an array
@@ -646,8 +663,10 @@ def test_get_integer_variable():
 
 
 def test_get_integer_variable_err():
-    ''' Tests that we raise the expected error if the meta-data contains
-    an integer literal instead of a name. '''
+    '''Tests that we raise the expected error if the meta-data contains
+    an integer literal instead of a name.
+
+    '''
     mdata = DIFF_BASIS.replace("= cell_column", "= 1")
     ast = parse(mdata, ignore_comments=False)
     with pytest.raises(ParseError) as err:
@@ -657,8 +676,10 @@ def test_get_integer_variable_err():
 
 
 def test_get_integer_array():
-    ''' Test that the KernelType get_integer_array method works as
-    expected. '''
+    '''Test that the KernelType get_integer_array method works as
+    expected.
+
+    '''
     parse_tree = parse(DIFF_BASIS)
     tmp = KernelType(parse_tree)
     assert tmp.get_integer_array("gh_shape") == ['gh_quadrature_xyoz',
@@ -719,9 +740,11 @@ def test_get_integer_array():
 
 
 def test_get_int_array_name_err(monkeypatch):
-    ''' Tests that we raise the correct error if there is something wrong
-    with the Name in the assignment statement obtained from fparser2. '''
+    '''Tests that we raise the correct error if there is something wrong
+    with the Name in the assignment statement obtained from
+    fparser2.
 
+    '''
     # This is difficult as we have to break the result returned by fparser2.
     # We therefore create a valid KernelType object
     ast = parse(DIFF_BASIS, ignore_comments=False)
@@ -748,8 +771,10 @@ def test_get_int_array_name_err(monkeypatch):
 
 
 def test_get_int_array_constructor_err(monkeypatch):
-    ''' Check that we raise the appropriate error if we fail to parse the
-    array constructor expression. '''
+    '''Check that we raise the appropriate error if we fail to parse the
+    array constructor expression.
+
+    '''
 
     # First create a valid KernelType object
     ast = parse(DIFF_BASIS, ignore_comments=False)
@@ -774,9 +799,10 @@ def test_get_int_array_constructor_err(monkeypatch):
 
 
 def test_get_int_array_section_subscript_err(monkeypatch):
-    ''' Check that we raise the appropriate error if the parse tree for the
-    LHS of the array declaration is broken. '''
+    '''Check that we raise the appropriate error if the parse tree for
+    the LHS of the array declaration is broken.
 
+    '''
     # First create a valid KernelType object
     ast = parse(DIFF_BASIS, ignore_comments=False)
     ktype = KernelType(ast)

@@ -285,8 +285,9 @@ def main(args):
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
     parser.add_argument(
-        '-d', '--directory', default=[], action="append", help='path to root '
-        'of directory structure containing kernel source code')
+        '-d', '--directory', default=[], action="append", help='path to a '
+        'root directory structure containing kernel source code. Multiple '
+        'roots can be specified by using multiple -d arguments.')
     # Make the default an empty list so that we can check whether the
     # user has supplied a value(s) later
     parser.add_argument(

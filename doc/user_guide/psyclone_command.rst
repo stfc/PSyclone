@@ -85,8 +85,9 @@ by the command:
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
-                          path to root of directory structure containing kernel
-                          source code
+                          path to a root directory structure containing kernel
+                          source code Multiple roots can be specified by using
+			  multiple -d arguments.
     -I INCLUDE, --include INCLUDE
                           path to Fortran INCLUDE files (nemo API only)
     -l {off,all,output}, --limit {off,all,output}
