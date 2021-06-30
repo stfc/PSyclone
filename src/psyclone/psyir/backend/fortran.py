@@ -646,7 +646,7 @@ class FortranWriter(PSyIRVisitor):
                     raise VisitorError(
                         "Routine symbol '{0}' is of UnknownFortranType but has"
                         " interface '{1}' instead of LocalInterface. This is "
-                        "not supported. by the Fortran back-end.".format(
+                        "not supported by the Fortran back-end.".format(
                             sym.name, sym.interface))
                 declarations += self.gen_vardecl(sym)
 
