@@ -1253,13 +1253,6 @@ class FortranWriter(PSyIRVisitor):
         PSyIR tree. It returns the content of the CodeBlock as a
         Fortran string, indenting as appropriate.
 
-        At the moment it is not possible to distinguish between a
-        codeblock that is one or more full lines (and therefore needs
-        a newline added) and a codeblock that is part of a line (and
-        therefore does not need a newline). The current implementation
-        adds a newline irrespective. This is the subject of issue
-        #388.
-
         :param node: a CodeBlock PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.CodeBlock`
 
@@ -1271,7 +1264,10 @@ class FortranWriter(PSyIRVisitor):
         if node.structure == CodeBlock.Structure.STATEMENT:
             # indent and newlines required
             for ast_node in node.get_ast_nodes:
-                result += "{0}{1}\n".format(self._nindent, str(ast_node))
+                # Using tofortran() ensures we get any label associated
+                # with this statement.
+                result += "{0}{1}\n".format(self._nindent,
+                                            ast_node.tofortran())
         elif node.structure == CodeBlock.Structure.EXPRESSION:
             for ast_node in node.get_ast_nodes:
                 result += str(ast_node)

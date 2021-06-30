@@ -45,7 +45,7 @@ import six
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
     Data_Ref, If_Then_Stmt, Array_Section
-from fparser.two.utils import walk
+from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
@@ -2276,13 +2276,27 @@ class Fparser2Reader(object):
         :type child: :py:class:`fparser.two.utils.Base`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :raises NotImplementedError: There isn't a handler for the provided \
-                child type.
+
         :returns: Returns the PSyIR representation of child, which can be a \
                   single node, a tree of nodes or None if the child can be \
                   ignored.
         :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+
+        :raises NotImplementedError: if the child node has a label or there \
+            isn't a handler for the provided child type.
+
         '''
+        # We don't support statements with labels.
+        if isinstance(child, BlockBase):
+            # An instance of BlockBase describes a block of code (no surprise
+            # there), so we have to examine the first statement within it.
+            if (child.content and child.content[0].item and
+                    child.content[0].item.label):
+                raise NotImplementedError()
+        elif isinstance(child, StmtBase):
+            if child.item and child.item.label:
+                raise NotImplementedError()
+
         handler = self.handlers.get(type(child))
         if handler is None:
             # If the handler is not found then check with the first
@@ -2340,8 +2354,21 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         :raises NotImplementedError: if the fparser2 tree has an unsupported \
-            structure (e.g. DO WHILE or a DO with no loop control).
+            structure (e.g. DO WHILE or a DO with no loop control or a named \
+            DO containing a reference to that name).
         '''
+        nonlabel_do = walk(node.content, Fortran2003.Nonlabel_Do_Stmt)[0]
+        if nonlabel_do.item is not None:
+            # If the associated line has a name that is referenced inside the
+            # loop then it isn't supported , e.g. `EXIT outer_loop`.
+            if nonlabel_do.item.name:
+                construct_name = nonlabel_do.item.name
+                # Check that the construct-name is not referred to inside
+                # the Loop (but exclude the END DO from this check).
+                names = walk(node.content[:-1], Fortran2003.Name)
+                if construct_name in [name.string for name in names]:
+                    raise NotImplementedError()
+
         ctrl = walk(node.content, Fortran2003.Loop_Control)
         if not ctrl:
             # TODO #359 a DO with no loop control is put into a CodeBlock
