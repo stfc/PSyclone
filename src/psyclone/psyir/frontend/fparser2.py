@@ -706,8 +706,7 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         return _kind_symbol_from_name(precision_name, symbol_table)
 
 
-def _process_routine_symbols(module_ast, symbol_table,
-                             default_visibility, visibility_map):
+def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     '''
     Examines the supplied fparser2 parse tree for a module and creates
     RoutineSymbols for every routine (function or subroutine) that it
@@ -717,10 +716,6 @@ def _process_routine_symbols(module_ast, symbol_table,
     :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
     :param symbol_table: the SymbolTable to which to add the symbols.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-    :param default_visibility: the default visibility that applies to all \
-            symbols without an explicit visibility specification.
-    :type default_visibility: \
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
     :param visibility_map: dict of symbol names with explicit visibilities.
     :type visibility_map: dict with symbol names as keys and visibilities as \
                           values
@@ -735,7 +730,7 @@ def _process_routine_symbols(module_ast, symbol_table,
                 Fortran2003.Function_Subprogram: DeferredType()}
     for routine in routines:
         name = str(routine.children[0].children[1])
-        vis = visibility_map.get(name, default_visibility)
+        vis = visibility_map.get(name, symbol_table.default_visibility)
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
         rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
@@ -1132,18 +1127,18 @@ class Fparser2Reader(object):
         # those that are explicitly declared as public or private.
         (default_visibility, visibility_map) = self._parse_access_statements(
             module)
+        new_container.symbol_table.default_visibility = default_visibility
 
         # Create symbols for all routines defined within this module
         _process_routine_symbols(module_ast, new_container.symbol_table,
-                                 default_visibility, visibility_map)
+                                 visibility_map)
 
         # Parse the declarations if it has any
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
                 try:
                     self.process_declarations(new_container, child.children,
-                                              [], default_visibility,
-                                              visibility_map)
+                                              [], visibility_map)
                 except SymbolError as err:
                     six.raise_from(SymbolError(
                         "Error when generating Container for module '{0}': "
@@ -1972,7 +1967,6 @@ class Fparser2Reader(object):
             tsymbol.datatype = UnknownFortranType(str(decl))
 
     def process_declarations(self, parent, nodes, arg_list,
-                             default_visibility=None,
                              visibility_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
@@ -2007,6 +2001,7 @@ class Fparser2Reader(object):
                                or invalid fparser or Fortran expression.
 
         '''
+        default_visibility = parent.symbol_table.default_visibility
         if default_visibility is None:
             if visibility_map is None:
                 # If no default visibility or visibility mapping is supplied,
@@ -2038,10 +2033,10 @@ class Fparser2Reader(object):
                                     visibility_map)
             except NotImplementedError:
                 # Found an unsupported variable declaration. Create a
-                # DataSymbol with UnknownType for each entity being declared.
-                # Currently this means that any symbols that come after an
-                # unsupported declaration will also have UnknownType. This is
-                # the subject of Issue #791.
+                # DataSymbol with UnknownFortranType for each entity being
+                # declared. Currently this means that any symbols that come
+                # after an unsupported declaration will also have
+                # UnknownFortranType. This is the subject of Issue #791.
                 orig_children = list(decl.children[2].children[:])
                 for child in orig_children:
                     # Modify the fparser2 parse tree so that it only declares
@@ -3812,18 +3807,17 @@ class Fparser2Reader(object):
         # those that are explicitly declared as public or private.
         (default_visibility, visibility_map) = self._parse_access_statements(
             node)
+        container.symbol_table.default_visibility = default_visibility
 
         # Create symbols for all routines defined within this module
-        _process_routine_symbols(node, container.symbol_table,
-                                 default_visibility, visibility_map)
+        _process_routine_symbols(node, container.symbol_table, visibility_map)
 
         # Parse the declarations if it has any
         try:
             spec_part = _first_type_match(
                 node.children, Fortran2003.Specification_Part)
             self.process_declarations(container, spec_part.children,
-                                      [], default_visibility,
-                                      visibility_map)
+                                      [], visibility_map)
         except ValueError:
             pass
 

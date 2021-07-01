@@ -83,6 +83,37 @@ class SymbolTable(object):
                 "Schedule or a Container but found '{0}'."
                 "".format(type(node).__name__))
         self._node = node
+        # The default visibility of symbols in this symbol table. (Required
+        # when we have symbols of UnknownType since their associated
+        # declaration may or may not contain visibility information.)
+        self._default_visibility = None
+
+    @property
+    def default_visibility(self):
+        '''
+        :returns: the default visibility of symbols in this table.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        '''
+        return self._default_visibility
+
+    @default_visibility.setter
+    def default_visibility(self, vis):
+        '''
+        Sets the default visibility of symbols in this table. (Only used for
+        Symbols of UnknownType since their visibility may or may not be
+        defined in the declaration that we store verbatim.)
+
+        :param vis: the default visibility.
+        :type vis: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :raises TypeError: if the supplied value is of the wrong type.
+
+        '''
+        if not isinstance(vis, Symbol.Visibility):
+            raise TypeError(
+                "Default visibility must be an instance of psyir.symbols."
+                "Symbol.Visibility but got '{0}'".format(type(vis).__name__))
+        self._default_visibility = vis
 
     @property
     def node(self):
