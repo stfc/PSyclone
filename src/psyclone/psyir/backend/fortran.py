@@ -49,7 +49,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
     SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, DataTypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Routine, Reference, Literal, DataNode, CodeBlock, Member, Range, Schedule
+    Routine, Literal, DataNode, CodeBlock, Member, Range, Schedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -1095,44 +1095,8 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        def _full_extent(node, operator):
-            '''Utility function that returns True if the supplied node
-            represents the first index of an array dimension (via the LBOUND
-            operator) or the last index of an array dimension (via the
-            UBOUND operator).
-
-            This function is required as, whilst Fortran supports an
-            implicit lower and/or upper bound e.g. a(:), the PSyIR
-            does not. Therefore the a(:) example is represented as
-            a(lbound(a,1):ubound(a,1):1). In order to output implicit
-            upper and/or lower bounds (so that we output e.g. a(:), we
-            must therefore recognise when the lbound and/or ubound
-            matches the above pattern.
-
-            :param node: the node to check.
-            :type node: :py:class:`psyclone.psyir.nodes.Range`
-            :param operator: an lbound or ubound operator.
-            :type operator: either :py:class:`Operator.LBOUND` or \
-                :py:class:`Operator.UBOUND` from \
-                :py:class:`psyclone.psyir.nodes.BinaryOperation`
-
-            '''
-            my_range = node.parent
-            array = my_range.parent
-            array_index = array.children.index(my_range) + 1
-            # pylint: disable=too-many-boolean-expressions
-            if isinstance(node, BinaryOperation) and \
-               node.operator == operator and \
-               isinstance(node.children[0], Reference) and \
-               node.children[0].name == array.name and \
-               isinstance(node.children[1], Literal) and \
-               node.children[1].datatype.intrinsic == \
-               ScalarType.Intrinsic.INTEGER and \
-               node.children[1].value == str(array_index):
-                return True
-            return False
-
-        if _full_extent(node.start, BinaryOperation.Operator.LBOUND):
+        if node.parent and node.parent.is_lower_bound(
+                node.parent.indices.index(node)):
             # The range starts for the first element in this
             # dimension. This is the default in Fortran so no need to
             # output anything.
@@ -1140,7 +1104,8 @@ class FortranWriter(PSyIRVisitor):
         else:
             start = self._visit(node.start)
 
-        if _full_extent(node.stop, BinaryOperation.Operator.UBOUND):
+        if node.parent and node.parent.is_upper_bound(
+                node.parent.indices.index(node)):
             # The range ends with the last element in this
             # dimension. This is the default in Fortran so no need to
             # output anything.
@@ -1321,13 +1286,6 @@ class FortranWriter(PSyIRVisitor):
         PSyIR tree. It returns the content of the CodeBlock as a
         Fortran string, indenting as appropriate.
 
-        At the moment it is not possible to distinguish between a
-        codeblock that is one or more full lines (and therefore needs
-        a newline added) and a codeblock that is part of a line (and
-        therefore does not need a newline). The current implementation
-        adds a newline irrespective. This is the subject of issue
-        #388.
-
         :param node: a CodeBlock PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.CodeBlock`
 
@@ -1339,7 +1297,10 @@ class FortranWriter(PSyIRVisitor):
         if node.structure == CodeBlock.Structure.STATEMENT:
             # indent and newlines required
             for ast_node in node.get_ast_nodes:
-                result += "{0}{1}\n".format(self._nindent, str(ast_node))
+                # Using tofortran() ensures we get any label associated
+                # with this statement.
+                result += "{0}{1}\n".format(self._nindent,
+                                            ast_node.tofortran())
         elif node.structure == CodeBlock.Structure.EXPRESSION:
             for ast_node in node.get_ast_nodes:
                 result += str(ast_node)

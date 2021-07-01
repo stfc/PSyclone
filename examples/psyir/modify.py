@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
+#           A. R. Porter, STFC Daresbury Lab
 
 '''A simple Python script showing how to modify a PSyIR tree. In order to use
 it you must first install PSyclone. See README.md in the top-level psyclone
@@ -50,7 +51,7 @@ representation.
 # Different pylint configurations don't agree in the order of this imports
 # pylint: disable=wrong-import-order
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import Symbol, RoutineSymbol
+from psyclone.psyir.symbols import Symbol, RoutineSymbol, NoType
 from psyclone.psyir.nodes import Reference
 from create import create_psyir_tree
 
@@ -76,14 +77,17 @@ def modify_psyir_tree():
     # later its type could be determined. However, we don't want to
     # replace the existing symbol instance with a new instance as it
     # may have references, which could then lead to inconsistencies. Therefore
-    # we support the specialise method, which transforms the existing
+    # we support the `specialise` method, which transforms the existing
     # node type to a subclass of type without changing the memory
     # location of the instance. Note, any additional subclass properties would
-    # have to be added manually.
+    # have to be added manually. In this case we have to set `datatype`.
+    # TODO #1113, the specialise routine needs extending to support the setting
+    # of such additional properties.
     symbol.specialise(RoutineSymbol)
+    symbol.datatype = NoType()
 
     # In some cases we may want to replace one node with another. This
-    # can be simply done using a node's replace_with method.
+    # can be simply done using a node's `replace_with` method.
     assignment = subroutine.children[2]
     assignment_rhs = assignment.rhs
     assignment_rhs.replace_with(Reference(tmp_symbol))
