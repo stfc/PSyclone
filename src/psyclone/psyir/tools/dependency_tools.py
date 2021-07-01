@@ -42,6 +42,7 @@
 from __future__ import absolute_import, print_function
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -109,45 +110,65 @@ class DependencyTools(object):
         return self._messages
 
     # -------------------------------------------------------------------------
-    def array_accesses_consistent(self, signature, loop_variable, var_infos):
-        '''Check if all accesses to the array have consistent usage of the
-        loop variable in both VariableAccessInfo objects (used e.g. toverify
-        if loop can be fused by providing the access information of the each
-        loop in `var_info1` and `var_info2`).
-        For example, `a(i,j)` and `a(j,i)` would be inconsistent. It does not
-        test for index values (e.g. `a(i,j)` and `a(i+3,j)`).
-        The caller needs to query the error messages managed by this object
-        to detect error(s), see `get_all_messages`.
+    def array_accesses_consistent(self, loop_variable, signature, var_infos):
+        '''Check whether all accesses to the array with the given signature
+        have consistent usage of the loop variable in all `VariableAccessInfo`
+        objects supplied in the `var_infos` parameter. This may be used e.g.
+        to verify whether two loops may be fused by providing the access
+        information of the each loop in the `var_infos` parameter as a list).
+        For example, `a(i,j)` and `a(j,i)` would be inconsistent. It does
+        not test for index values (e.g. `a(i,j)` and `a(i+3,j)`). The caller
+        needs to query the error messages managed by this object to detect
+        error(s), see `get_all_messages`.
         This function returns the list of all accesses that use the loop
         variable. This is an additional convenient result that can simplify
         further tests (but can also be ignored).
 
-        :param signature: the signature of the variable tested.
-        :type signature: :py:class:`psyclone.core.signature.Signature`
         :param loop_variable: symbol of the variable associated with the \
             loops being fused.
         :type loop_variable: \
             :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`
+        :param signature: the signature of the variable tested.
+        :type signature: :py:class:`psyclone.core.signature.Signature`
         :param var_infos: access information for an array. Can be either a \
             single object, or a list of access objects.
         :type var_infos: a list or a single instance of \
             :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
 
+        :returns: a list of all indices that use the loop variable (the \
+            consistency of accesses can be checked by querying the \
+            messages using `get_all_messages()`)
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
         '''
 
+        # pylint: disable=too-many-locals
         if not isinstance(var_infos, list):
             all_accesses = var_infos.all_accesses
         else:
+            # Verify that all var_info objects are indeed for
+            # the same variable.
+            different = [vi.signature for vi in var_infos
+                         if vi.signature != signature]
+            if different:
+                diff_string = [str(sig) for sig in different]
+                raise InternalError("Inconsistent signature provided in "
+                                    "'array_accesses_consistent'. Expected "
+                                    "was '{0}', but also got '{1}'."
+                                    .format(signature, ",".join(diff_string)))
             all_accesses = []
             for var_info in var_infos:
                 all_accesses = all_accesses + var_info.all_accesses
 
-        # The variable 'first_index' will store the index details of the
-        # first access to the variable ('index detail' being the information
-        # returned by the iterator in ComponentIndices). In
-        # 'first_component_indices' it will also store the ComponentIndices
-        # of the first access - this is used for more informative error
-        # messages if required.
+        # The variable 'first_index' will store the index of the component
+        # and the dimension used when accessing it (i.e. it is a 2-tuple),
+        # which is what `ComponentIndices.iterate` returns.
+        # For example, `a(i)%b(j,k)` would have `(1, 0)` as the `first_index`
+        # when checking for the loop variable `j`. This 2-tuple can be
+        # used to get the corresponding PSyIR node from the component_indices
+        # object. In 'first_component_indices' it will also store the
+        # ComponentIndices of the first access. This is used for more
+        # informative error messages if required.
         first_index = None
         first_component_indices = None
         # Additionally, collect all indices that are actually used as
@@ -217,13 +238,16 @@ class DependencyTools(object):
         return True
 
     # -------------------------------------------------------------------------
-    def array_access_parallelisable(self, signature, loop_variable, var_info):
+    def array_access_parallelisable(self, loop_variable, signature, var_info):
         '''Tries to determine if the access pattern for a variable
         given in var_info allows parallelisation along the variable
         loop_variable. Additional messages might be provided to the
         user using the message API.
 
         :param str loop_variable: name of the variable that is parallelised.
+        :param signature: the signature of the variable that is tested, \
+            i.e. whose access info is supplied in `var_info`.
+        :type signature: :py:class:`psyclone.core.Signature`
         :param var_info: access information for this variable.
         :type var_info: \
             :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
@@ -249,7 +273,7 @@ class DependencyTools(object):
         # Detect if this variable adds a new message, and if so, abort early
         old_num_messages = len(self.get_all_messages())
         all_indices = \
-            self.array_accesses_consistent(signature, loop_variable, var_info)
+            self.array_accesses_consistent(loop_variable, signature, var_info)
         if len(self.get_all_messages()) > old_num_messages:
             return False
 
@@ -424,8 +448,8 @@ class DependencyTools(object):
             is_array = symbol.is_array_access(access_info=var_info)
             if is_array:
                 # Handle arrays
-                par_able = self.array_access_parallelisable(signature,
-                                                            loop_variable,
+                par_able = self.array_access_parallelisable(loop_variable,
+                                                            signature,
                                                             var_info)
             else:
                 # Handle scalar variable

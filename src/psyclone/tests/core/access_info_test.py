@@ -113,12 +113,13 @@ def test_variable_access_info():
     list of VariableInfo instances for one variable
     '''
 
-    vai = SingleVariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo(Signature("var_name"))
     assert vai.var_name == "var_name"
     assert str(vai) == "var_name:"
     assert vai.is_written() is False
     assert vai.is_read() is False
     assert vai.all_accesses == []
+    assert vai.signature == Signature("var_name")
 
     vai.add_access_with_location(AccessType.READ, 2, Node(),
                                  component_indices=None)

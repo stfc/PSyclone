@@ -40,7 +40,8 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.core import Signature
+from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.tools.dependency_tools import DependencyTools
 from psyclone.tests.utilities import get_invoke
@@ -192,6 +193,74 @@ def test_arrays_parallelise(parser):
     assert "Variable mask is written and is accessed using indices jj + 1 "\
            "and jj and can therefore not be parallelised" \
            in dep_tools.get_all_messages()[0]
+
+
+# -----------------------------------------------------------------------------
+def test_array_access_consistent(parser):
+    '''Tests the array checks of can_loop_be_parallelised.
+    '''
+    reader = FortranStringReader('''program test
+                                 integer ji, jj, jk
+                                 integer, parameter :: jpi=5, jpj=10
+                                 real, dimension(jpi,jpi) :: a, b, c
+                                 do jj = 1, jpj   ! loop 0
+                                    do ji = 1, jpi
+                                       a(ji, jj) = -1.0d0
+                                     end do
+                                 end do
+                                 do jj = 1, jpj   ! loop 1
+                                    do ji = 1, jpi
+                                       a(ji, jj) = b(ji, jj)
+                                       c(ji, jj) = a(ji, jj)
+                                     end do
+                                 end do
+                                 do jj = 1, jpj   ! loop 2
+                                    do ji = 1, jpi
+                                       a(jj, ji) = b(ji, jj)
+                                     end do
+                                 end do
+                                 end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    loops = psy.invokes.get("test").schedule
+    dep_tools = DependencyTools(["levels", "lat"])
+
+    var_info0 = VariablesAccessInfo(loops[0])
+    var_info1 = VariablesAccessInfo(loops[1])
+    jj_symbol = loops.scope.symbol_table.lookup("jj")
+
+    sig_a = Signature("a")
+    sig_b = Signature("b")
+    sig_c = Signature("c")
+    with pytest.raises(InternalError) as err:
+        _ = dep_tools.array_accesses_consistent(jj_symbol, sig_a,
+                                                [var_info0[sig_a],
+                                                 var_info1[sig_b],
+                                                 var_info1[sig_c]])
+    assert "Inconsistent signature provided in 'array_accesses_consistent'. " \
+           "Expected was 'a', but also got 'b,c'." in str(err.value)
+
+    a_access_1st_loop = var_info0[sig_a]
+    a_access_2nd_loop = var_info1[sig_a]
+    all_ind = dep_tools.array_accesses_consistent(jj_symbol, sig_a,
+                                                  [a_access_1st_loop,
+                                                   a_access_2nd_loop])
+    assert len(dep_tools.get_all_messages()) == 0
+    assert all_ind[0] == a_access_1st_loop[0].component_indices[(0, 1)]
+    assert all_ind[1] == a_access_2nd_loop[0].component_indices[(0, 1)]
+    assert all_ind[2] == a_access_2nd_loop[1].component_indices[(0, 1)]
+
+    all_ind = dep_tools.array_accesses_consistent(jj_symbol, sig_a,
+                                                  a_access_1st_loop)
+    assert all_ind[0] == a_access_1st_loop[0].component_indices[(0, 1)]
+    assert len(dep_tools.get_all_messages()) == 0
+
+    var_info2 = VariablesAccessInfo(loops[2])
+    a_access_3rd_loop = var_info2[sig_a]
+    all_ind = dep_tools.array_accesses_consistent(jj_symbol, sig_a,
+                                                  [a_access_1st_loop,
+                                                   a_access_3rd_loop])
+    assert len(dep_tools.get_all_messages()) == 1
 
 
 # -----------------------------------------------------------------------------

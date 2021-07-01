@@ -172,7 +172,7 @@ class SingleVariableAccessInfo(object):
     '''This class stores a list with all accesses to one variable.
 
     :param signature: signature of the variable.
-    :type signature: :py:class:`psyclone.core.signature`
+    :type signature: :py:class:`psyclone.core.Signature`
 
     '''
     def __init__(self, signature):
@@ -193,6 +193,13 @@ class SingleVariableAccessInfo(object):
         return "{0}:{1}".format(self._signature,
                                 ",".join([str(access)
                                           for access in self._accesses]))
+
+    @property
+    def signature(self):
+        ''':returns: the signature for which the accesses are stored.
+        :rtype: :py:class:`psyclone.core.Signature`
+        '''
+        return self._signature
 
     @property
     def var_name(self):
