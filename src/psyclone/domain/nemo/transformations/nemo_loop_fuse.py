@@ -37,8 +37,8 @@
 '''
 
 from psyclone.core import AccessType, VariablesAccessInfo
-from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations import LoopFuseTrans
+from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 
 
 class NemoLoopFuseTrans(LoopFuseTrans):
@@ -178,10 +178,9 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
         '''
 
-        from psyclone.psyir.tools import DependencyTools
         dep_tools = DependencyTools()
         all_indices = \
-            dep_tools.array_accesses_consistent(signature, loop_variable,
+            dep_tools.array_accesses_consistent(loop_variable, signature,
                                                 [var_info1, var_info2])
         errors = dep_tools.get_all_messages()
 

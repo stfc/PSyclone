@@ -45,7 +45,7 @@ from psyclone.errors import InternalError
 class ComponentIndices(object):
     '''This class stores index information for variable accesses. It stores
     one index list for each component of a variable, e.g. for `a(i)%b(j)`
-    it would store `[ [i], [j] ]`. Even for scalar accesses an emtpy list
+    it would store `[ [i], [j] ]`. Even for scalar accesses an empty list
     is stored, so `a` would have the component indices `[ [] ]`, and `a%b`
     would have `[ [], [] ]`.
 
@@ -54,10 +54,13 @@ class ComponentIndices(object):
     will then create the component indices as `[l]`).
 
     :param indices: the indices from which to create this object.
-    :type indices: \
-        :py:class:`psyclone.core.component_indices.ComponentIndices`, or \
-        None, [], a list or a list of lists of \
+    :type indices: None, [], a list or a list of lists of \
         :py:class:`psyclone.psyir.nodes.Node`s
+
+    :raises InternalError: if the indices parameter is not None, a list \
+        or a list of lists.
+    :raises InternalError: if the indices parameter is a list, and some \
+        but not all members are a list.
 
     '''
     def __init__(self, indices=None):
@@ -72,12 +75,12 @@ class ComponentIndices(object):
                 self._component_indices = [indices]
             else:
                 raise InternalError("ComponentIndices: Invalid "
-                                    "list parameter '{0}'".format(indices))
+                                    "list parameter '{0}' - some elements"
+                                    " but not all are lists".format(indices))
         else:
             raise InternalError("Index object in ComponentIndices "
-                                "constructor must be a list or list of lists"
-                                ", got '{0}'"
-                                .format(indices))
+                                "constructor must be None, a list or "
+                                "list of lists, got '{0}'".format(indices))
 
     # ------------------------------------------------------------------------
     def __str__(self):
@@ -103,8 +106,8 @@ class ComponentIndices(object):
     def __getitem__(self, indx):
         '''Allows to use this class as a dictionary. If `indx` is an integer,
         the list of indices for the specified component is returned. If `indx`
-        is a tuple (as returned from `iterate`), it will return the index
-        for the specified component at the specified dimension.
+        is a tuple (as returned from `iterate`), it will return the PSyIR for
+        index for the specified component at the specified dimension.
 
         :returns: either the list of indices for a component, or the index \
             PSyIR node for the specified tuple.
@@ -131,12 +134,18 @@ class ComponentIndices(object):
 
     # ------------------------------------------------------------------------
     def is_array(self):
-        '''Test if there is an index used in any component. E.g. an access
+        '''Test whether there is an index used in any component. E.g. an access
         like `a(i)%b` with indices `[ [i], [] ]` would still be considered an
         array.
 
-        :returns: if any of the variable components uses an index, i.e.\
+        :returns: whether any of the variable components uses an index, i.e.\
             the variable is an array.
         :rtype: bool
         '''
         return any(grp for grp in self._component_indices)
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ["ComponentIndices"]

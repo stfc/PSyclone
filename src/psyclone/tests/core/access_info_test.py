@@ -90,8 +90,8 @@ def test_access_info_exceptions():
     with pytest.raises(InternalError) as err:
         _ = AccessInfo(AccessType.READ, location, Node(),
                        component_indices=123)
-    assert "Index object in ComponentIndices constructor must be a list or " \
-           "list of lists, got '123'" in str(err.value)
+    assert "Index object in ComponentIndices constructor must be None, " \
+           "a list or list of lists, got '123'" in str(err.value)
 
     with pytest.raises(InternalError) as err:
         _ = AccessInfo(AccessType.READ, location, Node(),
@@ -103,8 +103,8 @@ def test_access_info_exceptions():
     access_info = AccessInfo(AccessType.READ, location, Node())
     with pytest.raises(InternalError) as err:
         access_info.component_indices = 123
-    assert "Index object in add_access must be an instance of " \
-           "ComponentIndices, got '123'" in str(err.value)
+    assert "The component_indices object in the setter of AccessInfo must " \
+           "be an instance of ComponentIndices, got '123'" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
@@ -163,7 +163,7 @@ def test_variable_access_info_is_array():
 
     '''
 
-    vai = SingleVariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo(Signature("var_name"))
     # Add non array-like access:
     vai.add_access_with_location(AccessType.READ, 1, Node,
                                  component_indices=None)
@@ -181,7 +181,7 @@ def test_variable_access_info_read_write():
     used in subroutine calls (depending on kernel metadata)
     '''
 
-    vai = SingleVariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo(Signature("var_name"))
     assert vai.has_read_write() is False
 
     # Add a READ and WRITE access at the same location, and make sure it
@@ -200,7 +200,7 @@ def test_variable_access_info_read_write():
     assert vai.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
-    vai = SingleVariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo(Signature("var_name"))
     vai.add_access_with_location(AccessType.READWRITE, 2, Node(),
                                  component_indices=None)
     assert vai.has_read_write()
@@ -277,8 +277,8 @@ def test_variables_access_info_errors():
     with pytest.raises(InternalError) as err:
         var_accesses.add_access(Signature(("a", "b")), AccessType.READ, node,
                                 ComponentIndices([]))
-    assert "Adding '[[]]' as indices for 'a%b', which do not have the same " \
-           "number of components" in str(err.value)
+    assert "Cannot add '[[]]' as indices for 'a%b' as the number "\
+           "of components do not match." in str(err.value)
 
 
 # -----------------------------------------------------------------------------
@@ -301,14 +301,14 @@ def test_component_indices_auto_extension():
     # should not get any values added:
     with pytest.raises(InternalError) as err:
         var_accesses.add_access(sig, AccessType.READ, node, [["i", "j"]])
-    assert "Adding '[['i', 'j']]' as indices for 'a%b%c', which do not have " \
-           "the same number of components" in str(err.value)
+    assert "Cannot add '[['i', 'j']]' as indices for 'a%b%c' as the number "\
+           "of components do not match." in str(err.value)
 
     component_indices = ComponentIndices(["i", "j"])
     with pytest.raises(InternalError) as err:
         var_accesses.add_access(sig, AccessType.READ, node, component_indices)
-    assert "Adding '[['i', 'j']]' as indices for 'a%b%c', which do not have " \
-           "the same number of components" in str(err.value)
+    assert "Cannot add '[['i', 'j']]' as indices for 'a%b%c' as the number "\
+           "of components do not match." in str(err.value)
 
 
 # -----------------------------------------------------------------------------

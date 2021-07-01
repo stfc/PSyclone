@@ -104,9 +104,9 @@ class AccessInfo(object):
         '''
         This function returns the list of accesses used for each component
         as an instance of ComponentIndices. For example, `a(i)%b(j,k)%c`
-        will return `[ [i], [j, k], [] ]` as ComponentIndices. In the
-        case of a simple scalar variable `a` the component_indices will
-        represent `[ [] ]`.
+        will return an instance of ComponentIndices representing
+        `[ [i], [j, k], [] ]`. In the case of a simple scalar variable
+        such as `a`, the `component_indices` will represent `[ [] ]`.
 
         :returns: the indices used in this access for each component.
         :rtype: :py:class:`psyclone.core.component_indices.ComponentIndices`
@@ -125,14 +125,15 @@ class AccessInfo(object):
         :type component_indices: \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
 
-        :raises InternalError: if the component_indices is not an instance \
+        :raises InternalError: if component_indices is not an instance \
             of :py:class:`psyclone.core.component_indices.ComponentIndices`.
 
         '''
 
         if not isinstance(component_indices, ComponentIndices):
-            raise InternalError("Index object in add_access must be "
-                                "an instance of ComponentIndices, got '{0}'".
+            raise InternalError("The component_indices object in the setter "
+                                "of AccessInfo must be an instance of "
+                                "ComponentIndices, got '{0}'".
                                 format(component_indices))
         self._component_indices = component_indices
 
@@ -471,8 +472,8 @@ class VariablesAccessInfo(dict):
             component_indices = ComponentIndices(component_indices)
 
         if len(signature) != len(component_indices):
-            raise InternalError("Adding '{0}' as indices for '{1}', which "
-                                "do not have the same number of components."
+            raise InternalError("Cannot add '{0}' as indices for '{1}' as "
+                                "the number of components do not match."
                                 .format(str(component_indices),
                                         str(signature)))
 

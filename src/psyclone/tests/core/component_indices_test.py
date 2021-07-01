@@ -81,11 +81,12 @@ def test_component_indices_exceptions():
     '''
     with pytest.raises(InternalError) as err:
         _ = ComponentIndices(123)
-    assert "Index object in ComponentIndices constructor must be a " \
+    assert "Index object in ComponentIndices constructor must be None, a " \
            "list or list of lists, got '123'" in str(err.value)
     with pytest.raises(InternalError) as err:
         _ = ComponentIndices([[], 123])
-    assert "ComponentIndices: Invalid list parameter '" in str(err.value)
+    assert "ComponentIndices: Invalid list parameter '[[], 123]' - some " \
+           "elements but not all are lists" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
