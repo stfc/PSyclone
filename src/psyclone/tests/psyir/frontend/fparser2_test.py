@@ -706,8 +706,8 @@ def test_process_declarations_accessibility():
     # Repeat but provide a default visibility argument
     reader = FortranStringReader("real :: y\n")
     fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(
-        sched, fparser2spec, [], default_visibility=Symbol.Visibility.PRIVATE)
+    sched.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    processor.process_declarations(sched, fparser2spec, [])
     ysym = sched.symbol_table.lookup("y")
     assert ysym.visibility == Symbol.Visibility.PRIVATE
     # Repeat but provide a visibility mapping

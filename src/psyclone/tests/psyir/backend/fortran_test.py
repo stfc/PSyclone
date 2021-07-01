@@ -820,7 +820,8 @@ def test_fw_filecontainer_2(fortran_writer):
     result = fortran_writer(file_container)
     expected = (
         "module mod_name\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module mod_name\n"
         "subroutine sub_name()\n\n\n"
@@ -871,7 +872,8 @@ def test_fw_container_1(fortran_writer, monkeypatch):
     result = fortran_writer(container)
     assert (
         "module test\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module test\n" in result)
 
@@ -909,7 +911,8 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
         "  use iso_c_binding, only : c_int\n"
         "  implicit none\n"
         "  real :: c\n"
-        "  real :: d\n\n"
+        "  real :: d\n"
+        "  public\n\n"
         "  public :: tmp\n\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"
@@ -968,7 +971,8 @@ def test_fw_container_4(fortran_writer):
         "  use mod1\n"
         "  use mod2\n"
         "  use mod3\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module test\n" in result)
 
