@@ -362,7 +362,7 @@ def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
         "type my_type\nend type my_type"))
     assert (fortran_writer.gen_typedecl(tsymbol) ==
-            "type my_type\nend type my_type")
+            "type my_type\nend type my_type\n")
 
 
 def test_gen_typedecl(fortran_writer):
@@ -965,7 +965,7 @@ def test_fw_container_4(fortran_writer):
     container.symbol_table.lookup("mod2").wildcard_import = True
     container.symbol_table.add(ContainerSymbol("mod3"))
     container.symbol_table.lookup("mod3").wildcard_import = True
-    result = fortran_writer(container)
+    # Default symbol visibility is public
     assert (
         "module test\n"
         "  use mod1\n"
@@ -974,7 +974,18 @@ def test_fw_container_4(fortran_writer):
         "  implicit none\n"
         "  public\n\n"
         "  contains\n\n"
-        "end module test\n" in result)
+        "end module test\n" in fortran_writer(container))
+    # Change the default visibility to private
+    container.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert (
+        "module test\n"
+        "  use mod1\n"
+        "  use mod2\n"
+        "  use mod3\n"
+        "  implicit none\n"
+        "  private\n\n"
+        "  contains\n\n"
+        "end module test\n" in fortran_writer(container))
 
 
 def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
