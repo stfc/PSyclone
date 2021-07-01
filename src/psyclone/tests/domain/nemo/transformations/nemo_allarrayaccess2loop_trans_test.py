@@ -57,8 +57,8 @@ TEST_CONFIG = os.path.join(BASE_PATH, "nemo_test.cfg")
 
 def check_transformation(code, expected_result, statement=0):
     '''Utility function to check that the result of applying the
-    NemoArrayAccess2LoopTrans transformation to the code supplied in
-    the code argument for the statement number specified in the
+    NemoAllArrayAccess2LoopTrans transformation to the code supplied
+    in the code argument for the statement number specified in the
     statement argument and the array access index specified in the
     index argument produces the result specified in the
     expected_result argument.
@@ -86,7 +86,7 @@ def check_transformation(code, expected_result, statement=0):
 
 def test_transform():
     '''Check that it is possible to create an instance of
-    NemoArrayAccess2LoopTrans and that it is a subclass of
+    NemoAllArrayAccess2LoopTrans and that it is a subclass of
     Transformation.
 
     '''
@@ -188,7 +188,7 @@ def test_apply_validate():
 
 def test_validate_arg():
     '''Check that the validate() method raises the expected exception if
-   the supplied node is not a PSyIR Node.
+   the supplied node is not a PSyIR Assignment Node.
 
     '''
     trans = NemoAllArrayAccess2LoopTrans()

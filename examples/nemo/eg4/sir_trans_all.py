@@ -76,8 +76,8 @@ def trans(psy):
     abs_trans = Abs2CodeTrans()
     sign_trans = Sign2CodeTrans()
     min_trans = Min2CodeTrans()
-    nemo_loop_trans = NemoAllArrayRange2LoopTrans()
-    nemo_loop_trans2 = NemoAllArrayAccess2LoopTrans()
+    array_range_trans = NemoAllArrayRange2LoopTrans()
+    array_access_trans = NemoAllArrayAccess2LoopTrans()
 
     sir_writer = SIRWriter()
     fortran_writer = FortranWriter()
@@ -89,10 +89,10 @@ def trans(psy):
         schedule = invoke.schedule
 
         for assignment in schedule.walk(Assignment):
-            nemo_loop_trans2.apply(assignment)
+            array_range_trans.apply(assignment)
 
         for assignment in schedule.walk(Assignment):
-            nemo_loop_trans.apply(assignment)
+            array_access_trans.apply(assignment)
 
         for kernel in schedule.walk(NemoKern):
 

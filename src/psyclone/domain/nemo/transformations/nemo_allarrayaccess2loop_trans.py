@@ -75,22 +75,13 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
 
     '''
     def apply(self, node, options=None):
-        '''Apply the NemoArrayAccess2Loop transformation if the supplied node
-        is an Assignment with an Array Reference on its
+        '''Apply the NemoAllArrayAccess2Loop transformation if the supplied
+        node is an Assignment with an Array Reference on its
         left-hand-side. Each constant array index access (i.e. one not
         containing a loop iterator or a range) is then transformed
         into an iterator and the assignment placed within a single
-        trip loop.
-
-        If there are existing loops then the new loop will be placed
-        at the expected nesting, complying to the ordering expected by
-        the NEMO API (specified in the config file). If the existing
-        loops do not conform to this expected ordering then an
-        exception will be raised.
-
-        The name of the loop index is taken from the PSyclone
-        configuration file if a name exists for the particular array
-        index, otherwise a new name is generated.
+        trip loop, subject to any constraints in the
+        NemoArrayAccess2Loop transformation.
 
         :param node: an array index.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -112,7 +103,7 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
                 pass
 
     def validate(self, node, options=None):
-        '''Perform various checks to ensure that it is valid to apply the
+        '''Perform any checks to ensure that it is valid to apply the
         NemoArrayAccess2LoopTrans transformation to the supplied PSyIR Node.
 
         :param node: the node that is being checked.
@@ -124,7 +115,7 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
         :type options: dict of string:values or None
 
         '''
-        # Not a PSyIR Assignment
+        # Not a PSyIR Assignment node
         if not isinstance(node, Assignment):
             raise TransformationError(
                 "Error in NemoAllArrayAccess2LoopTrans transformation. The "
@@ -148,4 +139,4 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
 
 # For automatic document generation
 __all__ = [
-    'NemoArrayAccess2LoopTrans']
+    'NemoAllArrayAccess2LoopTrans']

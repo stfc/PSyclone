@@ -37,20 +37,25 @@
 containing an Array Reference node in its left-hand-side which in turn
 has at least one constant access to an array index. The node
 representing the array index is provided to the apply method of the
-tranformation to indicate which array index should be transformed.
+transformation to indicate which array index should be transformed.
 
 '''
 
 from __future__ import absolute_import
 
 from psyclone.configuration import Config
+from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
+    import CreateNemoKernelTrans
 from psyclone.nemo import NemoLoop, NemoKern
-from psyclone.psyGen import Transformation
+from psyclone.psyGen import Transformation, InlinedKern
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Node, Schedule, Loop
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-branches
 
 
 class NemoArrayAccess2LoopTrans(Transformation):
@@ -140,11 +145,12 @@ class NemoArrayAccess2LoopTrans(Transformation):
         symbols = [ref.symbol for ref in array_reference.children[:array_index]
                    if isinstance(ref, Reference)]
         location = assignment
-        idx = 0
+        nloops = 0
         while (isinstance(location.parent, Schedule) and
-               isinstance(location.parent.parent, Loop) and
-               idx < len(symbols)):
-            idx += 1
+               isinstance(location.parent.parent, (Loop, InlinedKern)) and
+               nloops < len(symbols)):
+            if isinstance(location.parent.parent, Loop):
+                nloops += 1
             location = location.parent.parent
 
         # Look up the loop variable in the symbol table. If it does
@@ -167,7 +173,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
         # existing ancestor nodes as they might be
         # referenced. Therefore use detach() and insert,() rather than
         # copy() and replace_with().
-        
+
         # Find location.parent and location_index
         loc_parent = location.parent
         loc_index = location.position
@@ -179,6 +185,13 @@ class NemoArrayAccess2LoopTrans(Transformation):
         # Replace the original assignment with a loop containing the
         # modified assignment.
         loc_parent.children.insert(loc_index, loop)
+
+        if nloops == 0 and not assignment.walk(Range):
+            # There were previously no loops therefore there was not
+            # inlined kernel node and there are no range nodes in the
+            # array reference, so we now need to add an inlined
+            # kernel.
+            CreateNemoKernelTrans().apply(assignment.parent)
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
@@ -238,7 +251,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
             location = location.parent.parent
             if isinstance(location, Loop):
                 iterator_symbols.append(location.variable)
-        
+
         # Index contains a loop iterator
         for reference in node.walk(Reference):
             if reference.symbol in iterator_symbols:
