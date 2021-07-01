@@ -451,3 +451,20 @@ def test_array_indices():
     assert ("ArrayReference malformed or incomplete: must have one or more "
             "children representing array-index expressions but found none"
             in str(err.value))
+
+
+def test_array_matching_access():
+    ''' Test the _matching_access() method for an ArrayReference. '''
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    test_sym = DataSymbol("test",
+                          ArrayType(REAL_TYPE, [10]))
+    array = ArrayReference.create(test_sym, [one])
+    # Something other than a Reference won't match
+    assert array._matching_access(one) is False
+    # An ArrayReference should match
+    array2 = ArrayReference(test_sym, [two])
+    assert array._matching_access(array2) is True
+    # A Reference to the array symbol should also match
+    bare_array = Reference(test_sym)
+    assert array._matching_access(bare_array) is True
