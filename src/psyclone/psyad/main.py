@@ -68,7 +68,8 @@ def main(args):
         '-t', '--gen-test',
         help='generate a standalone unit test for the adjoint code',
         action='store_true')
-    parser.add_argument('-otest', help='filename for the unit test',
+    parser.add_argument('-otest',
+                        help='filename for the unit test (implies -t)',
                         dest='test_filename')
     parser.add_argument('-oad', help='filename for the transformed code')
     parser.add_argument('filename', help='LFRic tangent-linear kernel source')
@@ -77,6 +78,10 @@ def main(args):
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
+
+    # Specifying an output file for the test harness is taken to mean that
+    # the user wants us to generate it.
+    generate_test = args.gen_test or args.test_filename
 
     # TL Fortran code
     filename = args.filename
@@ -87,7 +92,7 @@ def main(args):
 
     # Create the adjoint (and associated test framework if requested)
     ad_fortran_str, test_fortran_str = generate_adjoint_str(tl_fortran_str,
-                                                            args.gen_test)
+                                                            generate_test)
 
     # Output the Fortran code for the adjoint kernel
     if args.oad:
@@ -97,7 +102,7 @@ def main(args):
         print(ad_fortran_str, file=sys.stdout)
 
     # Output test framework if requested
-    if args.gen_test:
+    if generate_test:
         if args.test_filename:
             write_unicode_file(test_fortran_str, args.test_filename)
         else:
