@@ -177,6 +177,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
     :raises NotImplementedError: if the supplied PSyIR contains more than \
         one Routine.
+    :raises NotImplementedError: if the supplied TL/Adjoint PSyIR contains \
+        just a Routine that is a Program (since this would have to \
+        be converted to a subroutine in order to construct the test harness).
 
     '''
     # TODO the information on the active variables will have to be
@@ -185,13 +188,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     # TODO provide some way of dimensioning the test arrays
     array_dim_size = 20
 
-    # Get the Container and Routine names from the PSyIR of the adjoint.
-    adjoint_kernel_name = ad_psyir.walk(Routine)[0].name
-    adjoint_module_name = ad_psyir.walk(Container)[1].name
-
-    # First Container is a FileContainer and that's not what we want
-    container = tl_psyir.walk(Container)[1]
-
+    # First check that there's only one routine and that it's not a Program.
     routines = tl_psyir.walk(Routine)
 
     if len(routines) != 1:
@@ -200,6 +197,19 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
             "but found: {0}".format([sub.name for sub in routines]))
 
     tl_kernel = routines[0]
+
+    if tl_kernel.is_program:
+        raise NotImplementedError(
+            "Generation of a test harness for a kernel defined as a Program "
+            "(as opposed to a Subroutine) is not currently supported. (Found "
+            "'{0}' which is a Program.)".format(tl_kernel.name))
+
+    # First Container is a FileContainer and that's not what we want
+    container = tl_psyir.walk(Container)[1]
+
+    # Get the Container and Routine names from the PSyIR of the adjoint.
+    adjoint_kernel_name = ad_psyir.walk(Routine)[0].name
+    adjoint_module_name = ad_psyir.walk(Container)[1].name
 
     symbol_table = SymbolTable()
 
