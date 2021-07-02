@@ -603,3 +603,16 @@ Example 2: Creating PSyIR for Structure Types
 
 ``create_structure_types.py`` demonstrates the representation of
 structure types (i.e. Fortran derived types or C structs) in the PSyIR.
+
+.. _examples_psyad:
+
+PSyAD (PSyclone Adjoints)
+-------------------------
+
+Since PSyAD functionality is still in its infancy, there is currently
+only one, simple example. This may be found in the ``example/psyad``
+directory. It demonstrates the use of PSyAD to create the 'adjoint' of
+a kernel as well as a test harness for that adjoint. (Since the
+functionality is still under development, the 'adjoint' created is
+actually just a copy of the input kernel for now.)  See the
+``README.md`` file in that directory for full details.
