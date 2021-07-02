@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
                                    DataSymbol, GlobalInterface, \
                                    INTEGER_SINGLE_TYPE, LocalInterface, \
                                    RoutineSymbol, Symbol, SymbolError, \
-                                   SymbolTable, UnresolvedInterface
+                                   SymbolTable, UnresolvedInterface, NoType
 from psyclone.psyir.symbols.symbol import SymbolInterface
 
 
@@ -268,15 +268,38 @@ def test_symbol_copy():
     assert new_sym.visibility == asym.visibility
 
 
+def test_symbol_copy_properties():
+    ''' Test the copy_properties() method. '''
+    csym = ContainerSymbol("some_mod")
+    sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
+                 interface=GlobalInterface(csym))
+    new_sym = Symbol("b")
+    new_sym.copy_properties(sym)
+    # Name and visibility should be unchanged
+    assert new_sym.name == "b"
+    assert new_sym.visibility == Symbol.Visibility.PUBLIC
+    # Interface should have been updated
+    assert new_sym.interface == sym.interface
+
+    with pytest.raises(TypeError) as err:
+        new_sym.copy_properties("hello")
+    assert ("Argument should be of type 'Symbol' but found 'str'" in
+            str(err.value))
+
+
 def test_symbol_specialise():
     '''Test the Symbol.specialise() method.'''
     # pylint: disable = unidiomatic-typecheck
     asym = Symbol("a")
     assert type(asym) is Symbol
     assert str(asym) == "a"
+    # TODO #1113 the specialise() method does not currently deal with setting
+    # any attributes in the class that were not in the original class.
+    # Therefore we have to set datatype explicitly below.
     asym.specialise(RoutineSymbol)
+    asym.datatype = NoType()
     assert type(asym) is RoutineSymbol
-    assert str(asym) == "a : RoutineSymbol"
+    assert str(asym) == "a : RoutineSymbol <NoType>"
 
 
 @pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])

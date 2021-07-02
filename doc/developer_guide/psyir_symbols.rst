@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2020, Science and Technology Facilities Council.
+   Copyright (c) 2020-2021, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,13 @@
    -----------------------------------------------------------------------------
    Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
+.. The following section imports those Python modules that are needed in
+   subsequent doctest snippets.
+.. testsetup::
+
+        from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType, \
+	    REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
+	from psyclone.psyir.nodes import Reference
 
 PSyIR Types, Symbols and Data dependencies
 ##########################################
@@ -40,14 +47,17 @@ PSyIR Types, Symbols and Data dependencies
 DataTypes
 =========
 
-PSyIR DataTypes currently support Scalar, Array and Structure types
-via the ``ScalarType``, ``ArrayType`` and ``StructureType`` classes,
-respectively.  The ``StructureType`` simply contains an
-``OrderedDict`` of namedtuples, each of which holds the name, type and
-visibility of a component of the type. These types are designed to be
-composable: one might have an ``ArrayType`` with elements that are of
-a ``StructureType`` or a ``StructureType`` that has components that
-are also of (some other) ``StructureType``.
+PSyIR DataTypes currently support Scalar, Array, Structure and empty
+types via the ``ScalarType``, ``ArrayType``, ``StructureType`` and
+``NoType`` classes, respectively.  The ``StructureType`` simply
+contains an ``OrderedDict`` of namedtuples, each of which holds the
+name, type and visibility of a component of the type. These types are
+designed to be composable: one might have an ``ArrayType`` with
+elements that are of a ``StructureType`` or a ``StructureType`` that
+has components that are also of (some other) ``StructureType``.
+``NoType`` is the equivalent of C's ``void`` and is currently only
+used with ``RoutineSymbols`` when the corresponding routine has no
+return type (such as Fortran subroutines).
 
 There are two other types that are used in situations where the full
 type information is not currently available: ``UnknownType`` means
@@ -60,9 +70,11 @@ is limited to ``UnknownFortranType``.
 
 It was decided to include datatype intrinsic as an attribute of ScalarType
 rather than subclassing. So, for example, a 4-byte real scalar is
-defined like this::
+defined like this:
 
-   scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
+.. doctest::
+
+    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
 
 and has the following pre-defined shortcut
 
@@ -70,9 +82,7 @@ and has the following pre-defined shortcut
 
    scalar_type = REAL4_TYPE
 
-If we were to subclass, it would have looked something like this:
-
-::
+If we were to subclass, it would have looked something like this::
 
    scalar_type = RealType(4)
 
@@ -437,12 +447,12 @@ Indices
 The `AccessInfo` class stores the original PSyIR node that contains the
 access, but it also stores the indices used in a simplified form, which
 makes it easier to analyse dependencies without having
-to analyse a PSyIR tree for details. Using the `indices_groups` property of
+to analyse a PSyIR tree for details. Using the `component_indices` property of
 an `AccessInfo` object returns a list containing the indices used for
 each component. For example, an access like `a(i)%b(j,k)%c(l)` would
 return the list `[ [i], [j,k], [l] ]`. In case of non-array accesses,
 the corresponding index list will be empty, e.g. `a%b(j)%c` will
-have the indices groups `[ [], [j], [] ]`, and a scalar `a` will just
+have the component indices `[ [], [j], [] ]`, and a scalar `a` will just
 return `[ [] ]`.
 
 Each entry in this list of lists is still a PSyIR node for each index
@@ -460,7 +470,7 @@ analyse the index expression.
 
 .. code-block:: python
 
-  for index_group in access_info.indices:
+  for index_group in access_info.component_indices:
       for index_expression in index_group:
         # Create an access info object to collect the accesses
         # in the index expression
@@ -540,7 +550,7 @@ variables that must be declared as thread-private::
       # into account.
       is_array = symbol.is_used_as_array(access_info=acess_info)
 
-       if is_array:
+      if is_array:
           # It's not a scalar variable, so it will not be private
           continue
 

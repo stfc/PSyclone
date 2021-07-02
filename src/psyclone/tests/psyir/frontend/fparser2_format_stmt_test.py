@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,44 +31,39 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
 
-''' This module contains pytest tests for the DataTypeSymbol class. '''
+'''Module containing pytest tests for the handling of labelled format
+statements.'''
 
 from __future__ import absolute_import
-import pytest
-from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, Symbol, \
-    UnresolvedInterface
+from fparser.two import Fortran2003
+from psyclone.psyir.nodes import Container, Routine, CodeBlock
 
 
-def test_create_datatypesymbol():
-    ''' Check that a basic DataTypeSymbol can be created with the expected
-    properties. '''
-    sym = DataTypeSymbol("my_type", DeferredType())
-    assert sym.name == "my_type"
-    assert isinstance(sym.datatype, DeferredType)
-    assert str(sym) == "my_type : DataTypeSymbol"
+def test_format_handler(fortran_reader):
+    '''Test that a labelled format statement is correctly captured by a
+    CodeBlock. '''
+    code = '''
+program my_test
+  implicit none
+  integer :: val
 
+  write(*, 111) "This is just a test"
 
-def test_create_datatypesymbol_wrong_datatype():
-    ''' Check that attempting to specify the type of a DataTypeSymbol with an
-    invalid type results in the expected error. '''
-    sym = DataTypeSymbol("my_type", DeferredType())
-    with pytest.raises(TypeError) as err:
-        sym.datatype = "integer"
-    assert ("datatype of a DataTypeSymbol must be specified using a "
-            "DataType but got: 'str'" in str(err.value))
+  val = 1
 
+ 111 format("(A)")
 
-def test_datatypesymbol_copy():
-    ''' Check that a DataTypeSymbol can be copied. '''
-    symbol = DataTypeSymbol("my_type", DeferredType(),
-                            visibility=Symbol.Visibility.PRIVATE,
-                            interface=UnresolvedInterface())
-    new_symbol = symbol.copy()
-    assert new_symbol is not symbol
-    assert new_symbol.name == "my_type"
-    assert isinstance(new_symbol.datatype, DeferredType)
-    assert new_symbol.visibility == Symbol.Visibility.PRIVATE
-    assert isinstance(new_symbol.interface, UnresolvedInterface)
+end program my_test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    # Check the expected PSyIR nodes are being created
+    assert isinstance(psyir, Container)
+    assert psyir.parent is None
+    prog = psyir.walk(Routine)[0]
+    assert len(prog.children) == 3
+    assert isinstance(prog.children[0], CodeBlock)
+    cbnode = prog.children[2]
+    assert isinstance(cbnode, CodeBlock)
+    assert isinstance(cbnode._fp2_nodes[0], Fortran2003.Format_Stmt)
+    assert cbnode._fp2_nodes[0].item.label == 111
