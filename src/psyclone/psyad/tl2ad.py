@@ -45,7 +45,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
     CodeBlock, FileContainer
-from psyclone.psyir.symbols import SymbolTable, Symbol, LocalInterface, \
+from psyclone.psyir.symbols import SymbolTable, LocalInterface, \
     GlobalInterface, REAL_DOUBLE_TYPE, ContainerSymbol, ScalarType, \
     RoutineSymbol, DataSymbol
 
@@ -92,6 +92,40 @@ def generate_adjoint_str(tl_fortran_str, create_test=False):
     return adjoint_fortran_str, test_fortran_str
 
 
+def _find_container(psyir):
+    ''' Finds the first Container in the supplied PSyIR that is not a
+    FileContainer. Also validates that the PSyIR contains at most one
+    FileContainer which, if present, contains a Container.
+
+    :returns: the first Container that is not a FileContainer or None if \
+              there is none.
+    :rtype: :py:class:`psyclone.psyir.nodes.Container` or NoneType
+
+    :raises InternalError: if there are two Containers and the second is a \
+                           FileContainer.
+    :raises NotImplementedError: if there are more than two Containers.
+
+    '''
+    containers = psyir.walk(Container)
+    if not containers:
+        return None
+
+    if len(containers) == 1:
+        if isinstance(containers[0], FileContainer):
+            return None
+        return containers[0]
+
+    elif len(containers) == 2:
+        if isinstance(containers[1], FileContainer):
+            raise InternalError(
+                "The supplied PSyIR contains two Containers but the innermost "
+                "is a FileContainer. This should not be possible.")
+        return containers[1]
+
+    raise NotImplementedError("The supplied PSyIR contains more than two "
+                              "Containers. This is not supported.")
+
+
 def generate_adjoint(tl_psyir):
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
@@ -107,6 +141,9 @@ def generate_adjoint(tl_psyir):
         supplied tangent-linear kernel.
     :rtype: :py:class:`psyclone.psyir.Node`
 
+    :raises InternalError: if the PSyIR does not contain any Routines.
+    :raises NotImplementedError: if the PSyIR contains >1 Routine.
+
     '''
     logger = logging.getLogger(__name__)
     name_suffix = "_adj"
@@ -120,24 +157,17 @@ def generate_adjoint(tl_psyir):
     logger.debug("Transformation from TL to AD should be done now.")
     ad_psyir = tl_psyir.copy()
 
-    containers = ad_psyir.walk(Container)
-
-    if not containers or not isinstance(containers[0], FileContainer):
-        raise InternalError("huh")
-
-    if len(containers) > 2:
-        raise NotImplementedError(
-            "The supplied Fortran must contain one and only one module "
-            "but found: {0}".format([mod.name for mod in containers
-                                     if not isinstance(mod, FileContainer)]))
-    if len(containers) == 2:
-        container = containers[1]
+    # We permit the input code to be a single Program or Subroutine
+    container = _find_container(ad_psyir)
+    if container:
         # Re-name the Container for the adjoint code
         container.name = container.name + name_suffix
-    else:
-        container = containers[0]
 
     routines = ad_psyir.walk(Routine)
+
+    if not routines:
+        raise InternalError("The supplied PSyIR does not contain any "
+                            "routines.")
 
     if len(routines) != 1:
         raise NotImplementedError(
@@ -146,10 +176,9 @@ def generate_adjoint(tl_psyir):
     routine = routines[0]
 
     # We need to re-name the kernel routine. Have to take care in case we've
-    # been supplied with a program rather than a subroutine within a module.
-    if routine.is_program:
-        routine.name = routine.name + name_suffix
-    else:
+    # been supplied with a bare program/subroutine rather than a subroutine
+    # within a module.
+    if container:
         kernel_sym = container.symbol_table.lookup(routine.name)
         adj_kernel_name = routine.name + name_suffix
         # A symbol's name is immutable so create a new RoutineSymbol
@@ -158,6 +187,8 @@ def generate_adjoint(tl_psyir):
             visibility=kernel_sym.visibility)
         container.symbol_table.remove(kernel_sym)
         routine.name = adj_kernel_sym.name
+    else:
+        routine.name = routine.name + name_suffix
 
     return ad_psyir
 
@@ -187,6 +218,16 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     active_variables = ['field']
     # TODO provide some way of dimensioning the test arrays
     array_dim_size = 20
+
+    # We expect a single Container containing a single Kernel. Anything else
+    # is not supported. However, we have to allow for the fact that, in
+    # general, there will be an outermost FileContainer.
+    container = _find_container(ad_psyir)
+    if not container:
+        raise NotImplementedError(
+            "Generation of a test harness is only supported for a TL kernel "
+            "implemented as a subroutine within a module but failed to find "
+            "enclosing module.")
 
     # First check that there's only one routine and that it's not a Program.
     routines = tl_psyir.walk(Routine)

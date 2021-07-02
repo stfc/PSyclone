@@ -42,9 +42,14 @@ import logging
 import pytest
 import six
 
-from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyad import generate_adjoint_str, generate_adjoint
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Container, FileContainer, Return
+from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
+    generate_adjoint_test
+from psyclone.psyad.tl2ad import _find_container
 
 
 # 1: generate_adjoint_str function
@@ -69,19 +74,84 @@ def test_generate_adjoint_str(caplog):
         "end program test\n")
 
     with caplog.at_level(logging.INFO):
-        result = generate_adjoint_str(tl_code)
+        result, test_harness = generate_adjoint_str(tl_code)
 
     assert caplog.text == ""
     assert expected in result
+    assert test_harness is None
 
     with caplog.at_level(logging.DEBUG):
-        result = generate_adjoint_str(tl_code)
+        result, test_harness = generate_adjoint_str(tl_code)
 
     assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:58" in caplog.text
     assert tl_code in caplog.text
     assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:74" in caplog.text
     assert expected in caplog.text
     assert expected in result
+    assert test_harness is None
+
+
+def test_generate_adjoint_str_generate_harness():
+    ''' Test the create_test option to generate_adjoint_str(). '''
+    tl_code = (
+        "module my_mod\n"
+        "  contains\n"
+        "  subroutine kern(field)\n"
+        "    real, intent(inout) :: field\n"
+        "    field = 0.0\n"
+        "  end subroutine kern\n"
+        "end module my_mod\n"
+    )
+    result, harness = generate_adjoint_str(tl_code, create_test=True)
+    assert "subroutine kern_adj(field)\n" in result
+    assert ('''program adj_test
+  use my_mod, only : kern
+  use my_mod_adj, only : kern_adj
+  double precision :: inner1
+  double precision :: inner2
+  double precision :: abs_diff
+  real :: field
+  real :: field_input
+  real :: field_out
+
+  CALL random_number(field)
+  field_input = field
+  call kern(field)
+  inner1 = 0.0
+  inner1 = inner1 + field * field
+  call kern_adj(field)
+  inner2 = 0.0
+  inner2 = inner2 + field * field_input
+  abs_diff = ABS(inner1 - inner2)
+  if (abs_diff > 1.0e-10) then
+    WRITE(*, *) 'Test of adjoint of ''kern'' failed: diff = ', abs_diff
+    return
+  end if
+  WRITE(*, *) 'Test of adjoint of ''kern'' passed: diff = ', abs_diff
+
+end program adj_test''' in harness)
+
+
+def test_find_container():
+    ''' Tests for the internal, helper function _find_container(). '''
+    assert _find_container(Return()) is None
+    assert _find_container(FileContainer("test")) is None
+    cont = Container("my_mod")
+    assert _find_container(cont) is cont
+    cont.addchild(FileContainer("test"))
+    with pytest.raises(InternalError) as err:
+        _find_container(cont)
+    assert ("The supplied PSyIR contains two Containers but the innermost is "
+            "a FileContainer. This should not be possible" in str(err.value))
+    file_cont = FileContainer("test")
+    cont = Container("my_mod")
+    file_cont.addchild(cont)
+    assert _find_container(file_cont) is cont
+    file_cont.addchild(cont.copy())
+    with pytest.raises(NotImplementedError) as err:
+        _find_container(file_cont)
+    assert ("The supplied PSyIR contains more than two Containers. This is "
+            "not supported." in str(err.value))
 
 
 # 2: generate_adjoint function
@@ -106,6 +176,38 @@ def test_generate_adjoint():
     writer = FortranWriter()
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
+
+
+def test_generate_adjoint_errors():
+    ''' Check that generate_adjoint() raises the expected exceptions when
+    given invalid input. '''
+    # Only a FileContainer
+    psyir = FileContainer("test_file")
+    with pytest.raises(InternalError) as err:
+        generate_adjoint(psyir)
+    assert ("The supplied PSyIR does not contain any routines." in
+            str(err.value))
+    with pytest.raises(InternalError) as err:
+        generate_adjoint(Container.create("test_mod", SymbolTable(),
+                                          [psyir.copy()]))
+    assert ("The supplied PSyIR contains two Containers but the innermost is "
+            "a FileContainer. This should not be possible" in str(err.value))
+    # No kernel code
+    with pytest.raises(InternalError) as err:
+        generate_adjoint(Container("test_mod"))
+    assert ("The supplied PSyIR does not contain any routines." in
+            str(err.value))
+
+
+def test_generate_adjoint_test_errors():
+    ''' Check that generate_adjoint_test() raises the expected exceptions if
+    the input is not valid for test-harness generation. '''
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint_test(FileContainer("test_file"),
+                              FileContainer("test_adj_file"))
+    assert ("Generation of a test harness is only supported for a TL kernel "
+            "implemented as a subroutine within a module but failed to find "
+            "enclosing module." in str(err.value))
 
 
 # generate_adjoint function logging
