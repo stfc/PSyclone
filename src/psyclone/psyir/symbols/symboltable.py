@@ -65,7 +65,7 @@ class SymbolTable(object):
     :raises TypeError: if node argument is not a Schedule or a Container.
 
     '''
-    def __init__(self, node=None):
+    def __init__(self, node=None, default_visibility=None):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
         # produce code with declarations in the same order.
@@ -87,6 +87,8 @@ class SymbolTable(object):
         # when we have symbols of UnknownType since their associated
         # declaration may or may not contain visibility information.)
         self._default_visibility = None
+        if default_visibility is not None:
+            self.default_visibility = default_visibility
 
     @property
     def default_visibility(self):
@@ -235,6 +237,7 @@ class SymbolTable(object):
         new_st._argument_list = copy.copy(self._argument_list)
         new_st._tags = copy.copy(self._tags)
         new_st._node = self.node
+        new_st._default_visibility = self.default_visibility
         return new_st
 
     def deep_copy(self):
@@ -270,6 +273,9 @@ class SymbolTable(object):
             name = symbol.interface.container_symbol.name
             new_container = new_st.lookup(name)
             symbol.interface = GlobalInterface(new_container)
+
+        # Set the default visibility
+        new_st._default_visibility = self.default_visibility
 
         return new_st
 
