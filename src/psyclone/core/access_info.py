@@ -81,7 +81,7 @@ class AccessInfo(object):
             self.component_indices = component_indices
 
     def __str__(self):
-        '''Returns a string representating showing the access mode
+        '''Returns a string representation showing the access mode
         and location, e.g.: WRITE(5).'''
         return "{0}({1})".format(self._access_type, self._location)
 
