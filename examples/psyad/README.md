@@ -1,4 +1,4 @@
-# PSyclone PSyAD Example: creating an adjoint kernel.
+# PSyclone PSyAD Example: creating an adjoint kernel and test harness.
 
 **Author:** A. R. Porter, STFC Daresbury Lab
 
@@ -9,8 +9,8 @@ This example demonstrates the use of PSyAD to create the adjoint of a
 simple kernel (contained in `testkern_mod.f90`).
 It also demonstrates the creation of a test harness for the adjoint kernel.
 
-Note that the PSyAD functionality is still being developed (see issues
-with the `adjoint` label: https://github.com/stfc/PSyclone/issues?q=is%3Aissue+is%3Aopen+label%3Aadjoint). At this point the script does *not* construct
+Note that the PSyAD functionality is still being developed (see GitHub Issues
+with the [`adjoint` label](<https://github.com/stfc/PSyclone/issues?q=is%3Aissue+is%3Aopen+label%3Aadjoint>)). At this point the script does *not* construct
 the adjoint of the supplied kernel - it merely creates a copy of it.
 
 PSyAD can be run in the directory containing this file by executing, e.g.
