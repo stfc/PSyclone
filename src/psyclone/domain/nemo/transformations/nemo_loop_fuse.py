@@ -116,8 +116,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             if not is_array:
                 NemoLoopFuseTrans.validate_written_scalar(var_info1, var_info2)
             else:
-                NemoLoopFuseTrans.validate_written_array(signature,
-                                                         var_info1, var_info2,
+                NemoLoopFuseTrans.validate_written_array(var_info1, var_info2,
                                                          loop_var1)
 
     # -------------------------------------------------------------------------
@@ -154,14 +153,11 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def validate_written_array(signature, var_info1, var_info2, loop_variable):
+    def validate_written_array(var_info1, var_info2, loop_variable):
         '''Validates if the accesses to an array, which is at least written
         once, allows loop fusion. The access pattern to this array is
-        specified in the two parameters `var_info1` and `var_info2`. The
-        signature is used to provide better error messages.
+        specified in the two parameters `var_info1` and `var_info2`.
 
-        :param signature: the signature of the variable validated.
-        :type signature: :py:class:`psyclone.core.signature.Signature`
         :param var_info1: access information for variable in the first loop.
         :type var_info1: \
             :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
@@ -180,7 +176,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
         dep_tools = DependencyTools()
         all_indices = \
-            dep_tools.array_accesses_consistent(loop_variable, signature,
+            dep_tools.array_accesses_consistent(loop_variable,
                                                 [var_info1, var_info2])
         errors = dep_tools.get_all_messages()
 

@@ -110,16 +110,16 @@ class DependencyTools(object):
         return self._messages
 
     # -------------------------------------------------------------------------
-    def array_accesses_consistent(self, loop_variable, signature, var_infos):
-        '''Check whether all accesses to the array with the given signature
-        have consistent usage of the loop variable in all `VariableAccessInfo`
-        objects supplied in the `var_infos` parameter. This may be used e.g.
+    def array_accesses_consistent(self, loop_variable, var_infos):
+        '''Check whether all accesses to an array, whose accesses are
+        specified in the `var_infos` parameter, have consistent usage of
+        the loop variable. This may be used e.g.
         to verify whether two loops may be fused by providing the access
-        information of the each loop in the `var_infos` parameter as a list).
+        information of the each loop in the `var_infos` parameter as a list.
         For example, `a(i,j)` and `a(j,i)` would be inconsistent. It does
         not test for index values (e.g. `a(i,j)` and `a(i+3,j)`). The caller
         needs to query the error messages managed by this object to detect
-        error(s), see `get_all_messages`.
+        error(s), see `get_all_messages()`.
         This function returns the list of all accesses that use the loop
         variable. This is an additional convenient result that can simplify
         further tests (but can also be ignored).
@@ -128,8 +128,6 @@ class DependencyTools(object):
             loops being fused.
         :type loop_variable: \
             :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`
-        :param signature: the signature of the variable tested.
-        :type signature: :py:class:`psyclone.core.signature.Signature`
         :param var_infos: access information for an array. Can be either a \
             single object, or a list of access objects.
         :type var_infos: a list or a single instance of \
@@ -145,9 +143,11 @@ class DependencyTools(object):
         # pylint: disable=too-many-locals
         if not isinstance(var_infos, list):
             all_accesses = var_infos.all_accesses
+            signature = var_infos.signature
         else:
             # Verify that all var_info objects are indeed for
             # the same variable.
+            signature = var_infos[0].signature
             different = [vi.signature for vi in var_infos
                          if vi.signature != signature]
             if different:
@@ -175,7 +175,20 @@ class DependencyTools(object):
         # a convenience value for the user
         all_indices = []
 
-        # Loop over all the accesses of this variable
+        # Test all access to the array. Consider the following code (enclosed
+        # in nested j, i loops), when analysing the 'j' loop:
+        #       a(i,j) = a(i,j) + 1    ! (1)
+        #       b(i,j) = sin(a(i,j))   ! (2)
+        #       c(i,j) = b(j,i)        ! (3)
+        # When testing the accesses to 'a', three access will be reported,
+        # a read and a write access in (1), and another read access in (2).
+        # These accesses are consistent, they all have 'j' as the second
+        # dimension. When testing 'b' on the other hand, there will be
+        # two accesses (write in (2) and read in (3)), but the accesses are
+        # not consistent - 'j' is used in dimension 2 when writing, and
+        # in dimension 1 when reading.
+
+        # Loop over all the accesses to the array:
         for access in all_accesses:
             component_indices = access.component_indices
             # Now verify that the index variable is always used
@@ -238,16 +251,18 @@ class DependencyTools(object):
         return True
 
     # -------------------------------------------------------------------------
-    def array_access_parallelisable(self, loop_variable, signature, var_info):
+    def array_access_parallelisable(self, loop_variable, var_info):
         '''Tries to determine if the access pattern for a variable
-        given in var_info allows parallelisation along the variable
-        loop_variable. Additional messages might be provided to the
-        user using the message API.
+        given in `var_info` allows parallelisation along the variable
+        `loop_variable`. The following messages might be provided
+        to the user using the message API:
+
+        * if the array access does not depend on the loop variable, a
+          warning is added (e.g. for the variable `a` in `a(1,2) = b(i,j)`).
+        * if the array variable is accessed inconsistently, e.g.
+          `a(i,j) = a(j,i) + 1`.
 
         :param str loop_variable: name of the variable that is parallelised.
-        :param signature: the signature of the variable that is tested, \
-            i.e. whose access info is supplied in `var_info`.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param var_info: access information for this variable.
         :type var_info: \
             :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
@@ -273,7 +288,7 @@ class DependencyTools(object):
         # Detect if this variable adds a new message, and if so, abort early
         old_num_messages = len(self.get_all_messages())
         all_indices = \
-            self.array_accesses_consistent(loop_variable, signature, var_info)
+            self.array_accesses_consistent(loop_variable, var_info)
         if len(self.get_all_messages()) > old_num_messages:
             return False
 
@@ -449,7 +464,6 @@ class DependencyTools(object):
             if is_array:
                 # Handle arrays
                 par_able = self.array_access_parallelisable(loop_variable,
-                                                            signature,
                                                             var_info)
             else:
                 # Handle scalar variable

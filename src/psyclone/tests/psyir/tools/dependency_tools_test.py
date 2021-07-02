@@ -199,6 +199,7 @@ def test_arrays_parallelise(parser):
 def test_array_access_consistent(parser):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
+    # pylint: disable=too-many-locals
     reader = FortranStringReader('''program test
                                  integer ji, jj, jk
                                  integer, parameter :: jpi=5, jpj=10
@@ -229,38 +230,47 @@ def test_array_access_consistent(parser):
     var_info1 = VariablesAccessInfo(loops[1])
     jj_symbol = loops.scope.symbol_table.lookup("jj")
 
+    # Test 1: provide access pattern of different variables:
     sig_a = Signature("a")
     sig_b = Signature("b")
     sig_c = Signature("c")
     with pytest.raises(InternalError) as err:
-        _ = dep_tools.array_accesses_consistent(jj_symbol, sig_a,
+        _ = dep_tools.array_accesses_consistent(jj_symbol,
                                                 [var_info0[sig_a],
                                                  var_info1[sig_b],
                                                  var_info1[sig_c]])
     assert "Inconsistent signature provided in 'array_accesses_consistent'. " \
            "Expected was 'a', but also got 'b,c'." in str(err.value)
 
+    # Test 2: provide a consistent list of accesses.
+    # Check number of messages and returned access array for correctness.
     a_access_1st_loop = var_info0[sig_a]
     a_access_2nd_loop = var_info1[sig_a]
-    all_ind = dep_tools.array_accesses_consistent(jj_symbol, sig_a,
+    all_ind = dep_tools.array_accesses_consistent(jj_symbol,
                                                   [a_access_1st_loop,
                                                    a_access_2nd_loop])
     assert len(dep_tools.get_all_messages()) == 0
+    assert len(all_ind) == 3
     assert all_ind[0] == a_access_1st_loop[0].component_indices[(0, 1)]
     assert all_ind[1] == a_access_2nd_loop[0].component_indices[(0, 1)]
     assert all_ind[2] == a_access_2nd_loop[1].component_indices[(0, 1)]
 
-    all_ind = dep_tools.array_accesses_consistent(jj_symbol, sig_a,
+    # Test 3: provide a single instance (not a list).
+    all_ind = dep_tools.array_accesses_consistent(jj_symbol,
                                                   a_access_1st_loop)
-    assert all_ind[0] == a_access_1st_loop[0].component_indices[(0, 1)]
     assert len(dep_tools.get_all_messages()) == 0
+    assert all_ind == [a_access_1st_loop[0].component_indices[(0, 1)]]
 
+    # Test 4: trigger an error.
     var_info2 = VariablesAccessInfo(loops[2])
     a_access_3rd_loop = var_info2[sig_a]
-    all_ind = dep_tools.array_accesses_consistent(jj_symbol, sig_a,
+    all_ind = dep_tools.array_accesses_consistent(jj_symbol,
                                                   [a_access_1st_loop,
                                                    a_access_3rd_loop])
     assert len(dep_tools.get_all_messages()) == 1
+    assert "Variable 'a' is written to and the loop variable 'jj' is used " \
+           "differently: a(ji,jj) and a(jj,ji)." \
+           in dep_tools.get_all_messages()[0]
 
 
 # -----------------------------------------------------------------------------
