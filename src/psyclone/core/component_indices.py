@@ -50,8 +50,10 @@ class ComponentIndices(object):
     would have `[ [], [] ]`.
 
     As a shortcut, the `indices` parameter can be None or an empty list
-    (which then creates the component indices as `[[]]`), a list `l` (which
-    will then create the component indices as `[l]`).
+    (which then creates the component indices as `[[]]`, i.e. indicating
+    a scalar access), a list `l` (which will then create the component
+    indices as `[l]`, i.e. a single component variable, which uses
+    all the indices in the list `l` as array indices).
 
     :param indices: the indices from which to create this object.
     :type indices: None, [], a list or a list of lists of \
