@@ -59,15 +59,18 @@ def test_main_h_option(capsys):
     # when using pytest, therefore we split this test into sections.
     expected1 = "usage: "
     expected2 = (
-        "[-h] [-v] [-oad OAD] filename\n\n"
+        "[-h] [-v] [-t] [-otest TEST_FILENAME] [-oad OAD] filename\n\n"
         "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
-        "  filename       LFRic tangent-linear kernel source\n\n"
+        "  filename              LFRic tangent-linear kernel source\n\n"
         "optional arguments:\n"
-        "  -h, --help     show this help message and exit\n"
-        "  -v, --verbose  increase the verbosity of the output\n"
-        "  -oad OAD       filename for the transformed code\n")
+        "  -h, --help            show this help message and exit\n"
+        "  -v, --verbose         increase the verbosity of the output\n"
+        "  -t, --gen-test        generate a standalone unit test for the "
+        "adjoint code\n"
+        "  -otest TEST_FILENAME  filename for the unit test\n"
+        "  -oad OAD              filename for the transformed code\n")
     assert expected1 in output
     assert expected2 in output
 
@@ -87,7 +90,7 @@ def test_main_no_filename(capsys):
     # of the executable is replaced with either pytest or -c when
     # using pytest, therefore we split the test into sections.
     expected1 = "usage: "
-    expected2 = "[-h] [-v] [-oad OAD] filename"
+    expected2 = "[-h] [-v] [-t] [-otest TEST_FILENAME] [-oad OAD] filename"
     if six.PY2:
         expected3 = "error: too few arguments\n"
     else:
@@ -127,10 +130,10 @@ def test_main_stdout(tmpdir, capsys):
         "a = 0.0\n"
         "end program test\n")
     expected = (
-        "program test\n"
+        "program test_adj\n"
         "  integer :: a\n\n"
         "  a = 0.0\n\n"
-        "end program test\n")
+        "end program test_adj\n")
     filename = six.text_type(tmpdir.join("tl.f90"))
     with open(filename, "a") as my_file:
         my_file.write(tl_code)
@@ -152,10 +155,10 @@ def test_main_fileout(tmpdir, capsys):
         "a = 0.0\n"
         "end program test\n")
     expected = (
-        "program test\n"
+        "program test_adj\n"
         "  integer :: a\n\n"
         "  a = 0.0\n\n"
-        "end program test\n")
+        "end program test_adj\n")
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:

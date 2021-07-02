@@ -94,10 +94,10 @@ def test_generate_adjoint():
         "a = 0.0\n"
         "end program test\n")
     expected_ad_fortran_str = (
-        "program test\n"
+        "program test_adj\n"
         "  integer :: a\n\n"
         "  a = 0.0\n\n"
-        "end program test\n")
+        "end program test_adj\n")
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 

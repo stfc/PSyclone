@@ -39,12 +39,13 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 '''
 import logging
 from fparser.two import Fortran2003
+from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
     CodeBlock, FileContainer
-from psyclone.psyir.symbols import SymbolTable, LocalInterface, \
+from psyclone.psyir.symbols import SymbolTable, Symbol, LocalInterface, \
     GlobalInterface, REAL_DOUBLE_TYPE, ContainerSymbol, ScalarType, \
     RoutineSymbol, DataSymbol
 
@@ -121,34 +122,42 @@ def generate_adjoint(tl_psyir):
 
     containers = ad_psyir.walk(Container)
 
-    if len(containers) != 2:
+    if not containers or not isinstance(containers[0], FileContainer):
+        raise InternalError("huh")
+
+    if len(containers) > 2:
         raise NotImplementedError(
             "The supplied Fortran must contain one and only one module "
             "but found: {0}".format([mod.name for mod in containers
                                      if not isinstance(mod, FileContainer)]))
-    container = containers[1]
-    # Re-name the Container for the adjoint code
-    container.name = container.name + name_suffix
+    if len(containers) == 2:
+        container = containers[1]
+        # Re-name the Container for the adjoint code
+        container.name = container.name + name_suffix
+    else:
+        container = containers[0]
 
     routines = ad_psyir.walk(Routine)
 
     if len(routines) != 1:
         raise NotImplementedError(
-            "The supplied Fortran must contain one and only one Subroutine "
+            "The supplied Fortran must contain one and only one routine "
             "but found: {0}".format([sub.name for sub in routines]))
+    routine = routines[0]
 
-    tl_kernel_name = routines[0].name
-
-    # We need to re-name the kernel routine
-    kernel_sym = container.symbol_table.lookup(tl_kernel_name)
-    adj_kernel_name = tl_kernel_name + name_suffix
-    # A symbol's name is immutable so create a new RoutineSymbol
-    adj_kernel_sym = container.symbol_table.new_symbol(
-        adj_kernel_name, symbol_type=RoutineSymbol,
-        visibility=kernel_sym.visibility)
-    container.symbol_table.remove(kernel_sym)
-
-    routines[0].name = adj_kernel_sym.name
+    # We need to re-name the kernel routine. Have to take care in case we've
+    # been supplied with a program rather than a subroutine within a module.
+    if routine.is_program:
+        routine.name = routine.name + name_suffix
+    else:
+        kernel_sym = container.symbol_table.lookup(routine.name)
+        adj_kernel_name = routine.name + name_suffix
+        # A symbol's name is immutable so create a new RoutineSymbol
+        adj_kernel_sym = container.symbol_table.new_symbol(
+            adj_kernel_name, symbol_type=RoutineSymbol,
+            visibility=kernel_sym.visibility)
+        container.symbol_table.remove(kernel_sym)
+        routine.name = adj_kernel_sym.name
 
     return ad_psyir
 
