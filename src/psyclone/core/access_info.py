@@ -63,11 +63,12 @@ class AccessInfo(object):
     :param access: the access type.
     :type access_type: :py:class:`psyclone.core.access_type.AccessType`
     :param int location: a number used in ordering the accesses.
-    :param component_indices: indices used in the access, defaults to None
-    :type component_indices: \
-        :py:class:`psyclone.core.component_indices.ComponentIndices`
     :param node: Node in PSyIR in which the access happens.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param component_indices: indices used in the access, defaults to None.
+    :type component_indices: None, [], a list or a list of lists of \
+        :py:class:`psyclone.psyir.nodes.Node` objects, or an object of type \
+        :py:class:`psyclone.core.component_indices.ComponentIndices`
 
     '''
     def __init__(self, access_type, location, node, component_indices=None):
