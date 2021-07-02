@@ -234,7 +234,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
     if len(routines) != 1:
         raise NotImplementedError(
-            "The supplied Fortran must contain one and only one Subroutine "
+            "The supplied Fortran must contain one and only one subroutine "
             "but found: {0}".format([sub.name for sub in routines]))
 
     tl_kernel = routines[0]
@@ -323,13 +323,6 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         inputs.append(new_sym)
         input_copies.append(input_sym)
 
-    # Create additional variables for arguments to the adjoint kernel
-    # (using markup from the TL kernel to identify active arguments).
-    for var in active_variables:
-        input_sym = symbol_table.lookup(var)
-        symbol_table.new_symbol(var+"_out", symbol_type=type(input_sym),
-                                datatype=input_sym.datatype)
-
     statements = []
     # Initialise those variables and keep a copy of them.
     # TODO #1247 we need to add comments to the generated code!
@@ -349,16 +342,16 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                                   [Reference(sym) for sym in new_arg_list]))
 
     # Compute the inner product of the result of the TL kernel
-    statements += create_inner_product(inner1,
-                                       [(sym, sym) for sym in inputs])
+    statements += _create_inner_product(inner1,
+                                        [(sym, sym) for sym in inputs])
 
     # Call the adjoint kernel using the outputs of the TL kernel as input
     statements.append(Call.create(adj_kernel_sym,
                                   [Reference(sym) for sym in new_arg_list]))
 
     # Compute inner product of result of adjoint kernel with original inputs
-    statements += create_inner_product(inner2,
-                                       zip(inputs, input_copies))
+    statements += _create_inner_product(inner2,
+                                        zip(inputs, input_copies))
 
     # Compare the inner products
     tol_zero = Literal("1.0e-10", REAL_DOUBLE_TYPE)
@@ -393,10 +386,11 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     return routine
 
 
-def create_inner_product(result, symbol_pairs):
+def _create_inner_product(result, symbol_pairs):
     '''
     Creates PSyIR that computes the inner product of each pair of symbols
-    in the supplied list and adds it to the supplied `result` variable.
+    in the supplied list and accumulates it into the supplied `result`
+    variable (which is first zeroed).
 
     :param result: symbol which will accumulate result.
     :type result: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -423,8 +417,10 @@ def create_inner_product(result, symbol_pairs):
         if sym1.datatype != sym2.datatype:
             raise TypeError(
                 "Cannot compute inner product of Symbols '{0}' and '{1}' "
-                "because they represent different datatypes.".format(
-                    sym1.name, sym2.name))
+                "because they represent different datatypes ({2} and {3}, "
+                "respectively).".format(
+                    sym1.name, sym2.name, str(sym1.datatype),
+                    str(sym2.datatype)))
 
         if sym1.is_scalar:
             prod = BinaryOperation.create(BinaryOperation.Operator.MUL,

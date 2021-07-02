@@ -45,11 +45,13 @@ import six
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Container, FileContainer, Return
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
+    Assignment
+from psyclone.psyir.symbols import SymbolTable, RoutineSymbol, DataSymbol, \
+    GlobalInterface, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE, ArrayType
 from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
     generate_adjoint_test
-from psyclone.psyad.tl2ad import _find_container
+from psyclone.psyad.tl2ad import _find_container, _create_inner_product
 
 
 # 1: generate_adjoint_str function
@@ -112,7 +114,6 @@ def test_generate_adjoint_str_generate_harness():
   double precision :: abs_diff
   real :: field
   real :: field_input
-  real :: field_out
 
   CALL random_number(field)
   field_input = field
@@ -155,7 +156,7 @@ def test_find_container():
 
 
 # 2: generate_adjoint function
-def test_generate_adjoint():
+def test_generate_adjoint(fortran_reader):
     '''Test that the generate_adjoint() function works as expected.'''
 
     tl_fortran_str = (
@@ -168,8 +169,7 @@ def test_generate_adjoint():
         "  integer :: a\n\n"
         "  a = 0.0\n\n"
         "end program test_adj\n")
-    reader = FortranReader()
-    tl_psyir = reader.psyir_from_source(tl_fortran_str)
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
 
     ad_psyir = generate_adjoint(tl_psyir)
 
@@ -193,10 +193,63 @@ def test_generate_adjoint_errors():
     assert ("The supplied PSyIR contains two Containers but the innermost is "
             "a FileContainer. This should not be possible" in str(err.value))
     # No kernel code
+    cont = Container("test_mod")
     with pytest.raises(InternalError) as err:
-        generate_adjoint(Container("test_mod"))
+        generate_adjoint(cont)
     assert ("The supplied PSyIR does not contain any routines." in
             str(err.value))
+    # Only one routine is permitted
+    cont.addchild(Routine.create("my_kern1", SymbolTable(), [Return()]))
+    cont.addchild(Routine.create("my_kern2", SymbolTable(), [Return()]))
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint(cont)
+    assert ("The supplied Fortran must contain one and only one routine but "
+            "found: ['my_kern1', 'my_kern2']" in str(err.value))
+
+
+def test_create_inner_product_errors():
+    ''' Check that the _create_inner_product() utility raises the expected
+    exceptions if given invalid inputs. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    var1 = DataSymbol("var1", REAL_DOUBLE_TYPE)
+    var2 = DataSymbol("var2", INTEGER_TYPE)
+    with pytest.raises(TypeError) as err:
+        _create_inner_product(accum, [(var1, var2)])
+    assert ("Cannot compute inner product of Symbols 'var1' and 'var2' "
+            "because they represent different datatypes (Scalar" in
+            str(err.value))
+    var3 = DataSymbol("var3", ArrayType(REAL_DOUBLE_TYPE, [10]))
+    with pytest.raises(TypeError) as err:
+        _create_inner_product(accum, [(var1, var3)])
+    assert ("Cannot compute inner product of Symbols 'var1' and 'var3' "
+            "because they represent different datatypes (Scalar" in
+            str(err.value))
+    var4 = DataSymbol("var4", ArrayType(REAL_TYPE, [10]))
+    with pytest.raises(TypeError) as err:
+        _create_inner_product(accum, [(var4, var3)])
+    assert ("Cannot compute inner product of Symbols 'var4' and 'var3' "
+            "because they represent different datatypes (Array" in
+            str(err.value))
+    var5 = DataSymbol("var5", ArrayType(REAL_TYPE, [10, 10]))
+    with pytest.raises(TypeError) as err:
+        _create_inner_product(accum, [(var4, var5)])
+    assert ("Cannot compute inner product of Symbols 'var4' and 'var5' "
+            "because they represent different datatypes (Array" in
+            str(err.value))
+
+
+def test_create_inner_product():
+    ''' Tests for utility that creates PSyIR for computing an
+    inner product. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    var1 = DataSymbol("var1", INTEGER_TYPE)
+    var2 = DataSymbol("var2", INTEGER_TYPE)
+    nodes = _create_inner_product(accum, [(var1, var2)])
+    assert len(nodes) == 2
+    assert isinstance(nodes[0], Assignment)
+    assert nodes[0].lhs.symbol is accum
+    assert nodes[0].rhs.value == "0.0"
+    assert 0, "ARPDBG"
 
 
 def test_generate_adjoint_test_errors():
@@ -208,6 +261,67 @@ def test_generate_adjoint_test_errors():
     assert ("Generation of a test harness is only supported for a TL kernel "
             "implemented as a subroutine within a module but failed to find "
             "enclosing module." in str(err.value))
+    cont = Container("test_mod")
+    # Only one routine is permitted
+    kern1 = Routine.create("my_kern1", SymbolTable(), [Return()])
+    cont.addchild(kern1)
+    cont.addchild(Routine.create("my_kern2", SymbolTable(), [Return()]))
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint_test(cont, cont.copy())
+    assert ("The supplied Fortran must contain one and only one subroutine "
+            "but found: ['my_kern1', 'my_kern2']" in str(err.value))
+    cont.pop_all_children()
+    kern1._is_program = True
+    cont.addchild(kern1)
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint_test(cont, cont.copy())
+    assert ("Generation of a test harness for a kernel defined as a Program "
+            "(as opposed to a Subroutine) is not currently supported. (Found "
+            "'my_kern1' which is a Program.)" in str(err.value))
+
+
+def test_generate_adjoint_test(fortran_reader, fortran_writer):
+    ''' '''
+    tl_code = (
+        "module my_mod\n"
+        "  contains\n"
+        "  subroutine kern(field, npts)\n"
+        "    integer, intent(in) :: npts\n"
+        "    real, intent(inout) :: field(npts)\n"
+        "    field = 0.0\n"
+        "  end subroutine kern\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    assert isinstance(test_psyir, Routine)
+    assert test_psyir.is_program is True
+    sym_table = test_psyir.symbol_table
+    tl_kern = sym_table.lookup("kern")
+    adj_kern = sym_table.lookup("kern_adj")
+    assert isinstance(tl_kern, RoutineSymbol)
+    assert isinstance(adj_kern, RoutineSymbol)
+    assert isinstance(tl_kern.interface, GlobalInterface)
+    assert isinstance(adj_kern.interface, GlobalInterface)
+    assert tl_kern.interface.container_symbol.name == "my_mod"
+    assert adj_kern.interface.container_symbol.name == "my_mod_adj"
+    harness = fortran_writer(test_psyir)
+    assert ("  real, dimension(npts) :: field\n"
+            "  real, dimension(npts) :: field_input" in harness)
+    assert ("  CALL random_number(field)\n"
+            "  field_input = field\n"
+            "  call kern(field, npts)\n"
+            "  inner1 = 0.0\n"
+            "  inner1 = inner1 + DOT_PRODUCT(field, field)\n"
+            "  call kern_adj(field, npts)\n"
+            "  inner2 = 0.0\n"
+            "  inner2 = inner2 + DOT_PRODUCT(field, field_input)\n"
+            "  abs_diff = ABS(inner1 - inner2)\n" in harness)
+    # Ideally we would test that the generated harness code compiles
+    # but, since it depends on the TL and adjoint kernels, we can't
+    # currently do that (see #284).
+    # assert Compile(tmpdir).string_compiles(harness)
 
 
 # generate_adjoint function logging
