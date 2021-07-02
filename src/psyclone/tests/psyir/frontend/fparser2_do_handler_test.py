@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment
+from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -98,11 +98,12 @@ def test_do_construct_while():
     processor = Fparser2Reader()
     fake_parent = Schedule()
     processor.process_nodes(fake_parent, [fparser2while])
-    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert isinstance(fake_parent[0], CodeBlock)
+    assert isinstance(fake_parent[0].ast,
+                      Fortran2003.Block_Nonlabel_Do_Construct)
 
 
-@pytest.mark.usefixtures("parser")
-def test_unhandled_do(parser):
+def test_unhandled_do(f2008_parser):
     ''' Test that a DO without any control logic results in a CodeBlock. '''
     lines = ["SUBROUTINE a_loop()",
              "  integer :: niter_atgen, jp_maxniter_atgen",
@@ -117,7 +118,61 @@ def test_unhandled_do(parser):
              "  END DO",
              "END SUBROUTINE a_loop"]
     reader = FortranStringReader("\n".join(lines))
-    fp2spec = parser(reader)
+    fp2spec = f2008_parser(reader)
     processor = Fparser2Reader()
     sched = processor.generate_schedule("a_loop", fp2spec)
     assert isinstance(sched[0], CodeBlock)
+    assert isinstance(sched[0].ast, Fortran2003.Block_Nonlabel_Do_Construct)
+
+
+def test_handled_named_do_without_exit(fortran_reader):
+    ''' Check that a named DO results in a Loop if it does not contain
+    any statements that refer to the construct-name (such as an EXIT). '''
+    code = '''PROGRAM my_test
+integer :: i
+real, dimension(10) :: a
+outer_do: DO i = 1, 10
+  a(i) = 1.0
+END DO outer_do
+END PROGRAM my_test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    prog = psyir.walk(Routine)[0]
+    assert len(prog.children) == 1
+    assert isinstance(prog.children[0], Loop)
+
+
+def test_unhandled_named_do(fortran_reader):
+    ''' Check that a named DO results in a CodeBlock when it contains a
+    reference to the construct-name. '''
+    code = '''PROGRAM my_test
+integer :: i
+real, dimension(10) :: a
+outer_do: DO i = 1, 10
+  a(i) = 1.0
+  EXIT outer_do
+END DO outer_do
+END PROGRAM my_test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    prog = psyir.walk(Routine)[0]
+    assert len(prog.children) == 1
+    assert isinstance(prog.children[0], CodeBlock)
+    assert isinstance(prog.children[0].ast,
+                      Fortran2003.Block_Nonlabel_Do_Construct)
+
+
+def test_unhandled_labelled_do(fortran_reader):
+    ''' Check that a labelled DO results in a CodeBlock. '''
+    code = '''PROGRAM my_test
+integer :: i
+real, dimension(10) :: a
+111 DO i = 1, 10
+  a(i) = 1.0
+END DO
+GOTO 111
+END PROGRAM my_test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    prog = psyir.walk(Routine)[0]
+    assert len(prog.children) == 1
+    assert isinstance(prog.children[0], CodeBlock)
+    assert isinstance(prog.children[0].ast,
+                      Fortran2003.Block_Nonlabel_Do_Construct)

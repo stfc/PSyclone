@@ -45,7 +45,7 @@ import six
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
     Data_Ref, If_Then_Stmt, Array_Section
-from fparser.two.utils import walk
+from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
@@ -57,7 +57,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
     UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
-    SymbolTable, INTEGER_TYPE
+    SymbolTable, NoType, INTEGER_TYPE
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -199,7 +199,7 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
                         # specialise the existing symbol.
                         # TODO Use the API developed in #1113 to specialise
                         # the symbol.
-                        sym.__class__ = expected_type
+                        sym.specialise(expected_type)
                         sym.__init__(sym.name, **kargs)
                 return sym
             except KeyError:
@@ -727,12 +727,18 @@ def _process_routine_symbols(module_ast, symbol_table,
     '''
     routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
                                  Fortran2003.Function_Subprogram))
+    # A subroutine has no type but a function does. However, we don't know what
+    # it is at this stage so we give all functions a DeferredType.
+    # TODO #1314 extend the frontend to ensure that the type of a Routine's
+    # return_symbol matches the type of the associated RoutineSymbol.
+    type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
+                Fortran2003.Function_Subprogram: DeferredType()}
     for routine in routines:
         name = str(routine.children[0].children[1])
         vis = visibility_map.get(name, default_visibility)
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
-        rsymbol = RoutineSymbol(name, visibility=vis,
+        rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
                                 interface=LocalInterface())
         symbol_table.add(rsymbol)
 
@@ -2207,9 +2213,7 @@ class Fparser2Reader(object):
     def process_nodes(self, parent, nodes):
         '''
         Create the PSyIR of the supplied list of nodes in the
-        fparser2 AST. Currently also inserts parent information back
-        into the fparser2 AST. This is a workaround until fparser2
-        itself generates and stores this information.
+        fparser2 AST.
 
         :param parent: Parent node in the PSyIR we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -2226,6 +2230,12 @@ class Fparser2Reader(object):
                 # If child type implementation not found, add them on the
                 # ongoing code_block node list.
                 code_block_nodes.append(child)
+                if not isinstance(parent, Schedule):
+                    # If we're not processing a statement then we create a
+                    # separate CodeBlock for each node in the parse tree.
+                    # (Otherwise it is hard to correctly reconstruct e.g.
+                    # the arguments to a Call.)
+                    self.nodes_to_code_block(parent, code_block_nodes)
             else:
                 if psy_child:
                     self.nodes_to_code_block(parent, code_block_nodes)
@@ -2244,13 +2254,27 @@ class Fparser2Reader(object):
         :type child: :py:class:`fparser.two.utils.Base`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :raises NotImplementedError: There isn't a handler for the provided \
-                child type.
+
         :returns: Returns the PSyIR representation of child, which can be a \
                   single node, a tree of nodes or None if the child can be \
                   ignored.
         :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+
+        :raises NotImplementedError: if the child node has a label or there \
+            isn't a handler for the provided child type.
+
         '''
+        # We don't support statements with labels.
+        if isinstance(child, BlockBase):
+            # An instance of BlockBase describes a block of code (no surprise
+            # there), so we have to examine the first statement within it.
+            if (child.content and child.content[0].item and
+                    child.content[0].item.label):
+                raise NotImplementedError()
+        elif isinstance(child, StmtBase):
+            if child.item and child.item.label:
+                raise NotImplementedError()
+
         handler = self.handlers.get(type(child))
         if handler is None:
             # If the handler is not found then check with the first
@@ -2308,8 +2332,21 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         :raises NotImplementedError: if the fparser2 tree has an unsupported \
-            structure (e.g. DO WHILE or a DO with no loop control).
+            structure (e.g. DO WHILE or a DO with no loop control or a named \
+            DO containing a reference to that name).
         '''
+        nonlabel_do = walk(node.content, Fortran2003.Nonlabel_Do_Stmt)[0]
+        if nonlabel_do.item is not None:
+            # If the associated line has a name that is referenced inside the
+            # loop then it isn't supported , e.g. `EXIT outer_loop`.
+            if nonlabel_do.item.name:
+                construct_name = nonlabel_do.item.name
+                # Check that the construct-name is not referred to inside
+                # the Loop (but exclude the END DO from this check).
+                names = walk(node.content[:-1], Fortran2003.Name)
+                if construct_name in [name.string for name in names]:
+                    raise NotImplementedError()
+
         ctrl = walk(node.content, Fortran2003.Loop_Control)
         if not ctrl:
             # TODO #359 a DO with no loop control is put into a CodeBlock
@@ -3563,6 +3600,11 @@ class Fparser2Reader(object):
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
                 routine_symbol.specialise(RoutineSymbol)
+                # TODO #1113 - the above specialise() call does not yet
+                # support adding properties to the symbol so we have to
+                # manually set the datatype of the RoutineSymbol. As this is
+                # a call, it must be a subroutine which has no associated type.
+                routine_symbol.datatype = NoType()
             elif type(routine_symbol) is RoutineSymbol:
                 # This symbol is already the expected type
                 pass
@@ -3572,6 +3614,7 @@ class Fparser2Reader(object):
                     "'RoutineSymbol', but found '{1}'.".format(
                         call_name, type(routine_symbol).__name__))
         except KeyError:
+            # A call must be to a subroutine which has no type in Fortran.
             routine_symbol = RoutineSymbol(
                 call_name, interface=UnresolvedInterface())
             symbol_table.add(routine_symbol)

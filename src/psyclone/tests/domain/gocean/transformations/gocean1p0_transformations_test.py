@@ -87,8 +87,8 @@ def test_const_loop_bounds_not_schedule():
         _, _ = cbtrans.apply(schedule.children[0])
 
 
-def test_const_loop_bounds_toggle(tmpdir):
-    ''' Check that we can toggle constant loop bounds on and off and
+def test_const_loop_bounds_enabled_and_disabled(tmpdir):
+    ''' Check that we can turn the constant loop bounds on and off and
     that the default behaviour is "on" '''
     psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                              API, idx=0)
@@ -99,39 +99,36 @@ def test_const_loop_bounds_toggle(tmpdir):
     # bounds by default.
     assert schedule._const_loop_bounds is False
     gen = str(psy.gen)
-    assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
-    assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
-    assert "DO j=p_fld%whole%ystart,p_fld%whole%ystop" in gen
-    assert "DO i=p_fld%whole%xstart,p_fld%whole%xstop" in gen
+    assert "DO j = cv_fld%internal%ystart, cv_fld%internal%ystop" in gen
+    assert "DO i = cv_fld%internal%xstart, cv_fld%internal%xstop" in gen
+    assert "DO j = p_fld%whole%ystart, p_fld%whole%ystop" in gen
+    assert "DO i = p_fld%whole%xstart, p_fld%whole%xstop" in gen
 
     # Next, check the generated code applying the constant loop-bounds
     # transformation.
+    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                             API, idx=0)
+    schedule = invoke.schedule
     cbtrans.apply(schedule)
     gen = str(psy.gen)
     assert schedule._const_loop_bounds is True
-    assert "INTEGER istop, jstop" in gen
+    assert "INTEGER istop" in gen
+    assert "INTEGER istop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j=2,jstop-1" in gen
-    assert "DO i=2,istop" in gen
+    assert "DO j = 2, jstop-1" in gen
+    assert "DO i = 2, istop" in gen
 
     # Next, check that applying the constant loop-bounds
     # transformation again has no effect.
     cbtrans.apply(schedule)
     gen = str(psy.gen)
-    assert "INTEGER istop, jstop" in gen
+    assert "INTEGER istop" in gen
+    assert "INTEGER jstop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j=2,jstop-1" in gen
-    assert "DO i=2,istop" in gen
-
-    # Finally, test that we can turn-off constant loop bounds.
-    cbtrans.apply(schedule, {"const_bounds": False})
-    gen = str(psy.gen)
-    assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
-    assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
-    assert "DO j=p_fld%whole%ystart,p_fld%whole%ystop" in gen
-    assert "DO i=p_fld%whole%xstart,p_fld%whole%xstop" in gen
+    assert "DO j = 2, jstop-1" in gen
+    assert "DO i = 2, istop" in gen
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -209,7 +206,7 @@ def test_loop_fuse_error(monkeypatch):
     assert 'Unexpected exception' in str(excinfo.value)
 
 
-def test_omp_parallel_loop(tmpdir):
+def test_omp_parallel_loop(tmpdir, fortran_writer):
     '''Test that we can generate an OMP PARALLEL DO correctly,
     independent of whether or not we are generating constant loop bounds '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
@@ -221,32 +218,30 @@ def test_omp_parallel_loop(tmpdir):
     omp.apply(schedule[0])
     cbtrans.apply(schedule, {"const_bounds": True})
 
-    gen = str(psy.gen)
-    gen = gen.lower()
+    gen = fortran_writer(psy.container)
     expected = ("!$omp parallel do default(shared), private(i,j), "
                 "schedule(static)\n"
-                "      do j=2,jstop\n"
-                "        do i=2,istop+1\n"
-                "          call compute_cu_code(i, j, cu_fld%data, "
+                "    do j = 2, jstop, 1\n"
+                "      do i = 2, istop+1, 1\n"
+                "        call compute_cu_code(i, j, cu_fld%data, "
                 "p_fld%data, u_fld%data)\n"
-                "        end do\n"
-                "      end do\n"
-                "      !$omp end parallel do")
+                "      enddo\n"
+                "    enddo\n"
+                "    !$omp end parallel do")
     assert expected in gen
 
     cbtrans.apply(schedule, {"const_bounds": False})
-    gen = str(psy.gen)
-    gen = gen.lower()
+    gen = fortran_writer(psy.container)
     expected = (
-        "      !$omp parallel do default(shared), private(i,j), "
+        "    !$omp parallel do default(shared), private(i,j), "
         "schedule(static)\n"
-        "      do j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-        "        do i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
-        "          call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+        "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
+        "        call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        end do\n"
-        "      end do\n"
-        "      !$omp end parallel do")
+        "      enddo\n"
+        "    enddo\n"
+        "    !$omp end parallel do")
     assert expected in gen
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -285,7 +280,7 @@ def test_omp_region_with_single_loop(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -301,7 +296,7 @@ def test_omp_region_with_single_loop(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -331,7 +326,7 @@ def test_omp_region_with_slice(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -397,7 +392,7 @@ def test_omp_region_no_slice(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -428,7 +423,7 @@ def test_omp_region_no_slice_no_const_bounds(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -591,11 +586,11 @@ def test_omp_region_before_loops_trans(tmpdir):
     omp_region_idx = -1
     omp_do_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx
-        if 'DO j=' in line:
+        if 'DO j =' in line:
             break
 
     assert omp_region_idx != -1
@@ -628,11 +623,11 @@ def test_omp_region_after_loops_trans(tmpdir):
     omp_region_idx = -1
     omp_do_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if '!$omp parallel default' in line:
+        if '!$omp parallel' in line:
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx
-        if 'DO j=' in line:
+        if 'DO j =' in line:
             break
 
     assert omp_region_idx != -1
@@ -1005,8 +1000,6 @@ def test_omp_region_invalid_node():
     ompr.apply(schedule.children, {"node-type-check": False})
 
 
-@pytest.mark.xfail(reason="OMP Region with children of different types "
-                   "not yet implemented")
 def test_omp_region_with_children_of_different_types(tmpdir):
     ''' Test that we can generate code if we have an
     OpenMP parallel region enclosing children of different types. '''
@@ -1534,24 +1527,25 @@ def test_acc_parallel_not_a_loop():
     assert "'int'>" in str(error.value)
 
 
-def test_acc_parallel_trans(tmpdir):
+def test_acc_parallel_trans(tmpdir, fortran_writer):
     ''' Test that we can apply an OpenACC parallel transformation
     to a loop '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
 
+    # Apply the OpenACC Parallel transformation to the first loop of the
+    # schedule
     acct = ACCParallelTrans()
-    # Apply the OpenACC Parallel transformation
-    # to the first loop of the schedule
     acct.apply(schedule.children[0])
 
     with pytest.raises(GenerationError) as err:
-        _ = str(psy.gen)
+        _ = fortran_writer(psy.container)
     assert ("An ACC parallel region must either be preceded by an ACC enter "
             "data directive or enclosed within an ACC data region but in "
             "'invoke_0' this is not the case" in str(err.value))
 
+    # Apply the OpenACC EnterData transformation
     accdt = ACCEnterDataTrans()
     accdt.apply(schedule)
     code = str(psy.gen)
@@ -1756,7 +1750,7 @@ def test_accdata_duplicate():
         accdt.apply(schedule)
 
 
-def test_accloop(tmpdir):
+def test_accloop(tmpdir, fortran_writer):
     ''' Tests that we can apply a '!$acc loop' directive to a loop '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
@@ -1766,8 +1760,9 @@ def test_accloop(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
+
     # This test expects constant loop bounds
-    _, _ = cbtrans.apply(schedule, {"const_bounds": True})
+    cbtrans.apply(schedule, {"const_bounds": True})
 
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
@@ -1782,7 +1777,7 @@ def test_accloop(tmpdir):
     # Code generation should fail at this point because there's no
     # enclosing parallel region
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        _ = fortran_writer(psy.container)
     assert ("ACCLoopDirective must have an ACCParallelDirective or "
             "ACCKernelsDirective as an ancestor in the Schedule" in
             str(err.value))
@@ -1793,7 +1788,7 @@ def test_accloop(tmpdir):
     # Code generation should still fail because there's no 'enter data'
     # directive and we need one for the parallel region to work
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        _ = fortran_writer(psy.container)
     assert ("An ACC parallel region must either be preceded by an ACC enter "
             "data directive or enclosed within an ACC data region but in "
             "'invoke_0' this is not the case." in str(err.value))
@@ -1801,15 +1796,14 @@ def test_accloop(tmpdir):
     # Add a data region
     accdata.apply(schedule)
 
-    gen = str(psy.gen)
-
+    gen = fortran_writer(psy.container)
     assert '''\
-      !$acc parallel default(present)
-      !$acc loop independent
-      DO j=2,jstop''' in gen
-    assert ("END DO\n"
-            "      !$acc loop independent\n"
-            "      DO j=2,jstop+1" in gen)
+            !$acc parallel default(present)
+            !$acc loop independent
+            do j = 2, jstop, 1''' in gen
+    assert ("enddo\n"
+            "            !$acc loop independent\n"
+            "            do j = 2, jstop+1, 1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1910,8 +1904,8 @@ def test_acc_collapse(tmpdir):
     gen = str(psy.gen)
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop independent collapse(2)\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop+1\n"
+            "      DO j = 2, jstop, 1\n"
+            "        DO i = 2, istop+1, 1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -1934,8 +1928,8 @@ def test_acc_indep(tmpdir):
     accdata.apply(schedule)
     # Check the generated code
     gen = str(psy.gen)
-    assert "!$acc loop\n      DO j=2,jstop" in gen
-    assert "!$acc loop independent\n      DO j=2,jstop+1" in gen
+    assert "!$acc loop\n      DO j = 2, jstop, 1" in gen
+    assert "!$acc loop independent\n      DO j = 2, jstop+1, 1" in gen
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -1958,7 +1952,7 @@ def test_acc_loop_seq():
     gen = str(psy.gen).lower()
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop seq\n"
-            "      do j=2,jstop\n" in gen)
+            "      do j = 2, jstop, 1\n" in gen)
 
 
 def test_acc_loop_view(capsys):

@@ -127,9 +127,9 @@ def test_goloop_unmatched_offsets():
     goiloop.loop_body.addchild(gokern2)
     with pytest.raises(GenerationError) as excinfo:
         goiloop.gen_code(None)
-    # Note that the kernels do not have a name, so there is a double space
-    assert "All Kernels must expect the same grid offset but kernel  " \
-        "has offset go_offset_sw which does not match go_offset_ne" \
+    # Note that the kernels do not have a name, so there are empty quotes
+    assert "All Kernels must expect the same grid offset but kernel '' " \
+        "has offset 'go_offset_sw' which does not match 'go_offset_ne'" \
         in str(excinfo.value)
 
 
@@ -181,16 +181,66 @@ def test_goloop_lower_to_language_level(monkeypatch):
     and stop expressions for the loops using the upper/lower_bound methods. '''
     schedule = GOInvokeSchedule('name', [])
     goloop = GOLoop(loop_type="inner", parent=schedule)
+    schedule.addchild(goloop)
     assert goloop.start_expr.value == 'NOT_INITIALISED'
     assert goloop.stop_expr.value == 'NOT_INITIALISED'
+
+    # Monkeypatch the called GOLoops methods as this will be tested separately
     monkeypatch.setattr(GOLoop, "lower_bound",
                         lambda x: Literal("1", INTEGER_TYPE))
     monkeypatch.setattr(GOLoop, "upper_bound",
                         lambda x: Literal("1", INTEGER_TYPE))
+    monkeypatch.setattr(GOLoop, "_validate_loop",
+                        lambda x: True)
 
+    # Lower to language level and check the resulting Loop is as expected
     goloop.lower_to_language_level()
-    assert goloop.start_expr.value == '1'
-    assert goloop.stop_expr.value == '1'
+    new_loop = schedule.children[0]
+    # pylint: disable=unidiomatic-typecheck
+    assert type(new_loop) == Loop
+    assert new_loop.start_expr.value == '1'
+    assert new_loop.stop_expr.value == '1'
+
+
+def test_goloop_validate_loop():
+    ''' Tests that the GOLoop _validate_loop raises the appropriate errors when
+    the Loop is not valid. '''
+
+    # We need a parent in order to create the node, but then we detach it to
+    # check that the validation works as expected.
+    schedule = GOInvokeSchedule('name', [])
+    goloop = GOLoop(loop_type="inner", parent=schedule)
+    schedule.addchild(goloop)
+    goloop.detach()
+
+    # Test that an ancestor must be GOInvokeSchedule
+    with pytest.raises(GenerationError) as err:
+        goloop._validate_loop()
+    assert ("Cannot find a GOInvokeSchedule ancestor for this GOLoop."
+            in str(err.value))
+
+    # Test that a child must be a GOKern
+    schedule = GOInvokeSchedule('name', [])
+    schedule.addchild(goloop.detach())
+    with pytest.raises(GenerationError) as err:
+        goloop._validate_loop()
+    assert ("Cannot find the GOcean Kernel enclosed by this loop"
+            in str(err.value))
+
+    # Test Loop containing kernels with different offsets
+    gokern1 = GOKern()
+    gokern1._index_offset = "offset_se"
+    gokern1._name = "kernel1"
+    gokern2 = GOKern()
+    gokern2._index_offset = "offset_sw"
+    gokern2._name = "kernel2"
+    goloop.loop_body.addchild(gokern1)
+    goloop.loop_body.addchild(gokern2)
+    with pytest.raises(GenerationError) as err:
+        goloop._validate_loop()
+    assert ("All Kernels must expect the same grid offset but kernel 'kernel2'"
+            " has offset 'offset_sw' which does not match 'offset_se'."
+            in str(err.value))
 
 
 @pytest.fixture()

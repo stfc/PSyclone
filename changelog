@@ -77,6 +77,18 @@
 
         26) #1252 for #1251. Fix Ranges inside StructureType accesses.
 
+        27) #1294 towards #1259. Add the TypedSymbol abstract class.
+
+        28) #1311 for #1303. Fortran frontend do not merge CodeBlocks
+		when these are not full statements.
+
+        29) #1212 towards #1010. Updates the gocean1.0 API so that the PSy-layer
+        generation uses the PSyIR Fortran backend. (N.B. the OpenCL generation
+        still uses the f2pygen mechanism for the moment.)
+
+        29) #1316 for #1301 and #1304. The Fortran frontend handles labelled
+        and named constructs.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
