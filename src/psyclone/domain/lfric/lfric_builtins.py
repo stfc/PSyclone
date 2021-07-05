@@ -323,13 +323,8 @@ class LFRicBuiltIn(BuiltIn):
         '''
         # Ultimately this routine will be removed once the LFRic PSyIR
         # has been fully migrated to use the PSyIR backends (e.g. #1010).
-        # For now we create a temporary copy of the PSyIR, lower it and
-        # then create an f2pygen node from it.
-        routine = Routine('dummy')
-        new_tree = self.copy()
-        routine.addchild(new_tree)
-        new_tree.lower_to_language_level()
-        parent.add(PSyIRGen(parent, routine[0]))
+        # For now we create an f2pygen node from the PSyIR of this routine.
+        parent.add(PSyIRGen(parent, self))
 
     def cma_operation(self):
         '''
