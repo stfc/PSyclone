@@ -55,7 +55,7 @@ from psyclone.gocean1p0 import GOKern, GOLoop, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
-    ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
+    ContainerSymbol, DataSymbol, GlobalInterface, ScalarType, INTEGER_TYPE, \
     ArgumentInterface, DataTypeSymbol
 from psyclone.psyir.nodes import Node, StructureReference, Member, \
     StructureMember, Reference
@@ -90,16 +90,18 @@ def test_field(tmpdir, dist_mem):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
         "      USE compute_cu_mod, ONLY: compute_cu_code\n"
-        "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: p_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
         "      INTEGER j\n"
-        "      INTEGER i\n")
+        "      INTEGER i\n\n")
     remaining_code = (
-        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+        "        DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_compute_cu\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -107,8 +109,7 @@ def test_field(tmpdir, dist_mem):
         # Fields that read and have a stencil access insert a halo exchange,
         # in this case p_fld is a stencil but u_fld is pointwise.
         halo_exchange_code = (
-            "      CALL p_fld%halo_exchange(depth=1)\n"
-            "      !\n")
+            "      CALL p_fld%halo_exchange(1)\n")
         expected_output = before_kernel + halo_exchange_code + remaining_code
     else:
         expected_output = before_kernel + remaining_code
@@ -137,34 +138,35 @@ def test_two_kernels(tmpdir, dist_mem):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
         "uold_fld)\n"
-        "      USE time_smooth_mod, ONLY: time_smooth_code\n"
         "      USE compute_cu_mod, ONLY: compute_cu_code\n"
-        "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, "
-        "unew_fld, uold_fld\n"
+        "      USE time_smooth_mod, ONLY: time_smooth_code\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: p_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: unew_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: uold_fld\n"
         "      INTEGER j\n"
-        "      INTEGER i\n")
+        "      INTEGER i\n\n")
     first_kernel = (
-        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+        "        DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
         "        END DO\n"
         "      END DO\n")
     second_kernel = (
-        "      DO j=1,SIZE(uold_fld%data, 2)\n"
-        "        DO i=1,SIZE(uold_fld%data, 1)\n"
+        "      DO j = 1, SIZE(uold_fld%data, 2), 1\n"
+        "        DO i = 1, SIZE(uold_fld%data, 1), 1\n"
         "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
         "uold_fld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_two_kernels")
     if dist_mem:
         # In this case the second kernel just has pointwise accesses, so it
         # doesn't add any halo exchange.
-        halos_first_kernel = (
-            "      CALL p_fld%halo_exchange(depth=1)\n"
-            "      !\n")
+        halos_first_kernel = "      CALL p_fld%halo_exchange(1)\n"
         expected_output = before_kernels + halos_first_kernel + first_kernel \
             + second_kernel
     else:
@@ -191,23 +193,25 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld)\n"
         "      USE compute_cu_mod, ONLY: compute_cu_code\n"
-        "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: p_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
         "      INTEGER j\n"
-        "      INTEGER i\n")
+        "      INTEGER i\n\n")
     first_kernel = (
-        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+        "        DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
         "        END DO\n"
         "      END DO\n")
     second_kernel = (
-        "      DO j=p_fld%internal%ystart,p_fld%internal%ystop\n"
-        "        DO i=p_fld%internal%xstart,p_fld%internal%xstop\n"
+        "      DO j = p_fld%internal%ystart, p_fld%internal%ystop, 1\n"
+        "        DO i = p_fld%internal%xstart, p_fld%internal%xstop, 1\n"
         "          CALL compute_cu_code(i, j, p_fld%data, cu_fld%data,"
         " u_fld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_two_kernels")
 
@@ -215,12 +219,8 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
         # In this case the second kernel just has a RaW dependency on the
         # cu_fld of the first kernel, so a halo exchange should be inserted
         # bewteen the kernels in addition to the initial p_fld halo exchange.
-        halos_first_kernel = (
-            "      CALL p_fld%halo_exchange(depth=1)\n"
-            "      !\n")
-        halos_second_kernel = (
-            "      CALL cu_fld%halo_exchange(depth=1)\n"
-            "      !\n")
+        halos_first_kernel = "      CALL p_fld%halo_exchange(1)\n"
+        halos_second_kernel = "      CALL cu_fld%halo_exchange(1)\n"
         expected_output = before_kernels + halos_first_kernel + first_kernel \
             + halos_second_kernel + second_kernel
     else:
@@ -250,35 +250,33 @@ def test_grid_property(tmpdir, dist_mem):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0(cu_fld, u_fld, du_fld, d_fld)\n"
         "      USE kernel_requires_grid_props, ONLY: next_sshu_code\n"
-        "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld, du_fld, "
-        "d_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: du_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: d_fld\n"
         "      INTEGER j\n"
-        "      INTEGER i\n")
+        "      INTEGER i\n\n")
     first_kernel = (
-        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+        "        DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
         "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
         "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
         "        END DO\n"
         "      END DO\n")
     second_kernel = (
-        "      DO j=du_fld%internal%ystart,du_fld%internal%ystop\n"
-        "        DO i=du_fld%internal%xstart,du_fld%internal%xstop\n"
+        "      DO j = du_fld%internal%ystart, du_fld%internal%ystop, 1\n"
+        "        DO i = du_fld%internal%xstart, du_fld%internal%xstop, 1\n"
         "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
         "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_with_grid_props_test")
     if dist_mem:
         # Grid properties do not insert halo exchanges, in this case
         # only the u_fld and d_fld have read stencil accesses.
-        halos_first_kernel = (
-            "      CALL u_fld%halo_exchange(depth=1)\n"
-            "      !\n")
-        halos_second_kernel = (
-            "      CALL d_fld%halo_exchange(depth=1)\n"
-            "      !\n")
+        halos_first_kernel = "      CALL u_fld%halo_exchange(1)\n"
+        halos_second_kernel = "      CALL d_fld%halo_exchange(1)\n"
         expected_output = before_kernels + halos_first_kernel + first_kernel \
             + halos_second_kernel + second_kernel
     else:
@@ -308,17 +306,17 @@ def test_scalar_int_arg(tmpdir, dist_mem):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_bc_ssh(ncycle, ssh_fld)\n"
         "      USE kernel_scalar_int, ONLY: bc_ssh_code\n"
-        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
         "      INTEGER, intent(inout) :: ncycle\n"
+        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
         "      INTEGER j\n"
-        "      INTEGER i\n")
+        "      INTEGER i\n\n")
     first_kernel = (
-        "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
-        "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
+        "      DO j = ssh_fld%whole%ystart, ssh_fld%whole%ystop, 1\n"
+        "        DO i = ssh_fld%whole%xstart, ssh_fld%whole%xstop, 1\n"
         "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
         "ssh_fld%grid%tmask)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_int_test")
 
@@ -351,17 +349,17 @@ def test_scalar_float_arg(tmpdir, dist_mem):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
         "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
-        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
         "      REAL(KIND=go_wp), intent(inout) :: a_scalar\n"
+        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
         "      INTEGER j\n"
-        "      INTEGER i\n")
+        "      INTEGER i\n\n")
     first_kernel = (
-        "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
-        "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
+        "      DO j = ssh_fld%whole%ystart, ssh_fld%whole%ystop, 1\n"
+        "        DO i = ssh_fld%whole%xstart, ssh_fld%whole%xstop, 1\n"
         "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
         "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_float_test")
 
@@ -404,27 +402,27 @@ def test_scalar_float_arg_from_module():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
-        "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
+        "    SUBROUTINE invoke_0_bc_ssh(ssh_fld)\n"
         "      USE my_mod, ONLY: a_scalar\n"
+        "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
         "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
         "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop+1\n"
+        "      DO j = 1, jstop+1, 1\n"
+        "        DO i = 1, istop+1, 1\n"
         "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
         "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_float_test")
-    assert generated_code.find(expected_output) != -1
+
+    assert generated_code == expected_output
     # We don't compile this generated code as the module is made up and
     # the compiler would correctly fail.
 
@@ -452,26 +450,27 @@ def test_ne_offset_cf_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_compute_vort(vort_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_ne_offset_cf_mod, ONLY: compute_vort_code\n"
-        "      TYPE(r2d_field), intent(inout) :: vort_fld, p_fld, u_fld, "
-        "v_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: vort_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: p_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = vort_fld%grid%subdomain%internal%xstop\n"
         "      jstop = vort_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop-1\n"
-        "        DO i=1,istop-1\n"
+        "      DO j = 1, jstop-1, 1\n"
+        "        DO i = 1, istop-1, 1\n"
         "          CALL compute_vort_code(i, j, vort_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_compute_vort\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -498,25 +497,26 @@ def test_ne_offset_ct_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_compute_vort(p_fld, u_fld, v_fld)\n"
         "      USE kernel_ne_offset_ct_mod, ONLY: compute_vort_code\n"
-        "      TYPE(r2d_field), intent(inout) :: p_fld, u_fld, v_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: p_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = p_fld%grid%subdomain%internal%xstop\n"
         "      jstop = p_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop\n"
+        "      DO j = 2, jstop, 1\n"
+        "        DO i = 2, istop, 1\n"
         "          CALL compute_vort_code(i, j, p_fld%data, u_fld%data, "
         "v_fld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_compute_vort\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -546,21 +546,20 @@ def test_ne_offset_all_cu_points(tmpdir):
         "      TYPE(r2d_field), intent(inout) :: u_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = u_fld%grid%subdomain%internal%xstop\n"
         "      jstop = u_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop\n"
+        "      DO j = 1, jstop+1, 1\n"
+        "        DO i = 1, istop, 1\n"
         "          CALL bc_solid_u_code(i, j, u_fld%data, u_fld%grid%tmask)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_bc_solid_u\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -590,21 +589,20 @@ def test_ne_offset_all_cv_points(tmpdir):
         "      TYPE(r2d_field), intent(inout) :: v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = v_fld%grid%subdomain%internal%xstop\n"
         "      jstop = v_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop\n"
-        "        DO i=1,istop+1\n"
+        "      DO j = 1, jstop, 1\n"
+        "        DO i = 1, istop+1, 1\n"
         "          CALL bc_solid_v_code(i, j, v_fld%data, v_fld%grid%tmask)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_bc_solid_v\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -634,21 +632,20 @@ def test_ne_offset_all_cf_points(tmpdir):
         "      TYPE(r2d_field), intent(inout) :: f_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = f_fld%grid%subdomain%internal%xstop\n"
         "      jstop = f_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop\n"
-        "        DO i=1,istop\n"
+        "      DO j = 1, jstop, 1\n"
+        "        DO i = 1, istop, 1\n"
         "          CALL bc_solid_f_code(i, j, f_fld%data, f_fld%grid%tmask)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_bc_solid_f\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -673,24 +670,26 @@ def test_sw_offset_cf_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_compute_z(z_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_sw_offset_cf_mod, ONLY: compute_z_code\n"
-        "      TYPE(r2d_field), intent(inout) :: z_fld, p_fld, u_fld, v_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: z_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: p_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = z_fld%grid%subdomain%internal%xstop\n"
         "      jstop = z_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=2,jstop+1\n"
-        "        DO i=2,istop+1\n"
+        "      DO j = 2, jstop+1, 1\n"
+        "        DO i = 2, istop+1, 1\n"
         "          CALL compute_z_code(i, j, z_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data, p_fld%grid%dx, p_fld%grid%dy)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_compute_z\n"
         "  END MODULE psy_single_invoke_test")
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -718,25 +717,27 @@ def test_sw_offset_all_cf_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_apply_bcs_f(z_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_sw_offset_cf_mod, ONLY: apply_bcs_f_code\n"
-        "      TYPE(r2d_field), intent(inout) :: z_fld, p_fld, u_fld, v_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: z_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: p_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = z_fld%grid%subdomain%internal%xstop\n"
         "      jstop = z_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop+1\n"
+        "      DO j = 1, jstop+1, 1\n"
+        "        DO i = 1, istop+1, 1\n"
         "          CALL apply_bcs_f_code(i, j, z_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_apply_bcs_f\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -763,25 +764,27 @@ def test_sw_offset_ct_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_compute_h(h_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_sw_offset_ct_mod, ONLY: compute_h_code\n"
-        "      TYPE(r2d_field), intent(inout) :: h_fld, p_fld, u_fld, v_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: h_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: p_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = h_fld%grid%subdomain%internal%xstop\n"
         "      jstop = h_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop\n"
+        "      DO j = 2, jstop, 1\n"
+        "        DO i = 2, istop, 1\n"
         "          CALL compute_h_code(i, j, h_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_compute_h\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -809,25 +812,27 @@ def test_sw_offset_all_ct_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_apply_bcs_h(hfld, pfld, ufld, vfld)\n"
         "      USE kernel_sw_offset_ct_mod, ONLY: apply_bcs_h_code\n"
-        "      TYPE(r2d_field), intent(inout) :: hfld, pfld, ufld, vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: hfld\n"
+        "      TYPE(r2d_field), intent(inout) :: pfld\n"
+        "      TYPE(r2d_field), intent(inout) :: ufld\n"
+        "      TYPE(r2d_field), intent(inout) :: vfld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = hfld%grid%subdomain%internal%xstop\n"
         "      jstop = hfld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop+1\n"
+        "      DO j = 1, jstop+1, 1\n"
+        "        DO i = 1, istop+1, 1\n"
         "          CALL apply_bcs_h_code(i, j, hfld%data, pfld%data, "
         "ufld%data, vfld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_apply_bcs_h\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -855,24 +860,24 @@ def test_sw_offset_all_cu_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_apply_bcs_u(ufld, vfld)\n"
         "      USE kernel_sw_offset_cu_mod, ONLY: apply_bcs_u_code\n"
-        "      TYPE(r2d_field), intent(inout) :: ufld, vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: ufld\n"
+        "      TYPE(r2d_field), intent(inout) :: vfld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = ufld%grid%subdomain%internal%xstop\n"
         "      jstop = ufld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop+1\n"
+        "      DO j = 1, jstop+1, 1\n"
+        "        DO i = 1, istop+1, 1\n"
         "          CALL apply_bcs_u_code(i, j, ufld%data, vfld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_apply_bcs_u\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -900,24 +905,24 @@ def test_sw_offset_all_cv_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_apply_bcs_v(vfld, ufld)\n"
         "      USE kernel_sw_offset_cv_mod, ONLY: apply_bcs_v_code\n"
-        "      TYPE(r2d_field), intent(inout) :: vfld, ufld\n"
+        "      TYPE(r2d_field), intent(inout) :: vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: ufld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = vfld%grid%subdomain%internal%xstop\n"
         "      jstop = vfld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop+1\n"
+        "      DO j = 1, jstop+1, 1\n"
+        "        DO i = 1, istop+1, 1\n"
         "          CALL apply_bcs_v_code(i, j, vfld%data, ufld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_apply_bcs_v\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -945,25 +950,26 @@ def test_offset_any_all_cu_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_compute_u(ufld, vfld, hfld)\n"
         "      USE kernel_any_offset_cu_mod, ONLY: compute_u_code\n"
-        "      TYPE(r2d_field), intent(inout) :: ufld, vfld, hfld\n"
+        "      TYPE(r2d_field), intent(inout) :: ufld\n"
+        "      TYPE(r2d_field), intent(inout) :: vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: hfld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = ufld%grid%subdomain%internal%xstop\n"
         "      jstop = ufld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop\n"
-        "        DO i=1,istop\n"
+        "      DO j = 1, jstop, 1\n"
+        "        DO i = 1, istop, 1\n"
         "          CALL compute_u_code(i, j, ufld%data, vfld%data, "
         "hfld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_compute_u\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -991,23 +997,23 @@ def test_offset_any_all_points(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_copy(voldfld, vfld)\n"
         "      USE kernel_field_copy_mod, ONLY: field_copy_code\n"
-        "      TYPE(r2d_field), intent(inout) :: voldfld, vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: voldfld\n"
+        "      TYPE(r2d_field), intent(inout) :: vfld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
+        "      INTEGER istop\n"
+        "      INTEGER jstop\n\n"
         "      ! Look-up loop bounds\n"
         "      istop = voldfld%grid%subdomain%internal%xstop\n"
         "      jstop = voldfld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop+1\n"
+        "      DO j = 1, jstop+1, 1\n"
+        "        DO i = 1, istop+1, 1\n"
         "          CALL field_copy_code(i, j, voldfld%data, vfld%data)\n"
         "        END DO\n"
-        "      END DO\n"
+        "      END DO\n\n"
         "    END SUBROUTINE invoke_0_copy\n"
         "  END MODULE psy_single_invoke_test")
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1419,11 +1425,14 @@ def test_gokernelargument_infer_datatype():
     argument_list = kernelcall.arguments
 
     # The first argument is a scalar Real
-    assert argument_list.args[0].infer_datatype() == REAL_TYPE
+    datatype = argument_list.args[0].infer_datatype()
+    assert isinstance(datatype, ScalarType)
+    assert datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert datatype.precision.name == "go_wp"
 
-    # The second argument is a r2d_type (imported DataTypeSymbol)
+    # The second argument is a r2d_field (imported DataTypeSymbol)
     assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
-    assert argument_list.args[1].infer_datatype().name == "r2d_type"
+    assert argument_list.args[1].infer_datatype().name == "r2d_field"
 
     # Parse an invoke with a scalar int and a field
     _, invoke_info = parse(os.path.join(os.path.
@@ -1440,9 +1449,9 @@ def test_gokernelargument_infer_datatype():
     # The first argument is a scalar Integer
     assert argument_list.args[0].infer_datatype() == INTEGER_TYPE
 
-    # The second argument is a r2d_type (imported DataTypeSymbol)
+    # The second argument is a r2d_field (imported DataTypeSymbol)
     assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
-    assert argument_list.args[1].infer_datatype().name == "r2d_type"
+    assert argument_list.args[1].infer_datatype().name == "r2d_field"
 
     # Test an incompatible Kernel Argument
     argument_list.args[0]._arg._space = "incompatible"

@@ -103,26 +103,6 @@ def test_datasymbol_initialisation():
                       DataSymbol)
 
 
-def test_datasymbol_init_errors():
-    ''' Test that the Symbol constructor raises appropriate errors if supplied
-    with invalid arguments. '''
-
-    with pytest.raises(TypeError) as error:
-        DataSymbol(None, None)
-    assert ("DataSymbol 'name' attribute should be of type 'str' but "
-            "'NoneType' found." in str(error.value))
-
-    with pytest.raises(TypeError) as error:
-        DataSymbol('a', 'invalidtype')
-    assert ("datatype of a DataSymbol must be specified using either a "
-            "DataType or a DataTypeSymbol but got: 'str'" in str(error.value))
-
-    with pytest.raises(TypeError) as error:
-        DataSymbol('a', 3)
-    assert ("datatype of a DataSymbol must be specified using either a "
-            "DataType or a DataTypeSymbol but got:" in str(error.value))
-
-
 def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''

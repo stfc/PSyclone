@@ -43,7 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import RoutineSymbol, UnresolvedInterface, \
-    GlobalInterface
+    GlobalInterface, NoType
 from psyclone.psyir.nodes import Literal, CodeBlock, Schedule, Call, \
     Reference, BinaryOperation
 from psyclone.errors import GenerationError
@@ -74,6 +74,7 @@ def test_call_noargs():
     assert isinstance(routine_symbol.interface, UnresolvedInterface)
     assert routine_symbol.name == "kernel"
     assert routine_symbol in call_node.scope.symbol_table.symbols
+    assert isinstance(routine_symbol.datatype, NoType)
 
     assert (str(call_node)) == "Call[name='kernel']"
 
@@ -104,6 +105,7 @@ def test_call_declared_routine(f2008_parser):
         assert isinstance(routine_symbol.interface, GlobalInterface)
         assert routine_symbol.name == "kernel"
         assert routine_symbol in call_node.scope.symbol_table.symbols
+        assert isinstance(routine_symbol.datatype, NoType)
 
 
 def test_call_incorrect_type(f2008_parser):
@@ -160,3 +162,38 @@ def test_call_args(f2008_parser):
     assert routine_symbol is call_node.scope.symbol_table.lookup("kernel")
 
     assert (str(call_node)) == "Call[name='kernel']"
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_labelled_call():
+    '''Test that fparser2reader transforms a labelled Fortran subroutine call
+    into a CodeBlock.
+
+    '''
+    reader = FortranStringReader("99 call kernel()")
+    ast = Fortran2003.Call_Stmt(reader)
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [ast])
+    assert isinstance(fake_parent[0], CodeBlock)
+
+
+def test_call_codeblock_args(fortran_reader):
+    ''' Test that we get one CodeBlock for each (unrecognised) argument rather
+    than a single CodeBlock containing all of them. '''
+    test_code = (
+        "subroutine test()\n"
+        "  use my_mod, only : kernel\n"
+        "  real :: a, b\n"
+        "  call kernel(a, 'not'//'nice', name=\"roo\", b)\n"
+        "end subroutine")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    call_node = psyir.walk(Call)[0]
+    assert isinstance(call_node, Call)
+    assert len(call_node.children) == 4
+    assert isinstance(call_node.children[0], Reference)
+    assert call_node.children[0].name == "a"
+    assert isinstance(call_node.children[1], CodeBlock)
+    assert isinstance(call_node.children[2], CodeBlock)
+    assert isinstance(call_node.children[3], Reference)
+    assert call_node.children[3].name == "b"
