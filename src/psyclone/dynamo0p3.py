@@ -8762,16 +8762,16 @@ class DynKernelArgument(KernelArgument):
 
     def psyir_expression(self):
         '''
-        Looks up or creates a suitable Symbol for this kernel argument. If
-        the argument is a scalar that has been provided as a literal (in the
-        Algorithm layer) then the PSyIR of the expression is returned.
+        Looks up or creates a reference to a suitable Symbol for this kernel
+        argument. If the argument is a scalar that has been provided as a
+        literal (in the Algorithm layer) then the PSyIR of the expression
+        is returned.
+
+        :returns: the PSyIR for this kernel argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises NotImplementedError: if this argument is not a literal, scalar
                                      or field.
-
-        :returns: the PSyIR for this kernel argument.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol` or \
-                :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         symbol_table = self._call.scope.symbol_table
