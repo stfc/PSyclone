@@ -380,17 +380,24 @@ class LFRicBuiltIn(BuiltIn):
                                      symbol_type=DataSymbol,
                                      datatype=INTEGER_SINGLE_TYPE)
 
-    def get_field_argument_symbols(self):
+    def get_indexed_field_argument_references(self):
         '''
-        Finds or creates the symbols representing the field arguments to this
-        Builtin kernel.
+        Creates a dof-indexed StructureReference for each of the field
+        arguments to this Builtin kernel. e.g. if the kernel has a field
+        argument named 'fld1' then this routine will create a
+        StructureReference for 'fld1%data(df)' where 'df' is the dof-loop
+        variable.
 
-        :returns: a symbol for each kernel argument.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :returns: a reference to the 'df'th element of each kernel argument \
+                  that is a field.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.StructureReference`
 
         '''
-        return [arg.psyir_expression().symbol for arg in self._arguments.args
-                if arg.is_field]
+        idx_sym = self.get_dof_loop_index_symbol()
+
+        return [StructureReference.create(
+            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])])
+                for arg in self._arguments.args if arg.is_field]
 
     def get_scalar_argument_references(self):
         '''
@@ -428,20 +435,14 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # Get symbols for each of the arguments.
-        arg_symbols = self.get_field_argument_symbols()
-
-        idx_sym = self.get_dof_loop_index_symbol()
+        # Get indexed references for each of the field arguments.
+        arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
-        lhs = StructureReference.create(arg_symbols[0],
-                                        [("data", [Reference(idx_sym)])])
-        arg1 = StructureReference.create(arg_symbols[1],
-                                         [("data", [Reference(idx_sym)])])
-        arg2 = StructureReference.create(arg_symbols[2],
-                                         [("data", [Reference(idx_sym)])])
-        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, arg1, arg2)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     arg_refs[1], arg_refs[2])
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -460,19 +461,14 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # Get symbols for both of the field (proxy) arguments.
-        arg_symbols = self.get_field_argument_symbols()
-
-        idx_sym = self.get_dof_loop_index_symbol()
+        # Get indexed refs for both of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy0%data(df) + proxy1%data(df)
-        lhs = StructureReference.create(arg_symbols[0],
-                                        [("data", [Reference(idx_sym)])])
-        arg2 = StructureReference.create(arg_symbols[1],
-                                         [("data", [Reference(idx_sym)])])
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, lhs.copy(),
-                                     arg2)
+                                     arg_refs[1])
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -492,21 +488,15 @@ class LFRicAPlusXKern(LFRicBuiltIn):
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # Get symbols for each of the kernel arguments.
-        arg_symbols = self.get_field_argument_symbols()
+        # Get indexed references for each of the kernel field arguments.
+        arg_refs = self.get_indexed_field_argument_references()
         scalar_args = self.get_scalar_argument_references()
-
-        idx_sym = self.get_dof_loop_index_symbol()
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar + proxy1%data(df)
-        lhs = StructureReference.create(arg_symbols[0],
-                                        [("data", [Reference(idx_sym)])])
-        arg2 = StructureReference.create(arg_symbols[1],
-                                         [("data", [Reference(idx_sym)])])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                     scalar_args[0], arg2)
-        assign = Assignment.create(lhs, rhs)
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
 
@@ -1158,16 +1148,13 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # Get symbols/PSyIR for each of the arguments.
-        arg_symbols = self.get_field_argument_symbols()
+        # Get PSyIR for each of the arguments.
+        arg_refs = self.get_indexed_field_argument_references()
         scalar_args = self.get_scalar_argument_references()
-
-        idx_sym = self.get_dof_loop_index_symbol()
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy0%data(df) ** real_power
-        lhs = StructureReference.create(arg_symbols[0],
-                                        [("data", [Reference(idx_sym)])])
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.POW,
                                      lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
@@ -1187,16 +1174,13 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # Get symbols/PSyIR for each of the arguments.
-        arg_symbols = self.get_field_argument_symbols()
+        # Get PSyIR for each of the arguments.
+        arg_refs = self.get_indexed_field_argument_references()
         scalar_args = self.get_scalar_argument_references()
-
-        idx_sym = self.get_dof_loop_index_symbol()
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy0%data(df) ** int_power
-        lhs = StructureReference.create(arg_symbols[0],
-                                        [("data", [Reference(idx_sym)])])
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.POW,
                                      lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)

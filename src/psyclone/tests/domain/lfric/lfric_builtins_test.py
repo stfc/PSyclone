@@ -47,10 +47,11 @@ import pytest
 
 from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Loop, Reference, UnaryOperation, Literal
-from psyclone.psyir.symbols import ScalarType, DataTypeSymbol, DataSymbol
+from psyclone.psyir.nodes import Loop, Reference, UnaryOperation, Literal, \
+    StructureReference
+from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
 from psyclone.psyGen import PSyFactory
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
@@ -396,8 +397,8 @@ def test_lfricbuiltfactory_str():
     assert "Factory for a call to an LFRic built-in." in str(factory)
 
 
-def test_get_field_argument_symbols(monkeypatch):
-    ''' Test the LFRicBuiltIn.get_field_argument_symbols() method.
+def test_get_indexed_field_argument_refs(monkeypatch):
+    ''' Test the LFRicBuiltIn.get_indexed_field_argument_references() method.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -406,11 +407,15 @@ def test_get_field_argument_symbols(monkeypatch):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     loop = psy.invokes.invoke_list[0].schedule[0]
     kern = loop.loop_body[0]
-    symbols = kern.get_field_argument_symbols()
-    for sym in symbols:
-        assert isinstance(sym, DataSymbol)
-        assert isinstance(sym.datatype, DataTypeSymbol)
-        assert sym.datatype.name == "field_proxy_type"
+    refs = kern.get_indexed_field_argument_references()
+    for ref in refs:
+        assert isinstance(ref, StructureReference)
+        assert isinstance(ref.symbol.datatype, DataTypeSymbol)
+        assert ref.symbol.datatype.name == "field_proxy_type"
+        assert ref.member.name == "data"
+        assert len(ref.member.indices) == 1
+        assert isinstance(ref.member.indices[0], Reference)
+        assert ref.member.indices[0].symbol.name == "df"
 
 
 def test_get_scalar_argument_references(monkeypatch):

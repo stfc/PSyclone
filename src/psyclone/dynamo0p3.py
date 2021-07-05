@@ -74,8 +74,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              CodedKern, ACCEnterDataDirective,
                              OMPParallelDoDirective)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
-                                  StructureReference)
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface)
@@ -8803,7 +8802,7 @@ class DynKernelArgument(KernelArgument):
                 sym = symbol_table.new_symbol(
                     self.proxy_name, symbol_type=DataSymbol,
                     datatype=self.infer_datatype(proxy=True))
-            return StructureReference(sym)
+            return Reference(sym)
 
         else:
             raise NotImplementedError(
