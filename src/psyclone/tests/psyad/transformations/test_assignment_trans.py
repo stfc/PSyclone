@@ -48,10 +48,14 @@ from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
 
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
     '''Utility routine that takes tangent linear fortran code as input in
-    the argument tl_fortran, transforms this code into its adjoint
-    using the active variables specified in the active variable_names
-    argument and tests whether the result is the same as the expected
-    result in the expected_ad_fortran argument.
+    the argument 'tl_fortran', transforms this code into its adjoint
+    using the active variables specified in the
+    'active_variable_names' argument and tests whether the result is
+    the same as the expected result in the 'expected_ad_fortran'
+    argument.
+
+    To help keep the test code short this routine also adds the
+    subroutine / end subroutine lines to the incoming code.
 
     :param str tl_fortran: tangent linear code.
     :param list of str active_variable_names: a list of active \
@@ -59,41 +63,52 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
     :param str tl_fortran: the expected adjoint code to be produced.
 
     '''
+    # Add "subroutine / end subroutine" lines to the incoming code.
     input_code = ("subroutine test()\n{0}end subroutine test\n"
                   "".format(tl_fortran))
     expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
                             "".format(expected_ad_fortran))
-    print (input_code)
+
+    # Translate the tangent linear code to PSyIR.
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
+
+    # Find the assignment line in the PSyIR. The hardcoded assumption
+    # is that it is the first line in the provided tangent linear
+    # code.
     assignment = psyir.children[0][0]
     assert isinstance(assignment, Assignment)
 
     # Find the symbols in the symbol table associated with the
-    # supplied strings.
+    # supplied active variable strings as the transformation expects
+    # active variables to be provided as symbols.
     symbol_table = assignment.scope.symbol_table
     active_variables = []
     for variable_name in active_variable_names:
         active_variables.append(symbol_table.lookup(variable_name))
-    
+
+    # Apply the tangent linear to adjoint transformation.
     trans = AssignmentTrans(active_variables)
     trans.apply(assignment)
 
+    # Translate the adjoint code to Fortran.
     writer = FortranWriter()
     ad_fortran = writer(psyir)
 
-    print (expected_output_code)
-    print (ad_fortran)
+    # Check that the code produced is the same as the expected code
+    # provided.
     assert ad_fortran == expected_output_code
 
-@pytest.mark.xfail(message="NO ACTIVE VAR ON RHS. WHAT IS THE RULE????")
+
 def test_zero():
     '''Test that the adjoint transformation with an assignment of the form
-    A = 0. This tests that the transformation works when there are no
-    active variables on the rhs and with the active variable on the lhs
-    being a write, not an increment. Scalars, directly addressed
-    arrays, indirectly addressed arrays and structure array accesses
-    are tested.
+    A = 0. This tests that the transformation works in the special
+    case of when an active variable is set to zero. This is the only
+    valid value that an active variable can be set to in a tangent
+    linear code and apparently represents multiplying an active
+    variable by zero on the rhs. Scalars, directly addressed arrays,
+    indirectly addressed arrays and structure array accesses are
+    tested.
 
     A=0 -> A*=0
 
@@ -226,7 +241,7 @@ def test_single_valued_assign():
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real :: n\n  integer :: i\n  integer :: j\n\n"
-        "  b(j) = b(j) + a(i) * (3 * n)\n"
+        "  b(j) = b(j) + 3 * n * a(i)\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
@@ -297,7 +312,7 @@ def test_increment_mult():
     ad_fortran = (
         "  integer :: n\n"
         "  real, dimension(n) :: a\n\n"
-        "  a(n) = a(n) * 5\n\n")
+        "  a(n) = 5 * a(n)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -340,7 +355,7 @@ def test_increment_add_reorder():
         "  real, dimension(10) :: b\n"
         "  integer :: k\n\n"
         "  b(1) = b(1) + a(1)\n"
-        "  a(1) = a(1) * k\n\n")
+        "  a(1) = k * a(1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -356,17 +371,17 @@ def test_increment_multi_add():
     tl_fortran = (
         "  real a(10), b(10), c(10), d(10)\n"
         "  real w(10), x, y(10), z\n"
-        "  a(1) = w(1)*a(1)+x*b(1)+y(1)*c(1)+z*d(1)\n")
+        "  a(1) = w(1)*a(1)+x*b(1)+y(1)*c(1)+d(1)*z\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
         "  real, dimension(10) :: w\n  real :: x\n"
         "  real, dimension(10) :: y\n  real :: z\n\n"
-        "  b(1) = b(1) + a(1) * x\n"
-        "  c(1) = c(1) + a(1) * y(1)\n"
+        "  b(1) = b(1) + x * a(1)\n"
+        "  c(1) = c(1) + y(1) * a(1)\n"
         "  d(1) = d(1) + a(1) * z\n"
-        "  a(1) = a(1) * w(1)\n\n")
+        "  a(1) = w(1) * a(1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -384,7 +399,7 @@ def test_multi_increment():
     ad_fortran = (
         "  real, dimension(10) :: a\n"
         "  real :: x\n\n"
-        "  a(1) = a(1) * (1.0 + x)\n\n")
+        "  a(1) = a(1) + x * a(1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -406,7 +421,7 @@ def test_single_valued_sub():
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  integer :: i\n  integer :: j\n\n"
-        "  b(j) = b(j) + a(i) * -1.0\n"
+        "  b(j) = b(j) + -a(i)\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
@@ -432,9 +447,9 @@ def test_multi_valued_sub():
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
         "  real :: x\n  real :: y\n  integer :: i\n  integer :: j\n\n"
-        "  b(j) = b(j) + a(i) * -1.0\n"
-        "  c(i) = c(i) - a(i) * x\n"
-        "  d(j) = d(j) + a(i) * (-1.0 * y)\n"
+        "  b(j) = b(j) + -a(i)\n"
+        "  c(i) = c(i) - x * +a(i)\n"
+        "  d(j) = d(j) + -a(i) * y\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
@@ -455,7 +470,7 @@ def test_inc_sub():
     ad_fortran = (
         "  real, dimension(10) :: a\n"
         "  integer :: i\n\n"
-        "  a(i) = a(i) * -1.0\n\n")
+        "  a(i) = -a(i)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -479,7 +494,7 @@ def test_multi_inc_sub():
         "  integer :: i\n"
         "  real :: x\n  real :: y\n\n"
         "  b(i) = b(i) + a(i)\n"
-        "  a(i) = a(i) * (-1.0 + x + 1.0 / y)\n\n")
+        "  a(i) = -a(i) - x * a(i) + a(i) / y\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
@@ -501,7 +516,7 @@ def test_multi_rhs():
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real :: x\n  real :: y\n\n"
         "  b = b + a\n"
-        "  b = b + a * x\n"
+        "  b = b + x * a\n"
         "  b = b + a / y\n"
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
@@ -512,7 +527,8 @@ def test_different_indices():
     not an increment when the indices of an array are different. For
     example a(i) = a(i+1) + b(i)
 
-    A(i)=A(i+1)+B(i) -> B*(i)=B*(i)*+A*(i);A*(i+1)=A*(i+1)+A*(i);A*(i)=0.0
+    A(i)=A(i+1)+B(i)+B(i-1) -> B*(i-1)=B*(i-1)+A*(i);B*(i)=B*(i)*+A*(i);
+                                       A*(i+1)=A*(i+1)+A*(i);A*(i)=0.0
 
     '''
     tl_fortran = (
@@ -598,18 +614,44 @@ def test_different_structures():
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
-# Create issues for failing tests
+@pytest.mark.parametrize("in_op1,in_op2,out_op", [
+    ("+", "+", "+"), ("+", "-", "-"),
+    ("-", "+", "-"), ("-", "-", "+")])
+def test_validate_precedence_active_vars(in_op1, in_op2, out_op):
+    '''Test that precedence of active variables is taken into account (as
+    the sign may need to be flipped in certain cases). For example, see
+    'd' below:
+    
+    a = b+(c+d) => b=b-a;c=c+a;d=d+a;a=0
+    a = b+(c-d) => b=b-a;c=c+a;d=d-a;a=0
+    a = b-(c+d) => b=b-a;c=c-a;d=d-a;a=0
+    a = b-(c-d) => b=b-a;c=c-a;d=d+a;a=0
+
+    '''
+    tl_fortran = (
+        "  real :: a,b,c,d\n"
+        "  a = b {1} (c {0} d)\n".format(in_op1, in_op2))
+    active_variables = ["a", "b", "c", "d"]
+    ad_fortran = (
+        "  real :: a\n  real :: b\n"
+        "  real :: c\n  real :: d\n\n"
+        "  b = b + a\n"
+        "  c = c {1} a\n"
+        "  d = d {0} a\n"
+        "  a = 0.0\n\n".format(out_op, in_op2))
+    check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 # Validate method
 
-#
-# Check Error if rhs term does not have any active variables in it as it does not seem to be working.
-#
-# Check specified active variables are real (if there type is known).
+# TODO Create issues for failing tests
+# TODO Check specified active variables are real (if their type is known).
+
 
 def test_validate_node():
     '''Check that the expected exception is raised if the provided node
-    argument is not a PSyIR Assignment node.'''
+    argument is not a PSyIR Assignment node.
+
+    '''
     trans = AssignmentTrans(active_variables=[])
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
@@ -619,7 +661,12 @@ def test_validate_node():
 
 def test_validate_not_active():
     '''Test that the validate method returns without error if there are no
-    active variables in the assignment.'''
+    active variables in the assignment.
+
+    active vars = ["c", "aa", "ab"]
+    a = b
+
+    '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
     assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
@@ -632,7 +679,12 @@ def test_validate_not_active():
 def test_validate_active_rhs():
     '''Test that the validate method returns the expected exception if
     there is at least one active variable on the RHS of an assignment
-    but the LHS is not an active variable.'''
+    but the LHS is not an active variable.
+
+    active vars = ["c", "aa", "b"]
+    a = b
+
+    '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
     assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
@@ -645,19 +697,26 @@ def test_validate_active_rhs():
             "its RHS '['b']' but its LHS 'a' is not an active variable."
             in str(info.value))
 
+
 @pytest.mark.parametrize("operator, string",
                          [(BinaryOperation.Operator.ADD, "+"),
                           (BinaryOperation.Operator.SUB, "-")])
 def test_validate_rhs_term_active(operator, string):
     '''Test that the validate method returns the expected exception if one
     of the terms on the rhs does not contain an active variable. Split
-    rhs terms with + and - to show both work.'''
+    rhs terms with + and - to show both work.
+
+    active vars = ["a", "b"]
+    a = b + c
+    a = b - c
+
+    '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol1 = DataSymbol("b", REAL_TYPE)
     rhs_symbol2 = DataSymbol("c", REAL_TYPE)
-    addition = BinaryOperation.create(
+    binary_op = BinaryOperation.create(
         operator, Reference(rhs_symbol1), Reference(rhs_symbol2))
-    assignment = Assignment.create(Reference(lhs_symbol), addition)
+    assignment = Assignment.create(Reference(lhs_symbol), binary_op)
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
@@ -666,9 +725,37 @@ def test_validate_rhs_term_active(operator, string):
             in str(info.value))
 
 
+def test_validate_rhs_assign():
+    '''Test that the validate method returns the expected exception if an
+    active variable is assigned a non-zero value. This is really just
+    a special case of the previous test
+    (test_validate_rhs_term_active) but is worth checking separately
+    as the assignment of a literal is treated slightly differently in
+    the implementation because assigning zero is valid (see
+    test_zero).
+
+    active vars = ["a"]
+    a = 1.0
+
+    '''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_node = Literal("1.0", REAL_TYPE)
+    assignment = Assignment.create(Reference(lhs_symbol), rhs_node)
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
+    with pytest.raises(TangentLinearError) as info:
+        trans.validate(assignment)
+    assert ("Each term on the RHS of the assigment 'a = 1.0\n' must have "
+            "an active variable but '1.0' does not.")
+
+
 def test_validate_rhs_term_multi_active():
     '''Test that the validate method returns the expected exception if one
-    of the terms on the rhs contains more than one active variable.'''
+    of the 'terms' on the rhs contains more than one active variable.
+
+    active vars = ["a", "b", "c"]
+    a = b * c
+
+    '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol1 = DataSymbol("b", REAL_TYPE)
     rhs_symbol2 = DataSymbol("c", REAL_TYPE)
@@ -686,8 +773,13 @@ def test_validate_rhs_term_multi_active():
 
 
 def test_validate_rhs_single_active_var():
-    '''Test that the validate method returns successfully if the
-    terms on the RHS of an assignment are single active variables.'''
+    '''Test that the validate method returns successfully if the terms on
+    the RHS of an assignment are single active variables.
+
+    active vars = ["a", "b", "c"]
+    a = b * c
+
+    '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
     assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
@@ -697,28 +789,103 @@ def test_validate_rhs_single_active_var():
 
 @pytest.mark.parametrize("operator", [BinaryOperation.Operator.MUL,
                                       BinaryOperation.Operator.DIV])
-def test_validate_rhs_active_var_mul(operator):
+def test_validate_rhs_active_var_mul_div(operator):
     '''Test that the validate method returns successfully if the term on
     the RHS of an assignment contains an active variable that is part
-    of a set of multiplications or divides.'''
+    of a set of multiplications or divides and the active variable is
+    not part of the divisor. Check when the active var is both to the
+    lhs and rhs of a divide.
+
+    active vars = ["a", "b"]
+    a = (x*b)*y
+    a = (x*b)/y
+    a = (x*y)*b
+    a = (x/y)*b
+
+    '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol1 = DataSymbol("b", REAL_TYPE)
     rhs_symbol2 = DataSymbol("x", REAL_TYPE)
     rhs_symbol3 = DataSymbol("y", REAL_TYPE)
-    multiply1 = BinaryOperation.create(
+
+    multiply = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(
             rhs_symbol2), Reference(rhs_symbol1))
-    multiply2 = BinaryOperation.create(
-        operator, Reference(rhs_symbol3), multiply1)
-    assignment = Assignment.create(Reference(lhs_symbol), multiply2)
+    binary_op = BinaryOperation.create(
+        operator, multiply, Reference(rhs_symbol3))
+    assignment = Assignment.create(Reference(lhs_symbol), binary_op)
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     trans.validate(assignment)
+
+    binary_op = BinaryOperation.create(
+        operator, Reference(rhs_symbol2), Reference(rhs_symbol3))
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, binary_op, Reference(rhs_symbol1))
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
+    trans.validate(assignment)
+
+
+def test_validate_rhs_active_divisor_direct():
+    '''Test that the validate method raises the expected exception if a
+    term on the RHS of an assignment has an active variable as a
+    direct divisor.
+
+    active vars = ["a", "b"]
+    a = x/b
+
+    '''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    divide = BinaryOperation.create(
+        BinaryOperation.Operator.DIV, Reference(
+            rhs_symbol2), Reference(rhs_symbol1))
+    assignment = Assignment.create(Reference(lhs_symbol), divide)
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
+    with pytest.raises(TangentLinearError) as info:
+        trans.validate(assignment)
+    assert ("A term on the RHS of the assignment 'a = x / b\n' with a "
+            "division must not have the active variable as part of the "
+            "divisor but found 'x / b'." in str(info.value))
+
+
+def test_validate_rhs_active_divisor_indirect():
+    '''Test that the validate method raises the expected exception if a
+    term on the RHS of an assignment has an active variable as part of
+    the divisor.
+
+    active vars = ["a", "b"]
+    a = x/(y*b)
+
+    '''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    rhs_symbol3 = DataSymbol("y", REAL_TYPE)
+
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(
+            rhs_symbol3), Reference(rhs_symbol1))
+    divide = BinaryOperation.create(
+        BinaryOperation.Operator.DIV, Reference(rhs_symbol3), multiply)
+    assignment = Assignment.create(Reference(lhs_symbol), divide)
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
+    with pytest.raises(TangentLinearError) as info:
+        trans.validate(assignment)
+    assert ("A term on the RHS of the assignment 'a = y / (y * b)\n' with a "
+            "division must not have the active variable as part of the "
+            "divisor but found 'y / (y * b)'." in str(info.value))
 
 
 def test_validate_rhs_active_var_no_mul():
     '''Test that the validate method fails if the term on the RHS of the
     assignment contains an active variable that is not part of a set
-    of multiplications or divides.'''
+    of multiplications or divides.
+
+    active vars = ["a", "b"]
+    a = b**x
+
+    '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol1 = DataSymbol("b", REAL_TYPE)
     rhs_symbol2 = DataSymbol("x", REAL_TYPE)
@@ -734,30 +901,63 @@ def test_validate_rhs_active_var_no_mul():
             "found 'b ** x'." in str(info.value))
 
 
-# TODO: Test this raises an exception too A = y*(B+z) + C
-# TODO TEST WHEN active var on LHS of A/x is OK????
+def test_validate_mixed_mul_add():
+    '''Test that the validate method fails if the term on the RHS of the
+    assignment contains an active variable that is not part of a pure set
+    of multiplications or divides.
 
-def test_validate_rhs_active_divisor():
-    '''Test that the validate method raises the expected exception if a
-    term on the RHS of an assignment has an active variable as a
-    divisor.'''
+    active vars = ["a", "b", "c"]
+    a = x*(b+y) + c
+
+    '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
-    divide = BinaryOperation.create(
-        BinaryOperation.Operator.DIV, Reference(
-            rhs_symbol2), Reference(rhs_symbol1))
-    assignment = Assignment.create(Reference(lhs_symbol), divide)
-    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
+    rhs_symbol2 = DataSymbol("c", REAL_TYPE)
+    rhs_symbol3 = DataSymbol("x", REAL_TYPE)
+    rhs_symbol4 = DataSymbol("y", REAL_TYPE)
+    add1 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, Reference(
+            rhs_symbol1), Reference(rhs_symbol4))
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(
+            rhs_symbol3), add1)
+    add2 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, multiply, Reference(rhs_symbol2))
+    assignment = Assignment.create(Reference(lhs_symbol), add2)
+    trans = AssignmentTrans(active_variables=[
+        lhs_symbol, rhs_symbol1, rhs_symbol2])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("A term on the RHS of the assignment 'a = x / b\n' with a "
-            "division must not have the active variable as a divisor but "
-            "found 'x / b'." in str(info.value))
+    assert ("Each term on the RHS of the assignment 'a = x * (b + y) + c\n' "
+            "must be an active variable multiplied or divided by an "
+            "expression, but found 'x * (b + y)'." in str(info.value))
 
-# TODO FAIL if A*func(a)
-# TODO FAIL if unary operators on active variable
-# TODO check apply tests
+
+def test_validate_unaryop():
+    '''Test that the validate test fails if a unaryoperation, other than +
+    or - is applied directly to an active variable.
+
+    active vars = ["a", "b", "c"]
+    a = sqrt(b)
+
+    '''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    sqrt = UnaryOperation.create(
+        UnaryOperation.Operator.SQRT, Reference(rhs_symbol))
+    assignment = Assignment.create(Reference(lhs_symbol), sqrt)
+    trans = AssignmentTrans(active_variables=[
+        lhs_symbol, rhs_symbol])
+    with pytest.raises(TangentLinearError) as info:
+        trans.validate(assignment)
+    assert ("Each term on the RHS of the assignment 'a = SQRT(b)\n' must be "
+            "an active variable multiplied or divided by an expression, but "
+            "found 'SQRT(b)'." in str(info.value))
+
+
+# TODO check that datatypes are all real and raise exception if not.
+
+# TODO 100% coverage: 294, 403, 411, 420
 
 # _split_nodes()
 
@@ -818,59 +1018,4 @@ def test_splitnodes_multiop():
     assert isinstance(op_list, list)
     assert op_list == [BinaryOperation.Operator.ADD, BinaryOperation.Operator.SUB, BinaryOperation.Operator.ADD]
 
-# _split_active_var()
-
-
-def test_splitactivevar_single():
-    '''Test that _split_active_var returns the expected results when there
-    is a single active var with no other operations.
-
-    '''
-    symbol = DataSymbol("a", REAL_TYPE)
-    trans = AssignmentTrans([symbol])
-    node = Reference(symbol)
-    active_var, operator, expr = trans._split_active_var(node)
-    assert active_var == node
-    assert operator is None
-    assert expr is None
-
-
-def test_splitactivevar_unaryminus():
-    '''Test that _split_active_var returns the expected results when there
-    is a single active var preceded by a unary -. The - is replaced
-    with a multiplication of the var by -1.0.
-
-    '''
-    symbol = DataSymbol("a", REAL_TYPE)
-    reference = Reference(symbol)
-    trans = AssignmentTrans([symbol])
-    node = UnaryOperation.create(UnaryOperation.Operator.MINUS, reference)
-    active_var, operator, expr = trans._split_active_var(node)
-    assert active_var == reference
-    assert operator == BinaryOperation.Operator.MUL
-    assert expr.math_equal(Literal("-1.0", REAL_TYPE)) 
-
-
-# One active var with unary +
-def test_splitactivevar_unaryplus():
-    '''Test that _split_active_var returns the expected results when there
-    is a single active var preceded by a unary +. The + is removed as
-    it is not required.
-
-    '''
-    symbol = DataSymbol("a", REAL_TYPE)
-    reference = Reference(symbol)
-    trans = AssignmentTrans([symbol])
-    node = UnaryOperation.create(UnaryOperation.Operator.PLUS, reference)
-    active_var, operator, expr = trans._split_active_var(node)
-    assert active_var == reference
-    assert operator == None
-    assert expr == None
-
-
-
-# TODO TEST WHEN active var on LHS of A/x is OK???? Test correct use of divide when multiple terms
-# Multi * : a = a*x*y
-# Multi mixed a = a/x*y
-# Multi op later1 a = x*a/y
-# Multi op later2 a = x/y*a
+# TODO str and name

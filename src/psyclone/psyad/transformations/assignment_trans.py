@@ -63,95 +63,82 @@ class AssignmentTrans(AdjointTransformation):
         '''
         self.validate(node)
 
-        parent = node.parent
-
         # Split the RHS of the assignment into <term> +- <term> +- ...
-        rhs_terms, rhs_operators = self._split_nodes(
+        rhs_terms, _ = self._split_nodes(
             node.rhs, [BinaryOperation.Operator.ADD,
-                       BinaryOperation.Operator.SUB])
+            BinaryOperation.Operator.SUB])
 
-        print ("**** RHS TERMS ARE ***")
-        for rhs_term in rhs_terms:
-            print (self._writer(rhs_term))
-        #print ("****")
-        #for op in rhs_operators:
-        #    print (op)
-        print ("****")
-
-        pure_inc = False
         deferred_inc = []
         # For each term
         for idx, rhs_term in enumerate(rhs_terms):
-            # Split the term into +- <active_variable> */ <expr>.
-            active_var, operator, expr = self._split_active_var(rhs_term)
 
-            print ("++++ TERM {0} ++++".format(self._writer(rhs_term)))
-            if active_var is None:
-                print ("ACTIVE_VAR is NONE")
-            else:
-                print ("ACTIVE_VAR is "+self._writer(active_var))
-            print (operator)
-            if expr is None:
-                print ("EXPR is NONE")
-            else:
-                # print (type(expr).__name__)
-                print ("EXPR IS "+self._writer(expr))
+            # Find the active var in rhs_term if one exists, storing
+            # it in 'active_var' and if so replace it with
+            # lhs_active_var storing the modified term in
+            # 'new_rhs_term'. Also determine whether this is an
+            # increment, storing the result in 'increment'.
+            increment = False
+            active_var = None
+            new_rhs_term = rhs_term.copy()
+            for ref in new_rhs_term.walk(Reference):
+                if ref.symbol in self._active_variables:
+                    active_var = ref
+                    if ref.math_equal(node.lhs):
+                        increment = True
+                    if ref.parent:
+                        ref.replace_with(node.lhs.copy())
+                    else:
+                        new_rhs_term = node.lhs.copy()
+                    break
+
+            # Work out whether the binary operation for this term is a
+            # '+' or a '-' and return it in 'rhs_operator'.
+            rhs_operator = BinaryOperation.Operator.ADD
+            previous = rhs_term
+            candidate = rhs_term.parent
+            while not isinstance(candidate, Assignment):
+                if (isinstance(candidate, BinaryOperation) and
+                    candidate.operator ==  BinaryOperation.Operator.SUB and
+                    candidate.children[1] is previous):
+                        # Rules: + + -> +; - - -> +; + - -> -; - + -> -
+                        # If the higher level op is + then there is no
+                        # change to the existing op. If it is - then
+                        # we flip the op i.e. - => + and + => -.
+                        if rhs_operator == BinaryOperation.Operator.SUB:
+                            rhs_operator = BinaryOperation.Operator.ADD
+                        else:
+                            rhs_operator = BinaryOperation.Operator.SUB
+                previous = candidate
+                candidate = candidate.parent
 
             if not active_var:
                 # This is an expression without an active
                 # variable. There is therefore nothing to output.
                 continue
 
-            if active_var.math_equal(node.lhs):
-                # This is an increment. We need to defer any output as
+            if increment:
+                # The output of an increment needs to be deferred as
                 # other terms must be completed before the LHS TL
-                # active variable is modified. There may be multiple
-                # increments on the rhs. The solution is the following:
-                # A = A + xA - A/y => A = A * (1 + x - 1/y). At this
-                # point we gather all the RHS terms (1, x, 1/y) and
-                # save them.
-                if expr:
-                    if operator == BinaryOperation.Operator.DIV:
-                        # DIV so store 1.0/expr
-                        tmp = BinaryOperation.create(operator, Literal("1.0", REAL_TYPE), expr.copy())
-                        deferred_inc.append(tmp)
-                    else:
-                        # MUL so store expr
-                        deferred_inc.append(expr.copy())
-                else:
-                    pure_inc = True
-                    # A = A so store 1.0
-                    deferred_inc.append(Literal("1.0", REAL_TYPE))
-                continue
-
-            # Adjoint for this term is active_var = active_var +- lhs_active_var */ expr
-            if expr:
-                tmp = BinaryOperation.create(operator, node.lhs.copy(), expr.copy())
+                # active variable is modified. Save the rhs term
+                # and its associated operator.
+                deferred_inc.append((new_rhs_term, rhs_operator))
             else:
-                tmp = node.lhs.copy()
-            if idx == 0:
-                rhs_operator = BinaryOperation.Operator.ADD
-            else:
-                rhs_operator = rhs_operators[idx-1]
-            rhs = BinaryOperation.create(rhs_operator, active_var.copy(), tmp)
-            assignment = Assignment.create(active_var.copy(), rhs)
-            node.parent.children.insert(node.position, assignment)
-
-        if deferred_inc:
-            if pure_inc and len(deferred_inc) == 1:
-                # No need to output anything as it is A = A
-                pass
-            else:
-                # Output the deferred increment assignment.
-                add = None
-                for expr in deferred_inc:
-                    if not add:
-                        add = expr.copy()
-                    else:
-                        add = BinaryOperation.create(BinaryOperation.Operator.ADD, add, expr.copy())
-                rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, node.lhs.copy(), add)
-                assignment = Assignment.create(node.lhs.copy(), rhs)
+                # Output the adjoint for this term
+                rhs = BinaryOperation.create(rhs_operator, active_var.copy(), new_rhs_term)
+                assignment = Assignment.create(active_var.copy(), rhs)
                 node.parent.children.insert(node.position, assignment)
+
+        if (len(deferred_inc) == 1 and
+            isinstance(deferred_inc[0][0], Reference)):
+                # No need to output anything as the adjoint is A = A.
+                pass
+        elif deferred_inc:
+            # Output the adjoint for all increment terms in a single line.
+            rhs, _ = deferred_inc.pop(0)
+            for term, operator in deferred_inc:
+                rhs = BinaryOperation.create(operator, rhs, term)
+            assignment = Assignment.create(node.lhs.copy(), rhs)            
+            node.parent.children.insert(node.position, assignment)
         else:
             # The assignment is not an increment. The LHS active
             # variable needs to be zero'ed.
@@ -201,10 +188,19 @@ class AssignmentTrans(AdjointTransformation):
                           node.lhs.name))
 
         # Split the RHS of the assignment into <expr> +- <expr> +- <expr>
-        rhs_terms, rhs_operators = self._split_nodes(
+        rhs_terms, _ = self._split_nodes(
             node.rhs, [BinaryOperation.Operator.ADD,
                        BinaryOperation.Operator.SUB])
 
+        # Check for the special case where RHS=0.0. This is really a
+        # representation of multiplying an active variable by zero but
+        # this is obviously not visible in the code. Note that the
+        # checking for 0 here is fragile. It assumes a particular
+        # format and a particular datatype.
+        if (len(rhs_terms) == 1 and isinstance(rhs_terms[0], Literal) and
+            rhs_terms[0].value == "0.0"):
+                return
+        
         # Check each expression term. It must be in the form
         # A */ <expr> where A is an active variable.
         for rhs_term in rhs_terms:
@@ -234,14 +230,13 @@ class AssignmentTrans(AdjointTransformation):
                 continue
 
             # Split the term into <expr> */ <expr> */ <expr>
-            expr_terms, expr_operators = self._split_nodes(
+            expr_terms, _ = self._split_nodes(
                 rhs_term, [BinaryOperation.Operator.MUL,
                            BinaryOperation.Operator.DIV])
 
             # One of expression terms must be an active variable or an
             # active variable with a preceding + or -.
             found = False
-            # import pdb; pdb.set_trace()
             for index, expr_term in enumerate(expr_terms):
                 check_term = expr_term
                 if (isinstance(expr_term, UnaryOperation) and
@@ -259,14 +254,26 @@ class AssignmentTrans(AdjointTransformation):
                     "but found '{1}'.".format(
                         self._writer(node), self._writer(rhs_term)))
 
-            # The active variable must not be a divisor
-            if index>0 and expr_operators[index-1] == BinaryOperation.Operator.DIV:
-                raise TangentLinearError(
-                    "A term on the RHS of the assignment '{0}' with a "
-                    "division must not have the active variable as a divisor "
-                    "but found '{1}'.".format(
-                        self._writer(node), self._writer(rhs_term)))
-                
+            # The active variable must not a part of a divisor
+            candidate = check_term
+            parent = candidate.parent
+            while not isinstance(parent, Assignment):
+                # Starting with the active variable reference, look up
+                # the tree for an ancestor divide operation until
+                # reaching the assignment node.
+                if (isinstance(parent, BinaryOperation) and
+                    parent.operator == BinaryOperation.Operator.DIV and
+                    parent.children[1] == candidate):
+                    # Found a divide and the active variable is on its RHS
+                        raise TangentLinearError(
+                            "A term on the RHS of the assignment '{0}' with a "
+                            "division must not have the active variable as "
+                            "part of the divisor but found '{1}'.".format(
+                            self._writer(node), self._writer(rhs_term)))
+                # Continue up the PSyIR tree
+                candidate = parent
+                parent = candidate.parent
+
             # All terms must be Reference, operator or Literal
             for tmp_node in rhs_term.walk(Node):
                 if not isinstance(tmp_node, (Reference, Operation, Literal)):
@@ -300,91 +307,6 @@ class AssignmentTrans(AdjointTransformation):
             return(lhs_node_list + rhs_node_list, lhs_op_list + [node.operator] + rhs_op_list)
         else:
             return ([node], [])
-
-    def _split_active_var(self, term):
-        '''Utility to split the term into an active variable, an expression
-        and an operator that acts on the two. As validation has been
-        performed we can assume that there is at most one active
-        variable in the term and that it will be a sub-term i.e. when
-        the term is split into sub-terms separated by * or / it will
-        be one of the sub-terms.
-
-        :param term: xxx
-        :type term: yyy
-
-        :returns: tuple containing the active variable or None if
-            there is no active variable, the operator that combines
-            the active variable with an expression or None if there is
-            no operator and the expression or None if there is no
-            expression.
-
-        :rtype: (x or NoneType, y or NoneType, z or NoneType)
-
-        '''
-        # Split term into <sub-term> */ <sub-term> */ <sub-term> */ ...
-        sub_term_exprs, sub_term_operators = self._split_nodes(
-            term, [BinaryOperation.Operator.MUL, BinaryOperation.Operator.DIV])
-
-        print ("xxxxxxxxxxxxxx")
-        print ("SUB TERM EXPRESSSIONS ARE: ")
-        for expr in sub_term_exprs:
-            print ("   "+self._writer(expr))
-        # print (sub_term_operators)
-        print ("xxxxxxxxxxxxxx")
-
-        # Default to no information
-        term_active_var = None
-        term_operator = None
-        term_expr = None
-
-        # For each sub-term
-        for idx, sub_term_expr in enumerate(sub_term_exprs):
-            print ("+++++ Looking at sub term expr {0} +++++++".format(self._writer(sub_term_expr)))
-            #print (self._writer(sub_term_expr))
-            #print (type(sub_term_expr))
-            #print (isinstance(sub_term_expr, UnaryOperation))
-            #print (sub_term_expr.operator in [UnaryOperation.Operator.MINUS, UnaryOperation.Operator.PLUS])
-            #print ("++++++++++")
-            negate_active_var = False
-            # Sort out any unary + or - associated with an active variable
-            if isinstance(sub_term_expr, UnaryOperation) and sub_term_expr.operator in [UnaryOperation.Operator.MINUS, UnaryOperation.Operator.PLUS] and isinstance(sub_term_expr.children[0], Reference) and sub_term_expr.children[0].symbol in self._active_variables:
-                if sub_term_expr.operator == UnaryOperation.Operator.MINUS:
-                    #print ("NEGATE!")
-                    negate_active_var = True
-                # Remove unary operator
-                sub_term_expr = sub_term_expr.children[0]
-            #print ("$$$$$$$$$$$$$$$$$$$$")
-            #print (type(sub_term_expr))
-            #if isinstance(sub_term_expr, Reference):
-            #    print (sub_term_expr.name.lower())
-            #for var in self._active_variables:
-            #    print (str(var) + " " + str(type(var)))
-            #print ("$$$$$$$$$$$$$$$$$$$$")
-            print ("HELLO BEFORE BROKEN IF")
-            print ("type sub_term_expr is {0}".format(type(sub_term_expr)))
-            if isinstance(sub_term_expr, Reference) and sub_term_expr.symbol in self._active_variables:
-                # Active variable
-                print ("THIS IS AN ACTIVE VAR")
-                term_active_var = sub_term_expr
-                # *** CHECK IDX
-                if idx == 0:
-                    if sub_term_operators:
-                        term_operator = sub_term_operators[idx]
-                else:
-                    term_operator = BinaryOperation.Operator.MUL
-            else:
-                if idx == 0 or term_expr is None:
-                    term_expr = sub_term_expr
-                else:
-                    term_expr = BinaryOperation.create(sub_term_operators[idx-1], term_expr.copy(), sub_term_expr.copy())
-            if negate_active_var:
-                if term_expr:
-                    term_expr = BinaryOperator.create(BinaryOperator.Operator.MUL, Literal("-1.0", REAL_TYPE), term_exr)
-                else:
-                    term_expr = Literal("-1.0", REAL_TYPE)
-                    term_operator = BinaryOperation.Operator.MUL
-
-        return (term_active_var, term_operator, term_expr)
 
     def __str__(self):
         return "Convert a PSyIR Assignment to its adjoint form"
