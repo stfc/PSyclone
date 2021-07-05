@@ -389,13 +389,8 @@ class LFRicBuiltIn(BuiltIn):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        arg_symbols = []
-
-        for arg in self._arguments.args:
-            if arg.is_field:
-                arg_symbols.append(arg.psyir_expression())
-
-        return arg_symbols
+        return [arg.psyir_expression().symbol for arg in self._arguments.args
+                if arg.is_field]
 
     def get_scalar_argument_references(self):
         '''
@@ -406,27 +401,9 @@ class LFRicBuiltIn(BuiltIn):
             argument.
         :rtype: list of subclasses of `:py:class:`psyclone.psyir.nodes.Node`
 
-        :raises InternalError: if a scalar argument is encountered that \
-            is not described by either a Symbol, a Literal or an Operation.
-
         '''
-        arg_symbols = []
-
-        for arg in self._arguments.args:
-            if not arg.is_scalar:
-                continue
-            psyir = arg.psyir_expression()
-            if isinstance(psyir, DataSymbol):
-                arg_symbols.append(Reference(psyir))
-            elif isinstance(psyir, (Operation, Literal)):
-                arg_symbols.append(psyir)
-            else:
-                raise InternalError(
-                    "Expected the PSyIR for a scalar argument to a BuiltIn "
-                    "kernel to be a DataSymbol, Operation or Literal but "
-                    "found '{0}'".format(type(psyir).__name__))
-
-        return arg_symbols
+        return [arg.psyir_expression() for arg in self._arguments.args
+                if arg.is_scalar]
 
 # ******************************************************************* #
 # ************** Built-ins for real-valued fields ******************* #

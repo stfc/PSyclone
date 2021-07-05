@@ -434,16 +434,6 @@ def test_get_scalar_argument_references(monkeypatch):
     assert refs[0].operator == UnaryOperation.Operator.MINUS
     assert isinstance(refs[0].children[0], Literal)
     assert refs[0].children[0].value == "2"
-    # Monkeypatch the routine that returns PSyIR for a kernel argument in order
-    # to trigger the error checking.
-    for arg in kern._arguments.args:
-        if arg.is_scalar:
-            monkeypatch.setattr(arg, "psyir_expression", lambda: None)
-    with pytest.raises(InternalError) as err:
-        kern.get_scalar_argument_references()
-    assert ("Expected the PSyIR for a scalar argument to a BuiltIn kernel to "
-            "be a DataSymbol, Operation or Literal but found 'NoneType'" in
-            str(err.value))
 
 
 def test_get_dof_loop_index_symbol():

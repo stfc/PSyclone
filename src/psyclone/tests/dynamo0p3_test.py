@@ -63,8 +63,8 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
-from psyclone.psyir.nodes import colored, UnaryOperation
-from psyclone.psyir.symbols import ScalarType, DataTypeSymbol, DataSymbol
+from psyclone.psyir.nodes import colored, UnaryOperation, Reference
+from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -1561,29 +1561,29 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     # First argument should be a real scalar variable
     first_arg = first_kernel.arguments.args[0]
     psyir = first_arg.psyir_expression()
-    assert isinstance(psyir, DataSymbol)
-    assert psyir.name == "a"
-    assert isinstance(psyir.datatype, ScalarType)
-    assert psyir.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "a"
+    assert isinstance(psyir.symbol.datatype, ScalarType)
+    assert psyir.symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
     # Repeat but force the symbol for 'a' to be created
     del first_invoke.schedule.symbol_table._symbols["a"]
     psyir = first_arg.psyir_expression()
-    assert isinstance(psyir, DataSymbol)
-    assert psyir.name == "a"
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "a"
     # Second argument is a real-valued field
     second_arg = first_kernel.arguments.args[1]
     psyir = second_arg.psyir_expression()
-    assert isinstance(psyir, DataSymbol)
-    assert psyir.name == "f1_proxy"
-    assert isinstance(psyir.datatype, DataTypeSymbol)
-    assert psyir.datatype.name == "field_proxy_type"
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "f1_proxy"
+    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
+    assert psyir.symbol.datatype.name == "field_proxy_type"
     # Repeat but force the symbol for 'f1_proxy' to be created
     del first_kernel.scope.symbol_table._symbols["f1_proxy"]
     psyir = second_arg.psyir_expression()
-    assert isinstance(psyir, DataSymbol)
-    assert psyir.name == "f1_proxy"
-    assert isinstance(psyir.datatype, DataTypeSymbol)
-    assert psyir.datatype.name == "field_proxy_type"
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "f1_proxy"
+    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
+    assert psyir.symbol.datatype.name == "field_proxy_type"
     # Break the argument type
     monkeypatch.setattr(second_arg, "_argument_type", "gh_wrong")
     with pytest.raises(NotImplementedError) as err:

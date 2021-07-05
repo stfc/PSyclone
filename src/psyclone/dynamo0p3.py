@@ -74,7 +74,8 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              CodedKern, ACCEnterDataDirective,
                              OMPParallelDoDirective)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
+from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
+                                  StructureReference)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface)
@@ -8768,6 +8769,11 @@ class DynKernelArgument(KernelArgument):
 
         :raises NotImplementedError: if this argument is not a literal, scalar
                                      or field.
+
+        :returns: the PSyIR for this kernel argument.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol` or \
+                :py:class:`psyclone.psyir.nodes.Node`
+
         '''
         symbol_table = self._call.scope.symbol_table
 
@@ -8784,7 +8790,7 @@ class DynKernelArgument(KernelArgument):
                 scalar_sym = symbol_table.new_symbol(
                     self.name, symbol_type=DataSymbol,
                     datatype=self.infer_datatype())
-            return scalar_sym
+            return Reference(scalar_sym)
 
         elif self.is_field:
             # Although the argument to a Kernel is a field, the data itself
@@ -8797,12 +8803,13 @@ class DynKernelArgument(KernelArgument):
                 sym = symbol_table.new_symbol(
                     self.proxy_name, symbol_type=DataSymbol,
                     datatype=self.infer_datatype(proxy=True))
-            return sym
+            return StructureReference(sym)
 
         else:
             raise NotImplementedError(
-                "Unsupported kernel argument type: '{0}' is of type "
-                "'{1}'".format(self.name, self.argument_type))
+                "Unsupported kernel argument type: '{0}' is of type '{1}' "
+                "which is not recognised as being a literal, scalar or "
+                "field.".format(self.name, self.argument_type))
 
     @property
     def declaration_name(self):
