@@ -302,7 +302,7 @@ analyse the index expression.
           accesses = VariablesAccessInfo()
           index_expression.reference_accesses(accesses)
           # Then test if the index variable is used. Note that
-          # the key of `access` is a signature
+          # the key of `accesses` is a signature
           if Signature(index_variable) in accesses:
               # The index variable is used as an index somewhere
               return True
