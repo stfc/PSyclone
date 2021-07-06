@@ -110,19 +110,19 @@ class DependencyTools(object):
         return self._messages
 
     # -------------------------------------------------------------------------
-    def array_accesses_consistent(self, loop_variable, var_infos):
+    def array_accesses_consistent(self, loop_variable, var_infos,
+                                  all_indices=None):
         '''Check whether all accesses to an array, whose accesses are
         specified in the `var_infos` parameter, have consistent usage of
-        the loop variable. This may be used e.g.
-        to verify whether two loops may be fused by providing the access
-        information of the each loop in the `var_infos` parameter as a list.
-        For example, `a(i,j)` and `a(j,i)` would be inconsistent. It does
-        not test for index values (e.g. `a(i,j)` and `a(i+3,j)`). The caller
-        needs to query the error messages managed by this object to detect
-        error(s), see `get_all_messages()`.
-        This function returns the list of all accesses that use the loop
-        variable. This is an additional convenient result that can simplify
-        further tests (but can also be ignored).
+        the loop variable. This can be used e.g. to verify whether two loops
+        may be fused by providing the access information of the each loop in
+        the `var_infos` parameter as a list. For example, `a(i,j)` and
+        `a(j,i)` would be inconsistent. It does not test for index values
+        (e.g. `a(i,j)` and `a(i+3,j)`).
+
+        If the optional argument `all_indices` is given, it will store the
+        list of all accesses that use the loop variable. This is an additional
+        convenient result that can simplify further tests.
 
         :param loop_variable: symbol of the variable associated with the \
             loops being fused.
@@ -132,17 +132,21 @@ class DependencyTools(object):
             single object, or a list of access objects.
         :type var_infos: a list or a single instance of \
             :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
+        :param all_indices: optional list argument which will store all \
+            indices that use the specified loop variable.
+        :type all_indices: None or a list to which all PSyIR expressions \
+            of indices that use the loop variable are added.
 
-        :returns: a list of all indices that use the loop variable (the \
-            consistency of accesses can be checked by querying the \
-            messages using `get_all_messages()`)
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+        :returns: True if all array accesses are consistent.
+        :rtype: bool
 
         :raises InternalError: if more than one one SingleVariableAccessInfo
             object is given and the information is for different variables.
         '''
 
         # pylint: disable=too-many-locals
+        consistent = True
+
         if not isinstance(var_infos, list):
             all_accesses = var_infos.all_accesses
             signature = var_infos.signature
@@ -174,9 +178,6 @@ class DependencyTools(object):
         # informative error messages if required.
         first_index = None
         first_component_indices = None
-        # Additionally, collect all indices that are actually used as
-        # a convenience value for the user
-        all_indices = []
 
         # Test all access to the array. Consider the following code (enclosed
         # in nested j, i loops), when analysing the 'j' loop:
@@ -212,6 +213,7 @@ class DependencyTools(object):
                     # If a previously identified index location does not match
                     # the current index location (e.g. a(i,j), and a(j,i) ),
                     # then add an error message:
+                    consistent = False
                     self._add_error(
                         "Variable '{0}' is written to and the loop variable "
                         "'{1}' is used differently: {2} and {3}."
@@ -219,9 +221,12 @@ class DependencyTools(object):
                                 loop_variable.name,
                                 signature.to_fortran(first_component_indices),
                                 signature.to_fortran(component_indices)))
-                all_indices.append(index_expression)
+                if all_indices is not None:
+                    # If requested, collect all indices that are actually
+                    # used as a convenience additional result for the user
+                    all_indices.append(index_expression)
 
-        return all_indices
+        return consistent
 
     # -------------------------------------------------------------------------
     def _is_loop_suitable_for_parallel(self, loop, only_nested_loops=True):
@@ -289,10 +294,10 @@ class DependencyTools(object):
         # they are needed in a test further down.
 
         # Detect if this variable adds a new message, and if so, abort early
-        old_num_messages = len(self.get_all_messages())
-        all_indices = \
-            self.array_accesses_consistent(loop_variable, var_info)
-        if len(self.get_all_messages()) > old_num_messages:
+        all_indices = []
+        consistent = self.array_accesses_consistent(loop_variable, var_info,
+                                                    all_indices)
+        if not consistent:
             return False
 
         if not all_indices:

@@ -175,12 +175,14 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         '''
 
         dep_tools = DependencyTools()
-        all_indices = \
-            dep_tools.array_accesses_consistent(loop_variable,
-                                                [var_info1, var_info2])
-        errors = dep_tools.get_all_messages()
+        all_indices = []
+        consistent = dep_tools.array_accesses_consistent(loop_variable,
+                                                         [var_info1,
+                                                          var_info2],
+                                                         all_indices)
 
-        if errors:
+        if not consistent:
+            errors = dep_tools.get_all_messages()
             raise TransformationError(errors[0])
 
         if not all_indices:

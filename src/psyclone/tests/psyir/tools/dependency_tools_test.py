@@ -247,9 +247,12 @@ def test_array_access_consistent(parser):
     # Check number of messages and returned access array for correctness.
     a_access_1st_loop = var_info0[sig_a]
     a_access_2nd_loop = var_info1[sig_a]
-    all_ind = dep_tools.array_accesses_consistent(jj_symbol,
-                                                  [a_access_1st_loop,
-                                                   a_access_2nd_loop])
+    all_ind = []
+    consistent = dep_tools.array_accesses_consistent(jj_symbol,
+                                                     [a_access_1st_loop,
+                                                      a_access_2nd_loop],
+                                                     all_ind)
+    assert consistent
     assert len(dep_tools.get_all_messages()) == 0
     assert len(all_ind) == 3
     assert all_ind[0] == a_access_1st_loop[0].component_indices[(0, 1)]
@@ -257,17 +260,23 @@ def test_array_access_consistent(parser):
     assert all_ind[2] == a_access_2nd_loop[1].component_indices[(0, 1)]
 
     # Test 3: provide a single instance (not a list).
-    all_ind = dep_tools.array_accesses_consistent(jj_symbol,
-                                                  a_access_1st_loop)
+    all_ind = []
+    consistent = dep_tools.array_accesses_consistent(jj_symbol,
+                                                     a_access_1st_loop,
+                                                     all_ind)
+    assert consistent
     assert len(dep_tools.get_all_messages()) == 0
     assert all_ind == [a_access_1st_loop[0].component_indices[(0, 1)]]
 
     # Test 4: trigger an error.
     var_info2 = VariablesAccessInfo(loops[2])
     a_access_3rd_loop = var_info2[sig_a]
-    all_ind = dep_tools.array_accesses_consistent(jj_symbol,
-                                                  [a_access_1st_loop,
-                                                   a_access_3rd_loop])
+    all_ind = []
+    consistent = dep_tools.array_accesses_consistent(jj_symbol,
+                                                     [a_access_1st_loop,
+                                                      a_access_3rd_loop],
+                                                     all_ind)
+    assert not consistent
     assert len(dep_tools.get_all_messages()) == 1
     assert "Variable 'a' is written to and the loop variable 'jj' is used " \
            "differently: a(ji,jj) and a(jj,ji)." \
