@@ -57,7 +57,7 @@ class ComponentIndices(object):
 
     :param indices: the indices from which to create this object.
     :type indices: None, [], a list or a list of lists of \
-        :py:class:`psyclone.psyir.nodes.Node`s
+        :py:class:`psyclone.psyir.nodes.Node`
 
     :raises InternalError: if the indices parameter is not None, a list \
         or a list of lists.
