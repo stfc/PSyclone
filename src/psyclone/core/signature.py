@@ -106,6 +106,7 @@ class Signature(object):
         return "%".join(self._signature)
 
     # ------------------------------------------------------------------------
+    # TODO #1320: remove the assumption that the code is in Fortran here.
     def to_fortran(self, component_indices):
         '''Converts this signature back to a Fortran expression using the
         provided component indices.
