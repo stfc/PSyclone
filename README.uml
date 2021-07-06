@@ -7,11 +7,11 @@
 # 1: when a class creates a list of other classes,
 # 2: when class names are passed by argument.
 
-# for the dynamo 0.3 (LFRic) api:
+# for the dynamo 0.3 api:
 pyreverse -A -p dynamo0p3 dynamo0p3.py # -A includes base classes
-dotty dynamo0p3_topclasses.dot # to view
-dot -Tsvg dynamo0p3_topclasses.dot > dynamo0p3_topclasses.svg # to generate svg
-dot -Tpng dynamo0p3_topclasses.dot > dynamo0p3_topclasses.png # to generate png
+dotty classes_dynamo0p3.dot # to view
+dot -Tsvg classes_dynamo0p3.dot > classes_dynamo0p3.svg # to generate svg
+dot -Tpng classes_dynamo0p3.dot > classes_dynamo0p3.png # to generate png
 
 # for the gocean 1.0 api:
 pyreverse -A -p gocean1p0 gocean1p0.py
