@@ -240,7 +240,8 @@ def test_array_access_consistent(parser):
                                                  var_info1[sig_b],
                                                  var_info1[sig_c]])
     assert "Inconsistent signature provided in 'array_accesses_consistent'. " \
-           "Expected was 'a', but also got 'b,c'." in str(err.value)
+           "Expected all access to be for 'a', but also got 'b,c'."\
+           in str(err.value)
 
     # Test 2: provide a consistent list of accesses.
     # Check number of messages and returned access array for correctness.

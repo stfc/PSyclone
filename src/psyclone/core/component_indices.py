@@ -108,8 +108,8 @@ class ComponentIndices(object):
     def __getitem__(self, indx):
         '''Allows to use this class as a dictionary. If `indx` is an integer,
         the list of indices for the specified component is returned. If `indx`
-        is a tuple (as returned from `iterate`), it will return the PSyIR for
-        index for the specified component at the specified dimension.
+        is a tuple (as returned from `iterate`), it will return the PSyIR of
+        the index for the specified component at the specified dimension.
 
         :returns: either the list of indices for a component, or the index \
             PSyIR node for the specified tuple.

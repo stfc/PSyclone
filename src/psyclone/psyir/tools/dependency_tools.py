@@ -138,6 +138,8 @@ class DependencyTools(object):
             messages using `get_all_messages()`)
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises InternalError: if more than one one SingleVariableAccessInfo
+            object is given and the information is for different variables.
         '''
 
         # pylint: disable=too-many-locals
@@ -154,7 +156,8 @@ class DependencyTools(object):
                 diff_string = [str(sig) for sig in different]
                 raise InternalError("Inconsistent signature provided in "
                                     "'array_accesses_consistent'. Expected "
-                                    "was '{0}', but also got '{1}'."
+                                    "all access to be for '{0}', but also "
+                                    "got '{1}'."
                                     .format(signature, ",".join(diff_string)))
             all_accesses = []
             for var_info in var_infos:
@@ -294,8 +297,9 @@ class DependencyTools(object):
 
         if not all_indices:
             # An array is used that is not actually dependent on the parallel
-            # loop variable. This means the variable can not always be safely
-            # parallelised. Example 1:
+            # loop variable, but is written to (which was checked earlier
+            # in this function). This means the variable can not always be
+            # safely parallelised. Example 1:
             # do j=1, n
             #    a(1) = b(j)+1
             #    c(j) = a(1) * 2
