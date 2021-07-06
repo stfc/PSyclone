@@ -283,25 +283,13 @@ class LFRicConstants(object):
                        "type": "scalar_type",
                        "proxy_type": None,
                        "intrinsic": "real",
-                       "kind": api_config.default_kind["real"]},
-            # 'integer'-valued scalar of kind 'i_def'
-            "integer_scalar": {"module": None,
-                               "type": None,
-                               "proxy_type": None,
-                               "intrinsic": "integer",
-                               "kind": api_config.default_kind["integer"]},
-            # 'logical'-valued scalar of kind 'l_def'
-            "logical_scalar": {"module": None,
-                               "type": None,
-                               "proxy_type": None,
-                               "intrinsic": "logical",
-                               "kind": api_config.default_kind["logical"]},
+                       "kind": "r_def"},
             # 'real'-valued field with data of kind 'r_def'
             "field": {"module": "field_mod",
                       "type": "field_type",
                       "proxy_type": "field_proxy_type",
                       "intrinsic": "real",
-                      "kind": api_config.default_kind["real"]},
+                      "kind": "r_def"},
             # 'real'-valued field with data of kind 'r_solver'
             "r_solver_field": {"module": "r_solver_field_mod",
                                "type": "r_solver_field_type",
@@ -313,20 +301,20 @@ class LFRicConstants(object):
                               "type": "integer_field_type",
                               "proxy_type": "integer_field_proxy_type",
                               "intrinsic": "integer",
-                              "kind": api_config.default_kind["integer"]},
+                              "kind": "i_def"},
             # 'real'-valued operator with data of kind 'r_def'
             "operator": {"module": "operator_mod",
                          "type": "operator_type",
                          "proxy_type": "operator_proxy_type",
                          "intrinsic": "real",
-                         "kind": api_config.default_kind["real"]},
+                         "kind": "r_def"},
             # 'real'-valued columnwise operator with data of kind 'r_def'
             "columnwise_operator": {
                 "module": "operator_mod",
                 "type": "columnwise_operator_type",
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
-                "kind": api_config.default_kind["real"]}}
+                "kind": "r_def"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.

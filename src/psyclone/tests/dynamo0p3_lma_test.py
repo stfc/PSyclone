@@ -444,7 +444,7 @@ def test_operator_arg_lfricconst_properties():
     kernel.load_meta(metadata)
 
     op_arg = kernel.arguments.args[3]
-    assert op_arg.data_module == "operator_mod"
+    assert op_arg.module_name == "operator_mod"
     assert op_arg.data_type == "operator_type"
     assert op_arg.proxy_data_type == "operator_proxy_type"
     assert op_arg.intrinsic_type == "real"

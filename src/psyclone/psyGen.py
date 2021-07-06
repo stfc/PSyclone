@@ -1500,7 +1500,7 @@ class ACCEnterDataDirective(ACCDirective):
             # 1. Find all parallel and kernels directives. We store this list
             # for later use in any sub-class.
             self._acc_dirs = self.ancestor(InvokeSchedule).walk(
-                    (ACCParallelDirective, ACCKernelsDirective))
+                (ACCParallelDirective, ACCKernelsDirective))
             # 2. For each directive, loop over each of the fields used by
             #    the kernels it contains (this list is given by ref_list)
             #    and add it to our list if we don't already have it
@@ -4016,8 +4016,11 @@ class Argument(object):
             self._is_literal = False
         # Initialise access
         self._access = access
-        # Initialise precision to 'None'
+        # Default the precision, data type and module to 'None' (no
+        # explicit property specified)
         self._precision = None
+        self._data_type = None
+        self._module_name = None
 
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
@@ -4144,11 +4147,33 @@ class Argument(object):
     def precision(self):
         '''
         :returns: the precision of this argument. Default value is None, \
-                  with the specific implementations in different APIs.
+                  explicit implementation is left to a specific API.
         :rtype: str or NoneType
 
         '''
         return self._precision
+
+    @property
+    def data_type(self):
+        '''
+        :returns: the data type of this argument. Default value is None, \
+                  explicit implementation is left to a specific API.
+        :rtype: str or NoneType
+
+        '''
+        return self._data_type
+
+    @property
+    def module_name(self):
+        '''
+        :returns: the name of the Fortran module that contains definitions \
+                  for the argument data type. Default value is None, \
+                  explicit implementation is left to a specific API.
+        :rtype: str or NoneType
+
+
+        '''
+        return self._module_name
 
     @property
     def call(self):

@@ -417,7 +417,7 @@ def test_scalar_arg_lfricconst_properties():
 
     # Test 'real' scalars
     scalar_arg = kernel.arguments.args[0]
-    assert scalar_arg.data_module == "scalar_mod"
+    assert scalar_arg.module_name == "scalar_mod"
     assert scalar_arg.data_type == "scalar_type"
     assert scalar_arg.proxy_data_type is None
     assert scalar_arg.intrinsic_type == "real"
@@ -425,7 +425,7 @@ def test_scalar_arg_lfricconst_properties():
 
     # Test 'integer' scalars
     scalar_arg = kernel.arguments.args[6]
-    assert scalar_arg.data_module is None
+    assert scalar_arg.module_name is None
     assert scalar_arg.data_type is None
     assert scalar_arg.proxy_data_type is None
     assert scalar_arg.intrinsic_type == "integer"
@@ -433,7 +433,7 @@ def test_scalar_arg_lfricconst_properties():
 
     # Test 'logical' scalars
     scalar_arg = kernel.arguments.args[5]
-    assert scalar_arg.data_module is None
+    assert scalar_arg.module_name is None
     assert scalar_arg.data_type is None
     assert scalar_arg.proxy_data_type is None
     assert scalar_arg.intrinsic_type == "logical"

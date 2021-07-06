@@ -404,7 +404,7 @@ def test_cma_operator_arg_lfricconst_properties():
     kernel.load_meta(metadata)
 
     cma_op_arg = kernel.arguments.args[1]
-    assert cma_op_arg.data_module == "operator_mod"
+    assert cma_op_arg.module_name == "operator_mod"
     assert cma_op_arg.data_type == "columnwise_operator_type"
     assert cma_op_arg.proxy_data_type == "columnwise_operator_proxy_type"
     assert cma_op_arg.intrinsic_type == "real"

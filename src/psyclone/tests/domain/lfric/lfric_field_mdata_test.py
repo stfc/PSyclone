@@ -564,7 +564,7 @@ def test_field_arg_lfricconst_properties():
 
     # Test 'real'-valued fields of 'field_type'
     field_arg = kernel.arguments.args[1]
-    assert field_arg.data_module == "field_mod"
+    assert field_arg.module_name == "field_mod"
     assert field_arg.data_type == "field_type"
     assert field_arg.proxy_data_type == "field_proxy_type"
     assert field_arg.intrinsic_type == "real"
@@ -572,7 +572,7 @@ def test_field_arg_lfricconst_properties():
 
     # Test 'integer'-valued fields of 'integer_field_type'
     field_arg = kernel.arguments.args[3]
-    assert field_arg.data_module == "integer_field_mod"
+    assert field_arg.module_name == "integer_field_mod"
     assert field_arg.data_type == "integer_field_type"
     assert field_arg.proxy_data_type == "integer_field_proxy_type"
     assert field_arg.intrinsic_type == "integer"

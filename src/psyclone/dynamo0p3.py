@@ -2772,7 +2772,7 @@ class LFRicFields(DynCollection):
         # and integer fields
         if real_field_arg_list:
             fld_type = real_field_args[0].data_type
-            fld_mod = real_field_args[0].data_module
+            fld_mod = real_field_args[0].module_name
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=real_field_arg_list,
                                    intent="in"))
@@ -2780,7 +2780,7 @@ class LFRicFields(DynCollection):
              infrastructure_modules[fld_mod].add(fld_type))
         if int_field_arg_list:
             fld_type = int_field_args[0].data_type
-            fld_mod = int_field_args[0].data_module
+            fld_mod = int_field_args[0].module_name
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=int_field_arg_list,
                                    intent="in"))
@@ -3045,7 +3045,7 @@ class DynProxies(DynCollection):
                                  arg in real_field_args]
         if real_field_proxy_decs:
             fld_type = real_field_args[0].proxy_data_type
-            fld_mod = real_field_args[0].data_module
+            fld_mod = real_field_args[0].module_name
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_type,
                                    entity_decls=real_field_proxy_decs))
@@ -3059,7 +3059,7 @@ class DynProxies(DynCollection):
                                 arg in int_field_args]
         if int_field_proxy_decs:
             fld_type = int_field_args[0].proxy_data_type
-            fld_mod = int_field_args[0].data_module
+            fld_mod = int_field_args[0].module_name
             parent.add(TypeDeclGen(parent,
                                    datatype=fld_type,
                                    entity_decls=int_field_proxy_decs))
@@ -3072,7 +3072,7 @@ class DynProxies(DynCollection):
         op_proxy_decs = [arg.proxy_declaration_name for arg in op_args]
         if op_proxy_decs:
             op_type = op_args[0].proxy_data_type
-            op_mod = op_args[0].data_module
+            op_mod = op_args[0].module_name
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
                                    entity_decls=op_proxy_decs))
@@ -3086,7 +3086,7 @@ class DynProxies(DynCollection):
                              arg in cma_op_args]
         if cma_op_proxy_decs:
             op_type = cma_op_args[0].proxy_data_type
-            op_mod = cma_op_args[0].data_module
+            op_mod = cma_op_args[0].module_name
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
                                    entity_decls=cma_op_proxy_decs))
@@ -3442,7 +3442,7 @@ class DynLMAOperators(DynCollection):
         op_arg_list = [arg.declaration_name for arg in op_args]
         if op_arg_list:
             op_type = op_args[0].data_type
-            op_mod = op_args[0].data_module
+            op_mod = op_args[0].module_name
             parent.add(TypeDeclGen(parent, datatype=op_type,
                                    entity_decls=op_arg_list,
                                    intent="in"))
@@ -3590,7 +3590,7 @@ class DynCMAOperators(DynCollection):
         cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
         if cma_op_arg_list:
             op_type = cma_op_args[0].data_type
-            op_mod = cma_op_args[0].data_module
+            op_mod = cma_op_args[0].module_name
             parent.add(TypeDeclGen(parent,
                                    datatype=op_type,
                                    entity_decls=cma_op_arg_list,
@@ -5384,7 +5384,7 @@ class DynGlobalSum(GlobalSum):
         sum_name = self.ancestor(InvokeSchedule).symbol_table.\
             symbol_from_tag("global_sum").name
         sum_type = self._scalar.data_type
-        sum_mod = self._scalar.data_module
+        sum_mod = self._scalar.module_name
         parent.add(UseGen(parent, name=sum_mod, only=True,
                           funcnames=[sum_type]))
         parent.add(TypeDeclGen(parent, datatype=sum_type,
@@ -8548,18 +8548,11 @@ class DynKernelArgument(KernelArgument):
         # it. Note, issue #79 is also related to this.
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
 
-        # Name of the LFRic infrastructure module that declares the argument
-        # data type
-        self._data_module = None
-        # Argument data type (if/as defined in the LFRic infrastructure)
-        self._data_type = None
         # Argument proxy data type (if/as defined in LFRic infrastructure)
         self._proxy_data_type = None
-        # Use 'infer_datatype' to set up kernel argument information: module
-        # name, data type, proxy data type and precision (precision is
-        # already initialised to 'None' in the parent class). This is
-        # currently supported for scalars, fields and operators.
-        _ = self.infer_datatype(proxy=False)
+        # Set up kernel argument information from the DATA_TYPE_MAP:
+        # module name, data type, proxy data type and precision.
+        self._init_data_type_properties()
 
     def ref_name(self, function_space=None):
         '''
@@ -8623,6 +8616,83 @@ class DynKernelArgument(KernelArgument):
             "DynKernelArgument.ref_name(fs): Found unsupported argument "
             "type '{0}'.".format(self._argument_type))
 
+    def _init_data_type_properties(self):
+        '''
+        Set up kernel argument information from LFRicConstants.DATA_TYPE_MAP:
+        module name, data type, proxy data type and precision.
+        This is currently supported for real scalars, fields and operators.
+        Integer and logical scalars are not defined as data structures in
+        the LFRic infrastructure so their precision is set from the defaults
+        in the PSyclone configuration file.
+
+        '''
+        const = LFRicConstants()
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        # All supported scalars have the same metadata, GH_SCALAR, so we
+        # check by their intrinsic type
+        if self.is_scalar:
+            if self.intrinsic_type == "real":
+                # Set 'real' scalar properties as defined in the LFRic
+                # infrastructure
+                self._module_name = const.DATA_TYPE_MAP["scalar"]["module"]
+                self._data_type = const.DATA_TYPE_MAP["scalar"]["type"]
+                self._proxy_data_type = const.DATA_TYPE_MAP[
+                    "scalar"]["proxy_type"]
+                self._precision = const.DATA_TYPE_MAP["scalar"]["kind"]
+                # TODO #1277: Check whether the access of a 'real' scalar
+                # is a reduction before assigning precision from the
+                # algorithm layer. LFRic reductions must have 'r_def'
+                # precision as defined for the "scalar_type".
+            elif self.intrinsic_type == "integer":
+                # Set 'integer' scalar precision from the configuration
+                self._precision = api_config.default_kind["integer"]
+            elif self.intrinsic_type == "logical":
+                # Set 'logical' scalar precision from the configuration
+                self._precision = api_config.default_kind["logical"]
+            else:
+                raise InternalError(
+                    "Expected one of {0} intrinsic types for a scalar "
+                    "argument but found '{1}'.".
+                    format(const.VALID_INTRINSIC_TYPES, self.intrinsic_type))
+
+        # All supported fields have the same metadata, GH_FIELD, so we
+        # check by their intrinsic type
+        if self.is_field:
+            if self.intrinsic_type == 'real':
+                argtype = "field"
+            elif self.intrinsic_type == 'integer':
+                argtype = "integer_field"
+            else:
+                raise InternalError(
+                    "Expected one of {0} intrinsic types for a field "
+                    "argument but found '{1}'.".
+                    format(const.VALID_FIELD_INTRINSIC_TYPES,
+                           self.intrinsic_type))
+            # Set field properties as defined in the LFRic infrastructure
+            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
+            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+
+        # All supported operators have the same intrinsic type, 'real', so we
+        # check by their argument type
+        if self.is_operator:
+            if self.argument_type == "gh_operator":
+                argtype = "operator"
+            elif self.argument_type == "gh_columnwise_operator":
+                argtype = "columnwise_operator"
+            else:
+                raise InternalError(
+                    "Expected one of {0} argument types for an operator "
+                    "argument but found '{1}'.".
+                    format(const.VALID_OPERATOR_NAMES, self.argument_type))
+            # Set operator properties as defined in the LFRic infrastructure
+            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
+            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+
     @property
     def is_scalar(self):
         '''
@@ -8679,26 +8749,6 @@ class DynKernelArgument(KernelArgument):
         :rtype: str
         '''
         return self._intrinsic_type
-
-    @property
-    def data_type(self):
-        '''
-        :returns: the data type of this argument as defined in the \
-                  LFRic infrastructure.
-        :rtype: str or NoneType
-
-        '''
-        return self._data_type
-
-    @property
-    def data_module(self):
-        '''
-        :returns: the name of the LFRic infrastructure module that \
-                  declares the argument data type.
-        :rtype: str or NoneType
-
-        '''
-        return self._data_module
 
     @property
     def mesh(self):
@@ -8929,17 +8979,17 @@ class DynKernelArgument(KernelArgument):
         :raises NotImplementedError: if an unsupported argument type is found.
 
         '''
+        const = LFRicConstants()
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
-        if self._call and hasattr(self._call.root, 'symbol_table'):
-            symbol_table = self._call.root.symbol_table
-        else:
-            # TODO 719 The symtab is not connected to other parts of the
-            # Stub generation.
-            symbol_table = SymbolTable()
+        symbol_table = self._call.scope.symbol_table
         root_table = symbol_table
         while root_table.parent_symbol_table():
             root_table = root_table.parent_symbol_table()
+
+        proxy_str = ""
+        if proxy:
+            proxy_str = "_proxy"
 
         def _find_or_create_type(mod_name, type_name):
             '''
@@ -8956,98 +9006,76 @@ class DynKernelArgument(KernelArgument):
 
             '''
             try:
-                arg_datatype = symbol_table.lookup(type_name)
+                fld_type = symbol_table.lookup(type_name)
             except KeyError:
                 # TODO Once #1258 is done we should already have symbols for
                 # the various types at this point.
                 try:
-                    arg_mod_container = symbol_table.lookup(mod_name)
+                    fld_mod_container = symbol_table.lookup(mod_name)
                 except KeyError:
-                    arg_mod_container = ContainerSymbol(mod_name)
-                    root_table.add(arg_mod_container)
-                arg_datatype = DataTypeSymbol(
+                    fld_mod_container = ContainerSymbol(mod_name)
+                    root_table.add(fld_mod_container)
+                fld_type = DataTypeSymbol(
                     type_name, DeferredType(),
-                    interface=GlobalInterface(arg_mod_container))
-                root_table.add(arg_datatype)
-            return arg_datatype
+                    interface=GlobalInterface(fld_mod_container))
+                root_table.add(fld_type)
+            return fld_type
 
         if self.is_scalar:
 
-            const = LFRicConstants()
+            api_config = Config.get().api_conf("dynamo0.3")
 
             if self.intrinsic_type == "real":
+                kind_name = const.DATA_TYPE_MAP["scalar"]["kind"]
                 prim_type = ScalarType.Intrinsic.REAL
-                argtype = "scalar"
             elif self.intrinsic_type == "integer":
+                kind_name = api_config.default_kind["integer"]
                 prim_type = ScalarType.Intrinsic.INTEGER
-                argtype = "integer_scalar"
             elif self.intrinsic_type == "logical":
+                kind_name = api_config.default_kind["logical"]
                 prim_type = ScalarType.Intrinsic.BOOLEAN
-                argtype = "logical_scalar"
             else:
                 raise NotImplementedError(
                     "Unsupported scalar type '{0}'".format(
                         self.intrinsic_type))
-
-            # Set scalar properties as defined in the LFRic infrastructure
-            self._data_module = const.DATA_TYPE_MAP[argtype]["module"]
-            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
-            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
-
-            # Add precision information to the SymbolTable
             try:
-                kind_symbol = symbol_table.lookup(self._precision)
+                kind_symbol = symbol_table.lookup(kind_name)
             except KeyError:
                 try:
                     constants_container = symbol_table.lookup(
-                        const.UTILITIES_MOD_MAP["constants"]["module"])
+                        "constants_mod")
                 except KeyError:
                     # TODO Once #696 is done, we should *always* have a
                     # symbol for this container at this point so should
                     # raise an exception if we haven't. Also, the name
                     # of the Fortran module should be read from the config
                     # file.
-                    constants_container = ContainerSymbol(
-                        const.UTILITIES_MOD_MAP["constants"]["module"])
+                    constants_container = ContainerSymbol("constants_mod")
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
-                    self._precision, INTEGER_SINGLE_TYPE,
+                    kind_name, INTEGER_SINGLE_TYPE,
                     interface=GlobalInterface(constants_container))
                 root_table.add(kind_symbol)
-
             return ScalarType(prim_type, kind_symbol)
 
         if self.is_field:
 
-            const = LFRicConstants()
-
             # Find or create the DataTypeSymbol for the appropriate field type.
-            if self.intrinsic_type == 'real':
+            if self.intrinsic_type == "real":
                 argtype = "field"
-            elif self.intrinsic_type == 'integer':
+            elif self.intrinsic_type == "integer":
                 argtype = "integer_field"
             else:
                 raise NotImplementedError(
                     "Fields may only be of 'real' or 'integer' type but found "
                     "'{0}'".format(self.intrinsic_type))
 
-            # Set field properties as defined in the LFRic infrastructure
-            self._data_module = const.DATA_TYPE_MAP[argtype]["module"]
-            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
-            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
+            type_name = "{0}{1}_type".format(argtype, proxy_str)
 
-            if proxy:
-                type_name = self._proxy_data_type
-            else:
-                type_name = self._data_type
-
-            return _find_or_create_type(self._data_module, type_name)
+            return _find_or_create_type(mod_name, type_name)
 
         if self.is_operator:
-
-            const = LFRicConstants()
 
             # Find or create the DataTypeSymbol for the appropriate operator
             # type.
@@ -9061,18 +9089,10 @@ class DynKernelArgument(KernelArgument):
                     "operator' type but found '{0}'".format(
                         self.argument_type))
 
-            # Set operator properties as defined in the LFRic infrastructure
-            self._data_module = const.DATA_TYPE_MAP[argtype]["module"]
-            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
-            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
+            type_name = "{0}{1}_type".format(argtype, proxy_str)
 
-            if proxy:
-                type_name = self._proxy_data_type
-            else:
-                type_name = self._data_type
-
-            return _find_or_create_type(self._data_module, type_name)
+            return _find_or_create_type(mod_name, type_name)
 
         raise NotImplementedError(
             "'{0}' is not a scalar, field or operator argument"
