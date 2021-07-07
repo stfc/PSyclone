@@ -248,7 +248,12 @@ class PSyIRVisitor(object):
                 if isinstance(node, CommentableMixin):
                     if node.inline_comment and self._COMMENT_PREFIX:
                         if result[-1] != "\n":
-                            raise VisitorError("An inline_comment")
+                            raise VisitorError(
+                                "An inline_comment can only be added to a "
+                                "construct that finishes with a '\\n', "
+                                "indicating that the line has ended, but"
+                                " node '{0}' results in '{1}'."
+                                "".format(node, result))
                         # Remove the line-break
                         result = result[:-1]
                         result += ("  " + self._COMMENT_PREFIX +

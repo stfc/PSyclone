@@ -2097,7 +2097,7 @@ def test_fw_unknown_decln(fortran_writer):
 
 
 def test_fw_comments(fortran_writer):
-    ''' Test '''
+    ''' Test the generation of Fortran from PSyIR with comments. '''
 
     container = Container("my_container")
     routine = Routine("my_routine")

@@ -316,6 +316,29 @@ def test_psyirvisitor_visit_skip_nodes():
     assert result == "testnode2\n"
 
 
+def test_psyir_comments_error():
+    ''' Test the generation of Fortran from PSyIR with comments. '''
+
+    class TestVisitor(PSyIRVisitor):
+        '''Subclass of PSyIRVisitor used to check that inline statements
+        with non-terminated constructs would fail.
+        '''
+        _COMMENT_PREFIX = ":)"
+
+        def statement_node(self, _):
+            ''' Match with class TestNode2. '''
+            return "statement"
+
+    statement = Return()
+    statement.inline_comment = "An inline comment"
+    test_visitor = TestVisitor()
+    with pytest.raises(VisitorError) as err:
+        _ = test_visitor(statement)
+    assert ("An inline_comment can only be added to a construct that finishes "
+            "with a '\\n', indicating that the line has ended, but node "
+            "'Return[]' results in 'statement'." in str(err.value))
+
+
 def test_psyirvisitor_validation():
     ''' Check that validation of the tree is performed and can be
     switched off. '''
