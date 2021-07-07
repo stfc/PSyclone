@@ -1381,95 +1381,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         return "ACCParallelTrans"
 
 
-class GOConstLoopBoundsTrans(Transformation):
-    ''' Switch on (or off) the use of constant loop bounds within
-    a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
-    generate loops where the bounds are obtained by de-referencing a field
-    object, e.g.:
-
-    .. code-block:: fortran
-
-      DO j = my_field%grid%internal%ystart, my_field%grid%internal%ystop
-
-    Some compilers are able to produce more efficient code if they are
-    provided with information on the relative trip-counts of the loops
-    within an Invoke. With constant loop bounds switched on, PSyclone
-    generates code like:
-
-    .. code-block:: fortran
-
-      ny = my_field%grid%subdomain%internal%ystop
-      ...
-      DO j = 1, ny-1
-
-    In practice, the application of the constant loop bounds looks
-    something like, e.g.:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> import os
-    >>> TEST_API = "gocean1.0"
-    >>> _, info = parse(os.path.join("tests", "test_files", "gocean1p0",
-    >>>                              "single_invoke.f90"),
-    >>>                 api=TEST_API)
-    >>> psy = PSyFactory(TEST_API).create(info)
-    >>> invoke = psy.invokes.get('invoke_0_compute_cu')
-    >>> schedule = invoke.schedule
-    >>>
-    >>> from psyclone.transformations import GOConstLoopBoundsTrans
-    >>> clbtrans = GOConstLoopBoundsTrans()
-    >>>
-    >>> clbtrans.apply(schedule)
-    >>> # or, to turn off const. looop bounds:
-    >>> # clbtrans.apply(schedule, const_bounds=False)
-    >>>
-    >>> schedule.view()
-
-    '''
-
-    def __str__(self):
-        return "Use constant loop bounds for all loops in a GOInvokeSchedule"
-
-    @property
-    def name(self):
-        ''' Return the name of the Transformation as a string.'''
-        return "GOConstLoopBoundsTrans"
-
-    def apply(self, node, options=None):
-        '''Switches constant loop bounds on or off for all loops in a
-        GOInvokeSchedule. Default is 'off'.
-
-        :param node: the GOInvokeSchedule of which all loops will get the
-            constant loop bounds switched on or off.
-        :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :param bool options["const_bounds"]: whether the constant loop should\
-            be used (True) or not (False). Default is True.
-
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
-        '''
-
-        # Check node is a Schedule
-        from psyclone.gocean1p0 import GOInvokeSchedule
-        if not isinstance(node, GOInvokeSchedule):
-            raise TransformationError("Error in GOConstLoopBoundsTrans: "
-                                      "node is not a GOInvokeSchedule")
-
-        keep = Memento(node, self)
-
-        if not options:
-            options = {}
-
-        node.const_loop_bounds = options.get("const_bounds", True)
-
-        return node, keep
-
-
 class MoveTrans(Transformation):
     '''Provides a transformation to move a node in the tree. For
     example:
@@ -3157,7 +3068,6 @@ __all__ = ["KernelTrans",
            "ParallelRegionTrans",
            "OMPParallelTrans",
            "ACCParallelTrans",
-           "GOConstLoopBoundsTrans",
            "MoveTrans",
            "Dynamo0p3RedundantComputationTrans",
            "GOLoopSwapTrans",
