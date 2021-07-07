@@ -238,4 +238,4 @@ def test_output_c_not_yet_working():
     # Check that it defaults to Fortran
     assert sig.to_language(comp) == "a(1)%b%c(i,j)"
     assert sig.to_language(comp, f_writer) == "a(1)%b%c(i,j)"
-    assert sig.to_language(comp, c_writer) == "a[1]%b%c[i,j]"
+    assert sig.to_language(comp, c_writer) == "a[1]%b%c[j * ALEN1 + i]"
