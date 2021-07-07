@@ -379,8 +379,7 @@ def test_psyirvisitor_visit_return_node():
     with pytest.raises(VisitorError) as excinfo:
         _ = test_visitor(return_node)
     assert ("Visitor Error: Unsupported node 'Return' found: method names "
-            "attempted were ['return_node', 'statement_node', 'node_node']."
-            in str(excinfo.value))
+            "attempted were ['return_node', " in str(excinfo.value))
 
 
 def test_reference():

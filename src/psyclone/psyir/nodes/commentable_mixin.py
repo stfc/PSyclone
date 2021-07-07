@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,13 +34,51 @@
 # Author S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the Statement abstract node implementation.'''
+''' This module contains the CommentableMixin implementation.'''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+import six
 
 
-class Statement(Node, CommentableMixin):
+class CommentableMixin:
     '''
     Abstract node representing a general PSyIR Statement.
     '''
+
+    _preceding_comment = ""
+    _inline_comment = ""
+
+    @property
+    def preceding_comment(self):
+        '''
+        :returns: string comment preceding this statement.
+        :rtype: str
+        '''
+        return self._preceding_comment
+
+    @preceding_comment.setter
+    def preceding_comment(self, comment):
+        '''
+        :param str comment: string comment preceding this statement.
+        '''
+        if not isinstance(comment, six.string_types):
+            raise TypeError("The preceding_comment must be a string but"
+                            " found '{0}'.".format(type(comment).__name__))
+        self._preceding_comment = comment
+
+    @property
+    def inline_comment(self):
+        '''
+        :returns: string inline comment this statement.
+        :rtype: str
+        '''
+        return self._inline_comment
+
+    @inline_comment.setter
+    def inline_comment(self, comment):
+        '''
+        :param str comment: string comment preceding this statement.
+        '''
+        if not isinstance(comment, six.string_types):
+            raise TypeError("The inline_comment must be a string but"
+                            " found '{0}'.".format(type(comment).__name__))
+        self._inline_comment = comment
