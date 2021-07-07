@@ -755,6 +755,28 @@ def test_gen_decls_routine(fortran_writer):
     assert result == ""
 
 
+def test_gen_access_stmt(fortran_writer):
+    '''
+    Tests for the gen_access_stmt method of FortranWriter.
+    '''
+    symbol_table = SymbolTable()
+    # If no default visibility is specified then the Fortran default
+    # is 'public'
+    symbol_table._default_visibility = None
+    assert fortran_writer.gen_access_stmt(symbol_table) == "public\n"
+    symbol_table.default_visibility = Symbol.Visibility.PUBLIC
+    assert fortran_writer.gen_access_stmt(symbol_table) == "public\n"
+    symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert fortran_writer.gen_access_stmt(symbol_table) == "private\n"
+    # Invalid type (str instead of Symbol.Visibility)
+    symbol_table._default_visibility = "public"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_access_stmt(symbol_table)
+    assert ("Unrecognised visibility ('public') found when attempting to "
+            "generate access statement. Should be either 'Symbol.Visibility."
+            "PUBLIC' or 'Symbol.Visibility.PRIVATE'" in str(err.value))
+
+
 def test_gen_routine_access_stmts(fortran_writer):
     '''
     Tests for the gen_routine_access_stmts method of FortranWriter.
