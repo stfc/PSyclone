@@ -8778,9 +8778,9 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_literal:
             reader = FortranReader()
-            return reader.psyir_from_literal_expression(self.name)
+            return reader.psyir_from_expression(self.name)
 
-        elif self.is_scalar:
+        if self.is_scalar:
             try:
                 scalar_sym = symbol_table.lookup(self.name)
             except KeyError:
@@ -8791,7 +8791,7 @@ class DynKernelArgument(KernelArgument):
                     datatype=self.infer_datatype())
             return Reference(scalar_sym)
 
-        elif self.is_field:
+        if self.is_field:
             # Although the argument to a Kernel is a field, the data itself
             # is accessed through a field_proxy.
             try:
@@ -8804,11 +8804,10 @@ class DynKernelArgument(KernelArgument):
                     datatype=self.infer_datatype(proxy=True))
             return Reference(sym)
 
-        else:
-            raise NotImplementedError(
-                "Unsupported kernel argument type: '{0}' is of type '{1}' "
-                "which is not recognised as being a literal, scalar or "
-                "field.".format(self.name, self.argument_type))
+        raise NotImplementedError(
+            "Unsupported kernel argument type: '{0}' is of type '{1}' "
+            "which is not recognised as being a literal, scalar or "
+            "field.".format(self.name, self.argument_type))
 
     @property
     def declaration_name(self):

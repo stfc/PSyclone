@@ -397,7 +397,7 @@ def test_lfricbuiltfactory_str():
     assert "Factory for a call to an LFRic built-in." in str(factory)
 
 
-def test_get_indexed_field_argument_refs(monkeypatch):
+def test_get_indexed_field_argument_refs():
     ''' Test the LFRicBuiltIn.get_indexed_field_argument_references() method.
 
     '''
@@ -408,6 +408,8 @@ def test_get_indexed_field_argument_refs(monkeypatch):
     loop = psy.invokes.invoke_list[0].schedule[0]
     kern = loop.loop_body[0]
     refs = kern.get_indexed_field_argument_references()
+    # Kernel has two field arguments
+    assert len(refs) == 2
     for ref in refs:
         assert isinstance(ref, StructureReference)
         assert isinstance(ref.symbol.datatype, DataTypeSymbol)
@@ -418,7 +420,7 @@ def test_get_indexed_field_argument_refs(monkeypatch):
         assert ref.member.indices[0].symbol.name == "df"
 
 
-def test_get_scalar_argument_references(monkeypatch):
+def test_get_scalar_argument_references():
     ''' Test the LFRicBuiltIn.get_scalar_argument_references() method.
 
     '''

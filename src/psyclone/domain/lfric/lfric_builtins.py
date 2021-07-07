@@ -45,11 +45,10 @@ from __future__ import absolute_import
 import abc
 import six
 from psyclone.core.access_type import AccessType
-from psyclone.errors import InternalError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
-    BinaryOperation, Operation, Literal, Routine
+    BinaryOperation
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.f2pygen import AssignGen, PSyIRGen
@@ -321,8 +320,8 @@ class LFRicBuiltIn(BuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # Ultimately this routine will be removed once the LFRic PSyIR
-        # has been fully migrated to use the PSyIR backends (e.g. #1010).
+        # TODO #1010 Ultimately this routine will be removed once the LFRic
+        # PSyIR has been fully migrated to use the PSyIR backends.
         # For now we create an f2pygen node from the PSyIR of this routine.
         parent.add(PSyIRGen(parent, self))
 

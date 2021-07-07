@@ -39,6 +39,7 @@ import six
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
+from fparser.two.utils import NoMatchError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.symbols import SymbolError
@@ -71,19 +72,28 @@ class FortranReader(object):
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
 
-    def psyir_from_literal_expression(self, source_code):
+    def psyir_from_expression(self, source_code):
         '''
-        Generate the PSyIR tree for the supplied Fortran literal expression.
+        Generate the PSyIR tree for the supplied Fortran expression.
+        Currently only supports expressions involving literals - the
+        presence of any symbols will result in a NotImplementedError.
 
         :param str source_code: text of the expression to be parsed.
 
         :returns: PSyIR representing the provided Fortran expression.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises ValueError: if the supplied source does not represent a \
+                            Fortran expression.
         :raises NotImplementedError: if the supplied expression contains \
                                      any variable symbols.
         '''
-        parse_tree = Fortran2003.Expr(source_code)
+        try:
+            parse_tree = Fortran2003.Expr(source_code)
+        except NoMatchError as err:
+            six.raise_from(
+                ValueError("Supplied source does not represent a Fortran "
+                           "expression: '{0}'".format(source_code)), err)
         # An Assignment has no symbol table so any attempts to lookup
         # symbols in the supplied expression will raise a Symbol Error
         fake_assign = Assignment()

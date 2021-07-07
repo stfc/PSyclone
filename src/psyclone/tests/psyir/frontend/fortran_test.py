@@ -83,29 +83,51 @@ def test_fortran_psyir_from_source():
     assert isinstance(subroutine, Routine)
 
 
-def test_fortran_psyir_from_literal_expression():
-    ''' Test that the psyir_from_literal_expression method generates the
+def test_fortran_psyir_from_expression(fortran_reader):
+    ''' Test that the psyir_from_expression method generates the
     expected PSyIR. '''
-    fortran_reader = FortranReader()
-    psyir = fortran_reader.psyir_from_literal_expression("3.0")
+    psyir = fortran_reader.psyir_from_expression("3.0")
     assert isinstance(psyir, Literal)
     assert psyir.value == "3.0"
-    psyir = fortran_reader.psyir_from_literal_expression("-3.0 + 1.0")
+    psyir = fortran_reader.psyir_from_expression("-3.0 + 1.0")
     assert isinstance(psyir, BinaryOperation)
     assert psyir.operator == BinaryOperation.Operator.ADD
     assert isinstance(psyir.children[0], UnaryOperation)
     assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
     assert isinstance(psyir.children[0].children[0], Literal)
     assert psyir.children[0].children[0].value == "3.0"
-    psyir = fortran_reader.psyir_from_literal_expression("ABS(-3.0)")
+    psyir = fortran_reader.psyir_from_expression("ABS(-3.0)")
     assert isinstance(psyir, UnaryOperation)
     assert psyir.operator == UnaryOperation.Operator.ABS
     assert isinstance(psyir.children[0], UnaryOperation)
     assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
     assert isinstance(psyir.children[0].children[0], Literal)
     with pytest.raises(NotImplementedError) as err:
-        fortran_reader.psyir_from_literal_expression("3.0 + a")
+        fortran_reader.psyir_from_expression("3.0 + a")
     assert "Expression must contain only literals: '3.0 + a'" in str(err.value)
+    with pytest.raises(NotImplementedError) as err:
+        fortran_reader.psyir_from_expression("3.0 + sin(a)")
+    assert ("Expression must contain only literals: '3.0 + sin(a)'" in
+            str(err.value))
+
+
+def test_fortran_psyir_from_expression_invalid(fortran_reader):
+    ''' Test that the psyir_from_expression method raises the expected
+    error when given something that is not an expression. '''
+    with pytest.raises(NotImplementedError) as err:
+        fortran_reader.psyir_from_expression("return")
+    assert "Expression must contain only literals: 'return'" in str(err.value)
+    with pytest.raises(ValueError) as err:
+        fortran_reader.psyir_from_expression("a = b")
+    assert "not represent a Fortran expression: 'a = b'" in str(err.value)
+    with pytest.raises(ValueError) as err:
+        fortran_reader.psyir_from_expression("if(3 == 2)then")
+    assert ("not represent a Fortran expression: 'if(3 == 2)then'" in
+            str(err.value))
+    with pytest.raises(ValueError) as err:
+        fortran_reader.psyir_from_expression("this is not Fortran")
+    assert ("not represent a Fortran expression: 'this is not Fortran'" in
+            str(err.value))
 
 
 def test_fortran_psyir_from_file(tmpdir_factory):
