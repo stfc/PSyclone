@@ -154,20 +154,12 @@ def test_loop_fuse_different_iterates_over():
                            API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     lftrans = LoopFuseTrans()
-    cbtrans = GOConstLoopBoundsTrans()
 
     # Attempt to fuse two loops that are iterating over different
     # things
     with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1])
-    assert "Loops do not have the same iteration space" in str(err.value)
-
-    # Turn off constant loop bounds (which should have no effect)
-    # and repeat
-    cbtrans.apply(schedule, {"const_bounds": False})
-    with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
     assert "Loops do not have the same iteration space" in str(err.value)
 
 
@@ -1762,7 +1754,7 @@ def test_accloop(tmpdir, fortran_writer):
     schedule = invoke.schedule
 
     # This test expects constant loop bounds
-    cbtrans.apply(schedule, {"const_bounds": True})
+    cbtrans.apply(schedule)
 
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)

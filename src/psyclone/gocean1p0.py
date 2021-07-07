@@ -51,8 +51,7 @@ from __future__ import print_function
 import re
 import six
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, Comment
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
@@ -215,49 +214,6 @@ class GOInvokes(Invokes):
             if invoke.schedule.root.walk(PSyDataNode):
                 super(GOInvokes, self).gen_code(parent)
                 return
-
-        # If the const_loop_bounds flag is True for any invoke, we need to
-        # declare and initialize the loop bounds variables.
-        # TODO 1256: The code below should be moved to the const_loop_bounds
-        # transformation itself.
-        for invoke in self.invoke_list:
-            if invoke.schedule.const_loop_bounds:
-                i_stop = invoke.schedule.symbol_table.new_symbol(
-                    invoke.schedule.iloop_stop, symbol_type=DataSymbol,
-                    datatype=INTEGER_TYPE)
-                j_stop = invoke.schedule.symbol_table.new_symbol(
-                    invoke.schedule.jloop_stop, symbol_type=DataSymbol,
-                    datatype=INTEGER_TYPE)
-
-                # Look-up the loop bounds using the first field object in the
-                # list
-                api_config = Config.get().api_conf("gocean1.0")
-                arg = invoke.schedule.symbol_table.argument_list[0].name
-                xstop = api_config.grid_properties["go_grid_xstop"].fortran \
-                    .format(arg)
-                ystop = api_config.grid_properties["go_grid_ystop"].fortran \
-                    .format(arg)
-
-                block = Comment(FortranStringReader(
-                    "! Look-up loop bounds\n", ignore_comments=False))
-                codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
-                invoke.schedule.children.insert(0, codeblock)
-                # Get a field argument from the argument list
-                for arg in invoke.schedule.symbol_table.argument_list:
-                    if isinstance(arg.datatype, DataTypeSymbol):
-                        if arg.datatype.name == "r2d_field":
-                            field = arg
-                            break
-                assign1 = Assignment.create(
-                            Reference(i_stop),
-                            StructureReference.create(
-                                field, xstop.split('%')[1:]))
-                assign2 = Assignment.create(
-                            Reference(j_stop),
-                            StructureReference.create(
-                                field, ystop.split('%')[1:]))
-                invoke.schedule.children.insert(1, assign1)
-                invoke.schedule.children.insert(2, assign2)
 
         # Lower the GOcean PSyIR to language level so it can be visited
         # by the backends

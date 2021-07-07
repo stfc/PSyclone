@@ -59,6 +59,7 @@ from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ArgumentInterface, DataTypeSymbol
 from psyclone.psyir.nodes import Node, StructureReference, Member, \
     StructureMember, Reference
+from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -382,11 +383,13 @@ def test_scalar_float_arg_from_module():
                                         "single_invoke_scalar_float_arg.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
 
     # Substitute 'a_scalar' argument with a global
-    schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
     symtab = schedule.symbol_table
     symtab.add(my_mod)
@@ -438,8 +441,11 @@ def test_ne_offset_cf_points(tmpdir):
                                 "test14_ne_offset_cf_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -485,8 +491,11 @@ def test_ne_offset_ct_points(tmpdir):
                                 "test15_ne_offset_ct_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -531,8 +540,11 @@ def test_ne_offset_all_cu_points(tmpdir):
                                 "test16_ne_offset_cu_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -574,8 +586,11 @@ def test_ne_offset_all_cv_points(tmpdir):
                                 "test17_ne_offset_cv_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -617,8 +632,11 @@ def test_ne_offset_all_cf_points(tmpdir):
                                 "test18_ne_offset_cf_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -658,8 +676,11 @@ def test_sw_offset_cf_points(tmpdir):
                      "test19.1_sw_offset_cf_updated_one_invoke.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -705,8 +726,11 @@ def test_sw_offset_all_cf_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -752,8 +776,11 @@ def test_sw_offset_ct_points(tmpdir):
                                 "test20_sw_offset_ct_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -800,8 +827,11 @@ def test_sw_offset_all_ct_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -848,8 +878,11 @@ def test_sw_offset_all_cu_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -893,8 +926,11 @@ def test_sw_offset_all_cv_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -938,8 +974,11 @@ def test_offset_any_all_cu_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -985,8 +1024,11 @@ def test_offset_any_all_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -1237,13 +1279,12 @@ def test05p1_kernel_add_iteration_spaces():
                            "test05.1_invoke_kernel_invalid_iterates_over.f90"),
               api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    schedule = psy.invokes.invoke_list[0].schedule
+
     # This test expects constant loop bounds
-    schedule._const_loop_bounds = True
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(schedule)
     expected_sched = (
-        "GOInvokeSchedule[invoke='invoke_0_compute_cu', "
-        "Constant loop bounds=True]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
@@ -1254,14 +1295,8 @@ def test05p1_kernel_add_iteration_spaces():
         "Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
-        "kern call: compute_cu_code\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n")
-    sched_str = str(schedule)
-    assert sched_str in expected_sched
+        "kern call: compute_cu_code\n")
+    assert expected_sched in str(schedule)
 
     # Note that this output can not be test compiled, since dl_esm_inf
     # has no symbol defined for the new iteration space.

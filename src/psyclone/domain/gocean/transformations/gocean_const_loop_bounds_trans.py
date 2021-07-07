@@ -37,9 +37,15 @@
 
 '''This module contains the GOConstLoopBoundsTrans.'''
 
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import Comment
 from psyclone.psyir.transformations import TransformationError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import Transformation
+from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, DataTypeSymbol
+from psyclone.psyir.nodes import (CodeBlock, Assignment, Reference,
+                                  StructureReference)
+from psyclone.configuration import Config
 
 
 class GOConstLoopBoundsTrans(Transformation):
@@ -134,5 +140,44 @@ class GOConstLoopBoundsTrans(Transformation):
         self.validate(node, options=options)
 
         node.const_loop_bounds = True
+
+        i_stop = node.symbol_table.new_symbol(
+            node.iloop_stop, symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE)
+        j_stop = node.symbol_table.new_symbol(
+            node.jloop_stop, symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE)
+
+        # Look-up the loop bounds using the first field object in the
+        # list
+        api_config = Config.get().api_conf("gocean1.0")
+        arg = node.symbol_table.argument_list[0].name
+        xstop = api_config.grid_properties["go_grid_xstop"].fortran \
+            .format(arg)
+        ystop = api_config.grid_properties["go_grid_ystop"].fortran \
+            .format(arg)
+
+        # Add a comment
+        block = Comment(FortranStringReader(
+            "! Look-up loop bounds\n", ignore_comments=False))
+        codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
+        node.children.insert(0, codeblock)
+
+        # Get a field argument from the argument list
+        for arg in node.symbol_table.argument_list:
+            if isinstance(arg.datatype, DataTypeSymbol):
+                if arg.datatype.name == "r2d_field":
+                    field = arg
+                    break
+        assign1 = Assignment.create(
+                    Reference(i_stop),
+                    StructureReference.create(
+                        field, xstop.split('%')[1:]))
+        assign2 = Assignment.create(
+                    Reference(j_stop),
+                    StructureReference.create(
+                        field, ystop.split('%')[1:]))
+        node.children.insert(1, assign1)
+        node.children.insert(2, assign2)
 
         return node, None
