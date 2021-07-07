@@ -106,15 +106,19 @@ class Signature(object):
         return "%".join(self._signature)
 
     # ------------------------------------------------------------------------
-    # TODO #1320: remove the assumption that the code is in Fortran here.
-    def to_fortran(self, component_indices):
-        '''Converts this signature back to a Fortran expression using the
-        provided component indices.
+    def to_language(self, component_indices, language_writer=None):
+        '''Converts this signature with the provided indices to a string
+        in the selected language.
 
         :param component_indices: the indices for each component of \
             the signature.
         :type component_indices: \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
+        :param language_writer: a backend visitor to convert PSyIR \
+            expressions to a representation in the selected language. \
+            This is used when creating error and warning messages.
+        :type language_writer: None (defaults then to Fortran), or an \
+            instance of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
 
         :raises InternalError: if the number of components in this signature \
             is different from the number of indices in component_indices.
@@ -133,12 +137,23 @@ class Signature(object):
         from psyclone.psyir.backend.fortran import FortranWriter
         from psyclone.psyir.nodes import Node
 
-        writer = FortranWriter()
+        if language_writer is None:
+            writer = FortranWriter()
+        else:
+            writer = language_writer
 
         # out_list collects the string representation of the components
         # including indices
         out_list = []
 
+        # TODO #1324 At this stage even if the C-writer is selected
+        # the output will still look like Fortran, because this function
+        # uses () and % when creating the access string. With proper
+        # refactoring as part of #1324 this should also become flexible.
+        # One option (if we still have to remove strings) would be to
+        # create a Fortran string, parse it, and then use the C-writer.
+        # Or maybe the strings as indices could be temporarily converted
+        # to References, and then the writer functionality can be used.
         for i, component in enumerate(self._signature):
             indices = component_indices[i]
             if not indices:
@@ -155,7 +170,8 @@ class Signature(object):
                         index_list.append(str(dimension))
                 out_list.append(component+"("+",".join(index_list)+")")
 
-        # Combine the components in out_list to form the Fortran string:
+        # Combine the components in out_list to form the language string.
+        # TODO #1324 - this still assumes Fortran
         return "%".join(out_list)
 
     # ------------------------------------------------------------------------

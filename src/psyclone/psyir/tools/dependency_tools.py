@@ -54,19 +54,28 @@ class DependencyTools(object):
     useful for the user to see.
 
     :param loop_types_to_parallelise: A list of loop types that will be \
-                considered for parallelisation. An example loop type might be\
-                'lat', indicating that only loops over latitudes should be\
-                parallelised. The actually supported list of loop types is\
-                specified in the PSyclone config file. This can be used to\
-                exclude for example 1-dimensional loops.
+        considered for parallelisation. An example loop type might be\
+        'lat', indicating that only loops over latitudes should be\
+        parallelised. The actually supported list of loop types is\
+        specified in the PSyclone config file. This can be used to\
+        exclude for example 1-dimensional loops.
     :type loop_types_to_parallelise: list of str
+    :param language_writer: a backend visitor to convert PSyIR expressions \
+        to a representation in the selected language. This is used for \
+        creating error and warning messages.
+    :type language_writer: None (default then to Fortran), or an instance \
+        of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
     '''
-
-    def __init__(self, loop_types_to_parallelise=None):
+    def __init__(self, loop_types_to_parallelise=None,
+                 language_writer=None):
         if loop_types_to_parallelise:
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
             self._loop_types_to_parallelise = []
+        if language_writer is None:
+            self._language_writer = FortranWriter()
+        else:
+            self._language_writer = language_writer
         self._clear_messages()
 
     # -------------------------------------------------------------------------
@@ -219,8 +228,8 @@ class DependencyTools(object):
                         "'{1}' is used differently: {2} and {3}."
                         .format(signature.var_name,
                                 loop_variable.name,
-                                signature.to_fortran(first_component_indices),
-                                signature.to_fortran(component_indices)))
+                                signature.to_language(first_component_indices),
+                                signature.to_language(component_indices)))
                 if all_indices is not None:
                     # If requested, collect all indices that are actually
                     # used as a convenience additional result for the user
@@ -335,13 +344,12 @@ class DependencyTools(object):
         first_index = all_indices[0]
         for index in all_indices[1:]:
             if not first_index.math_equal(index):
-                visitor = FortranWriter()
                 self._add_warning("Variable {0} is written and is accessed "
                                   "using indices {1} and {2} and can "
                                   "therefore not be parallelised."
                                   .format(var_info.var_name,
-                                          visitor(first_index),
-                                          visitor(index)))
+                                          self._language_writer(first_index),
+                                          self._language_writer(index)))
                 return False
         return True
 

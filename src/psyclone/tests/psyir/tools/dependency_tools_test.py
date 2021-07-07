@@ -43,6 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.tools.dependency_tools import DependencyTools
 from psyclone.tests.utilities import get_invoke
 
@@ -338,7 +339,8 @@ def test_scalar_parallelise(declaration, variable, parser):
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     loops = psy.invokes.get("test").schedule
-    dep_tools = DependencyTools(["levels", "lat"])
+    dep_tools = DependencyTools(["levels", "lat"],
+                                language_writer=FortranWriter())
 
     # Test if supplying the loop name as symbol also works:
     jj_symbol = loops.scope.symbol_table.lookup("jj")

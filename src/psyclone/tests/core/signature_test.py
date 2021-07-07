@@ -40,6 +40,8 @@ import pytest
 
 from psyclone.core import ComponentIndices, Signature
 from psyclone.errors import InternalError
+from psyclone.psyir.backend.c import CWriter
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 
@@ -184,27 +186,56 @@ def test_to_fortran():
     '''
     sig = Signature("a")
     comp = ComponentIndices()
-    assert sig.to_fortran(comp) == "a"
+    assert sig.to_language(comp) == "a"
 
     comp = ComponentIndices(["i"])
-    assert sig.to_fortran(comp) == "a(i)"
+    assert sig.to_language(comp) == "a(i)"
 
     ref = Reference(DataSymbol("j", INTEGER_SINGLE_TYPE))
     comp = ComponentIndices([ref])
-    assert sig.to_fortran(comp) == "a(j)"
+    assert sig.to_language(comp) == "a(j)"
 
     # Test error condition if number of components in signature does not
     # math the number of indices in ComponentIndices
     comp = ComponentIndices([[1], [2]])
     with pytest.raises(InternalError) as err:
-        sig.to_fortran(comp)
+        sig.to_language(comp)
     assert "Signature a has 1 components, but component_indices [[1], [2]] " \
            "has 2." in str(err.value)
 
     sig = Signature(("a", "b", "c"))
     comp = ComponentIndices([[1], [], ["i", "j"]])
-    assert sig.to_fortran(comp) == "a(1)%b%c(i,j)"
+    assert sig.to_language(comp) == "a(1)%b%c(i,j)"
     comp = ComponentIndices([[1, 2], [], []])
-    assert sig.to_fortran(comp) == "a(1,2)%b%c"
+    assert sig.to_language(comp) == "a(1,2)%b%c"
     comp = ComponentIndices([[], [], []])
-    assert sig.to_fortran(comp) == "a%b%c"
+    assert sig.to_language(comp) == "a%b%c"
+
+
+def test_output_languages():
+    '''Tests that error messages can be created in different languages.
+    '''
+
+    sig = Signature(("a"))
+    comp = ComponentIndices([["i", "j"]])
+    f_writer = FortranWriter()
+    # Check that it defaults to Fortran
+    assert sig.to_language(comp) == "a(i,j)"
+    assert sig.to_language(comp, f_writer) == "a(i,j)"
+
+
+@pytest.mark.xfail(reason="#1324 C backend does not support structures yet")
+def test_output_c_not_yet_working():
+    '''Tests that error messages can be created in different languages.
+    At this stage the C backend does not support structures yet and fails.
+    Once this test works, it can be combined with the previous test.
+    '''
+
+    sig = Signature(("a", "b", "c"))
+    comp = ComponentIndices([[1], [], ["i", "j"]])
+    f_writer = FortranWriter()
+    c_writer = CWriter()
+    # Check that it defaults to Fortran
+    assert sig.to_language(comp) == "a(1)%b%c(i,j)"
+    assert sig.to_language(comp, f_writer) == "a(1)%b%c(i,j)"
+    assert sig.to_language(comp, c_writer) == "a[1]%b%c[i,j]"
