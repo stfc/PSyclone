@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module implements the AccessType used throughout PSyclone.'''
@@ -50,11 +51,12 @@ class AccessType(Enum):
     READ = 3
     READWRITE = 4
     SUM = 5
+    READINC = 6
     # This is used internally to indicate unknown access type of
     # a variable, e.g. when a variable is passed to a subroutine
     # and the access type of this variable in the subroutine
     # is unknown
-    UNKNOWN = 6
+    UNKNOWN = 7
 
     def __str__(self):
         '''Convert to a string representation, returning just the
@@ -98,8 +100,8 @@ class AccessType(Enum):
                      argument in some form.
         :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC] + \
-            AccessType.get_valid_reduction_modes()
+        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC, \
+                AccessType.READINC] + AccessType.get_valid_reduction_modes()
 
     @staticmethod
     def all_read_accesses():
@@ -107,7 +109,8 @@ class AccessType(Enum):
                      argument in some form.
         :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.READ, AccessType.READWRITE, AccessType.INC]
+        return [AccessType.READ, AccessType.READWRITE, AccessType.INC,
+                AccessType.READINC]
 
     @staticmethod
     def get_valid_reduction_modes():

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: Joerg Henrichs, Bureau of Meteorology
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 '''This module tests AccessType.'''
 
@@ -49,6 +50,7 @@ def test_str():
     assert str(AccessType.READ) == "READ"
     assert str(AccessType.READWRITE) == "READWRITE"
     assert str(AccessType.SUM) == "SUM"
+    assert str(AccessType.READINC) == "READINC"
 
 
 def test_api_specific_name():
@@ -62,6 +64,7 @@ def test_api_specific_name():
     assert AccessType.READ.api_specific_name() == "gh_read"
     assert AccessType.READWRITE.api_specific_name() == "gh_readwrite"
     assert AccessType.SUM.api_specific_name() == "gh_sum"
+    assert AccessType.READINC.api_specific_name() == "gh_readinc"
 
 
 def test_from_string():
@@ -73,8 +76,33 @@ def test_from_string():
     assert AccessType.from_string("readwrite") == AccessType.READWRITE
     assert AccessType.from_string("unknown") == AccessType.UNKNOWN
     assert AccessType.from_string("sum") == AccessType.SUM
+    assert AccessType.from_string("readinc") == AccessType.READINC
 
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
-    assert "Unknown access type 'invalid'. Valid values are ['inc', 'read',"\
-        " 'readwrite', 'sum', 'unknown', 'write']" in str(err.value)
+    assert "Unknown access type 'invalid'. Valid values are ['inc', 'read', " \
+        "'readinc', 'readwrite', 'sum', 'unknown', 'write']" in str(err.value)
+
+
+def test_all_write_accesses():
+    '''Test the all_write_accesses() method.'''
+
+    all_write_accesses = AccessType.all_write_accesses()
+    assert isinstance(all_write_accesses, list)
+    assert len(all_write_accesses) == 5
+    assert (len(all_write_accesses) ==
+            len(set(all_write_accesses)))
+    assert all(isinstance(write_access, AccessType)
+               for write_access in all_write_accesses)
+
+
+def test_all_read_accesses():
+    '''Test the all_read_accesses() method.'''
+
+    all_read_accesses = AccessType.all_read_accesses()
+    assert isinstance(all_read_accesses, list)
+    assert len(all_read_accesses) == 4
+    assert (len(all_read_accesses) ==
+            len(set(all_read_accesses)))
+    assert all(isinstance(read_access, AccessType)
+               for read_access in all_read_accesses)
