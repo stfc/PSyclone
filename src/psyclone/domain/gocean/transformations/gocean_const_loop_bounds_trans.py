@@ -133,10 +133,6 @@ class GOConstLoopBoundsTrans(Transformation):
         '''
         self.validate(node, options=options)
 
-        # Check node is a Schedule
-        if not options:
-            options = {}
-
-        node.const_loop_bounds = options.get("const_bounds", True)
+        node.const_loop_bounds = True
 
         return node, None

@@ -217,21 +217,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
     omp = GOceanOMPParallelLoopTrans()
     cbtrans = GOConstLoopBoundsTrans()
     omp.apply(schedule[0])
-    cbtrans.apply(schedule, {"const_bounds": True})
 
-    gen = fortran_writer(psy.container)
-    expected = ("!$omp parallel do default(shared), private(i,j), "
-                "schedule(static)\n"
-                "    do j = 2, jstop, 1\n"
-                "      do i = 2, istop+1, 1\n"
-                "        call compute_cu_code(i, j, cu_fld%data, "
-                "p_fld%data, u_fld%data)\n"
-                "      enddo\n"
-                "    enddo\n"
-                "    !$omp end parallel do")
-    assert expected in gen
-
-    cbtrans.apply(schedule, {"const_bounds": False})
     gen = fortran_writer(psy.container)
     expected = (
         "    !$omp parallel do default(shared), private(i,j), "
@@ -243,6 +229,19 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
         "      enddo\n"
         "    enddo\n"
         "    !$omp end parallel do")
+    assert expected in gen
+
+    cbtrans.apply(schedule)
+    gen = fortran_writer(psy.container)
+    expected = ("!$omp parallel do default(shared), private(i,j), "
+                "schedule(static)\n"
+                "    do j = 2, jstop, 1\n"
+                "      do i = 2, istop+1, 1\n"
+                "        call compute_cu_code(i, j, cu_fld%data, "
+                "p_fld%data, u_fld%data)\n"
+                "      enddo\n"
+                "    enddo\n"
+                "    !$omp end parallel do")
     assert expected in gen
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
