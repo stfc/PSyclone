@@ -63,7 +63,7 @@ class DependencyTools(object):
     :param language_writer: a backend visitor to convert PSyIR expressions \
         to a representation in the selected language. This is used for \
         creating error and warning messages.
-    :type language_writer: None (default then to Fortran), or an instance \
+    :type language_writer: None (default is Fortran), or an instance \
         of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
     '''
     def __init__(self, loop_types_to_parallelise=None,

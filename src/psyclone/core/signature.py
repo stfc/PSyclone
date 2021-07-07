@@ -117,7 +117,7 @@ class Signature(object):
         :param language_writer: a backend visitor to convert PSyIR \
             expressions to a representation in the selected language. \
             This is used when creating error and warning messages.
-        :type language_writer: None (defaults then to Fortran), or an \
+        :type language_writer: None (default is Fortran), or an \
             instance of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
 
         :raises InternalError: if the number of components in this signature \

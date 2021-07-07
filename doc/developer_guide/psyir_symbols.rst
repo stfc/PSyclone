@@ -669,3 +669,9 @@ can be parallelised::
               # as feedback for the user:
               for message in dt.get_all_messages():
                   print(message)
+
+.. note:: While the dependency tools constructor take an argument
+    to specify a language writer, so that errors can use the syntax
+    appropriate for the language, at this stage the C-backend does
+    not yet fully support the necessary functionality for this.
+    This will be fixed with either #1324 or #1320.
