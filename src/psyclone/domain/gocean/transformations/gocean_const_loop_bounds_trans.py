@@ -96,6 +96,23 @@ class GOConstLoopBoundsTrans(Transformation):
         ''' Return the name of the Transformation as a string.'''
         return "GOConstLoopBoundsTrans"
 
+    def validate(self, node, options=None):
+        '''Checks if it is valid to apply the GOConstLoopBoundsTrans
+        transform.
+
+        :param node: the GOInvokeSchedule to transform.
+        :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the supplied node is not a \
+                                     GOInvokeSchedule.
+
+        '''
+        if not isinstance(node, GOInvokeSchedule):
+            raise TransformationError("Error in GOConstLoopBoundsTrans: "
+                                      "node is not a GOInvokeSchedule")
+
     def apply(self, node, options=None):
         '''Switches constant loop bounds on or off for all loops in a
         GOInvokeSchedule. Default is 'off'.
@@ -114,11 +131,9 @@ class GOConstLoopBoundsTrans(Transformation):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
+        self.validate(node, options=options)
 
         # Check node is a Schedule
-        if not isinstance(node, GOInvokeSchedule):
-            raise TransformationError("Error in GOConstLoopBoundsTrans: "
-                                      "node is not a GOInvokeSchedule")
         if not options:
             options = {}
 
