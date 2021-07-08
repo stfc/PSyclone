@@ -2296,14 +2296,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                 "schedule({1})".format(private_str, self._omp_schedule) +
                 self._reduction_string())
 
-    def end_string(self):
-        '''
-        :returns: the closing statement for this directive.
-        :rtype: str
-        '''
-        # pylint: disable=no-self-use
-        return "omp end parallel do"
-
     def update(self):
         '''
         Updates the fparser2 AST by inserting nodes for this OpenMP
