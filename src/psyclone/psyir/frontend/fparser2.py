@@ -2864,7 +2864,7 @@ class Fparser2Reader(object):
               statements
             [ELSE WHERE(logical-mask)
               statements]
-            [ELSE
+            [ELSE WHERE
               statements]
             END WHERE
 

@@ -94,6 +94,15 @@ def test_where_broken_tree():
         "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
         "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "wp", "z1_st"])
     processor = Fparser2Reader()
+    # Test with unexpected clause by adding an extra end-where statement
+    assert isinstance(fparser2spec.content[-1], Fortran2003.End_Where_Stmt)
+    fparser2spec.content.insert(-1, fparser2spec.content[-1])
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec])
+    assert ("Expected either Fortran2003.Masked_Elsewhere_Stmt or "
+            "Fortran2003.Elsewhere_Stmt but found 'End_Where_Stmt'" in
+            str(err.value))
+    del fparser2spec.content[-2]
     # Break the parse tree by removing the end-where statement
     del fparser2spec.content[-1]
     with pytest.raises(InternalError) as err:
@@ -104,6 +113,28 @@ def test_where_broken_tree():
     with pytest.raises(InternalError) as err:
         processor.process_nodes(fake_parent, [fparser2spec])
     assert "Failed to find opening where construct " in str(err.value)
+
+
+@pytest.mark.usefixtures("parser")
+def test_elsewhere_broken_tree():
+    ''' Check that we raise the expected exceptions if the fparser2 parse
+    tree containing an ELSEWHERE does not have the correct structure.
+
+    '''
+    fake_parent, fparser2spec = process_where(
+        "WHERE (ptsu(:, :, :) /= 0._wp)\n"
+        "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+        "ELSE WHERE\n"
+        "  z1_st(:, :, :) = 0._wp\n"
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "wp", "z1_st"])
+    processor = Fparser2Reader()
+    # Insert an additional Elsewhere_Stmt
+    assert isinstance(fparser2spec.content[-3], Fortran2003.Elsewhere_Stmt)
+    fparser2spec.content.insert(-1, fparser2spec.content[-3])
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec])
+    assert ("Elsewhere_Stmt should only be found next to last clause, but "
+            "found" in str(err.value))
 
 
 @pytest.mark.usefixtures("parser")
