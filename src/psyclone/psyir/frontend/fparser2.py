@@ -3039,7 +3039,7 @@ class Fparser2Reader(object):
                         elsebody = Schedule(parent=current_parent)
                         current_parent.addchild(elsebody)
                         newifblock = IfBlock(parent=elsebody,
-                                             annotations=['was_where'])
+                                             annotations=annotations)
                         elsebody.addchild(newifblock)
 
                         # Keep pointer to fpaser2 AST

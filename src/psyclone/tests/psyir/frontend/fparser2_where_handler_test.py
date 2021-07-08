@@ -44,7 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
     Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
-    Call, Routine, Container
+    Call, Routine, Container, Range
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
@@ -188,7 +188,6 @@ def test_where_array_notation_rank():
         processor._array_notation_rank(my_array)
     assert ("Array reference in the PSyIR must have at least one child but "
             "'my_array'" in str(err.value))
-    from psyclone.psyir.nodes import Range
     array_type = ArrayType(REAL_TYPE, [10])
     my_array = ArrayReference.create(
         DataSymbol("my_array", array_type),
@@ -270,7 +269,7 @@ def test_where_symbol_clash(fortran_reader):
     assert loop_var.name in sched.symbol_table
 
 
-def test_where_within_loop(fortran_reader, fortran_writer):
+def test_where_within_loop(fortran_reader):
     ''' Test for correct operation when we have a WHERE within an existing
     loop and the referenced arrays are brought in from a module. '''
     code = ("module my_mod\n"
@@ -434,15 +433,14 @@ def test_elsewhere():
         assert assign.lhs.name == "z1_st"
         assert ([idx.name for idx in assign.lhs.indices] ==
                 ["widx1", "widx2", "widx3"])
+        assert isinstance(assign.parent.parent, IfBlock)
+
     assert isinstance(assigns[0].rhs, BinaryOperation)
     assert assigns[0].rhs.operator == BinaryOperation.Operator.DIV
-    assert isinstance(assigns[0].parent.parent, IfBlock)
     assert isinstance(assigns[1].rhs, UnaryOperation)
     assert assigns[1].rhs.operator == UnaryOperation.Operator.MINUS
-    assert isinstance(assigns[1].parent.parent, IfBlock)
     assert isinstance(assigns[2].rhs, Literal)
     assert "0." in assigns[2].rhs.value
-    assert isinstance(assigns[2].parent.parent, IfBlock)
 
 
 @pytest.mark.usefixtures("parser")
