@@ -35,8 +35,9 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (raise field to an integer power)
-  ! specified in an invoke call
+  ! Description: point-wise operation (raise field to an integer power)
+  ! specified in an invoke call. The power is supplied as a scalar variable,
+  ! a literal and as an access to a member of a derived type.
   use constants_mod, only: i_def
   use field_mod,     only: field_type
 
@@ -45,6 +46,13 @@ program single_invoke
   type(field_type) :: f1
   integer(i_def)   :: i_scalar
 
-  call invoke( inc_X_powint_n(f1, i_scalar) )
+  type :: my_type
+     integer :: a_scalar
+  end type my_type
+  type(my_type) :: my_var
+
+  call invoke( inc_X_powint_n(f1, i_scalar), &
+               inc_X_powint_n(f1, -2),       &
+               inc_X_powint_n(f1, my_var%a_scalar) )
 
 end program single_invoke
