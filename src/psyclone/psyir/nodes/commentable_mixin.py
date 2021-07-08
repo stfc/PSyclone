@@ -41,7 +41,9 @@ import six
 
 class CommentableMixin:
     '''
-    Abstract node representing a general PSyIR Statement.
+    Mixin that adds the Commentable trait into a PSyIR node. It provides
+    two attributes that store preceding and inline comments and their
+    respective property getters and setters.
     '''
 
     _preceding_comment = ""
