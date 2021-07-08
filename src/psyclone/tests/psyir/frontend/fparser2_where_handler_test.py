@@ -43,7 +43,8 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
-    Assignment, Literal, Reference, BinaryOperation, IfBlock, Call
+    Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
+    Call, Routine
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
@@ -210,28 +211,32 @@ def test_array_notation_rank():
             "supported." in str(err.value))
 
 
-def test_where_symbol_clash(parser):
+def test_where_symbol_clash(fortran_reader):
     ''' Check that we handle the case where the code we are processing
     already contains a symbol with the same name as one of the loop variables
     we want to introduce.
 
     '''
-    reader = FortranStringReader("SUBROUTINE widx_array()\n"
-                                 "LOGICAL :: widx1(3,3,3)\n"
-                                 "REAL :: z1_st(3,3,3), ptsu(3,3,3), depth\n"
-                                 "WHERE (widx1(:, :, :))\n"
-                                 "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
-                                 "END WHERE\n"
-                                 "END SUBROUTINE widx_array\n")
-    fparser2spec = parser(reader)
-    processor = Fparser2Reader()
-    sched = processor.generate_schedule("widx_array", fparser2spec)
+    code = ("MODULE MY_MOD\n"
+            "CONTAINS\n"
+            "SUBROUTINE widx_array()\n"
+            "LOGICAL :: widx1(3,3,3)\n"
+            "REAL :: z1_st(3,3,3), ptsu(3,3,3), depth\n"
+            "WHERE (widx1(:, :, :))\n"
+            "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
+            "END WHERE\n"
+            "END SUBROUTINE widx_array\n"
+            "END MODULE MY_MOD\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    sched = psyir.walk(Routine)[0]
     var = sched.symbol_table.lookup("widx1")
     assert isinstance(var, DataSymbol)
     assert var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     # Check that we have a new symbol for the loop variable
     loop_var = sched.symbol_table.lookup("widx1_1")
     assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    # Check that it's in the expected symbol table
+    assert loop_var.name in sched.symbol_table
 
 
 @pytest.mark.usefixtures("parser")
@@ -294,17 +299,31 @@ def test_where_array_subsections():
 
 @pytest.mark.usefixtures("parser")
 def test_elsewhere():
-    ''' Check that a WHERE construct with an ELSEWHERE clause is correctly
+    ''' Check that a WHERE construct with two ELSEWHERE clauses is correctly
     translated into a canonical form in the PSyIR.
 
     '''
-    fake_parent, _ = process_where("WHERE (ptsu(:, :, :) /= 0._wp)\n"
+    fake_parent, _ = process_where("WHERE (ptsu(:, :, :) > 10._wp)\n"
                                    "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                   "ELSEWHERE (ptsu(:, :, :) < 0.0_wp)\n"
+                                   "  z1_st(:, :, :) = -1._wp\n"
                                    "ELSEWHERE\n"
                                    "  z1_st(:, :, :) = 0._wp\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
                                    ["ptsu", "wp", "z1_st"])
+    # This should become:
+    #
+    # if ptsu(ji,jj,jk) > 10._wp)then
+    #   z1_st(ji,jj,jk) = ...
+    # else
+    #   if ptsu(ji,jj,jk) < 0.0_wp)then
+    #     z1_st(ji,jj,jk) = -1...
+    #   else
+    #     z1_st(ji,jj,jk) = 0._wp
+    # end if
     assert len(fake_parent.children) == 1
+    # We should have no CodeBlock nodes
+    assert fake_parent.walk(CodeBlock) == []
     # Check that we have a triply-nested loop
     loop = fake_parent.children[0]
     assert isinstance(loop.ast, Fortran2003.Where_Construct)
@@ -316,15 +335,41 @@ def test_elsewhere():
     assert isinstance(ifblock, IfBlock)
     assert isinstance(ifblock.ast, Fortran2003.Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
-    assert ifblock.condition.operator == BinaryOperation.Operator.NE
+    assert ifblock.condition.operator == BinaryOperation.Operator.GT
     assert ("ArrayReference[name:'ptsu']\n"
             "Reference[name:'widx1']\n" in str(ifblock.condition.children[0]))
-    assert "Literal[value:'0." in str(ifblock.condition.children[1])
-    # Check that this IF block has an else body
+    assert "Literal[value:'10." in str(ifblock.condition.children[1])
+    # Check that this IF block has an else body which contains another IF
     assert ifblock.else_body is not None
-    assert isinstance(ifblock.else_body[0], Assignment)
-    assert isinstance(ifblock.else_body[0].lhs, ArrayReference)
-    assert ifblock.else_body[0].lhs.name == "z1_st"
+    ifblock2 = ifblock.else_body[0]
+    assert isinstance(ifblock2, IfBlock)
+    assert isinstance(ifblock2.condition, BinaryOperation)
+    assert ifblock2.condition.operator == BinaryOperation.Operator.LT
+    assert ("ArrayReference[name:'ptsu']\n"
+            "Reference[name:'widx1']\n" in str(ifblock2.condition.children[0]))
+    # Check that this IF block too has an else body
+    assert isinstance(ifblock2.else_body[0], Assignment)
+    # Check that we have three assignments of the correct form and with the
+    # correct parents
+    assigns = ifblock.walk(Assignment)
+    assert len(assigns) == 3
+    for assign in assigns:
+        assert isinstance(assign.lhs, ArrayReference)
+        refs = assign.lhs.walk(Reference)
+        assert len(refs) == 4
+        assert refs[1:4] == assign.lhs.indices
+        assert assign.lhs.name == "z1_st"
+        assert ([idx.name for idx in assign.lhs.indices] ==
+                ["widx1", "widx2", "widx3"])
+    assert isinstance(assigns[0].rhs, BinaryOperation)
+    assert assigns[0].rhs.operator == BinaryOperation.Operator.DIV
+    assert isinstance(assigns[0].parent.parent, IfBlock)
+    assert isinstance(assigns[1].rhs, UnaryOperation)
+    assert assigns[1].rhs.operator == UnaryOperation.Operator.MINUS
+    assert isinstance(assigns[1].parent.parent, IfBlock)
+    assert isinstance(assigns[2].rhs, Literal)
+    assert "0." in assigns[2].rhs.value
+    assert isinstance(assigns[2].parent.parent, IfBlock)
 
 
 @pytest.mark.usefixtures("parser")
