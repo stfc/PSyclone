@@ -71,10 +71,11 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              Arguments, KernelArgument, HaloExchange,
                              GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
-                             CodedKern, ACCEnterDataDirective,
-                             OMPParallelDoDirective)
+                             CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
+from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
+                                  ACCEnterDataDirective,
+                                  OMPParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface)

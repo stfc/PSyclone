@@ -44,8 +44,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
-from psyclone.psyGen import OMPDoDirective
-from psyclone.psyir.nodes import Statement
+from psyclone.psyir.nodes import Statement, OMPDoDirective
 
 # Constants
 API = "nemo"
@@ -152,7 +151,7 @@ def test_omp_add_region_invalid_data_move():
 def test_omp_parallel_multi():
     ''' Check insertion of an OpenMP parallel region containing more than
     one node. '''
-    from psyclone.psyGen import OMPParallelDirective
+    from psyclone.psyir.nodes import OMPParallelDirective
     otrans = OMPParallelTrans()
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke_info.schedule
@@ -276,7 +275,7 @@ def test_omp_do_children_err():
     ''' Tests that we raise the expected error when an OpenMP parallel do
     directive has more than one child. '''
     from psyclone.transformations import OMPParallelLoopTrans
-    from psyclone.psyGen import OMPParallelDoDirective
+    from psyclone.psyir.nodes import OMPParallelDoDirective
     otrans = OMPParallelLoopTrans()
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke_info.schedule

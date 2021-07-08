@@ -64,13 +64,13 @@ from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    OMPParallelDoDirective, InlinedKern, object_index, \
-    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
-    ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
+    InlinedKern, object_index, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
     InvokeSchedule
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Node, Schedule, KernelSchedule, Call, Loop, colored
+    Literal, Node, Schedule, KernelSchedule, Call, Loop, colored, \
+    OMPParallelDoDirective, ACCEnterDataDirective, ACCKernelsDirective, \
+    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     GlobalInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable

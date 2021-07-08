@@ -67,13 +67,13 @@ from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, ACCEnterDataDirective, HaloExchange, ACCParallelDirective, \
-    ACCKernelsDirective
+    AccessType, HaloExchange
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment, CodeBlock, PSyDataNode
+    Call, Assignment, CodeBlock, PSyDataNode, ACCEnterDataDirective, \
+    ACCParallelDirective, ACCKernelsDirective
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
     ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \

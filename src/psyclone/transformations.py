@@ -57,10 +57,12 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOLoop
-from psyclone.psyGen import Transformation, Kern, InvokeSchedule, \
-    ACCLoopDirective, OMPDoDirective
+from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule
+from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
+    Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
+    ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
+    ACCKernelsDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -683,7 +685,6 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add our OpenMP loop directive setting its parent to the node's
         # parent and its children to the node
-        from psyclone.psyGen import OMPParallelDoDirective
         directive = OMPParallelDoDirective(children=[node.detach()],
                                            omp_schedule=self.omp_schedule)
 
@@ -1133,7 +1134,6 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Check that we're not attempting to colour a loop that is
         # already within an OpenMP region (because the loop over
         # colours *must* be sequential)
-        from psyclone.psyGen import OMPDirective
         if node.ancestor(OMPDirective):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
@@ -1287,13 +1287,13 @@ class OMPParallelTrans(ParallelRegionTrans):
 
     '''
     # The types of node that this transformation cannot enclose
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, psyGen.ACCDirective,
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
                            psyGen.HaloExchange)
 
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = psyGen.OMPParallelDirective
+        self._pdirective = nodes.OMPParallelDirective
 
     def __str__(self):
         return "Insert an OpenMP Parallel region"
@@ -1321,8 +1321,6 @@ class OMPParallelTrans(ParallelRegionTrans):
         :raises TransformationError: if the target Nodes are already within \
                                      some OMP parallel region.
         '''
-        from psyclone.psyGen import OMPDirective
-
         if node_list[0].ancestor(OMPDirective):
             raise TransformationError("Error in OMPParallel transformation:" +
                                       " cannot create an OpenMP PARALLEL " +
@@ -1361,13 +1359,12 @@ class ACCParallelTrans(ParallelRegionTrans):
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
-                           psyGen.ACCDataDirective,
-                           psyGen.ACCEnterDataDirective)
+                           nodes.ACCDataDirective, nodes.ACCEnterDataDirective)
 
     def __init__(self):
         super(ACCParallelTrans, self).__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = psyGen.ACCParallelDirective
+        self._pdirective = nodes.ACCParallelDirective
 
     def __str__(self):
         return "Insert an OpenACC Parallel region"
@@ -1669,7 +1666,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         # it actually makes sense to require redundant computation
         # transformations to be applied before adding directives so it
         # is not particularly important.
-        dir_node = node.ancestor(psyGen.Directive)
+        dir_node = node.ancestor(nodes.Directive)
         if dir_node:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -2589,8 +2586,6 @@ class ACCEnterDataTrans(Transformation):
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
         '''
-        from psyclone.psyGen import Directive, \
-            ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
 
         super(ACCEnterDataTrans, self).validate(sched, options)
@@ -2821,7 +2816,6 @@ class ACCKernelsTrans(RegionTrans):
         default_present = options.get("default_present", False)
 
         # Create a directive containing the nodes in node_list and insert it.
-        from psyclone.psyGen import ACCKernelsDirective
         directive = ACCKernelsDirective(
             parent=parent, children=[node.detach() for node in node_list],
             default_present=default_present)
@@ -2936,7 +2930,6 @@ class ACCDataTrans(RegionTrans):
         start_index = node_list[0].position
 
         # Create a directive containing the nodes in node_list and insert it.
-        from psyclone.psyGen import ACCDataDirective
         directive = ACCDataDirective(
             parent=parent, children=[node.detach() for node in node_list])
 
@@ -2961,7 +2954,6 @@ class ACCDataTrans(RegionTrans):
         :raises TransformationError: if any of the nodes are themselves \
                                      data directives.
         '''
-        from psyclone.psyGen import ACCEnterDataDirective
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)

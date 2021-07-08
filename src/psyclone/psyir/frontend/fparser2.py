@@ -50,9 +50,8 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine, Member, FileContainer
+    Call, Routine, Member, FileContainer, Directive
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
