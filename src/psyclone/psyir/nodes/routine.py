@@ -167,6 +167,9 @@ class Routine(Schedule):
         '''
         Sets a new name for the Routine.
 
+        TODO #1200 this node should only hold a reference to the corresponding
+        RoutineSymbol and get its name from there.
+
         :param str new_name: new name for the Routine.
 
         :raises TypeError: if new_name is not a string.
@@ -177,6 +180,8 @@ class Routine(Schedule):
                             "'{0}'".format(type(new_name).__name__))
         if not self._name:
             self._name = new_name
+            # TODO #1200 naming the routine should not create a symbol and
+            # assign it a type!
             self.symbol_table.add(
                 RoutineSymbol(new_name, DeferredType()),
                 tag='own_routine_symbol')
@@ -184,6 +189,8 @@ class Routine(Schedule):
             old_symbol = self.symbol_table.lookup(self._name)
             self.symbol_table.remove(old_symbol)
             self._name = new_name
+            # TODO #1200 naming the routine should not create a symbol and
+            # assign it a type!
             self.symbol_table.add(
                 RoutineSymbol(new_name, old_symbol.datatype),
                 tag='own_routine_symbol')

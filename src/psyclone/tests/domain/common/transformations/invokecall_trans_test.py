@@ -45,7 +45,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
     ArrayReference, Literal, BinaryOperation
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, Symbol, \
-    StructureType, NoType
+    StructureType
 
 from psyclone.domain.common.algorithm import \
     AlgorithmInvokeCall, KernelFunctor
@@ -188,7 +188,7 @@ def test_invoke_error():
     '''
     invoke_trans = InvokeCallTrans()
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(Call(RoutineSymbol("hello", NoType())))
+        invoke_trans.validate(Call(RoutineSymbol("hello")))
     assert ("Error in InvokeCallTrans transformation. The supplied call "
             "argument should be a `Call` node with name 'invoke' but "
             "found 'hello'." in str(info.value))
@@ -328,8 +328,9 @@ def test_apply_codeblocks(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    assert len(subroutine[0].children) == 1
+    assert len(subroutine[0].children) == 2
     assert isinstance(subroutine[0].children[0], CodeBlock)
+    assert isinstance(subroutine[0].children[1], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
     invoke_trans.apply(subroutine[0], 3)
@@ -358,10 +359,11 @@ def test_apply_mixed(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    assert len(subroutine[0].children) == 3
+    assert len(subroutine[0].children) == 4
     assert isinstance(subroutine[0].children[0], CodeBlock)
-    assert isinstance(subroutine[0].children[1], ArrayReference)
-    assert isinstance(subroutine[0].children[2], CodeBlock)
+    assert isinstance(subroutine[0].children[1], CodeBlock)
+    assert isinstance(subroutine[0].children[2], ArrayReference)
+    assert isinstance(subroutine[0].children[3], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
     invoke_trans.apply(subroutine[0], 4)

@@ -69,6 +69,8 @@ class RoutineSymbol(TypedSymbol):
                                             interface=interface)
 
     def __str__(self):
+        # This implementation could be moved to TypedSymbol but it is kept
+        # here to enable us to keep TypedSymbol abstract.
         return "{0} : {1} <{2}>".format(self.name, type(self).__name__,
                                         str(self.datatype))
 

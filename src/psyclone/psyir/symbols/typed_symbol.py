@@ -75,7 +75,7 @@ class TypedSymbol(Symbol):
 
     @abc.abstractmethod
     def __str__(self):
-        ''' Return a str describing this object. '''
+        ''' Abstract method. Must be overridden in sub-class. '''
 
     @property
     def datatype(self):

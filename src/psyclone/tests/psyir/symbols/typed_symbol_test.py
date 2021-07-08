@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Perform pytest tests on the psygen.psyir.symbols.typed_symbol file '''
+''' Perform pytest tests on the psyclone.psyir.symbols.typed_symbol file. '''
 
 from __future__ import absolute_import
 import pytest
@@ -60,6 +60,7 @@ class TSymbol(TypedSymbol):
 
 def test_typed_symbol_abstract():
     ''' Check that TypedSymbol is abstract. '''
+    # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as err:
         TypedSymbol('a', REAL_SINGLE_TYPE)
     assert "instantiate abstract class TypedSymbol" in str(err.value)

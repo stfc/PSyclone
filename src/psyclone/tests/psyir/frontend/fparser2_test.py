@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
     REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
-    GlobalInterface)
+    GlobalInterface, BOOLEAN_TYPE)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -1614,18 +1614,18 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     assert " has not been handled." in str(error.value)
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_assignment_stmt():
     ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     reader = FortranStringReader("x=1")
     fparser2assignment = Execution_Part.match(reader)[0][0]
 
     fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2assignment])
     # Check a new node was generated and connected to parent
@@ -1633,6 +1633,20 @@ def test_handling_assignment_stmt():
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Assignment)
     assert len(new_node.children) == 2
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_labelled_assignment_stmt():
+    ''' Test that a labelled assignment is represented by a CodeBlock. '''
+    reader = FortranStringReader("111 x=1")
+    fparser2assignment = Execution_Part.match(reader)[0][0]
+    fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2assignment])
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2110,18 +2124,20 @@ def test_handling_array_product():
     assert not fake_parent.walk(CodeBlock)
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_if_stmt():
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     reader = FortranStringReader("if(x==1)y=1")
     fparser2if_stmt = Execution_Part.match(reader)[0][0]
 
     fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    fake_parent.symbol_table.new_symbol("y", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2if_stmt])
     # Check a new node was generated and connected to parent
@@ -2129,6 +2145,26 @@ def test_handling_if_stmt():
     new_node = fake_parent.children[0]
     assert isinstance(new_node, IfBlock)
     assert len(new_node.children) == 2
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_labelled_if_stmt():
+    ''' Test that a labelled fparser2 If_Stmt is converted to a CodeBlock.
+
+    '''
+    reader = FortranStringReader("200 if(x==1)y=1")
+    fparser2if_stmt = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    fake_parent.symbol_table.new_symbol("y", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2if_stmt])
+    # Check that a CodeBlock was created
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
@@ -2253,6 +2289,28 @@ def test_handling_if_construct_errors():
         processor.process_nodes(fake_parent, [fparser2if_construct])
     assert ("Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt are "
             "expected, but found") in str(error.value)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_labelled_if_construct():
+    ''' Test that a labelled if construct is captured as a CodeBlock.
+
+    '''
+    reader = FortranStringReader(
+        '''181 if (condition1) then
+        elseif (condition2) then
+        endif''')
+
+    fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("condition1", symbol_type=DataSymbol,
+                                        datatype=BOOLEAN_TYPE)
+    fake_parent.symbol_table.new_symbol("condition2", symbol_type=DataSymbol,
+                                        datatype=BOOLEAN_TYPE)
+    processor = Fparser2Reader()
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    processor.process_nodes(fake_parent, [fparser2if_construct])
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
@@ -2536,6 +2594,29 @@ def test_handling_invalid_case_construct():
     assert "to be a Case_Selector but got" in str(error.value)
 
 
+@pytest.mark.usefixtures("parser")
+def test_handling_labelled_case_construct():
+    ''' Test that a labelled case construct results in a CodeBlock. '''
+    reader = FortranStringReader(
+        '''999 SELECT CASE (selector)
+            CASE (pick_me)
+                branch3 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("selector", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    fake_parent.symbol_table.new_symbol("pick_me", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    fake_parent.symbol_table.new_symbol("branch3", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2case_construct])
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_case_default_only():
     ''' Check that we handle a select case that contains only a
@@ -2690,6 +2771,22 @@ def test_handling_return_stmt():
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Return)
     assert not new_node.children
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_labelled_return_stmt():
+    ''' Test that a labelled fparser2 Return_Stmt is converted to a CodeBlock.
+    '''
+    reader = FortranStringReader("999 return")
+    return_stmt = Execution_Part.match(reader)[0][0]
+    assert isinstance(return_stmt, Return_Stmt)
+
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [return_stmt])
+    # Check a new node was generated and connected to parent
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("f2008_parser")
