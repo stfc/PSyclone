@@ -44,11 +44,11 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
     Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
-    Call, Routine
+    Call, Routine, Container
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
-    REAL_TYPE, INTEGER_TYPE
+    REAL_TYPE, INTEGER_TYPE, UnresolvedInterface
 
 
 def process_where(code, fparser_cls, symbols=None):
@@ -239,6 +239,46 @@ def test_where_symbol_clash(fortran_reader):
     assert loop_var.name in sched.symbol_table
 
 
+def test_where_within_loop(fortran_reader, fortran_writer):
+    ''' Test for correct operation when we have a WHERE within an existing
+    loop and the referenced arrays are brought in from a module. '''
+    code = ("module my_mod\n"
+            " use some_mod\n"
+            "contains\n"
+            "subroutine my_sub()\n"
+            "  integer :: jl\n"
+            "  do jl = 1, 10\n"
+            "  where (var(:) > epsi20)\n"
+            "    var2(:, jl) = 2.0\n"
+            "  end where\n"
+            "  end do\n"
+            "end subroutine my_sub\n"
+            "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # Check that we have symbols for the two arrays
+    mymod = psyir.children[0]
+    assert isinstance(mymod, Container)
+    assert "var" in mymod.symbol_table
+    assert "var2" in mymod.symbol_table
+    assert isinstance(mymod.symbol_table.lookup("var").interface,
+                      UnresolvedInterface)
+    assert isinstance(mymod.symbol_table.lookup("var2").interface,
+                      UnresolvedInterface)
+    sub = mymod.children[0]
+    assert isinstance(sub, Routine)
+    assert isinstance(sub[0], Loop)
+    assert sub[0].variable.name == "jl"
+    where_loop = sub[0].loop_body[0]
+    assert isinstance(where_loop, Loop)
+    assert where_loop.variable.name == "widx1"
+    assert len(where_loop.loop_body.children) == 1
+    assert isinstance(where_loop.loop_body[0], IfBlock)
+    assign = where_loop.loop_body[0].if_body[0]
+    assert isinstance(assign, Assignment)
+    assert [idx.name for idx in assign.lhs.indices] == ["widx1", "jl"]
+
+
 @pytest.mark.usefixtures("parser")
 def test_basic_where():
     ''' Check that a basic WHERE using a logical array as a mask is correctly
@@ -333,6 +373,7 @@ def test_elsewhere():
     # Check that we have an IF block within the innermost loop
     ifblock = loop.loop_body[0].loop_body[0].loop_body[0]
     assert isinstance(ifblock, IfBlock)
+    assert "was_where" in ifblock.annotations
     assert isinstance(ifblock.ast, Fortran2003.Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.GT
@@ -342,6 +383,7 @@ def test_elsewhere():
     # Check that this IF block has an else body which contains another IF
     assert ifblock.else_body is not None
     ifblock2 = ifblock.else_body[0]
+    assert "was_where" in ifblock2.annotations
     assert isinstance(ifblock2, IfBlock)
     assert isinstance(ifblock2.condition, BinaryOperation)
     assert ifblock2.condition.operator == BinaryOperation.Operator.LT

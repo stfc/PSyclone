@@ -200,6 +200,10 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
                         # TODO Use the API developed in #1113 to specialise
                         # the symbol.
                         sym.specialise(expected_type)
+                        # TODO #1113 this is a workaround to ensure that the
+                        # interface is not set back to the default value.
+                        if "interface" not in kargs:
+                            kargs["interface"] = sym.interface
                         sym.__init__(sym.name, **kargs)
                 return sym
             except KeyError:
