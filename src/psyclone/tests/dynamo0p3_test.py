@@ -62,8 +62,8 @@ from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
-from psyclone.psyir.nodes import colored
+from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
+from psyclone.psyir.nodes import colored, UnaryOperation, Reference
 from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
@@ -1425,6 +1425,57 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     with pytest.raises(NotImplementedError) as err:
         arg.infer_datatype(proxy)
     assert "'f1' is not a scalar, field or operator argument" in str(err.value)
+
+
+def test_dynkernelargument_psyir_expression(monkeypatch):
+    ''' Tests for the psyir_expression() method of DynKernelArgument. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    # First argument should be a real scalar variable
+    first_arg = first_kernel.arguments.args[0]
+    psyir = first_arg.psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "a"
+    assert isinstance(psyir.symbol.datatype, ScalarType)
+    assert psyir.symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    # Repeat but force the symbol for 'a' to be created
+    del first_invoke.schedule.symbol_table._symbols["a"]
+    psyir = first_arg.psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "a"
+    # Second argument is a real-valued field
+    second_arg = first_kernel.arguments.args[1]
+    psyir = second_arg.psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "f1_proxy"
+    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
+    assert psyir.symbol.datatype.name == "field_proxy_type"
+    # Repeat but force the symbol for 'f1_proxy' to be created
+    del first_kernel.scope.symbol_table._symbols["f1_proxy"]
+    psyir = second_arg.psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "f1_proxy"
+    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
+    assert psyir.symbol.datatype.name == "field_proxy_type"
+    # Break the argument type
+    monkeypatch.setattr(second_arg, "_argument_type", "gh_wrong")
+    with pytest.raises(NotImplementedError) as err:
+        second_arg.psyir_expression()
+    assert ("Unsupported kernel argument type: 'f1' is of type 'gh_wrong'"
+            in str(err))
+    # Second argument to the (builtin) kernel is a literal expression
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.6.2_inc_X_powint_n_builtin.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.walk(BuiltIn)[1]
+    psyir = kern.arguments.args[1].psyir_expression()
+    assert isinstance(psyir, UnaryOperation)
+    assert psyir.operator == UnaryOperation.Operator.MINUS
 
 
 def test_arg_ref_name_method_error1():
