@@ -1013,8 +1013,8 @@ def test_opencl_kernel_code_generation():
         "  int uLEN2 = get_global_size(1);\n"
         "  int i = get_global_id(0);\n"
         "  int j = get_global_id(1);\n"
-        "  cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
-        " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
+        "  cu[i + j * cuLEN1] = ((0.5e0 * (p[(i + 1) + j * pLEN1]"
+        " + p[i + j * pLEN1])) * u[i + j * uLEN1]);\n"
         "}\n\n"
         )
 
@@ -1058,8 +1058,8 @@ def test_opencl_code_generation_with_boundary_mask():
         " (j > ystop)))) {\n"
         "    return;\n"
         "  }\n"
-        "  cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
-        " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
+        "  cu[i + j * cuLEN1] = ((0.5e0 * (p[(i + 1) + j * pLEN1]"
+        " + p[i + j * pLEN1])) * u[i + j * uLEN1]);\n"
         "}\n\n"
         )
 

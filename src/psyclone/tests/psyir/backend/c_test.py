@@ -185,9 +185,10 @@ def test_cw_array():
     arr.addchild(uop)
 
     result = cwriter(assignment)
-    # Results is reversed and flatten (row-major 1D)
+    # Results is reversed and flatten (row-major 1D), so
+    # a[b, 1, -2] becomes a[(-2) * aLEN2 * aLEN1 + 1 * aLEN1 + b]
     # dimensions are called <name>LEN<dimension> by convention
-    assert result == "a[(-2) * aLEN2 * aLEN1 + 1 * aLEN1 + b] = 0.0;\n"
+    assert result == "a[b + 1 * aLEN1 + (-2) * aLEN1 * aLEN2] = 0.0;\n"
 
 
 def test_cw_ifblock():

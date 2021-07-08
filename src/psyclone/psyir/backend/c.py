@@ -61,6 +61,46 @@ class CWriter(PSyIRVisitor):
 
     '''
 
+    def _gen_dims(self, shape, var_name=None):
+        '''Given a list of PSyIR nodes representing the dimensions of an
+        array, return a list of strings representing those array dimensions.
+
+        :param shape: list of PSyIR nodes.
+        :type shape: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param str var_name: Name of the field for which the indices are \
+            created. The C-interface uses {var_name}LEN{n} as the size \
+            of the corresonding dimension `n`.
+
+        :returns: the C representation of the dimensions.
+        :rtype: list of str
+
+        :raises NotImplementedError: if the format of the dimension is not \
+            supported.
+
+        '''
+        # In C array expressions should be reversed from the PSyIR order
+        # (column-major to row-major order) and flattened (1D).
+
+        # This collects the individual terms for each dimension that
+        # must be added:
+        summands = []
+        # This is the ongoing product of all dimension sizes, i.e.
+        # ALEN1 * ALEN2 * ...
+        multiplicator = ""
+
+        for dimension, child in enumerate(shape):
+            expression = self._visit(child)
+            dim_str = var_name + "LEN" + str(dimension+1)
+            if multiplicator:
+                summands.append(expression + " * " + multiplicator)
+                multiplicator = multiplicator + " * " + dim_str
+            else:
+                summands.append(expression)
+                multiplicator = dim_str
+        # This function must return a list of indices, since in C
+        # there is only one dimension, return a one-dimensional list.
+        return [" + ".join(summands)]
+
     def gen_declaration(self, symbol):
         # pylint: disable=no-self-use
         '''
@@ -137,30 +177,13 @@ class CWriter(PSyIRVisitor):
         :raises VisitorError: If this node has no children.
 
         '''
-        code = node.name + "["
-
-        dimensions_remaining = len(node.children)
-        if dimensions_remaining < 1:
+        if len(node.children) < 1:
             raise VisitorError(
                 "Arrays must have at least 1 dimension but found node: '{0}'."
                 "".format(str(node)))
 
-        # In C array expressions should be reversed from the PSyIR order
-        # (column-major to row-major order) and flattened (1D).
-        for child in reversed(node.children):
-            code = code + self._visit(child)
-            # For each dimension bigger than one, it needs to write the
-            # appropriate operation to flatten the array. By convention,
-            # the array dimensions are <name>LEN<DIM>.
-            # (e.g. A[3,5,2] -> A[3 * ALEN2 * ALEN1 + 5 * ALEN1 + 2])
-            for dim in reversed(range(1, dimensions_remaining)):
-                dimstring = node.name + "LEN" + str(dim)
-                code = code + " * " + dimstring
-            dimensions_remaining = dimensions_remaining - 1
-            code = code + " + "
-
-        code = code[:-3] + "]"  # Delete last ' + ' and close bracket
-        return code
+        indices = self._gen_dims(node.children, node.name)
+        return "{0}[{1}]".format(node.name, "".join(indices))
 
     def literal_node(self, node):
         # pylint: disable=no-self-use
