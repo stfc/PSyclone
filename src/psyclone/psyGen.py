@@ -1163,7 +1163,7 @@ class GlobalSum(Statement):
     :param scalar: the scalar that the global sum is stored into
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
@@ -1234,7 +1234,7 @@ class HaloExchange(Statement):
                          responsible for.
     :type vector_index: int
     :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.

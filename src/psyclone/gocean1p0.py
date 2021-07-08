@@ -547,7 +547,7 @@ class GOLoop(Loop):
         in the Dynamo api.
 
         :param parent: optional parent node (default None).
-        :type parent: :py:class:`psyclone.psyGen.node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str topology_name: optional opology of the loop (unused atm).
         :param str loop_type: loop type - must be 'inner' or 'outer'.
 

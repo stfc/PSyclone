@@ -276,7 +276,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         BinaryOperation node is converted to equivalent inline code.
 
         :param node: a MATMUL Binary-Operation node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 

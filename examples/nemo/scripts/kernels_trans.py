@@ -193,7 +193,7 @@ def log_msg(name, msg, node):
     :param str name: the name of the routine.
     :param str msg: the message to log.
     :param node: the PSyIR node that prevented the transformation.
-    :type node: :py:class:`psyclone.psyGen.Node`
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Create a str representation of the position of the problematic node
@@ -215,7 +215,7 @@ def valid_acc_kernel(node):
     enclosed within an OpenACC KERNELS directive.
 
     :param node: the node in the PSyIRe to check.
-    :type node: :py:class:`psyclone.psyGen.Node`
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: True if the sub-tree can be enclosed in a KERNELS region.
     :rtype: bool
@@ -480,7 +480,7 @@ def add_kernels(children):
 
     :param children: list of sibling Nodes in PSyIR that are candidates for \
                      inclusion in an ACC KERNELS region.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: True if any KERNELS regions are successfully added.
     :rtype: bool
@@ -526,7 +526,7 @@ def add_profiling(children):
 
     :param children: sibling nodes in the PSyIR to which to attempt to add \
                      profiling regions.
-    :type childre: list of :py:class:`psyclone.psyGen.Node`
+    :type childre: list of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     if not children:
@@ -563,7 +563,7 @@ def add_profile_region(nodes):
     Attempt to put the supplied list of nodes within a profiling region.
 
     :param nodes: list of sibling PSyIR nodes to enclose.
-    :type nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     if nodes and _AUTO_PROFILE:
@@ -604,7 +604,7 @@ def try_kernels_trans(nodes):
     reported but execution continues.
 
     :param nodes: list of Nodes to enclose within a Kernels region.
-    :type nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: True if the transformation was successful, False otherwise.
     :rtype: bool
