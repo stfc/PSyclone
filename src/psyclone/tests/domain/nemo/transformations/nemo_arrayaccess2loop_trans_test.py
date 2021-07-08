@@ -101,6 +101,10 @@ def test_transform():
     assert NemoArrayAccess2LoopTrans()
     assert isinstance(NemoArrayAccess2LoopTrans(), Transformation)
 
+# apply() method
+
+# TODO Check structure and nested structure
+
 
 def test_apply_single_dim_value():
     '''Check that the expected code is produced when there is a 1D array,
@@ -348,6 +352,124 @@ def test_apply_calls_validate():
            "node argument should be a PSyIR Node, but found 'NoneType'."
            in str(info.value))
 
+
+def test_apply_multi_iterator():
+    '''Check that the apply method works as expected if a different loop
+    index has more than one loop iterator and does not care what name
+    is used as long as it is not the same as the iterator name for
+    this index.
+
+    '''
+    input_code = (
+        "program test\n"
+        "  real :: a(10,10)\n"
+        "  integer :: i,j\n"
+        "  do j=1,10\n"
+        "    do i=1,10\n"
+        "      a(i+j,10) = 0.0e0\n"
+        "    end do\n"
+        "  end do\n"
+        "end program test")
+    expected_code = (
+        "program test\n"
+        "  real, dimension(10,10) :: a\n"
+        "  integer :: i\n  integer :: j\n  integer :: jj\n\n"
+        "  do j = 1, 10, 1\n"
+        "    do i = 1, 10, 1\n"
+        "      do jj = 10, 10, 1\n"
+        "        a(i + j,jj) = 0.0e0\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n\n"
+        "end program test\n")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(input_code)
+    trans = NemoArrayAccess2LoopTrans()
+    outer_loop = psyir.children[0].children[0]
+    assignment = outer_loop.loop_body[0].loop_body[0]
+    index_node = assignment.lhs.children[1]
+    trans.apply(index_node)
+    writer = FortranWriter()
+    result = writer(psyir)
+    assert expected_code in result
+
+
+def test_apply_same_iterator():
+    '''Check that the apply method works as expected if different loop
+    indices use the same iterator in more than one loop index and does
+    not care what name is used as long as it is not the same as the
+    iterator name for this index.
+
+    '''
+    input_code = (
+        "program test\n"
+        "  real :: a(10,10,10)\n"
+        "  integer :: i\n"
+        "  do i=1,5\n"
+        "    a(2*i,i+1,10) = 0.0e0\n"
+        "  end do\n"
+        "end program test")
+    expected_code = (
+        "program test\n"
+        "  real, dimension(10,10,10) :: a\n"
+        "  integer :: i\n  integer :: jk\n\n"
+        "  do i = 1, 5, 1\n"
+        "    do jk = 10, 10, 1\n"
+        "      a(2 * i,i + 1,jk) = 0.0e0\n"
+        "    enddo\n"
+        "  enddo\n\n"
+        "end program test\n")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(input_code)
+    trans = NemoArrayAccess2LoopTrans()
+    index_node = psyir.children[0].children[0].loop_body[0].lhs.children[2]
+    trans.apply(index_node)
+    writer = FortranWriter()
+    result = writer(psyir)
+    assert expected_code in result
+
+
+def test_apply_index_order():
+    '''Check that the apply method works as expected if loop indices are
+    not used in the same order as array dimensions and does not care
+    what name is used as long as it is not the same as the iterator
+    name for this index.
+
+    '''
+    input_code = (
+        "program test\n"
+        "  real :: a(10,10,10)\n"
+        "  integer :: i,j\n"
+        "  do j=1,10\n"
+        "    do i=1,10\n"
+        "      a(j,i,10) = 0.0e0\n"
+        "    end do\n"
+        "  end do\n"
+        "end program test")
+    expected_code = (
+        "program test\n"
+        "  real, dimension(10,10,10) :: a\n"
+        "  integer :: i\n  integer :: j\n  integer :: jk\n\n"
+        "  do j = 1, 10, 1\n"
+        "    do i = 1, 10, 1\n"
+        "      do jk = 10, 10, 1\n"
+        "        a(j,i,jk) = 0.0e0\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n\n"
+        "end program test\n")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(input_code)
+    trans = NemoArrayAccess2LoopTrans()
+    outer_loop = psyir.children[0].children[0]
+    assignment = outer_loop.loop_body[0].loop_body[0]
+    index_node = assignment.lhs.children[2]
+    trans.apply(index_node)
+    writer = FortranWriter()
+    result = writer(psyir)
+    print(result)
+    assert expected_code in result
+
 # validate() method
 
 
@@ -433,6 +555,33 @@ def test_validate_range():
         "valued." in str(info.value))
 
 
+def test_validate_iterator_name():
+    '''Check that the validate() method raises the expected exception if
+    the iterator name that should be used for this index is already
+    being used as a loop iterator.
+
+    '''
+    input_code = (
+        "program test\n"
+        "  real :: a(10,10)\n"
+        "  integer :: jj\n"
+        "  do jj=1,10\n"
+        "    a(jj,10) = 0.0e0\n"
+        "  end do\n"
+        "end program test")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(input_code)
+    trans = NemoArrayAccess2LoopTrans()
+    index_node = psyir.children[0].children[0].loop_body[0].lhs.children[1]
+    with pytest.raises(TransformationError) as info:
+        trans.apply(index_node)
+    assert(
+        "The NEMO API expects this index to use the 'jj' iterator variable, "
+        "but it is already being used in another index." in str(info.value))
+
+# TODO Check validate is happy if the index has no defined name in the nemo API
+
+
 def test_validate_iterator():
     '''Check that the validate() method raises the expected exception if
     the supplied node is, or contains, a loop iterator.
@@ -455,88 +604,6 @@ def test_validate_iterator():
     assert(
         "The supplied node should not be or contain a loop iterator, it "
         "should be single valued." in str(info.value))
-
-
-def test_validate_multi_iterator():
-    '''Check that the validate() method raises the expected exception if
-    an index before the supplied one has more than one loop iterator.
-
-    '''
-    input_code = (
-        "program test\n"
-        "  real :: a(10,10)\n"
-        "  integer :: i,j\n"
-        "  do j=1,10\n"
-        "    do i=1,10\n"
-        "      a(i+j,10) = 0.0e0\n"
-        "    end do\n"
-        "  end do\n"
-        "end program test")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
-    outer_loop = psyir.children[0].children[0]
-    assignment = outer_loop.loop_body[0].loop_body[0]
-    index_node = assignment.lhs.children[1]
-    with pytest.raises(TransformationError) as info:
-        trans.apply(index_node)
-    assert(
-        "Only a single iterator per dimension is supported by this "
-        "transformation, but found '['i', 'j']'." in str(info.value))
-
-
-def test_validate_same_iterator():
-    '''Check that the validate() method raises the expected exception if
-    the same iterator is used in more than one loop index.
-
-    '''
-    input_code = (
-        "program test\n"
-        "  real :: a(10,10,10)\n"
-        "  integer :: i\n"
-        "  do i=1,5\n"
-        "    a(2*i,i+1,10) = 0.0e0\n"
-        "  end do\n"
-        "end program test")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
-    index_node = psyir.children[0].children[0].loop_body[0].lhs.children[2]
-    with pytest.raises(TransformationError) as info:
-        trans.apply(index_node)
-    assert(
-        "The same iterator is used in more than one loop index '['i', 'i']' "
-        "which is not supported by this transformation." in str(info.value))
-
-
-def test_validate_index_order_error():
-    '''Check that the validate() method raises the expected exception if
-    the iterators are not used in index order i.e. x(i,j,k) is correct
-    if i is the iterators for the inner loop, j is iterator for the
-    middle loop and k is the iterator for the outer loop.
-
-    '''
-    input_code = (
-        "program test\n"
-        "  real :: a(10,10,10)\n"
-        "  integer :: i,j\n"
-        "  do j=1,10\n"
-        "    do i=1,10\n"
-        "      a(j,i,10) = 0.0e0\n"
-        "    end do\n"
-        "  end do\n"
-        "end program test")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
-    outer_loop = psyir.children[0].children[0]
-    assignment = outer_loop.loop_body[0].loop_body[0]
-    index_node = assignment.lhs.children[2]
-    with pytest.raises(TransformationError) as info:
-        trans.apply(index_node)
-    assert(
-        "In array 'a' expected iterator 'i' at index '0' but found 'j'."
-        in str(info.value))
 
 
 def test_validate_same_index_error():

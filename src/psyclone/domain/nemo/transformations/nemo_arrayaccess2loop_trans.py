@@ -33,12 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a transformation from an Assignment node
-containing an Array Reference node in its left-hand-side which in turn
-has at least one constant access, to an array index with an associated
-(single trip) loop. The node representing the array index is provided
-to the apply method of the transformation to indicate which array
-index should be transformed.
+'''Module providing a transformation that transforms a constant index
+access to an array (i.e. one that does not contain a loop iterator) to
+a single trip loop. The node representing the constant index access is
+provided to the apply method of the transformation to indicate which
+array index should be transformed.
 
 '''
 
@@ -60,31 +59,30 @@ from psyclone.psyir.transformations.transformation_error \
 
 
 class NemoArrayAccess2LoopTrans(Transformation):
-    '''Provides a transformation from a PSyIR ArrayReference access to a
-    PSyIR NemoLoop. For example:
+    '''Provides a transformation to transform a constant index access to
+    an array (i.e. one that does not contain a loop iterator) to a
+    single trip loop. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.domain.nemo.transformations import \
-            NemoArrayAccess2LoopTrans
+    >>>     NemoArrayAccess2LoopTrans
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Assignment
-    >>> from psyclone.transformations import TransformationError
-    >>>
-    >>> api = "nemo"
-    >>> filename = "tra_adv.F90" # examples/nemo/code
-    >>> ast, invoke_info = parse(filename, api=api)
-    >>> psy = PSyFactory(api).create(invoke_info)
-    >>> schedule = psy.invokes.invoke_list[0].schedule
-    >>> schedule.view()
-    >>>
-    >>> trans = NemoArrayAccess2LoopTrans()
-    >>> for assignment in schedule.walk(Assignment):
-    >>>     for index in asignment.lhs.children:
-    >>>         try:
-    >>>             trans.apply(index)
-    >>>         except TransformationError:
-    >>>             pass
-    >>> schedule.view()
+    >>> code = ("program example\n"
+    >>>         "  real a(10)\n"
+    >>>         "  a(1) = 0.0\n"
+    >>>         "end program example\n")
+    >>> psyir = FortranReader().psyir_from_source(code)
+    >>> assignment = psyir.walk(Assignment)[0]
+    >>> NemoArrayAccess2LoopTrans().apply(assignment.lhs.children[0])
+    >>> print (FortranWriter()(psyir))
+          program example
+            real, dimension(10) :: a
+            integer :: ji
+            do ji = 1, 1, 1
+              a(ji) = 0.0
+            enddo
+          end program example
 
     '''
     def apply(self, node, options=None):
@@ -242,6 +240,25 @@ class NemoArrayAccess2LoopTrans(Transformation):
             if isinstance(location, Loop):
                 iterator_symbols.append(location.variable)
 
+        # The iterator name I should be using is already being used as
+        # a loop iterator.
+        loop_type_order = Config.get().api_conf("nemo").get_index_order()
+        loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
+        try:
+            loop_type = loop_type_order[node.position]
+            loop_type_info = loop_type_data[loop_type]
+            loop_variable_name = loop_type_info['var']
+            if (loop_variable_name.lower() in [
+                    var.name.lower() for var in iterator_symbols]):
+                raise TransformationError(
+                    "Error in NemoArrayAccess2LoopTrans transformation. The "
+                    "NEMO API expects this index to use the '{0}' iterator "
+                    "variable, but it is already being used in another index."
+                    "".format(loop_variable_name.lower()))
+        except IndexError:
+            # There is no defined iterator name for this index
+            pass
+
         # Index contains a loop iterator
         for reference in node.walk(Reference):
             if reference.symbol in iterator_symbols:
@@ -249,38 +266,6 @@ class NemoArrayAccess2LoopTrans(Transformation):
                     "Error in NemoArrayAccess2LoopTrans transformation. The "
                     "supplied node should not be or contain a loop iterator, "
                     "it should be single valued.")
-
-        # An index before this one has more than one loop iterator
-        array_access_iterators = []
-        for index in node.parent.children[:node.position]:
-            # Find any iterators in this index
-            index_iterators = [
-                my_index.symbol for my_index in index.walk(Reference)
-                if my_index.symbol in iterator_symbols]
-            iterator_names = [my_index.name for my_index in index_iterators]
-            if len(index_iterators) > 1:
-                raise TransformationError(
-                    "Only a single iterator per dimension is supported by "
-                    "this transformation, but found '{0}'."
-                    "".format(iterator_names))
-            if index_iterators:
-                array_access_iterators.append(index_iterators[0])
-
-        # Same iterator used in more than one loop index
-        if len(iterator_symbols) < len(array_access_iterators):
-            raise TransformationError(
-                "The same iterator is used in more than one loop index "
-                "'{0}' which is not supported by this transformation.".format(
-                    [iterator.name for iterator in array_access_iterators]))
-
-        # Iterators before this index are not in loop index order
-        for idx, array_access_iterator in enumerate(array_access_iterators):
-            if array_access_iterator != iterator_symbols[idx]:
-                raise TransformationError(
-                    "In array '{0}' expected iterator '{1}' at index '{2}' "
-                    "but found '{3}'.".format(
-                        node.parent.name, iterator_symbols[idx].name,
-                        idx, array_access_iterator.name))
 
         # Indices on lhs and rhs array accesses are not the same
         index_pos = node.position

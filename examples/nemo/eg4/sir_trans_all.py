@@ -88,11 +88,14 @@ def trans(psy):
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
 
-        for assignment in schedule.walk(Assignment):
-            array_range_trans.apply(assignment)
-
+        # Transform any single index accesses in array assignments
+        # (e.g. a(1)) into 1-trip loops.
         for assignment in schedule.walk(Assignment):
             array_access_trans.apply(assignment)
+
+        # Transform any array assignments (Fortran ':' notation) into loops.
+        for assignment in schedule.walk(Assignment):
+            array_range_trans.apply(assignment)
 
         for kernel in schedule.walk(NemoKern):
 
