@@ -89,6 +89,9 @@
         29) #1316 for #1301 and #1304. The Fortran frontend handles labelled
         and named constructs.
 
+        30) #1299 for #1249. Some LFRic builtins use the PSyIR backend, which
+		fixes a unary operator precedence bug.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

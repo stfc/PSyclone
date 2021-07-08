@@ -1221,7 +1221,22 @@ class FortranWriter(PSyIRVisitor):
             if is_fortran_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
                 return "{0}({1})".format(fort_oper, content)
+            # It's not an intrinsic function so we need to consider the
+            # parent node. If that is a UnaryOperation or a BinaryOperation
+            # such as '-' or '**' then we need parentheses. This ensures we
+            # don't generate invalid Fortran such as 'a ** -b' or 'a - -b'.
+            parent = node.parent
+            if isinstance(parent, UnaryOperation):
+                parent_fort_oper = get_fortran_operator(parent.operator)
+                if not is_fortran_intrinsic(parent_fort_oper):
+                    return "({0}{1})".format(fort_oper, content)
+            if isinstance(parent, BinaryOperation):
+                parent_fort_oper = get_fortran_operator(parent.operator)
+                if (not is_fortran_intrinsic(parent_fort_oper) and
+                        node is parent.children[1]):
+                    return "({0}{1})".format(fort_oper, content)
             return "{0}{1}".format(fort_oper, content)
+
         except KeyError:
             raise VisitorError("Unexpected unary op '{0}'.".format(
                 node.operator))
