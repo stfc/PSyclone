@@ -164,6 +164,20 @@ def test_call_args(f2008_parser):
     assert (str(call_node)) == "Call[name='kernel']"
 
 
+@pytest.mark.usefixtures("f2008_parser")
+def test_labelled_call():
+    '''Test that fparser2reader transforms a labelled Fortran subroutine call
+    into a CodeBlock.
+
+    '''
+    reader = FortranStringReader("99 call kernel()")
+    ast = Fortran2003.Call_Stmt(reader)
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [ast])
+    assert isinstance(fake_parent[0], CodeBlock)
+
+
 def test_call_codeblock_args(fortran_reader):
     ''' Test that we get one CodeBlock for each (unrecognised) argument rather
     than a single CodeBlock containing all of them. '''
