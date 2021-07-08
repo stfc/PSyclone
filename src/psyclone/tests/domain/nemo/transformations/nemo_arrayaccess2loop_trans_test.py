@@ -209,7 +209,9 @@ def test_apply_loop_order():
     '''Check that the expected code is produced for a 3D array where it is
     accessed with the inner and outer dimensions being loop indices,
     but the middle dimension being a variable and this middle
-    dimension is provided to the transformation.
+    dimension is provided to the transformation. The loop is simply
+    placed innermost so a subsequent transformation will be needed to
+    re-order to ji, jj, jk form if required.
 
     '''
     code = (
@@ -224,8 +226,8 @@ def test_apply_loop_order():
         "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
         "  integer :: ji\n  integer :: n\n  integer :: jk\n  integer :: jj\n\n"
         "  do jk = 1, 10, 1\n"
-        "    do jj = n, n, 1\n"
-        "      do ji = 1, 10, 1\n"
+        "    do ji = 1, 10, 1\n"
+        "      do jj = n, n, 1\n"
         "        a(ji,jj,jk) = b(ji,jj,jk)\n"
         "      enddo\n"
         "    enddo\n"
@@ -255,12 +257,13 @@ def test_apply_ranges():
 
 
 def test_apply_inline_kern():
-    '''Check that the transformation places a loop in the correct location
-    where there is an Nemo-specific inlined kern node. We create such
-    a node by first applying the NemoAllArrayRange2LoopTrans
-    transformation. We don't use nemo-specific code for all tests
-    because the NEMO-api does not currently write symbol table
-    information.
+    '''Check that the transformation places a loop innermost where there
+    is a Nemo-specific inlined kern node. We create such a node by
+    first applying the NemoAllArrayRange2LoopTrans transformation. We
+    don't use nemo-specific code for all tests because the NEMO-api
+    does not currently write symbol table information. A subsequent
+    transformation would be needed to put the loops in ji,jj,jk form
+    if needed.
 
     '''
     input_code = (
@@ -274,9 +277,9 @@ def test_apply_inline_kern():
         "  end do\n"
         "end program test\n")
     expected_result = (
-        "do jk = jpk, jpk, 1\n"
-        "  do jj = 1, n, 1\n"
-        "    do ji = 1, n, 1\n"
+        "do jj = 1, n, 1\n"
+        "  do ji = 1, n, 1\n"
+        "    do jk = jpk, jpk, 1\n"
         "      a(ji,jj,jk) = 0.0e0\n"
         "    enddo\n"
         "  enddo\n"
@@ -308,7 +311,7 @@ def test_inlined_kern():
         "program test\n"
         "  real, dimension(10,10,10) :: a\n"
         "  integer :: jpi\n  integer :: jpj\n  integer :: jpk\n"
-        "  integer :: ji\n  integer :: jj\n\n"
+        "  integer :: jj\n  integer :: ji\n\n"
         "  do jj = jpj, jpj, 1\n"
         "    do ji = jpi, jpi, 1\n"
         "      a(ji,jj,jpk) = 0.0e0\n"
@@ -320,14 +323,14 @@ def test_inlined_kern():
     # No InlinedKern
     assert not psyir.walk(InlinedKern)
     # Turn an array access to a loop
-    index_node = psyir.walk(Assignment)[0].lhs.children[0]
+    index_node = psyir.walk(Assignment)[0].lhs.children[1]
     trans = NemoArrayAccess2LoopTrans()
     trans.apply(index_node)
     # InlinedKern has been added
     assert len(psyir.walk(InlinedKern)) == 1
     assert isinstance(psyir.children[0][0].loop_body[0], InlinedKern)
     # Turn another array access to a loop
-    index_node = psyir.walk(Assignment)[0].lhs.children[1]
+    index_node = psyir.walk(Assignment)[0].lhs.children[0]
     trans.apply(index_node)
     # Still only one InlinedKern
     assert len(psyir.walk(InlinedKern)) == 1

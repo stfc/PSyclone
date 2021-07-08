@@ -139,8 +139,8 @@ def test_apply_multi_change():
     expected_result = (
         "  real, dimension(10,10) :: a\n  real, dimension(10,10) :: b\n"
         "  integer :: n\n  integer :: ji\n  integer :: jj\n\n"
-        "  do jj = n, n, 1\n"
-        "    do ji = 1, 1, 1\n"
+        "  do ji = 1, 1, 1\n"
+        "    do jj = n, n, 1\n"
         "      a(ji,jj) = b(ji,jj)\n"
         "    enddo\n"
         "  enddo\n\n")
@@ -149,7 +149,10 @@ def test_apply_multi_change():
 
 def test_apply_mixed():
     '''Check that both dimensions are modified when there is a constant
-    index in two dimensions and an existing loop in another.
+    index in two dimensions and an existing loop in another. The
+    generated code does not have the loops in the expected order and a
+    separate loop re-order transformation would need to be applied if
+    required.
 
     '''
     code = (
@@ -161,9 +164,9 @@ def test_apply_mixed():
     expected_result = (
         "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
         "  integer :: n\n  integer :: jj\n  integer :: ji\n  integer :: jk\n\n"
-        "  do jk = n, n, 1\n"
-        "    do jj = 1, n, 1\n"
-        "      do ji = 1, 1, 1\n"
+        "  do jj = 1, n, 1\n"
+        "    do ji = 1, 1, 1\n"
+        "      do jk = n, n, 1\n"
         "        a(ji,jj,jk) = b(ji,jj,jk)\n"
         "      enddo\n"
         "    enddo\n"

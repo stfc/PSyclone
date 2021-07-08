@@ -35,9 +35,10 @@
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
-has at least one constant access to an array index. The node
-representing the array index is provided to the apply method of the
-transformation to indicate which array index should be transformed.
+has at least one constant access, to an array index with an associated
+(single trip) loop. The node representing the array index is provided
+to the apply method of the transformation to indicate which array
+index should be transformed.
 
 '''
 
@@ -47,7 +48,7 @@ from psyclone.configuration import Config
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
     import CreateNemoKernelTrans
 from psyclone.nemo import NemoLoop, NemoKern
-from psyclone.psyGen import Transformation, InlinedKern
+from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Node, Schedule, Loop
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
@@ -99,11 +100,10 @@ class NemoArrayAccess2LoopTrans(Transformation):
         constraints are satisfied then the array access is replaced
         with a loop iterator and a single trip loop.
 
-        If there are existing loops then the new loop will be placed
-        at the expected nesting, complying to the ordering expected by
-        the NEMO API (specified in the config file). If the existing
-        loops do not conform to this expected ordering then an
-        exception will be raised.
+        The new loop will be placed immediately around the assignment
+        i.e. it will not take into account any expected nesting (ji,
+        jj, jk etc) constraints. Loop re-ordering should be performed by
+        a separate transformation.
 
         The name of the loop index is taken from the PSyclone
         configuration file if a name exists for the particular array
@@ -140,19 +140,6 @@ class NemoArrayAccess2LoopTrans(Transformation):
         except IndexError:
             loop_variable_name = symbol_table.next_available_name("idx")
 
-        # Work out where to add the new loop (at 'location'), as there
-        # may be existing loops that should be inside this one.
-        symbols = [ref.symbol for ref in array_reference.children[:array_index]
-                   if isinstance(ref, Reference)]
-        location = assignment
-        nloops = 0
-        while (isinstance(location.parent, Schedule) and
-               isinstance(location.parent.parent, (Loop, InlinedKern)) and
-               nloops < len(symbols)):
-            if isinstance(location.parent.parent, Loop):
-                nloops += 1
-            location = location.parent.parent
-
         # Look up the loop variable in the symbol table. If it does
         # not exist then create it.
         try:
@@ -162,31 +149,34 @@ class NemoArrayAccess2LoopTrans(Transformation):
             loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
             symbol_table.add(loop_variable_symbol)
 
-        # Replace array access loop variable.
+        # Replace current access with loop variable.
         for array in assignment.walk(ArrayReference):
             if not array.ancestor(ArrayReference):
                 # This is not a nested access e.g. a(b(n)).
                 array.children[array_index] = Reference(loop_variable_symbol)
 
-        # As this transformation affects ancestor nodes of the
-        # supplied node we need to be careful here not to lose
-        # existing ancestor nodes as they might be
-        # referenced. Therefore use detach() and insert,() rather than
-        # copy() and replace_with().
-
-        # Find location.parent and location_index
-        loc_parent = location.parent
-        loc_index = location.position
+        # Determine the loop body and where to add the loop.
+        nemo_kern = assignment.ancestor(NemoKern)
+        if nemo_kern:
+            # This assignment is inside a NemoKern
+            loop_body = nemo_kern
+        else:
+            # There is no parent NemoKern
+            loop_body = assignment
+        loc_parent = loop_body.parent
+        loc_index = loop_body.position
 
         # Create the new single-trip loop and add its children.
         step = Literal("1", INTEGER_TYPE)
         loop = NemoLoop.create(loop_variable_symbol, node_copy,
-                               node_copy.copy(), step, [location.detach()])
+                               node_copy.copy(), step, [loop_body.detach()])
+
         # Replace the original assignment with a loop containing the
         # modified assignment.
         loc_parent.children.insert(loc_index, loop)
 
-        if nloops == 0 and not assignment.walk(Range):
+        # Add a NemoKern if required.
+        if not nemo_kern and not assignment.walk(Range):
             # There were previously no loops therefore there was not
             # inlined kernel node and there are no range nodes in the
             # array reference, so we now need to add an inlined
