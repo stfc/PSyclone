@@ -60,14 +60,14 @@ The optional ``-h`` argument gives a description of the options provided
 by the command:
 
 .. parsed-literal::
-		
+
   > psyclone -h
 
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
-		  [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-		  [--profile {invokes,kernels}] [--config CONFIG] [-v]
-		  filename
+                  [-dm] [-nodm] [--kernel-renaming {multiple,single}]
+                  [--profile {invokes,kernels}] [--config CONFIG] [-v]
+                  filename
 
   Run the PSyclone code generator on a particular file
 
@@ -81,13 +81,13 @@ by the command:
     -okern OKERN          directory in which to put transformed kernels
     -api API              choose a particular api from ['dynamo0.1',
                           'dynamo0.3', 'gocean0.1', 'gocean1.0', 'nemo'],
-			  default 'dynamo0.3'.
+                          default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
                           path to a root directory structure containing kernel
-                          source code Multiple roots can be specified by using
-			  multiple -d arguments.
+                          source code. Multiple roots can be specified by using
+                          multiple -d arguments.
     -I INCLUDE, --include INCLUDE
                           path to Fortran INCLUDE files (nemo API only)
     -l {off,all,output}, --limit {off,all,output}
@@ -99,7 +99,7 @@ by the command:
     -nodm, --no_dist_mem  do not generate distributed memory code
     --kernel-renaming {single,multiple}
                           Naming scheme to use when re-naming transformed
-			  kernels.
+                          kernels.
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
     --config CONFIG       Config file with PSyclone specific options.
