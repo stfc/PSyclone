@@ -51,8 +51,7 @@ from __future__ import print_function
 import re
 import six
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, Comment
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
@@ -73,7 +72,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment, CodeBlock, PSyDataNode
+    Call, Assignment, PSyDataNode
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
     ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
@@ -238,16 +237,15 @@ class GOInvokes(Invokes):
                 ystop = api_config.grid_properties["go_grid_ystop"].fortran \
                     .format(arg)
 
-                block = Comment(FortranStringReader(
-                    "! Look-up loop bounds\n", ignore_comments=False))
-                codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
-                invoke.schedule.children.insert(0, codeblock)
                 # Get a field argument from the argument list
                 for arg in invoke.schedule.symbol_table.argument_list:
                     if isinstance(arg.datatype, DataTypeSymbol):
                         if arg.datatype.name == "r2d_field":
                             field = arg
                             break
+
+                # Add the assignments of the bounds to its variables at the
+                # beginning of the invoke.
                 assign1 = Assignment.create(
                             Reference(i_stop),
                             StructureReference.create(
@@ -256,8 +254,9 @@ class GOInvokes(Invokes):
                             Reference(j_stop),
                             StructureReference.create(
                                 field, ystop.split('%')[1:]))
-                invoke.schedule.children.insert(1, assign1)
-                invoke.schedule.children.insert(2, assign2)
+                invoke.schedule.children.insert(0, assign1)
+                invoke.schedule.children.insert(1, assign2)
+                assign1.preceding_comment = "Look-up loop bounds"
 
         # Lower the GOcean PSyIR to language level so it can be visited
         # by the backends
