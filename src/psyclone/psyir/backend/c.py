@@ -41,8 +41,10 @@ Currently limited to just a few PSyIR nodes to support the OpenCL generation,
 it needs to be extended for generating pure C code.
 
 '''
+import six
 
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.nodes import BinaryOperation, UnaryOperation
 from psyclone.psyir.symbols import ScalarType
 
 
@@ -121,11 +123,11 @@ class CWriter(PSyIRVisitor):
         try:
             intrinsic = symbol.datatype.intrinsic
             code = code + TYPE_MAP_TO_C[intrinsic] + " "
-        except (AttributeError, KeyError):
-            raise NotImplementedError(
+        except (AttributeError, KeyError) as err:
+            raise six.raise_from(NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "
                 "type '{1}' is currently not supported."
-                "".format(symbol.name, symbol.datatype))
+                "".format(symbol.name, symbol.datatype)), err)
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
@@ -303,7 +305,6 @@ class CWriter(PSyIRVisitor):
 
         # Define a map with the operator string and the formatter function
         # associated with each UnaryOperation.Operator
-        from psyclone.psyir.nodes import UnaryOperation
         opmap = {
             UnaryOperation.Operator.MINUS: ("-", operator_format),
             UnaryOperation.Operator.PLUS: ("+", operator_format),
@@ -324,10 +325,10 @@ class CWriter(PSyIRVisitor):
         # an Error.
         try:
             opstring, formatter = opmap[node.operator]
-        except KeyError:
-            raise NotImplementedError(
+        except KeyError as err:
+            raise six.raise_from(NotImplementedError(
                 "The C backend does not support the '{0}' operator."
-                "".format(node.operator))
+                "".format(node.operator)), err)
 
         return formatter(opstring, self._visit(node.children[0]))
 
@@ -376,7 +377,6 @@ class CWriter(PSyIRVisitor):
 
         # Define a map with the operator string and the formatter function
         # associated with each BinaryOperation.Operator
-        from psyclone.psyir.nodes import BinaryOperation
         opmap = {
             BinaryOperation.Operator.ADD: ("+", operator_format),
             BinaryOperation.Operator.SUB: ("-", operator_format),
@@ -400,10 +400,10 @@ class CWriter(PSyIRVisitor):
         # an Error.
         try:
             opstring, formatter = opmap[node.operator]
-        except KeyError:
-            raise VisitorError(
+        except KeyError as err:
+            raise six.raise_from(VisitorError(
                 "The C backend does not support the '{0}' operator."
-                "".format(node.operator))
+                "".format(node.operator)), err)
 
         return formatter(opstring,
                          self._visit(node.children[0]),

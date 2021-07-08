@@ -45,7 +45,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
     Reference, Return, ArrayReference, Literal, UnaryOperation, \
-    BinaryOperation, Schedule
+    BinaryOperation, Schedule, IfBlock
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ArrayType, REAL_TYPE, INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE
 
@@ -116,7 +116,6 @@ def test_cw_exception():
     unsupported PSyIR node is found.
 
     '''
-    # pylint: disable=abstract-method
     # Define a Node which will be unsupported by the visitor
     class Unsupported(Node):
         '''A PSyIR node that will not be supported by the C visitor.'''
@@ -196,7 +195,6 @@ def test_cw_ifblock():
     C representation.
 
     '''
-    from psyclone.psyir.nodes import IfBlock
 
     # Try with just an IfBlock node
     ifblock = IfBlock()
@@ -299,7 +297,7 @@ def test_cw_unaryoperator():
 
     # Test that an unsupported operator raises an error
     class Unsupported(object):
-        # pylint: disable=missing-docstring
+        # pylint: disable=missing-class-docstring
         pass
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
