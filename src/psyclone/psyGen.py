@@ -2828,6 +2828,7 @@ class Kern(Statement):
             kind_type = var_arg.precision
             zero_sum_variable = "_".join([data_value, kind_type])
         else:
+            kind_type = ""
             zero_sum_variable = data_value
         parent.add(AssignGen(parent, lhs=var_name, rhs=zero_sum_variable),
                    position=position)

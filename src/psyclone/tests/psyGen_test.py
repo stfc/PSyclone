@@ -1072,7 +1072,7 @@ def test_reduction_sum_error(dist_mem):
 
 
 def test_call_multi_reduction_error(monkeypatch, dist_mem):
-    '''Check that we raise an exception if we try to create a Call (a
+    ''' Check that we raise an exception if we try to create a Call (a
     Kernel or a Builtin) with more than one reduction in it. Since we have
     a rule that only Builtins can write to scalars we need a built-in that
     attempts to perform two reductions.
