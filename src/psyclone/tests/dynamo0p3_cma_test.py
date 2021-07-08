@@ -390,7 +390,7 @@ def test_invoke_uniq_declns_valid_access_cma_op():
     assert cma_ops_proxy_written == ["cma_op1_proxy"]
 
 
-def test_cma_operator_arg_lfricconst_properties():
+def test_cma_operator_arg_lfricconst_properties(monkeypatch):
     ''' Tests that properties of supported CMA operator arguments
     ('real'-valued 'columnwise_operator_type') defined in LFRicConstants
     are correctly set up in the DynKernelArgument class.
@@ -409,6 +409,18 @@ def test_cma_operator_arg_lfricconst_properties():
     assert cma_op_arg.proxy_data_type == "columnwise_operator_proxy_type"
     assert cma_op_arg.intrinsic_type == "real"
     assert cma_op_arg.precision == "r_def"
+
+    # Monkeypatch to check with an invalid argument type of an
+    # operator argument. The LFRicConstants class needs to be
+    # initialised before the monkeypatch.
+    _ = LFRicConstants()
+    monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
+                        ["calico"])
+    monkeypatch.setattr(cma_op_arg, "_argument_type", "calico")
+    with pytest.raises(InternalError) as err:
+        cma_op_arg._init_data_type_properties()
+    assert ("Expected 'gh_operator' or 'gh_columnwise_operator' "
+            "argument type but found 'calico'." in str(err.value))
 
 
 CMA_APPLY = '''

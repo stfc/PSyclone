@@ -431,7 +431,7 @@ def test_invoke_uniq_declns_valid_access_op():
     assert ops_proxy_written == ["op4_proxy"]
 
 
-def test_operator_arg_lfricconst_properties():
+def test_operator_arg_lfricconst_properties(monkeypatch):
     ''' Tests that properties of supported LMA operator arguments
     ('real'-valued 'operator_type') defined in LFRicConstants are
     correctly set up in the DynKernelArgument class.
@@ -449,6 +449,18 @@ def test_operator_arg_lfricconst_properties():
     assert op_arg.proxy_data_type == "operator_proxy_type"
     assert op_arg.intrinsic_type == "real"
     assert op_arg.precision == "r_def"
+
+    # Monkeypatch to check with an invalid argument type of an
+    # operator argument. The LFRicConstants class needs to be
+    # initialised before the monkeypatch.
+    _ = LFRicConstants()
+    monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
+                        ["tuxedo"])
+    monkeypatch.setattr(op_arg, "_argument_type", "tuxedo")
+    with pytest.raises(InternalError) as err:
+        op_arg._init_data_type_properties()
+    assert ("Expected 'gh_operator' or 'gh_columnwise_operator' "
+            "argument type but found 'tuxedo'." in str(err.value))
 
 
 def test_operator(tmpdir):

@@ -8684,9 +8684,9 @@ class DynKernelArgument(KernelArgument):
                 argtype = "columnwise_operator"
             else:
                 raise InternalError(
-                    "Expected one of {0} argument types for an operator "
-                    "argument but found '{1}'.".
-                    format(const.VALID_OPERATOR_NAMES, self.argument_type))
+                    "Expected 'gh_operator' or 'gh_columnwise_operator' "
+                    "argument type but found '{0}'.".
+                    format(self.argument_type))
             # Set operator properties as defined in the LFRic infrastructure
             self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
             self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
@@ -8790,21 +8790,23 @@ class DynKernelArgument(KernelArgument):
         return self._name
 
     @property
-    def proxy_data_type(self):
-        '''
-        :returns: the type of this argument's proxy (if it exists) as \
-                  defined in LFRic infrastructure.
-        :rtype: str or NoneType
-
-        '''
-        return self._proxy_data_type
-
-    @property
     def proxy_name(self):
         '''
         :returns: the proxy name for this argument.
         :rtype: str
         '''
+        return self._name+"_proxy"
+
+    @property
+    def proxy_name_indexed(self):
+        '''
+        :returns: the proxy name for this argument with an additional \
+                  index which accesses the first element for a vector \
+                  argument.
+        :rtype: str
+        '''
+        if self._vector_size > 1:
+            return self._name+"_proxy(1)"
         return self._name+"_proxy"
 
     @property
@@ -8819,16 +8821,14 @@ class DynKernelArgument(KernelArgument):
         return self.proxy_name
 
     @property
-    def proxy_name_indexed(self):
+    def proxy_data_type(self):
         '''
-        :returns: the proxy name for this argument with an additional \
-                  index which accesses the first element for a vector \
-                  argument.
-        :rtype: str
+        :returns: the type of this argument's proxy (if it exists) as \
+                  defined in LFRic infrastructure.
+        :rtype: str or NoneType
+
         '''
-        if self._vector_size > 1:
-            return self._name+"_proxy(1)"
-        return self._name+"_proxy"
+        return self._proxy_data_type
 
     @property
     def function_space(self):

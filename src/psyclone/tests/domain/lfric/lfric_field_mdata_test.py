@@ -548,7 +548,7 @@ def test_field_invoke_uniq_declns_valid_intrinsic():
                           "i5", "i6", "n5", "n6", "i7", "i8", "n7"]
 
 
-def test_field_arg_lfricconst_properties():
+def test_field_arg_lfricconst_properties(monkeypatch):
     ''' Tests that properties of all supported types of field arguments
     ('real'-valued 'field_type' and 'integer'-valued 'integer_field_type')
     defined in LFRicConstants are correctly set up in the DynKernelArgument
@@ -577,6 +577,16 @@ def test_field_arg_lfricconst_properties():
     assert field_arg.proxy_data_type == "integer_field_proxy_type"
     assert field_arg.intrinsic_type == "integer"
     assert field_arg.precision == "i_def"
+
+    # Monkeypatch to check with an invalid intrinsic type of a
+    # field argument
+    const = LFRicConstants()
+    monkeypatch.setattr(field_arg, "_intrinsic_type", "black")
+    with pytest.raises(InternalError) as err:
+        field_arg._init_data_type_properties()
+    assert ("Expected one of {0} intrinsic types for a field "
+            "argument but found 'black'.".
+            format(const.VALID_FIELD_INTRINSIC_TYPES)) in str(err.value)
 
 
 def test_multiple_updated_field_args():

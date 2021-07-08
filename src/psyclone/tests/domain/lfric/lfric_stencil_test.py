@@ -49,7 +49,8 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernelArguments, DynKernMetadata, DynStencils
+from psyclone.dynamo0p3 import (DynKern, DynKernelArguments,
+                                DynKernMetadata, DynStencils)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -114,6 +115,33 @@ def test_stencil_metadata():
     assert stencil_descriptor_1.vector_size == 1
 
 
+def test_stencil_field_metadata_too_many_arguments():
+    ''' Check that we raise an exception if more than 5 arguments
+    are provided in the metadata for a 'gh_field' argument type
+    with stencil access.
+
+    '''
+    result = STENCIL_CODE.replace(
+        "(gh_field, gh_real, gh_read, w2, stencil(cross))",
+        "(gh_field, gh_real, gh_read, w2, stencil(cross), w1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert ("each 'meta_arg' entry must have at most 5 arguments" in
+            str(excinfo.value))
+
+
+def test_unsupported_second_argument():
+    '''Check that we raise an exception if stencil extent is specified, as
+    we do not currently support it'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "Kernels with fixed stencil extents are not currently supported" \
+        in str(excinfo.value)
+
+
 def test_valid_stencil_types():
     ''' Check that we successfully parse all valid stencil types. '''
     const = LFRicConstants()
@@ -136,6 +164,54 @@ def test_stencil_read_only():
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
             str(excinfo.value))
+
+
+def test_stencil_field_arg_lfricconst_properties(monkeypatch):
+    ''' Tests that properties of all supported types of field arguments
+    with stencil access ('real'-valued 'field_type' and 'integer'-valued
+    'integer_field_type') defined in LFRicConstants are correctly set up
+    in the DynKernelArgument class.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "stencil_type"
+
+    # Test 'real'-valued field of 'field_type' with stencil access
+    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    stencil_arg = kernel.arguments.args[1]
+    assert stencil_arg.module_name == "field_mod"
+    assert stencil_arg.data_type == "field_type"
+    assert stencil_arg.proxy_data_type == "field_proxy_type"
+    assert stencil_arg.intrinsic_type == "real"
+    assert stencil_arg.precision == "r_def"
+
+    # Test 'integer'-valued fields of 'integer_field_type' with
+    # stencil access
+    code = STENCIL_CODE.replace("gh_field, gh_real",
+                                "gh_field, gh_integer")
+    ast = fpapi.parse(code, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    stencil_arg = kernel.arguments.args[1]
+    assert stencil_arg.module_name == "integer_field_mod"
+    assert stencil_arg.data_type == "integer_field_type"
+    assert stencil_arg.proxy_data_type == "integer_field_proxy_type"
+    assert stencil_arg.intrinsic_type == "integer"
+    assert stencil_arg.precision == "i_def"
+
+    # Monkeypatch to check with an invalid intrinsic type of a
+    # field stencil argument
+    const = LFRicConstants()
+    monkeypatch.setattr(stencil_arg, "_intrinsic_type", "tortoiseshell")
+    with pytest.raises(InternalError) as err:
+        stencil_arg._init_data_type_properties()
+    assert ("Expected one of {0} intrinsic types for a field "
+            "argument but found 'tortoiseshell'.".
+            format(const.VALID_FIELD_INTRINSIC_TYPES)) in str(err.value)
 
 
 def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):

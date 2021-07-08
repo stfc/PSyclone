@@ -402,7 +402,7 @@ def test_scalar_invoke_uniq_declns_valid_intrinsic():
     assert scalars_logical == ["lswitch"]
 
 
-def test_scalar_arg_lfricconst_properties():
+def test_scalar_arg_lfricconst_properties(monkeypatch):
     ''' Tests that properties of all supported types of scalar arguments
     ('real', 'integer' and 'logical') defined in LFRicConstants are
     correctly set up in the DynKernelArgument class.
@@ -438,6 +438,16 @@ def test_scalar_arg_lfricconst_properties():
     assert scalar_arg.proxy_data_type is None
     assert scalar_arg.intrinsic_type == "logical"
     assert scalar_arg.precision == "l_def"
+
+    # Monkeypatch to check with an invalid intrinsic type of a
+    # scalar argument
+    const = LFRicConstants()
+    monkeypatch.setattr(scalar_arg, "_intrinsic_type", "tabby")
+    with pytest.raises(InternalError) as err:
+        scalar_arg._init_data_type_properties()
+    assert ("Expected one of {0} intrinsic types for a scalar "
+            "argument but found 'tabby'.".
+            format(const.VALID_INTRINSIC_TYPES)) in str(err.value)
 
 
 def test_multiple_updated_scalar_args():
