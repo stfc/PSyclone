@@ -193,7 +193,7 @@ class ParallelLoopTrans(LoopTrans):
                              this directive applies or None.
 
         :returns: the new Directive node.
-        :rtype: sub-class of :py:class:`psyclone.psyGen.Directive`.
+        :rtype: sub-class of :py:class:`psyclone.psyir.nodes.Directive`.
         '''
 
     def validate(self, node, options=None):
@@ -420,7 +420,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param int collapse: currently un-used but required to keep \
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST
-        :rtype: :py:class:`psyclone.psyGen.OMPDoDirective`
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective`
         :raises NotImplementedError: if a collapse argument is supplied
         '''
         if collapse:
@@ -577,8 +577,8 @@ class ACCLoopTrans(ParallelLoopTrans):
           end do
 
         At code-generation time (when
-        :py:meth:`psyclone.psyGen.ACCLoopDirective.gen_code` is called), this
-        node must be within (i.e. a child of) a PARALLEL region.
+        :py:meth:`psyclone.psyir.nodes.ACCLoopDirective.gen_code` is called),
+        this node must be within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the \
                      Loop transformation.
@@ -1616,7 +1616,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                      is provided and None if not.
 
         :raises TransformationError: if the parent of the loop is a\
-            :py:class:`psyclone.psyGen.Directive`.
+            :py:class:`psyclone.psyir.nodes.Directive`.
         :raises TransformationError: if the parent of the loop is not a\
             :py:class:`psyclone.psyir.nodes.Loop` or a\
             :py:class:`psyclone.psyGen.DynInvokeSchedule`.

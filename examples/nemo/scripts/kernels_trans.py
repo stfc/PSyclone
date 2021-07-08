@@ -62,11 +62,11 @@ from __future__ import print_function
 import logging
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
-from psyclone.psyGen import TransInfo, ACCDirective, ACCLoopDirective
+from psyclone.psyGen import TransInfo
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, NaryOperation, Loop, \
-    Literal, Return, Call
+    Literal, Return, Call, ACCDirective, ACCLoopDirective
 from psyclone.psyir.symbols import ScalarType
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.errors import InternalError

@@ -44,7 +44,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import  ACCKernelsDirective, Loop
+from psyclone.psyir.nodes import ACCKernelsDirective, Loop
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.transformations import ACCKernelsTrans, ACCLoopTrans
 from psyclone.psyir.nodes import Assignment
