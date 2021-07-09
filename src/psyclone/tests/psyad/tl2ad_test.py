@@ -51,7 +51,8 @@ from psyclone.psyir.symbols import SymbolTable, RoutineSymbol, DataSymbol, \
     GlobalInterface, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE, ArrayType
 from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
     generate_adjoint_test
-from psyclone.psyad.tl2ad import _find_container, _create_inner_product
+from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
+    _create_array_inner_product
 
 
 # 1: generate_adjoint_str function
@@ -238,6 +239,23 @@ def test_create_inner_product_errors():
             str(err.value))
 
 
+def test_create_array_inner_product():
+    ''' Tests for the _create_array_inner_product function. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    array_type = ArrayType(INTEGER_TYPE, [10])
+    var1 = DataSymbol("var1", INTEGER_TYPE)
+    var2 = DataSymbol("var2", array_type)
+    with pytest.raises(TypeError) as err:
+        _create_array_inner_product(accum, var1, var2)
+    assert ("Symbols 'var1' and 'var2' because they represent different "
+            "datatypes" in str(err.value))
+    var2 = DataSymbol("var2", INTEGER_TYPE)
+    with pytest.raises(TypeError) as err:
+        _create_array_inner_product(accum, var1, var2)
+    assert ("Supplied Symbols must represent arrays but got 'Scalar<INTEGER, "
+            "UNDEFINED>' for 'var1'" in str(err.value))
+
+
 def test_create_inner_product_scalars(fortran_writer):
     ''' Test for utility that creates PSyIR for computing an
     inner product when given scalars. '''
@@ -295,6 +313,26 @@ def test_create_inner_product_arrays(fortran_writer):
     assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
     code = fortran_writer(nodes[1])
     assert "result = result + SUM(var1(:,:,:) * var2(:,:,:))" in code
+
+
+def test_inner_product_scalars_and_arrays(fortran_writer):
+    ''' Test for utility that creates PSyIR for computing an
+    inner product when given arrays and scalars. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    array3d_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
+    vars3d = DataSymbol("var1", array3d_type), DataSymbol("var2", array3d_type)
+    array1d_type = ArrayType(INTEGER_TYPE, [5])
+    vecs = DataSymbol("vec1", array1d_type), DataSymbol("vec2", array1d_type)
+    scals = DataSymbol("a1", REAL_TYPE), DataSymbol("a2", REAL_TYPE)
+    nodes = _create_inner_product(accum, [vars3d, vecs, scals])
+    assert len(nodes) == 4
+    assert all([isinstance(node, Assignment) for node in nodes])
+    assert fortran_writer(nodes[0]) == "result = 0.0\n"
+    assert (fortran_writer(nodes[1]) ==
+            "result = result + SUM(var1(:,:,:) * var2(:,:,:))\n")
+    assert (fortran_writer(nodes[2]) ==
+            "result = result + DOT_PRODUCT(vec1, vec2)\n")
+    assert (fortran_writer(nodes[3]) == "result = result + a1 * a2\n")
 
 
 def test_generate_adjoint_test_errors():
