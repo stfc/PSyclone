@@ -257,7 +257,7 @@ def test_create_inner_product_scalars(fortran_writer):
     assert "result = result + var1 * var2" in code
 
 
-def test_create_inner_product_arrays(fortran_writer):
+def test_create_inner_product_1d_arrays(fortran_writer):
     ''' Test for utility that creates PSyIR for computing an
     inner product when given rank-1 arrays. '''
     accum = DataSymbol("result", REAL_DOUBLE_TYPE)
@@ -275,6 +275,26 @@ def test_create_inner_product_arrays(fortran_writer):
     assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
     code = fortran_writer(nodes[1])
     assert "result = result + DOT_PRODUCT(var1, var2)" in code
+
+
+def test_create_inner_product_arrays(fortran_writer):
+    ''' Test for utility that creates PSyIR for computing an
+    inner product when given arrays with rank > 1. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
+    var1 = DataSymbol("var1", array_type)
+    var2 = DataSymbol("var2", array_type)
+    nodes = _create_inner_product(accum, [(var1, var2)])
+    assert len(nodes) == 2
+    assert isinstance(nodes[0], Assignment)
+    assert nodes[0].lhs.symbol is accum
+    assert nodes[0].rhs.value == "0.0"
+    assert isinstance(nodes[1], Assignment)
+    assert nodes[1].lhs.symbol is accum
+    assert isinstance(nodes[1].rhs, BinaryOperation)
+    assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
+    code = fortran_writer(nodes[1])
+    assert "result = result + SUM(var1(:,:,:) * var2(:,:,:))" in code
 
 
 def test_generate_adjoint_test_errors():

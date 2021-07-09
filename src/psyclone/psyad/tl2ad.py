@@ -44,10 +44,10 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
-    CodeBlock, FileContainer
+    CodeBlock, FileContainer, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, LocalInterface, \
-    GlobalInterface, REAL_DOUBLE_TYPE, ContainerSymbol, ScalarType, \
-    RoutineSymbol, DataSymbol
+    GlobalInterface, ContainerSymbol, ScalarType, ArrayType, \
+    RoutineSymbol, DataSymbol, INTEGER_TYPE, REAL_DOUBLE_TYPE
 
 
 def generate_adjoint_str(tl_fortran_str, create_test=False):
@@ -213,9 +213,6 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         be converted to a subroutine in order to construct the test harness).
 
     '''
-    # TODO the information on the active variables will have to be
-    # extracted from markup in the TL kernel source.
-    active_variables = ['field']
     # TODO provide some way of dimensioning the test arrays
     array_dim_size = 20
 
@@ -404,25 +401,25 @@ def _create_inner_product(result, symbol_pairs):
     :rtype: list of :py:class:`psyclone.psyir.nodes.Assignment`
 
     :raises TypeError: if any pair of symbols represent different datatypes.
-    :raises NotImplementedError: if any of the symbols represent arrays with \
-                                 more than one dimension.
 
     '''
+    # Zero the variable used to accumulate the result
+    statements = [Assignment.create(Reference(result),
+                                    Literal("0.0", REAL_DOUBLE_TYPE))]
 
-    zero = Literal("0.0", REAL_DOUBLE_TYPE)
-
-    statements = [Assignment.create(Reference(result), zero.copy())]
+    # Now generate code to compute the inner product of each pair of symbols
     for (sym1, sym2) in symbol_pairs:
 
-        if sym1.datatype != sym2.datatype:
-            raise TypeError(
-                "Cannot compute inner product of Symbols '{0}' and '{1}' "
-                "because they represent different datatypes ({2} and {3}, "
-                "respectively).".format(
-                    sym1.name, sym2.name, str(sym1.datatype),
-                    str(sym2.datatype)))
-
         if sym1.is_scalar:
+
+            if sym1.datatype != sym2.datatype:
+                raise TypeError(
+                    "Cannot compute inner product of Symbols '{0}' and '{1}' "
+                    "because they represent different datatypes ({2} and {3}, "
+                    "respectively).".format(
+                        sym1.name, sym2.name, str(sym1.datatype),
+                        str(sym2.datatype)))
+
             prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                           Reference(sym1), Reference(sym2))
             statements.append(
@@ -430,25 +427,88 @@ def _create_inner_product(result, symbol_pairs):
                     Reference(result),
                     BinaryOperation.create(BinaryOperation.Operator.ADD,
                                            Reference(result), prod)))
-        elif sym1.is_array:
+        else:
 
-            if len(sym1.datatype.shape) > 1:
-                raise NotImplementedError(
-                    "Cannot compute the inner product of arrays with rank > 1 "
-                    "but '{0}' has rank {1}".format(sym1.name,
-                                                    len(sym1.datatype.shape)))
-            # TODO PSyIR does not support the DOT_PRODUCT (Fortran) intrinsic
-            # so we create a CodeBlock.
-            ptree = Fortran2003.Expr("DOT_PRODUCT({0}, {1})".format(
-                sym1.name, sym2.name))
-            cblock = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
-            statements.append(
-                Assignment.create(
-                    Reference(result),
-                    BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                           Reference(result), cblock)))
+            statements.append(_create_array_inner_product(result, sym1, sym2))
 
     return statements
+
+
+def _create_array_inner_product(result, array1, array2):
+    '''
+    Generates the PSyIR for the innerproduct of array1 and array2 with
+    accumulation into the 'result' symbol.
+
+    :param result: symbol which will accumulate result.
+    :type result: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param array1: symbol representing first array.
+    :type array1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param array2: symbol representing second array.
+    :type array2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :raises TypeError: if the array1 and array2 symbols have different
+                       datatypes or are not of ArrayType.
+    '''
+    if array1.datatype != array2.datatype:
+        raise TypeError(
+            "Cannot compute inner product of Symbols '{0}' and '{1}' "
+            "because they represent different datatypes ({2} and {3}, "
+            "respectively).".format(
+                array1.name, array2.name, str(array1.datatype),
+                str(array2.datatype)))
+
+    if not isinstance(array1.datatype, ArrayType):
+        raise TypeError(
+            "Supplied Symbols must represent arrays but got '{0}' for '{1}'.".
+            format(array1.datatype, array1.name))
+
+    if len(array1.datatype.shape) == 1:
+        # TODO PSyIR does not support the DOT_PRODUCT (Fortran) intrinsic
+        # so we create a CodeBlock.
+        ptree = Fortran2003.Expr("DOT_PRODUCT({0}, {1})".format(
+            array1.name, array2.name))
+        cblock = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
+
+        return Assignment.create(
+            Reference(result),
+            BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Reference(result), cblock))
+    else:
+        # Create a matrix inner product
+        ranges1 = []
+        ranges2 = []
+        # Generate a Range object for each dimension of each array
+        for idx in range(len(array1.datatype.shape)):
+            idx_literal = Literal(str(idx+1), INTEGER_TYPE)
+            lbound1 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                             Reference(array1),
+                                             idx_literal.copy())
+            ubound1 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                             Reference(array1),
+                                             idx_literal.copy())
+            ranges1.append(Range.create(lbound1, ubound1))
+
+            lbound2 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                             Reference(array2),
+                                             idx_literal.copy())
+            ubound2 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                             Reference(array2),
+                                             idx_literal.copy())
+            ranges2.append(Range.create(lbound2, ubound2))
+
+        # Use these Ranges to create references for all elements of both arrays
+        ref1 = ArrayReference.create(array1, ranges1)
+        ref2 = ArrayReference.create(array2, ranges2)
+        # Element-wise product of the arrays
+        prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                      ref1, ref2)
+        # Sum the resulting elements
+        inner = UnaryOperation.create(UnaryOperation.Operator.SUM, prod)
+        # Accumulate the result
+        return Assignment.create(
+            Reference(result),
+            BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Reference(result), inner))
 
 
 __all__ = ["generate_adjoint_str", "generate_adjoint", "generate_adjoint_test"]
