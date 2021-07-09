@@ -38,14 +38,18 @@ transformations.
 '''
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import TransformationError
+
+# pylint: disable=abstract-method
+# pylint: disable=super-with-arguments
 
 
 class AdjointTransformation(Transformation):
     '''An abstract class for Adjoint transformations. Requires a list of
     active variables to be passed when creating an instance of the
-    class.
+    class. Also supports an optional writer argument.
 
     :param active_variables: a list of names of the active variables.
     :type active_variables: list of str
@@ -54,19 +58,33 @@ class AdjointTransformation(Transformation):
     :type writer: subclass of \
         :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
 
+    :raises TransformationError: if the active_variables or writer \
+        arguments are of the wrong type.
+
     '''
     def __init__(self, active_variables, writer=FortranWriter()):
         super(AdjointTransformation, self).__init__()
-        # TODO Check the active_variables argument has valid content
+
         if not isinstance(active_variables, list):
-            raise TransformationError("active variables should be a list")
+            raise TransformationError(
+                "The active variables argument should be a list, but found "
+                "'{0}'.".format(type(active_variables).__name__))
+
         for active_variable in active_variables:
-            if not (isinstance(active_variable, DataSymbol)):
-                raise TransformationError("active variables should be of type DataSymbol")
-        # TODO Check the writer argument is valid.
+            if not isinstance(active_variable, DataSymbol):
+                raise TransformationError(
+                    "Active variables should be of type DataSymbol, but "
+                    "found '{0}'.".format(type(active_variable).__name__))
+
+        if not isinstance(writer, PSyIRVisitor):
+            raise TransformationError(
+                "The writer argument should be a PSyIRVisitor but found "
+                "'{0}'.".format(type(writer).__name__))
+
+        # A list of active variables.
         self._active_variables = active_variables
-        # print (self._active_variables)
-        # The writer to use when outputting error information
+        # The writer to use when outputting error information.
         self._writer = writer
+
 
 __all__ = ["AdjointTransformation"]
