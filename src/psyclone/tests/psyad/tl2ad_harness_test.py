@@ -40,6 +40,7 @@ functionality in the tl2ad.py file within the psyad directory.
 from __future__ import print_function, absolute_import
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
     Assignment, BinaryOperation
 from psyclone.psyir.symbols import SymbolTable, RoutineSymbol, DataSymbol, \
@@ -320,3 +321,156 @@ def test_generate_adjoint_test_no_extent(fortran_reader, fortran_writer):
     # but, since it depends on the TL and adjoint kernels, we can't
     # currently do that (see #284).
     # assert Compile(tmpdir).string_compiles(harness)
+
+
+def test_generate_harness_extent_name_clash(fortran_reader, fortran_writer):
+    ''' Test that we don't get a name clash when one of the kernel arguments
+    matches the name we will give (internally) to the extent of the test
+    arrays. '''
+    tl_code = (
+        "module my_mod\n"
+        "  contains\n"
+        "  subroutine kern(field1, array_extent)\n"
+        "    integer, intent(in) :: array_extent\n"
+        "    real, intent(inout) :: field1(array_extent)\n"
+        "    field1(:) = 0.0\n"
+        "  end subroutine kern\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    prog = test_psyir.walk(Routine)[0]
+    assert "array_extent" in prog.symbol_table
+    assert "array_extent_1" in prog.symbol_table
+    harness = fortran_writer(test_psyir)
+    # The re-named argument should be used to dimension the test arrays and
+    # be passed to the kernels.
+    assert "real, dimension(array_extent_1) :: field1" in harness
+    assert "real, dimension(array_extent_1) :: field1_input" in harness
+    assert "call kern(field1, array_extent_1)" in harness
+    assert "call kern_adj(field1, array_extent_1)" in harness
+
+
+def test_generate_harness_arg_name_clash(fortran_reader, fortran_writer):
+    ''' Test that we don't get a name clash when one of the kernel field
+    arguments matches the name we will give (internally) to the extent of the
+    test arrays. '''
+    tl_code = (
+        "module my_mod\n"
+        "  contains\n"
+        "  subroutine kern(array_extent, extent)\n"
+        "    integer, intent(in) :: extent\n"
+        "    real, intent(inout) :: array_extent(extent)\n"
+        "    array_extent(:) = 0.0\n"
+        "  end subroutine kern\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    prog = test_psyir.walk(Routine)[0]
+    assert "array_extent" in prog.symbol_table
+    assert "array_extent_1" in prog.symbol_table
+    harness = fortran_writer(test_psyir)
+    # The re-named argument should be used to dimension the test arrays and
+    # be passed to the kernels.
+    assert "integer, parameter :: extent = array_extent" in harness
+    assert "real, dimension(extent) :: array_extent_1" in harness
+    assert "real, dimension(extent) :: array_extent_1_input" in harness
+    assert "call kern(array_extent_1, extent)" in harness
+    assert "call kern_adj(array_extent_1, extent)" in harness
+
+
+def test_generate_harness_routine_name_clash(fortran_reader, fortran_writer):
+    ''' Test that we don't get a name clash when one of the kernel arguments
+    matches the name we will give (internally) to the extent of the test
+    arrays. '''
+    tl_code = (
+        "module my_mod\n"
+        "  contains\n"
+        "  subroutine array_extent(field1, extent)\n"
+        "    integer, intent(in) :: extent\n"
+        "    real, intent(inout) :: field1(extent)\n"
+        "    field1(:) = 0.0\n"
+        "  end subroutine array_extent\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    harness = fortran_writer(test_psyir)
+    assert "integer, parameter :: array_extent_1 = 20" in harness
+    assert "integer, parameter :: extent = array_extent_1" in harness
+
+
+def test_generate_harness_kernel_arg_static_shape(fortran_reader,
+                                                  fortran_writer):
+    ''' Test that we generate the correct array extents when a kernel
+    defines the extent of an argument with a literal value. '''
+    tl_code = (
+        "module my_mod\n"
+        "  contains\n"
+        "  subroutine array_extent(field1, npts)\n"
+        "    integer, intent(in) :: npts\n"
+        "    real, intent(inout) :: field1(10, npts)\n"
+        "    field1(:,:) = 0.0\n"
+        "  end subroutine array_extent\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    harness = fortran_writer(test_psyir)
+    assert "integer, parameter :: npts = array_extent_1" in harness
+    assert "real, dimension(10,npts) :: field1" in harness
+    assert "real, dimension(10,npts) :: field1_input" in harness
+
+
+def test_generate_harness_kernel_arg_shape_error(fortran_reader,
+                                                 fortran_writer):
+    ''' Test that we raise the expected error if the shape of a kernel
+    argument is a variable that is not passed as an argument. '''
+    tl_code = (
+        "module my_mod\n"
+        "  contains\n"
+        "  subroutine array_extent(field1)\n"
+        "    use some_mod, only: npts\n"
+        "    real, intent(inout) :: field1(10, npts)\n"
+        "    field1(:,:) = 0.0\n"
+        "  end subroutine array_extent\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir)
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint_test(tl_psyir, ad_psyir)
+    assert ("Found argument 'field1' to kernel 'array_extent' which has a "
+            "reference to 'npts' in its shape. However, 'npts' is not passed "
+            "as an argument. This is not supported." in str(err.value))
+
+
+def test_generate_harness_kernel_arg_invalid_shape(fortran_reader):
+    ''' Test that the test-harness generation raises the expected error if
+    a kernel argument's shape is invalid. '''
+    tl_code = (
+        "module my_mod\n"
+        "  contains\n"
+        "  subroutine kernel(field1, npts)\n"
+        "    integer, intent(in) :: npts\n"
+        "    real, intent(inout) :: field1(10, npts)\n"
+        "    field1(:,:) = 0.0\n"
+        "  end subroutine kernel\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir)
+    # Get hold of the kernel argument and break its shape definition
+    kernel = tl_psyir.walk(Routine)[0]
+    fld_arg = kernel.symbol_table.argument_list[0]
+    fld_arg.datatype._shape = [1] + fld_arg.datatype._shape[1:]
+    with pytest.raises(InternalError) as err:
+        generate_adjoint_test(tl_psyir, ad_psyir)
+    assert ("Argument 'field1' to kernel 'kernel' contains a 'int' in its "
+            "shape definition but expected an ArrayType.Extent, a Reference "
+            "or a Literal" in str(err.value))

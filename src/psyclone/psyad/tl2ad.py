@@ -44,10 +44,10 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
-    CodeBlock, FileContainer, ArrayReference, Range
-from psyclone.psyir.symbols import SymbolTable, LocalInterface, \
-    GlobalInterface, ContainerSymbol, ScalarType, ArrayType, \
-    RoutineSymbol, DataSymbol, INTEGER_TYPE, REAL_DOUBLE_TYPE
+    CodeBlock, FileContainer, ArrayReference, Range, DataNode
+from psyclone.psyir.symbols import SymbolTable, GlobalInterface, \
+    ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
+    INTEGER_TYPE, REAL_DOUBLE_TYPE
 
 
 def generate_adjoint_str(tl_fortran_str, create_test=False):
@@ -211,17 +211,16 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     :raises NotImplementedError: if the supplied TL/Adjoint PSyIR contains \
         just a Routine that is a Program (since this would have to \
         be converted to a subroutine in order to construct the test harness).
+    :raises NotImplementedError: if on of the kernel arguments is dimensioned \
+        by a variable that is not passed as an argument.
+    :raises InternalError: if a kernel argument has a shape defined by \
+        something other than ArrayType.Extent or a Reference.
 
     '''
     symbol_table = SymbolTable()
 
     # TODO #1331 provide some way of configuring the extent of the test arrays
     array_dim_size = 20
-    # Create a symbol to hold this value.
-    dim_size_sym = symbol_table.new_symbol("array_extent",
-                                           symbol_type=DataSymbol,
-                                           datatype=INTEGER_TYPE,
-                                           constant_value=array_dim_size)
 
     # We expect a single Container containing a single Kernel. Anything else
     # is not supported. However, we have to allow for the fact that, in
@@ -270,6 +269,13 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         adjoint_kernel_name, symbol_type=RoutineSymbol,
         interface=GlobalInterface(adj_container))
 
+    # Create a symbol to hold the extent of any test arrays. This is done here
+    # to avoid any clashes with any of the container and kernel names.
+    dim_size_sym = symbol_table.new_symbol("array_extent",
+                                           symbol_type=DataSymbol,
+                                           datatype=INTEGER_TYPE,
+                                           constant_value=array_dim_size)
+
     # Create symbols for the results of the inner products
     inner1 = symbol_table.new_symbol("inner1", symbol_type=DataSymbol,
                                      datatype=REAL_DOUBLE_TYPE)
@@ -290,20 +296,22 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     for arg in tl_kernel.symbol_table.argument_datasymbols:
         if arg.is_array:
             for dim in arg.shape:
-                if not isinstance(dim, ArrayType.Extent):
+                if isinstance(dim, DataNode):
                     for ref in dim.walk(Reference):
                         if ref.symbol in integer_scalars:
                             dimensioning_args.add(ref.symbol)
 
     # Create local versions of these dimensioning variables in the test
-    # program.
+    # program. Since they are dimensioning variables, they have to be given
+    # a value. We create new symbols in order to ensure any name clashes
+    # are handled and add them to a dict so we can map from the original
+    # kernel arguments to the new symbols in the test harness.
+    new_dim_args_map = {}
     for arg in dimensioning_args:
-        new_sym = arg.copy()
-        # The arguments will be local variables in the test program
-        new_sym.interface = LocalInterface()
-        # Since they are dimensioning variables, they have to be given a value
-        new_sym.constant_value = array_dim_size
-        symbol_table.add(new_sym)
+        new_dim_args_map[arg] = symbol_table.new_symbol(
+            arg.name, symbol_type=DataSymbol,
+            datatype=arg.datatype,
+            constant_value=Reference(dim_size_sym))
 
     # Create necessary variables for the kernel arguments.
     inputs = []
@@ -311,12 +319,15 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     new_arg_list = []
     for arg in tl_kernel.symbol_table.argument_list:
         if arg in dimensioning_args:
-            new_arg_list.append(symbol_table.lookup(arg.name))
+            # This is a dimensioning argument - look up the test-harness
+            # equivalent using the map we constructed earlier.
+            new_arg_list.append(new_dim_args_map[arg])
             continue
         if arg.is_scalar:
-            new_sym = arg.copy()
-            # The arguments will be local variables in the test program
-            new_sym.interface = LocalInterface()
+            # The arguments will be local variables in the test program. We
+            # use `new_symbol` to ensure there are no name clashes.
+            new_sym = symbol_table.new_symbol(arg.name, symbol_type=DataSymbol,
+                                              datatype=arg.datatype)
         else:
             # Since a Symbol's shape is immutable, we have to create a new
             # symbol in case the argument is of assumed size.
@@ -326,11 +337,28 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                     # This dimension is assumed size so we have to give it
                     # an explicit size in the test program.
                     new_shape.append(Reference(dim_size_sym))
+                elif isinstance(dim, Reference):
+                    if dim.symbol in new_dim_args_map:
+                        new_shape.append(
+                            Reference(new_dim_args_map[dim.symbol]))
+                    else:
+                        raise NotImplementedError(
+                            "Found argument '{0}' to kernel '{1}' which has a "
+                            "reference to '{2}' in its shape. However, '{2}' "
+                            "is not passed as an argument. This is not "
+                            "supported.".format(
+                                arg.name, tl_kernel.name, dim.symbol.name))
+                elif isinstance(dim, Literal):
+                    new_shape.append(dim.copy())
                 else:
-                    new_shape.append(dim)
-            new_sym = DataSymbol(arg.name,
-                                 ArrayType(arg.datatype, new_shape))
-        symbol_table.add(new_sym)
+                    raise InternalError(
+                        "Argument '{0}' to kernel '{1}' contains a '{2}' in "
+                        "its shape definition but expected an ArrayType."
+                        "Extent, a Reference or a Literal".format(
+                            arg.name, tl_kernel.name, type(dim).__name__))
+            new_sym = symbol_table.new_symbol(arg.name, symbol_type=DataSymbol,
+                                              datatype=ArrayType(arg.datatype,
+                                                                 new_shape))
         new_arg_list.append(new_sym)
         # Create variables to hold a copy of the inputs
         input_sym = symbol_table.new_symbol(new_sym.name+"_input",
@@ -353,7 +381,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         statements.append(
             Assignment.create(Reference(sym_copy), Reference(sym)))
 
-    # Call the kernel for a single cell column
+    # Call the TL kernel
     statements.append(Call.create(tl_kernel_sym,
                                   [Reference(sym) for sym in new_arg_list]))
 
