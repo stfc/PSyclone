@@ -427,7 +427,7 @@ class FortranWriter(PSyIRVisitor):
 
         if is_symbol:
             if isinstance(symbol.datatype, UnknownFortranType):
-                if not symbol.is_local:
+                if isinstance(symbol, RoutineSymbol) and not symbol.is_local:
                     raise VisitorError(
                         "{0} '{1}' is of UnknownFortranType but has"
                         " interface '{2}' instead of LocalInterface. This is "
