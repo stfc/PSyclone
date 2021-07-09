@@ -66,6 +66,7 @@ TEST_MOD = (
 EXPECTED_HARNESS_CODE = ('''program adj_test
   use my_mod, only : kern
   use my_mod_adj, only : kern_adj
+  integer, parameter :: array_extent = 20
   double precision :: inner1
   double precision :: inner2
   double precision :: abs_diff

@@ -213,8 +213,15 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         be converted to a subroutine in order to construct the test harness).
 
     '''
-    # TODO provide some way of dimensioning the test arrays
+    symbol_table = SymbolTable()
+
+    # TODO #1331 provide some way of configuring the extent of the test arrays
     array_dim_size = 20
+    # Create a symbol to hold this value.
+    dim_size_sym = symbol_table.new_symbol("array_extent",
+                                           symbol_type=DataSymbol,
+                                           datatype=INTEGER_TYPE,
+                                           constant_value=array_dim_size)
 
     # We expect a single Container containing a single Kernel. Anything else
     # is not supported. However, we have to allow for the fact that, in
@@ -248,8 +255,6 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     # Get the Container and Routine names from the PSyIR of the adjoint.
     adjoint_kernel_name = ad_psyir.walk(Routine)[0].name
     adjoint_module_name = ad_psyir.walk(Container)[1].name
-
-    symbol_table = SymbolTable()
 
     # Create a symbol for the TL kernel
     csym = ContainerSymbol(container.name)
@@ -285,10 +290,10 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     for arg in tl_kernel.symbol_table.argument_datasymbols:
         if arg.is_array:
             for dim in arg.shape:
-                refs = dim.walk(Reference)
-                for ref in refs:
-                    if ref.symbol in integer_scalars:
-                        dimensioning_args.add(ref.symbol)
+                if not isinstance(dim, ArrayType.Extent):
+                    for ref in dim.walk(Reference):
+                        if ref.symbol in integer_scalars:
+                            dimensioning_args.add(ref.symbol)
 
     # Create local versions of these dimensioning variables in the test
     # program.
@@ -308,9 +313,23 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         if arg in dimensioning_args:
             new_arg_list.append(symbol_table.lookup(arg.name))
             continue
-        new_sym = arg.copy()
-        # The arguments will be local variables in the test program
-        new_sym.interface = LocalInterface()
+        if arg.is_scalar:
+            new_sym = arg.copy()
+            # The arguments will be local variables in the test program
+            new_sym.interface = LocalInterface()
+        else:
+            # Since a Symbol's shape is immutable, we have to create a new
+            # symbol in case the argument is of assumed size.
+            new_shape = []
+            for dim in arg.datatype.shape:
+                if isinstance(dim, ArrayType.Extent):
+                    # This dimension is assumed size so we have to give it
+                    # an explicit size in the test program.
+                    new_shape.append(Reference(dim_size_sym))
+                else:
+                    new_shape.append(dim)
+            new_sym = DataSymbol(arg.name,
+                                 ArrayType(arg.datatype, new_shape))
         symbol_table.add(new_sym)
         new_arg_list.append(new_sym)
         # Create variables to hold a copy of the inputs
@@ -463,7 +482,7 @@ def _create_array_inner_product(result, array1, array2):
             format(array1.datatype, array1.name))
 
     if len(array1.datatype.shape) == 1:
-        # TODO PSyIR does not support the DOT_PRODUCT (Fortran) intrinsic
+        # PSyIR does not support the DOT_PRODUCT (Fortran) intrinsic
         # so we create a CodeBlock.
         ptree = Fortran2003.Expr("DOT_PRODUCT({0}, {1})".format(
             array1.name, array2.name))
