@@ -1238,7 +1238,22 @@ class FortranWriter(PSyIRVisitor):
             if is_fortran_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
                 return "{0}({1})".format(fort_oper, content)
+            # It's not an intrinsic function so we need to consider the
+            # parent node. If that is a UnaryOperation or a BinaryOperation
+            # such as '-' or '**' then we need parentheses. This ensures we
+            # don't generate invalid Fortran such as 'a ** -b' or 'a - -b'.
+            parent = node.parent
+            if isinstance(parent, UnaryOperation):
+                parent_fort_oper = get_fortran_operator(parent.operator)
+                if not is_fortran_intrinsic(parent_fort_oper):
+                    return "({0}{1})".format(fort_oper, content)
+            if isinstance(parent, BinaryOperation):
+                parent_fort_oper = get_fortran_operator(parent.operator)
+                if (not is_fortran_intrinsic(parent_fort_oper) and
+                        node is parent.children[1]):
+                    return "({0}{1})".format(fort_oper, content)
             return "{0}{1}".format(fort_oper, content)
+
         except KeyError:
             raise VisitorError("Unexpected unary op '{0}'.".format(
                 node.operator))
@@ -1261,13 +1276,6 @@ class FortranWriter(PSyIRVisitor):
         PSyIR tree. It returns the content of the CodeBlock as a
         Fortran string, indenting as appropriate.
 
-        At the moment it is not possible to distinguish between a
-        codeblock that is one or more full lines (and therefore needs
-        a newline added) and a codeblock that is part of a line (and
-        therefore does not need a newline). The current implementation
-        adds a newline irrespective. This is the subject of issue
-        #388.
-
         :param node: a CodeBlock PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.CodeBlock`
 
@@ -1279,7 +1287,10 @@ class FortranWriter(PSyIRVisitor):
         if node.structure == CodeBlock.Structure.STATEMENT:
             # indent and newlines required
             for ast_node in node.get_ast_nodes:
-                result += "{0}{1}\n".format(self._nindent, str(ast_node))
+                # Using tofortran() ensures we get any label associated
+                # with this statement.
+                result += "{0}{1}\n".format(self._nindent,
+                                            ast_node.tofortran())
         elif node.structure == CodeBlock.Structure.EXPRESSION:
             for ast_node in node.get_ast_nodes:
                 result += str(ast_node)
