@@ -2054,11 +2054,19 @@ class Fparser2Reader(object):
             if isinstance(node, Fortran2003.Interface_Block):
 
                 # We only support named interface blocks, and then only
-                # partially.
-                names = walk(node.children[0], Fortran2003.Name)
-                if not names:
+                # partially. Fortran standard R1203 says that:
+                #    interface-stmt = INTERFACE [ generic-spec ]
+                # where generic-spec is either (R1207) a generic-name or one
+                # of OPERATOR, ASSIGNMENT or dtio-spec.
+                if (not isinstance(node.children[0],
+                                   Fortran2003.Interface_Stmt) or
+                    not isinstance(node.children[0].children[0],
+                                   Fortran2003.Name)):
+                    # An unsupported interface definition will result in
+                    # the whole module containing this specification part
+                    # being put into a CodeBlock.
                     raise NotImplementedError()
-                name = names[0].string
+                name = node.children[0].children[0].string
                 vis = visibility_map.get(name, default_visibility)
                 # A named interface block corresponds to a RoutineSymbol.
                 # (There will be calls to it although there will be no

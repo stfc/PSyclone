@@ -85,20 +85,20 @@ def test_generic_interface(fortran_reader):
         that defines interfaces to external routines. '''
     dummy_module = '''
     module dummy_mod
-      INTERFACE
-      SUBROUTINE EXT1 (X, Y, Z)
-      REAL, DIMENSION (100, 100) :: X, Y, Z
-      END SUBROUTINE EXT1
-      SUBROUTINE EXT2 (X, Z)
-      REAL X
-      COMPLEX (KIND = 4) Z (2000)
-      END SUBROUTINE EXT2
-      FUNCTION EXT3 (P, Q)
-      LOGICAL EXT3
-      INTEGER P (1000)
-      LOGICAL Q (1000)
-      END FUNCTION EXT3
-      END INTERFACE
+      interface
+        subroutine ext1 (x, y, z)
+          real, dimension (100, 100) :: x, y, z
+        end subroutine ext1
+        subroutine ext2 (x, z)
+          real x
+          complex (kind = 4) z (2000)
+        end subroutine ext2
+        function ext3 (p, q)
+          logical ext3
+          integer p (1000)
+          logical q (1000)
+        end function ext3
+      end interface
     end module dummy_mod
     '''
     container = fortran_reader.psyir_from_source(dummy_module)
@@ -113,12 +113,12 @@ def test_operator_interface(fortran_reader):
     that defines an operator. '''
     dummy_module = '''
     module dummy_mod
-      INTERFACE OPERATOR ( * )
-      FUNCTION BOOLEAN_AND (B1, B2)
-        LOGICAL, INTENT (IN) :: B1 (:), B2 (SIZE (B1))
-        LOGICAL :: BOOLEAN_AND (SIZE (B1))
-      END FUNCTION BOOLEAN_AND
-      END INTERFACE OPERATOR ( * )
+      interface operator ( * )
+      function boolean_and (b1, b2)
+        logical, intent (in) :: b1 (:), b2 (size (b1))
+        logical :: boolean_and (size (b1))
+      end function boolean_and
+      end interface operator ( * )
     end module dummy_mod
     '''
     container = fortran_reader.psyir_from_source(dummy_module)
@@ -133,18 +133,18 @@ def test_assignment_interface(fortran_reader):
     defining an assignment. '''
     dummy_module = '''
     module dummy_mod
-      INTERFACE ASSIGNMENT ( = )
-        SUBROUTINE LOGICAL_TO_NUMERIC (N, B)
-          INTEGER, INTENT (OUT) :: N
-          LOGICAL, INTENT (IN) :: B
-        END SUBROUTINE LOGICAL_TO_NUMERIC
-        SUBROUTINE CHAR_TO_STRING (S, C)
-          USE STRING_MODULE
-          ! Contains definition of type STRING
-          TYPE (STRING), INTENT (OUT) :: S ! A variable-length string
-          CHARACTER (*), INTENT (IN) :: C
-        END SUBROUTINE CHAR_TO_STRING
-      END INTERFACE ASSIGNMENT ( = )
+      interface assignment ( = )
+        subroutine logical_to_numeric (n, b)
+          integer, intent (out) :: n
+          logical, intent (in) :: b
+        end subroutine logical_to_numeric
+        subroutine char_to_string (s, c)
+          use string_module
+          ! contains definition of type string
+          type (string), intent (out) :: s ! a variable-length string
+          character (*), intent (in) :: c
+        end subroutine char_to_string
+      end interface assignment ( = )
     end module dummy_mod
     '''
     container = fortran_reader.psyir_from_source(dummy_module)
