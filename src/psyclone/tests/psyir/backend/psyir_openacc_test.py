@@ -200,7 +200,7 @@ def test_nemo_acc_parallel(parser):
     fort_writer = FortranWriter(check_global_constraints=False)
     result = fort_writer(nemo_sched)
 
-    correct = '''!$acc begin parallel default(present)
+    correct = '''!$acc parallel default(present)
 do i = 1, 20, 2
   a = 2 * i + d(i)
   c(i) = a
@@ -300,7 +300,7 @@ def test_gocean_acc_parallel():
     # node validation so as to avoid the need for a data region.
     fvisitor = FortranWriter(check_global_constraints=False)
     result = fvisitor(invoke.schedule[0])
-    correct = '''!$acc begin parallel default(present)
+    correct = '''!$acc parallel default(present)
 a = b
 !$acc end parallel'''
     assert correct in result
