@@ -58,8 +58,8 @@ def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
     monkeypatch.setattr(sym.datatype, "__class__", UnknownType)
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_vardecl(sym)
-    assert ("cannot handle the declaration of a symbol of 'UnknownType'" in
-            str(err.value))
+    assert ("DataSymbol 'b' is of 'UnknownType' type. This is not supported by"
+            " the Fortran backend" in str(err.value))
 
 
 def test_fw_unknown_decln(fortran_writer):
@@ -118,9 +118,8 @@ def test_fw_unknowntype_routine_symbols_error(fortran_writer):
     container.symbol_table.add(RoutineSymbol("eos", OtherType("some code")))
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_decls(container.symbol_table)
-    assert ("Routine symbol 'eos' is of UnknownType rather than "
-            "UnknownFortranType. This is not supported by the Fortran "
-            "back-end" in str(err.value))
+    assert ("RoutineSymbol 'eos' is of 'OtherType' type. This is not supported"
+            " by the Fortran backend" in str(err.value))
 
 
 def test_fw_unknowntype_nonlocal_routine_symbols_error(fortran_writer):
@@ -134,6 +133,6 @@ def test_fw_unknowntype_nonlocal_routine_symbols_error(fortran_writer):
     container.symbol_table.add(sym)
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_decls(container.symbol_table)
-    assert ("Routine symbol 'eos' is of UnknownFortranType but has interface "
+    assert ("RoutineSymbol 'eos' is of UnknownFortranType but has interface "
             "'Global(container='other_mod')' instead of LocalInterface" in
             str(err.value))
