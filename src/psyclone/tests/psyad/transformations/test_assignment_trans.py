@@ -36,9 +36,9 @@
 
 import pytest
 
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
-    Routine, Literal, UnaryOperation
+    Literal, UnaryOperation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.transformations import TransformationError
@@ -98,6 +98,8 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran):
     # Check that the code produced is the same as the expected code
     # provided.
     assert ad_fortran == expected_output_code
+
+# apply() method
 
 
 def test_zero():
@@ -246,8 +248,8 @@ def test_single_valued_assign():
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
-@pytest.mark.xfail(name="issue #xxx literal math_equal() does "
-                   "not work properly.")
+@pytest.mark.xfail(message="issue #1332 literal math_equal() does "
+                   "Not work properly.")
 def test_multi_add():
     '''Test that the adjoint transformation with an assignment of the form
     A = xB + yC + D. This tests that the transformation works when
@@ -387,8 +389,10 @@ def test_increment_multi_add():
 
 def test_multi_increment():
     '''Test that the adjoint transformation with an assignment containing
-    multiple increments 
-    A = A + xA.
+    multiple increments A = A + xA. The adjoint code has the same form
+    as the tangent linear code.
+
+    A=A+xA -> A=A+xA.
 
     '''
     tl_fortran = (
@@ -421,11 +425,13 @@ def test_single_valued_sub():
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  integer :: i\n  integer :: j\n\n"
-        "  b(j) = b(j) + -a(i)\n"
+        "  b(j) = b(j) + (-a(i))\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
+@pytest.mark.xfail(message="issue #1333 Unary '-' should be enclosed in "
+                   "brackets.")
 def test_multi_valued_sub():
     '''Test that the adjoint transformation with an assignment of the form
     A = -B -x(+C) + (-D)y. This tests that the transformation works
@@ -447,9 +453,9 @@ def test_multi_valued_sub():
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
         "  real :: x\n  real :: y\n  integer :: i\n  integer :: j\n\n"
-        "  b(j) = b(j) + -a(i)\n"
-        "  c(i) = c(i) - x * +a(i)\n"
-        "  d(j) = d(j) + -a(i) * y\n"
+        "  b(j) = b(j) + (-a(i))\n"
+        "  c(i) = c(i) - x * (+a(i))\n"
+        "  d(j) = d(j) + (-a(i)) * y\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
@@ -546,7 +552,7 @@ def test_different_indices():
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
-@pytest.mark.xfail(name="issue #xxx literal math_equal() does "
+@pytest.mark.xfail(name="issue #1332 literal math_equal() does "
                    "not work properly.")
 def test_same_indices_ordering():
     '''Test that the adjoint transformation recognises that an access is
@@ -590,12 +596,15 @@ def test_same_indices_ordering2():
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
 
-@pytest.mark.xfail(name="issue #xxx structure_reference math_equal() does "
-                   "not work properly.")
+@pytest.mark.xfail(name="issue #1332 math_equal thinks a%b(i) equals a%c(i)")
 def test_different_structures():
     '''Test that the adjoint transformation recognises that an access is
-    not an increment when a structure access differs. For
-    example a%data(i) = a%data(i+1) + a%x(i)
+    not an increment when a structure access differs. For example
+    a%data(i) = a%data(i+1) + a%x(i)
+
+    A%data(i)=A%data(i+i)+A%X(i) -> A%data(i+1)=A%data(i+1)+A%data(i);
+                                    A%x(i)=A%x(i)+A%data(i);
+                                    a%data(i)=0.0
 
     '''
     tl_fortran = (
@@ -608,7 +617,7 @@ def test_different_structures():
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: a\n"
         "  integer :: n\n\n"
-        "  a%data(n+1) = a%data(n+1) + a%data(n)\n"
+        "  a%data(n + 1) = a%data(n + 1) + a%data(n)\n"
         "  a%atad(n) = a%atad(n) + a%data(n)\n"
         "  a%data(n) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran)
@@ -621,7 +630,7 @@ def test_validate_precedence_active_vars(in_op1, in_op2, out_op):
     '''Test that precedence of active variables is taken into account (as
     the sign may need to be flipped in certain cases). For example, see
     'd' below:
-    
+
     a = b+(c+d) => b=b-a;c=c+a;d=d+a;a=0
     a = b+(c-d) => b=b-a;c=c+a;d=d-a;a=0
     a = b-(c+d) => b=b-a;c=c-a;d=d-a;a=0
@@ -641,10 +650,7 @@ def test_validate_precedence_active_vars(in_op1, in_op2, out_op):
         "  a = 0.0\n\n".format(out_op, in_op2))
     check_adjoint(tl_fortran, active_variables, ad_fortran)
 
-# Validate method
-
-# TODO Create issues for failing tests
-# TODO Check specified active variables are real (if their type is known).
+# validate() method
 
 
 def test_validate_node():
@@ -669,7 +675,8 @@ def test_validate_not_active():
     '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
-    assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
+    assignment = Assignment.create(
+        Reference(lhs_symbol), Reference(rhs_symbol))
     trans = AssignmentTrans(active_variables=[
         DataSymbol("c", REAL_TYPE), DataSymbol("aa", REAL_TYPE),
         DataSymbol("ab", REAL_TYPE)])
@@ -687,7 +694,8 @@ def test_validate_active_rhs():
     '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
-    assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
+    assignment = Assignment.create(
+        Reference(lhs_symbol), Reference(rhs_symbol))
     trans = AssignmentTrans(active_variables=[
         DataSymbol("c", REAL_TYPE), DataSymbol("aa", REAL_TYPE),
         rhs_symbol])
@@ -745,7 +753,7 @@ def test_validate_rhs_assign():
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
     assert ("Each term on the RHS of the assigment 'a = 1.0\n' must have "
-            "an active variable but '1.0' does not.")
+            "an active variable but '1.0' does not." in str(info.value))
 
 
 def test_validate_rhs_term_multi_active():
@@ -782,7 +790,8 @@ def test_validate_rhs_single_active_var():
     '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
-    assignment = Assignment.create(Reference(lhs_symbol), Reference(rhs_symbol))
+    assignment = Assignment.create(
+        Reference(lhs_symbol), Reference(rhs_symbol))
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol])
     trans.validate(assignment)
 
@@ -867,14 +876,14 @@ def test_validate_rhs_active_divisor_indirect():
         BinaryOperation.Operator.MUL, Reference(
             rhs_symbol3), Reference(rhs_symbol1))
     divide = BinaryOperation.create(
-        BinaryOperation.Operator.DIV, Reference(rhs_symbol3), multiply)
+        BinaryOperation.Operator.DIV, Reference(rhs_symbol2), multiply)
     assignment = Assignment.create(Reference(lhs_symbol), divide)
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("A term on the RHS of the assignment 'a = y / (y * b)\n' with a "
+    assert ("A term on the RHS of the assignment 'a = x / (y * b)\n' with a "
             "division must not have the active variable as part of the "
-            "divisor but found 'y / (y * b)'." in str(info.value))
+            "divisor but found 'x / (y * b)'." in str(info.value))
 
 
 def test_validate_rhs_active_var_no_mul():
@@ -954,33 +963,26 @@ def test_validate_unaryop():
             "an active variable multiplied or divided by an expression, but "
             "found 'SQRT(b)'." in str(info.value))
 
-
-# TODO check that datatypes are all real and raise exception if not.
-
-# TODO 100% coverage: 294, 403, 411, 420
-
-# _split_nodes()
+# _split_nodes() method
 
 
 def test_splitnodes_single():
-    '''Test that _split_node returns a single entry node_list and an empty
-    op_list when there is nothing to split.
+    '''Test that _split_node returns a single entry node_list when there
+    is nothing to split.
 
     '''
     trans = AssignmentTrans([])
     node = Literal("0.0", REAL_TYPE)
-    node_list, op_list = trans._split_nodes(node, [BinaryOperation.Operator.ADD])
+    node_list = trans._split_nodes(
+        node, [BinaryOperation.Operator.ADD])
     assert isinstance(node_list, list)
     assert len(node_list) == 1
     assert node_list[0] == node
-    assert isinstance(op_list, list)
-    assert not op_list
 
 
 def test_splitnodes_multi():
-    '''Test that _split_node returns a multiple entry node_list and
-    op_list when there are multiple things to split in both lhs and
-    rhs.
+    '''Test that _split_node returns a multiple entry node_list when there
+    are multiple things to split in both lhs and rhs.
 
     '''
     trans = AssignmentTrans([])
@@ -988,20 +990,22 @@ def test_splitnodes_multi():
     term2 = Literal("2.0", REAL_TYPE)
     term3 = Literal("3.0", REAL_TYPE)
     term4 = Literal("4.0", REAL_TYPE)
-    add_lhs = BinaryOperation.create(BinaryOperation.Operator.ADD, term1, term2)
-    add_rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, term3, term4)
-    add = BinaryOperation.create(BinaryOperation.Operator.ADD, add_lhs, add_rhs)
-    node_list, op_list = trans._split_nodes(add, [BinaryOperation.Operator.ADD])
+    add_lhs = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, term1, term2)
+    add_rhs = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, term3, term4)
+    add = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, add_lhs, add_rhs)
+    node_list = trans._split_nodes(
+        add, [BinaryOperation.Operator.ADD])
     assert isinstance(node_list, list)
     assert node_list == [term1, term2, term3, term4]
-    assert isinstance(op_list, list)
-    assert op_list == [BinaryOperation.Operator.ADD, BinaryOperation.Operator.ADD, BinaryOperation.Operator.ADD]
 
 
 def test_splitnodes_multiop():
-    '''Test that _split_node returns a multiple entry node_list and
-    op_list when there are multiple things to split in both lhs and
-    rhs and multiple operators.
+    '''Test that _split_node returns a multiple entry node_list when there
+    are multiple things to split in both lhs and rhs and multiple
+    operators.
 
     '''
     trans = AssignmentTrans([])
@@ -1009,13 +1013,30 @@ def test_splitnodes_multiop():
     term2 = Literal("2.0", REAL_TYPE)
     term3 = Literal("3.0", REAL_TYPE)
     term4 = Literal("4.0", REAL_TYPE)
-    add_lhs = BinaryOperation.create(BinaryOperation.Operator.ADD, term1, term2)
-    add_rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, term3, term4)
-    add = BinaryOperation.create(BinaryOperation.Operator.SUB, add_lhs, add_rhs)
-    node_list, op_list = trans._split_nodes(add, [BinaryOperation.Operator.ADD, BinaryOperation.Operator.SUB])
+    add_lhs = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, term1, term2)
+    add_rhs = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, term3, term4)
+    add = BinaryOperation.create(
+        BinaryOperation.Operator.SUB, add_lhs, add_rhs)
+    node_list = trans._split_nodes(
+        add, [BinaryOperation.Operator.ADD, BinaryOperation.Operator.SUB])
     assert isinstance(node_list, list)
     assert node_list == [term1, term2, term3, term4]
-    assert isinstance(op_list, list)
-    assert op_list == [BinaryOperation.Operator.ADD, BinaryOperation.Operator.SUB, BinaryOperation.Operator.ADD]
 
-# TODO str and name
+# str() and name() methods
+
+
+def test_str():
+    ''' Test that the str operation returns the expected result.'''
+
+    assignment_trans = AssignmentTrans([])
+    assert (str(assignment_trans) == "Convert a PSyIR Assignment to its "
+            "adjoint form")
+
+
+def test_name():
+    ''' Test that the name method returns the expected result.'''
+
+    assignment_trans = AssignmentTrans([])
+    assert assignment_trans.name == "AssignmentTrans"

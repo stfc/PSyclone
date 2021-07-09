@@ -39,17 +39,22 @@ assignment node with its adjoint form.
 from __future__ import absolute_import
 
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Literal, Node, Operation, UnaryOperation
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+    Literal, UnaryOperation
+from psyclone.psyir.symbols import REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
 
 from psyclone.psyad.transformations import AdjointTransformation, \
     TangentLinearError
 
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-branches
+
 
 class AssignmentTrans(AdjointTransformation):
-    ''' xxx '''
+    '''Implements a transformation to translate a Tangent-Linear
+    assignment to its Adjoint form.
 
+    '''
     def apply(self, node, options=None):
         '''Apply the Assignment transformation to the specified node. The node
         must be a valid tangent linear assignment . The assignment is
@@ -64,13 +69,13 @@ class AssignmentTrans(AdjointTransformation):
         self.validate(node)
 
         # Split the RHS of the assignment into <term> +- <term> +- ...
-        rhs_terms, _ = self._split_nodes(
+        rhs_terms = self._split_nodes(
             node.rhs, [BinaryOperation.Operator.ADD,
-            BinaryOperation.Operator.SUB])
+                       BinaryOperation.Operator.SUB])
 
         deferred_inc = []
         # For each term
-        for idx, rhs_term in enumerate(rhs_terms):
+        for rhs_term in rhs_terms:
 
             # Find the active var in rhs_term if one exists, storing
             # it in 'active_var' and if so replace it with
@@ -98,16 +103,16 @@ class AssignmentTrans(AdjointTransformation):
             candidate = rhs_term.parent
             while not isinstance(candidate, Assignment):
                 if (isinstance(candidate, BinaryOperation) and
-                    candidate.operator ==  BinaryOperation.Operator.SUB and
-                    candidate.children[1] is previous):
-                        # Rules: + + -> +; - - -> +; + - -> -; - + -> -
-                        # If the higher level op is + then there is no
-                        # change to the existing op. If it is - then
-                        # we flip the op i.e. - => + and + => -.
-                        if rhs_operator == BinaryOperation.Operator.SUB:
-                            rhs_operator = BinaryOperation.Operator.ADD
-                        else:
-                            rhs_operator = BinaryOperation.Operator.SUB
+                    candidate.operator == BinaryOperation.Operator.SUB and
+                        candidate.children[1] is previous):
+                    # Rules: + + -> +; - - -> +; + - -> -; - + -> -
+                    # If the higher level op is + then there is no
+                    # change to the existing op. If it is - then
+                    # we flip the op i.e. - => + and + => -.
+                    if rhs_operator == BinaryOperation.Operator.SUB:
+                        rhs_operator = BinaryOperation.Operator.ADD
+                    else:
+                        rhs_operator = BinaryOperation.Operator.SUB
                 previous = candidate
                 candidate = candidate.parent
 
@@ -124,25 +129,27 @@ class AssignmentTrans(AdjointTransformation):
                 deferred_inc.append((new_rhs_term, rhs_operator))
             else:
                 # Output the adjoint for this term
-                rhs = BinaryOperation.create(rhs_operator, active_var.copy(), new_rhs_term)
+                rhs = BinaryOperation.create(
+                    rhs_operator, active_var.copy(), new_rhs_term)
                 assignment = Assignment.create(active_var.copy(), rhs)
                 node.parent.children.insert(node.position, assignment)
 
         if (len(deferred_inc) == 1 and
-            isinstance(deferred_inc[0][0], Reference)):
-                # No need to output anything as the adjoint is A = A.
-                pass
+                isinstance(deferred_inc[0][0], Reference)):
+            # No need to output anything as the adjoint is A = A.
+            pass
         elif deferred_inc:
             # Output the adjoint for all increment terms in a single line.
             rhs, _ = deferred_inc.pop(0)
             for term, operator in deferred_inc:
                 rhs = BinaryOperation.create(operator, rhs, term)
-            assignment = Assignment.create(node.lhs.copy(), rhs)            
+            assignment = Assignment.create(node.lhs.copy(), rhs)
             node.parent.children.insert(node.position, assignment)
         else:
             # The assignment is not an increment. The LHS active
             # variable needs to be zero'ed.
-            assignment = Assignment.create(node.lhs.copy(), Literal("0.0", REAL_TYPE))
+            assignment = Assignment.create(
+                node.lhs.copy(), Literal("0.0", REAL_TYPE))
             node.parent.children.insert(node.position, assignment)
 
         # Remove the original node
@@ -179,7 +186,7 @@ class AssignmentTrans(AdjointTransformation):
             return
 
         # The lhs of the assignment node should be an active variable
-        if not node.lhs.symbol in self._active_variables:
+        if node.lhs.symbol not in self._active_variables:
             # There are active vars on RHS but not on LHS
             raise TangentLinearError(
                 "Assignment node '{0}' has the following active variables on "
@@ -188,7 +195,7 @@ class AssignmentTrans(AdjointTransformation):
                           node.lhs.name))
 
         # Split the RHS of the assignment into <expr> +- <expr> +- <expr>
-        rhs_terms, _ = self._split_nodes(
+        rhs_terms = self._split_nodes(
             node.rhs, [BinaryOperation.Operator.ADD,
                        BinaryOperation.Operator.SUB])
 
@@ -198,9 +205,9 @@ class AssignmentTrans(AdjointTransformation):
         # checking for 0 here is fragile. It assumes a particular
         # format and a particular datatype.
         if (len(rhs_terms) == 1 and isinstance(rhs_terms[0], Literal) and
-            rhs_terms[0].value == "0.0"):
-                return
-        
+                rhs_terms[0].value == "0.0"):
+            return
+
         # Check each expression term. It must be in the form
         # A */ <expr> where A is an active variable.
         for rhs_term in rhs_terms:
@@ -230,14 +237,14 @@ class AssignmentTrans(AdjointTransformation):
                 continue
 
             # Split the term into <expr> */ <expr> */ <expr>
-            expr_terms, _ = self._split_nodes(
+            expr_terms = self._split_nodes(
                 rhs_term, [BinaryOperation.Operator.MUL,
                            BinaryOperation.Operator.DIV])
 
             # One of expression terms must be an active variable or an
             # active variable with a preceding + or -.
             found = False
-            for index, expr_term in enumerate(expr_terms):
+            for expr_term in expr_terms:
                 check_term = expr_term
                 if (isinstance(expr_term, UnaryOperation) and
                     expr_term.operator in [UnaryOperation.Operator.PLUS,
@@ -254,7 +261,7 @@ class AssignmentTrans(AdjointTransformation):
                     "but found '{1}'.".format(
                         self._writer(node), self._writer(rhs_term)))
 
-            # The active variable must not a part of a divisor
+            # The active variable must not be part of a divisor
             candidate = check_term
             parent = candidate.parent
             while not isinstance(parent, Assignment):
@@ -263,50 +270,41 @@ class AssignmentTrans(AdjointTransformation):
                 # reaching the assignment node.
                 if (isinstance(parent, BinaryOperation) and
                     parent.operator == BinaryOperation.Operator.DIV and
-                    parent.children[1] == candidate):
+                        parent.children[1] == candidate):
                     # Found a divide and the active variable is on its RHS
-                        raise TangentLinearError(
-                            "A term on the RHS of the assignment '{0}' with a "
-                            "division must not have the active variable as "
-                            "part of the divisor but found '{1}'.".format(
+                    raise TangentLinearError(
+                        "A term on the RHS of the assignment '{0}' with a "
+                        "division must not have the active variable as "
+                        "part of the divisor but found '{1}'.".format(
                             self._writer(node), self._writer(rhs_term)))
                 # Continue up the PSyIR tree
                 candidate = parent
                 parent = candidate.parent
 
-            # All terms must be Reference, operator or Literal
-            for tmp_node in rhs_term.walk(Node):
-                if not isinstance(tmp_node, (Reference, Operation, Literal)):
-                    raise TangentLinearError(
-                        "A term on the RHS of the assignment '{0}' contains "
-                        "an unsupported node type '{1}' ({2}) in '{3}'."
-                        "".format(
-                            self._writer(node), type(tmp_node).__name__,
-                            self._writer(tmp_node), self._writer(rhs_term)))
-
     @staticmethod
     def _split_nodes(node, binary_operator_list):
         '''Utility to split an expression into a series of sub-expressions
-        separated by one of the binary operators specified in binary_operator_list.
+        separated by one of the binary operators specified in
+        binary_operator_list.
 
-        :param node: xxx
-        :type node: xxx
-        :param binary_operator_list: xxx
-        :type binary_operator_list: list of xxx
+        :param node: the node containing the expression to split.
+        :type node: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param binary_operator_list: list of binary operators.
+        :type binary_operator_list: list of
+            :py:class:`psyclone.psyir.nodes.BinaryOperations.Operator`
 
-        :returns: xxx
-        :rtype: xxx
+        :returns: a list of sub-expressions.
+        :rtype: :py:class:`psyclone.psyir.nodes.DataNode`
 
         '''
         if (isinstance(node, BinaryOperation)) and \
            (node.operator in binary_operator_list):
-            lhs_node_list, lhs_op_list = AssignmentTrans._split_nodes(
+            lhs_node_list = AssignmentTrans._split_nodes(
                 node.children[0], binary_operator_list)
-            rhs_node_list, rhs_op_list = AssignmentTrans._split_nodes(
+            rhs_node_list = AssignmentTrans._split_nodes(
                 node.children[1], binary_operator_list)
-            return(lhs_node_list + rhs_node_list, lhs_op_list + [node.operator] + rhs_op_list)
-        else:
-            return ([node], [])
+            return(lhs_node_list + rhs_node_list)
+        return([node])
 
     def __str__(self):
         return "Convert a PSyIR Assignment to its adjoint form"
