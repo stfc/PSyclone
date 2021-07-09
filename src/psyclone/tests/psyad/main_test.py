@@ -71,7 +71,6 @@ EXPECTED_HARNESS_CODE = ('''program adj_test
   double precision :: abs_diff
   real :: field
   real :: field_input
-  real :: field_out
 
   CALL random_number(field)
   field_input = field
