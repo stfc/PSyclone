@@ -1,4 +1,3 @@
-# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Copyright (c) 2021, Science and Technology Facilities Council.
@@ -31,22 +30,21 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+#
+'''Module to test the psyad adjoint TangentLinearError class.'''
 
-'''This module provides the TangentLinearError class.
-'''
+import pytest
+
+from psyclone.psyad.transformations import TangentLinearError
 
 
-class TangentLinearError(Exception):
-    '''Provides a PSyclone-specific error class for code that does not
-    conform to the constraints required to be valid tangent linear
-    code.
+def test_error():
+    '''Test that the TangentLinearError exception behaves in the expected
+    way.
 
     '''
-    def __init__(self, value):
-
-        Exception.__init__(self, value)
-        self.value = "TangentLinearError: "+str(value)
-
-    def __str__(self):
-        return self.value
+    message = "It's all gone a bit Pete Tong."
+    with pytest.raises(TangentLinearError) as info:
+        raise TangentLinearError(message)
+    assert str(info.value) == "TangentLinearError: "+message
