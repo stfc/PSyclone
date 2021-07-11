@@ -94,7 +94,8 @@ def test_exception_repr():
         _ = importlib.import_module(mod)
 
     all_exceptions = all_sub_exceptions(Exception)
-    psy_excepts = [exc for exc in all_exceptions if "psyclone." in str(exc)]
+    psy_excepts = [exc for exc in all_exceptions if "psyclone." in str(exc)
+                   and "psyad" not in str(exc)]
     psy_excepts.append(DummyPSycloneError)
 
     # Different vertions of pytest behave differently with repect to their
