@@ -115,6 +115,9 @@ class KernelTrans(Transformation):
         :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param list options["ignore-global-var-list"]: the names of any global\
+            variables to ignore when checking that all variables referenced by\
+            a kernel are local/arguments (useful e.g. for kind parameters).
 
         :raises TransformationError: if the target node is not a sub-class of \
                                      psyGen.Kern.
@@ -155,11 +158,14 @@ class KernelTrans(Transformation):
                 var.scope.symbol_table.lookup(
                     var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
             except KeyError as err:
-                six.raise_from(TransformationError(
-                    "Kernel '{0}' contains accesses to data (variable '{1}') "
-                    "that are not captured in the PSyIR Symbol Table(s) "
-                    "within KernelSchedule scope. Cannot transform such a "
-                    "kernel.".format(kern.name, var.name)), err)
+                ignore_list = options.get("ignore-global-var-list", [])
+                if var.name not in ignore_list:
+                    six.raise_from(TransformationError(
+                        "Kernel '{0}' contains accesses to data (variable "
+                        "'{1}') that are not captured in the PSyIR Symbol "
+                        "Table(s) within KernelSchedule scope. Cannot "
+                        "transform such a kernel.".format(kern.name,
+                                                          var.name)), err)
 
 
 @six.add_metaclass(abc.ABCMeta)

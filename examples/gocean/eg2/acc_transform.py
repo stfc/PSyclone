@@ -69,7 +69,7 @@ def trans(psy):
 
     # Put an 'acc routine' directive inside each kernel
     for kern in schedule.coded_kernels():
-        ktrans.apply(kern)
+        ktrans.apply(kern, options={"ignore-global-var-list": ["go_wp"]})
         # Ideally we would module-inline the kernel here (to save having to
         # rely on the compiler to do it) but this does not currently work
         # for the fparser2 AST (issue #229).
