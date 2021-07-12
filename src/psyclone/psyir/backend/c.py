@@ -43,7 +43,8 @@ it needs to be extended for generating pure C code.
 '''
 import six
 
-from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.backend.language_writer import LanguageWriter
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import BinaryOperation, UnaryOperation
 from psyclone.psyir.symbols import ScalarType
 
@@ -58,12 +59,33 @@ TYPE_MAP_TO_C = {ScalarType.Intrinsic.INTEGER: "int",
                  ScalarType.Intrinsic.REAL: "double"}
 
 
-class CWriter(PSyIRVisitor):
+class CWriter(LanguageWriter):
     '''Implements a PSyIR-to-C back-end for the PSyIR AST.
 
-    '''
+    :param bool skip_nodes: If skip_nodes is False then an exception \
+        is raised if a visitor method for a PSyIR node has not been \
+        implemented, otherwise the visitor silently continues. This is an \
+        optional argument which defaults to False.
+    :param indent_string: Specifies what to use for indentation. This \
+        is an optional argument that defaults to two spaces.
+    :type indent_string: str or NoneType
+    :param int initial_indent_depth: Specifies how much indentation to \
+        start with. This is an optional argument that defaults to 0.
+    :param bool check_global_constraints: whether or not to validate all \
+        global constraints when walking the tree.
 
-    def _gen_dims(self, shape, var_name=None):
+    :raises TypeError: if any of the supplied parameters are of the wrong type.
+
+    '''
+    def __init__(self, skip_nodes=False, indent_string="  ",
+                 initial_indent_depth=0, check_global_constraints=True):
+
+        super(CWriter, self).__init__(["[", "]"], ".", skip_nodes,
+                                      indent_string,
+                                      initial_indent_depth,
+                                      check_global_constraints)
+
+    def gen_dims(self, shape, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
 
@@ -92,7 +114,7 @@ class CWriter(PSyIRVisitor):
 
         for dimension, child in enumerate(shape):
             expression = self._visit(child)
-            dim_str = var_name + "LEN" + str(dimension+1)
+            dim_str = "{0}LEN{1}".format(var_name, dimension+1)
             if multiplicator:
                 summands.append(expression + " * " + multiplicator)
                 multiplicator = multiplicator + " * " + dim_str
@@ -165,27 +187,6 @@ class CWriter(PSyIRVisitor):
 
         result = "{0}{1} = {2};\n".format(self._nindent, lhs, rhs)
         return result
-
-    def arrayreference_node(self, node):
-        '''This method is called when an ArrayReference instance is found
-        in the PSyIR tree.
-
-        :param node: An Array PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
-
-        :returns: The C code as a string.
-        :rtype: str
-
-        :raises VisitorError: If this node has no children.
-
-        '''
-        if len(node.children) < 1:
-            raise VisitorError(
-                "Arrays must have at least 1 dimension but found node: '{0}'."
-                "".format(str(node)))
-
-        indices = self._gen_dims(node.children, node.name)
-        return "{0}[{1}]".format(node.name, "".join(indices))
 
     def literal_node(self, node):
         # pylint: disable=no-self-use

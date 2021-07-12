@@ -173,8 +173,8 @@ def test_cw_array():
     # An array without any children (dimensions) should produce an error.
     with pytest.raises(VisitorError) as excinfo:
         result = cwriter(assignment)
-    assert "Arrays must have at least 1 dimension but found node: '" \
-        in str(excinfo.value)
+    assert "Incomplete ArrayReference node (for symbol 'a') found: " \
+           "must have one or more children." in str(excinfo.value)
 
     # Dimensions can be references, literals or operations
     arr.addchild(Reference(DataSymbol('b', INTEGER_TYPE)))

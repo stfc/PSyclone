@@ -99,7 +99,7 @@ def test_gen_intent_error(monkeypatch):
 
 
 def test_gen_dims(fortran_writer):
-    '''Check the _gen_dims function produces the expected dimension
+    '''Check the gen_dims function produces the expected dimension
     strings.
 
     '''
@@ -114,8 +114,8 @@ def test_gen_dims(fortran_writer):
     array_type = ArrayType(INTEGER_TYPE,
                            [Reference(arg), 2, literal, arg_plus_1,
                             ArrayType.Extent.ATTRIBUTE])
-    assert fortran_writer._gen_dims(array_type.shape) == ["arg", "2", "4",
-                                                          "arg + 1_4", ":"]
+    assert fortran_writer.gen_dims(array_type.shape) == ["arg", "2", "4",
+                                                         "arg + 1_4", ":"]
 
 
 def test_gen_dims_error(monkeypatch, fortran_writer):
@@ -126,7 +126,7 @@ def test_gen_dims_error(monkeypatch, fortran_writer):
     array_type = ArrayType(INTEGER_TYPE, [10])
     monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = fortran_writer._gen_dims(array_type.shape)
+        _ = fortran_writer.gen_dims(array_type.shape)
     assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
 
 
