@@ -42,16 +42,16 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.transformations import OCLTrans, TransformationError
-from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.errors import GenerationError
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
-from psyclone.tests.utilities import Compile, get_invoke
-from psyclone.psyir.backend.opencl import OpenCLWriter
-from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
 from psyclone.domain.gocean.transformations import \
     GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.errors import GenerationError
+from psyclone.gocean1p0 import GOKernelSchedule
+from psyclone.psyir.backend.opencl import OpenCLWriter
+from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
+    DataSymbol, INTEGER_TYPE, REAL_TYPE, ScalarType
+from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
+from psyclone.tests.utilities import Compile, get_invoke
+from psyclone.transformations import OCLTrans, TransformationError
 
 
 API = "gocean1.0"
@@ -317,7 +317,6 @@ gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
 
 
 def test_opencl_routines_initialisation(kernel_outputdir):
-    # pylint: disable=unused-argument
     ''' Test that an OpenCL invoke file has the necessary routines
     to initialise, read and write from buffers. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)

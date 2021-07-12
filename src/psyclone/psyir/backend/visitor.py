@@ -43,8 +43,9 @@ back ends.
 
 import inspect
 import six
-from psyclone.psyir.nodes import Node
+
 from psyclone.errors import PSycloneError
+from psyclone.psyir.nodes import Node
 
 
 class VisitorError(PSycloneError):

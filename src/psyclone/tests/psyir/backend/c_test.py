@@ -41,13 +41,13 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
-    Reference, Return, ArrayReference, Literal, UnaryOperation, \
-    BinaryOperation, Schedule, IfBlock
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ArrayType, REAL_TYPE, INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.nodes import ArrayReference, Assignment, BinaryOperation, \
+    CodeBlock, IfBlock, Literal, Node, Reference, Return, Schedule, \
+    UnaryOperation
+from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
+    BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_TYPE, REAL_TYPE
 
 
 def test_cw_gen_declaration():

@@ -41,18 +41,22 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
+# pylint: disable=too-many-lines
 from __future__ import absolute_import
+import six
+
 from fparser.two import Fortran2003
+
+from psyclone.errors import InternalError
+from psyclone.psyir.backend.language_writer import LanguageWriter
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
-    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, DataTypeSymbol
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Routine, Literal, DataNode, CodeBlock, Member, Range, Schedule
-from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.backend.language_writer import LanguageWriter
-from psyclone.errors import InternalError
+from psyclone.psyir.nodes import BinaryOperation, CodeBlock, DataNode, \
+    Literal, Member, Operation, Range, Routine, Schedule, UnaryOperation
+from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
+    ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, ScalarType, \
+    Symbol, SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -89,8 +93,9 @@ def gen_intent(symbol):
         try:
             return mapping[symbol.interface.access]
         except KeyError as excinfo:
-            raise VisitorError("Unsupported access '{0}' found."
-                               "".format(str(excinfo)))
+            raise six.raise_from(
+                VisitorError("Unsupported access '{0}' found."
+                             "".format(str(excinfo))), excinfo)
     else:
         return None  # non-Arguments do not have intent
 
@@ -134,10 +139,10 @@ def gen_datatype(datatype, name):
 
     try:
         fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
-    except KeyError:
-        raise NotImplementedError(
+    except KeyError as error:
+        raise six.raise_from(NotImplementedError(
             "Unsupported datatype '{0}' for symbol '{1}' found in "
-            "gen_datatype().".format(datatype.intrinsic, name))
+            "gen_datatype().".format(datatype.intrinsic, name)), error)
 
     precision = datatype.precision
 
@@ -301,6 +306,7 @@ def precedence(fortran_operator):
 
 
 class FortranWriter(LanguageWriter):
+    # pylint: disable=too-many-public-methods
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
     generating Fortran).
@@ -438,6 +444,7 @@ class FortranWriter(LanguageWriter):
             shape containing a mixture of DEFERRED and other extents.
 
         '''
+        # pylint: disable=too-many-branches
         # Whether we're dealing with a Symbol or a member of a derived type
         is_symbol = isinstance(symbol, DataSymbol)
         # Whether we're dealing with an array declaration and, if so, the
@@ -762,7 +769,7 @@ class FortranWriter(LanguageWriter):
 
         # All children must be Routine as modules within
         # modules are not supported.
-        if not all([isinstance(child, Routine) for child in node.children]):
+        if not all(isinstance(child, Routine) for child in node.children):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
                 "to be a sub-class of Routine.")
@@ -931,9 +938,10 @@ class FortranWriter(LanguageWriter):
                             # associative due to rounding errors.
                             return "({0} {1} {2})".format(lhs, fort_oper, rhs)
             return "{0} {1} {2}".format(lhs, fort_oper, rhs)
-        except KeyError:
-            raise VisitorError("Unexpected binary op '{0}'."
-                               "".format(node.operator))
+        except KeyError as error:
+            raise six.raise_from(VisitorError("Unexpected binary op '{0}'."
+                                              "".format(node.operator)),
+                                 error)
 
     def naryoperation_node(self, node):
         '''This method is called when an NaryOperation instance is found in
@@ -954,9 +962,10 @@ class FortranWriter(LanguageWriter):
         try:
             fort_oper = get_fortran_operator(node.operator)
             return "{0}({1})".format(fort_oper, ", ".join(arg_list))
-        except KeyError:
-            raise VisitorError("Unexpected N-ary op '{0}'".
-                               format(node.operator))
+        except KeyError as error:
+            raise six.raise_from(VisitorError("Unexpected N-ary op '{0}'".
+                                              format(node.operator)),
+                                 error)
 
     def structurereference_node(self, node):
         '''
@@ -1240,9 +1249,9 @@ class FortranWriter(LanguageWriter):
                     return "({0}{1})".format(fort_oper, content)
             return "{0}{1}".format(fort_oper, content)
 
-        except KeyError:
-            raise VisitorError("Unexpected unary op '{0}'.".format(
-                node.operator))
+        except KeyError as error:
+            raise six.raise_from(VisitorError("Unexpected unary op '{0}'."
+                                              .format(node.operator)), error)
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in
