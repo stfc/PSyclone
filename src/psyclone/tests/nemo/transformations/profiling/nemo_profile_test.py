@@ -298,6 +298,7 @@ def test_profiling_case(parser):
     to the fparser2 parse tree. '''
     code = (
         "subroutine my_test()\n"
+        "   use kind_params_mod, only: wp\n"
         "   integer :: ji, jj, ii, je_2, jpi, jpj, nldj_crs\n"
         "   integer :: nistr, niend, njstr, njend, nn_factx, nn_facty\n"
         "   integer, dimension(:) :: mje_crs, mjs_crs, mis_crs\n"

@@ -153,12 +153,14 @@ class KernelTrans(Transformation):
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
+        ignore_list = []
+        if options:
+            ignore_list = options.get("ignore-global-var-list", [])
         for var in kernel_schedule.walk(nodes.Reference):
             try:
                 var.scope.symbol_table.lookup(
                     var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
             except KeyError as err:
-                ignore_list = options.get("ignore-global-var-list", [])
                 if var.name not in ignore_list:
                     six.raise_from(TransformationError(
                         "Kernel '{0}' contains accesses to data (variable "

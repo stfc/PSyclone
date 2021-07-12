@@ -1948,6 +1948,7 @@ def test_acckernelsdirective_update(parser, default_present):
 
     '''
     reader = FortranStringReader("program implicit_loop\n"
+                                 "use types_mod, only: wp\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "sto_tmp(:,:) = 0.0_wp\n"
                                  "end program implicit_loop\n")

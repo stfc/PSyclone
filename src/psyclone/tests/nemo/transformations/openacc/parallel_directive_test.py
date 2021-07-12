@@ -48,6 +48,7 @@ API = "nemo"
 
 
 SINGLE_LOOP = ("program do_loop\n"
+               "use type_mod, only: wp\n"
                "integer :: ji\n"
                "integer, parameter :: jpj=128\n"
                "real(kind=wp) :: sto_tmp(jpj)\n"
@@ -68,20 +69,21 @@ def test_parallel_single_loop(parser):
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
     acc_trans.apply(schedule[0:1])
     data_trans.apply(schedule[0])
-    code = str(psy.gen)
+    code = str(psy.gen).lower()
 
-    assert ("PROGRAM do_loop\n"
-            "  INTEGER :: ji\n"
-            "  INTEGER, PARAMETER :: jpj = 128\n"
-            "  REAL(KIND = wp) :: sto_tmp(jpj)\n"
-            "  !$ACC DATA COPYOUT(sto_tmp)\n"
-            "  !$ACC PARALLEL DEFAULT(PRESENT)\n"
-            "  DO ji = 1, jpj\n"
-            "    sto_tmp(ji) = 1.0D0\n"
-            "  END DO\n"
-            "  !$ACC END PARALLEL\n"
-            "  !$ACC END DATA\n"
-            "END PROGRAM do_loop" in code)
+    assert ("program do_loop\n"
+            "  use type_mod, only: wp\n"
+            "  integer :: ji\n"
+            "  integer, parameter :: jpj = 128\n"
+            "  real(kind = wp) :: sto_tmp(jpj)\n"
+            "  !$acc data copyout(sto_tmp)\n"
+            "  !$acc parallel default(present)\n"
+            "  do ji = 1, jpj\n"
+            "    sto_tmp(ji) = 1.0d0\n"
+            "  end do\n"
+            "  !$acc end parallel\n"
+            "  !$acc end data\n"
+            "end program do_loop" in code)
 
 
 def test_parallel_two_loops(parser):

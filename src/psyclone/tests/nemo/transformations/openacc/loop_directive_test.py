@@ -119,6 +119,7 @@ def test_explicit_loop(parser):
 
 
 SINGLE_LOOP = ("program do_loop\n"
+               "use types_mod, only: wp\n"
                "integer :: ji\n"
                "integer, parameter :: jpj=12\n"
                "real(kind=wp) :: sto_tmp(jpj)\n"
@@ -128,6 +129,7 @@ SINGLE_LOOP = ("program do_loop\n"
                "end program do_loop\n")
 
 DOUBLE_LOOP = ("program do_loop\n"
+               "use types_mod, only: wp\n"
                "integer :: ji, jj\n"
                "integer, parameter :: jpi=16, jpj=16\n"
                "real(kind=wp) :: sto_tmp(jpi, jpj)\n"
