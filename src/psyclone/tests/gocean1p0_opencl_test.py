@@ -454,7 +454,7 @@ field%device_ptr)
 def test_psy_init(kernel_outputdir, monkeypatch):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=True)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
