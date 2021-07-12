@@ -45,7 +45,7 @@ from psyclone.psyir.frontend import fparser2
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     get_literal_precision
 from psyclone.psyir.symbols import ScalarType, DataSymbol, INTEGER_TYPE, \
-    UnknownFortranType
+    UnknownFortranType, SymbolError
 from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule, Assignment
 from psyclone.errors import InternalError
 
@@ -156,9 +156,11 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
-    # Ensure the symbol table has an entry for "x"
+    # Ensure the symbol table has an entry for the precision symbol.
     fake_parent.symbol_table.add(
         DataSymbol("x", ScalarType(ScalarType.Intrinsic.INTEGER, 4)))
+    fake_parent.symbol_table.add(
+        DataSymbol(dprecision, ScalarType(ScalarType.Intrinsic.INTEGER, 4)))
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -349,7 +351,6 @@ def test_get_literal_precision_missing_table():
     astmt = Fortran2003.Assignment_Stmt(reader)
     # Pass get_literal_precision just a Literal() (which does not have an
     # associated symbol table).
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(SymbolError) as err:
         get_literal_precision(astmt.children[2], Literal("1", INTEGER_TYPE))
-    assert ("Failed to find a symbol table to which to add the kind"
-            in str(err.value))
+    assert ("No Symbol found for name 'rdef'" in str(err.value))
