@@ -74,6 +74,9 @@ def process_declarations(code):
              :py:class:`fparser.two.Fortran2003.Specification_Part`)
     '''
     sched = KernelSchedule("dummy_schedule")
+    csym = sched.symbol_table.new_symbol("kinds_mod",
+                                         symbol_type=ContainerSymbol)
+    csym.wildcard_import = True
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = Specification_Part(reader).content
@@ -672,7 +675,11 @@ def test_process_declarations():
     assert fake_parent.symbol_table.lookup("val2").constant_value.symbol == \
         fake_parent.symbol_table.lookup("val1")
 
-    # Initialisation with a complex constant expression
+    # Initialisation with a complex constant expression. Add a Container with
+    # a wildcard import so that the 'precisionkind' symbol can be added.
+    csym = fake_parent.symbol_table.new_symbol("kinds_mod",
+                                               symbol_type=ContainerSymbol)
+    csym.wildcard_import = True
     reader = FortranStringReader(
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
@@ -1251,7 +1258,7 @@ def test_wrong_type_kind_param():
     # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol
     r_def.__class__ = RoutineSymbol
     with pytest.raises(TypeError) as err:
-        _kind_symbol_from_name("r_def", fake_parent.symbol_table)
+        _kind_symbol_from_name(fake_parent, "r_def")
     assert ("found an entry of type 'RoutineSymbol' for variable 'r_def'" in
             str(err.value))
     # Repeat but declare r_def as real

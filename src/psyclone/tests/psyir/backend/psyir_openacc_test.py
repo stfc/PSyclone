@@ -67,6 +67,7 @@ end subroutine tmp
 end module test'''
 
 DOUBLE_LOOP = ("program do_loop\n"
+               "use kind_params_mod, only: wp\n"
                "integer :: ji, jj\n"
                "integer, parameter :: jpi=16, jpj=16\n"
                "real(kind=wp) :: sto_tmp(jpi, jpj)\n"
