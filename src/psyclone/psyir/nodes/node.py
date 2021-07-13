@@ -1072,25 +1072,32 @@ class Node(object):
         return self.walk(Kern)
 
     def following(self):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me in
-        this Routine. Ordering is depth first.
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me
+        within the scope of the Routine containing this node, or root
+        if there is no scoping Routine.. Ordering is depth first.
 
         :returns: a list of nodes.
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         # Import here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Routine
+        # If there is an ancestor Routine node then only return nodes
+        # that are within it.
         root = self.ancestor(Routine)
+        if not root:
+            root = self.root
         all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         return all_nodes[position+1:]
 
     def preceding(self, reverse=None):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me in
-        this Routine. Ordering is depth first. If the `reverse`
-        argument is set to `True` then the node ordering is reversed
-        i.e. returning the nodes closest to me first
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me
+        within the scope of the Routine containing this node, or root
+        if there is no scoping Routine. Ordering is depth first. If
+        the `reverse` argument is set to `True` then the node ordering
+        is reversed i.e. returning the nodes closest to me first.
 
         :param: reverse: an optional, default `False`, boolean flag.
         :type: reverse: bool
@@ -1100,8 +1107,13 @@ class Node(object):
 
         '''
         # Import here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Routine
+        # If there is an ancestor Routine node then only return nodes
+        # that are within it.
         root = self.ancestor(Routine)
+        if not root:
+            root = self.root
         all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         nodes = all_nodes[:position]
