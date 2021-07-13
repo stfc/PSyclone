@@ -43,7 +43,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.transformations import TransformationError
-from psyclone.domain.gocean.transformations import OCLTrans
+from psyclone.domain.gocean.transformations import GOOpenCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
@@ -106,7 +106,7 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
     expected = "subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
@@ -147,7 +147,7 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
 
@@ -217,7 +217,7 @@ def test_invoke_opencl_initialisation_grid():
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
 
@@ -329,7 +329,7 @@ def test_opencl_routines_initialisation(kernel_outputdir):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
 
@@ -463,7 +463,7 @@ def test_psy_init(kernel_outputdir, monkeypatch):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = (
@@ -553,7 +553,7 @@ def test_psy_init_with_options(kernel_outputdir):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched, options={"end_barrier": True,
                                  "enable_profiling": True,
                                  "out_of_order": True})
@@ -577,7 +577,7 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
@@ -655,7 +655,7 @@ def test_opencl_options_validation():
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
 
     # Unsupported options are not accepted
     with pytest.raises(TransformationError) as err:
@@ -718,7 +718,7 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
     for kernel in invoke2_schedule.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(invoke1_schedule, options={option_to_check: False})
     otrans.apply(invoke2_schedule, options={option_to_check: True})
     with pytest.raises(NotImplementedError) as err:
@@ -742,7 +742,7 @@ def test_opencl_options_effects():
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
@@ -800,7 +800,7 @@ def test_multiple_command_queues(dist_mem):
         kernel.set_opencl_options({'queue_number': idx+2})
 
     # Apply OpenCL transformation
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
 
     generated_code = str(psy.gen)
@@ -834,7 +834,7 @@ def test_set_kern_args(kernel_outputdir):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
     # Check we've only generated one set-args routine with arguments:
@@ -897,7 +897,7 @@ def test_set_kern_args_real_grid_property():
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = '''\
@@ -927,7 +927,7 @@ def test_set_kern_float_arg():
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
     # This set_args has a name clash on xstop (one is a grid property and the
@@ -981,7 +981,7 @@ def test_set_arg_const_scalar():
     psy, _ = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
                         API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     with pytest.raises(NotImplementedError) as err:
         otrans.apply(sched)
     assert ("Cannot generate OpenCL for Invokes that contain kernels with "
@@ -1084,7 +1084,7 @@ def test_opencl_kernel_missing_boundary_symbol():
     sched.symbol_table.new_symbol(
         "d", tag="ystop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     sched.kernels()[0].name = "name"
 
@@ -1111,7 +1111,7 @@ def test_opencl_kernel_output_file(kernel_outputdir):
     sched.symbol_table.new_symbol(
         "d", tag="ystop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     sched.kernels()[0].name = "name"
     _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
@@ -1132,7 +1132,7 @@ def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     otrans.apply(sched)
     _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
 
@@ -1214,7 +1214,7 @@ def test_opencl_kernel_with_use():
     of the kernels use module data. '''
     psy, _ = get_invoke("single_invoke_kern_with_use.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-    otrans = OCLTrans()
+    otrans = GOOpenCLTrans()
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "

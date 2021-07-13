@@ -245,7 +245,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OCLTrans
+.. autoclass:: psyclone.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
 
@@ -656,7 +656,7 @@ transformation.
 OpenCL
 ------
 
-OpenCL is added to a code by using the ``OCLTrans`` transformation (see the
+OpenCL is added to a code by using the ``GOOpenCLTrans`` transformation (see the
 :ref:`sec_transformations_available` Section above).
 Currently this transformation is only supported for the GOcean1.0 API and
 is applied to the whole InvokeSchedule of an Invoke.
@@ -676,7 +676,7 @@ provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
     `<modulename>_<kernelname>_index.cl`
 
 
-The ``OCLTrans`` transformation accepts an `options` argument with a
+The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
 map of optional parameters to tune the OpenCL host code in the PSy layer.
 These options will be attached to the transformed InvokeSchedule.
 The current available options are:
@@ -716,7 +716,7 @@ The current available options are:
 +--------------+---------------------------------------------+---------+
 
 
-Below is an example of a PSyclone script that uses an ``OCLTrans`` with
+Below is an example of a PSyclone script that uses an ``GOOpenCLTrans`` with
 multiple InvokeSchedule and kernel-specific optimization options.
 
 

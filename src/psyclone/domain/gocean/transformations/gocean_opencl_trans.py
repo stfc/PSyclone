@@ -44,7 +44,7 @@ from psyclone.psyGen import args_filter, InvokeSchedule
 from psyclone.gocean1p0 import GOInvokeSchedule
 
 
-class OCLTrans(Transformation):
+class GOOpenCLTrans(Transformation):
     '''
     Switches on/off the generation of an OpenCL PSy layer for a given
     InvokeSchedule. Additionally, it will generate OpenCL kernels for
@@ -53,7 +53,7 @@ class OCLTrans(Transformation):
     >>> invoke = ...
     >>> schedule = invoke.schedule
     >>>
-    >>> ocl_trans = OCLTrans()
+    >>> ocl_trans = GOOpenCLTrans()
     >>> new_sched, _ = ocl_trans.apply(schedule)
 
     '''
@@ -63,7 +63,7 @@ class OCLTrans(Transformation):
         :returns: the name of this transformation.
         :rtype: str
         '''
-        return "OCLTrans"
+        return "GOOpenCLTrans"
 
     def apply(self, sched, options=None):
         '''
@@ -131,7 +131,7 @@ class OCLTrans(Transformation):
                     format(type(sched)))
         else:
             raise TransformationError(
-                "Error in OCLTrans: the supplied node must be a (sub-class "
+                "Error in GOOpenCLTrans: the supplied node must be a (sub-class "
                 "of) InvokeSchedule but got {0}".format(type(sched)))
 
         # Now we need to check the arguments of all the kernels

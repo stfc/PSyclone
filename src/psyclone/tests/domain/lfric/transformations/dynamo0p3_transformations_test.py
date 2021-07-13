@@ -6343,11 +6343,11 @@ def test_acclooptrans():
 def test_no_ocl():
     ''' Check that attempting to apply an OpenCL transformation to a Dynamo
     InvokeSchedule raises the expected error. '''
-    from psyclone.domain.gocean.transformations import OCLTrans
+    from psyclone.domain.gocean.transformations import GOOpenCLTrans
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
-    trans = OCLTrans()
+    trans = GOOpenCLTrans()
     with pytest.raises(TransformationError) as err:
         _ = trans.apply(sched)
     assert ("OpenCL generation is currently only supported for the GOcean "

@@ -36,7 +36,7 @@ These various forms of kernel only present a problem if a user wishes
 to transform them e.g. for use in either an OpenACC or OpenCL
 application. For instance, we can use PSyclone with a suitable
 transformation script (employing the `KernelGlobalsToArguments` and
-`OCLTrans` transformations) to generate OpenCL code for the first
+`GOOpenCLTrans` transformations) to generate OpenCL code for the first
 example:
 
 ```sh

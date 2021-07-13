@@ -82,7 +82,7 @@ from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
 
 # Specify which OpenCL command queue to use for management operations like
 # data transfers when generating an OpenCL PSy-layer
-# TODO #1134: This value should be moved to the OCLTrans when the
+# TODO #1134: This value should be moved to the GOOpenCLTrans when the
 # transformation logic is also moved there.
 _OCL_MANAGEMENT_QUEUE = 1
 
