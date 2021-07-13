@@ -49,7 +49,7 @@ import fparser
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, LFRicFields
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicFields
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -555,15 +555,16 @@ def test_field_arg_lfricconst_properties(monkeypatch):
     class.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    name = "testkern_field_type"
-    metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "4.14_multikernel_invokes_real_int_field_fs.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
 
     # Test 'real'-valued fields of 'field_type'
-    field_arg = kernel.arguments.args[1]
+    kernel = schedule.kernels()[1]
+    field_arg = kernel.arguments.args[0]
     assert field_arg.module_name == "field_mod"
     assert field_arg.data_type == "field_type"
     assert field_arg.proxy_data_type == "field_proxy_type"
@@ -571,7 +572,8 @@ def test_field_arg_lfricconst_properties(monkeypatch):
     assert field_arg.precision == "r_def"
 
     # Test 'integer'-valued fields of 'integer_field_type'
-    field_arg = kernel.arguments.args[3]
+    kernel = schedule.kernels()[0]
+    field_arg = kernel.arguments.args[0]
     assert field_arg.module_name == "integer_field_mod"
     assert field_arg.data_type == "integer_field_type"
     assert field_arg.proxy_data_type == "integer_field_proxy_type"

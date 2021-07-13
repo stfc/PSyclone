@@ -8628,41 +8628,34 @@ class DynKernelArgument(KernelArgument):
 
         '''
         const = LFRicConstants()
-        api_config = Config.get().api_conf("dynamo0.3")
 
         # All supported scalars have the same metadata, GH_SCALAR, so we
         # check by their intrinsic type
         if self.is_scalar:
-            if self.intrinsic_type == "real":
-                # Set 'real' scalar properties as defined in the LFRic
-                # infrastructure
-                self._module_name = const.DATA_TYPE_MAP["scalar"]["module"]
-                self._data_type = const.DATA_TYPE_MAP["scalar"]["type"]
-                self._proxy_data_type = const.DATA_TYPE_MAP[
-                    "scalar"]["proxy_type"]
-                self._precision = const.DATA_TYPE_MAP["scalar"]["kind"]
-                # TODO #1277: Check whether the access of a 'real' scalar
-                # is a reduction before assigning precision from the
-                # algorithm layer. LFRic reductions must have 'r_def'
-                # precision as defined for the "scalar_type".
-            elif self.intrinsic_type == "integer":
-                # Set 'integer' scalar precision from the configuration
-                self._precision = api_config.default_kind["integer"]
-            elif self.intrinsic_type == "logical":
-                # Set 'logical' scalar precision from the configuration
-                self._precision = api_config.default_kind["logical"]
-            else:
+            if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
                 raise InternalError(
                     "Expected one of {0} intrinsic types for a scalar "
                     "argument but found '{1}'.".
                     format(const.VALID_INTRINSIC_TYPES, self.intrinsic_type))
+            if self.intrinsic_type == "real" and self.access in \
+               AccessType.get_valid_reduction_modes():
+                # Set 'real' scalar reduction properties as defined in
+                # the LFRic infrastructure
+                self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+                self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
+                self._proxy_data_type = const.DATA_TYPE_MAP[
+                    "reduction"]["proxy_type"]
+                self._precision = const.DATA_TYPE_MAP["reduction"]["kind"]
+            else:
+                # Set read-only scalar precision
+                self._precision = const.SCALAR_TYPE_MAP[self.intrinsic_type]
 
         # All supported fields have the same metadata, GH_FIELD, so we
         # check by their intrinsic type
         if self.is_field:
-            if self.intrinsic_type == 'real':
+            if self.intrinsic_type == "real":
                 argtype = "field"
-            elif self.intrinsic_type == 'integer':
+            elif self.intrinsic_type == "integer":
                 argtype = "integer_field"
             else:
                 raise InternalError(
@@ -9056,33 +9049,38 @@ class DynKernelArgument(KernelArgument):
 
             '''
             try:
-                fld_type = symbol_table.lookup(type_name)
+                arg_type = symbol_table.lookup(type_name)
             except KeyError:
                 # TODO Once #1258 is done we should already have symbols for
                 # the various types at this point.
                 try:
-                    fld_mod_container = symbol_table.lookup(mod_name)
+                    arg_mod_container = symbol_table.lookup(mod_name)
                 except KeyError:
-                    fld_mod_container = ContainerSymbol(mod_name)
-                    root_table.add(fld_mod_container)
-                fld_type = DataTypeSymbol(
+                    arg_mod_container = ContainerSymbol(mod_name)
+                    root_table.add(arg_mod_container)
+                arg_type = DataTypeSymbol(
                     type_name, DeferredType(),
-                    interface=GlobalInterface(fld_mod_container))
-                root_table.add(fld_type)
-            return fld_type
+                    interface=GlobalInterface(arg_mod_container))
+                root_table.add(arg_type)
+            return arg_type
 
         if self.is_scalar:
 
-            api_config = Config.get().api_conf("dynamo0.3")
-
+            # Find or create the DataType for the appropriate scalar type.
             if self.intrinsic_type == "real":
-                kind_name = const.DATA_TYPE_MAP["scalar"]["kind"]
+                if self.access in AccessType.get_valid_reduction_modes():
+                    # Set 'real' scalar reduction properties as defined in
+                    # the LFRic infrastructure
+                    kind_name = const.DATA_TYPE_MAP["reduction"]["kind"]
+                else:
+                    # Set read-only real scalar precision
+                    kind_name = const.SCALAR_TYPE_MAP["real"]
                 prim_type = ScalarType.Intrinsic.REAL
             elif self.intrinsic_type == "integer":
-                kind_name = api_config.default_kind["integer"]
+                kind_name = const.SCALAR_TYPE_MAP["integer"]
                 prim_type = ScalarType.Intrinsic.INTEGER
             elif self.intrinsic_type == "logical":
-                kind_name = api_config.default_kind["logical"]
+                kind_name = const.SCALAR_TYPE_MAP["logical"]
                 prim_type = ScalarType.Intrinsic.BOOLEAN
             else:
                 raise NotImplementedError(

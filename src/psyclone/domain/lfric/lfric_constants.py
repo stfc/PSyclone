@@ -270,6 +270,11 @@ class LFRicConstants(object):
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
 
+        # ---------- Map from scalar intrinsic type to its precision ----------
+        LFRicConstants.SCALAR_TYPE_MAP = \
+            OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
+                            ["r_def", "i_def", "l_def"]))
+
         # ---------- Infrastructure module maps -------------------------------
 
         # Dictionary allowing us to look-up the name of the Fortran module,
@@ -277,13 +282,13 @@ class LFRicConstants(object):
         # Data structure type mandates its proxy name, Fortran intrinsic type
         # of its data and the kind (precision) for the intrinsic type.
         LFRicConstants.DATA_TYPE_MAP = {
-            # 'real'-valued scalar of kind 'r_def' (also used for global
+            # 'real'-valued scalar reduction of kind 'r_def' (used for global
             # reductions of "field_type" data)
-            "scalar": {"module": "scalar_mod",
-                       "type": "scalar_type",
-                       "proxy_type": None,
-                       "intrinsic": "real",
-                       "kind": "r_def"},
+            "reduction": {"module": "scalar_mod",
+                          "type": "scalar_type",
+                          "proxy_type": None,
+                          "intrinsic": "real",
+                          "kind": "r_def"},
             # 'real'-valued field with data of kind 'r_def'
             "field": {"module": "field_mod",
                       "type": "field_type",

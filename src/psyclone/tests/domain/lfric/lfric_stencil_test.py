@@ -1121,6 +1121,102 @@ def test_multiple_stencils(dist_mem, tmpdir):
     assert output7 in result
 
 
+def test_multiple_stencils_int_field(dist_mem, tmpdir):
+    ''' Test for correct output when there is more than one stencil in a
+    kernel that contains integer-valued fields. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.25_multiple_stencils_int_field.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output1 = (
+        "    USE integer_field_mod, ONLY: integer_field_type, "
+        "integer_field_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_testkern_stencil_multi_int_field_type(f1, "
+        "f2, f3, f4, f2_extent, f3_extent, f3_direction)")
+    assert output1 in result
+    output2 = (
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n"
+        "      TYPE(integer_field_type), intent(in) :: f1, f2, f3, f4\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
+    assert output2 in result
+    output3 = (
+        "      TYPE(integer_field_proxy_type) f1_proxy, f2_proxy, "
+        "f3_proxy, f4_proxy\n")
+    assert output3 in result
+    output4 = (
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_size(:) => null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n")
+    assert output4 in result
+    output5 = (
+        "      ! Initialise stencil dofmaps\n"
+        "      !\n"
+        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_CROSS,f2_extent)\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
+        "      IF (f3_direction .eq. x_direction) THEN\n"
+        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_1DX,f3_extent)\n"
+        "      END IF\n"
+        "      IF (f3_direction .eq. y_direction) THEN\n"
+        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_1DY,f3_extent)\n"
+        "      END IF\n"
+        "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
+        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
+        "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_1DX,2)\n"
+        "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
+        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
+        "      !\n")
+    assert output5 in result
+    if dist_mem:
+        output6 = (
+            "      !\n"
+            "      IF (f3_proxy%is_dirty(depth=f3_extent)) THEN\n"
+            "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (f4_proxy%is_dirty(depth=2)) THEN\n"
+            "        CALL f4_proxy%halo_exchange(depth=2)\n"
+            "      END IF\n")
+        assert output6 in result
+    output7 = (
+        "        CALL testkern_stencil_multi_int_field_code(nlayers, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), "
+        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f3_stencil_size(cell), "
+        "f3_direction, f3_stencil_dofmap(:,:,cell), f4_proxy%data, "
+        "f4_stencil_size(cell), f4_stencil_dofmap(:,:,cell), ndf_w2broken, "
+        "undf_w2broken, map_w2broken(:,cell), ndf_w1, undf_w1, "
+        "map_w1(:,cell), ndf_w0, undf_w0, map_w0(:,cell), ndf_w2v, "
+        "undf_w2v, map_w2v(:,cell))")
+    assert output7 in result
+
+
 def test_multiple_stencil_same_name(dist_mem, tmpdir):
     ''' Test the case when there is more than one stencil in a kernel with
     the same name for extent. '''

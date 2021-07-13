@@ -403,9 +403,9 @@ def test_scalar_invoke_uniq_declns_valid_intrinsic():
 
 
 def test_scalar_arg_lfricconst_properties(monkeypatch):
-    ''' Tests that properties of all supported types of scalar arguments
-    ('real', 'integer' and 'logical') defined in LFRicConstants are
-    correctly set up in the DynKernelArgument class.
+    ''' Tests that properties of all supported types of user-defined,
+    read-only, scalar arguments ('real', 'integer' and 'logical') defined
+    in LFRicConstants are correctly set up in the DynKernelArgument class.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -417,8 +417,8 @@ def test_scalar_arg_lfricconst_properties(monkeypatch):
 
     # Test 'real' scalars
     scalar_arg = kernel.arguments.args[0]
-    assert scalar_arg.module_name == "scalar_mod"
-    assert scalar_arg.data_type == "scalar_type"
+    assert scalar_arg.module_name is None
+    assert scalar_arg.data_type is None
     assert scalar_arg.proxy_data_type is None
     assert scalar_arg.intrinsic_type == "real"
     assert scalar_arg.precision == "r_def"
@@ -448,6 +448,27 @@ def test_scalar_arg_lfricconst_properties(monkeypatch):
     assert ("Expected one of {0} intrinsic types for a scalar "
             "argument but found 'tabby'.".
             format(const.VALID_INTRINSIC_TYPES)) in str(err.value)
+
+
+def test_scalar_reduction_lfricconst_properties():
+    ''' Tests that properties of 'real' scalar reduction arguments defined
+    in LFRicConstants are correctly set up in the DynKernelArgument class.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.9.1_X_innerproduct_Y_builtin.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.kernels()[0]
+    reduction_arg = kernel.arguments.args[0]
+
+    assert reduction_arg.module_name == "scalar_mod"
+    assert reduction_arg.data_type == "scalar_type"
+    assert reduction_arg.proxy_data_type is None
+    assert reduction_arg.intrinsic_type == "real"
+    assert reduction_arg.precision == "r_def"
 
 
 def test_multiple_updated_scalar_args():

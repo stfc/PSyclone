@@ -48,7 +48,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import DynDofmaps, DynKern, DynKernMetadata
+from psyclone.dynamo0p3 import DynDofmaps, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -396,14 +396,13 @@ def test_cma_operator_arg_lfricconst_properties(monkeypatch):
     are correctly set up in the DynKernelArgument class.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
-    name = "testkern_cma_type"
-    metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.5_multi_cma_invoke.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.kernels()[0]
+    cma_op_arg = kernel.arguments.args[2]
 
-    cma_op_arg = kernel.arguments.args[1]
     assert cma_op_arg.module_name == "operator_mod"
     assert cma_op_arg.data_type == "columnwise_operator_type"
     assert cma_op_arg.proxy_data_type == "columnwise_operator_proxy_type"
