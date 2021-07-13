@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
 
@@ -50,53 +50,41 @@
 from __future__ import print_function
 import re
 import six
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, Comment
 from fparser.two.parser import ParserFactory
+
 from psyclone.configuration import Config, ConfigurationError
+from psyclone.core import Signature
+from psyclone.domain.gocean import GOceanConstants
+from psyclone.errors import GenerationError, InternalError
+import psyclone.expression as expr
+from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
+    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference, BinaryOperation, Reference
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, ACCEnterDataDirective, HaloExchange
-from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
-    TypeSymbol, LocalInterface, ArgumentInterface, UnresolvedInterface, \
-    REAL_TYPE
+    AccessType, ACCEnterDataDirective, HaloExchange, ACCParallelDirective, \
+    ACCKernelsDirective
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-import psyclone.expression as expr
-from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
-    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
+    KernelSchedule, StructureReference, BinaryOperation, Reference, \
+    Call, Assignment, CodeBlock, PSyDataNode
+from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
+    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
+    ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
+    UnknownFortranType, LocalInterface, BOOLEAN_TYPE
 
 
-# The different grid-point types that a field can live on
-VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct", "go_cf", "go_every"]
-
-# The two scalar types we support
-VALID_SCALAR_TYPES = ["go_i_scalar", "go_r_scalar"]
-
-# Index-offset schemes (for the Arakawa C-grid)
-VALID_OFFSET_NAMES = ["go_offset_se", "go_offset_sw",
-                      "go_offset_ne", "go_offset_nw", "go_offset_any"]
-
-# The offset schemes for which we can currently generate constant
-# loop bounds in the PSy layer
-SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw", "go_offset_any"]
-
-# The sets of grid points that a kernel may operate on
-VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
-
-# The list of valid stencil properties. We currently only support
-# pointwise. This property could probably be removed from the
-# GOcean API altogether.
-VALID_STENCIL_NAMES = ["go_pointwise"]
-
-# The valid types of loop. In this API we expect only doubly-nested
-# loops.
-VALID_LOOP_TYPES = ["inner", "outer"]
+# Specify which OpenCL command queue to use for management operations like
+# data transfers when generating an OpenCL PSy-layer
+# TODO #1134: This value should be moved to the OCLTrans when the
+# transformation logic is also moved there.
+_OCL_MANAGEMENT_QUEUE = 1
 
 
 class GOPSy(PSy):
@@ -199,6 +187,88 @@ class GOInvokes(Invokes):
                          funcnames=["get_rank"]))
         return "get_rank()"
 
+    def gen_code(self, parent):
+        '''
+        GOcean redefines the Invokes.gen_code() to start using the PSyIR
+        backend when possible. In cases where the backend can not be used yet
+        (e.g. OpenCL and PSyDataNodes) the parent class will be called. This
+        is a temporary workaround to avoid modifying the generator file while
+        other APIs still use the f2pygen module for code generation.
+        Once the PSyIR backend has generated an output, this is added into a
+        f2pygen PSyIRGen block in the f2pygen AST for each Invoke in the
+        PSy layer.
+
+        :param parent: the parent node in the f2pygen AST to which to add \
+                       content.
+        :type parent: `psyclone.f2pygen.ModuleGen`
+        '''
+        # First check if there is any unsupported invoke, in this case the
+        # f2pygen gen_code path is used instead
+        for invoke in self.invoke_list:
+            # TODO 1134: The opencl path is still largely implemented using
+            # the f2pygen and cannot be processed by the backend yet.
+            if invoke.schedule.opencl:
+                super(GOInvokes, self).gen_code(parent)
+                return
+
+            # TODO 1168: PSyDataNodes are not supported by the backend yet.
+            if invoke.schedule.root.walk(PSyDataNode):
+                super(GOInvokes, self).gen_code(parent)
+                return
+
+        # If the const_loop_bounds flag is True for any invoke, we need to
+        # declare and initialize the loop bounds variables.
+        # TODO 1256: The code below should be moved to the const_loop_bounds
+        # transformation itself.
+        for invoke in self.invoke_list:
+            if invoke.schedule.const_loop_bounds:
+                i_stop = invoke.schedule.symbol_table.new_symbol(
+                    invoke.schedule.iloop_stop, symbol_type=DataSymbol,
+                    datatype=INTEGER_TYPE)
+                j_stop = invoke.schedule.symbol_table.new_symbol(
+                    invoke.schedule.jloop_stop, symbol_type=DataSymbol,
+                    datatype=INTEGER_TYPE)
+
+                # Look-up the loop bounds using the first field object in the
+                # list
+                api_config = Config.get().api_conf("gocean1.0")
+                arg = invoke.schedule.symbol_table.argument_list[0].name
+                xstop = api_config.grid_properties["go_grid_xstop"].fortran \
+                    .format(arg)
+                ystop = api_config.grid_properties["go_grid_ystop"].fortran \
+                    .format(arg)
+
+                block = Comment(FortranStringReader(
+                    "! Look-up loop bounds\n", ignore_comments=False))
+                codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
+                invoke.schedule.children.insert(0, codeblock)
+                # Get a field argument from the argument list
+                for arg in invoke.schedule.symbol_table.argument_list:
+                    if isinstance(arg.datatype, DataTypeSymbol):
+                        if arg.datatype.name == "r2d_field":
+                            field = arg
+                            break
+                assign1 = Assignment.create(
+                            Reference(i_stop),
+                            StructureReference.create(
+                                field, xstop.split('%')[1:]))
+                assign2 = Assignment.create(
+                            Reference(j_stop),
+                            StructureReference.create(
+                                field, ystop.split('%')[1:]))
+                invoke.schedule.children.insert(1, assign1)
+                invoke.schedule.children.insert(2, assign2)
+
+        # Lower the GOcean PSyIR to language level so it can be visited
+        # by the backends
+        invoke.schedule.root.lower_to_language_level()
+        # Then insert it into a f2pygen AST as a PSyIRGen node.
+        # Note that other routines besides the Invoke could have been
+        # inserted during the lowering (e.g. module-inlined kernels),
+        # so have to iterate over all current children of root.
+        for child in invoke.schedule.root.children:
+            parent.add(PSyIRGen(parent, child))
+
 
 class GOInvoke(Invoke):
     '''
@@ -286,20 +356,19 @@ class GOInvoke(Invoke):
         '''
 
         def sort_by_interface(symbol_names):
-            ''' Utility to help differentiate between arguments, local symbols
-            and other symbols (globals, unresolved, ...).
+            ''' Utility to help differentiate between arguments and local
+            symbols from a given list of symbols names. Other symbols are
+            ignored.
 
             :param symbol_names: a list of symbols to categorise.
             :type symbol_names: list of str
 
-            :returns: a tuple of 3 lists with the given symbol_names \
-                      categorised as argument symbols, local symbols and \
-                      other symbols.
-            :rtype: 3-tuple of lists of str
+            :returns: a tuple of 2 lists with the given symbol_names \
+                      categorised as argument symbols and local symbols.
+            :rtype: 2-tuple of lists of str
             '''
             arg_symbols = []
             local_symbols = []
-            other_symbols = []
             symtab = self.schedule.symbol_table
             for name in symbol_names:
                 interface = symtab.lookup(name).interface
@@ -307,9 +376,8 @@ class GOInvoke(Invoke):
                     local_symbols.append(name)
                 elif isinstance(interface, ArgumentInterface):
                     arg_symbols.append(name)
-                else:
-                    other_symbols.append(name)
-            return arg_symbols, local_symbols, other_symbols
+                # Other symbols are ignored
+            return arg_symbols, local_symbols
 
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
@@ -339,7 +407,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_arrays)
 
         # Add the subroutine argument declarations for real scalars
-        r_args, _, _ = sort_by_interface(self.unique_args_rscalars)
+        r_args, _ = sort_by_interface(self.unique_args_rscalars)
         if r_args:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
@@ -347,7 +415,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_rscalars)
 
         # Add the subroutine declarations for integer scalars
-        int_args, int_locals, _ = sort_by_interface(self.unique_args_iscalars)
+        int_args, int_locals = sort_by_interface(self.unique_args_iscalars)
         if int_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
@@ -393,14 +461,17 @@ class GOInvokeSchedule(InvokeSchedule):
     :param reserved_names: optional list of names that are not allowed in the \
                            new InvokeSchedule SymbolTable.
     :type reserved_names: list of str
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
     '''
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, name, alg_calls, reserved_names=None):
+    def __init__(self, name, alg_calls, reserved_names=None, parent=None):
         InvokeSchedule.__init__(self, name, GOKernCallFactory,
                                 GOBuiltInCallFactory,
-                                alg_calls, reserved_names)
+                                alg_calls, reserved_names, parent=parent)
 
         # The GOcean Constants Loops Bounds Optimization is implemented using
         # a flag parameter. It defaults to False and can be turned on applying
@@ -473,21 +544,31 @@ class GOLoop(Loop):
         single loop information to the base class so it creates the one we
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
-        in the Dynamo api. '''
+        in the Dynamo api.
 
+        :param parent: optional parent node (default None).
+        :type parent: :py:class:`psyclone.psyGen.node`
+        :param str topology_name: optional opology of the loop (unused atm).
+        :param str loop_type: loop type - must be 'inner' or 'outer'.
+
+        :raises GenerationError: if the loop is not inserted inside a \
+            GOInvokeSchedule region.
+
+    '''
     _bounds_lookup = {}
 
-    def __init__(self, parent=None,
-                 topology_name="", loop_type=""):
-        '''Constructs a GOLoop instance.
-        :param parent: Optional parent node (default None).
-        :type parent: :py:class:`psyclone.psyGen.node`
-        :param str topology_name: Optional opology of the loop (unused atm).
-        :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
+    def __init__(self, parent=None, topology_name="", loop_type=""):
         # pylint: disable=unused-argument
+        const = GOceanConstants()
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+                      valid_loop_types=const.VALID_LOOP_TYPES)
         self.loop_type = loop_type
+
+        # Check that the GOLoop is inside the GOcean PSy-layer
+        if not self.ancestor(GOInvokeSchedule):
+            raise GenerationError(
+                "GOLoops must always be constructed with a parent which is"
+                " inside (directly or indirectly) of a GOInvokeSchedule")
 
         # We set the loop variable name in the constructor so that it is
         # available when we're determining which vars should be OpenMP
@@ -501,9 +582,13 @@ class GOLoop(Loop):
         else:
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
-                format(self._loop_type, VALID_LOOP_TYPES))
+                format(self._loop_type, const.VALID_LOOP_TYPES))
 
-        symtab = self.scope.symbol_table
+        # In the GOcean API the loop iteration variables are declared in the
+        # Invoke routine scope in order to share them between all GOLoops.
+        # This is important because some transformations/scripts work with
+        # this assumption when moving or fusing loops.
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         try:
             self.variable = symtab.lookup_with_tag(tag)
         except KeyError:
@@ -583,13 +668,15 @@ class GOLoop(Loop):
     def setup_bounds():
         '''Populates the GOLoop._bounds_lookup dictionary. This is
         used by PSyclone to look up the loop boundaries for each loop
-        it creates.'''
+        it creates.
 
-        for grid_offset in SUPPORTED_OFFSETS:
+        '''
+        const = GOceanConstants()
+        for grid_offset in const.SUPPORTED_OFFSETS:
             GOLoop._bounds_lookup[grid_offset] = {}
-            for gridpt_type in VALID_FIELD_GRID_TYPES:
+            for gridpt_type in const.VALID_FIELD_GRID_TYPES:
                 GOLoop._bounds_lookup[grid_offset][gridpt_type] = {}
-                for itspace in VALID_ITERATES_OVER:
+                for itspace in const.VALID_ITERATES_OVER:
                     GOLoop._bounds_lookup[grid_offset][gridpt_type][
                         itspace] = {}
 
@@ -644,14 +731,14 @@ class GOLoop(Loop):
             {'inner': {'start': "{start}", 'stop': "{stop}+1"},
              'outer': {'start': "{start}", 'stop': "{stop}+1"}}
         # For offset 'any'
-        for gridpt_type in VALID_FIELD_GRID_TYPES:
-            for itspace in VALID_ITERATES_OVER:
+        for gridpt_type in const.VALID_FIELD_GRID_TYPES:
+            for itspace in const.VALID_ITERATES_OVER:
                 GOLoop._bounds_lookup['go_offset_any'][gridpt_type][itspace] =\
                     {'inner': {'start': "{start}-1", 'stop': "{stop}"},
                      'outer': {'start': "{start}-1", 'stop': "{stop}"}}
         # For 'every' grid-point type
-        for offset in SUPPORTED_OFFSETS:
-            for itspace in VALID_ITERATES_OVER:
+        for offset in const.SUPPORTED_OFFSETS:
+            for itspace in const.VALID_ITERATES_OVER:
                 GOLoop._bounds_lookup[offset]['go_every'][itspace] = \
                     {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
                      'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
@@ -716,9 +803,10 @@ class GOLoop(Loop):
                                              "space. But got "
                                              "{0}".format(bracket_expr))
 
-        # Test if a loop with the given boundaries can actually be parsed.
-        # Necessary to setup the parser
-        ParserFactory().create(std="f2003")
+        # We need to make sure the fparser is properly initialised, which
+        # typically has not yet happened when the config file is read.
+        # Otherwise the Nonlabel_Do_Stmt cannot parse valid expressions.
+        ParserFactory().create(std="f2008")
 
         # Test both the outer loop indices (index 3 and 4) and inner
         # indices (index 5 and 6):
@@ -731,10 +819,11 @@ class GOLoop(Loop):
             try:
                 _ = Nonlabel_Do_Stmt(do_string)
             except NoMatchError as err:
-                raise ConfigurationError("Expression '{0}' is not a "
-                                         "valid do loop boundary. Error "
-                                         "message: '{1}'."
-                                         .format(bound, str(err)))
+                six.raise_from(
+                    ConfigurationError("Expression '{0}' is not a "
+                                       "valid do loop boundary. Error "
+                                       "message: '{1}'."
+                                       .format(bound, str(err))), err)
 
         # All tests successful, so add the new bounds:
         # --------------------------------------------
@@ -747,10 +836,11 @@ class GOLoop(Loop):
         if not data[1] in current_bounds[data[0]]:
             current_bounds[data[0]][data[1]] = {}
 
+        const = GOceanConstants()
         # Check iteration space exists:
         if not data[2] in current_bounds[data[0]][data[1]]:
             current_bounds[data[0]][data[1]][data[2]] = {}
-            VALID_ITERATES_OVER.append(data[2])
+            const.VALID_ITERATES_OVER.append(data[2])
 
         current_bounds[data[0]][data[1]][data[2]] = \
             {'outer': {'start': data[3], 'stop': data[4]},
@@ -787,7 +877,7 @@ class GOLoop(Loop):
                 "not begin with '{{0}}': '{0}'".format(grid_property))
 
         fld_sym = self.scope.symbol_table.lookup(self.field_name)
-        return StructureReference.create(fld_sym, members[1:], parent=self)
+        return StructureReference.create(fld_sym, members[1:])
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -959,11 +1049,23 @@ class GOLoop(Loop):
         expressions of the Loop contain the boundaries defined by the API.
 
         '''
+        # Check that it is a properly formed GOLoop
+        self._validate_loop()
+
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
         self.stop_expr = self.upper_bound()
 
-        return super(GOLoop, self).lower_to_language_level()
+        # Once the bounds are set, lower the loops multiple children
+        for child in self.children:
+            child.lower_to_language_level()
+
+        # Finally, lose the DSL-level abstraction since the lower_bound() and
+        # upper_bound() methods will fail after lowering because they rely on
+        # a GOKern to be found inside the Loop, and this doesn't exist anymore
+        new_loop = Loop(variable=self.variable)
+        new_loop.children = self.pop_all_children()
+        self.replace_with(new_loop)
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -989,12 +1091,9 @@ class GOLoop(Loop):
 
         return super(GOLoop, self).__str__()
 
-    def gen_code(self, parent):
-        ''' Create the f2pygen AST for this loop (and update the PSyIR
-        representing the loop bounds if necessary).
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+    def _validate_loop(self):
+        ''' Validate that the GOLoop has all necessary boundaries information
+        to lower or gen_code to f2pygen.
 
         :raises GenerationError: if we can't find an enclosing Schedule.
         :raises GenerationError: if this loop does not enclose a Kernel.
@@ -1007,34 +1106,46 @@ class GOLoop(Loop):
         # Our schedule holds the names to use for the loop bounds.
         # Climb up the tree looking for our enclosing GOInvokeSchedule
         schedule = self.ancestor(GOInvokeSchedule)
-        if schedule is None or not isinstance(schedule, GOInvokeSchedule):
-            raise GenerationError("Internal error: cannot find parent"
-                                  " GOInvokeSchedule for this Do loop")
+        if schedule is None:
+            raise GenerationError("Cannot find a GOInvokeSchedule ancestor "
+                                  "for this GOLoop.")
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
         go_kernels = self.walk(GOKern)
         if not go_kernels:
-            raise GenerationError("Internal error: cannot find the "
+            raise GenerationError("Cannot find the "
                                   "GOcean Kernel enclosed by this loop")
         index_offset = go_kernels[0].index_offset
+        const = GOceanConstants()
         if schedule.const_loop_bounds and \
-           index_offset not in SUPPORTED_OFFSETS:
+           index_offset not in const.SUPPORTED_OFFSETS:
             raise GenerationError("Constant bounds generation"
                                   " not implemented for a grid offset "
                                   "of {0}. Supported offsets are {1}".
                                   format(index_offset,
-                                         SUPPORTED_OFFSETS))
+                                         const.SUPPORTED_OFFSETS))
         # Check that all kernels enclosed by this loop expect the same
         # grid offset
         for kernel in go_kernels:
             if kernel.index_offset != index_offset:
                 raise GenerationError("All Kernels must expect the same "
-                                      "grid offset but kernel {0} has offset "
-                                      "{1} which does not match {2}".
+                                      "grid offset but kernel '{0}' has offset"
+                                      " '{1}' which does not match '{2}'.".
                                       format(kernel.name,
                                              kernel.index_offset,
                                              index_offset))
+
+    def gen_code(self, parent):
+        ''' Create the f2pygen AST for this loop (and update the PSyIR
+        representing the loop bounds if necessary).
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        # Check that it is a properly formed GOLoop
+        self._validate_loop()
 
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
@@ -1109,6 +1220,56 @@ class GOKern(CodedKern):
         self._name = ""
         self._index_offset = ""
 
+    @staticmethod
+    def _format_access(var_name, var_value, depth):
+        '''This function creates an index-expression: if the value is
+        negative, it returns 'varname-depth', if the value is positive,
+        it returns 'varname+depth', otherwise it just returns 'varname'.
+        This is used to create artificial stencil accesses for GOKernels.
+        TODO #845: Return a proper PSyIR expression instead of a string.
+
+        :param str var_name: name of the variable.
+        :param int var_value: value of the variable, which determines the \
+            direction (adding or subtracting depth).
+        :param int depth: the depth of the access (>0).
+
+        :returns: the index expression for an access in the given direction.
+        :rtype: str
+
+        '''
+        if var_value < 0:
+            return var_name + str(-depth)
+        if var_value > 0:
+            return var_name + "+" + str(depth)
+        return var_name
+
+    def _record_stencil_accesses(self, signature, arg, var_accesses):
+        '''This function adds accesses to a field depending on the
+        meta-data declaration for this argument (i.e. accounting for
+        any stencil accesses).
+
+        :param signature: signature of the variable.
+        :type signature: :py:class:`psyclone.core.Signature`
+        :param arg:  the meta-data information for this argument.
+        :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about the field accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        # Query each possible stencil direction and add a corresponding
+        # variable accesses. Note that if (i,j) is accessed, the depth
+        # returned will be 1, so one access to (i,j) is added.
+        for j in [-1, 0, 1]:
+            for i in [-1, 0, 1]:
+                depth = arg.stencil.depth(i, j)
+                for current_depth in range(1, depth+1):
+                    i_expr = GOKern._format_access("i", i, current_depth)
+                    j_expr = GOKern._format_access("j", j, current_depth)
+                    var_accesses.add_access(signature, arg.access,
+                                            self, [[i_expr, j_expr]])
+
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
         according to the kernel metadata.
@@ -1117,8 +1278,8 @@ class GOKern(CodedKern):
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
 
+        '''
         # Grid properties are accessed using one of the fields. This stores
         # the field used to avoid repeatedly determining the best field:
         field_for_grid_property = None
@@ -1131,14 +1292,23 @@ class GOKern(CodedKern):
             else:
                 var_name = arg.name
 
+            signature = Signature(var_name.split("%"))
             if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
-                    var_accesses.add_access(var_name, arg.access, self)
+                    var_accesses.add_access(signature, arg.access, self)
             else:
-                # In case of an array for now add an arbitrary array
-                # reference so it is properly recognised as an array access
-                var_accesses.add_access(var_name, arg.access, self, [1])
+                if arg.argument_type == "field":
+                    # Now add 'artificial' accesses to this field depending
+                    # on meta-data (access-mode and stencil information):
+                    self._record_stencil_accesses(signature, arg,
+                                                  var_accesses)
+                else:
+                    # In case of an array for now add an arbitrary array
+                    # reference to (i,j) so it is properly recognised as
+                    # an array access.
+                    var_accesses.add_access(signature, arg.access,
+                                            self, [["i", "j"]])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 
@@ -1179,7 +1349,7 @@ class GOKern(CodedKern):
 
         '''
 
-        if self.root.opencl:
+        if self.ancestor(InvokeSchedule).opencl:
             # OpenCL is completely different so has its own gen method and
             # has to call the rename_and_write to generate to OpenCL files.
             self.rename_and_write()
@@ -1202,11 +1372,31 @@ class GOKern(CodedKern):
             parent.add(UseGen(parent, name="ocl_utils_mod", only=True,
                               funcnames=["check_status"]))
 
-        # Generate code to ensure data is on device
-        self.gen_data_on_ocl_device(parent)
+        # Generate code inside the first_time block to ensure the device
+        # buffers are initialised and the data is on the device. A set_args
+        # call is also inserted because in some platforms (e.g. Xiling FPGA)
+        # knowing which arguments each kernel is going to use allows the write
+        # operation to place the data into the appropriate memory bank.
+        # This will create duplicate write operation for fields that are
+        # repeated in multiple kernels, but the performance penalty is small
+        # because it just happens during the first iteration.
+        # TODO #1134: Explore removing duplicated write operations.
+        ft_block = self.ancestor(InvokeSchedule)._first_time_block
+        self.gen_ocl_buffers_initialisation(ft_block)
+        self.gen_ocl_set_args_call(ft_block)
+        self.gen_ocl_buffers_initial_write(ft_block)
 
-        # Create array for the global work size argument of the kernel
-        symtab = self.root.symbol_table
+        # Call the set_args again outside the first_time block in case some
+        # value has changed between iterations. This doesn't seem to have any
+        # performance penalty, but some of these could be removed for nicer
+        # code generation.
+        # TODO #1134: Explore removing unnecessary set_args calls.
+        self.gen_ocl_set_args_call(parent)
+
+        # Create array for the global work size argument of the kernel. Use the
+        # InvokeSchedule symbol table to share this symbols for all the kernels
+        # in the Invoke.
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         garg = self._arguments.find_grid_access()
         glob_size = symtab.new_symbol(
             "globalsize", symbol_type=DataSymbol,
@@ -1246,57 +1436,47 @@ class GOKern(CodedKern):
         # Retrieve kernel name
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
 
-        # Find the symbol that defines each boundary for this kernel.
-        # In OpenCL the iteration boundaries are passed as arguments to the
-        # kernel because the global work size may exceed the dimensions and
-        # therefore the updates outside the boundaries should be masked.
-        # If any of the boundaries is not found, it can not proceed.
-        boundaries = []
-        try:
-            for boundary in ["xstart", "xstop", "ystart", "ystop"]:
-                tag = boundary + "_" + self.name
-                symbol = symtab.lookup_with_tag(tag)
-                boundaries.append(symbol.name)
-        except KeyError as err:
-            six.raise_from(GenerationError(
-                "Boundary symbol tag '{0}' not found while generating the "
-                "OpenCL code for kernel '{1}'. Make sure to apply the "
-                "GOMoveIterationBoundariesInsideKernelTrans before attempting"
-                " the OpenCL code generation.".format(tag, self.name)), err)
-
-        # Then we set the kernel arguments
-        arguments = [kernel]
-        for arg in self._arguments.args:
-            if arg.argument_type == "scalar":
-                if arg.name in boundaries:
-                    # Boundary values are 0-indexed in OpenCL
-                    arguments.append(arg.name + " - 1")
-                else:
-                    arguments.append(arg.name)
-            elif arg.argument_type == "field":
-                arguments.append(arg.name + "%device_ptr")
-            elif arg.argument_type == "grid_property":
-                # TODO (dl_esm_inf/#18) the dl_esm_inf library stores
-                # the pointers to device memory for grid properties in
-                # "<grid-prop-name>_device" which is a bit hacky but
-                # works for now.
-                if arg.is_scalar:
-                    arguments.append(arg.dereference(garg.name))
-                else:
-                    arguments.append(garg.name+"%grid%"+arg.name+"_device")
-        sub_name = symtab.lookup_with_tag(self.name + "_set_args").name
-        parent.add(CallGen(parent, sub_name, arguments))
-
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
         qlist = symtab.lookup_with_tag("opencl_cmd_queues").name
         flag = symtab.lookup_with_tag("opencl_error").name
 
-        # Then we call clEnqueueNDRangeKernel
-        parent.add(CommentGen(parent, " Launch the kernel"))
-        cnull = "C_NULL_PTR"
+        # Choose the command queue number to which to dispatch this kernel. We
+        # have do deal with possible dependencies to kernels dispatched in
+        # different command queues as the order of execution is not guaranteed.
         queue_number = self._opencl_options['queue_number']
         cmd_queue = qlist + "({0})".format(queue_number)
+        outer_loop = self.parent.parent.parent.parent
+        dependency = outer_loop.backward_dependence()
+
+        # If the dependency is a loop containing a kernel, add a barrier if the
+        # previous kernels were dispatched in a different command queue
+        if dependency and dependency.coded_kernels():
+            for kernel_dep in dependency.coded_kernels():
+                # TODO #1134: The OpenCL options should not leak from the
+                # OpenCL transformation.
+                # pylint: disable=protected-access
+                previous_queue = kernel_dep._opencl_options['queue_number']
+                if previous_queue != queue_number:
+                    # If the backward dependency is being executed in another
+                    # queue we add a barrier to make sure the previous kernel
+                    # has finished before this one starts.
+                    parent.add(AssignGen(
+                        parent,
+                        lhs=flag,
+                        rhs="clFinish({0}({1}))".format(
+                            qlist, str(previous_queue))))
+
+        # If the dependency is something other than a kernel, currently we
+        # dispatch everything else to queue _OCL_MANAGEMENT_QUEUE, so add a
+        # barrier if this kernel is not on queue _OCL_MANAGEMENT_QUEUE.
+        if dependency and not dependency.coded_kernels() and \
+                queue_number != _OCL_MANAGEMENT_QUEUE:
+            parent.add(AssignGen(
+                parent,
+                lhs=flag,
+                rhs="clFinish({0}({1}))".format(
+                    qlist, str(_OCL_MANAGEMENT_QUEUE))))
 
         if api_config.debug_mode:
             # Check that everything has succeeded before the kernel launch,
@@ -1309,6 +1489,9 @@ class GOKern(CodedKern):
                 parent, "check_status",
                 ["'Errors before {0} launch'".format(self.name), flag]))
 
+        # Then we call clEnqueueNDRangeKernel
+        parent.add(CommentGen(parent, " Launch the kernel"))
+        cnull = "C_NULL_PTR"
         args = ", ".join([
             # OpenCL Command Queue
             cmd_queue,
@@ -1358,6 +1541,7 @@ class GOKern(CodedKern):
         :param parent: Parent node of the set-kernel-arguments routine
         :type parent: :py:class:`psyclone.f2pygen.moduleGen`
         '''
+        # pylint: disable=too-many-locals, too-many-statements
         # The arg_setter code is in a subroutine, so we create a new scope
         argsetter_st = SymbolTable()
 
@@ -1485,7 +1669,7 @@ class GOKern(CodedKern):
         # Finally we can provide the updated argument list without name clashes
         sub.args = [kobj] + argument_names
 
-    def gen_data_on_ocl_device(self, parent):
+    def gen_ocl_buffers_initialisation(self, parent):
         # pylint: disable=too-many-locals
         '''
         Generate code to create data buffers on OpenCL device.
@@ -1493,131 +1677,599 @@ class GOKern(CodedKern):
         :param parent: Parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        grid_arg = self._arguments.find_grid_access()
-        symtab = self.root.symbol_table
-        # Ensure the fields required by this kernel are on device. We must
-        # create the buffers for them if they're not.
-        parent.add(UseGen(parent, name="fortcl", only=True,
-                          funcnames=["create_rw_buffer"]))
-        parent.add(CommentGen(parent, " Ensure field data is on device"))
+        # Get the InvokeSchedule symbol table and the root f2pygen node
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        module = parent
+        while module.parent:
+            module = module.parent
+
+        # Traverse all arguments and make sure the buffers are initialised
         for arg in self._arguments.args:
-            if arg.argument_type == "field" or \
-               (arg.argument_type == "grid_property" and not arg.is_scalar):
-                api_config = Config.get().api_conf("gocean1.0")
-                if arg.argument_type == "field":
-                    # fields have a 'data_on_device' property for keeping
-                    # track of whether they are on the device
-                    condition = ".NOT. {0}%data_on_device".format(arg.name)
-                    device_buff = "{0}%device_ptr".format(arg.name)
-                    host_buff = api_config.grid_properties["go_grid_data"]\
-                        .fortran.format(arg.name)
-                else:
-                    # grid properties do not have such an attribute (because
-                    # they are just pointers) so we check whether the device
-                    # pointer is NULL.
-                    device_buff = "{0}%grid%{1}_device".format(grid_arg.name,
-                                                               arg.name)
-                    condition = device_buff + " == 0"
-                    host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
-                # Name of variable to hold no. of bytes of storage required
-                nbytes = symtab.lookup_with_tag("opencl_bytes").name
-                # Variable to hold write event returned by OpenCL runtime
-                wevent = symtab.lookup_with_tag("opencl_wevent").name
-                ifthen = IfThenGen(parent, condition)
-                parent.add(ifthen)
-                parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
-                                   entity_decls=[nbytes]))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind="c_intptr_t", target=True,
-                                   entity_decls=[wevent]))
-                api_config = Config.get().api_conf("gocean1.0")
-                props = api_config.grid_properties
-                num_x = props["go_grid_nx"].fortran.format(grid_arg.name)
-                num_y = props["go_grid_ny"].fortran.format(grid_arg.name)
-                # Use c_sizeof() on first element of array to be copied over in
-                # order to cope with the fact that some grid properties are
-                # integer.
-                size_expr = "int({0}*{1}, 8)*c_sizeof({2}(1,1))" \
-                            .format(num_x, num_y, host_buff)
-                ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
-                ifthen.add(CommentGen(ifthen, " Create buffer on device"))
-                # Get the name of the list of command queues (set in
-                # psyGen.InvokeSchedule)
-                qlist = symtab.lookup_with_tag("opencl_cmd_queues").name
-                flag = symtab.lookup_with_tag("opencl_error").name
+            if arg.argument_type == "field":
+                # Get the init_buffer routine and insert a call for this field
+                init_buf = self.gen_ocl_initialise_buffer(module)
+                field = symtab.lookup(arg.name)
+                call = Call.create(init_buf, [Reference(field)])
 
-                ifthen.add(AssignGen(ifthen, lhs=device_buff,
-                                     rhs="create_rw_buffer(" + nbytes + ")"))
-                ifthen.add(
-                    AssignGen(ifthen, lhs=flag,
-                              rhs="clEnqueueWriteBuffer({0}(1), {1}, CL_TRUE, "
-                              "0_8, {2}, C_LOC({3}), 0, C_NULL_PTR, "
-                              "C_LOC({4}))".format(qlist, device_buff,
-                                                   nbytes, host_buff, wevent)))
-                if arg.argument_type == "field":
-                    # Fields have to set their 'data_on_device' flag to True
-                    ifthen.add(AssignGen(
-                        ifthen, lhs="{0}%data_on_device".format(arg.name),
-                        rhs=".true."))
-                    # Fields also have a 'read_from_device_f' function pointer
-                    # to specify how to read the data back from the device.
-                    try:
-                        read_fp = symtab.lookup_with_tag("ocl_read_func").name
-                    except KeyError:
-                        # If the subroutines does not exist, it needs to be
-                        # generated first.
-                        read_fp = self.gen_ocl_read_from_device_function(
-                            parent.parent)
-                    ifthen.add(AssignGen(
-                        ifthen, lhs="{0}%read_from_device_f".format(arg.name),
-                        rhs=read_fp, pointer=True))
+                # TODO #1134: Currently we convert back the PSyIR to f2pygen
+                # but when using the PSyIR backend this will be removed.
+                parent.add(PSyIRGen(parent, call))
 
-                # Ensure data copies have finished
-                ifthen.add(CommentGen(
-                    ifthen, " Block until data copies have finished"))
-                ifthen.add(AssignGen(ifthen, lhs=flag,
-                                     rhs="clFinish(" + qlist + "(1))"))
+            elif arg.argument_type == "grid_property" and not arg.is_scalar:
+                # Get the grid init_buffer routine and insert a call
+                init_buf = self.gen_ocl_initialise_grid_buffers(module)
+                field = symtab.lookup(self._arguments.find_grid_access().name)
+                call = Call.create(init_buf, [Reference(field)])
 
-    def gen_ocl_read_from_device_function(self, f2pygen_module):
+                # TODO #1134: Currently we convert back the PSyIR to f2pygen
+                # but when using the PSyIR backend this will be removed.
+                parent.add(PSyIRGen(parent, call))
+
+            if not arg.is_scalar:
+                # All buffers will be assigned to a local OpenCL memory object
+                # to easily reference them, make sure this local variable is
+                # declared in the Invoke.
+                name = arg.name + "_cl_mem"
+                try:
+                    symtab.lookup_with_tag(name)
+                except KeyError:
+                    symtab.new_symbol(
+                        name, tag=name, symbol_type=DataSymbol,
+                        # TODO #1134: We could import the kind symbols from a
+                        # iso_c_binding global container.
+                        datatype=UnknownFortranType("INTEGER(KIND=c_intptr_t)"
+                                                    " :: " + name))
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       kind="c_intptr_t", entity_decls=[name]))
+
+    def gen_ocl_buffers_initial_write(self, parent):
+        # pylint: disable=too-many-locals
         '''
-        Insert a f2pygen subroutine to retrieve the data back from an
-        OpenCL device using FortCL in the given f2pygen module and return
-        its name.
+        Generate the f2pygen AST for the code to write the initial data into
+        the device.
+
+        :param parent: parent subroutine in f2pygen AST of generated code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        symtab = self.scope.symbol_table
+        there_is_a_grid_buffer = False
+        for arg in self._arguments.args:
+            if arg.argument_type == "field":
+                # Insert call to write_to_device method
+                call = Call.create(
+                    RoutineSymbol(arg.name+"%write_to_device()"), [])
+                parent.add(PSyIRGen(parent, call))
+            elif arg.argument_type == "grid_property" and not arg.is_scalar:
+                there_is_a_grid_buffer = True
+
+        if there_is_a_grid_buffer:
+            module = parent
+            while module.parent:
+                module = module.parent
+            grid_write_routine = self.gen_ocl_write_grid_buffers(module)
+
+            # Insert grid writing call
+            field = symtab.lookup(self._arguments.find_grid_access().name)
+            call = Call.create(grid_write_routine, [Reference(field)])
+            parent.add(PSyIRGen(parent, call))
+
+    def gen_ocl_set_args_call(self, parent):
+        '''
+        Generate the f2pygen AST for the code to call the set_args subroutine
+        for this kernel.
+
+        :param parent: parent subroutine in f2pygen AST of generated code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        # pylint: disable=too-many-locals, too-many-branches
+        # Retrieve symbol table and kernel name
+        symtab = self.scope.symbol_table
+        kernel = symtab.lookup_with_tag("kernel_" + self.name).name
+
+        # Find the symbol that defines each boundary for this kernel.
+        # In OpenCL the iteration boundaries are passed as arguments to the
+        # kernel because the global work size may exceed the dimensions and
+        # therefore the updates outside the boundaries should be masked.
+        # If any of the boundaries is not found, it can not proceed.
+        boundaries = []
+        try:
+            for boundary in ["xstart", "xstop", "ystart", "ystop"]:
+                tag = boundary + "_" + self.name
+                symbol = symtab.lookup_with_tag(tag)
+                boundaries.append(symbol.name)
+        except KeyError as err:
+            six.raise_from(GenerationError(
+                "Boundary symbol tag '{0}' not found while generating the "
+                "OpenCL code for kernel '{1}'. Make sure to apply the "
+                "GOMoveIterationBoundariesInsideKernelTrans before attempting"
+                " the OpenCL code generation.".format(tag, self.name)), err)
+
+        # If this is an IfBlock, make a copy of boundary assignments statements
+        # to make sure they are initialised before calling the set_args routine
+        # that have them as a parameter.
+        # TODO #1134: If everything was PSyIR we could probably move this
+        # assignment before the IfBlock instead of duplicating it inside.
+        if isinstance(parent, IfThenGen):
+            for node in self.ancestor(InvokeSchedule).walk(Assignment):
+                if node.lhs.symbol.name in boundaries:
+                    parent.add(PSyIRGen(parent, node.copy()))
+
+        # Prepare the argument list for the set_args routine
+        arguments = [kernel]
+        for arg in self._arguments.args:
+            if arg.argument_type == "scalar":
+                if arg.name in boundaries:
+                    # Boundary values are 0-indexed in OpenCL
+                    arguments.append(arg.name + " - 1")
+                else:
+                    arguments.append(arg.name)
+            elif arg.argument_type == "field":
+                # Cast buffer to cl_mem type expected by OpenCL
+                field = symtab.lookup(arg.name)
+                symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                source = StructureReference.create(field, ['device_ptr'])
+                dest = Reference(symbol)
+                bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
+                                             source, dest)
+                assig = Assignment.create(dest.copy(), bop)
+                parent.add(PSyIRGen(parent, assig))
+                arguments.append(symbol.name)
+            elif arg.argument_type == "grid_property":
+                garg = self._arguments.find_grid_access()
+                if arg.is_scalar:
+                    arguments.append(arg.dereference(garg.name))
+                else:
+                    # Cast grid buffer to cl_mem type expected by OpenCL
+                    device_grid_property = arg.name + "_device"
+                    field = symtab.lookup(garg.name)
+                    source = StructureReference.create(
+                                field, ['grid', device_grid_property])
+                    symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                    dest = Reference(symbol)
+                    bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
+                                                 source, dest)
+                    assig = Assignment.create(dest.copy(), bop)
+                    parent.add(PSyIRGen(parent, assig))
+                    arguments.append(symbol.name)
+
+        sub_name = symtab.lookup_with_tag(self.name + "_set_args").name
+        parent.add(CallGen(parent, sub_name, arguments))
+
+    def gen_ocl_write_grid_buffers(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that writes the values of the grid
+        properties into the OpenCL device buffers using FortCL. If the
+        subroutine doesn't already exist it is generated in the supplied
+        f2pygen module.
 
         :param f2pygen_module: the module where the new function will be \
                                inserted.
         :param type: :py:class:`psyclone.f2pygen.ModuleGen`
 
-        :returns: the name of the generated subroutine.
-        :rtype: str
+        :returns: the symbol representing the grid buffers writing subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
+        # pylint: disable=too-many-locals
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_write_grid_buffers")
+        except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
+            pass
+
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = self.root.symbol_table.new_symbol(
+        subroutine_name = symtab.new_symbol(
+            "write_grid_buffers", symbol_type=RoutineSymbol,
+            tag="ocl_write_grid_buffers").name
+
+        # Get the GOcean API property names used in this routine
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.grid_properties
+        num_x = props["go_grid_nx"].fortran.format("field")
+        num_y = props["go_grid_ny"].fortran.format("field")
+
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine write_device_grid(field)
+            USE fortcl, ONLY: get_cmd_queues
+            use iso_c_binding, only: c_intptr_t, c_size_t, c_sizeof
+            USE clfortran
+            USE ocl_utils_mod, ONLY: check_status
+            type(r2d_field), intent(inout), target :: field
+            integer(kind=c_size_t) size_in_bytes
+            INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer(c_intptr_t) :: cl_mem
+            integer :: ierr
+            cmd_queues => get_cmd_queues()
+            ! Integer grid buffers
+            size_in_bytes = int({0} * {1}, 8) * &
+                            c_sizeof(field%grid%tmask(1,1))
+            cl_mem = transfer(field%grid%tmask_device, cl_mem)
+            ierr = clEnqueueWriteBuffer(cmd_queues({2}), &
+                        cl_mem, CL_TRUE, 0_8, size_in_bytes, &
+                        C_LOC(field%grid%tmask), 0, C_NULL_PTR, C_NULL_PTR)
+            CALL check_status("clEnqueueWriteBuffer tmask", ierr)
+            ! Real grid buffers
+            size_in_bytes = int({0} * {1}, 8) * &
+                            c_sizeof(field%grid%area_t(1,1))
+        '''.format(num_x, num_y, _OCL_MANAGEMENT_QUEUE)
+        write_str = '''
+            cl_mem = transfer(field%grid%{0}_device, cl_mem)
+            ierr = clEnqueueWriteBuffer(cmd_queues({1}), &
+                       cl_mem, CL_TRUE, 0_8, size_in_bytes, &
+                       C_LOC(field%grid%{0}), 0, C_NULL_PTR, C_NULL_PTR)
+            CALL check_status("clEnqueueWriteBuffer {0}_device", ierr)
+        '''
+        for grid_prop in ['area_t', 'area_u', 'area_v', 'dx_u', 'dx_v',
+                          'dx_t', 'dy_u', 'dy_v', 'dy_t', 'gphiu', 'gphiv']:
+            code += write_str.format(grid_prop, _OCL_MANAGEMENT_QUEUE)
+        code += "end subroutine write_device_grid"
+
+        # Obtain the PSyIR representation of the code above
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_write_grid_buffers")
+
+    def gen_ocl_initialise_buffer(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that initialises a OpenCL buffer in
+        the OpenCL device using FortCL. If the subroutine doesn't already exist
+        it is generated in the supplied f2pygen module.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the symbol of the buffer initialisation subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        '''
+        # pylint: disable=too-many-locals
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_init_buffer_func")
+        except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "initialise_device_buffer", symbol_type=RoutineSymbol,
+            tag="ocl_init_buffer_func").name
+
+        # Get the GOcean API property names used in this routine
+        api_config = Config.get().api_conf("gocean1.0")
+        host_buff = \
+            api_config.grid_properties["go_grid_data"].fortran.format("field")
+        props = api_config.grid_properties
+        num_x = props["go_grid_nx"].fortran.format("field")
+        num_y = props["go_grid_ny"].fortran.format("field")
+
+        # Fields need to provide a function pointer to how the
+        # device data is going to be read and written, if it doesn't
+        # exist, create the appropriate subroutine first.
+        read_fp = self.gen_ocl_read_from_device_function(f2pygen_module).name
+        write_fp = self.gen_ocl_write_to_device_function(f2pygen_module).name
+
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine initialise_device_buffer(field)
+            USE fortcl, ONLY: create_rw_buffer
+            use field_mod
+            type(r2d_field), intent(inout), target :: field
+            integer(kind=c_size_t) size_in_bytes
+            IF (.NOT. field%data_on_device) THEN
+                size_in_bytes = int({0}*{1}, 8) * &
+                                    c_sizeof({2}(1,1))
+                ! Create buffer on device, we store it without type information
+                ! on the dl_esm_inf pointer (transfer/static_cast to void*)
+                field%device_ptr = transfer( &
+                    create_rw_buffer(size_in_bytes), &
+                    field%device_ptr)
+                field%data_on_device = .true.
+                field%read_from_device_f => {3}
+                field%write_to_device_f => {4}
+            END IF
+        end subroutine initialise_device_buffer
+        '''.format(num_x, num_y, host_buff, read_fp, write_fp)
+
+        # Obtain the PSyIR representation of the code above
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_init_buffer_func")
+
+    def gen_ocl_initialise_grid_buffers(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that initialises all OpenCL grid
+        buffers in the OpenCL device using FortCL. If the subroutine doesn't
+        already exist it is generated in the supplied f2pygen module.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the symbol of the grid buffer initialisation subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        '''
+        # pylint: disable=too-many-locals
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_init_grid_buffers")
+        except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "initialise_grid_device_buffers", symbol_type=RoutineSymbol,
+            tag="ocl_init_grid_buffers").name
+
+        # Get the GOcean API property names used in this routine
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.grid_properties
+        num_x = props["go_grid_nx"].fortran.format("field")
+        num_y = props["go_grid_ny"].fortran.format("field")
+
+        int_arrays = []
+        real_arrays = []
+        for key, prop in props.items():
+            if key == "go_grid_data":
+                # TODO #676: Ignore because go_grid_data is actually a field
+                # property
+                continue
+            if prop.type == "array" and prop.intrinsic_type == "integer":
+                int_arrays.append(prop.fortran.format("field"))
+            elif prop.type == "array" and prop.intrinsic_type == "real":
+                real_arrays.append(prop.fortran.format("field"))
+
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine initialise_device_grid(field)
+            USE fortcl, ONLY: create_ronly_buffer
+            use field_mod
+            type(r2d_field), intent(inout), target :: field
+            integer(kind=c_size_t) size_in_bytes
+            IF (.not. c_associated({2}_device)) THEN
+                ! Create integer grid fields
+                size_in_bytes = int({0}*{1}, 8) * c_sizeof({2}(1,1))
+        '''.format(num_x, num_y, int_arrays[0])
+
+        for int_array in int_arrays:
+            code += '''
+                {0}_device = transfer(create_ronly_buffer(size_in_bytes), &
+                                      {0}_device)
+            '''.format(int_array)
+
+        code += '''
+                ! Create real grid buffers
+                size_in_bytes = int({0} * {1}, 8) * c_sizeof({2}(1,1))
+        '''.format(num_x, num_y, real_arrays[0])
+
+        for real_array in real_arrays:
+            code += '''
+                {0}_device = transfer(create_ronly_buffer(size_in_bytes), &
+                                      {0}_device)
+            '''.format(real_array)
+
+        code += '''
+            END IF
+        end subroutine initialise_device_grid
+        '''
+
+        # Obtain the PSyIR representation of the code above
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_init_grid_buffers")
+
+    def gen_ocl_read_from_device_function(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that retrieves the data back from
+        an OpenCL device using FortCL. If the subroutine doesn't already exist
+        it is generated in the supplied f2pygen module.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the symbol of the buffer data retrieving subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_read_func")
+        except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
             "read_from_device", symbol_type=RoutineSymbol,
             tag="ocl_read_func").name
 
-        # Generate the routine in the given f2pygen_module
-        args = ["from", "to", "nx", "ny", "width"]
-        sub = SubroutineGen(f2pygen_module, name=subroutine_name, args=args)
-        f2pygen_module.add(sub)
-        sub.add(UseGen(sub, name="fortcl", only=True,
-                       funcnames=["read_buffer"]))
-        sub.add(UseGen(sub, name="iso_c_binding", only=True,
-                       funcnames=["c_intptr_t"]))
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine read_sub(from, to, startx, starty, nx, ny, blocking)
+            USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
+            USE ocl_utils_mod, ONLY: check_status
+            use kind_params_mod, only: go_wp
+            USE clfortran
+            USE fortcl, ONLY: get_cmd_queues
+            type(c_ptr), intent(in) :: from
+            real(go_wp), intent(inout), dimension(:,:), target :: to
+            integer, intent(in) :: startx, starty, nx, ny
+            logical, intent(in) :: blocking
+            INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
+            integer(c_intptr_t) :: cl_mem
+            INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer :: ierr, i
 
-        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                        intent="in", entity_decls=["from"]))
-        sub.add(DeclGen(sub, datatype="real", kind="go_wp", intent="inout",
-                        dimension=":,:", entity_decls=["to"]))
-        sub.add(DeclGen(sub, datatype="integer", intent="in",
-                        entity_decls=["nx", "ny", "width"]))
-        sub.add(
-            CallGen(
-                sub, name="read_buffer",
-                args=["from", "to", "int(width*ny, kind=8)"]))
+            ! Give the from pointer the appropriate OpenCL memory object type
+            cl_mem = transfer(from, cl_mem)
+            cmd_queues => get_cmd_queues()
 
-        return subroutine_name
+            ! Two copy strategies depending on how much of the total length
+            ! nx covers.
+            if (nx < size(to, 1) / 2) then
+                ! Dispatch asynchronous copies of just the contiguous data.
+                do i = starty, starty+ny
+                    size_in_bytes = int(nx, 8) * c_sizeof(to(1,1))
+                    offset_in_bytes = int(size(to, 1) * (i-1) + (startx-1)) &
+                                      * c_sizeof(to(1,1))
+                    ierr = clEnqueueReadBuffer(cmd_queues({0}), cl_mem, &
+                        CL_FALSE, offset_in_bytes, size_in_bytes, &
+                        C_LOC(to(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
+                    CALL check_status("clEnqueueReadBuffer", ierr)
+                enddo
+                if (blocking) then
+                    CALL check_status("clFinish on read", &
+                        clFinish(cmd_queues({0})))
+                endif
+            else
+                ! Copy across the whole starty:starty+ny rows in a single
+                ! copy operation.
+                size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
+                offset_in_bytes = int(size(to,1)*(starty-1), 8) &
+                                  * c_sizeof(to(1,1))
+                ierr = clEnqueueReadBuffer(cmd_queues({0}), cl_mem, &
+                    CL_TRUE, offset_in_bytes, size_in_bytes, &
+                    C_LOC(to(1,starty)), 0, C_NULL_PTR, C_NULL_PTR)
+                CALL check_status("clEnqueueReadBuffer", ierr)
+            endif
+        end subroutine read_sub
+        '''.format(_OCL_MANAGEMENT_QUEUE)
+
+        # Obtain the PSyIR representation of the code above
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
+
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_read_func")
+
+    def gen_ocl_write_to_device_function(self, f2pygen_module):
+        '''
+        Returns the symbol of a subroutine that writes the buffer data into
+        an OpenCL device using FortCL. If the subroutine doesn't already exist
+        it is generated in the supplied f2pygen module.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the symbol of the buffer writing subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("ocl_write_func")
+        except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "write_to_device", symbol_type=RoutineSymbol,
+            tag="ocl_write_func").name
+
+        # Code of the subroutine in Fortran
+        code = '''
+        subroutine write_sub(from, to, startx, starty, nx, ny, blocking)
+            USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
+            USE ocl_utils_mod, ONLY: check_status
+            use kind_params_mod, only: go_wp
+            USE clfortran
+            USE fortcl, ONLY: get_cmd_queues
+            real(go_wp), intent(in), dimension(:,:), target :: from
+            type(c_ptr), intent(in) :: to
+            integer, intent(in) :: startx, starty, nx, ny
+            logical, intent(in) :: blocking
+            integer(c_intptr_t) :: cl_mem
+            INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
+            INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer :: ierr, i
+
+            ! Give the to pointer the appropriate OpenCL memory object type
+            cl_mem = transfer(to, cl_mem)
+            cmd_queues => get_cmd_queues()
+
+            ! Two copy strategies depending on how much of the total length
+            ! nx covers.
+            if (nx < size(from,1) / 2) then
+                ! Dispatch asynchronous copies of just the contiguous data.
+                do i=starty, starty+ny
+                    size_in_bytes = int(nx, 8) * c_sizeof(from(1,1))
+                    offset_in_bytes = int(size(from, 1) * (i-1) + (startx-1)) &
+                                      * c_sizeof(from(1,1))
+                    ierr = clEnqueueWriteBuffer(cmd_queues({0}), cl_mem, &
+                        CL_FALSE, offset_in_bytes, size_in_bytes, &
+                        C_LOC(from(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
+                    CALL check_status("clEnqueueWriteBuffer", ierr)
+                enddo
+                if (blocking) then
+                    CALL check_status("clFinish on write", &
+                        clFinish(cmd_queues({0})))
+                endif
+            else
+                ! Copy across the whole starty:starty+ny rows in a single
+                ! copy operation.
+                size_in_bytes = int(size(from,1) * ny, 8) * c_sizeof(from(1,1))
+                offset_in_bytes = int(size(from,1) * (starty-1)) &
+                                  * c_sizeof(from(1,1))
+                ierr = clEnqueueWriteBuffer(cmd_queues({0}), cl_mem, &
+                    CL_TRUE, offset_in_bytes, size_in_bytes, &
+                    C_LOC(from(1, starty)), 0, C_NULL_PTR, C_NULL_PTR)
+                CALL check_status("clEnqueueWriteBuffer", ierr)
+            endif
+        end subroutine write_sub
+        '''.format(_OCL_MANAGEMENT_QUEUE)
+
+        # Obtain the PSyIR representation of the code above
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return symtab.lookup_with_tag("ocl_write_func")
 
     def get_kernel_schedule(self):
         '''
@@ -1878,6 +2530,13 @@ class GOKernelArgument(KernelArgument):
                                "scalar".
 
         '''
+        # If the argument name is just a number (e.g. '0') we return a
+        # constant Literal expression
+        # six.text_type is needed in Python2 to use the isnumeric method
+        if six.text_type(self.name).isnumeric():
+            return Literal(self.name, INTEGER_TYPE)
+
+        # Otherwise it's some form of Reference
         symbol = self._call.scope.symbol_table.lookup(self.name)
 
         # Gocean field arguments are StructureReferences to the %data attribute
@@ -1896,7 +2555,7 @@ class GOKernelArgument(KernelArgument):
         ''' Infer the datatype of this argument using the API rules.
 
         :returns: the datatype of this argument.
-        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+        :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         :raises InternalError: if this Argument type is not "field" or \
                                "scalar".
@@ -1904,19 +2563,22 @@ class GOKernelArgument(KernelArgument):
                                property is not 'go_r_scalar' or 'go_i_scalar'.
 
         '''
-        # All GOcean fields are r2d_type.
+        # All GOcean fields are r2d_field
         if self.argument_type == "field":
-            # r2d_type can have DeferredType and UnresolvedInterface because
+            # r2d_field can have DeferredType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = self._call.root.symbol_table.symbol_from_tag(
-                "r2d_type", symbol_type=TypeSymbol, datatype=DeferredType(),
-                interface=UnresolvedInterface())
+                "r2d_field", symbol_type=DataTypeSymbol,
+                datatype=DeferredType(), interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
-                return REAL_TYPE
+                go_wp = self._call.root.symbol_table.symbol_from_tag(
+                    "go_wp", symbol_type=DataSymbol, datatype=DeferredType(),
+                    interface=UnresolvedInterface())
+                return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
             if self.space.lower() == "go_i_scalar":
                 return INTEGER_TYPE
             raise InternalError("GOcean expects scalar arguments to be of"
@@ -1975,11 +2637,13 @@ class GOKernelGridArgument(Argument):
         api_config = Config.get().api_conf("gocean1.0")
         try:
             deref_name = api_config.grid_properties[arg.grid_prop].fortran
-        except KeyError:
+        except KeyError as err:
             all_keys = str(api_config.grid_properties.keys())
-            raise GenerationError("Unrecognised grid property specified. "
-                                  "Expected one of {0} but found '{1}'".
-                                  format(all_keys, arg.grid_prop))
+            six.raise_from(
+                GenerationError("Unrecognised grid property "
+                                "specified. Expected one of {0} but found "
+                                "'{1}'". format(all_keys, arg.grid_prop)),
+                err)
 
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
@@ -2008,7 +2672,7 @@ class GOKernelGridArgument(Argument):
         # Find field from which to access grid properties
         base_field = self._call.arguments.find_grid_access().name
         tag = "AlgArgs_" + base_field
-        symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+        symbol = self._call.scope.symbol_table.symbol_from_tag(tag)
 
         # Get aggregate grid type accessors without the base name
         access = self.dereference(base_field).split('%')[1:]
@@ -2168,6 +2832,7 @@ class GOStencil():
 
         # Get the name
         name = stencil_info.name.lower()
+        const = GOceanConstants()
 
         if stencil_info.args:
             # The stencil info is of the form 'name(a,b,...), so the
@@ -2230,16 +2895,21 @@ class GOStencil():
             # order
             for idx0 in range(3):
                 for idx1 in range(3):
-                    self._stencil[idx0][idx1] = int(args[idx1][idx0])
+                    # The j coordincate needs to be 'reversed': the first
+                    # row (index 0 in args) is 'top', which should be
+                    # accessed using '+1', and the last row (index 2 in args)
+                    # needs to be accessed using '-1' (see depth()). Using
+                    # 2-idx1 mirrors the rows appropriately.
+                    self._stencil[idx0][2-idx1] = int(args[idx1][idx0])
         else:
             # stencil info is of the form 'name' so should be one of
             # our valid names
-            if name not in VALID_STENCIL_NAMES:
+            if name not in const.VALID_STENCIL_NAMES:
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument is '{1}' but must be one "
-                    "of {2} or go_stencil(...)".format(kernel_name, name,
-                                                       VALID_STENCIL_NAMES))
+                    "of {2} or go_stencil(...)"
+                    .format(kernel_name, name, const.VALID_STENCIL_NAMES))
             self._name = name
             # We currently only support one valid name ('pointwise')
             # which indicates that there is no stencil
@@ -2342,9 +3012,11 @@ class GO1p0Descriptor(Descriptor):
 
     '''
     def __init__(self, kernel_name, kernel_arg):
+        # pylint: disable=too-many-locals
         nargs = len(kernel_arg.args)
         stencil_info = None
 
+        const = GOceanConstants()
         if nargs == 3:
             # This kernel argument is supplied by the Algorithm layer
             # and is either a field or a scalar
@@ -2358,12 +3030,13 @@ class GO1p0Descriptor(Descriptor):
             # Valid values for the grid-point type that a kernel argument
             # may have. (We use the funcspace argument for this as it is
             # similar to the space in Finite-Element world.)
-            valid_func_spaces = VALID_FIELD_GRID_TYPES + VALID_SCALAR_TYPES
+            valid_func_spaces = const.VALID_FIELD_GRID_TYPES + \
+                const.VALID_SCALAR_TYPES
 
             self._grid_prop = ""
-            if funcspace.lower() in VALID_FIELD_GRID_TYPES:
+            if funcspace.lower() in const.VALID_FIELD_GRID_TYPES:
                 self._argument_type = "field"
-            elif funcspace.lower() in VALID_SCALAR_TYPES:
+            elif funcspace.lower() in const.VALID_SCALAR_TYPES:
                 self._argument_type = "scalar"
             else:
                 raise ParseError("Meta-data error in kernel {0}: argument "
@@ -2401,12 +3074,13 @@ class GO1p0Descriptor(Descriptor):
         access_mapping = api_config.get_access_mapping()
         try:
             access_type = access_mapping[access]
-        except KeyError:
+        except KeyError as err:
             valid_names = api_config.get_valid_accesses_api()
-            raise ParseError("Meta-data error in kernel {0}: argument "
-                             "access  is given as '{1}' but must be "
-                             "one of {2}".
-                             format(kernel_name, access, valid_names))
+            six.raise_from(
+                ParseError("Meta-data error in kernel {0}: "
+                           "argument access  is given as '{1}' but must be "
+                           "one of {2}".
+                           format(kernel_name, access, valid_names)), err)
 
         # Finally we can call the __init__ method of our base class
         super(GO1p0Descriptor,
@@ -2444,30 +3118,32 @@ class GOKernelType1p0(KernelType):
         # What grid offset scheme this kernel expects
         self._index_offset = self._ktype.get_variable('index_offset').init
 
+        const = GOceanConstants()
         if self._index_offset is None:
             raise ParseError("Meta-data error in kernel {0}: an INDEX_OFFSET "
                              "must be specified and must be one of {1}".
-                             format(name, VALID_OFFSET_NAMES))
+                             format(name, const.VALID_OFFSET_NAMES))
 
-        if self._index_offset.lower() not in VALID_OFFSET_NAMES:
+        if self._index_offset.lower() not in const.VALID_OFFSET_NAMES:
             raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET "
                              "has value '{1}' but must be one of {2}".
                              format(name,
                                     self._index_offset,
-                                    VALID_OFFSET_NAMES))
+                                    const.VALID_OFFSET_NAMES))
 
+        const = GOceanConstants()
         # Check that the meta-data for this kernel is valid
         if self._iterates_over is None:
             raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
                              "is missing. (Valid values are: {1})".
-                             format(name, VALID_ITERATES_OVER))
+                             format(name, const.VALID_ITERATES_OVER))
 
-        if self._iterates_over.lower() not in VALID_ITERATES_OVER:
+        if self._iterates_over.lower() not in const.VALID_ITERATES_OVER:
             raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
                              "has value '{1}' but must be one of {2}".
                              format(name,
                                     self._iterates_over.lower(),
-                                    VALID_ITERATES_OVER))
+                                    const.VALID_ITERATES_OVER))
 
         # The list of kernel arguments
         self._arg_descriptors = []
@@ -2544,6 +3220,31 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                                          lhs=var+"%data_on_device",
                                          rhs=".true."))
                     obj_list.append(var)
+
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic PSyIR
+        constructs. In addition to calling this method in the base class, the
+        GOACCEnterDataDirective sets up the 'data_on_device' flag for
+        each of the fields accessed.
+
+        '''
+        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                (ACCParallelDirective, ACCKernelsDirective))
+        obj_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.fields:
+                if var not in obj_list:
+                    obj_list.append(var)
+
+        for var in obj_list:
+            symbol = self.scope.symbol_table.lookup(var)
+            assignment = Assignment.create(
+                StructureReference.create(symbol, ['data_on_device']),
+                Literal("true", BOOLEAN_TYPE))
+            self.parent.children.insert(self.position, assignment)
+
+        super(GOACCEnterDataDirective, self).lower_to_language_level()
 
 
 class GOSymbolTable(SymbolTable):
@@ -2636,6 +3337,21 @@ class GOHaloExchange(HaloExchange):
         # Name of the HaloExchange method in the GOcean infrastructure.
         self._halo_exchange_name = "halo_exchange"
 
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs. A GOHaloExchange is replaced by a call to the
+        appropriate library method.
+
+        '''
+        # Call the halo_exchange routine with depth argument to 1
+        # Currently we create an symbol name with % as a workaround of not
+        # having type bound routines.
+        rsymbol = RoutineSymbol(self.field.name + "%" +
+                                self._halo_exchange_name)
+        call_node = Call.create(rsymbol, [Literal("1", INTEGER_TYPE)])
+        self.replace_with(call_node)
+
     def gen_code(self, parent):
         '''GOcean specific code generation for this class.
 
@@ -2648,6 +3364,32 @@ class GOHaloExchange(HaloExchange):
 
         # TODO 886: Currently only stencils of depth 1 are accepted by this
         # API, so the HaloExchange is hardcoded to depth 1.
+
+        if self.ancestor(InvokeSchedule).opencl:
+            # If the dependency is a Kernel dispatched in a different command
+            # queue than _OCL_MANAGEMENT_QUEUE, in order to guarantee that the
+            # haloexchange data transfer happens after the kernel is finished,
+            # we need to add a barrier to that previous queue.
+            dependency = self.backward_dependence()
+            if dependency and dependency.coded_kernels():
+                for kernel_dep in dependency.coded_kernels():
+                    # TODO #1134: The OpenCL options should not leak from the
+                    # OpenCL transformation.
+                    # pylint: disable=protected-access
+                    previous_queue = kernel_dep._opencl_options['queue_number']
+                    if previous_queue != _OCL_MANAGEMENT_QUEUE:
+                        # If the backward dependency is being executed in
+                        # another queue we add a barrier to make sure the
+                        # previous kernel has finished.
+                        stab = self.scope.symbol_table
+                        qlist = stab.lookup_with_tag("opencl_cmd_queues").name
+                        flag = stab.lookup_with_tag("opencl_error").name
+                        parent.add(AssignGen(
+                            parent,
+                            lhs=flag,
+                            rhs="clFinish({0}({1}))".format(
+                                qlist, str(previous_queue))))
+
         parent.add(
             CallGen(
                 parent, name=self._field.name +

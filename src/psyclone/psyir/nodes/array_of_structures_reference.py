@@ -38,6 +38,8 @@
 node. '''
 
 from __future__ import absolute_import
+
+# Circular import if only '...nodes' is used:
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir import symbols
 from psyclone.psyir.nodes.array_of_structures_mixin import \
@@ -56,6 +58,7 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
     _children_valid_format = "MemberReference, [DataNode | Range]+"
     _text_name = "ArrayOfStructuresReference"
 
+    # pylint: disable=arguments-differ
     @staticmethod
     def create(symbol, indices, members, parent=None):
         '''
@@ -64,7 +67,7 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
 
         The symbol to be referred to must be of DeferredType, UnknownType or
         ArrayType. If the latter then the 'intrinsic' type of the array must
-        be specified with a TypeSymbol. The member of the
+        be specified with a DataTypeSymbol. The member of the
         structure that is accessed is specified using the 'members'
         argument. e.g. for a reference to "field(idx)%bundle(2)%flag" this
         argument would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
@@ -83,7 +86,7 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             DataNodes describing which part of it is accessed.
         :type members: list of str or 2-tuples containing (str, \
             list of nodes describing array access)
-        :param parent: the parent of this node in the PSyIR or None.
+        :param parent: the parent of this node in the PSyIR.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: an ArrayOfStructuresReference instance.
@@ -117,14 +120,13 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.
-        ref = ArrayOfStructuresReference._create(
-            symbol, base_type, members, parent)
+        ref = ArrayOfStructuresReference._create(symbol, base_type, members,
+                                                 parent=parent)
 
         # Then add the array-index expressions. We don't validate the children
         # as that is handled in _validate_child.
         for child in indices:
             ref.addchild(child)
-            child.parent = ref
         return ref
 
 

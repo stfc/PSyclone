@@ -157,19 +157,19 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
 
         # Initialise the boundary values provided by the Loop construct
         assign1 = Assignment.create(Reference(inv_xstart),
-                                    inner_loop.lower_bound())
+                                    inner_loop.lower_bound().copy())
         outer_loop.parent.children.insert(cursor, assign1)
         cursor = cursor + 1
         assign2 = Assignment.create(Reference(inv_xstop),
-                                    inner_loop.upper_bound())
+                                    inner_loop.upper_bound().copy())
         outer_loop.parent.children.insert(cursor, assign2)
         cursor = cursor + 1
         assign3 = Assignment.create(Reference(inv_ystart),
-                                    outer_loop.lower_bound())
+                                    outer_loop.lower_bound().copy())
         outer_loop.parent.children.insert(cursor, assign3)
         cursor = cursor + 1
         assign4 = Assignment.create(Reference(inv_ystop),
-                                    outer_loop.upper_bound())
+                                    outer_loop.upper_bound().copy())
         outer_loop.parent.children.insert(cursor, assign4)
 
         # Update Kernel Call argument list
@@ -240,7 +240,6 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         # Insert the conditional mask as the first statement of the kernel
         if_statement = IfBlock.create(condition, [Return()])
         kschedule.children.insert(0, if_statement)
-        if_statement.parent = kschedule
 
         return node.root, None
 

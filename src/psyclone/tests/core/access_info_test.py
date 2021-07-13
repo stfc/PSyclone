@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: Joerg Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter and R. W. Ford, STFC Daresbury Laboratory
 
 '''This module tests the various classes in core.access_info.'''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.core.access_info import AccessInfo, VariableAccessInfo, \
+
+from psyclone.core import AccessInfo, Signature, SingleVariableAccessInfo, \
     VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Assignment, Node
 
 
 def test_access_info():
@@ -52,7 +53,8 @@ def test_access_info():
     access_info = AccessInfo(AccessType.READ, location, Node())
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
-    assert access_info.indices is None
+    assert access_info.component_indices == [[]]
+    assert not access_info.is_array()
     assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
     assert str(access_info) == "WRITE(12)"
@@ -62,34 +64,54 @@ def test_access_info():
     assert "Trying to change variable to 'WRITE' which does not have "\
         "'READ' access." in str(err.value)
 
-    access_info.indices = ["i"]
-    assert access_info.indices == ["i"]
+    access_info.component_indices = [["i"]]
+    assert access_info.component_indices == [["i"]]
+    assert access_info.is_array()
 
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node())
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.indices is None
+    assert access_info.component_indices == [[]]
 
-    access_info = AccessInfo(AccessType.UNKNOWN, location, Node(), ["i", "j"])
+    access_info = AccessInfo(AccessType.UNKNOWN, location, Node(),
+                             [["i", "j"]])
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.indices == ["i", "j"]
+    assert access_info.component_indices == [["i", "j"]]
+
+
+# -----------------------------------------------------------------------------
+def test_access_info_exceptions():
+    '''Test that the right exceptions are raised.
+    '''
+    location = 12
+    with pytest.raises(InternalError) as err:
+        _ = AccessInfo(AccessType.READ, location, Node(),
+                       component_indices=123)
+    assert "component_indices in add_access must be a list of lists or " \
+           "None, got '123'" in str(err.value)
+
+    with pytest.raises(InternalError) as err:
+        _ = AccessInfo(AccessType.READ, location, Node(),
+                       component_indices=[[], 123])
+    assert "component_indices in add_access must be a list of lists or None, "\
+        "got '[[], 123]'" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
 def test_variable_access_info():
-    '''Test the VariableAccesInfo class, i.e. the class that manages a list
-    of VariableInfo instances for one variable
+    '''Test the SingleVariableAccesInfo class, i.e. the class that manages a
+    list of VariableInfo instances for one variable
     '''
 
-    vai = VariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo("var_name")
     assert vai.var_name == "var_name"
     assert str(vai) == "var_name:"
     assert vai.is_written() is False
     assert vai.is_read() is False
     assert vai.all_accesses == []
 
-    vai.add_access(AccessType.READ, 2, Node())
+    vai.add_access_with_location(AccessType.READ, 2, Node())
     assert str(vai) == "var_name:READ(2)"
     assert vai.is_read()
     assert vai.is_read_only()
@@ -111,15 +133,30 @@ def test_variable_access_info():
 
     # Add a READ access - now we should not be able to
     # change read to write anymore:
-    vai.add_access(AccessType.READ, 1, Node())
+    vai.add_access_with_location(AccessType.READ, 1, Node())
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
     assert "Variable 'var_name' had 2 accesses listed, "\
            "not one in change_read_to_write." in str(err.value)
 
     # And make sure the variable is not read_only if a write is added
-    vai.add_access(AccessType.WRITE, 3, Node())
+    vai.add_access_with_location(AccessType.WRITE, 3, Node())
     assert vai.is_read_only() is False
+
+
+# -----------------------------------------------------------------------------
+def test_variable_access_info_is_array():
+    '''Test that the SingleVariableAccesInfo class handles arrays as expected.
+
+    '''
+
+    vai = SingleVariableAccessInfo("var_name")
+    # Add non array-like access:
+    vai.add_access_with_location(AccessType.READ, 1, Node())
+    assert not vai.is_array()
+    # Add array access:
+    vai.add_access_with_location(AccessType.READ, 1, Node(), [[Node()]])
+    assert vai.is_array()
 
 
 # -----------------------------------------------------------------------------
@@ -130,24 +167,24 @@ def test_variable_access_info_read_write():
     used in subroutine calls (depending on kernel metadata)
     '''
 
-    vai = VariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo("var_name")
     assert vai.has_read_write() is False
 
     # Add a READ and WRITE access at the same location, and make sure it
     # is not reported as READWRITE access
     node = Node()
-    vai.add_access(AccessType.READ, 2, node)
+    vai.add_access_with_location(AccessType.READ, 2, node)
     assert vai[0].node == node
     assert vai[0].location == 2
-    vai.add_access(AccessType.WRITE, 2, Node())
+    vai.add_access_with_location(AccessType.WRITE, 2, Node())
     assert vai.has_read_write() is False
 
-    vai.add_access(AccessType.READWRITE, 2, Node())
+    vai.add_access_with_location(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
-    vai = VariableAccessInfo("var_name")
-    vai.add_access(AccessType.READWRITE, 2, Node())
+    vai = SingleVariableAccessInfo("var_name")
+    vai.add_access_with_location(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
     assert vai.is_read()
     assert vai.is_written()
@@ -160,24 +197,25 @@ def test_variables_access_info():
     '''
     var_accesses = VariablesAccessInfo()
     node1 = Node()
-    var_accesses.add_access("read", AccessType.READ, node1)
+    var_accesses.add_access(Signature("read"), AccessType.READ, node1)
     node2 = Node()
-    var_accesses.add_access("written", AccessType.WRITE, node2)
+    var_accesses.add_access(Signature("written"), AccessType.WRITE, node2)
     assert str(var_accesses) == "read: READ, written: WRITE"
 
     var_accesses.next_location()
     node = Node()
-    var_accesses.add_access("written", AccessType.WRITE, node)
+    var_accesses.add_access(Signature("written"), AccessType.WRITE, node)
     var_accesses.next_location()
-    var_accesses.add_access("read_written", AccessType.WRITE, node)
-    var_accesses.add_access("read_written", AccessType.READ, node)
+    var_accesses.add_access(Signature("read_written"), AccessType.WRITE, node)
+    var_accesses.add_access(Signature("read_written"), AccessType.READ, node)
     assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
                                 "written: WRITE"
-    assert set(var_accesses.all_vars) == set(["read", "written",
-                                              "read_written"])
-    all_accesses = var_accesses["read"].all_accesses
+    assert set(var_accesses.all_signatures) == set([Signature("read"),
+                                                    Signature("written"),
+                                                    Signature("read_written")])
+    all_accesses = var_accesses[Signature("read")].all_accesses
     assert all_accesses[0].node == node1
-    written_accesses = var_accesses["written"].all_accesses
+    written_accesses = var_accesses[Signature("written")].all_accesses
     assert written_accesses[0].location == 0
     assert written_accesses[1].location == 1
     # Check that the location pointer is pointing to the next statement:
@@ -185,8 +223,8 @@ def test_variables_access_info():
 
     # Create a new instance
     var_accesses2 = VariablesAccessInfo()
-    var_accesses2.add_access("new_var", AccessType.READ, node)
-    var_accesses2.add_access("written", AccessType.READ, node)
+    var_accesses2.add_access(Signature("new_var"), AccessType.READ, node)
+    var_accesses2.add_access(Signature("written"), AccessType.READ, node)
 
     # Now merge the new instance with the previous instance:
     var_accesses.merge(var_accesses2)
@@ -194,15 +232,21 @@ def test_variables_access_info():
                                 "read_written: READ+WRITE, written: READ+WRITE"
 
     with pytest.raises(KeyError):
-        _ = var_accesses["does_not_exist"]
+        _ = var_accesses[Signature("does_not_exist")]
     with pytest.raises(KeyError):
-        var_accesses.is_read("does_not_exist")
+        var_accesses.is_read(Signature("does_not_exist"))
     with pytest.raises(KeyError):
-        var_accesses.is_written("does_not_exist")
+        var_accesses.is_written(Signature("does_not_exist"))
 
     assert "READWRITE" not in str(var_accesses)
-    var_accesses.add_access("readwrite", AccessType.READWRITE, node)
+    var_accesses.add_access(Signature("readwrite"), AccessType.READWRITE, node)
     assert "READWRITE" in str(var_accesses)
+
+    with pytest.raises(InternalError) as err:
+        var_accesses.add_access("no-signature", AccessType.READWRITE, node)
+
+    assert "Got 'no-signature' of type 'str' but expected it to be of type " \
+           "psyclone.core.Signature." in str(err.value)
 
 
 # -----------------------------------------------------------------------------
@@ -213,23 +257,23 @@ def test_variables_access_info_merge():
     # a=b; c=d
     var_accesses1 = VariablesAccessInfo()
     node = Node()
-    var_accesses1.add_access("b", AccessType.READ, node)
-    var_accesses1.add_access("a", AccessType.WRITE, node)
+    var_accesses1.add_access(Signature("b"), AccessType.READ, node)
+    var_accesses1.add_access(Signature("a"), AccessType.WRITE, node)
     var_accesses1.next_location()
-    var_accesses1.add_access("d", AccessType.READ, node)
-    var_accesses1.add_access("c", AccessType.WRITE, node)
-    c_accesses = var_accesses1["c"]
+    var_accesses1.add_access(Signature("d"), AccessType.READ, node)
+    var_accesses1.add_access(Signature("c"), AccessType.WRITE, node)
+    c_accesses = var_accesses1[Signature("c")]
     assert len(c_accesses.all_accesses) == 1
     assert c_accesses[0].access_type == AccessType.WRITE
 
     # First create one instance representing for example:
     # e=f; g=h
     var_accesses2 = VariablesAccessInfo()
-    var_accesses2.add_access("f", AccessType.READ, node)
-    var_accesses2.add_access("e", AccessType.WRITE, node)
+    var_accesses2.add_access(Signature("f"), AccessType.READ, node)
+    var_accesses2.add_access(Signature("e"), AccessType.WRITE, node)
     var_accesses2.next_location()
-    var_accesses2.add_access("h", AccessType.READ, node)
-    var_accesses2.add_access("g", AccessType.WRITE, node)
+    var_accesses2.add_access(Signature("h"), AccessType.READ, node)
+    var_accesses2.add_access(Signature("g"), AccessType.WRITE, node)
 
     # Now merge the second instance into the first one
     var_accesses1.merge(var_accesses2)
@@ -237,8 +281,8 @@ def test_variables_access_info_merge():
     # The e=f access pattern should have the same location
     # as the c=d (since there is no next_location after
     # adding the b=a access):
-    c_accesses = var_accesses1["c"]
-    e_accesses = var_accesses1["e"]
+    c_accesses = var_accesses1[Signature("c")]
+    e_accesses = var_accesses1[Signature("e")]
     assert c_accesses[0].access_type == AccessType.WRITE
     assert e_accesses[0].access_type == AccessType.WRITE
     assert c_accesses[0].location == e_accesses[0].location
@@ -246,9 +290,9 @@ def test_variables_access_info_merge():
     # Test that the g=h part has a higher location than the
     # c=d data. This makes sure that merge() increases the
     # location number of accesses when merging.
-    c_accesses = var_accesses1["c"]
-    g_accesses = var_accesses1["g"]
-    h_accesses = var_accesses1["h"]
+    c_accesses = var_accesses1[Signature("c")]
+    g_accesses = var_accesses1[Signature("g")]
+    h_accesses = var_accesses1[Signature("h")]
     assert c_accesses[0].location < g_accesses[0].location
     assert g_accesses[0].location == h_accesses[0].location
 
@@ -261,10 +305,9 @@ def test_variables_access_info_merge():
 
 
 # -----------------------------------------------------------------------------
-def test_constructor():
+def test_constructor(fortran_reader):
     '''Test the optional constructor parameter (single node and list
     of nodes).'''
-    from psyclone.tests.utilities import create_schedule
     code = '''module test
         contains
         subroutine tmp()
@@ -273,7 +316,8 @@ def test_constructor():
           c = a*b
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code, "tmp")
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
     node1 = schedule[0]
     node2 = schedule[1]
     vai1 = VariablesAccessInfo(node1)
@@ -295,3 +339,147 @@ def test_constructor():
     # The error message is slightly different between python 2 and 3
     # so only test for the part that is the same in both:
     assert "'int'>" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_derived_type_scalar(fortran_reader):
+    '''This function tests the handling of derived scalartypes.
+    '''
+
+    code = '''module test
+        contains
+        subroutine tmp()
+          use my_mod
+          !use my_mod, only: something
+          !type(something) :: a, b, c
+          integer :: i, j, k
+          a%b = b%c/c%d%e
+        end subroutine tmp
+        end module test'''
+    schedule = fortran_reader.psyir_from_source(code).children[0]
+    node1 = schedule.children[0][0]
+    vai1 = VariablesAccessInfo(node1)
+    assert isinstance(node1, Assignment)
+    assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"
+
+
+# -----------------------------------------------------------------------------
+def to_fortran(writer, index_expression):
+    '''A small helper function that converts index information from an
+    AccessInfo object to a list of list of strings. For example, an access
+    like `a(i)%b%c(j,k)` will have an index expression of
+    `[ [i], [], [j, k]]`, where `i`, `j`, and `k` are the PSyIR representation
+    of the indices. This function will convert each PSyIR node to a string,
+    returning in the example: `[ ["i"], [], ["j", "k"]]`
+
+    :param writer: a FortranWriter object.
+    :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
+    :param expression: a Fortran PSyIR node with the index expression to \
+        convert.
+    :type index_expression: list of list of :py:class:`psyclone.psyir.node`s
+
+    :return: list of list of corresponding Fortran code, each as string.
+    :rtype: list of list of str
+    '''
+
+    result = []
+    for indices in index_expression:
+        result.append([writer(index) for index in indices])
+    return result
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("array, indices",
+                         [("a%b%c", [[], [], []]),
+                          ("a%b%c(i)", [[], [], ["i"]]),
+                          ("a%b(j)%c", [[], ["j"], []]),
+                          ("a%b(j)%c(i)", [[], ["j"], ["i"]]),
+                          ("a(k)%b%c", [["k"], [], []]),
+                          ("a(k)%b%c(i)", [["k"], [], ["i"]]),
+                          ("a(k)%b(j)%c", [["k"], ["j"], []]),
+                          ("a(k)%b(j)%c(i)", [["k"], ["j"], ["i"]])
+                          ])
+def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
+    '''This function tests the handling of derived array types.
+    '''
+    code = '''module test
+        contains
+        subroutine tmp()
+          use my_mod
+          !use my_mod, only: something
+          !type(something) :: a, b, c
+          integer :: i, j, k
+          c(i)%e(j,k) = {0}
+        end subroutine tmp
+        end module test'''.format(array)
+
+    schedule = fortran_reader.psyir_from_source(code).children[0]
+    node1 = schedule.children[0][0]
+    vai1 = VariablesAccessInfo(node1)
+    assert isinstance(node1, Assignment)
+    assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
+
+    # Verify that the index expression is correct. Convert the index
+    # expression to a list of list of strings to make this easier:
+    sig = Signature(("a", "b", "c"))
+    access = vai1[sig][0]
+    assert to_fortran(fortran_writer, access.component_indices) == indices
+
+
+# -----------------------------------------------------------------------------
+def test_symbol_array_detection(fortran_reader):
+    '''Verifies the handling of arrays together with access information.
+    '''
+
+    code = '''program test_prog
+              use some_mod
+              real, dimension(5,5) :: b, c
+              integer :: i
+              a = b(i) + c
+              end program test_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    scalar_assignment = psyir.children[0]
+    symbol_table = scalar_assignment.scope.symbol_table
+    sym_a = symbol_table.lookup("a")
+    with pytest.raises(InternalError) as error:
+        sym_a.is_array_access(index_variable="j")
+    assert "In Symbol.is_array_access: index variable 'j' specified, but " \
+           "no access information given." in str(error.value)
+
+    vai = VariablesAccessInfo()
+    scalar_assignment.reference_accesses(vai)
+
+    # For 'a' we don't have access information, nor symbol table information
+    access_info_a = vai[Signature("a")]
+    with pytest.raises(ValueError) as error:
+        sym_a.is_array_access(access_info=access_info_a)
+    assert "No array information is available for the symbol 'a'" \
+        in str(error.value)
+
+    # For the access to 'b' we will find array access information:
+    access_info_b = vai[Signature("b")]
+    sym_b = symbol_table.lookup("b")
+    b_is_array = sym_b.is_array_access(access_info=access_info_b)
+    assert b_is_array
+
+    # For the access to 'c' we don't have access information, but
+    # have symbol table information.
+    access_info_c = vai[Signature("c")]
+    sym_c = symbol_table.lookup("c")
+    c_is_array = sym_c.is_array_access(access_info=access_info_c)
+    assert c_is_array
+
+    # Test specifying the index variable. The access to 'b' is
+    # considered an array access when ysing the index variable 'i'.
+    access_info_b = vai[Signature("b")]
+    sym_b = symbol_table.lookup("b")
+    b_is_array = sym_b.is_array_access(access_info=access_info_b,
+                                       index_variable="i")
+    assert b_is_array
+
+    # Verify that the access to 'b' is not considered to be an
+    # array access regarding the loop variable 'j' (the access
+    # is loop independent):
+    b_is_array = sym_b.is_array_access(access_info=access_info_b,
+                                       index_variable="j")
+    assert not b_is_array

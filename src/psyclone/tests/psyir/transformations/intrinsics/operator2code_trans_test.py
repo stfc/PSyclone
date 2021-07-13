@@ -98,7 +98,7 @@ def test_validate():
     dummy._operators = (UnaryOperation.Operator.ABS,)
 
     var = Literal("0.0", REAL_TYPE)
-    operator = UnaryOperation(UnaryOperation.Operator.ABS, var)
+    operator = UnaryOperation.create(UnaryOperation.Operator.ABS, var)
 
     with pytest.raises(TransformationError) as excinfo:
         dummy.validate(operator)

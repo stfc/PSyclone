@@ -35,10 +35,12 @@
 
 include ../common.mk
 
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+
 transform:
-	${PYTHON} create.py
-	${PYTHON} create_structure_types.py
-	${PYTHON} modify.py
+	$(CONFIG_ENV) ${PYTHON} create.py
+	$(CONFIG_ENV) ${PYTHON} create_structure_types.py
+	$(CONFIG_ENV) ${PYTHON} modify.py
 
 compile:
 	@echo "No compilation supported for the PSyIR examples"

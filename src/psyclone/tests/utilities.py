@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,25 +32,32 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Test utilities including support for testing that code compiles. '''
 
 from __future__ import absolute_import, print_function
 
+import difflib
 import os
+from pprint import pprint
+import subprocess
+import sys
+
 import pytest
 
 from fparser import api as fpapi
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.parser import ParserFactory
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-
+from psyclone.line_length import FortLineLength
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import PSycloneError
+from psyclone.psyir.nodes import ScopingNode
 
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 
-class CompileError(Exception):
+class CompileError(PSycloneError):
     '''
     Exception raised when compilation of a Fortran source file fails.
 
@@ -60,10 +67,7 @@ class CompileError(Exception):
     '''
     def __init__(self, value):
         # pylint: disable=super-init-not-called
-        self.value = "Compile error: " + str(value)
-
-    def __str__(self):
-        return repr(self.value)
+        PSycloneError.value = "Compile error: " + str(value)
 
 
 # =============================================================================
@@ -97,8 +101,6 @@ def print_diffs(expected, actual):
     :param str expected: Multi-line string
     :param str actual: Multi-line string
     '''
-    import difflib
-    from pprint import pprint
     expected_lines = expected.splitlines()
     actual_lines = actual.splitlines()
     diff = difflib.Differ()
@@ -261,23 +263,20 @@ class Compile(object):
             arg_list.append("-c")
 
         # Attempt to execute it using subprocess
-        import subprocess
         try:
             build = subprocess.Popen(arg_list,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT)
             (output, error) = build.communicate()
         except OSError as err:
-            import sys
             print("Failed to run: {0}: ".format(" ".join(arg_list)),
                   file=sys.stderr)
-            print("Error was: ", str(err), file=sys.stderr)
-            raise CompileError(str(err))
+            print("Error was: ", str(err.value), file=sys.stderr)
+            raise CompileError(str(err.value))
 
         # Check the return code
         stat = build.returncode
         if stat != 0:
-            import sys
             print("Compiling: {0}".format(" ".join(arg_list)), file=sys.stderr)
             print(output, file=sys.stderr)
             if error:
@@ -305,12 +304,21 @@ class Compile(object):
         :rtype: bool
 
         '''
-        kernel_modules = set()
-        # Get the names of the modules associated with the kernels.
-        # By definition, built-ins do not have associated Fortran modules.
+        modules = set()
+        # Get the names of all the imported modules as these are dependencies
+        # that will need to be compiled first
         for invoke in psy_ast.invokes.invoke_list:
+            # Get any module that is imported in the PSyIR tree
+            for scope in invoke.schedule.root.walk(ScopingNode):
+                for symbol in scope.symbol_table.containersymbols:
+                    modules.add(symbol.name)
+
+            # Not everything is captured by PSyIR yet (some API PSy-layers are
+            # fully or partially f2pygen), in these cases we still need to
+            # import the kernel modules used in these PSy-layers.
+            # By definition, built-ins do not have associated Fortran modules.
             for call in invoke.schedule.coded_kernels():
-                kernel_modules.add(call.module_name)
+                modules.add(call.module_name)
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
@@ -321,18 +329,20 @@ class Compile(object):
         with open(psy_filename, 'w') as psy_file:
             # We limit the line lengths of the generated code so that
             # we don't trip over compiler limits.
-            from psyclone.line_length import FortLineLength
             fll = FortLineLength()
             psy_file.write(fll.process(str(psy_ast.gen)))
 
         success = True
 
+        build_list = []
+        # We must ensure that we build any dependencies first and in
+        # the order supplied.
         if dependencies:
-            # We must ensure that we build any dependencies first and in
-            # the order supplied.
-            build_list = dependencies + list(kernel_modules)
-        else:
-            build_list = list(kernel_modules)
+            build_list.extend(dependencies)
+        # Then add the modules we found on the tree
+        for module in modules:
+            if module not in build_list:
+                build_list.append(module)
 
         try:
             # Build the dependencies and then the kernels. We allow kernels
@@ -350,6 +360,10 @@ class Compile(object):
                 self.compile_file(name)
             # Finally, we can build the psy file we have generated
             self.compile_file(psy_filename)
+        except IOError:
+            # Not all modules need to be found, for example API infrastructure
+            # modules will be provided already built.
+            pass
         except CompileError:
             # Failed to compile one of the files
             success = False
@@ -404,8 +418,10 @@ class Compile(object):
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
         old_pwd = self._tmpdir.chdir()
-
-        filename = "generated.f90"
+        # Add a object-specific hash-code to the file name so that all files
+        # created in the same test have different names and can easily be
+        # inspected in case of errors.
+        filename = "generated-{0}.f90".format(str(hash(self)))
         with open(filename, 'w') as test_file:
             test_file.write(code)
 
@@ -476,8 +492,6 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
     :raises RuntimeError: if the supplied name does not match an invoke in
                           the Algorithm
     '''
-    from psyclone.parse.algorithm import parse
-    from psyclone.psyGen import PSyFactory
 
     if (idx is None and not name) or (idx is not None and name):
         raise RuntimeError("Either the index or the name of the "
@@ -490,34 +504,6 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
     else:
         invoke = psy.invokes.invoke_list[idx]
     return psy, invoke
-
-
-# =============================================================================
-def create_schedule(code, routine_name, ast_processor=Fparser2Reader):
-    '''Utility function that returns a PSyIR tree from Fortran
-    code using fparser2 and (by default) Fparser2Reader.
-
-    :param str code: Fortran code.
-    :param str routine_name: the name of the Fortran routine for which to \
-                             create the PSyIR tree.
-    :param ast_processor: the particular front-end to use. Defaults \
-                          to Fparser2Reader.
-    :type ast_processor: :py:class:`psyclone.psyGen.Fparser2Reader`
-
-
-    :returns: PSyIR tree representing the Fortran code.
-    :rtype: Subclass of :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    reader = FortranStringReader(code)
-    f2003_parser = ParserFactory().create(std="f2003")
-    parse_tree = f2003_parser(reader)
-
-    # Generate PSyIR schedule from fparser2 parse tree
-    processor = ast_processor()
-    schedule = processor.generate_schedule(routine_name, parse_tree)
-
-    return schedule
 
 
 # =============================================================================

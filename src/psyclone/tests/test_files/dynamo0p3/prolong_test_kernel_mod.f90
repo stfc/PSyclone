@@ -63,7 +63,8 @@ contains
 
   subroutine prolong_test_kernel_code(nlayers,                    &
                                       cell_map,                   &
-                                      ncell_f_per_c,              &
+                                      ncell_f_per_c_x,            &
+                                      ncell_f_per_c_y,            &
                                       ncell_f,                    &
                                       fine, coarse,               &
                                       ndf_w1, undf_w1, dofmap_w1, &
@@ -72,8 +73,9 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ncell_f_per_c
-    integer(kind=i_def), dimension(ncell_f_per_c), intent(in) :: cell_map
+    integer(kind=i_def), intent(in) :: ncell_f_per_c_x, ncell_f_per_c_y
+    integer(kind=i_def), dimension(ncell_f_per_c_x, ncell_f_per_c_y), &
+                         intent(in) :: cell_map
     integer(kind=i_def), intent(in) :: ncell_f
     integer(kind=i_def), intent(in) :: ndf_w1, undf_w1, undf_w2
     integer(kind=i_def), dimension(ndf_w1, ncell_f), intent(in) :: dofmap_w1

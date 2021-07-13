@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
-    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE
+    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import colored
 
@@ -130,14 +130,16 @@ def test_literal_init_invalid_2(value):
             "found '{0}'.".format(value) in str(err.value))
 
 
-def test_literal_init_invalid_3():
+def test_literal_init_empty_value():
     '''Test the initialisation of a Literal object with an empty value
-    argument raises the expected exception.
+    argument raises the expected exception unless it is of CHARACTER_TYPE.
 
     '''
     with pytest.raises(ValueError) as err:
         Literal("", REAL_DOUBLE_TYPE)
-    assert "A literal value can not be empty." in str(err.value)
+    assert "A non-character literal value cannot be empty." in str(err.value)
+    lit = Literal("", CHARACTER_TYPE)
+    assert lit.value == ""
 
 
 @pytest.mark.parametrize("value",
@@ -196,3 +198,20 @@ def test_literal_children_validation():
         literal.addchild(Literal("2", INTEGER_SINGLE_TYPE))
     assert ("Item 'Literal' can't be child 0 of 'Literal'. Literal is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_literal_can_be_copied():
+    ''' Test that a Literal node can be copied. '''
+
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
+
+    literal1 = literal.copy()
+    assert isinstance(literal1, Literal)
+    assert literal1 is not literal
+    assert literal1.value == "1"
+    assert literal1.datatype is INTEGER_SINGLE_TYPE
+
+    # Modifying the new literal does not affect the original
+    literal1._value = "2"
+    assert literal1.value == "2"
+    assert literal.value == "1"

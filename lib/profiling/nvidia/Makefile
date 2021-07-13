@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,24 +33,28 @@
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology,
 #          A. R. Porter, STFC Daresbury Laboratory.
+# Modified I. Kavcic, Met Office
 
 # Makefile for the PSyclone wrapper to the NVTX profiling library.
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?= -g
+# -----------------------------------------------------------------------------
+
+PSYDATA_LIB_NAME = nvtx_prof
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
+
+default: $(PSYDATA_LIB)
+
 .PHONY: default clean allclean
 
-F90?=gfortran
-FFLAGS?=-g
-
-name=nvtx_prof
-libname=lib$(name).a
-
-default: $(libname)
-
-$(libname): $(name).f90
-	$(F90) -c $(FFLAGS) $<
-	ar rs $(libname) $(name).o
+$(PSYDATA_LIB): $(PSYDATA_LIB_NAME).f90
+	$(F90) -c $(F90FLAGS) $<
+	ar rs $(PSYDATA_LIB) $(PSYDATA_LIB_NAME).o
 
 clean:
-	rm -f $(libname) $(name).o profile_mod.mod
+	rm -f *.o *.mod $(PSYDATA_LIB)
 
 allclean: clean

@@ -37,7 +37,8 @@
 ''' This module contains the Call node implementation.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes import Statement, DataNode
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.errors import GenerationError
 
@@ -49,6 +50,8 @@ class Call(Statement):
     :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+
+    :raises TypeError: if the routine argument is not a RoutineSymbol.
 
     '''
     # Textual description of the node.
@@ -77,6 +80,11 @@ class Call(Statement):
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
+        :raises GenerationError: if the routine argument is not a \
+            RoutineSymbol.
+        :raises GenerationError: if the arguments argument is not a \
+            list.
+
         :returns: an instance of cls.
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
 
@@ -92,8 +100,6 @@ class Call(Statement):
 
         call = cls(routine)
         call.children = arguments
-        for child in call.children:
-            child.parent = call
         return call
 
     @staticmethod

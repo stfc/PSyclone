@@ -63,25 +63,25 @@ def create_matmul():
     mat_symbol = DataSymbol("x", array_type)
     symbol_table.add(mat_symbol)
     lbound1 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(mat_symbol), one)
+        BinaryOperation.Operator.LBOUND, Reference(mat_symbol), one.copy())
     ubound1 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(mat_symbol), one)
-    my_mat_range1 = Range.create(lbound1, ubound1, one)
+        BinaryOperation.Operator.UBOUND, Reference(mat_symbol), one.copy())
+    my_mat_range1 = Range.create(lbound1, ubound1, one.copy())
     lbound2 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(mat_symbol), two)
+        BinaryOperation.Operator.LBOUND, Reference(mat_symbol), two.copy())
     ubound2 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(mat_symbol), two)
-    my_mat_range2 = Range.create(lbound2, ubound2, one)
+        BinaryOperation.Operator.UBOUND, Reference(mat_symbol), two.copy())
+    my_mat_range2 = Range.create(lbound2, ubound2, one.copy())
     matrix = ArrayReference.create(mat_symbol, [my_mat_range1, my_mat_range2,
                                                 Reference(index)])
     array_type = ArrayType(REAL_TYPE, [10, 20])
     vec_symbol = DataSymbol("y", array_type)
     symbol_table.add(vec_symbol)
     lbound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(vec_symbol), one)
+        BinaryOperation.Operator.LBOUND, Reference(vec_symbol), one.copy())
     ubound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(vec_symbol), one)
-    my_vec_range = Range.create(lbound, ubound, one)
+        BinaryOperation.Operator.UBOUND, Reference(vec_symbol), one.copy())
+    my_vec_range = Range.create(lbound, ubound, one.copy())
     vector = ArrayReference.create(vec_symbol, [my_vec_range,
                                                 Reference(index)])
     matmul = BinaryOperation.create(
@@ -169,8 +169,8 @@ def test_validate4():
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, array, vector)
     rhs = BinaryOperation.create(
-        BinaryOperation.Operator.MUL, matmul, vector)
-    _ = Assignment.create(array, rhs)
+        BinaryOperation.Operator.MUL, matmul, vector.copy())
+    _ = Assignment.create(array.copy(), rhs)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Matmul2CodeTrans only supports the "
@@ -189,9 +189,9 @@ def test_validate5():
     array = ArrayReference.create(DataSymbol("x", array_type),
                                   [Literal("10", INTEGER_TYPE)])
     mult = BinaryOperation.create(
-        BinaryOperation.Operator.MUL, array, array)
+        BinaryOperation.Operator.MUL, array.copy(), array.copy())
     matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, mult, mult)
+        BinaryOperation.Operator.MATMUL, mult.copy(), mult.copy())
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -210,8 +210,8 @@ def test_validate6():
     trans = Matmul2CodeTrans()
     scalar = Reference(DataSymbol("x", REAL_TYPE))
     matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, scalar, scalar)
-    _ = Assignment.create(scalar, matmul)
+        BinaryOperation.Operator.MATMUL, scalar, scalar.copy())
+    _ = Assignment.create(scalar.copy(), matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Expected children of a MATMUL "
@@ -229,7 +229,7 @@ def test_validate7():
     array_type = ArrayType(REAL_TYPE, [10])
     array = Reference(DataSymbol("x", array_type))
     matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, array)
+        BinaryOperation.Operator.MATMUL, array.copy(), array.copy())
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -249,7 +249,7 @@ def test_validate8():
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
     array = Reference(DataSymbol("x", array_type))
     matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, array)
+        BinaryOperation.Operator.MATMUL, array.copy(), array.copy())
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -272,7 +272,7 @@ def test_validate9():
     vector = Reference(DataSymbol("y", vector_type))
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, array, vector)
-    _ = Assignment.create(array, matmul)
+    _ = Assignment.create(array.copy(), matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Expected 2nd child of a MATMUL "
@@ -308,7 +308,7 @@ def test_validate11():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.children[0]
-    my_range = matrix.children[0]
+    my_range = matrix.children[0].copy()
     matrix.children[2] = my_range
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
@@ -344,7 +344,7 @@ def test_validate13():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     vector = matmul.children[1]
-    my_range = vector.children[0]
+    my_range = vector.children[0].copy()
     vector.children[1] = my_range
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
@@ -373,9 +373,10 @@ def test_apply1(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
+    root = matmul.root
     trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -405,11 +406,12 @@ def test_apply2(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
+    root = matmul.root
     matmul.children[0].children[2] = Literal("1", INTEGER_TYPE)
     matmul.children[1].children[1] = Literal("2", INTEGER_TYPE)
     trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -439,7 +441,9 @@ def test_apply3(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
+    root = matmul.root
     matrix = matmul.children[0]
+    lhs_vector = matrix.parent.parent.lhs
     matrix_symbol = matrix.symbol
     matmul.children[0] = Reference(matrix_symbol)
     matrix_symbol.datatype._shape = [Literal("10", INTEGER_TYPE),
@@ -448,13 +452,12 @@ def test_apply3(tmpdir):
     rhs_vector_symbol = rhs_vector.symbol
     rhs_vector_symbol.datatype._shape = [Literal("20", INTEGER_TYPE)]
     matmul.children[1] = Reference(rhs_vector_symbol)
-    lhs_vector = matrix.parent.parent.lhs
     lhs_vector_symbol = lhs_vector.symbol
     lhs_vector_symbol._shape = [Literal("10", INTEGER_TYPE)]
-    matrix.parent.parent.children[0] = Reference(lhs_vector_symbol)
+    lhs_vector.replace_with(Reference(lhs_vector_symbol))
     trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -468,6 +471,46 @@ def test_apply3(tmpdir):
         "    result(i) = 0.0\n"
         "    do j = 1, 20, 1\n"
         "      result(i) = result(i) + x(i,j) * y(j)\n"
+        "    enddo\n"
+        "  enddo\n"
+        "\n"
+        "end subroutine my_kern" in result)
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_apply4(tmpdir):
+    '''Test that the matmul2code apply method produces the expected
+    PSyIR. We use the Fortran backend to help provide the test for
+    correctness. This example make the lhs be the same array as the
+    second operand of the matmul (the vector in this case).
+
+    '''
+    trans = Matmul2CodeTrans()
+    one = Literal("1", INTEGER_TYPE)
+    five = Literal("5", INTEGER_TYPE)
+    matmul = create_matmul()
+    root = matmul.root
+    assignment = matmul.parent
+    vector = assignment.scope.symbol_table.lookup("y")
+    assignment.children[0] = ArrayReference.create(
+            vector, [Range.create(one, five, one.copy()),
+                     one.copy()])
+    trans.apply(matmul)
+    writer = FortranWriter()
+    result = writer(root)
+    assert (
+        "subroutine my_kern()\n"
+        "  integer, parameter :: idx = 3\n"
+        "  real, dimension(5,10,15) :: x\n"
+        "  real, dimension(10,20) :: y\n"
+        "  real, dimension(10) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "\n"
+        "  do i = 1, 5, 1\n"
+        "    y(i,1) = 0.0\n"
+        "    do j = 1, 10, 1\n"
+        "      y(i,1) = y(i,1) + x(i,j,idx) * y(j,idx)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"

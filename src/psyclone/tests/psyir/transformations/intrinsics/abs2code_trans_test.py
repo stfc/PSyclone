@@ -100,8 +100,9 @@ def test_correct(func, output, tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir(func)
+    root = operation.root
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
@@ -109,8 +110,8 @@ def test_correct(func, output, tmpdir):
         "  psyir_tmp = ABS({0})\n\n"
         "end subroutine abs_example\n".format(output)) in result
     trans = Abs2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
@@ -140,15 +141,16 @@ def test_correct_expr(tmpdir):
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
+    root = operation.root
     assignment = operation.parent
+    operation.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  op1, Literal("2.0", REAL_TYPE))
-    op2.parent = assignment
-    assignment.children[1] = op2
+    assignment.addchild(op2)
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
@@ -156,8 +158,8 @@ def test_correct_expr(tmpdir):
         "  psyir_tmp = 1.0 + ABS(arg * 3.14) + 2.0\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
@@ -187,15 +189,16 @@ def test_correct_2abs(tmpdir):
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
+    root = operation.root
     assignment = operation.parent
     abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
                                    Literal("1.0", REAL_TYPE))
+    operation.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  operation, abs_op)
-    op1.parent = assignment
-    assignment.children[1] = op1
+    assignment.addchild(op1)
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
@@ -203,9 +206,9 @@ def test_correct_2abs(tmpdir):
         "  psyir_tmp = ABS(arg * 3.14) + ABS(1.0)\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    trans.apply(abs_op, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    trans.apply(abs_op, root.symbol_table)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"

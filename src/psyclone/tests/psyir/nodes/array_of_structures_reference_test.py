@@ -65,11 +65,11 @@ def make_component_symbol():
     '''
     region_type = symbols.StructureType.create([
         ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    region_type_symbol = symbols.TypeSymbol("region_type", region_type)
+    region_type_symbol = symbols.DataTypeSymbol("region_type", region_type)
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
         ("region", region_type_symbol, symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
     return ssym
@@ -87,16 +87,16 @@ def test_asr_create(component_symbol):
     # Reference to member of structure member of structure in array of
     # structures
     asref = nodes.ArrayOfStructuresReference.create(
-        component_symbol, [int_one], ["region", "startx"])
+        component_symbol, [int_one.copy()], ["region", "startx"])
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)
     # Reference to range of structures
     lbound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.LBOUND,
-        nodes.Reference(component_symbol), int_one)
+        nodes.Reference(component_symbol), int_one.copy())
     ubound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.UBOUND,
-        nodes.Reference(component_symbol), int_one)
+        nodes.Reference(component_symbol), int_one.copy())
     my_range = nodes.Range.create(lbound, ubound)
     asref = nodes.ArrayOfStructuresReference.create(component_symbol,
                                                     [my_range], ["nx"])
@@ -107,7 +107,7 @@ def test_asr_create(component_symbol):
     # Reference to a symbol of DeferredType
     ssym = symbols.DataSymbol("grid", symbols.DeferredType())
     asref = nodes.ArrayOfStructuresReference.create(
-        ssym, [int_one], ["region", "startx"])
+        ssym, [int_one.copy()], ["region", "startx"])
     assert isinstance(asref.symbol.datatype, symbols.DeferredType)
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)
@@ -145,7 +145,7 @@ def test_ast_str():
     when we have an ArrayOfStructuresReference. '''
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
     asref = nodes.ArrayOfStructuresReference.create(

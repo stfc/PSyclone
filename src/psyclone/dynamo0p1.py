@@ -215,9 +215,10 @@ class DynInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo
         specific loop and infrastructure classes to the base class so it
         creates the ones we require. '''
-    def __init__(self, name, arg, reserved_names=None):
+    def __init__(self, name, arg, reserved_names=None, parent=None):
         InvokeSchedule.__init__(self, name, DynKernCallFactory,
-                                DynBuiltInCallFactory, arg, reserved_names)
+                                DynBuiltInCallFactory, arg, reserved_names,
+                                parent=parent)
 
 
 class DynLoop(Loop):
@@ -307,11 +308,10 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop)
+        kern.load(call, cloop.loop_body)
 
         # Add the kernel as a child of the loop
         cloop.loop_body.addchild(kern)
-        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
@@ -328,7 +328,7 @@ class DynKern(CodedKern):
         if False:
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
 
-    def load(self, call, parent=None):
+    def load(self, call, parent):
         '''
         Load this DynKern object with state pulled from the call object.
 

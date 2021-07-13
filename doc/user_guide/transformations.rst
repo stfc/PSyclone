@@ -211,7 +211,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.LoopFuseTrans
+.. autoclass:: psyclone.psyir.transformations.LoopFuseTrans
     :members: apply
     :noindex:
 
@@ -707,8 +707,12 @@ The current available options are:
 |              | in a work-group execution (kernel instances |         |
 |              | executed at the same time).                 |         |
 +--------------+---------------------------------------------+---------+
-| queue_number | The identifier of the OpenCL Command Queue  | 1       |
-|              | to which the kernel should be submitted.    |         |
+| queue_number | The identifier of the OpenCL command_queue  | 1       |
+|              | to which the kernel should be submitted. If |         |
+|              | the kernel has a dependency on another      |         |
+|              | kernel submitted to a different             |         |
+|              | command_queue a barrier will be added to    |         |
+|              | guarantee the execution order.              |         |
 +--------------+---------------------------------------------+---------+
 
 
@@ -719,7 +723,7 @@ multiple InvokeSchedule and kernel-specific optimization options.
 .. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
     :language: python
     :linenos:
-    :lines: 51-65
+    :lines: 39-79
 
 
 OpenCL delays the decision of which and where kernels will execute until

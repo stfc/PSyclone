@@ -181,7 +181,7 @@ def test_get_invoke():
     assert "Either the index or the name of the requested invoke must "\
            "be specified" in str(excinfo.value)
 
-    # Test that a non-existant file raises the right exception
+    # Test that a non-existent file raises the right exception
     with pytest.raises(ParseError) as excinfo:
         get_invoke("does_not_exist", "nemo", idx=0)
     assert "No such file or directory" in str(excinfo.value)

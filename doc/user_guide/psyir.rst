@@ -33,7 +33,15 @@
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
 .. Modified by R. W. Ford, STFC Daresbury Lab
-      
+
+.. The following section imports those Python modules that are needed in
+   subsequent doctest snippets.
+.. testsetup::
+
+        from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType, \
+	    REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
+	from psyclone.psyir.nodes import Reference
+
 .. _psyir-ug:
 
 ==============================================
@@ -64,8 +72,10 @@ to create code.
 
 .. note:: This separation will be removed in the future and eventually
 	  all PSyIR classes will make use of backends with the
-	  expectation that ``gen_code()`` and ``update()`` methods will
-	  be removed.
+	  expectation that ``gen_code()`` and ``update()`` methods
+	  will be removed. Further this separation will be superceded
+	  by a separation between ``language-level PSyIR`` and
+	  ``domain-specific PSyIR``.
 
 PSy-layer nodes
 ---------------
@@ -97,16 +107,18 @@ PSyIR nodes are: ``Loop``, ``IfBlock``, ``CodeBlock``, ``Assignment``,
 ``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
 ``Return`` and ``Container``. The ``Reference`` class is further
 subclassed into ``ArrayReference``, ``StructureReference`` and
-``ArrayOfStructuresReference`` and the ``Operation`` class is further
+``ArrayOfStructuresReference``, the ``Operation`` class is further
 subclassed into ``UnaryOperation``, ``BinaryOperation`` and
-``NaryOperation``. Those nodes representing references to structures
-(derived types in Fortran) have a ``Member`` child node representing
-the member of the structure being accessed. The ``Member`` class is
-further subclassed into ``StructureMember`` (representing a member of
-a structure that is itself a structure), ``ArrayMember`` (a member of
-a structure that is an array of primitive types) and
-``ArrayOfStructuresMember`` (a member of a structure this is itself an
-array of structures).
+``NaryOperation`` and the ``Container`` class is further subclassed
+into ``FileContainer`` (representing a file that may contain more than
+one ``Container`` and/or ``Routine``. Those nodes representing
+references to structures (derived types in Fortran) have a ``Member``
+child node representing the member of the structure being
+accessed. The ``Member`` class is further subclassed into
+``StructureMember`` (representing a member of a structure that is
+itself a structure), ``ArrayMember`` (a member of a structure that is
+an array of primitive types) and ``ArrayOfStructuresMember`` (a member
+of a structure this is itself an array of structures).
 
 
 Node Descriptions
@@ -189,13 +201,18 @@ information about the exact location.
 DataTypes
 =========
 
-The PSyIR supports scalar, array, structure, deferred and unknown
-datatypes. These datatypes are used when creating instances of
-DataSymbol and Literal. The 'deferred' and 'unknown' types are both
-used when processing existing code. The former is used when a symbol
-is being imported from some other scope (e.g. via a USE statement in
-Fortran) that hasn't yet been resolved and the latter is used when an
-unsupported form of declaration is encountered.
+The PSyIR supports the following datatypes: ``ScalarType``,
+``ArrayType``, ``StructureType``, ``DeferredType``, ``UnknownType``
+and ``NoType``.  These datatypes are used when creating instances of
+DataSymbol, RoutineSymbol and Literal (although note that ``NoType`` may
+only be used with a RoutineSymbol). ``DeferredType`` and ``UnknownType``
+are both used when processing existing code. The former is used
+when a symbol is being imported from some other scope (e.g. via a USE
+statement in Fortran) that hasn't yet been resolved and the latter is
+used when an unsupported form of declaration is encountered.
+
+More information on each of these various datatypes is given in the
+following subsections.
 
 Scalar DataType
 ---------------
@@ -212,18 +229,15 @@ value specifying the precision in bytes, or a datasymbol (see Section
 by the system so may be different for different architectures. For
 example:
 
-::
+.. doctest::
 
-   > char_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
-   >                        ScalarType.Precision.UNDEFINED)
-   >
-   > int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
-   >                       ScalarType.Precision.SINGLE)
-   >
-   > bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
-   >
-   > symbol = DataSymbol("rdef", int_type, constant_value=4)
-   > scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
+    >>> char_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+    ...                        ScalarType.Precision.UNDEFINED)
+    >>> int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+    ...                       ScalarType.Precision.SINGLE)
+    >>> bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
+    >>> symbol = DataSymbol("rdef", int_type, constant_value=4)
+    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
 
 For convenience PSyclone predefines a number of scalar datatypes:
 
@@ -239,7 +253,7 @@ and ``INTEGER_DOUBLE_TYPE``;
 Array DataType
 --------------
 
-An Array datatype itself has another datatype (or TypeSymbol)
+An Array datatype itself has another datatype (or ``DataTypeSymbol``)
 specifying the type of its elements and a shape. The shape can have an
 arbitrary number of dimensions. Each dimension captures what is known
 about its extent. It is necessary to distinguish between four cases:
@@ -272,17 +286,18 @@ yet.
 
 For example:
 
-.. code-block:: python
+.. doctest::
 
-   array_type = ArrayType(REAL4_TYPE, [5, 10])
+    >>> array_type = ArrayType(REAL4_TYPE, [5, 10])
 
-   n_var = DataSymbol("n", INTEGER_TYPE)
-   array_type = ArrayType(INTEGER_TYPE, [n_var, n_var])
+    >>> n_var = DataSymbol("n", INTEGER_TYPE)
+    >>> array_type = ArrayType(INTEGER_TYPE, [Reference(n_var),
+    ...                                       Reference(n_var)])
 
-   array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                       ArrayType.Extent.ATTRIBUTE])
+    >>> array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
+    ...                                     ArrayType.Extent.ATTRIBUTE])
 
-   array_type = ArrayType(LOGICAL_TYPE, [ArrayType.Extent.DEFERRED])
+    >>> array_type = ArrayType(BOOLEAN_TYPE, [ArrayType.Extent.DEFERRED])
 
 Structure Datatype
 ------------------
@@ -304,7 +319,7 @@ For example:
       ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
       ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
 
-  GRID_TYPE_SYMBOL = TypeSymbol("grid_type", GRID_TYPE)
+  GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 
   # A structure-type containing other structure types
   FIELD_TYPE_DEF = StructureType.create(
@@ -321,6 +336,14 @@ If a PSyIR frontend encounters an unsupported declaration then the
 corresponding Symbol is given `UnknownType <https://psyclone-ref.readthedocs.io/en/latest/autogenerated/psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType>`_. The text of the original
 declaration is stored in the type object and is available via the
 ``declaration`` property.
+
+
+NoType
+------
+
+``NoType`` represents the empty type, equivalent to ``void`` in C. It
+is currently only used to describe a RoutineSymbol that has no return
+type (such as a Fortran subroutine).
 
 .. _symbol-label:
 
@@ -465,8 +488,6 @@ together. For example:
     assignment = Assignment()
     literal = Literal("0.0", REAL_TYPE)
     reference = Reference(symbol)
-    literal.parent = assignment
-    reference.parent = assignment
     assignment.children = [reference, literal]
     
 However, as connections get more complicated, creating the correct
@@ -591,3 +612,32 @@ descendants.
 .. code-block:: python
 
     node.replace_with(new_node)
+
+Detaching PSyIR nodes
+---------------------
+
+Sometimes we just may wish to detach a certain PSyIR subtree in order to remove
+it from the root tree but we don't want to delete it altogether, as it may
+be re-inserted again in another location. To achieve this, all nodes
+provide the detach method:
+
+.. code-block:: python
+
+    tmp = node.detach()
+
+Copying nodes
+-------------
+
+Copying a PSyIR node and its children is often useful in order to avoid
+repeating the creation of similar PSyIR subtrees. The result of the copy
+allows the modification of the original and the copied subtrees independently,
+without altering the other subtree. Note that this is not equivalent to the
+Python ``copy`` or ``deepcopy`` functionality provided in the ``copy`` library.
+This method performs a bespoke copy operation where some components of the
+tree, like children, are recursively copied, while others, like the top-level
+parent reference are not.
+
+
+.. code-block:: python
+
+    new_node = node.copy()

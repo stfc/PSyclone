@@ -40,13 +40,13 @@ kernel based on the kernel metadata.
 '''
 from __future__ import absolute_import
 import six
-from psyclone.domain.lfric import ArgOrdering
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.errors import InternalError
-from psyclone.core.access_info import AccessType
+from psyclone.core import AccessType
 
 
 # pylint: disable=too-many-public-methods, no-member
@@ -698,9 +698,7 @@ class KernelInterface(ArgOrdering):
 
         '''
         # pylint: disable=too-many-locals
-        # This import must be placed here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES
+        const = LFRicConstants()
         for shape in self._kern.eval_shapes:
             fs_name = function_space.orig_name
             ndf_symbol = self._symbol_table.symbol_from_tag(
@@ -754,7 +752,7 @@ class KernelInterface(ArgOrdering):
                                 Reference(ndf_symbol), Reference(nqp),
                                 Reference(nedges)],
                     fs_name, interface=self._read_access)
-            elif shape in VALID_EVALUATOR_SHAPES:
+            elif shape in const.VALID_EVALUATOR_SHAPES:
                 # Need a (diff) basis array for each target space upon
                 # which the basis functions have been
                 # evaluated. _kern.eval_targets is a dict where the
@@ -767,6 +765,6 @@ class KernelInterface(ArgOrdering):
                 raise InternalError(
                     "Unrecognised quadrature or evaluator shape '{0}'. "
                     "Expected one of: {1}.".format(
-                        shape, VALID_EVALUATOR_SHAPES))
+                        shape, const.VALID_EVALUATOR_SHAPES))
             self._symbol_table.add(arg)
             self._arglist.append(arg)

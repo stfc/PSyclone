@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,8 @@
 ''' Single location for the current version number of PSyclone. This is
     used in setup.py and doc/conf.py '''
 
-__MAJOR__ = 1
-__MINOR__ = 9
+__MAJOR__ = 2
+__MINOR__ = 0
 __MICRO__ = 0
 
 __SHORT_VERSION__ = "{0:d}.{1:d}".format(__MAJOR__, __MINOR__)

@@ -52,15 +52,15 @@ Quick Start
 Introduction
 ------------
 
-PSyclone provides a kernel stub generator for the Dynamo0.3 API. The
-kernel stub generator takes a kernel file as input and outputs the
+PSyclone provides a kernel stub generator for the LFRic (Dynamo 0.3) API.
+The kernel stub generator takes a kernel file as input and outputs the
 kernel subroutine arguments and declarations. The word "stub" is used
 to indicate that it is only the subroutine arguments and their
 declarations that are generated; the subroutine has no content.
 
 The primary reason the stub generator is useful is that it generates
 the correct Kernel subroutine arguments and declarations for the
-Dynamo0.3 API as specified by the Kernel metadata. As the number of
+LFRic API as specified by the Kernel metadata. As the number of
 arguments to Kernel subroutines can become large and the arguments
 have to follow a particular order, it can become burdensome, and
 potentially error prone, for the user to have to work out the
@@ -77,13 +77,13 @@ Kernel metadata are consistent. One example would be where a Kernel is
 updated resulting in a change to the metadata and subroutine
 arguments.
 
-The Dynamo0.3 API requires Kernels to conform to a set of rules which
+The LFRic API requires Kernels to conform to a set of rules which
 determine the required arguments and types for a particular
 Kernel. These rules are required as the generated PSy layer needs to
 know exactly how to call a Kernel. These rules are outlined in Section
 :ref:`Rules <dynamo0.3-stub-generation-rules>`.
 
-Therefore PSyclone has been coded with the Dynamo0.3 API rules which
+Therefore PSyclone has been coded with the LFRic API rules which
 are then applied when reading the Kernel metadata to produce the
 require Kernel call and its arguments in the generated PSy
 layer. These same rules are used by the Kernel stub generator to
@@ -135,8 +135,8 @@ You can get information about the ``genkernelstub`` arguments using
     -l, --limit           limit the fortran line length to 132 characters
 
 As is indicated when using the ``-h`` option, the ``-api`` option only
-accepts ``dynamo0.3`` at the moment and is redundant as this option is
-also the default. However the number of supported APIs is expected to
+accepts ``dynamo0.3`` (LFRic) at the moment and is redundant as this option
+is also the default. However the number of supported APIs is expected to
 expand in the future.
 
 The ``-o``, or ``--outfile`` option allows the user to specify that
@@ -153,7 +153,7 @@ wrapping of lines within the 132 character limit (please see the
 Kernels
 -------
 
-Any Dynamo0.3 kernel can be used as input to the stub generator.
+Any LFRic kernel can be used as input to the stub generator.
 Example Kernels can be found in the ``examples/lfric`` repository or,
 for more simple cases, in the ``tests/test_files/dynamo0p3`` directory.
 These directories are located in the ``<PSYCLONEHOME>/src/psyclone``
@@ -210,7 +210,7 @@ is shown below:
 
 .. note:: The module name ``simple_mod`` and the type name ``simple_type``
           share the same root ``simple`` and have the extensions ``_mod``
-          and ``_type`` respectively. This is a convention in Dynamo0.3 API
+          and ``_type`` respectively. This is a convention in LFRic API
           and is required by the kernel stub generator as it needs to
           determine the name of the type containing the metadata and infers
           this by reading the module name. If this rule is not followed the
@@ -277,10 +277,10 @@ subroutine for correctness.
           to append the name with the space that it is associated with.
 
 We now take a look at a more complicated example. The metadata in this
-example is the same as an actual Dynamo0.3 kernel, however the subroutine
-content and various comments have been removed. The metadata specifies
-that there are four fields passed by the algorithm layer, the fourth
-of which is a vector field of size three. All three of the spaces
+example is the same as an actual LFRic (Dynamo 0.3) kernel, however the
+subroutine content and various comments have been removed. The metadata
+specifies that there are four fields passed by the algorithm layer, the
+fourth of which is a vector field of size three. All three of the spaces
 require a basis function and the ``W0`` and ``W2`` function spaces
 additionally require a differential basis function. The content of the
 Kernel, excluding the subroutine body, is given below.
@@ -431,10 +431,10 @@ appropriate errors. Two examples are below:
 ``operates_on=CELL_COLUMN`` are supported by the stub generator.
 
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
-(see Section :ref:`Supported Function Spaces <dynamo0.3-function-space>`
+(see Section :ref:`Supported Function Spaces <lfric-function-space>`
 for function-space identifiers) are currently only supported for
-:ref:`Dynamo0.3 fields <dynamo0.3-field>` in the stub generator. Basis and
-differential basis functions on these generic function spaces, required
+:ref:`LFRic (Dynamo 0.3) fields <lfric-field>` in the stub generator. Basis
+and differential basis functions on these generic function spaces, required
 for :ref:`quadrature <dynamo0.3-quadrature>` and
 :ref:`evaluators <dynamo0.3-gh-shape>`, are not supported. Hence,
 ``testkern_any_space_1_mod.f90``, ``testkern_any_space_4_mod.f90`` and
@@ -447,7 +447,7 @@ appropriate warnings because of that. For example:
     one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2',
     'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found 'any_space_1'"
 
-As noted above, if the Dynamo0.3 API naming convention for module and type
+As noted above, if the LFRic API naming convention for module and type
 names is not followed, the stub generator will return with an error
 message. For example:
 ::

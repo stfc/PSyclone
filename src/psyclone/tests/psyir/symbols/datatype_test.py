@@ -39,8 +39,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
-    ArrayType, UnknownFortranType, DataSymbol, StructureType, \
-    INTEGER_TYPE, REAL_TYPE, Symbol, TypeSymbol, SymbolTable
+    ArrayType, UnknownFortranType, DataSymbol, StructureType, NoType, \
+    INTEGER_TYPE, REAL_TYPE, Symbol, DataTypeSymbol, SymbolTable
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
     Container, KernelSchedule
 from psyclone.errors import InternalError
@@ -68,6 +68,16 @@ def test_deferredtype_str():
     '''Test that the DeferredType class str method works as expected.'''
     data_type = DeferredType()
     assert str(data_type) == "DeferredType"
+
+
+# NoType class
+
+def test_notype():
+    ''' Check that the NoType class can be instantiated successfully and
+    that its str method works as expected. '''
+    data_type = NoType()
+    assert isinstance(data_type, NoType)
+    assert str(data_type) == "NoType"
 
 
 # ScalarType class
@@ -237,10 +247,10 @@ def test_arraytype_invalid_datatype():
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(None, None)
     assert ("ArrayType expected 'datatype' argument to be of type DataType "
-            "or TypeSymbol but found 'NoneType'." in str(excinfo.value))
+            "or DataTypeSymbol but found 'NoneType'." in str(excinfo.value))
 
 
-def test_arraytype_typesymbol_only():
+def test_arraytype_datatypesymbol_only():
     ''' Test that we currently refuse to make an ArrayType with an intrinsic
     type of StructureType. (This limitation is the subject of #1031.) '''
     with pytest.raises(NotImplementedError) as err:
@@ -248,14 +258,14 @@ def test_arraytype_typesymbol_only():
             [("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)]),
                       [5])
     assert ("When creating an array of structures, the type of those "
-            "structures must be supplied as a TypeSymbol but got a "
+            "structures must be supplied as a DataTypeSymbol but got a "
             "StructureType instead." in str(err.value))
 
 
-def test_arraytype_typesymbol():
+def test_arraytype_datatypesymbol():
     ''' Test that we can correctly create an ArrayType when the type of the
-    elements is specified as a TypeSymbol. '''
-    tsym = TypeSymbol("my_type", DeferredType())
+    elements is specified as a DataTypeSymbol. '''
+    tsym = DataTypeSymbol("my_type", DeferredType())
     atype = ArrayType(tsym, [5])
     assert isinstance(atype, ArrayType)
     assert len(atype.shape) == 1
@@ -334,7 +344,6 @@ def test_arraytype_shape_dim_from_parent_scope():
                                            datatype=INTEGER_TYPE)
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     cont.addchild(kernel1)
-    kernel1.parent = cont
     asym = kernel1.symbol_table.new_symbol(
         "array1", symbol_type=DataSymbol,
         datatype=ArrayType(INTEGER_TYPE, [Reference(dim_sym)]))
@@ -412,7 +421,7 @@ def test_structure_type():
     with pytest.raises(TypeError) as err:
         stype.add("hello", "hello", "hello")
     assert ("type of a component of a StructureType must be a 'DataType' "
-            "or 'TypeSymbol' but got 'str'" in str(err.value))
+            "or 'DataTypeSymbol' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
         stype.add("hello", INTEGER_TYPE, "hello")
     assert ("visibility of a component of a StructureType must be an instance "
@@ -428,8 +437,8 @@ def test_structure_type():
 
 def test_create_structuretype():
     ''' Test the create() method of StructureType. '''
-    # One member will have its type defined by a TypeSymbol
-    tsymbol = TypeSymbol("my_type", DeferredType())
+    # One member will have its type defined by a DataTypeSymbol
+    tsymbol = DataTypeSymbol("my_type", DeferredType())
     stype = StructureType.create([
         ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
         ("george", REAL_TYPE, Symbol.Visibility.PRIVATE),

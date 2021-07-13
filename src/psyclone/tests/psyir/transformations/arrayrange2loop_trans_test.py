@@ -72,7 +72,7 @@ def create_range(array_symbol, dim):
         Reference(array_symbol), int_dim)
     ubound = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(array_symbol), int_dim)
+        Reference(array_symbol), int_dim.copy())
     return Range.create(lbound, ubound)
 
 
@@ -538,7 +538,7 @@ def test_validate():
 
     array_symbol = DataSymbol("x", ArrayType(INTEGER_TYPE, [10, 10]))
     one = Literal("1", INTEGER_TYPE)
-    array_assignment = ArrayReference.create(array_symbol, [one, one])
+    array_assignment = ArrayReference.create(array_symbol, [one, one.copy()])
     with pytest.raises(TransformationError) as info:
         trans.validate(Assignment.create(array_assignment, DataNode()))
     assert (
@@ -546,9 +546,9 @@ def test_validate():
         "supplied Assignment node should be a PSyIR ArrayReference with at "
         "least one "
         "of its dimensions being a Range, but found None in "
-        "'ArrayReference[name:'x']\\nLiteral[value:'1', "
-        "Scalar<INTEGER, UNDEFINED>]\\nLiteral[value:'1', Scalar<INTEGER, "
-        "UNDEFINED>]\\n'." in str(info.value))
+        "'ArrayReference[name:'x']\nLiteral[value:'1', "
+        "Scalar<INTEGER, UNDEFINED>]\nLiteral[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\n'." in str(info.value))
 
     array_x = create_array_x(SymbolTable())
     assignment = Assignment.create(
@@ -562,9 +562,9 @@ def test_validate():
         "The ArrayRange2LoopTrans transformation only supports ranges that "
         "are known to be the same as each other but array access 'x' "
         "dimension 0 and 'x' dimension 0 are either different or can't be "
-        "determined in the assignment 'Assignment[]\\n"
-        "ArrayReference[name:'x']\\nRange[]\\n"
-        "ArrayReference[name:'x']\\nRange[]\\n'."
+        "determined in the assignment 'Assignment[]\n"
+        "ArrayReference[name:'x']\nRange[]\n"
+        "ArrayReference[name:'x']\nRange[]\n'."
         in str(info.value))
 
 
@@ -580,15 +580,17 @@ def test_validate_intrinsic():
     array_y_2 = create_array_y_2d_slice(symbol_table)
     matmul = BinaryOperation.create(BinaryOperation.Operator.MATMUL,
                                     array_y_2, array_x)
-    assignment = Assignment.create(array_x, matmul)
+    reference = ArrayReference.create(
+        symbol_table.lookup("x"), [create_range(symbol_table.lookup("x"), 1)])
+    assignment = Assignment.create(reference, matmul)
 
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert (
         "Error in ArrayRange2LoopTrans transformation. The rhs of the "
-        "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\\n"
-        "ArrayReference[name:'y2']\\nRange[]\\nRange[]\\n\\n"
-        "ArrayReference[name:'x']\\nRange[]\\n' contains the "
+        "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\n"
+        "ArrayReference[name:'y2']\nRange[]\nRange[]\n\n"
+        "ArrayReference[name:'x']\nRange[]\n' contains the "
         "MATMUL operator which can't be performed elementwise." in
         str(info.value))

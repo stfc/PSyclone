@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the ArrayOfStructuresMember
@@ -58,8 +59,9 @@ class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
     _children_valid_format = "Member, [DataNode | Range]+"
     _text_name = "ArrayOfStructuresMember"
 
+    # pylint: disable=arguments-differ
     @staticmethod
-    def create(member_name, indices, inner_member, parent=None):
+    def create(member_name, indices, inner_member):
         '''
         Create an access to a member of one or more elements of an array of
         structures that is itself a member of a structure.
@@ -78,21 +80,17 @@ class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
         :param inner_member: the member of the `member_name` structure that \
             is being accessed.
         :type inner_member: :py:class:`psyclone.psyir.nodes.Member`
-        :param parent: the parent of this node in the PSyIR tree.
-        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: a new ArrayOfStructuresMember object.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresMember`
 
         '''
-        obj = ArrayOfStructuresMember(member_name, parent=parent)
+        obj = ArrayOfStructuresMember(member_name)
         # Add the inner_member node as the first child
         obj.addchild(inner_member)
-        inner_member.parent = obj
         # Add the array-index expressions as subsequent children
         for child in indices:
             obj.addchild(child)
-            child.parent = obj
         return obj
 
 

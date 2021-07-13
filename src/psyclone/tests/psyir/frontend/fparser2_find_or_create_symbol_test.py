@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Reference, Container, Assignment, Literal, \
     KernelSchedule, BinaryOperation
 from psyclone.psyir.symbols import Symbol, DataSymbol, SymbolError, \
     SymbolTable, REAL_TYPE, ContainerSymbol, ScalarType, UnresolvedInterface, \
-    RoutineSymbol
+    RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
 
 
@@ -150,7 +150,6 @@ def test_find_or_create_imported_symbol_2():
     xref = Reference(xvar)
     assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
     kernel1.addchild(assign)
-    assign.parent = kernel1
     # We have no wildcard imports so there can be no symbol named 'undefined'
     with pytest.raises(SymbolError) as err:
         _ = _find_or_create_imported_symbol(assign, "undefined")
@@ -204,7 +203,6 @@ def test_find_or_create_change_symbol_type():
     _ = Container.create("container_name", symbol_table, [kernel1])
     assign = Assignment.create(Reference(tmp_sym), Literal("1.0", REAL_TYPE))
     kernel1.addchild(assign)
-    assign.parent = kernel1
     # Search for the 'tmp' symbol
     sym = _find_or_create_imported_symbol(assign, "tmp")
     assert sym is tmp_sym
@@ -221,3 +219,4 @@ def test_find_or_create_change_symbol_type():
                                            symbol_type=RoutineSymbol)
     assert sym2 is sub_sym
     assert type(sym2) == RoutineSymbol
+    assert isinstance(sym2.datatype, NoType)

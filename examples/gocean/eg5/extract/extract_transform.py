@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. It adds kernel extraction code to
@@ -44,6 +45,7 @@ missing (TODO: #647)
 '''
 
 from __future__ import print_function
+from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
 
 def trans(psy):
@@ -57,11 +59,14 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.domain.gocean.transformations import GOceanExtractTrans
     extract = GOceanExtractTrans()
 
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
+    # TODO #969: this view is required, otherwise the loop
+    # boundaries are undefined, and will not be written
+    # to the output file
+    schedule.view()
     _, _ = extract.apply(schedule.children,
                          {"create_driver": True,
                           "region_name": ("main", "init")})
@@ -70,10 +75,9 @@ def trans(psy):
     schedule = invoke.schedule
 
     # Enclose everything in a extract region
-    newschedule, _ = extract.apply(schedule.children,
-                                   {"create_driver": True,
-                                    "region_name": ("main", "update")})
+    extract.apply(schedule.children,
+                  {"create_driver": True,
+                   "region_name": ("main", "update")})
 
-    invoke.schedule = newschedule
-    newschedule.view()
+    schedule.view()
     return psy

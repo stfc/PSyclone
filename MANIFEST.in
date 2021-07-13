@@ -42,3 +42,4 @@ include src/psyclone/parse/lfric_builtins_mod.f90
 include config/*.cfg
 recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
 recursive-include tutorial *.ipynb
+recursive-include lib *.py *.sh *.md Makefile *.mk *.jinja *90 doxyfile
