@@ -107,6 +107,9 @@ class Signature(object):
 
     # ------------------------------------------------------------------------
     def to_language(self, component_indices, language_writer=None):
+        # TODO 1320 This subroutine can be removed when we stop supporting
+        # strings - then we can use a PSyIR writer for the ReferenceNode
+        # to provide the right string.
         '''Converts this signature with the provided indices to a string
         in the selected language.
 
@@ -118,7 +121,8 @@ class Signature(object):
             expressions to a representation in the selected language. \
             This is used when creating error and warning messages.
         :type language_writer: None (default is Fortran), or an \
-            instance of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
+            instance of \
+            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         :raises InternalError: if the number of components in this signature \
             is different from the number of indices in component_indices.
@@ -146,14 +150,6 @@ class Signature(object):
         # including indices
         out_list = []
 
-        # TODO #1324 At this stage even if the C-writer is selected
-        # the output will still look like Fortran, because this function
-        # uses () and % when creating the access string. With proper
-        # refactoring as part of #1324 this should also become flexible.
-        # One option (if we still have to remove strings) would be to
-        # create a Fortran string, parse it, and then use the C-writer.
-        # Or maybe the strings as indices could be temporarily converted
-        # to References, and then the writer functionality can be used.
         for i, component in enumerate(self._signature):
             indices = component_indices[i]
             if not indices:
@@ -168,11 +164,13 @@ class Signature(object):
                         # Some tests and work in progress still uses strings
                         # so support strings as indices as well:
                         index_list.append(str(dimension))
-                out_list.append(component+"("+",".join(index_list)+")")
+                parenthesis = writer.array_parenthesis
+                out_list.append(component + parenthesis[0] +
+                                ",".join(index_list) +
+                                parenthesis[1])
 
         # Combine the components in out_list to form the language string.
-        # TODO #1324 - this still assumes Fortran
-        return "%".join(out_list)
+        return writer.structure_character.join(out_list)
 
     # ------------------------------------------------------------------------
     def __repr__(self):

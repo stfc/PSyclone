@@ -92,6 +92,24 @@ class LanguageWriter(PSyIRVisitor):
         self._structure_character = structure_character
 
     # ------------------------------------------------------------------------
+    @property
+    def array_parenthesis(self):
+        ''':returns: the array parenthesis to be used in this language.
+        :rtype: two element list of str
+        '''
+
+        return self._array_parenthesis
+
+    # ------------------------------------------------------------------------
+    @property
+    def structure_character(self):
+        ''':returns: the character use to access a member of a structure in \
+            this language.
+        :rtype: str
+        '''
+        return self._structure_character
+
+    # ------------------------------------------------------------------------
     @abc.abstractmethod
     def gen_dims(self, shape, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an

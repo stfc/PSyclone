@@ -51,8 +51,12 @@ def test_language_writer_constructor():
     '''Tests the constructor.
 
     '''
-    _ = LanguageWriter(["(", ")"], "%")
-    _ = LanguageWriter(["[", "]"], ".")
+    fwriter = LanguageWriter(["(", ")"], "%")
+    assert fwriter.array_parenthesis == ["(", ")"]
+    assert fwriter.structure_character == "%"
+    cwriter = LanguageWriter(["[", "]"], ".")
+    assert cwriter.array_parenthesis == ["[", "]"]
+    assert cwriter.structure_character == "."
 
 
 def test_language_writer_constructor_errors():
