@@ -1013,7 +1013,7 @@ def test_args_filter2():
     assert len(args) == len(expected_output)
 
 
-def test_reduction_var_no_scalar_error(dist_mem):
+def test_reduction_var_error(dist_mem):
     ''' Check that we raise an exception if the zero_reduction_variable()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -1073,8 +1073,8 @@ def test_reduction_sum_error(dist_mem):
 
 def test_call_multi_reduction_error(monkeypatch, dist_mem):
     ''' Check that we raise an exception if we try to create a Call (a
-    Kernel or a Builtin) with more than one reduction in it. Since we have
-    a rule that only Builtins can write to scalars we need a built-in that
+    Kernel or a Built-in) with more than one reduction in it. Since we have
+    a rule that only Built-ins can write to scalars we need a Built-in that
     attempts to perform two reductions.
 
     '''
@@ -1094,14 +1094,14 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
 
 def test_reduction_no_set_precision(monkeypatch, dist_mem):
     ''' Test that the zero_reduction_variable() method generates correct
-    code when an argument does not have a defined precision (only a zero
-    summation value is generated in this case).
+    code when a reduction argument does not have a defined precision (only
+    a zero summation value is generated in this case).
 
     '''
     # Set precision of 'real' scalar arguments in LFRic to an empty string
     const = LFRicConstants()
     monkeypatch.setitem(
-        const.DATA_TYPE_MAP, name="scalar",
+        const.DATA_TYPE_MAP, name="reduction",
         value={"module": "scalar_mod", "type": "scalar_type",
                "proxy_type": None, "intrinsic": "real", "kind": ""})
     # Generate code for sum_X built-in with no precision for zero reduction

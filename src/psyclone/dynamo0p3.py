@@ -8551,8 +8551,8 @@ class DynKernelArgument(KernelArgument):
 
         # Argument proxy data type (if/as defined in LFRic infrastructure)
         self._proxy_data_type = None
-        # Set up kernel argument information from the DATA_TYPE_MAP:
-        # module name, data type, proxy data type and precision.
+        # Set up kernel argument information for scalar, field and operator
+        # arguments: precision, module name, data type and proxy data type
         self._init_data_type_properties()
 
     def ref_name(self, function_space=None):
@@ -8619,19 +8619,17 @@ class DynKernelArgument(KernelArgument):
 
     def _init_data_type_properties(self):
         '''
-        Set up kernel argument information from LFRicConstants.DATA_TYPE_MAP:
-        module name, data type, proxy data type and precision.
-        This is currently supported for real scalars, fields and operators.
-        Integer and logical scalars are not defined as data structures in
-        the LFRic infrastructure so their precision is set from the defaults
-        in the PSyclone configuration file.
+        Set up kernel argument information from LFRicConstants: precision,
+        data type, proxy data type and module name. This is currently
+        supported for scalar, field and operator arguments.
 
         '''
         const = LFRicConstants()
 
-        # All supported scalars have the same metadata, GH_SCALAR, so we
+        # All supported scalars have the same metadata, 'GH_SCALAR', so we
         # check by their intrinsic type
         if self.is_scalar:
+
             if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
                 raise InternalError(
                     "Expected one of {0} intrinsic types for a scalar "
@@ -8641,18 +8639,19 @@ class DynKernelArgument(KernelArgument):
                AccessType.get_valid_reduction_modes():
                 # Set 'real' scalar reduction properties as defined in
                 # the LFRic infrastructure
-                self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+                self._precision = const.DATA_TYPE_MAP["reduction"]["kind"]
                 self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
                 self._proxy_data_type = const.DATA_TYPE_MAP[
                     "reduction"]["proxy_type"]
-                self._precision = const.DATA_TYPE_MAP["reduction"]["kind"]
+                self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
             else:
                 # Set read-only scalar precision
                 self._precision = const.SCALAR_TYPE_MAP[self.intrinsic_type]
 
-        # All supported fields have the same metadata, GH_FIELD, so we
+        # All supported fields have the same metadata, 'GH_FIELD', so we
         # check by their intrinsic type
         if self.is_field:
+
             if self.intrinsic_type == "real":
                 argtype = "field"
             elif self.intrinsic_type == "integer":
@@ -8664,14 +8663,15 @@ class DynKernelArgument(KernelArgument):
                     format(const.VALID_FIELD_INTRINSIC_TYPES,
                            self.intrinsic_type))
             # Set field properties as defined in the LFRic infrastructure
-            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
+            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
             self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
-            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
         # All supported operators have the same intrinsic type, 'real', so we
         # check by their argument type
         if self.is_operator:
+
             if self.argument_type == "gh_operator":
                 argtype = "operator"
             elif self.argument_type == "gh_columnwise_operator":
@@ -8682,10 +8682,10 @@ class DynKernelArgument(KernelArgument):
                     "argument type but found '{0}'.".
                     format(self.argument_type))
             # Set operator properties as defined in the LFRic infrastructure
-            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
+            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
             self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
-            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
     @property
     def is_scalar(self):
@@ -9023,6 +9023,7 @@ class DynKernelArgument(KernelArgument):
 
         '''
         const = LFRicConstants()
+
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
         symbol_table = self._call.scope.symbol_table
@@ -9073,7 +9074,7 @@ class DynKernelArgument(KernelArgument):
                     # the LFRic infrastructure
                     kind_name = const.DATA_TYPE_MAP["reduction"]["kind"]
                 else:
-                    # Set read-only real scalar precision
+                    # Set read-only 'real' scalar precision
                     kind_name = const.SCALAR_TYPE_MAP["real"]
                 prim_type = ScalarType.Intrinsic.REAL
             elif self.intrinsic_type == "integer":
