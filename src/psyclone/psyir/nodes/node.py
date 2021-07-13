@@ -1071,49 +1071,65 @@ class Node(object):
         from psyclone.psyGen import Kern
         return self.walk(Kern)
 
-    def following(self):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me
-        within the scope of the Routine containing this node, or root
-        if there is no scoping Routine. Ordering is depth first.
+    def following(self, routine=True):
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after this
+        node. Ordering is depth first. If the `routine` argument is
+        set to `True` then nodes are only returned if they are
+        descendents of this node's closest ancestor routine if one
+        exists.
+
+        :param bool routine: an optional (default `True`) argument \
+            that only returns nodes that are within this node's \
+            closest ancestor Routine node if one exists.
 
         :returns: a list of nodes.
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        # Import here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Routine
-        # If there is an ancestor Routine node then only return nodes
-        # that are within it.
-        root = self.ancestor(Routine)
-        if not root:
-            root = self.root
+        root = self.root
+        if routine:
+            # Import here to avoid circular dependencies
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import Routine
+            # If there is an ancestor Routine node then only return nodes
+            # that are within it.
+            routine_node = self.ancestor(Routine)
+            if routine_node:
+                root = routine_node
         all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         return all_nodes[position+1:]
 
-    def preceding(self, reverse=None):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me
-        within the scope of the Routine containing this node, or root
-        if there is no scoping Routine. Ordering is depth first. If
-        the `reverse` argument is set to `True` then the node ordering
-        is reversed i.e. returning the nodes closest to me first.
+    def preceding(self, reverse=False, routine=True):
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before this
+        node. Ordering is depth first. If the `reverse` argument is
+        set to `True` then the node ordering is reversed
+        i.e. returning the nodes closest to this node first. if the
+        `routine` argument is set to `True` then nodes are only
+        returned if they are descendents of this node's closest
+        ancestor routine if one exists.
 
-        :param: reverse: an optional, default `False`, boolean flag.
-        :type: reverse: bool
+        :param bool reverse: an optional (default `False`) argument \
+            that reverses the order of any returned nodes (i.e. makes \
+            them 'closest first' if set to true.
+        :param bool routine: an optional (default `True`) argument \
+            that only returns nodes that are within this node's \
+            closest ancestor Routine node if one exists.
 
         :returns: a list of nodes.
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        # Import here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Routine
-        # If there is an ancestor Routine node then only return nodes
-        # that are within it.
-        root = self.ancestor(Routine)
-        if not root:
-            root = self.root
+        root = self.root
+        if routine:
+            # Import here to avoid circular dependencies
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import Routine
+            # If there is an ancestor Routine node then only return nodes
+            # that are within it.
+            routine_node = self.ancestor(Routine)
+            if routine_node:
+                root = routine_node
         all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         nodes = all_nodes[:position]

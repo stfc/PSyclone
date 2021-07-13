@@ -1095,7 +1095,7 @@ def test_following_preceding():
     behave as expected.
 
     '''
-    # 1: Routine is not an ancestor node.
+    # 1: There is no Routine ancestor node.
     a_ref = Reference(DataSymbol("a", REAL_TYPE))
     b_ref = Reference(DataSymbol("b", REAL_TYPE))
     c_ref = Reference(DataSymbol("c", REAL_TYPE))
@@ -1123,10 +1123,13 @@ def test_following_preceding():
     assert multiply1.preceding() == [assign, a_ref, multiply2, b_ref]
 
     # 2: Routine is an ancestor node, but is not a root node.
-    routine1 = Routine.create("routine1", SymbolTable(), [assign])
-    routine2 = Routine.create("routine2", SymbolTable(), [assign.copy()])
-    _ = Container.create("container", SymbolTable(), [routine1, routine2])
-
+    routine = Routine.create("routine1", SymbolTable(), [assign])
+    container = Container.create("container", SymbolTable(), [routine])
     # Middle node.
     assert multiply1.following() == [c_ref, d_ref]
-    assert multiply1.preceding() == [routine1, assign, a_ref, multiply2, b_ref]
+    assert multiply1.preceding() == [routine, assign, a_ref, multiply2, b_ref]
+
+    # 3: Routine is an ancestor node and routine argument is set to False.
+    assert multiply1.following(routine=False) == [c_ref, d_ref]
+    assert (multiply1.preceding(routine=False) ==
+            [container, routine, assign, a_ref, multiply2, b_ref])
