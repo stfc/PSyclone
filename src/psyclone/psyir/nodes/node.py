@@ -1074,7 +1074,7 @@ class Node(object):
     def following(self):
         '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me
         within the scope of the Routine containing this node, or root
-        if there is no scoping Routine.. Ordering is depth first.
+        if there is no scoping Routine. Ordering is depth first.
 
         :returns: a list of nodes.
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
