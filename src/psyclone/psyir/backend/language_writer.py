@@ -83,7 +83,7 @@ class LanguageWriter(PSyIRVisitor):
                             "a list of two strings, got '{0}'."
                             .format(array_parenthesis))
         if not isinstance(structure_character, str):
-            raise TypeError("Invalid array-parenthesis parameter, must be "
+            raise TypeError("Invalid structure_character parameter, must be "
                             "a string of length 2, got '{0}'."
                             .format(array_parenthesis))
 
@@ -104,7 +104,7 @@ class LanguageWriter(PSyIRVisitor):
         :rtype: list of str
 
         '''
-        raise NotImplementedError("gen_dims is abstract")
+        raise NotImplementedError("gen_dims() is abstract")
 
     def arrayreference_node(self, node):
         '''This method is called when an ArrayReference instance is found
