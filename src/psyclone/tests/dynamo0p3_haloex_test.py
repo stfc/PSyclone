@@ -557,3 +557,30 @@ def test_add_halo_exchange_code_nreader(monkeypatch):
     assert ("When replacing a halo exchange with another one for field f1, "
             "a subsequent dependent halo exchange was found. This should "
             "never happen." in str(info.value))
+
+
+def test_readinc():
+    '''Test that the readinc access requires a haloexchange before the
+    loop is executed if its level 1 halo is dirty (and it is in a
+    standard loop that iterates to the level1 halo). This is in
+    contrast to GH_INC which does not require a halo exchange in this
+    case.
+
+    '''
+    # parse and get psy schedule.
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "14.15_halo_readinc.f90"),
+                    api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # Check that a halo exchange is added before a readinc access and
+    # after an inc access to a field (f1). Also check that 'check_dirty
+    # == False' and 'depth == 1' in the halo exchange.
+    f1_hex = schedule[3]
+    assert isinstance(f1_hex, DynHaloExchange)
+    assert f1_hex.field.name == "f1"
+    _, known = f1_hex.required()
+    check_dirty = not known
+    assert not check_dirty
+    assert f1_hex._compute_halo_depth() == 1
