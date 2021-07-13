@@ -1390,7 +1390,7 @@ class OMPSingleTrans(ParallelRegionTrans):
         if not options:
             options = {}
         if options.get("nowait") != None:
-            self.omp_nowait(options.get("nowait"))
+            self.omp_nowait=options.get("nowait")
 
         return super(OMPSingleTrans, self).apply(node, options)
 
