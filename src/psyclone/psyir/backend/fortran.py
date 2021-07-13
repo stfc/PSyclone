@@ -53,7 +53,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, CodeBlock, DataNode, \
-    Literal, Member, Operation, Range, Routine, Schedule, UnaryOperation
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, ScalarType, \
     Symbol, SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface
@@ -966,93 +966,6 @@ class FortranWriter(LanguageWriter):
             raise six.raise_from(VisitorError("Unexpected N-ary op '{0}'".
                                               format(node.operator)),
                                  error)
-
-    def structurereference_node(self, node):
-        '''
-        Creates the Fortran for an access to a member of a structure type.
-
-        :param node: a StructureReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        :raises VisitorError: if this node does not have an instance of Member\
-                              as its only child.
-
-        '''
-        if len(node.children) != 1:
-            raise VisitorError(
-                "A StructureReference must have a single child but the "
-                "reference to symbol '{0}' has {1}.".format(
-                    node.name, len(node.children)))
-        if not isinstance(node.children[0], Member):
-            raise VisitorError(
-                "A StructureReference must have a single child which is a "
-                "sub-class of Member but the reference to symbol '{0}' has a "
-                "child of type '{1}'".format(node.name,
-                                             type(node.children[0]).__name__))
-        result = node.symbol.name + "%" + self._visit(node.children[0])
-        return result
-
-    def arrayofstructuresreference_node(self, node):
-        '''
-        Creates the Fortran for a reference to one or more elements of an
-        array of derived types.
-
-        :param node: an ArrayOfStructuresReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresReference`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        :raises VisitorError: if the supplied node does not have the correct \
-                              number and type of children.
-        '''
-        if len(node.children) < 2:
-            raise VisitorError(
-                "An ArrayOfStructuresReference must have at least two children"
-                " but found {0}".format(len(node.children)))
-
-        if not isinstance(node.children[0], Member):
-            raise VisitorError(
-                "An ArrayOfStructuresReference must have a Member as its "
-                "first child but found '{0}'".format(
-                    type(node.children[0]).__name__))
-
-        # Generate the array reference. We need to skip over the first child
-        # (as that refers to the member of the derived type being accessed).
-        args = self.gen_dims(node.children[1:])
-
-        result = (node.symbol.name + "({0})".format(",".join(args)) +
-                  "%" + self._visit(node.children[0]))
-        return result
-
-    def member_node(self, node):
-        '''
-        Creates the Fortran for an access to a member of a derived type.
-
-        :param node: a Member PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Member`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        '''
-        result = node.name
-        if not node.children:
-            return result
-
-        if isinstance(node.children[0], Member):
-            if len(node.children) > 1:
-                args = self.gen_dims(node.children[1:])
-                result += "({0})".format(",".join(args))
-            result += "%" + self._visit(node.children[0])
-        else:
-            args = self.gen_dims(node.children)
-            result += "({0})".format(",".join(args))
-
-        return result
 
     def range_node(self, node):
         '''This method is called when a Range instance is found in the PSyIR

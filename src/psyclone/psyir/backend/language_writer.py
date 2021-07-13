@@ -41,6 +41,7 @@ for different language-specific visitors.
 import abc
 
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.nodes import Member
 
 
 class LanguageWriter(PSyIRVisitor):
@@ -90,6 +91,7 @@ class LanguageWriter(PSyIRVisitor):
         self._array_parenthesis = array_parenthesis
         self._structure_character = structure_character
 
+    # ------------------------------------------------------------------------
     @abc.abstractmethod
     def gen_dims(self, shape, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
@@ -100,12 +102,13 @@ class LanguageWriter(PSyIRVisitor):
         :param str var_name: name of the variable for which the dimensions \
             are created. Only used in the C implementation.
 
-        :returns: the Fortran representation of the dimensions.
+        :returns: the code representation of the dimensions.
         :rtype: list of str
 
         '''
         raise NotImplementedError("gen_dims() is abstract")
 
+    # ------------------------------------------------------------------------
     def arrayreference_node(self, node):
         '''This method is called when an ArrayReference instance is found
         in the PSyIR tree.
@@ -113,7 +116,7 @@ class LanguageWriter(PSyIRVisitor):
         :param node: an ArrayNode PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.ArrayNode`
 
-        :returns: the Fortran code as a string.
+        :returns: the code as a string.
         :rtype: str
 
         :raises VisitorError: if the node does not have any children.
@@ -128,6 +131,102 @@ class LanguageWriter(PSyIRVisitor):
                                        ",".join(args),
                                        self._array_parenthesis[0],
                                        self._array_parenthesis[1])
+        return result
+
+    # ------------------------------------------------------------------------
+    def structurereference_node(self, node):
+        '''
+        Creates the code for an access to a member of a structure type.
+
+        :param node: a StructureReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :returns: the code as string.
+        :rtype: str
+
+        :raises VisitorError: if this node does not have an instance of Member\
+                              as its only child.
+
+        '''
+        if len(node.children) != 1:
+            raise VisitorError(
+                "A StructureReference must have a single child but the "
+                "reference to symbol '{0}' has {1}.".format(
+                    node.name, len(node.children)))
+        if not isinstance(node.children[0], Member):
+            raise VisitorError(
+                "A StructureReference must have a single child which is a "
+                "sub-class of Member but the reference to symbol '{0}' has a "
+                "child of type '{1}'".format(node.name,
+                                             type(node.children[0]).__name__))
+        result = node.symbol.name + self._structure_character + \
+            self._visit(node.children[0])
+        return result
+
+    # ------------------------------------------------------------------------
+    def member_node(self, node):
+        '''
+        Creates the code for an access to a member of a derived type.
+
+        :param node: a Member PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Member`
+
+        :returns: the code as string
+        :rtype: str
+
+        '''
+        result = node.name
+        if not node.children:
+            return result
+
+        if isinstance(node.children[0], Member):
+            if len(node.children) > 1:
+                args = self.gen_dims(node.children[1:], node.name)
+                result += "{0}{1}{2}".format(self._array_parenthesis[0],
+                                             ",".join(args),
+                                             self._array_parenthesis[1])
+            result += self._structure_character + self._visit(node.children[0])
+        else:
+            args = self.gen_dims(node.children, node.name)
+            result += "{0}{1}{2}".format(self._array_parenthesis[0],
+                                         ",".join(args),
+                                         self._array_parenthesis[1])
+        return result
+
+    # ------------------------------------------------------------------------
+
+    def arrayofstructuresreference_node(self, node):
+        '''
+        Creates the code for a reference to one or more elements of an
+        array of derived types.
+
+        :param node: an ArrayOfStructuresReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresReference`
+
+        :returns: the code as string.
+        :rtype: str
+
+        :raises VisitorError: if the supplied node does not have the correct \
+                              number and type of children.
+        '''
+        if len(node.children) < 2:
+            raise VisitorError(
+                "An ArrayOfStructuresReference must have at least two children"
+                " but found {0}".format(len(node.children)))
+
+        if not isinstance(node.children[0], Member):
+            raise VisitorError(
+                "An ArrayOfStructuresReference must have a Member as its "
+                "first child but found '{0}'".format(
+                    type(node.children[0]).__name__))
+
+        # Generate the array reference. We need to skip over the first child
+        # (as that refers to the member of the derived type being accessed).
+        args = self.gen_dims(node.children[1:])
+
+        result = (node.symbol.name + self._array_parenthesis[0] +
+                  ",".join(args) + self._array_parenthesis[1] +
+                  self._structure_character + self._visit(node.children[0]))
         return result
 
 

@@ -43,6 +43,8 @@ import pytest
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.tests.psyir.backend.fortran_test import test_fw_arrayreference, \
     test_fw_arrayreference_incomplete
+from psyclone.tests.psyir.backend.c_test import test_cw_arraystructureref, \
+    test_cw_structureref
 
 
 def test_language_writer_constructor():
@@ -89,3 +91,9 @@ def test_rest(fortran_reader, fortran_writer, tmpdir):
     test_fw_arrayreference(fortran_reader, fortran_writer, tmpdir)
     # Tests errors with array references
     test_fw_arrayreference_incomplete(fortran_writer)
+
+    # This test covers most structure related code in one call - use it:
+    test_cw_structureref(fortran_reader)
+
+    # This test covers most sarray tructure references related code:
+    test_cw_arraystructureref(fortran_reader)
