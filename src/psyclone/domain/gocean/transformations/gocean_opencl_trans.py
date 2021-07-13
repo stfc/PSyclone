@@ -131,8 +131,8 @@ class GOOpenCLTrans(Transformation):
                     format(type(sched)))
         else:
             raise TransformationError(
-                "Error in GOOpenCLTrans: the supplied node must be a (sub-class "
-                "of) InvokeSchedule but got {0}".format(type(sched)))
+                "Error in GOOpenCLTrans: the supplied node must be a (sub-"
+                "class of) InvokeSchedule but got {0}".format(type(sched)))
 
         # Now we need to check the arguments of all the kernels
         args = args_filter(sched.args, arg_types=["scalar"], is_literal=True)

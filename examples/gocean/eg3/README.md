@@ -24,7 +24,8 @@ provided with a transformation script::
 psyclone -api "gocean1.0" -s ./ocl_trans.py alg.f90
 ```
 
-where `ocl_trans.py` simply applies the `psyclone.transformations.GOOpenCLTrans`
+where `ocl_trans.py` simply applies the
+`psyclone.domain.gocean.transformations.GOOpenCLTrans`
 transformation to the Schedule of the Invoke. This will generate the OpenCL
 driver layer to stdout and a 'kernel_name'.cl file for each of the kernels
 referenced in alg.f90 translated to OpenCL.

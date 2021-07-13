@@ -159,14 +159,14 @@ OpenCL
 
 PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API and its associated kernels.
-Such code may then be executed
-on devices such as GPUs and FPGAs (Field-Programmable Gate
-Arrays). Since OpenCL code is very different to that which PSyclone
+Such code may then be executed on devices such as GPUs and FPGAs
+(Field-Programmable Gate Arrays).
+Since OpenCL code is very different to that which PSyclone
 normally generates, its creation is handled by ``gen_ocl`` methods
 instead of the normal ``gen_code``. Which of these to use is
-determined by the value of the ``InvokeSchedule.opencl`` flag.  In turn,
-this is set at a user level by the ``transformations.GOOpenCLTrans``
-transformation.
+determined by the value of the ``InvokeSchedule.opencl`` flag.
+In turn, this is set at a user level by the
+``psyclone.domain.gocean.transformations.GOOpenCLTrans`` transformation.
 
 The PSyKAl model of calling kernels for pre-determined iteration
 spaces is a natural fit to OpenCL's concept of an
