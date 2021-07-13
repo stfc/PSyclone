@@ -200,14 +200,28 @@ def test_ompsingle_invalidnowait():
 
 def test_ompsingle_nested():
     ''' Tests to check OMPSingle rejects being applied to another OMPSingle '''
-    trans = OMPSingleTrans()
-    directive = OMPSingleDirective()
-    a = []
-    a.append(directive)
-    with pytest.raises(TransformationError) as err:
-        trans.validate(a)
-    assert("Error in OMPSingle transformation: cannot create an OpenMP SINGLE region within another OpenMP SINGLE region.")
+    from psyclone.parse.algorithm import parse, InvokeCall
+    import os
+    from psyclone.psyGen import PSyFactory
+    GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),"..","..",
+                                "test_files", "gocean1p0")
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    single = OMPSingleTrans()
+    parallel = OMPParallelTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
 
+    _, _ = single.apply(schedule.children[0])
+    omp_single_loop = schedule.children[0]
+    single.apply(schedule.children[0])
+    parallel.apply(schedule.children[0])
+    single_list = []
+    single_list.append(omp_single_loop)
+    with pytest.raises(TransformationError) as err:
+        single.validate(single_list)
+    assert("Error in OMPSingle transformation: cannot create an OpenMP SINGLE region within another OpenMP SINGLE region.")
 
 
 # Tests for ProfileTrans
