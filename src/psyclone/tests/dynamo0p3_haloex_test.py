@@ -583,4 +583,4 @@ def test_readinc():
     _, known = f1_hex.required()
     check_dirty = not known
     assert not check_dirty
-    assert f1_hex._compute_halo_depth() == 1
+    assert f1_hex._compute_halo_depth() == '1'

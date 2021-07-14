@@ -724,14 +724,15 @@ values are ``GH_REAL``, ``GH_INTEGER`` and ``GH_LOGICAL`` for ``real``,
 mandatory. Valid data types for each LFRic API argument type are specified
 later in this section (see :ref:`lfric-kernel-valid-data-type`).
 
-The third component of argument metadata describes how the Kernel makes
-use of the data being passed into it (the way it is accessed within a
-Kernel). This information is mandatory. There are currently 5 possible
-values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC``,
-``GH_READWRITE`` and ``GH_SUM``. However, not all combinations of
-metadata entries are valid and PSyclone will raise an exception if an
-invalid combination is specified. Valid combinations are specified
-later in this section (see :ref:`dynamo0.3-kernel-valid-access`).
+The third component of argument metadata describes how the Kernel
+makes use of the data being passed into it (the way it is accessed
+within a Kernel). This information is mandatory. There are currently 6
+possible values of this metadata ``GH_WRITE``, ``GH_READ``,
+``GH_INC``, ``GH_READINC``, ``GH_READWRITE`` and ``GH_SUM``. However,
+not all combinations of metadata entries are valid and PSyclone will
+raise an exception if an invalid combination is specified. Valid
+combinations are specified later in this section (see
+:ref:`dynamo0.3-kernel-valid-access`).
 
 * ``GH_WRITE`` indicates the data is modified in the Kernel before
   (optionally) being read.
@@ -743,6 +744,12 @@ later in this section (see :ref:`dynamo0.3-kernel-valid-access`).
   may receive contributions from cells on either side of the
   face. This means that such a Kernel needs appropriate
   synchronisation (or colouring) to run in parallel.
+
+* ``GH_READINC`` indicates that the data is first read and then
+  subsequently incremented. Therefore this is equivalent to a
+  ``GH_READ`` followed by a ``GH_INC``. It is important that
+  ``GH_INC`` is not incorrectly used in place of ``GH_READINC`` as it
+  would result in the reading of data from a dirty outermost halo.
 
 * ``GH_READWRITE`` indicates that different iterations of a Kernel
   update quantities which do not share DoFs, such as operators and
@@ -762,6 +769,7 @@ For example::
   type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_SCALAR, GH_REAL, GH_SUM),                           &
        arg_type(GH_FIELD, GH_INTEGER, GH_INC, ... ),                   &
+       arg_type(GH_FIELD, GH_REAL, GH_READINC, ... ),                  &
        arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, ... ),                  &
        arg_type(GH_OPERATOR, GH_REAL, GH_READ, ...)                    &
        /)
@@ -901,7 +909,8 @@ modes depend upon the argument type and the function space it is on:
 | GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
 +------------------------+------------------------------+--------------------+
-| GH_FIELD               | Continuous                   | GH_READ, GH_INC    |
+| GH_FIELD               | Continuous                   | GH_READ, GH_INC,   |
+|                        |                              | GH_READINC         |
 +------------------------+------------------------------+--------------------+
 | GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
@@ -2046,8 +2055,9 @@ logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
   LFRic are always defined outside of a kernel so the argument intent for
   this access type is ``intent(inout)``.
 
-* ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
-  are updated (albeit in a different way due to different access to DoFs, see
+* ``GH_INC``, ``GH_READINC`` and ``GH_READWRITE`` indicate
+  ``intent(inout)`` as the arguments are updated (albeit in a
+  different way due to different access to DoFs, see
   :ref:`dynamo0.3-api-meta-args` for more details).
 
 
