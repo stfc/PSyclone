@@ -46,7 +46,7 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import Directive
+from psyclone.psyir.nodes import Directive
 from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 
 # Get the transformation we will apply
