@@ -406,15 +406,17 @@ class FortranWriter(PSyIRVisitor):
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbol does not specify a \
-            variable declaration (it is not a local declaration or an \
-            argument declaration).
+        :raises VisitorError: if the symbols is of UnknownFortranType and \
+            is not local.
+        :raises VisitorError: if the symbol is of known type but does not \
+            specify a variable declaration (it is not a local declaration or \
+            an argument declaration).
         :raises VisitorError: if the symbol or member is an array with a \
             shape containing a mixture of DEFERRED and other extents.
 
         '''
         # Whether we're dealing with a Symbol or a member of a derived type
-        is_symbol = isinstance(symbol, DataSymbol)
+        is_symbol = isinstance(symbol, (DataSymbol, RoutineSymbol))
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
         if isinstance(symbol.datatype, ArrayType):
@@ -422,19 +424,29 @@ class FortranWriter(PSyIRVisitor):
         else:
             array_shape = []
 
-        if is_symbol and not (symbol.is_local or symbol.is_argument):
-            raise VisitorError(
-                "gen_vardecl requires the symbol '{0}' to have a Local or "
-                "an Argument interface but found a '{1}' interface."
-                "".format(symbol.name, type(symbol.interface).__name__))
+        if is_symbol:
+            if isinstance(symbol.datatype, UnknownFortranType):
+                if isinstance(symbol, RoutineSymbol) and not symbol.is_local:
+                    raise VisitorError(
+                        "{0} '{1}' is of UnknownFortranType but has"
+                        " interface '{2}' instead of LocalInterface. This is "
+                        "not supported by the Fortran back-end.".format(
+                            type(symbol).__name__,
+                            symbol.name, symbol.interface))
+            elif not (symbol.is_local or symbol.is_argument):
+                raise VisitorError(
+                    "gen_vardecl requires the symbol '{0}' to have a Local or "
+                    "an Argument interface but found a '{1}' interface."
+                    "".format(symbol.name, type(symbol.interface).__name__))
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
                 return symbol.datatype.declaration + "\n"
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
-                "The Fortran backend cannot handle the declaration of a "
-                "symbol of '{0}' type.".format(type(symbol.datatype).__name__))
+                "{0} '{1}' is of '{2}' type. This is not supported by the "
+                "Fortran backend.".format(type(symbol).__name__, symbol.name,
+                                          type(symbol.datatype).__name__))
 
         datatype = gen_datatype(symbol.datatype, symbol.name)
         result = "{0}{1}".format(self._nindent, datatype)
@@ -632,6 +644,11 @@ class FortranWriter(PSyIRVisitor):
                     "Routine symbol '{0}' is passed as an argument (has an "
                     "ArgumentInterface). This is not supported by the Fortran"
                     " back-end.".format(sym.name))
+            # Interfaces to module procedures are captured by the frontend as
+            # RoutineSymbols of UnknownFortranType. These must therefore be
+            # declared.
+            if isinstance(sym.datatype, UnknownType):
+                declarations += self.gen_vardecl(sym)
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)
