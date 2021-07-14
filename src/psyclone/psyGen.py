@@ -47,16 +47,16 @@ import abc
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
 from psyclone.core import AccessType
+from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
+from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, Call
-from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.parse.algorithm import BuiltInCall
+    Routine, Call, OMPDoDirective
 
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -1490,12 +1490,10 @@ class Kern(Statement):
         do loop. If so report whether it has the reproducible flag
         set. Note, this also catches OMPParallelDo Directives but they
         have reprod set to False so it is OK.'''
-        from psyclone.psyir.nodes import OMPDoDirective
         ancestor = self.ancestor(OMPDoDirective)
         if ancestor:
             return ancestor.reprod
-        else:
-            return False
+        return False
 
     @property
     def local_reduction_name(self):

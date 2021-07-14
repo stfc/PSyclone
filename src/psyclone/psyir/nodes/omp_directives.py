@@ -37,17 +37,18 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the OpenMP Directives node implementation.'''
+''' This module contains the implementation of the various OpenMP Directive
+nodes.'''
 
 from __future__ import absolute_import
+from psyclone.configuration import Config
+from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
 from psyclone.psyir.nodes.directive import Directive
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.errors import GenerationError, InternalError
-from psyclone.configuration import Config
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.psyir.nodes.routine import Routine
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -615,3 +616,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             "schedule({1})".format(",".join(self._get_private_list()),
                                    self._omp_schedule),
             end_text="end parallel do")
+
+
+# For automatic API documentation generation
+__all__ = ["OMPDirective", "OMPParallelDirective", "OMPDoDirective",
+           "OMPParallelDoDirective"]

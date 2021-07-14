@@ -39,7 +39,7 @@
 
 
 # internal classes requiring tests
-# PSy,Invokes,Invoke, Kern,Arguments, Argument, KernelArgument
+# PSy, Invokes, Invoke, Kern, Argumen1ts, Argument, KernelArgument
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation

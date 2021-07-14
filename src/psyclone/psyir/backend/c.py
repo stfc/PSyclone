@@ -112,7 +112,7 @@ class CWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: An Assignment PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Assigment`
+        :type node: :py:class:`psyclone.psyir.nodes.Assignment``
 
         :returns: The C code as a string.
         :rtype: str

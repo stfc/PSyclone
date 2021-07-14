@@ -43,12 +43,11 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 
+from psyclone.errors import GenerationError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import ACCKernelsDirective, Loop
+from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.transformations import ACCKernelsTrans, ACCLoopTrans
-from psyclone.psyir.nodes import Assignment
-from psyclone.errors import GenerationError
 
 
 # The PSyclone API under test

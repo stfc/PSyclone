@@ -5995,7 +5995,7 @@ class DynHaloExchangeStart(DynHaloExchange):
     :type vector_index: int
     :param parent: optional PSyIRe parent node (default None) of this \
     object
-    :type parent: :py:class:`psyclone.psyit.nodes.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.

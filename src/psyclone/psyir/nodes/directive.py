@@ -244,3 +244,7 @@ class Directive(Statement):
         # directive in the parse tree.
         if not end_text and isinstance(first_child, Loop):
             self.ast_end = fp_parent.content[ast_start_index+1]
+
+
+# For automatic API documentation generation
+__all__ = ["Directive"]

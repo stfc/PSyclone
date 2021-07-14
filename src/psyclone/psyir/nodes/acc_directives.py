@@ -37,7 +37,8 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the OpenACC Directives node implementation.'''
+''' This module contains the implementation of the various OpenACC Directive
+nodes.'''
 
 from __future__ import absolute_import
 import abc
@@ -818,3 +819,8 @@ class ACCDataDirective(ACCDirective):
         '''
         # pylint: disable=no-self-use
         return "acc end data"
+
+
+# For automatic API documentation generation
+__all__ = ["ACCDirective", "ACCEnterDataDirective", "ACCParallelDirective",
+           "ACCLoopDirective", "ACCKernelsDirective", "ACCDataDirective"]
