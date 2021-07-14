@@ -1251,12 +1251,13 @@ class Fparser2Reader(object):
     @staticmethod
     def _parse_dimensions(dimensions, symbol_table):
         '''
-        Parse the fparser dimension attribute into a shape list with
-        the extent of each dimension. If any of the symbols encountered are
-        instances of the generic Symbol class, they are specialised (in
-        place) and become instances of DataSymbol with DeferredType.
+        Parse the fparser dimension attribute into a shape list with of
+        2-tuples containing the lower and upper bound of each dimension.
+        If any of the symbols encountered are instances of the generic Symbol
+        class, they are specialised (in place) and become instances of
+        DataSymbol with DeferredType.
 
-        :param dimensions: fparser dimension attribute
+        :param dimensions: fparser dimension attribute.
         :type dimensions: \
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
         :param symbol_table: symbol table of the declaration context.
@@ -1265,13 +1266,15 @@ class Fparser2Reader(object):
         :returns: shape of the attribute in column-major order (leftmost \
             index is contiguous in memory). Each entry represents an array \
             dimension. If it is 'None' the extent of that dimension is \
-            unknown, otherwise it holds an ArrayType.ArrayBounds object with \
-            the upper and lower bounds of the dimension. If it is \
-            an empty list then the symbol represents a scalar.
-        :rtype: list
+            unknown, otherwise it holds a 2-tuple with the upper and lower \
+            bounds of the dimension. If it is an empty list then the symbol \
+            represents a scalar.
+        :rtype: list of NoneType or 2-tuples of \
+                :py:class:`psyclone.psyir.nodes.DataNode`
 
         :raises NotImplementedError: if anything other than scalar, integer \
             literals or symbols are encounted in the dimensions list.
+
         '''
         def _process_bound(bound_expr):
             '''Process the supplied fparser2 parse tree for the upper/lower
@@ -1288,7 +1291,8 @@ class Fparser2Reader(object):
             '''
             if isinstance(bound_expr, Fortran2003.Int_Literal_Constant):
                 return Literal(bound_expr.items[0], INTEGER_TYPE)
-            elif isinstance(bound_expr, Fortran2003.Name):
+
+            if isinstance(bound_expr, Fortran2003.Name):
                 # Fortran does not regulate the order in which variables
                 # may be declared so it's possible for the shape
                 # specification of an array to reference variables that
@@ -1331,6 +1335,7 @@ class Fparser2Reader(object):
 
             raise NotImplementedError()
 
+        one = Literal("1", INTEGER_TYPE)
         shape = []
         # Traverse shape specs in Depth-first-search order
         for dim in walk(dimensions, (Fortran2003.Assumed_Shape_Spec,
@@ -1347,7 +1352,7 @@ class Fparser2Reader(object):
                         lower = _process_bound(dim.items[0])
                         shape.append((lower, upper))
                     else:
-                        shape.append(upper)
+                        shape.append((one.copy(), upper))
                 except NotImplementedError as err:
                     six.raise_from(NotImplementedError(
                         "Could not process {0}. Only scalar integer literals"

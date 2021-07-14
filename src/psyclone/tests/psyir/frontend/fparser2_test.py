@@ -909,7 +909,9 @@ def test_process_array_declarations():
     l5_datatype = fake_parent.symbol_table.lookup("l5").datatype
     assert len(l5_datatype.shape) == 1
     assert isinstance(l5_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(l5_datatype.shape[0].lower, Literal)
     assert isinstance(l5_datatype.shape[0].upper, Literal)
+    assert l5_datatype.shape[0].lower.value == '1'
     assert l5_datatype.shape[0].upper.value == '2'
     assert (l5_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
@@ -918,7 +920,9 @@ def test_process_array_declarations():
     l6_datatype = fake_parent.symbol_table.lookup("l6").datatype
     assert len(l6_datatype.shape) == 1
     assert isinstance(l6_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(l6_datatype.shape[0].lower, Literal)
     assert isinstance(l6_datatype.shape[0].upper, Literal)
+    assert l6_datatype.shape[0].lower.value == '1'
     assert l6_datatype.shape[0].upper.value == '3'
     assert (l6_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
@@ -1386,8 +1390,10 @@ def test_parse_array_dimensions_attributes():
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 2
-    assert shape[0].value == "3"
-    assert shape[1].value == "5"
+    assert shape[0][0].value == "1"
+    assert shape[0][1].value == "3"
+    assert shape[1][0].value == "1"
+    assert shape[1][1].value == "5"
 
     sym_table.add(DataSymbol('var1', INTEGER_TYPE))
     sym_table.add(DataSymbol('var1_upper', INTEGER_TYPE))
@@ -1396,7 +1402,8 @@ def test_parse_array_dimensions_attributes():
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert shape[0].symbol == sym_table.lookup('var1')
+    assert shape[0][0].value == "1"
+    assert shape[0][1].symbol == sym_table.lookup('var1')
 
     reader = FortranStringReader("dimension(0:3,var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
@@ -1407,7 +1414,8 @@ def test_parse_array_dimensions_attributes():
     assert len(shape[0]) == 2
     assert shape[0][0].value == "0"
     assert shape[0][1].value == "3"
-    assert shape[1].symbol is sym_table.lookup('var1')
+    assert shape[1][0].value == "1"
+    assert shape[1][1].symbol is sym_table.lookup('var1')
 
     reader = FortranStringReader("dimension(0:3,var1:var1_upper)")
     fparser2spec = Dimension_Attr_Spec(reader)
@@ -1459,12 +1467,13 @@ def test_parse_array_dimensions_attributes():
     assert type(vsym) == Symbol
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert isinstance(shape[0], Reference)
+    assert shape[0][0].value == "1"
+    assert isinstance(shape[0][1], Reference)
     # Symbol is the same object but is now a DataSymbol
-    assert shape[0].symbol is vsym
-    assert isinstance(shape[0].symbol, DataSymbol)
-    assert shape[0].symbol.name == "var3"
-    assert isinstance(shape[0].symbol.interface, GlobalInterface)
+    assert shape[0][1].symbol is vsym
+    assert isinstance(shape[0][1].symbol, DataSymbol)
+    assert shape[0][1].symbol.name == "var3"
+    assert isinstance(shape[0][1].symbol.interface, GlobalInterface)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
