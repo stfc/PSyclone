@@ -41,6 +41,7 @@ from __future__ import print_function, absolute_import
 import six
 
 from psyclone.errors import InternalError
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 # =============================================================================
@@ -110,6 +111,7 @@ class Signature(object):
         # TODO 1320 This subroutine can be removed when we stop supporting
         # strings - then we can use a PSyIR writer for the ReferenceNode
         # to provide the right string.
+        # pylint: disable=too-many-locals
         '''Converts this signature with the provided indices to a string
         in the selected language.
 
@@ -150,23 +152,36 @@ class Signature(object):
         # including indices
         out_list = []
 
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Literal, Reference
+
         for i, component in enumerate(self._signature):
             indices = component_indices[i]
             if not indices:
                 out_list.append(component)
             else:
                 # If there are indices, add the "(ind1, ind2, ...)"
+                # TODO 1320: since we support strings and integer, we cannot
+                # simply pass the list of indices to writer.gen_dim (since it
+                # only accepts PSyIR Nodes). Instead we convert each
+                # string to a Reference, and each integer to a Literal
                 index_list = []
+
                 for dimension in indices:
                     if isinstance(dimension, Node):
-                        index_list.append(writer(dimension))
+                        index_list.append(dimension)
+                    elif isinstance(dimension, int):
+                        index_list.append(Literal(str(dimension),
+                                                  INTEGER_TYPE))
                     else:
-                        # Some tests and work in progress still uses strings
-                        # so support strings as indices as well:
-                        index_list.append(str(dimension))
+                        ref = Reference(DataSymbol(dimension, INTEGER_TYPE))
+                        index_list.append(ref)
+                dims = writer.gen_dims(index_list, component)
+
                 parenthesis = writer.array_parenthesis
                 out_list.append(component + parenthesis[0] +
-                                ",".join(index_list) +
+                                ",".join(dims) +
                                 parenthesis[1])
 
         # Combine the components in out_list to form the language string.
