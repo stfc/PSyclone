@@ -271,7 +271,7 @@ class LFRicConstants(object):
             LFRicConstants.VALID_EVALUATOR_NAMES
 
         # ---------- Map from scalar intrinsic type to its precision ----------
-        LFRicConstants.SCALAR_TYPE_MAP = \
+        LFRicConstants.SCALAR_PRECISION_MAP = \
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
                             ["r_def", "i_def", "l_def"]))
 

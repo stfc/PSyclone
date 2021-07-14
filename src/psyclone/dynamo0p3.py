@@ -8647,7 +8647,8 @@ class DynKernelArgument(KernelArgument):
                 self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
             else:
                 # Set read-only scalar precision
-                self._precision = const.SCALAR_TYPE_MAP[self.intrinsic_type]
+                self._precision = const.SCALAR_PRECISION_MAP[
+                    self.intrinsic_type]
 
         # All supported fields have the same metadata, 'GH_FIELD', so we
         # check by their intrinsic type
@@ -9076,13 +9077,13 @@ class DynKernelArgument(KernelArgument):
                     kind_name = const.DATA_TYPE_MAP["reduction"]["kind"]
                 else:
                     # Set read-only 'real' scalar precision
-                    kind_name = const.SCALAR_TYPE_MAP["real"]
+                    kind_name = const.SCALAR_PRECISION_MAP["real"]
                 prim_type = ScalarType.Intrinsic.REAL
             elif self.intrinsic_type == "integer":
-                kind_name = const.SCALAR_TYPE_MAP["integer"]
+                kind_name = const.SCALAR_PRECISION_MAP["integer"]
                 prim_type = ScalarType.Intrinsic.INTEGER
             elif self.intrinsic_type == "logical":
-                kind_name = const.SCALAR_TYPE_MAP["logical"]
+                kind_name = const.SCALAR_PRECISION_MAP["logical"]
                 prim_type = ScalarType.Intrinsic.BOOLEAN
             else:
                 raise NotImplementedError(
