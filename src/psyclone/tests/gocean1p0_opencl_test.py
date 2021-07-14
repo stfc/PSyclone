@@ -1202,9 +1202,7 @@ def test_symtab_implementation_for_opencl():
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
-            " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=["
-            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]:"
-            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>' for "
+            " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=[10]>' for "
             "kernel 'test'." in str(err.value))
 
 
