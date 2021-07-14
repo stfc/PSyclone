@@ -3367,5 +3367,4 @@ class DummyTransformation(Transformation):
 __all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
            'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
            'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
-           'TransInfo', 'Transformation', 'DummyTransformation',
-           'ACCKernelsDirective', 'ACCDataDirective']
+           'TransInfo', 'Transformation', 'DummyTransformation']

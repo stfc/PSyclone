@@ -1125,6 +1125,35 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
         "integer".format(Config.get().filename) in str(excinfo.value))
 
 
+def test_argument_properties():
+    ''' Check the default values for properties of a generic
+    argument instance. Also check that when the internal values
+    are changed, the related property methods return the
+    updated values (where applicable).
+
+    '''
+    # Instantiate a generic argument and check the default
+    # property values
+    arg = Argument(None, None, None)
+    assert arg.is_literal is False
+    assert arg.argument_type == "field"
+    assert arg.precision is None
+    assert arg.data_type is None
+    assert arg.module_name is None
+
+    # Change the internal values and check the properties
+    # again (note that the "argument_type" property is
+    # hard-coded to return "field")
+    arg._is_literal = True
+    arg._precision = "i_def"
+    arg._data_type = "field_type"
+    arg._module_name = "operator_mod"
+    assert arg.is_literal is True
+    assert arg.precision == "i_def"
+    assert arg.data_type == "field_type"
+    assert arg.module_name == "operator_mod"
+
+
 def test_argument_infer_datatype():
     ''' Check that a generic argument inferred datatype is a DeferredType. '''
     arg = Argument(None, None, None)
