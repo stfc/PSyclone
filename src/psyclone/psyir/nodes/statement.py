@@ -44,3 +44,7 @@ class Statement(Node, CommentableMixin):
     '''
     Abstract node representing a general PSyIR Statement.
     '''
+
+
+# For automatic API documentation generation
+__all__ = ["Statement"]

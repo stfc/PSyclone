@@ -46,13 +46,17 @@ class CommentableMixin:
     respective property getters and setters.
     '''
 
+    # By default classes with the Commentable trait will have empty strings
+    # provided by the class attributes below. Once an instance is given a
+    # comment using the property setter this class attributes will be shadowed
+    # by an instance attribute storing the string for that specific instance.
     _preceding_comment = ""
     _inline_comment = ""
 
     @property
     def preceding_comment(self):
         '''
-        :returns: string comment preceding this statement.
+        :returns: comment preceding this statement.
         :rtype: str
         '''
         return self._preceding_comment
@@ -60,7 +64,7 @@ class CommentableMixin:
     @preceding_comment.setter
     def preceding_comment(self, comment):
         '''
-        :param str comment: string comment preceding this statement.
+        :param str comment: comment preceding this statement.
         '''
         if not isinstance(comment, six.string_types):
             raise TypeError("The preceding_comment must be a string but"
@@ -70,7 +74,7 @@ class CommentableMixin:
     @property
     def inline_comment(self):
         '''
-        :returns: string inline comment this statement.
+        :returns: inline comment associated with this statement.
         :rtype: str
         '''
         return self._inline_comment
@@ -78,9 +82,13 @@ class CommentableMixin:
     @inline_comment.setter
     def inline_comment(self, comment):
         '''
-        :param str comment: string comment preceding this statement.
+        :param str comment: inline comment associated with this statement.
         '''
         if not isinstance(comment, six.string_types):
             raise TypeError("The inline_comment must be a string but"
                             " found '{0}'.".format(type(comment).__name__))
         self._inline_comment = comment
+
+
+# For automatic API documentation generation
+__all__ = ["CommentableMixin"]

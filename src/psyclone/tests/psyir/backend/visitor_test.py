@@ -322,7 +322,7 @@ def test_psyir_comments_no_prefix():
     class TestVisitorNoPrefix(PSyIRVisitor):
         ''' Subclass of PSyIRVisitor with a statement visitor '''
         def statement_node(self, _):
-            ''' Match with class TestNode2. '''
+            ''' Statement node visitor. '''
             return "statement\n"
 
     class TestVisitorPrefix(TestVisitorNoPrefix):
@@ -350,7 +350,7 @@ def test_psyir_inline_comments_error():
         _COMMENT_PREFIX = ":) "
 
         def statement_node(self, _):
-            ''' Match with class TestNode2. '''
+            ''' Statement node visitor. '''
             return "statement"
 
     statement = Return()

@@ -254,9 +254,8 @@ class PSyIRVisitor(object):
                                 "indicating that the line has ended, but"
                                 " node '{0}' results in '{1}'."
                                 "".format(node, result))
-                        # Remove the line-break
-                        result = result[:-1]
-                        result += ("  " + self._COMMENT_PREFIX +
+                        # Add the comment before the last line break
+                        result += (result[:-1] + "  " + self._COMMENT_PREFIX +
                                    node.inline_comment + "\n")
 
                 return result

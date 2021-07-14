@@ -70,7 +70,7 @@ def test_statement_comment_properties():
 
 
 def test_other_commentable_nodes():
-    ''' Check that other nodes with the CommantableMixin have the
+    ''' Check that other nodes with the CommentableMixin have the
     expected functionality.'''
 
     routine = Routine("my_routine")
@@ -95,7 +95,7 @@ def test_comment_attributes_copy():
 
     # Make a copy of the node and replace the comments on the original
     statement2 = statement.copy()
-    statement.preciding_comment = "Replace previous comment"
+    statement.preceding_comment = "Replace previous comment"
     statement.inline_comment = "Replace previous comment"
     assert statement2.preceding_comment == "My preceding comment"
     assert statement2.inline_comment == "My inline comment"
