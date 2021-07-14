@@ -8038,6 +8038,14 @@ class DynKern(CodedKern):
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
                 if not isinstance(kern_code_arg_dim, ArrayType.ArrayBounds):
                     continue
+                if (not isinstance(kern_code_arg_dim.lower, Literal) or
+                        kern_code_arg_dim.lower.value != "1"):
+                    raise GenerationError(
+                        "All array arguments to LFRic kernels must have lower "
+                        "bounds of 1 for all dimensions. However, array '{0}' "
+                        "has a lower bound of '{1}' for dimension {2}".format(
+                            kern_code_arg.name, str(kern_code_arg_dim.lower),
+                            dim_idx))
                 kern_code_arg_upper_dim = kern_code_arg_dim.upper
                 interface_arg_upper_dim = interface_arg.shape[dim_idx].upper
                 if (isinstance(kern_code_arg_upper_dim, Reference) and
