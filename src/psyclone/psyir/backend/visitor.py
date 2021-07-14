@@ -255,8 +255,8 @@ class PSyIRVisitor(object):
                                 " node '{0}' results in '{1}'."
                                 "".format(node, result))
                         # Add the comment before the last line break
-                        result += (result[:-1] + "  " + self._COMMENT_PREFIX +
-                                   node.inline_comment + "\n")
+                        result = (result[:-1] + "  " + self._COMMENT_PREFIX +
+                                  node.inline_comment + "\n")
 
                 return result
 
