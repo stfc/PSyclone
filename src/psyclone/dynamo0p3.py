@@ -71,9 +71,11 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              Arguments, KernelArgument, HaloExchange,
                              GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
-                             CodedKern, ACCEnterDataDirective,
-                             OMPParallelDoDirective)
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
+                             CodedKern)
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
+                                  ACCEnterDataDirective,
+                                  OMPParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface, ArrayType)
@@ -5311,7 +5313,7 @@ class DynInvoke(Invoke):
                                   funcnames=[omp_function_name]))
             # Note: There is no assigned kind for integer nthreads as this
             # would imply assigning kind to th_idx and other elements of
-            # the psyGen OMPParallelDirective
+            # the OMPParallelDirective
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[nthreads_name]))
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -5567,7 +5569,7 @@ class DynHaloExchange(HaloExchange):
     :type vector_index: int
     :param parent: optional PSyIRe parent node (default None) of this \
     object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, field, check_dirty=True,
@@ -5993,7 +5995,7 @@ class DynHaloExchangeStart(DynHaloExchange):
     :type vector_index: int
     :param parent: optional PSyIRe parent node (default None) of this \
     object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
@@ -6108,7 +6110,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
     :type vector_index: int
     :param parent: optional PSyIRe parent node (default None) of this \
     object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
@@ -8772,6 +8774,55 @@ class DynKernelArgument(KernelArgument):
         if self._vector_size > 1:
             return self.proxy_name+"("+str(self._vector_size)+")"
         return self.proxy_name
+
+    def psyir_expression(self):
+        '''
+        Looks up or creates a reference to a suitable Symbol for this kernel
+        argument. If the argument is a scalar that has been provided as a
+        literal (in the Algorithm layer) then the PSyIR of the expression
+        is returned.
+
+        :returns: the PSyIR for this kernel argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises NotImplementedError: if this argument is not a literal, scalar
+                                     or field.
+
+        '''
+        symbol_table = self._call.scope.symbol_table
+
+        if self.is_literal:
+            reader = FortranReader()
+            return reader.psyir_from_expression(self.name)
+
+        if self.is_scalar:
+            try:
+                scalar_sym = symbol_table.lookup(self.name)
+            except KeyError:
+                # TODO once #1258 is done the symbols should already exist
+                # and therefore we should raise an exception if not.
+                scalar_sym = symbol_table.new_symbol(
+                    self.name, symbol_type=DataSymbol,
+                    datatype=self.infer_datatype())
+            return Reference(scalar_sym)
+
+        if self.is_field:
+            # Although the argument to a Kernel is a field, the data itself
+            # is accessed through a field_proxy.
+            try:
+                sym = symbol_table.lookup(self.proxy_name)
+            except KeyError:
+                # TODO once #1258 is done the symbols should already exist
+                # and therefore we should raise an exception if not.
+                sym = symbol_table.new_symbol(
+                    self.proxy_name, symbol_type=DataSymbol,
+                    datatype=self.infer_datatype(proxy=True))
+            return Reference(sym)
+
+        raise NotImplementedError(
+            "Unsupported kernel argument type: '{0}' is of type '{1}' "
+            "which is not recognised as being a literal, scalar or "
+            "field.".format(self.name, self.argument_type))
 
     @property
     def declaration_name(self):

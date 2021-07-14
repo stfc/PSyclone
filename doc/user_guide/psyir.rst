@@ -183,7 +183,7 @@ To solve this issue some Nodes also provide methods for semantic navigation:
 - ``Array`` nodes (e.g. ``ArrayReference``, ``ArrayOfStructuresReference``):
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
 - ``Directive``:
-   .. automethod:: psyclone.psyGen.Directive.dir_body()
+   .. automethod:: psyclone.psyir.nodes.Directive.dir_body()
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
 

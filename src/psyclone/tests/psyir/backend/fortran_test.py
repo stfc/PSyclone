@@ -780,6 +780,12 @@ def test_gen_routine_access_stmts(fortran_writer):
         fortran_writer.gen_routine_access_stmts(symbol_table)
     assert ("Unrecognised visibility ('broken') found for symbol 'my_sub2'"
             in str(err.value))
+    symbol_table.remove(sub2)
+    # Check that we don't generate an accessibility statement for a
+    # RoutineSymbol tagged with 'own_routine_symbol'
+    symbol_table.add(RoutineSymbol("my_routine"), tag='own_routine_symbol')
+    code = fortran_writer.gen_routine_access_stmts(symbol_table)
+    assert "my_routine" not in code
 
 
 def test_fw_exception(fortran_writer):
@@ -1276,8 +1282,15 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = -a * (-b + c)\n"
         "    a = (-a) * (-b + c)\n"
         "    a = -a + (-b + (-c))\n"
+        "    a = -a + (-b - (-c))\n"
+        "    b = c * (-2.0)\n"
+        "    a = abs(-b - (-c))\n"
         "    e = .not. f .or. .not. g\n"
         "    a = log(b*c)\n"
+        "    a = b**(-c)\n"
+        "    a = b**(-b + c)\n"
+        "    a = (-b)**c\n"
+        "    a = -(-b)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1286,9 +1299,16 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
     expected = (
         "    a = -a * (-b + c)\n"
         "    a = -a * (-b + c)\n"
-        "    a = -a + (-b + -c)\n"
-        "    e = .NOT.f .OR. .NOT.g\n"
-        "    a = LOG(b * c)\n")
+        "    a = -a + (-b + (-c))\n"
+        "    a = -a + (-b - (-c))\n"
+        "    b = c * (-2.0)\n"
+        "    a = ABS(-b - (-c))\n"
+        "    e = .NOT.f .OR. (.NOT.g)\n"
+        "    a = LOG(b * c)\n"
+        "    a = b ** (-c)\n"
+        "    a = b ** (-b + c)\n"
+        "    a = -b ** c\n"
+        "    a = -(-b)\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -2071,24 +2091,3 @@ def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
     assert len(cblocks) == 2
     gen = fortran_writer(call_node)
     assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
-
-
-def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
-    ''' Check that the FortranWriter raises the expected error if it
-    encounters an UnknownType that is not an UnknownFortranType. '''
-    # We can't create an UnknownType() object directly as it is abstract.
-    # Therefore we create a symbol of UnknownFortranType and then
-    # monkeypatch it.
-    sym = DataSymbol("b", UnknownFortranType("int b;"))
-    monkeypatch.setattr(sym.datatype, "__class__", UnknownType)
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.gen_vardecl(sym)
-    assert ("cannot handle the declaration of a symbol of 'UnknownType'" in
-            str(err.value))
-
-
-def test_fw_unknown_decln(fortran_writer):
-    ''' Check that the FortranWriter recreates a declaration that is of
-    UnknownFortranType. '''
-    sym = DataSymbol("b", UnknownFortranType("integer, value :: b"))
-    assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)
