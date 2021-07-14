@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,10 +30,10 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # Authors A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone GOcean OpenCL transformation.
 '''
