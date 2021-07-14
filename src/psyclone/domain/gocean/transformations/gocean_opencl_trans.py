@@ -50,11 +50,8 @@ class GOOpenCLTrans(Transformation):
     InvokeSchedule. Additionally, it will generate OpenCL kernels for
     each of the kernels referenced by the Invoke. For example:
 
-    >>> invoke = ...
-    >>> schedule = invoke.schedule
-    >>>
     >>> ocl_trans = GOOpenCLTrans()
-    >>> new_sched, _ = ocl_trans.apply(schedule)
+    >>> ocl_trans.apply(invoke.schedule)
 
     '''
     @property
