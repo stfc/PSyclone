@@ -95,6 +95,8 @@
 	32) #1279 for #1250. Adds capability to specify multiple kernel
 	directories.
 
+	33) #1329 for #1308. Fix bug in the Fortran frontend WHERE clause.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

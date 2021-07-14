@@ -199,6 +199,10 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
                         # TODO Use the API developed in #1113 to specialise
                         # the symbol.
                         sym.specialise(expected_type)
+                        # TODO #1113 this is a workaround to ensure that the
+                        # interface is not set back to the default value.
+                        if "interface" not in kargs:
+                            kargs["interface"] = sym.interface
                         sym.__init__(sym.name, **kargs)
                 return sym
             except KeyError:
@@ -2859,7 +2863,7 @@ class Fparser2Reader(object):
               statements
             [ELSE WHERE(logical-mask)
               statements]
-            [ELSE
+            [ELSE WHERE
               statements]
             END WHERE
 
@@ -3006,26 +3010,81 @@ class Fparser2Reader(object):
         sched = Schedule(parent=ifblock)
         ifblock.addchild(sched)
 
-        if not was_single_stmt:
-            # Do we have an ELSE WHERE?
-            for idx, child in enumerate(node.content):
-                if isinstance(child, Fortran2003.Elsewhere_Stmt):
-                    self.process_nodes(sched, node.content[1:idx])
-                    self._array_syntax_to_indexed(sched, loop_vars)
-                    # Add an else clause to the IF block for the ELSEWHERE
-                    # clause
-                    sched = Schedule(parent=ifblock)
-                    ifblock.addchild(sched)
-                    self.process_nodes(sched, node.content[idx+1:-1])
-                    break
-            else:
-                # No elsewhere clause was found
-                self.process_nodes(sched, node.content[1:-1])
-        else:
+        if was_single_stmt:
             # We only had a single-statement WHERE
             self.process_nodes(sched, node.items[1:])
+        else:
+            # We have to allow for potentially multiple ELSE WHERE clauses
+            clause_indices = []
+            for idx, child in enumerate(node.content):
+                if isinstance(child, (Fortran2003.Elsewhere_Stmt,
+                                      Fortran2003.Masked_Elsewhere_Stmt,
+                                      Fortran2003.End_Where_Stmt)):
+                    clause_indices.append(idx)
+            num_clauses = len(clause_indices) - 1
+
+            if len(clause_indices) > 1:
+                # We have at least one elsewhere clause.
+                # Process the body of the where (up to the first elsewhere).
+                self.process_nodes(sched, node.content[1:clause_indices[0]])
+                current_parent = ifblock
+
+                for idx in range(num_clauses):
+                    start_idx = clause_indices[idx]
+                    end_idx = clause_indices[idx+1]
+                    clause = node.content[start_idx]
+
+                    if isinstance(clause, Fortran2003.Masked_Elsewhere_Stmt):
+                        elsebody = Schedule(parent=current_parent)
+                        current_parent.addchild(elsebody)
+                        newifblock = IfBlock(parent=elsebody,
+                                             annotations=annotations)
+                        elsebody.addchild(newifblock)
+
+                        # Keep pointer to fpaser2 AST
+                        elsebody.ast = node.content[start_idx]
+                        newifblock.ast = node.content[start_idx]
+
+                        # Create condition as first child
+                        self.process_nodes(parent=newifblock,
+                                           nodes=[clause.items[0]])
+
+                        # Create if-body as second child
+                        ifbody = Schedule(parent=newifblock)
+                        ifbody.ast = node.content[start_idx + 1]
+                        ifbody.ast_end = node.content[end_idx - 1]
+                        newifblock.addchild(ifbody)
+                        self.process_nodes(
+                            parent=ifbody,
+                            nodes=node.content[start_idx+1:end_idx])
+                        current_parent = newifblock
+
+                    elif isinstance(clause, Fortran2003.Elsewhere_Stmt):
+                        if idx != num_clauses - 1:
+                            raise InternalError(
+                                "Elsewhere_Stmt should only be found next to "
+                                "last clause, but found {0}".format(
+                                    node.content))
+                        elsebody = Schedule(parent=current_parent)
+                        current_parent.addchild(elsebody)
+                        elsebody.ast = node.content[start_idx]
+                        elsebody.ast_end = node.content[end_idx]
+                        self.process_nodes(
+                            parent=elsebody,
+                            nodes=node.content[start_idx + 1:end_idx])
+
+                    else:
+                        raise InternalError(
+                            "Expected either Fortran2003.Masked_Elsewhere_Stmt"
+                            " or Fortran2003.Elsewhere_Stmt but found '{0}'".
+                            format(type(clause).__name__))
+            else:
+                # No elsewhere clauses were found so put the whole body into
+                # the single if block.
+                self.process_nodes(sched, node.content[1:-1])
+
         # Convert all uses of array syntax to indexed accesses
-        self._array_syntax_to_indexed(sched, loop_vars)
+        self._array_syntax_to_indexed(ifblock, loop_vars)
         # Return the top-level loop generated by this handler
         return root_loop
 
