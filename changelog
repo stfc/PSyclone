@@ -97,7 +97,10 @@
 
 	33) #1329 for #1308. Fix bug in the Fortran frontend WHERE clause.
 
-	34) #1255 for #1253. Improve the parsing of Fortran specification
+	34) PR #1327 towards #1208. Moves the implementations of the various
+	Directive nodes out of psyGen.py and into psyir/nodes.
+
+	35) #1255 for #1253. Improve the parsing of Fortran specification
 	code and includes support for Fortran interface blocks.
 
 release 2.0.0 28th April 2021

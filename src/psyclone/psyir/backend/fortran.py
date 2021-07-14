@@ -873,7 +873,7 @@ class FortranWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: an Assignment PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Assigment`
+        :type node: :py:class:`psyclone.psyir.nodes.Assignment``
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -1340,7 +1340,7 @@ class FortranWriter(PSyIRVisitor):
         the statements in between as a string (depending on the language).
 
         :param node: a Directive PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Directive`
+        :type node: :py:class:`psyclone.psyir.nodes.Directive`
 
         :returns: the Fortran code for this node.
         :rtype: str

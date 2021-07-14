@@ -72,6 +72,12 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.file_container import FileContainer
+from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes.acc_directives import ACCDirective, \
+    ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
+    ACCKernelsDirective, ACCDataDirective
+from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
+    OMPParallelDirective, OMPParallelDoDirective
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -88,20 +94,15 @@ __all__ = [
         'CodeBlock',
         'Container',
         'DataNode',
-        'ExtractNode',
+        'FileContainer',
         'IfBlock',
-        'KernelSchedule',
         'Literal',
         'Loop',
         'Member',
-        'NanTestNode',
         'NaryOperation',
         'Node',
         'Operation',
-        'ProfileNode',
-        'PSyDataNode',
         'Range',
-        'ReadOnlyVerifyNode',
         'Reference',
         'Return',
         'Routine',
@@ -110,4 +111,25 @@ __all__ = [
         'StructureMember',
         'StructureReference',
         'UnaryOperation',
-        'ScopingNode']
+        'ScopingNode',
+        # PSyclone-specific nodes
+        'KernelSchedule',
+        # PSyData Nodes
+        'PSyDataNode',
+        'ExtractNode',
+        'ProfileNode',
+        'NanTestNode',
+        'ReadOnlyVerifyNode',
+        # Directive Nodes
+        'Directive',
+        'ACCDirective',
+        'ACCDataDirective',
+        'ACCEnterDataDirective',
+        'ACCParallelDirective',
+        'ACCLoopDirective',
+        'ACCKernelsDirective',
+        'OMPDirective',
+        'OMPParallelDirective',
+        'OMPDoDirective',
+        'OMPParallelDoDirective'
+        ]
