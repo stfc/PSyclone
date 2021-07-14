@@ -109,6 +109,38 @@ def test_unsupported_api():
             "API but got an InvokeSchedule of type:" in str(err.value))
 
 
+def test_ocl_apply(kernel_outputdir):
+    ''' Check that GOOpenCLTrans generates correct code '''
+    psy, invoke = get_invoke("test11_different_iterates_over_"
+                             "one_invoke.f90", API, idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in schedule.coded_kernels():
+        trans.apply(kernel)
+    ocl = GOOpenCLTrans()
+
+    # Check that we raise the correct error if we attempt to apply the
+    # transformation to something that is not an InvokeSchedule
+    with pytest.raises(TransformationError) as err:
+        _, _ = ocl.apply(schedule.children[0])
+    assert "the supplied node must be a (sub-class of) InvokeSchedule " \
+        in str(err.value)
+
+    ocl.apply(schedule)
+    assert schedule.opencl
+
+    gen = str(psy.gen)
+    assert "USE clfortran" in gen
+    # Check that the new kernel files have been generated
+    kernel_files = os.listdir(str(kernel_outputdir))
+    assert len(kernel_files) == 2
+    assert "kernel_ne_offset_compute_cv_0.cl" in kernel_files
+    assert "kernel_scalar_int_bc_ssh_0.cl" in kernel_files
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
 @pytest.mark.parametrize("debug_mode", [True, False])
 def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
     ''' Test that generating code for OpenCL results in the correct

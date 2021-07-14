@@ -39,14 +39,12 @@
     GOcean 1.0 API '''
 
 from __future__ import absolute_import
-import os
 import re
 import inspect
 from importlib import import_module
 import pytest
 from psyclone.configuration import Config
-from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOLoop
@@ -58,9 +56,7 @@ from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
     ACCParallelTrans, ACCEnterDataTrans, ACCDataTrans, ACCLoopTrans, \
     OMPLoopTrans
-from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
 # The version of the PSyclone API that the tests in this file
@@ -1477,38 +1473,6 @@ def test_go_loop_swap_wrong_loop_type():
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule[0])
     assert "is not a GOLoop, but an instance of 'Loop'" in str(error.value)
-
-
-def test_ocl_apply(kernel_outputdir):
-    ''' Check that GOOpenCLTrans generates correct code '''
-    psy, invoke = get_invoke("test11_different_iterates_over_"
-                             "one_invoke.f90", API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for the GOcean gen_ocl() code generation.
-    trans = GOMoveIterationBoundariesInsideKernelTrans()
-    for kernel in schedule.coded_kernels():
-        trans.apply(kernel)
-    ocl = GOOpenCLTrans()
-
-    # Check that we raise the correct error if we attempt to apply the
-    # transformation to something that is not an InvokeSchedule
-    with pytest.raises(TransformationError) as err:
-        _, _ = ocl.apply(schedule.children[0])
-    assert "the supplied node must be a (sub-class of) InvokeSchedule " \
-        in str(err.value)
-
-    ocl.apply(schedule)
-    assert schedule.opencl
-
-    gen = str(psy.gen)
-    assert "USE clfortran" in gen
-    # Check that the new kernel files have been generated
-    kernel_files = os.listdir(str(kernel_outputdir))
-    assert len(kernel_files) == 2
-    assert "kernel_ne_offset_compute_cv_0.cl" in kernel_files
-    assert "kernel_scalar_int_bc_ssh_0.cl" in kernel_files
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_acc_parallel_not_a_loop():
