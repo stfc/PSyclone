@@ -240,20 +240,20 @@ class ArrayType(DataType):
     :param datatype: the datatype of the array elements.
     :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` or \
         :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-    :param list shape: shape of the symbol in column-major order \
-        (leftmost index is contiguous in memory). Each entry \
-        represents an array dimension. If it is \
-        ArrayType.Extent.ATTRIBUTE the extent of that dimension is \
-        unknown but can be obtained by querying the run-time system \
-        (e.g. using the SIZE intrinsic in Fortran). If it is \
-        ArrayType.Extent.DEFERRED then the extent is also unknown and \
-        may or may not be defined at run-time (e.g. the array is \
-        ALLOCATABLE in Fortran). Otherwise it can be an int or a \
-        DataNode (that returns an int) or a 2-tuple of such quantities. \
-        If a 2-tuple is provided then the two members specify the lower and \
-        upper bounds, respectively, of the current dimension. \
-        Note that providing an int is supported as a convenience, the \
-        provided value will be stored internally as a Literal node.
+    :param list shape: shape of the symbol in column-major order (leftmost \
+        index is contiguous in memory). Each entry represents an array \
+        dimension. If it is ArrayType.Extent.ATTRIBUTE the extent of that \
+        dimension is unknown but can be obtained by querying the run-time \
+        system (e.g. using the SIZE intrinsic in Fortran). If it is \
+        ArrayType.Extent.DEFERRED then the extent is also unknown and may or \
+        may not be defined at run-time (e.g. the array is ALLOCATABLE in \
+        Fortran). Otherwise it can be an int or a DataNode (that returns an \
+        int) or a 2-tuple of such quantities. If only a single value is \
+        provided then that is taken to be the upper bound and the lower bound \
+        defaults to 1. If a 2-tuple is provided then the two members specify \
+        the lower and upper bounds, respectively, of the current dimension. \
+        Note that providing an int is supported as a convenience, the provided\
+        value will be stored internally as a Literal node.
 
     :raises TypeError: if the arguments are of the wrong type.
     :raises NotImplementedError: if a structure type does not have a \
@@ -394,13 +394,13 @@ class ArrayType(DataType):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import DataNode, Reference
 
-        def _validate_data_node(node):
+        def _validate_data_node(dim_node):
             '''
             Checks that the supplied DataNode is valid as part of an
-            array-shapespecification.
+            array-shape specification.
 
-            :param node: the DataNode to check.
-            :type node: :py:class:`psyclone.psyir.nodes.DataNode`
+            :param dim_node: the DataNode to check.
+            :type dim_node: :py:class:`psyclone.psyir.nodes.DataNode`
 
             :raises TypeError: if the DataNode is not valid in this context.
 
@@ -410,10 +410,10 @@ class ArrayType(DataType):
             # moment, just check that if the DataNode is a
             # Reference then the associated symbol is a scalar
             # integer or is unknown.
-            if isinstance(dimension, Reference):
+            if isinstance(dim_node, Reference):
                 # Check the DataSymbol instance is a scalar
                 # integer or is unknown
-                symbol = dimension.symbol
+                symbol = dim_node.symbol
                 if not ((symbol.is_scalar and symbol.datatype.intrinsic ==
                          ScalarType.Intrinsic.INTEGER) or
                         isinstance(symbol.datatype,
@@ -459,7 +459,9 @@ class ArrayType(DataType):
 
     def __str__(self):
         '''
-        :returns: a description of this array datatype.
+        :returns: a description of this array datatype. If the lower bound \
+            of any dimension has the default value of 1 then it is omitted \
+            for the sake of brevity.
         :rtype: str
 
         :raises InternalError: if an unsupported dimensions type is found.
@@ -468,14 +470,24 @@ class ArrayType(DataType):
         dims = []
         for dimension in self.shape:
             if isinstance(dimension, ArrayType.ArrayBounds):
-                dims.append("{0}:{1}".format(str(dimension.lower),
-                                             str(dimension.upper)))
+                dim_text = ""
+                # Have to import locally to avoid circular dependence
+                # pylint: disable=import-outside-toplevel
+                from psyclone.psyir.nodes import Literal
+                if isinstance(dimension.lower, Literal):
+                    if dimension.lower.value != "1":
+                        dim_text = dimension.lower.value + ":"
+                if isinstance(dimension.upper, Literal):
+                    dim_text += dimension.upper.value
+                else:
+                    dim_text += str(dimension.upper)
+                dims.append(dim_text)
             elif isinstance(dimension, ArrayType.Extent):
                 dims.append("'{0}'".format(dimension.name))
             else:
                 raise InternalError(
-                    "ArrayType shape list elements can only be 'DataNode', "
-                    "or 'ArrayType.Extent', but found '{0}'."
+                    "ArrayType shape list elements can only be 'ArrayType."
+                    "ArrayBounds', or 'ArrayType.Extent', but found '{0}'."
                     "".format(type(dimension).__name__))
         return ("Array<{0}, shape=[{1}]>".format(
             self._datatype, ", ".join(dims)))

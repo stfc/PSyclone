@@ -117,10 +117,7 @@ def test_datasymbol_can_be_printed():
                            [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
     assert ("s2: <Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', "
-            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]:"
-            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>], "
-            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]:"
-            "Reference[name:'s1']]>, Local>" in str(sym2))
+            "2, Reference[name:'s1']]>, Local>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,

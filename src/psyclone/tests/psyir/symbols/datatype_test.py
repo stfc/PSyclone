@@ -372,6 +372,19 @@ def test_arraytype_invalid_shape_bounds():
     assert ("A DataSymbol shape-list element specifying lower and upper bounds"
             " must be a 2-tuple containing either int or DataNode entries but "
             "'(None, 1)' contains 'NoneType'" in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [10, (None, 1)])
+    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
+            " must be a 2-tuple containing either int or DataNode entries but "
+            "'(None, 1)' contains 'NoneType'" in str(excinfo.value))
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
+    symbol = DataSymbol("fred", scalar_type, constant_value=3.0)
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [(1, Reference(symbol))])
+    assert (
+        "If a datasymbol is used as a dimension declaration then it should "
+        "be a scalar integer or an unknown type, but 'fred' is a "
+        "'Scalar<REAL, 4>'." in str(excinfo.value))
 
 
 def test_arraytype_shape_dim_from_parent_scope():
@@ -394,13 +407,12 @@ def test_arraytype_str():
                              ScalarType.Precision.UNDEFINED)
     data_symbol = DataSymbol("var", scalar_type, constant_value=20)
     data_type = ArrayType(scalar_type, [10, Reference(data_symbol),
+                                        (2, Reference(data_symbol)),
                                         ArrayType.Extent.DEFERRED,
                                         ArrayType.Extent.ATTRIBUTE])
     assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>,"
-            " shape=[Literal[value:'1', Scalar<INTEGER, UNDEFINED>]:"
-            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
-            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]:"
-            "Reference[name:'var'], 'DEFERRED', 'ATTRIBUTE']>")
+            " shape=[10, Reference[name:'var'], 2:Reference[name:'var'], "
+            "'DEFERRED', 'ATTRIBUTE']>")
 
 
 def test_arraytype_str_invalid():
@@ -415,8 +427,8 @@ def test_arraytype_str_invalid():
     with pytest.raises(InternalError) as excinfo:
         _ = str(array_type)
     assert ("PSyclone internal error: ArrayType shape list elements can only "
-            "be 'DataNode', or 'ArrayType.Extent', but found 'NoneType'."
-            in str(excinfo.value))
+            "be 'ArrayType.ArrayBounds', or 'ArrayType.Extent', but found "
+            "'NoneType'." in str(excinfo.value))
 
 
 def test_arraytype_immutable():
