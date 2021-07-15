@@ -62,7 +62,7 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective
+    ACCKernelsDirective, OMPSingleDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -1351,9 +1351,8 @@ class OMPSingleTrans(ParallelRegionTrans):
         :raises TransformationError: if the target Nodes are already within \
                                      some OMP single region.
         '''
-        from psyclone.psyGen import OMPSingleDirective
 
-        if node_list[0].ancestor(OMPSingleDirective):
+        if node_list[0].ancestor(nodes.OMPSingleDirective):
             raise TransformationError("Error in OMPSingle transformation:" +
                                       " cannot create an OpenMP SINGLE " +
                                       "region within another OpenMP SINGLE region.")

@@ -43,10 +43,6 @@ from __future__ import absolute_import, print_function
 import pytest
 
 from psyclone.errors import InternalError
-<<<<<<< HEAD
-=======
-from psyclone.psyGen import ACCLoopDirective, OMPSingleDirective
->>>>>>> #1338 First commit containing an implementation for OpenMP single regions.
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE

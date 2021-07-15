@@ -45,12 +45,14 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import OMPDoDirective, Schedule, OMPDirective, \
     OMPParallelDoDirective, Directive, colored, OMPParallelDirective, \
     OMPSingleDirective
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),"..","..",
+                                "test_files", "gocean1p0")
 
 
 def test_ompdo_constructor():
@@ -243,6 +245,40 @@ def test_omp_forward_dependence():
     # c) global sum loop depends on next omp
     assert global_sum_loop.forward_dependence() == next_omp
 
+def test_omp_single_dag_name():
+    ''' Test the dag_name() method of the OMPSingle directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    single = OMPSingleTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    _, _ = single.apply(schedule.children[0])
+    assert schedule.children[0].dag_name == "OMP_single_1"
+
+@pytest.mark.parametrize("nowait", [False, True])
+def test_omp_single_strings(nowait):
+    ''' Test the begin_string and end_string methods of the OMPSingle directive '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    single = OMPSingleTrans()
+    parallel = OMPParallelTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    _, _ = single.apply(schedule.children[0], {"nowait": nowait})
+    omp_single_loop = schedule.children[0]
+   
+    nowait_str = ""
+    if nowait:
+        nowait_str = " nowait"
+
+    assert omp_single_loop.begin_string() == "omp single" + nowait_str
+    assert omp_single_loop.end_string() == "omp end single"
+
+
+
 def test_omp_single_node_str():
     ''' Test the node_str() method of the OMPSingle directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -259,4 +295,56 @@ def test_omp_single_node_str():
     expected_output = directive + "[OMP single]"
     assert expected_output in out
 
+def test_omp_single_validate_global_constraints():
+    ''' Test the validate_global_constraints method of the OMPSingle directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    single = OMPSingleTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    _, _ = single.apply(schedule.children[0])
+    omp_single_loop = schedule.children[0]
+    with pytest.raises(GenerationError) as excinfo:
+        schedule.children[0].validate_global_constraints()
+    assert ("OMPSingleDirective must be inside an OMP parallel region but "
+           "could not find an ancestor OMPParallelDirective node" ) in str(excinfo.value)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    parallel = OMPParallelTrans()
+    single.apply(schedule.children[0])
+    omp_single = schedule.children[0]
+    single.apply(schedule.children[0])
+    parallel.apply(schedule.children[0])
+    with pytest.raises(GenerationError) as excinfo:
+        omp_single.validate_global_constraints()
+    assert ("OMPSingleDirective must not be inside another OMP single region") in str(excinfo.value)
+    
+
+@pytest.mark.parametrize("nowait", [False, True])
+def test_omp_single_gencode(nowait):
+    '''Check that the gen_code method in the OMPSingleDirective class
+    generates the expected code. Use the gocean API.
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    single = OMPSingleTrans()
+    parallel = OMPParallelTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    _, _ = single.apply(schedule.children[0], {"nowait": nowait})
+    omp_single_loop = schedule.children[0]
+    _,_ = parallel.apply(schedule.children[0])
+
+    code = str(psy.gen)
+    string = ""
+    if nowait:
+        string = " nowait"
+    assert (
+        "!$omp single{0}\n".format(string) in code)
+    assert (
+        "!$omp end single\n" in code)
 

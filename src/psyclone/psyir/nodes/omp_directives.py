@@ -110,13 +110,11 @@ class OMPSingleDirective(OMPDirective):
 
     '''
     Class representing an OpenMP SINGLE directive in the PSyclone AST.
-
     :param list children: list of Nodes that are children of this Node.
     :param parent: the Node in the AST that has this directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param bool nowait: Argument describing whether this single should have
     a nowait clause applied.
-
     '''
     def __init__(self, children=None, parent=None, nowait=False):
 
@@ -143,9 +141,7 @@ class OMPSingleDirective(OMPDirective):
         '''
         Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
-
         :param bool colour: whether or not to include colour control codes.
-
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
@@ -155,7 +151,6 @@ class OMPSingleDirective(OMPDirective):
         '''
         Perform validation checks that can only be done at code-generation
         time.
-
         :raises GenerationError: if this OMPSingle is not enclosed \
                             within some OpenMP parallel region.
         :raises GenerationError: if this OMPSingle is enclosed within \
@@ -179,7 +174,7 @@ class OMPSingleDirective(OMPDirective):
 
         if self.ancestor(OMPSingleDirective):
             raise GenerationError(
-                    "OMPSingleDirective must not be inside another OMP single"
+                    "OMPSingleDirective must not be inside another OMP single "
                     "region")
 
 
@@ -198,7 +193,7 @@ class OMPSingleDirective(OMPDirective):
             nowait_string = "nowait"
 
         parent.add(DirectiveGen(parent, "omp", "begin", "single", nowait_string))
-
+       
         ##Generate the code for all of this node's children
         for child in self.children:
             child.gen_code(parent)
@@ -208,12 +203,10 @@ class OMPSingleDirective(OMPDirective):
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
-        "omp sinigle". The visitor is responsible for adding the
+        "omp single". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
-
         :returns: the opening statement of this directive.
         :rtype: str
-
         '''
         result = "omp single"
 
@@ -225,10 +218,8 @@ class OMPSingleDirective(OMPDirective):
         '''Returns the end (or closing) statement of this directive, i.e.
         "omp end single". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
-
         :returns: the end statement for this directive.
         :rtype: str
-
         '''
         # pylint: disable=no-self-use
         return "omp end single"
