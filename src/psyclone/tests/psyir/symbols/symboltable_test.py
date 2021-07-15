@@ -83,7 +83,7 @@ def test_instance():
     assert sym_table._argument_list == []
     assert sym_table._tags == {}
     assert sym_table._node is None
-    assert sym_table._default_visibility is None
+    assert sym_table._default_visibility is Symbol.Visibility.PUBLIC
 
     with pytest.raises(TypeError) as info:
         _ = SymbolTable(node="hello")
@@ -97,7 +97,7 @@ def test_instance():
     assert sym_table._argument_list == []
     assert sym_table._tags == {}
     assert sym_table._node is schedule
-    assert sym_table._default_visibility is None
+    assert sym_table._default_visibility is Symbol.Visibility.PUBLIC
 
     sym_table = SymbolTable(default_visibility=Symbol.Visibility.PUBLIC)
     assert sym_table._default_visibility == Symbol.Visibility.PUBLIC
@@ -111,9 +111,9 @@ def test_instance():
 def test_default_vis_symbol_table():
     ''' Test the setter and getter for the default_visibility property. '''
     sym_table = SymbolTable()
-    assert sym_table.default_visibility is None
-    sym_table.default_visibility = Symbol.Visibility.PUBLIC
-    assert sym_table.default_visibility == Symbol.Visibility.PUBLIC
+    assert sym_table.default_visibility is Symbol.Visibility.PUBLIC
+    sym_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert sym_table.default_visibility == Symbol.Visibility.PRIVATE
     with pytest.raises(TypeError) as info:
         sym_table.default_visibility = 1
     assert ("Default visibility must be an instance of psyir.symbols.Symbol."

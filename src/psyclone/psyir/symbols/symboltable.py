@@ -55,12 +55,17 @@ class SymbolTable(object):
     symbols and look up existing symbols. Nested scopes are supported
     and, by default, the add and lookup methods take any ancestor
     symbol tables into consideration (ones attached to nodes that are
-    ancestors of the node that this symbol table is attached to).
+    ancestors of the node that this symbol table is attached to). If the
+    default visibility is not specified then it defaults to
+    Symbol.Visbility.PUBLIC.
 
     :param node: reference to the Schedule or Container to which this \
         symbol table belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
         :py:class:`psyclone.psyir.nodes.Container` or NoneType
+    :param default_visibility: the default visibility of Symbols in this table.
+    :type default_visibillity: \
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
@@ -83,10 +88,8 @@ class SymbolTable(object):
                 "Schedule or a Container but found '{0}'."
                 "".format(type(node).__name__))
         self._node = node
-        # The default visibility of symbols in this symbol table. (Required
-        # when we have symbols of UnknownType since their associated
-        # declaration may or may not contain visibility information.)
-        self._default_visibility = None
+        # The default visibility of symbols in this symbol table.
+        self._default_visibility = Symbol.Visibility.PUBLIC
         if default_visibility is not None:
             self.default_visibility = default_visibility
 
@@ -101,9 +104,7 @@ class SymbolTable(object):
     @default_visibility.setter
     def default_visibility(self, vis):
         '''
-        Sets the default visibility of symbols in this table. (Only used for
-        Symbols of UnknownType since their visibility may or may not be
-        defined in the declaration that we store verbatim.)
+        Sets the default visibility of symbols in this table.
 
         :param vis: the default visibility.
         :type vis: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
