@@ -130,6 +130,7 @@ __all__ = [
         'ACCKernelsDirective',
         'OMPDirective',
         'OMPParallelDirective',
+        'OMPSingleDirective',
         'OMPDoDirective',
         'OMPParallelDoDirective'
         ]

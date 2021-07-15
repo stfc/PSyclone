@@ -40,6 +40,7 @@ API-agnostic tests for various transformation classes.
 '''
 
 from __future__ import absolute_import, print_function
+import os
 import pytest
 
 from psyclone.errors import InternalError
@@ -52,6 +53,11 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
     OMPSingleTrans
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
+
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "..", "test_files", "gocean1p0")
 
 
 def test_accloop():
@@ -176,6 +182,7 @@ def test_parallellooptrans_refuse_codeblock():
     assert ("Nodes of type 'CodeBlock' cannot be enclosed "
             "by a OMPParallelLoopTrans transformation" in str(err.value))
 
+
 # Tests for OMPSingleTrans
 def test_ompsingle():
     ''' Generic tests for the OMPSingleTrans transformation class '''
@@ -183,41 +190,35 @@ def test_ompsingle():
     assert trans.name == "OMPSingleTrans"
     assert str(trans) == "Insert an OpenMP Single region"
 
-    assert trans.omp_nowait == False
+    assert not trans.omp_nowait
     trans.omp_nowait = True
-    assert trans.omp_nowait == True
+    assert trans.omp_nowait
 
-def test_ompsingle_invalidnowait():
-    ''' Tests to check OMPSingle rejects invalid attempts to pass nowait argument '''
+
+def test_ompsingle_invalid_nowait():
+    ''' Tests to check OMPSingle rejects invalid attempts
+        to pass nowait argument '''
     trans = OMPSingleTrans()
-    with pytest.raises(TransformationError) as err:
-        trans.omp_nowait ="string"
-    assert("Expected nowait to be a bool but got string")
+    with pytest.raises(TypeError) as err:
+        trans.omp_nowait = "string"
+    assert ("Expected nowait to be a bool but got string"
+            in str(err.value))
+
 
 def test_ompsingle_nested():
     ''' Tests to check OMPSingle rejects being applied to another OMPSingle '''
-    from psyclone.parse.algorithm import parse, InvokeCall
-    import os
-    from psyclone.psyGen import PSyFactory
-    GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),"..","..",
-                                "test_files", "gocean1p0")
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
     single = OMPSingleTrans()
-    parallel = OMPParallelTrans()
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    _, _ = single.apply(schedule.children[0])
-    omp_single_loop = schedule.children[0]
-    single.apply(schedule.children[0])
-    parallel.apply(schedule.children[0])
-    single_list = []
-    single_list.append(omp_single_loop)
+    single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
-        single.validate(single_list)
-    assert("Error in OMPSingle transformation: cannot create an OpenMP SINGLE region within another OpenMP SINGLE region.")
+        single.apply(schedule[0])
+    assert("Nodes of type 'OMPSingleDirective' cannot be enclosed by a" +
+           " OMPSingleTrans transformation." in str(err.value))
 
 
 # Tests for ProfileTrans
