@@ -69,7 +69,7 @@ def example_psyir(create_expression):
         content of the first argument of the SIGN operator.
 
     :returns: PSyIR SIGN operator instance.
-    :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
+    :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
     '''
     symbol_table = SymbolTable()
