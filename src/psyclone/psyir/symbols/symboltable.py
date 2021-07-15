@@ -63,14 +63,15 @@ class SymbolTable(object):
         symbol table belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
         :py:class:`psyclone.psyir.nodes.Container` or NoneType
-    :param default_visibility: the default visibility of Symbols in this table.
+    :param default_visibility: optional default visibility value for this \
+        symbol table, if not provided it defaults to PUBLIC visibility.
     :type default_visibillity: \
         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
     '''
-    def __init__(self, node=None, default_visibility=None):
+    def __init__(self, node=None, default_visibility=Symbol.Visibility.PUBLIC):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
         # produce code with declarations in the same order.
@@ -88,10 +89,10 @@ class SymbolTable(object):
                 "Schedule or a Container but found '{0}'."
                 "".format(type(node).__name__))
         self._node = node
-        # The default visibility of symbols in this symbol table.
-        self._default_visibility = Symbol.Visibility.PUBLIC
-        if default_visibility is not None:
-            self.default_visibility = default_visibility
+        # The default visibility of symbols in this symbol table. The
+        # setter does validation of the supplied quantity.
+        self._default_visibility = None
+        self.default_visibility = default_visibility
 
     @property
     def default_visibility(self):
