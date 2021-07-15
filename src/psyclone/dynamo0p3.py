@@ -78,7 +78,7 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   OMPParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
-    DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface)
+    DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface, ArrayType)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -7982,18 +7982,32 @@ class DynKern(CodedKern):
                                         len(interface_arg.shape),
                                         len(kern_code_arg.shape)))
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
-                interface_arg_dim = interface_arg.shape[dim_idx]
-                if (isinstance(kern_code_arg_dim, Reference) and
-                        isinstance(interface_arg_dim, Reference) and
-                        isinstance(kern_code_arg_dim.symbol, DataSymbol) and
-                        isinstance(interface_arg_dim.symbol, DataSymbol)):
+                if not isinstance(kern_code_arg_dim, ArrayType.ArrayBounds):
+                    continue
+                if (not isinstance(kern_code_arg_dim.lower, Literal) or
+                        kern_code_arg_dim.lower.value != "1"):
+                    raise GenerationError(
+                        "All array arguments to LFRic kernels must have lower "
+                        "bounds of 1 for all dimensions. However, array '{0}' "
+                        "has a lower bound of '{1}' for dimension {2}".format(
+                            kern_code_arg.name, str(kern_code_arg_dim.lower),
+                            dim_idx))
+                kern_code_arg_upper_dim = kern_code_arg_dim.upper
+                interface_arg_upper_dim = interface_arg.shape[dim_idx].upper
+                if (isinstance(kern_code_arg_upper_dim, Reference) and
+                        isinstance(interface_arg_upper_dim, Reference) and
+                        isinstance(kern_code_arg_upper_dim.symbol,
+                                   DataSymbol) and
+                        isinstance(interface_arg_upper_dim.symbol,
+                                   DataSymbol)):
                     # Only check when there is a symbol. Unspecified
                     # dimensions, dimensions with scalar values,
                     # offsets, or dimensions that include arithmetic
                     # are skipped.
                     try:
                         self._validate_kernel_code_arg(
-                            kern_code_arg_dim.symbol, interface_arg_dim.symbol)
+                            kern_code_arg_upper_dim.symbol,
+                            interface_arg_upper_dim.symbol)
                     except GenerationError as info:
                         six.raise_from(GenerationError(
                             "For dimension {0} in array argument '{1}' to "
