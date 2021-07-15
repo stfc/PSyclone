@@ -69,6 +69,7 @@ PSyclone. Issue #309 will tackle this limitation.
 from __future__ import print_function
 from psyclone.psyGen import TransInfo
 from kernel_utils import add_kernels
+from psyclone.psyir.nodes import ACCDirective
 
 
 # Get the PSyclone transformations we will use
@@ -82,7 +83,6 @@ def trans(psy):
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
     '''
-    from psyclone.psyGen import ACCDirective
 
     print("Invokes found:\n{0}\n".format(
         "\n".join([str(name) for name in psy.invokes.names])))

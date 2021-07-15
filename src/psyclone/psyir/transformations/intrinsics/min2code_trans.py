@@ -111,8 +111,8 @@ class Min2CodeTrans(Operator2CodeTrans):
         this is not the case.
 
         :param node: a MIN Binary- or Nary-Operation node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation` or \
-        :py:class:`psyclone.psyGen.NaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
+        :py:class:`psyclone.psyir.nodes.NaryOperation`
         :param symbol_table: the symbol table.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
