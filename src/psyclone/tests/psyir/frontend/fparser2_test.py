@@ -909,19 +909,25 @@ def test_process_array_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l5_datatype = fake_parent.symbol_table.lookup("l5").datatype
     assert len(l5_datatype.shape) == 1
-    assert isinstance(l5_datatype.shape[0], Literal)
-    assert l5_datatype.shape[0].value == '2'
-    assert (l5_datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(l5_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(l5_datatype.shape[0].lower, Literal)
+    assert isinstance(l5_datatype.shape[0].upper, Literal)
+    assert l5_datatype.shape[0].lower.value == '1'
+    assert l5_datatype.shape[0].upper.value == '2'
+    assert (l5_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (l5_datatype.shape[0].datatype.precision ==
+    assert (l5_datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     l6_datatype = fake_parent.symbol_table.lookup("l6").datatype
     assert len(l6_datatype.shape) == 1
-    assert isinstance(l6_datatype.shape[0], Literal)
-    assert l6_datatype.shape[0].value == '3'
-    assert (l6_datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(l6_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(l6_datatype.shape[0].lower, Literal)
+    assert isinstance(l6_datatype.shape[0].upper, Literal)
+    assert l6_datatype.shape[0].lower.value == '1'
+    assert l6_datatype.shape[0].upper.value == '3'
+    assert (l6_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (l6_datatype.shape[0].datatype.precision ==
+    assert (l6_datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
 
     # Test that component-array-spec has priority over dimension attribute
@@ -932,17 +938,19 @@ def test_process_array_declarations():
     assert l7_datasymbol.name == 'l7'
     assert len(l7_datasymbol.shape) == 2
     l7_datatype = l7_datasymbol.datatype
-    assert isinstance(l7_datatype.shape[0], Literal)
-    assert l7_datatype.shape[0].value == '3'
-    assert (l7_datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(l7_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(l7_datatype.shape[0].upper, Literal)
+    assert l7_datatype.shape[0].upper.value == '3'
+    assert (l7_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (l7_datatype.shape[0].datatype.precision ==
+    assert (l7_datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(l7_datatype.shape[1], Literal)
-    assert l7_datatype.shape[1].value == '2'
-    assert (l7_datatype.shape[1].datatype.intrinsic ==
+    assert isinstance(l7_datatype.shape[1], ArrayType.ArrayBounds)
+    assert isinstance(l7_datatype.shape[1].upper, Literal)
+    assert l7_datatype.shape[1].upper.value == '2'
+    assert (l7_datatype.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (l7_datatype.shape[1].datatype.precision ==
+    assert (l7_datatype.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
 
     # Allocatable
@@ -981,8 +989,8 @@ def test_process_array_declarations():
     symbol = fake_parent.symbol_table.lookup("l11")
     assert symbol.name == "l11"
     assert len(symbol.shape) == 1
-    # Extent symbol should be udim
-    reference = symbol.shape[0]
+    # Upper bound of extent should be the udim Symbol
+    reference = symbol.shape[0].upper
     assert isinstance(reference, Reference)
     assert reference.name == "udim"
     assert reference.symbol is udim
@@ -998,8 +1006,9 @@ def test_process_array_declarations():
     symbol = fake_parent.symbol_table.lookup("l12")
     assert symbol.name == "l12"
     assert len(symbol.shape) == 1
-    # Extent symbol should now be ddim
-    reference = symbol.shape[0]
+    assert isinstance(symbol.shape[0].lower, Literal)
+    # Upper bound of extent should now be the ddim Symbol
+    reference = symbol.shape[0].upper
     assert reference.name == "ddim"
     assert reference.symbol is ddim
     assert isinstance(reference.symbol.datatype, DeferredType)
@@ -1399,14 +1408,45 @@ def test_parse_array_dimensions_attributes():
     reader = FortranStringReader("dimension(3,5)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
-    assert shape == [3, 5]
+    assert len(shape) == 2
+    assert shape[0][0].value == "1"
+    assert shape[0][1].value == "3"
+    assert shape[1][0].value == "1"
+    assert shape[1][1].value == "5"
 
     sym_table.add(DataSymbol('var1', INTEGER_TYPE))
+    sym_table.add(DataSymbol('var1_upper', INTEGER_TYPE))
+
     reader = FortranStringReader("dimension(var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert shape[0].symbol == sym_table.lookup('var1')
+    assert shape[0][0].value == "1"
+    assert shape[0][1].symbol == sym_table.lookup('var1')
+
+    reader = FortranStringReader("dimension(0:3,var1)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    # First dim is specified with both lower and upper bounds so should
+    # have a tuple
+    assert isinstance(shape[0], tuple)
+    assert len(shape[0]) == 2
+    assert shape[0][0].value == "0"
+    assert shape[0][1].value == "3"
+    assert shape[1][0].value == "1"
+    assert shape[1][1].symbol is sym_table.lookup('var1')
+
+    reader = FortranStringReader("dimension(0:3,var1:var1_upper)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    assert isinstance(shape[0], tuple)
+    assert len(shape[0]) == 2
+    assert shape[0][0].value == "0"
+    assert shape[0][1].value == "3"
+    assert isinstance(shape[1], tuple)
+    assert len(shape[1]) == 2
+    assert shape[1][0].symbol is sym_table.lookup('var1')
+    assert shape[1][1].symbol is sym_table.lookup('var1_upper')
 
     # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
@@ -1424,7 +1464,7 @@ def test_parse_array_dimensions_attributes():
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
-            "explicit shape array declarations.") in str(error.value)
+            "explicit-shape array declarations.") in str(error.value)
 
     # Explicit shape symbols can only be Literal or Symbol
     with pytest.raises(NotImplementedError) as error:
@@ -1435,7 +1475,7 @@ def test_parse_array_dimensions_attributes():
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
-            "explicit shape array declarations.") in str(error.value)
+            "explicit-shape array declarations.") in str(error.value)
 
     # Shape specified by an unknown Symbol
     reader = FortranStringReader("dimension(var3)")
@@ -1446,12 +1486,13 @@ def test_parse_array_dimensions_attributes():
     assert type(vsym) == Symbol
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert isinstance(shape[0], Reference)
+    assert shape[0][0].value == "1"
+    assert isinstance(shape[0][1], Reference)
     # Symbol is the same object but is now a DataSymbol
-    assert shape[0].symbol is vsym
-    assert isinstance(shape[0].symbol, DataSymbol)
-    assert shape[0].symbol.name == "var3"
-    assert isinstance(shape[0].symbol.interface, GlobalInterface)
+    assert shape[0][1].symbol is vsym
+    assert isinstance(shape[0][1].symbol, DataSymbol)
+    assert shape[0][1].symbol.name == "var3"
+    assert isinstance(shape[0][1].symbol.interface, GlobalInterface)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
@@ -1499,7 +1540,8 @@ def test_unresolved_array_size():
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
     processor.process_declarations(fake_parent, fparser2spec, [])
-    assert fake_parent.symbol_table.lookup("array4").shape[0].symbol is dim_sym
+    assert (fake_parent.symbol_table.lookup("array4").shape[0].upper.symbol is
+            dim_sym)
 
 
 @pytest.mark.usefixtures("f2008_parser")

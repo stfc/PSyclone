@@ -261,17 +261,19 @@ def test_add_1():
             ScalarType.Precision.UNDEFINED)
     var1_datatype = var1_symbol.datatype
     assert len(var1_datatype.shape) == 2
-    assert isinstance(var1_datatype.shape[0], Literal)
-    assert var1_datatype.shape[0].value == "5"
-    assert (var1_datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(var1_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(var1_datatype.shape[0].upper, Literal)
+    assert var1_datatype.shape[0].upper.value == "5"
+    assert (var1_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (var1_datatype.shape[0].datatype.precision ==
+    assert (var1_datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(var1_datatype.shape[1], Literal)
-    assert var1_datatype.shape[1].value == "1"
-    assert (var1_datatype.shape[1].datatype.intrinsic ==
+    assert isinstance(var1_datatype.shape[1], ArrayType.ArrayBounds)
+    assert isinstance(var1_datatype.shape[1].upper, Literal)
+    assert var1_datatype.shape[1].upper.value == "1"
+    assert (var1_datatype.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (var1_datatype.shape[1].datatype.precision ==
+    assert (var1_datatype.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     assert var1_symbol.interface.container_symbol == my_mod
 
@@ -580,8 +582,8 @@ def test_swap_symbol_properties():
     assert symbol1.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol1.datatype.precision == ScalarType.Precision.UNDEFINED
     assert len(symbol1.datatype.shape) == 2
-    assert symbol1.datatype.shape[0].symbol == symbol2
-    assert symbol1.datatype.shape[1].symbol == symbol3
+    assert symbol1.datatype.shape[0].upper.symbol == symbol2
+    assert symbol1.datatype.shape[1].upper.symbol == symbol3
     assert symbol1.is_argument
     assert symbol1.constant_value is None
     assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
@@ -599,8 +601,8 @@ def test_swap_symbol_properties():
 
     # Check symbol references are unaffected
     sym_table.swap_symbol_properties(symbol2, symbol3)
-    assert symbol1.shape[0].name == "dim1"
-    assert symbol1.shape[1].name == "dim2"
+    assert symbol1.shape[0].upper.name == "dim1"
+    assert symbol1.shape[1].upper.name == "dim2"
 
     # Check argument positions are updated. The original positions
     # were [dim1, dim2, var2]. They should now be [dim2, dim1, var1]
@@ -1554,12 +1556,12 @@ def test_rename_symbol():
     assert symbol.name == "symbol1"
     assert symbol is schedule_symbol_table.lookup("symbol1")
     assert sched[0].rhs.symbol.name == "symbol1"
-    assert array.datatype.shape[0].symbol.name == "symbol1"
+    assert array.datatype.shape[0].upper.symbol.name == "symbol1"
     schedule_symbol_table.rename_symbol(symbol, "other")
     assert symbol.name == "other"
     assert symbol is schedule_symbol_table.lookup("other")
     assert sched[0].rhs.symbol.name == "other"
-    assert array.datatype.shape[0].symbol.name == "other"
+    assert array.datatype.shape[0].upper.symbol.name == "other"
 
     # The previous name should fail the lookup now
     with pytest.raises(KeyError) as err:

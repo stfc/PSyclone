@@ -1273,12 +1273,14 @@ class Fparser2Reader(object):
     @staticmethod
     def _parse_dimensions(dimensions, symbol_table):
         '''
-        Parse the fparser dimension attribute into a shape list with
-        the extent of each dimension. If any of the symbols encountered are
-        instances of the generic Symbol class, they are specialised (in
-        place) and become instances of DataSymbol with DeferredType.
+        Parse the fparser dimension attribute into a shape list. Each entry of
+        this list is either None (if the extent is unknown) or a 2-tuple
+        containing the lower and upper bound of that dimension. If any of the
+        symbols encountered are instances of the generic Symbol class, they are
+        specialised (in place) and become instances of DataSymbol with
+        DeferredType.
 
-        :param dimensions: fparser dimension attribute
+        :param dimensions: fparser dimension attribute.
         :type dimensions: \
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
         :param symbol_table: symbol table of the declaration context.
@@ -1287,15 +1289,77 @@ class Fparser2Reader(object):
         :returns: shape of the attribute in column-major order (leftmost \
             index is contiguous in memory). Each entry represents an array \
             dimension. If it is 'None' the extent of that dimension is \
-            unknown, otherwise it holds an integer with the extent. If it is \
-            an empty list then the symbol represents a scalar.
-        :rtype: list
+            unknown, otherwise it holds a 2-tuple with the upper and lower \
+            bounds of the dimension. If it is an empty list then the symbol \
+            represents a scalar.
+        :rtype: list of NoneType or 2-tuples of \
+                :py:class:`psyclone.psyir.nodes.DataNode`
 
         :raises NotImplementedError: if anything other than scalar, integer \
             literals or symbols are encounted in the dimensions list.
-        '''
-        shape = []
 
+        '''
+        def _process_bound(bound_expr):
+            '''Process the supplied fparser2 parse tree for the upper/lower
+            bound of a dimension in an array declaration.
+
+            :param bound_expr: fparser2 parse tree for lower/upper bound.
+            :type bound_expr: :py:class:`fparser.two.utils.Base`
+
+            :returns: PSyIR for the bound.
+            :rtype: :py:class:`psyclone.psyir.nodes.DataNode`
+
+            :raises NotImplementedError: if an unsupported form of array \
+                                         bound is found.
+            '''
+            if isinstance(bound_expr, Fortran2003.Int_Literal_Constant):
+                return Literal(bound_expr.items[0], INTEGER_TYPE)
+
+            if isinstance(bound_expr, Fortran2003.Name):
+                # Fortran does not regulate the order in which variables
+                # may be declared so it's possible for the shape
+                # specification of an array to reference variables that
+                # come later in the list of declarations. The reference
+                # may also be to a symbol present in a parent symbol table
+                # (e.g. if the variable is declared in an outer, module
+                # scope).
+                dim_name = bound_expr.string.lower()
+                try:
+                    sym = symbol_table.lookup(dim_name)
+                    # pylint: disable=unidiomatic-typecheck
+                    if type(sym) == Symbol:
+                        # An entry for this symbol exists but it's only a
+                        # generic Symbol and we now know it must be a
+                        # DataSymbol.
+                        # TODO use the API developed in #1113 - currently the
+                        # specialise method does not set any additional
+                        # attributes possessed by the sub-class.
+                        sym.specialise(DataSymbol)
+                        sym.__init__(sym.name, DeferredType(),
+                                     interface=sym.interface)
+                    elif isinstance(sym.datatype, (UnknownType,
+                                                   DeferredType)):
+                        # Allow symbols of Unknown/DeferredType.
+                        pass
+                    elif not (isinstance(sym.datatype, ScalarType) and
+                              sym.datatype.intrinsic ==
+                              ScalarType.Intrinsic.INTEGER):
+                        # It's not of Unknown/DeferredType and it's not an
+                        # integer scalar.
+                        raise NotImplementedError()
+                except KeyError:
+                    # We haven't seen this symbol before so create a new
+                    # one with a deferred interface (since we don't
+                    # currently know where it is declared).
+                    sym = DataSymbol(dim_name, default_integer_type(),
+                                     interface=UnresolvedInterface())
+                    symbol_table.add(sym)
+                return Reference(sym)
+
+            raise NotImplementedError()
+
+        one = Literal("1", INTEGER_TYPE)
+        shape = []
         # Traverse shape specs in Depth-first-search order
         for dim in walk(dimensions, (Fortran2003.Assumed_Shape_Spec,
                                      Fortran2003.Explicit_Shape_Spec,
@@ -1305,54 +1369,19 @@ class Fparser2Reader(object):
                 shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
-                def _unsupported_type_error(dimensions):
-                    raise NotImplementedError(
+                try:
+                    upper = _process_bound(dim.items[1])
+                    if dim.items[0]:
+                        lower = _process_bound(dim.items[0])
+                        shape.append((lower, upper))
+                    else:
+                        # Lower bound defaults to 1 in Fortran
+                        shape.append((one.copy(), upper))
+                except NotImplementedError as err:
+                    six.raise_from(NotImplementedError(
                         "Could not process {0}. Only scalar integer literals"
-                        " or symbols are supported for explicit shape array "
-                        "declarations.".format(dimensions))
-                if isinstance(dim.items[1],
-                              Fortran2003.Int_Literal_Constant):
-                    shape.append(int(dim.items[1].items[0]))
-                elif isinstance(dim.items[1], Fortran2003.Name):
-                    # Fortran does not regulate the order in which variables
-                    # may be declared so it's possible for the shape
-                    # specification of an array to reference variables that
-                    # come later in the list of declarations. The reference
-                    # may also be to a symbol present in a parent symbol table
-                    # (e.g. if the variable is declared in an outer, module
-                    # scope).
-                    dim_name = dim.items[1].string.lower()
-                    try:
-                        sym = symbol_table.lookup(dim_name)
-                        # pylint: disable=unidiomatic-typecheck
-                        if type(sym) == Symbol:
-                            # An entry for this symbol exists but it's only a
-                            # generic Symbol and we now know it must be a
-                            # DataSymbol.
-                            # TODO use the API developed in #1113.
-                            sym.__class__ = DataSymbol
-                            sym.__init__(sym.name, DeferredType(),
-                                         interface=sym.interface)
-                        elif isinstance(sym.datatype, (UnknownType,
-                                                       DeferredType)):
-                            # Allow symbols of Unknown/DeferredType.
-                            pass
-                        elif not (isinstance(sym.datatype, ScalarType) and
-                                  sym.datatype.intrinsic ==
-                                  ScalarType.Intrinsic.INTEGER):
-                            # It's not of Unknown/DeferredType and it's not an
-                            # integer scalar.
-                            _unsupported_type_error(dimensions)
-                    except KeyError:
-                        # We haven't seen this symbol before so create a new
-                        # one with a deferred interface (since we don't
-                        # currently know where it is declared).
-                        sym = DataSymbol(dim_name, default_integer_type(),
-                                         interface=UnresolvedInterface())
-                        symbol_table.add(sym)
-                    shape.append(Reference(sym))
-                else:
-                    _unsupported_type_error(dimensions)
+                        " or symbols are supported for explicit-shape array "
+                        "declarations.".format(dimensions)), err)
 
             elif isinstance(dim, Fortran2003.Assumed_Size_Spec):
                 raise NotImplementedError(
