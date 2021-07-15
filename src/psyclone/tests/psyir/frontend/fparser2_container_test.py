@@ -208,8 +208,8 @@ def test_access_stmt_undeclared_symbol(parser):
     assert var5.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_parse_access_statements_invalid(parser):
-    ''' Tests for the _parse_access_statements() method when an
+def test_process_access_statements_invalid(parser):
+    ''' Tests for the process_access_statements() method when an
     invalid parse tree is encountered. '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
@@ -223,7 +223,7 @@ def test_parse_access_statements_invalid(parser):
     # Break the parse tree created by fparser2
     fparser2spec.children[1].items = ('not-private', None)
     with pytest.raises(InternalError) as err:
-        processor._parse_access_statements([fparser2spec])
+        processor.process_access_statements([fparser2spec])
     assert ("Failed to process 'not-private'. Found an accessibility "
             "attribute of 'not-private' but expected either 'public' or "
             "'private'" in str(err.value))
@@ -296,5 +296,5 @@ def test_broken_access_spec(parser):
     access_spec = fparser2spec.children[0].children[1].children[0]
     access_spec.string = "not-private"
     with pytest.raises(InternalError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert "Unexpected Access Spec attribute 'not-private'" in str(err.value)

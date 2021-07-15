@@ -57,7 +57,7 @@ def test_use_stmt():
                                  "use this_mod\n"
                                  "use other_mod, only: var1, var2\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
 
     symtab = fake_parent.symbol_table
 
@@ -92,7 +92,8 @@ def test_use_stmt_error(monkeypatch):
     monkeypatch.setattr(fparser2spec.content[0], "items",
                         [None, "hello", None])
     with pytest.raises(GenerationError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(
+            fake_parent, fparser2spec.content, [], {})
     assert ("Expected the parse tree for a USE statement to contain 5 items "
             "but found 3 for 'hello'" in str(err.value))
 
@@ -108,7 +109,7 @@ def test_multi_use_stmt():
                                  "use my_mod, only: var1, var2\n"
                                  "use this_mod, only: var3\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
     symtab = fake_parent.symbol_table
     csymbols = symtab.containersymbols
     # Although there are 4 use statements, there are only 2 modules
@@ -137,7 +138,8 @@ def test_name_clash_use_stmt():
                                  "use some_var, only: var1, var2\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(
+            fake_parent, fparser2spec.content, [], {})
     assert "Found a USE of module 'some_var' but the symbol" in str(err.value)
 
 
@@ -150,7 +152,7 @@ def test_use_no_only_list():
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use some_mod, only:\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
     some_mod = fake_parent.symbol_table.lookup("some_mod")
     assert not some_mod.wildcard_import
     assert fake_parent.symbol_table.imported_symbols(some_mod) == []
@@ -169,7 +171,8 @@ def test_broken_use(monkeypatch):
         fparser2spec.content[0], "items",
         [None, None, Fortran2003.Name('my_mod'), 'hello', None])
     with pytest.raises(NotImplementedError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(
+            fake_parent, fparser2spec.content, [], {})
     assert "unsupported USE statement: 'USE my_modhello'" in str(err.value)
 
 
@@ -184,21 +187,21 @@ def test_redundant_empty_only_list():
     reader = FortranStringReader("use mod1, only:\n"
                                  "use mod1\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
     csym = fake_parent.symbol_table.lookup("mod1")
     assert csym.wildcard_import
     # Wildcard import followed by empty only-list
     reader = FortranStringReader("use mod2\n"
                                  "use mod2, only:\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
     csym = fake_parent.symbol_table.lookup("mod2")
     assert csym.wildcard_import
     # Empty only-list followed by named import
     reader = FortranStringReader("use mod3, only:\n"
                                  "use mod3, only: fred\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
     sym_table = fake_parent.symbol_table
     csym = sym_table.lookup("mod3")
     assert not csym.wildcard_import
@@ -207,12 +210,13 @@ def test_redundant_empty_only_list():
     reader = FortranStringReader("use mod4, only: bob\n"
                                  "use mod4, only:\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
     csym = sym_table.lookup("mod4")
     assert not csym.wildcard_import
     assert sym_table.imported_symbols(csym)[0].name == "bob"
 
 
+@pytest.mark.usefixtures("parser")
 def test_use_same_symbol():
     ''' Check that we handle the case where the same symbol is imported from
     different modules.
@@ -224,7 +228,7 @@ def test_use_same_symbol():
     reader = FortranStringReader("use mod2, only: fred\n"
                                  "use mod3, only: fred\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
     csym = fake_parent.symbol_table.lookup("mod2")
     assert fake_parent.symbol_table.imported_symbols(csym)[0].name == "fred"
     csym = fake_parent.symbol_table.lookup("mod3")
@@ -233,6 +237,7 @@ def test_use_same_symbol():
     assert not fake_parent.symbol_table.imported_symbols(csym)
 
 
+@pytest.mark.usefixtures("parser")
 def test_use_local_symbol_error():
     ''' Check that we raise the expected error if we encounter an import of
     a symbol that is already declared to be local. '''
@@ -248,10 +253,12 @@ def test_use_local_symbol_error():
     reader = FortranStringReader("use mod2, only: fred\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(
+            fake_parent, fparser2spec.content, [], {})
     assert "'fred' is imported from module 'mod2' but is" in str(err.value)
 
 
+@pytest.mark.usefixtures("parser")
 def test_use_symbol_visibility():
     ''' Check that all container symbols imported into a module are given
     the default visibility defined in that module.
@@ -263,7 +270,11 @@ def test_use_symbol_visibility():
                                  "use mod3\n"
                                  "private\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    default_vis, vis_map = processor.process_access_statements(
+        fparser2spec.content)
+    fake_parent.symbol_table.default_visibility = default_vis
+    processor.process_declarations(fake_parent, fparser2spec.content, [],
+                                   vis_map)
     csym2 = fake_parent.symbol_table.lookup("mod2")
     assert csym2.visibility == Symbol.Visibility.PRIVATE
     csym3 = fake_parent.symbol_table.lookup("mod3")

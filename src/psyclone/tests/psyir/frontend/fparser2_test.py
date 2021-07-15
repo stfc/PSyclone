@@ -77,7 +77,7 @@ def process_declarations(code):
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(sched, fparser2spec, [])
+    processor.process_declarations(sched, fparser2spec, [], {})
     return sched, fparser2spec
 
 
@@ -595,7 +595,7 @@ def test_process_declarations():
     # Test simple declarations
     reader = FortranStringReader("integer :: l1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     l1_var = fake_parent.symbol_table.lookup("l1")
     assert l1_var.name == 'l1'
     assert isinstance(l1_var.datatype, ScalarType)
@@ -605,7 +605,7 @@ def test_process_declarations():
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     l2_var = fake_parent.symbol_table.lookup("l2")
     assert l2_var.name == "l2"
     assert isinstance(l2_var.datatype, ScalarType)
@@ -615,7 +615,7 @@ def test_process_declarations():
 
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     b_var = fake_parent.symbol_table.lookup("b")
     assert b_var.name == "b"
     # Symbol should be public by default
@@ -628,12 +628,12 @@ def test_process_declarations():
     # public/private attribute
     reader = FortranStringReader("real, public :: p2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert (fake_parent.symbol_table.lookup("p2").visibility ==
             Symbol.Visibility.PUBLIC)
     reader = FortranStringReader("real, private :: p3, p4")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert (fake_parent.symbol_table.lookup("p3").visibility ==
             Symbol.Visibility.PRIVATE)
     assert (fake_parent.symbol_table.lookup("p4").visibility ==
@@ -642,7 +642,7 @@ def test_process_declarations():
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     newsymbol = fake_parent.symbol_table.lookup("i1")
     assert newsymbol.is_constant
     assert isinstance(newsymbol.constant_value, Literal)
@@ -650,14 +650,14 @@ def test_process_declarations():
 
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
     assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
 
     # Initialisation with constant expressions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert fake_parent.symbol_table.lookup("i4").constant_value.value == "1.1"
     assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
                       BinaryOperation)
@@ -665,7 +665,7 @@ def test_process_declarations():
     # Initialisation with a constant expression (1) and with a symbol (val1)
     reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert fake_parent.symbol_table.lookup("val1").constant_value.value == "1"
     assert isinstance(
         fake_parent.symbol_table.lookup("val2").constant_value, Reference)
@@ -676,7 +676,7 @@ def test_process_declarations():
     reader = FortranStringReader(
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     # Val3 has been given a constant expression
     assert fake_parent.symbol_table.lookup("val3").constant_value
     # The new symbol (precisionkind) has been added to the parent Symbol Table
@@ -686,7 +686,7 @@ def test_process_declarations():
     reader = FortranStringReader("integer :: i2")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(SymbolError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
 
@@ -700,14 +700,15 @@ def test_process_declarations_accessibility():
     reader = FortranStringReader("private :: x\n"
                                  "real :: x\n")
     fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(sched, fparser2spec, [])
+    default_vis, vis_map = processor.process_access_statements(fparser2spec)
+    processor.process_declarations(sched, fparser2spec, [], vis_map)
     xsym = sched.symbol_table.lookup("x")
     assert xsym.visibility == Symbol.Visibility.PRIVATE
-    # Repeat but provide a default visibility argument
+    # Repeat but change the default visibility in the parent table
     reader = FortranStringReader("real :: y\n")
     fparser2spec = Specification_Part(reader).content
     sched.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
-    processor.process_declarations(sched, fparser2spec, [])
+    processor.process_declarations(sched, fparser2spec, [], {})
     ysym = sched.symbol_table.lookup("y")
     assert ysym.visibility == Symbol.Visibility.PRIVATE
     # Repeat but provide a visibility mapping
@@ -731,14 +732,14 @@ def test_process_unsupported_declarations(fortran_reader):
     # with unknown type.
     reader = FortranStringReader("real:: a = 1.1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     asym = fake_parent.symbol_table.lookup("a")
     assert isinstance(asym.datatype, UnknownFortranType)
     assert asym.datatype.declaration == "REAL :: a = 1.1"
 
     reader = FortranStringReader("real:: b = 1.1, c = 2.2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     bsym = fake_parent.symbol_table.lookup("b")
     assert isinstance(bsym.datatype, UnknownFortranType)
     assert bsym.datatype.declaration == "REAL :: b = 1.1"
@@ -749,7 +750,7 @@ def test_process_unsupported_declarations(fortran_reader):
     # Multiple symbols with a single attribute
     reader = FortranStringReader("integer, private :: d = 1, e = 2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     dsym = fake_parent.symbol_table.lookup("d")
     assert isinstance(dsym.datatype, UnknownFortranType)
     assert dsym.datatype.declaration == "INTEGER, PRIVATE :: d = 1"
@@ -761,7 +762,7 @@ def test_process_unsupported_declarations(fortran_reader):
     reader = FortranStringReader(
         "INTEGER, PRIVATE, DIMENSION(3) :: f = 2, g = 3")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     fsym = fake_parent.symbol_table.lookup("f")
     assert isinstance(fsym.datatype, UnknownFortranType)
     assert (fsym.datatype.declaration ==
@@ -775,7 +776,7 @@ def test_process_unsupported_declarations(fortran_reader):
     # below which stops the line being treated as a comment.
     reader = FortranStringReader(" complex     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     c2sym = fake_parent.symbol_table.lookup("c2")
     assert isinstance(c2sym.datatype, UnknownFortranType)
     assert c2sym.datatype.declaration == "COMPLEX :: c2"
@@ -797,7 +798,7 @@ def test_process_unsupported_declarations(fortran_reader):
     reader = FortranStringReader(
         "INTEGER, PARAMETER :: happy=1, fbsp = SELECTED_REAL_KIND( 6, 37)")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     fbsym = fake_parent.symbol_table.lookup("fbsp")
     assert isinstance(fbsym.datatype, UnknownFortranType)
     assert (fbsym.datatype.declaration ==
@@ -822,7 +823,7 @@ def test_unsupported_decln_duplicate_symbol():
     reader = FortranStringReader(" complex var")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert "An entry for symbol 'var' is already in the" in str(err.value)
 
 
@@ -844,7 +845,7 @@ def test_process_declarations_precision(precision, type_name, fort_name):
 
     reader = FortranStringReader("{0}*{1} :: l1".format(fort_name, precision))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     l1_var = fake_parent.symbol_table.lookup("l1")
     assert l1_var.name == 'l1'
     assert isinstance(l1_var.datatype, ScalarType)
@@ -865,7 +866,7 @@ def test_process_declarations_double_precision():
 
     reader = FortranStringReader("double precision :: x")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     x_var = fake_parent.symbol_table.lookup("x")
     assert x_var.name == 'x'
     assert isinstance(x_var.datatype, ScalarType)
@@ -885,7 +886,7 @@ def test_process_array_declarations():
     # RHS array specifications
     reader = FortranStringReader("integer :: l3(l1)")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     l3_var = fake_parent.symbol_table.lookup("l3")
     assert l3_var.name == 'l3'
     assert isinstance(l3_var.datatype, ArrayType)
@@ -895,7 +896,7 @@ def test_process_array_declarations():
 
     reader = FortranStringReader("integer :: l4(l1, 2)")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     l4_var = fake_parent.symbol_table.lookup("l4")
     assert l4_var.name == 'l4'
     assert isinstance(l4_var.datatype, ArrayType)
@@ -905,7 +906,7 @@ def test_process_array_declarations():
 
     reader = FortranStringReader("integer :: l5(2), l6(3)")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     l5_datatype = fake_parent.symbol_table.lookup("l5").datatype
     assert len(l5_datatype.shape) == 1
     assert isinstance(l5_datatype.shape[0], Literal)
@@ -926,7 +927,7 @@ def test_process_array_declarations():
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     l7_datasymbol = fake_parent.symbol_table.lookup("l7")
     assert l7_datasymbol.name == 'l7'
     assert len(l7_datasymbol.shape) == 2
@@ -947,7 +948,7 @@ def test_process_array_declarations():
     # Allocatable
     reader = FortranStringReader("integer, allocatable :: l8(:)")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     symbol = fake_parent.symbol_table.lookup("l8")
     assert symbol.name == "l8"
     assert symbol.datatype.precision == ScalarType.Precision.UNDEFINED
@@ -955,7 +956,7 @@ def test_process_array_declarations():
 
     reader = FortranStringReader("integer, allocatable, dimension(:,:) :: l9")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     symbol = fake_parent.symbol_table.lookup("l9")
     assert symbol.name == "l9"
     assert symbol.shape == [ArrayType.Extent.DEFERRED,
@@ -964,7 +965,7 @@ def test_process_array_declarations():
     # Unknown extents but not allocatable
     reader = FortranStringReader("integer :: l10(:, :)")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     symbol = fake_parent.symbol_table.lookup("l10")
     assert symbol.name == "l10"
     assert symbol.shape == [ArrayType.Extent.ATTRIBUTE,
@@ -976,7 +977,7 @@ def test_process_array_declarations():
     fake_parent.symbol_table.add(udim)
     reader = FortranStringReader("integer :: l11(udim)")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     symbol = fake_parent.symbol_table.lookup("l11")
     assert symbol.name == "l11"
     assert len(symbol.shape) == 1
@@ -993,7 +994,7 @@ def test_process_array_declarations():
     fake_parent.symbol_table.add(ddim)
     reader = FortranStringReader("integer :: l12(ddim)")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     symbol = fake_parent.symbol_table.lookup("l12")
     assert symbol.name == "l12"
     assert len(symbol.shape) == 1
@@ -1014,13 +1015,13 @@ def test_process_not_supported_declarations():
 
     reader = FortranStringReader("integer, external :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert isinstance(fake_parent.symbol_table.lookup("arg1").datatype,
                       UnknownFortranType)
 
     reader = FortranStringReader("real, allocatable :: p3")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert isinstance(fake_parent.symbol_table.lookup("p3").datatype,
                       UnknownFortranType)
 
@@ -1029,14 +1030,14 @@ def test_process_not_supported_declarations():
     reader = FortranStringReader("integer, allocatable :: l10(5)")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(InternalError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert "An array with defined extent cannot have the ALLOCATABLE" \
         in str(err.value)
 
     reader = FortranStringReader("integer, allocatable, dimension(n) :: l10")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(InternalError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert "An array with defined extent cannot have the ALLOCATABLE" \
         in str(err.value)
 
@@ -1045,7 +1046,7 @@ def test_process_not_supported_declarations():
     # Break the parse tree
     fparser2spec.items = ("hello", fparser2spec.items[1],
                           fparser2spec.items[2])
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     l11sym = fake_parent.symbol_table.lookup("l11")
     assert isinstance(l11sym.datatype, UnknownFortranType)
 
@@ -1098,14 +1099,14 @@ def test_process_save_attribute_declarations(parser):
     # in the Specification_Part.
     reader = FortranStringReader("integer, save :: var1")
     fparser2spec = Type_Declaration_Stmt(reader)
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert isinstance(fake_parent.symbol_table.lookup("var1").datatype,
                       UnknownFortranType)
 
     # Test with no context about where the declaration is.
     reader = FortranStringReader("integer, save :: var2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert isinstance(fake_parent.symbol_table.lookup("var2").datatype,
                       UnknownFortranType)
 
@@ -1115,7 +1116,7 @@ def test_process_save_attribute_declarations(parser):
         "integer, save :: var3\n"
         "end subroutine name")
     fparser2spec = parser(reader).content[0].content[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert isinstance(fake_parent.symbol_table.lookup("var3").datatype,
                       UnknownFortranType)
 
@@ -1125,7 +1126,7 @@ def test_process_save_attribute_declarations(parser):
         "integer, save :: var4\n"
         "end module modulename")
     fparser2spec = parser(reader).content[0].content[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     var4 = fake_parent.symbol_table.lookup("var4")
     assert var4.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
@@ -1141,28 +1142,28 @@ def test_process_declarations_intent():
     reader = FortranStringReader("integer, intent(in) :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
     arg_list = [Fortran2003.Name("arg1")]
-    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list, {})
     assert fake_parent.symbol_table.lookup("arg1").interface.access == \
         ArgumentInterface.Access.READ
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
     arg_list.append(Fortran2003.Name("arg2"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list, {})
     assert fake_parent.symbol_table.lookup("arg2").interface.access == \
         ArgumentInterface.Access.READ
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
     arg_list.append(Fortran2003.Name("arg3"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list, {})
     assert fake_parent.symbol_table.lookup("arg3").interface.access == \
         ArgumentInterface.Access.WRITE
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
     arg_list.append(Fortran2003.Name("arg4"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list, {})
     assert fake_parent.symbol_table.lookup("arg4").interface.access is \
         ArgumentInterface.Access.READWRITE
 
@@ -1170,7 +1171,8 @@ def test_process_declarations_intent():
     arg_list.append(Fortran2003.Name("arg5"))
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(InternalError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+        processor.process_declarations(
+            fake_parent, [fparser2spec], arg_list, {})
     assert "Could not process " in str(err.value)
     assert "Unexpected intent attribute " in str(err.value)
 
@@ -1201,7 +1203,7 @@ def test_process_declarations_kind_new_param():
     # Change the variable name too to prevent a clash
     fp2spec[0].children[2].children[0].items[0].string = "var3"
     processor = Fparser2Reader()
-    processor.process_declarations(fake_parent, fp2spec[0], [])
+    processor.process_declarations(fake_parent, fp2spec[0], [], {})
     sym = fake_parent.symbol_table.lookup("var3")
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, UnknownFortranType)
@@ -1219,7 +1221,7 @@ def test_process_declarations_kind_param():
     reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
                                  "real(kind=r_def) :: var2")
     fparser2spec = Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
     assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
                       DataSymbol)
 
@@ -1318,7 +1320,7 @@ def test_process_declarations_stmt_functions():
     reader = FortranStringReader("a(x) = 1")
     fparser2spec = Stmt_Function_Stmt(reader)
     with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert "Could not process '" in str(error.value)
     assert "'. Statement Function declarations are not supported." \
         in str(error.value)
@@ -1329,7 +1331,7 @@ def test_process_declarations_stmt_functions():
     fake_parent.symbol_table.add(
         DataSymbol('a', array_type))
     fake_parent.symbol_table.add(DataSymbol('x', REAL_TYPE))
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
     assert isinstance(array, ArrayReference)
@@ -1344,7 +1346,7 @@ def test_process_declarations_stmt_functions():
     fake_parent.symbol_table.add(DataSymbol('b', array_type))
     fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
     fake_parent.symbol_table.add(DataSymbol('y', INTEGER_TYPE))
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
     assert isinstance(array, ArrayReference)
@@ -1353,7 +1355,7 @@ def test_process_declarations_stmt_functions():
     # Test that if symbol is not an array, it raises GenerationError
     fake_parent.symbol_table.lookup('b').datatype = INTEGER_TYPE
     with pytest.raises(InternalError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, [fparser2spec], [], {})
     assert "Could not process '" in str(error.value)
     assert "'. Symbol 'b' is in the SymbolTable but it is not an array as " \
         "expected, so it can not be recovered as an array assignment." \
@@ -1440,7 +1442,7 @@ def test_parse_array_dimensions_attributes():
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec],
-                                   [Name("array3")])
+                                   [Name("array3")], {})
     array3 = fake_parent.symbol_table.lookup("array3")
     assert array3.name == "array3"
     assert array3.datatype.intrinsic == ScalarType.Intrinsic.REAL
@@ -1458,7 +1460,7 @@ def test_deferred_array_size():
                                  "integer, intent(in) :: n")
     fparser2spec = Specification_Part(reader).content
     processor.process_declarations(fake_parent, fparser2spec,
-                                   [Name("array3"), Name("n")])
+                                   [Name("array3"), Name("n")], {})
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, ArgumentInterface)
     assert dim_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -1472,14 +1474,14 @@ def test_unresolved_array_size():
     processor = Fparser2Reader()
     reader = FortranStringReader("real, dimension(n) :: array3")
     fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(fake_parent, fparser2spec, [])
+    processor.process_declarations(fake_parent, fparser2spec, [], {})
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, UnresolvedInterface)
     assert dim_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     # Check that the lookup of the dimensioning symbol is not case sensitive
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(fake_parent, fparser2spec, [])
+    processor.process_declarations(fake_parent, fparser2spec, [], {})
     assert fake_parent.symbol_table.lookup("array4").shape[0].symbol is dim_sym
 
 
@@ -1493,7 +1495,7 @@ def test_use_stmt():
                                  "use this_mod\n"
                                  "use other_mod, only: var1, var2\n")
     fparser2spec = Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
 
     symtab = fake_parent.symbol_table
 
@@ -1525,7 +1527,8 @@ def test_use_stmt_error(monkeypatch):
     monkeypatch.setattr(fparser2spec.content[0], "items",
                         [None, "hello", None])
     with pytest.raises(GenerationError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(
+            fake_parent, fparser2spec.content, [], {})
     assert ("Expected the parse tree for a USE statement to contain 5 items "
             "but found 3 for 'hello'" in str(err.value))
 
@@ -1540,7 +1543,7 @@ def test_process_declarations_unrecognised_attribute():
     fparser2spec = Specification_Part(reader)
     # Replace the Attr_Spec with a str
     fparser2spec.children[0].children[1].items = ("not-a-spec",)
-    processor.process_declarations(fake_parent, fparser2spec.children, [])
+    processor.process_declarations(fake_parent, fparser2spec.children, [], {})
     assert isinstance(fake_parent.symbol_table.lookup("idx1").datatype,
                       UnknownFortranType)
 
