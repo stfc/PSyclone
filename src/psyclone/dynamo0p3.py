@@ -71,10 +71,11 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              Arguments, KernelArgument, HaloExchange,
                              GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
-                             CodedKern, ACCEnterDataDirective,
-                             OMPParallelDoDirective)
+                             CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
+from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
+                                  ACCEnterDataDirective,
+                                  OMPParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface)
@@ -5315,7 +5316,7 @@ class DynInvoke(Invoke):
                                   funcnames=[omp_function_name]))
             # Note: There is no assigned kind for integer nthreads as this
             # would imply assigning kind to th_idx and other elements of
-            # the psyGen OMPParallelDirective
+            # the OMPParallelDirective
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[nthreads_name]))
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -5571,7 +5572,7 @@ class DynHaloExchange(HaloExchange):
     :type vector_index: int
     :param parent: optional PSyIRe parent node (default None) of this \
     object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, field, check_dirty=True,
@@ -5997,7 +5998,7 @@ class DynHaloExchangeStart(DynHaloExchange):
     :type vector_index: int
     :param parent: optional PSyIRe parent node (default None) of this \
     object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
@@ -6112,7 +6113,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
     :type vector_index: int
     :param parent: optional PSyIRe parent node (default None) of this \
     object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.

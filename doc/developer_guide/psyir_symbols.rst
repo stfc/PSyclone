@@ -563,7 +563,7 @@ Access Examples
 ---------------
 
 Below we show a simple example of how to use this API. This is from the
-`psyclone.psyGen.OMPParallelDirective` (so `self` is an instance of this
+`psyclone.psyir.nodes.OMPParallelDirective` (so `self` is an instance of this
 node), and this code is used to determine a list of all the scalar
 variables that must be declared as thread-private::
 

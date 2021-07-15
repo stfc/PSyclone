@@ -113,13 +113,13 @@ class Range(Node):
         is provided then it defaults to an integer Literal with value 1.
 
         :param start: the PSyIR for the start value.
-        :type start: :py:class:`psyclone.psyGen.Node`
+        :type start: :py:class:`psyclone.psyir.nodes.Node`
         :param stop: the PSyIR for the stop value.
-        :type stop: :py:class:`psyclone.psyGen.Node`
+        :type stop: :py:class:`psyclone.psyir.nodes.Node`
         :param step: the PSyIR for the increment/step or None.
-        :type step: :py:class:`psyclone.psyGen.Node` or NoneType
+        :type step: :py:class:`psyclone.psyir.nodes.Node` or NoneType
         :param parent: the parent node of this Range in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
+        :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
         :returns: a fully-populated Range object.
         :rtype: :py:class:`psyclone.psyir.nodes.ranges.Range`
@@ -181,7 +181,7 @@ class Range(Node):
         for the starting value of the range.
 
         :returns: the starting value of this range.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_completeness()
         return self._children[0]
@@ -192,7 +192,7 @@ class Range(Node):
         Sets the start value/expression of this explicit range.
 
         :param value: the PSyIR node representing the starting value.
-        :type value: :py:class:`psyclone.psyGen.Node`
+        :type value: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         self._check_valid_input(value, "start")
@@ -208,7 +208,7 @@ class Range(Node):
         value/expression.
 
         :returns: the end value of this range.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_completeness()
         return self.children[1]
@@ -218,7 +218,7 @@ class Range(Node):
         ''' Set the stop value/expression of this Range.
 
         :param value: the PSyIR node representing the stop value.
-        :type value: :py:class:`psyclone.psyGen.Node`
+        :type value: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_valid_input(value, "stop")
         if not self.children:
@@ -237,7 +237,7 @@ class Range(Node):
         (increment) value/expression.
 
         :returns: the increment used in this range.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_completeness()
         return self.children[2]
@@ -247,7 +247,7 @@ class Range(Node):
         ''' Set the step value/expression of this Range.
 
         :param value: the PSyIR node representing the step value.
-        :type value: :py:class:`psyclone.psyGen.Node`
+        :type value: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_valid_input(value, "step")
         if len(self.children) < 2:
