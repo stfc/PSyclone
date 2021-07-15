@@ -312,9 +312,9 @@ def test_arraytype_invalid_shape_dimension_1():
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [Reference(symbol)])
     assert (
-        "If a datasymbol is used as a dimension declaration then it should "
-        "be a scalar integer or an unknown type, but 'fred' is a "
-        "'Scalar<REAL, 4>'." in str(excinfo.value))
+        "If a DataSymbol is referenced in a dimension declaration then it "
+        "should be a scalar integer or of UnknownType or DeferredType, but "
+        "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
 
 
 def test_arraytype_invalid_shape_dimension_2():
@@ -382,9 +382,9 @@ def test_arraytype_invalid_shape_bounds():
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, Reference(symbol))])
     assert (
-        "If a datasymbol is used as a dimension declaration then it should "
-        "be a scalar integer or an unknown type, but 'fred' is a "
-        "'Scalar<REAL, 4>'." in str(excinfo.value))
+        "If a DataSymbol is referenced in a dimension declaration then it "
+        "should be a scalar integer or of UnknownType or DeferredType, but "
+        "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
 
 
 def test_arraytype_shape_dim_from_parent_scope():

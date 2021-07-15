@@ -419,9 +419,9 @@ class ArrayType(DataType):
                         isinstance(symbol.datatype,
                                    (UnknownFortranType, DeferredType))):
                     raise TypeError(
-                        "If a datasymbol is used as a dimension "
-                        "declaration then it should be a scalar "
-                        "integer or an unknown type, but '{0}' is a "
+                        "If a DataSymbol is referenced in a dimension "
+                        "declaration then it should be a scalar integer or "
+                        "of UnknownType or DeferredType, but '{0}' is a "
                         "'{1}'.".format(symbol.name, symbol.datatype))
                 # TODO #1089 - add check that any References are not to a
                 # local datasymbol that is not constant (as this would have
