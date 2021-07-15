@@ -670,7 +670,7 @@ can be parallelised::
               for message in dt.get_all_messages():
                   print(message)
 
-.. note:: While the dependency tools constructor take an argument
+.. note:: While the dependency tools constructor takes an argument
     to specify a language writer, so that errors can use the syntax
     appropriate for the language, at this stage the C-backend does
     not yet fully support the necessary functionality for this.

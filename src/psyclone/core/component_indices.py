@@ -116,8 +116,16 @@ class ComponentIndices(object):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`, or \
             :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises IndexError:
+
         '''
         if isinstance(indx, tuple):
+            if indx[0] < 0 or indx[0] >= len(self._component_indices):
+                raise IndexError("First index ({0}) of {1} is out of range."
+                                 .format(indx[0], indx))
+            if indx[1] < 0 or indx[1] >= len(self._component_indices[indx[0]]):
+                raise IndexError("Second index ({0}) of {1} is out of range."
+                                 .format(indx[1], indx))
             return self._component_indices[indx[0]][indx[1]]
         return self._component_indices[indx]
 
@@ -128,7 +136,8 @@ class ComponentIndices(object):
         return len(self._component_indices)
 
     # ------------------------------------------------------------------------
-    def get(self):
+    @property
+    def indices_lists(self):
         ''':returns: the component indices list of lists.
         :rtype: list of list of :py:class:`psyclone.psyir.nodes.Node`
         '''

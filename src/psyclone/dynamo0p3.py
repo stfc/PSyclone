@@ -1877,6 +1877,9 @@ class LFRicMeshProperties(DynCollection):
                 adj_face = self._symbol_table.symbol_from_tag(
                     "adjacent_face").name
                 if var_accesses is not None:
+                    # TODO #1320 Replace [1]
+                    # The [1] just indicates that this variable is accessed
+                    # as a rank 1 array. #1320 will improve this.
                     var_accesses.add_access(Signature(adj_face),
                                             AccessType.READ, self._kernel,
                                             [1])

@@ -67,15 +67,13 @@ class DependencyTools(object):
         of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
     '''
     def __init__(self, loop_types_to_parallelise=None,
-                 language_writer=None):
+                 language_writer=FortranWriter()):
         if loop_types_to_parallelise:
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
             self._loop_types_to_parallelise = []
-        if language_writer is None:
-            self._language_writer = FortranWriter()
-        else:
-            self._language_writer = language_writer
+
+        self._language_writer = language_writer
         self._clear_messages()
 
     # -------------------------------------------------------------------------
@@ -124,7 +122,7 @@ class DependencyTools(object):
         '''Check whether all accesses to an array, whose accesses are
         specified in the `var_infos` parameter, have consistent usage of
         the loop variable. This can be used e.g. to verify whether two loops
-        may be fused by providing the access information of the each loop in
+        may be fused by providing the access information of each loop in
         the `var_infos` parameter as a list. For example, `a(i,j)` and
         `a(j,i)` would be inconsistent. It does not test for index values
         (e.g. `a(i,j)` and `a(i+3,j)`).
@@ -169,7 +167,7 @@ class DependencyTools(object):
                 diff_string = [str(sig) for sig in different]
                 raise InternalError("Inconsistent signature provided in "
                                     "'array_accesses_consistent'. Expected "
-                                    "all access to be for '{0}', but also "
+                                    "all accesses to be for '{0}', but also "
                                     "got '{1}'."
                                     .format(signature, ",".join(diff_string)))
             all_accesses = []
@@ -225,7 +223,8 @@ class DependencyTools(object):
                     consistent = False
                     self._add_error(
                         "Variable '{0}' is written to and the loop variable "
-                        "'{1}' is used differently: {2} and {3}."
+                        "'{1}' is used in different index locations: "
+                        "{2} and {3}."
                         .format(signature.var_name,
                                 loop_variable.name,
                                 signature.to_language(first_component_indices),
@@ -279,7 +278,9 @@ class DependencyTools(object):
         * if the array variable is accessed inconsistently, e.g.
           `a(i,j) = a(j,i) + 1`.
 
-        :param str loop_variable: name of the variable that is parallelised.
+        :param loop_variable: symbol of the variable that is parallelised.
+        :type loop_variable: \
+            :py:class:`psyclone.psyir.symbol.datasymbol.DataSymbol`
         :param var_info: access information for this variable.
         :type var_info: \
             :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
@@ -344,8 +345,8 @@ class DependencyTools(object):
         first_index = all_indices[0]
         for index in all_indices[1:]:
             if not first_index.math_equal(index):
-                self._add_warning("Variable {0} is written and is accessed "
-                                  "using indices {1} and {2} and can "
+                self._add_warning("Variable '{0}' is written and is accessed "
+                                  "using indices '{1}' and '{2}' and can "
                                   "therefore not be parallelised."
                                   .format(var_info.var_name,
                                           self._language_writer(first_index),
@@ -406,9 +407,11 @@ class DependencyTools(object):
 
         :param loop: the loop node to be analysed.
         :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param str loop_variable: Optional name of the variable that is\
-                                  parallelised. If not specified, the loop\
-                                  variable of the loop is used.
+        :param loop_variable: Optional symbol of the variable that is \
+            parallelised. If not specified, the loop variable of the loop \
+            is used.
+        :type loop_variable: \
+            :py:class:`psyclone.psyir.symbol.datasymbol.DataSymbol`
         :param bool only_nested_loops: if True, a loop must have an inner\
                                        loop in order to be considered\
                                        parallelisable (default: True).

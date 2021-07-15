@@ -431,15 +431,15 @@ class VariablesAccessInfo(dict):
         '''Adds access information for the variable with the given signature.
         If the `component_indices` parameter is not an instance of
         `ComponentIndices`, it is used to construct an instance. Therefore it
-        can be None, a list or a list of lists of PSyIR nodes. In case of
-        a list of lists, this will be unmodified used to construct the
+        can be None, a list or a list of lists of PSyIR nodes. In the case of
+        a list of lists, this will be used unmodified to construct the
         ComponentIndices structures. If it is a simple list, it is assumed
         that it contains the indices used in accessing the last component
         of the signature. For example, for `a%b` with
         `component_indices=[i,j]`, it will create `[[], [i,j]` as component
         indices, indicating that no index is used in the first component `a`.
         If the access is supposed to be for `a(i)%b(j)`, then the
-        `component_indices` argument must be specified as list of lists,
+        `component_indices` argument must be specified as a list of lists,
         i.e. `[[i], [j]]`.
 
         :param signature: the signature of the variable.
@@ -482,10 +482,12 @@ class VariablesAccessInfo(dict):
             component_indices = ComponentIndices(component_indices)
 
         if len(signature) != len(component_indices):
-            raise InternalError("Cannot add '{0}' as indices for '{1}' as "
-                                "the number of components do not match."
+            raise InternalError("Cannot add '{0}' with length {1} as "
+                                "indices for '{2}' which requires {3} "
+                                "elements."
                                 .format(str(component_indices),
-                                        str(signature)))
+                                        len(component_indices),
+                                        str(signature), len(signature)))
 
         if signature in self:
             self[signature].add_access_with_location(access_type,
