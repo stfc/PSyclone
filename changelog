@@ -103,6 +103,8 @@
 	35) #1255 for #1253. Improve the parsing of Fortran specification
 	code and includes support for Fortran interface blocks.
 
+	36) #1319 for #1307. Add support for lower bounds in PSyIR ArrayType.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
