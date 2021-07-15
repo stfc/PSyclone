@@ -115,7 +115,7 @@ class OMPSingleDirective(OMPDirective):
     :param parent: The Node in the AST that has this directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param bool nowait: Argument describing whether this single should have \
-        a nowait clause applied.
+        a nowait clause applied. Default value is False.
 
     '''
     def __init__(self, children=None, parent=None, nowait=False):
@@ -140,7 +140,8 @@ class OMPSingleDirective(OMPDirective):
         Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
 
-        :param bool colour: whether or not to include colour control codes.
+        :param bool colour: Whether or not to include colour control codes.
+                            Default value is True.
 
         :returns: description of this node, possibly coloured.
         :rtype: str
