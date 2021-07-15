@@ -408,11 +408,12 @@ def test_arraytype_str():
     data_symbol = DataSymbol("var", scalar_type, constant_value=20)
     data_type = ArrayType(scalar_type, [10, Reference(data_symbol),
                                         (2, Reference(data_symbol)),
+                                        (Reference(data_symbol), 10),
                                         ArrayType.Extent.DEFERRED,
                                         ArrayType.Extent.ATTRIBUTE])
     assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>,"
             " shape=[10, Reference[name:'var'], 2:Reference[name:'var'], "
-            "'DEFERRED', 'ATTRIBUTE']>")
+            "Reference[name:'var']:10, 'DEFERRED', 'ATTRIBUTE']>")
 
 
 def test_arraytype_str_invalid():

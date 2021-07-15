@@ -1278,11 +1278,12 @@ class Fparser2Reader(object):
     @staticmethod
     def _parse_dimensions(dimensions, symbol_table):
         '''
-        Parse the fparser dimension attribute into a shape list with of
-        2-tuples containing the lower and upper bound of each dimension.
-        If any of the symbols encountered are instances of the generic Symbol
-        class, they are specialised (in place) and become instances of
-        DataSymbol with DeferredType.
+        Parse the fparser dimension attribute into a shape list. Each entry of
+        this list is either None (if the extent is unknown) or a 2-tuple
+        containing the lower and upper bound of that dimension. If any of the
+        symbols encountered are instances of the generic Symbol class, they are
+        specialised (in place) and become instances of DataSymbol with
+        DeferredType.
 
         :param dimensions: fparser dimension attribute.
         :type dimensions: \
@@ -1379,6 +1380,7 @@ class Fparser2Reader(object):
                         lower = _process_bound(dim.items[0])
                         shape.append((lower, upper))
                     else:
+                        # Lower bound defaults to 1 in Fortran
                         shape.append((one.copy(), upper))
                 except NotImplementedError as err:
                     six.raise_from(NotImplementedError(

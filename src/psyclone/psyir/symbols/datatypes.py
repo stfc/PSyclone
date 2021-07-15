@@ -474,9 +474,13 @@ class ArrayType(DataType):
                 # Have to import locally to avoid circular dependence
                 # pylint: disable=import-outside-toplevel
                 from psyclone.psyir.nodes import Literal
+                # Lower bound. If it is "1" then we omit it.
                 if isinstance(dimension.lower, Literal):
                     if dimension.lower.value != "1":
                         dim_text = dimension.lower.value + ":"
+                else:
+                    dim_text = str(dimension.lower) + ":"
+                # Upper bound.
                 if isinstance(dimension.upper, Literal):
                     dim_text += dimension.upper.value
                 else:
