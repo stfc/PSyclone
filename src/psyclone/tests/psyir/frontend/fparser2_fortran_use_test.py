@@ -41,10 +41,11 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol
-from psyclone.psyir.nodes import KernelSchedule, Container
 from psyclone.psyGen import GenerationError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import KernelSchedule, Container
+from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
+    DataSymbol, LocalInterface, INTEGER_SINGLE_TYPE
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -238,8 +239,6 @@ def test_use_same_symbol():
 def test_use_local_symbol_error():
     ''' Check that we raise the expected error if we encounter an import of
     a symbol that is already declared to be local. '''
-    from psyclone.psyir.symbols import DataSymbol, LocalInterface, \
-        INTEGER_SINGLE_TYPE
     fake_parent = KernelSchedule("dummy_schedule")
     # In practise this situation is hard to trigger as USE statements must
     # come before local declarations. Therefore we manually add a symbol

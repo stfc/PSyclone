@@ -1704,7 +1704,7 @@ class Fparser2Reader(object):
         (type_spec, attr_specs, entities) = decl.items
 
         # Parse the type_spec
-        base_type, precision = self._process_type_spec(parent, type_spec)
+        base_type, _ = self._process_type_spec(parent, type_spec)
 
         # Parse declaration attributes:
         # 1) If no dimension attribute is provided, it defaults to scalar.

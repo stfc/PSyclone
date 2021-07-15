@@ -700,7 +700,7 @@ def test_process_declarations_accessibility():
     reader = FortranStringReader("private :: x\n"
                                  "real :: x\n")
     fparser2spec = Specification_Part(reader).content
-    default_vis, vis_map = processor.process_access_statements(fparser2spec)
+    _, vis_map = processor.process_access_statements(fparser2spec)
     processor.process_declarations(sched, fparser2spec, [], vis_map)
     xsym = sched.symbol_table.lookup("x")
     assert xsym.visibility == Symbol.Visibility.PRIVATE
