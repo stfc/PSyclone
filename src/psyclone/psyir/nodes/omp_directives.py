@@ -118,9 +118,6 @@ class OMPSingleDirective(OMPDirective):
     '''
     def __init__(self, children=None, parent=None, nowait=False):
 
-        if children is None:
-            children = []
-
         self._nowait = nowait
         # Call the init method of the base class once we've stored
         # the nowait requirement
@@ -477,9 +474,6 @@ class OMPDoDirective(OMPDirective):
     '''
     def __init__(self, children=None, parent=None, omp_schedule="static",
                  reprod=None):
-
-        if children is None:
-            children = []
 
         if reprod is None:
             self._reprod = Config.get().reproducible_reductions

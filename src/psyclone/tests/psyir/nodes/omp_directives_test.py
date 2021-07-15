@@ -327,6 +327,7 @@ def test_omp_single_gencode(nowait):
     '''Check that the gen_code method in the OMPSingleDirective class
     generates the expected code. Use the gocean API.
     '''
+    from psyclone.domain.gocean.transformations import GOceanExtractTrans
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
     single = OMPSingleTrans()
@@ -338,6 +339,8 @@ def test_omp_single_gencode(nowait):
     _, _ = single.apply(schedule.children[0], {"nowait": nowait})
     omp_single_loop = schedule.children[0]
     _,_ = parallel.apply(schedule.children[0])
+    goceantrans = GOceanExtractTrans()
+    _,_ = goceantrans.apply(schedule.children[0])
 
     code = str(psy.gen)
     string = ""
