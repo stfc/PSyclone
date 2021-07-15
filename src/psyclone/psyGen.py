@@ -51,13 +51,14 @@ from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
 from psyclone.parse.algorithm import BuiltInCall
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.visitor import PSyIRVisitor
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
+    Routine, Call, OMPDoDirective
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, Call, OMPDoDirective
-
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -3233,12 +3234,28 @@ class TransInfo(object):
 @six.add_metaclass(abc.ABCMeta)
 class Transformation(object):
     '''Abstract baseclass for a transformation. Uses the abc module so it
-        can not be instantiated. '''
+    can not be instantiated.
 
-    @abc.abstractproperty
+    :param writer: optional argument to set the writer to use in \
+        transformations. Defaults to FortranWriter().
+    :type writer: :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
+
+    '''
+    def __init__(self, writer=FortranWriter()):
+        if not isinstance(writer, PSyIRVisitor):
+            raise TypeError(
+                "The writer argument to a transformation should be a "
+                "PSyIRVisitor, but found '{0}'.".format(type(writer).__name__))
+        self._writer = writer
+
+    @property
     def name(self):
-        '''Returns the name of the transformation.'''
-        return
+        '''
+        :returns: the transformation's class name.
+        :rtype: str
+
+        '''
+        return type(self).__name__
 
     @abc.abstractmethod
     def apply(self, node, options=None):

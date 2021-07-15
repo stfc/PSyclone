@@ -64,6 +64,8 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     InlinedKern, object_index, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
     InvokeSchedule
+from psyclone.psyir.backend.c import CWriter
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
     Literal, Node, KernelSchedule, Call, Loop, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
@@ -140,10 +142,38 @@ def test_psyfactory_valid_dm_flag():
 # Transformation class unit tests
 
 def test_base_class_not_callable():
-    '''make sure we can not instantiate abstract Transformation class
-    directly'''
+    '''Make sure we can not instantiate abstract Transformation class
+    directly.'''
     with pytest.raises(TypeError):
         _ = Transformation()  # pylint: disable=abstract-class-instantiated
+
+
+def test_transformation_init_name():
+    '''Make sure a FortranWriter is created by default, is stored by the
+    base class, can be changed if required and an exception is raised
+    if the wrong argument type is supplied. Also test that the name()
+    method behaves in the expected way.
+
+    '''
+    class TestTrans(Transformation):
+        '''Utility transformation that subclasses Transformation to stop it
+        being abstract in order to test the non-abstract
+        transformation methods.
+
+        '''
+        def apply(self, _1, _2=None):
+            '''Dummy apply method to ensure this transformation is not
+            abstract.'''
+
+    trans = TestTrans()
+    assert trans.name == "TestTrans"
+    assert isinstance(trans._writer, FortranWriter)
+    with pytest.raises(TypeError) as info:
+        _ = TestTrans(writer=None)
+    assert ("The writer argument to a transformation should be a "
+            "PSyIRVisitor, but found 'NoneType'." in str(info.value))
+    trans = TestTrans(writer=CWriter())
+    assert isinstance(trans._writer, CWriter)
 
 
 # TransInfo class unit tests

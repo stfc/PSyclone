@@ -151,7 +151,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
         for array in assignment.walk(ArrayReference):
             if not array.ancestor(ArrayReference):
                 # This is not a nested access e.g. a(b(n)).
-                array.children[array_index] = Reference(loop_variable_symbol)
+                array.indices[array_index] = Reference(loop_variable_symbol)
 
         # Determine the loop body and where to add the loop.
         nemo_kern = assignment.ancestor(NemoKern)
@@ -222,7 +222,8 @@ class NemoArrayAccess2LoopTrans(Transformation):
                 "Error in NemoArrayAccess2LoopTrans transformation. The "
                 "supplied node argument should be within an ArrayReference "
                 "node that is within the left-hand-side of an Assignment "
-                "node, but it is on the right-hand-side.")
+                "node, but '{0}' is on the right-hand-side of '{1}'."
+                "".format(self._writer(array_ref), self._writer(assignment)))
 
         # Contains a range node
         if node.walk(Range):
@@ -287,15 +288,6 @@ class NemoArrayAccess2LoopTrans(Transformation):
         return (
             "Convert the PSyIR assignment for a specified ArrayReference "
             "access into a PSyIR NemoLoop.")
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of the transformation as a string.
-        :rtype: str
-
-        '''
-        return type(self).__name__
 
 
 # For automatic document generation

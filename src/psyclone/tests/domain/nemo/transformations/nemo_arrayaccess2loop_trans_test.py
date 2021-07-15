@@ -103,8 +103,6 @@ def test_transform():
 
 # apply() method
 
-# TODO Check structure and nested structure
-
 
 def test_apply_single_dim_value():
     '''Check that the expected code is produced when there is a 1D array,
@@ -498,6 +496,20 @@ def test_validate_array_ref():
            "node, but found 'NoneType'." in str(info.value))
 
 
+def test_validate_structure_error():
+    '''Check that an array within a structure is not supported and causes
+    the transformation to raise the expected exception.
+
+    '''
+    code = (
+        "  use my_struct, only : x\n"
+        "  x%a(1) = x%b(1)\n")
+    with pytest.raises(TransformationError) as info:
+        check_transformation(code, None)
+    assert ("The supplied node argument should be within an ArrayReference "
+            "node, but found 'StructureReference'." in str(info.value))
+
+
 def test_validate_assignment():
     '''Check that the validate() method raises the expected exception if
     the supplied node is not a child of an array reference that is
@@ -523,18 +535,19 @@ def test_validate_lhs_assignment():
 
     '''
     dim_access = Literal("1", INTEGER_TYPE)
-    array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
-    array_ref = ArrayReference.create(array_symbol, [dim_access])
-    lhs = array_ref.copy()
-    Assignment.create(lhs, array_ref)
+    lhs_array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
+    rhs_array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10]))
+    lhs = ArrayReference.create(lhs_array_symbol, [dim_access.copy()])
+    rhs = ArrayReference.create(rhs_array_symbol, [dim_access])
+    Assignment.create(lhs, rhs)
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(dim_access)
     assert(
         "Error in NemoArrayAccess2LoopTrans transformation. The supplied "
         "node argument should be within an ArrayReference node that is "
-        "within the left-hand-side of an Assignment node, but it is on the "
-        "right-hand-side." in str(info.value))
+        "within the left-hand-side of an Assignment node, but 'y(1)' is on "
+        "the right-hand-side of 'x(1) = y(1)\n'." in str(info.value))
 
 
 def test_validate_range():
