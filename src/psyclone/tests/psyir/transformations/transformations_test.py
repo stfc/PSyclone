@@ -217,9 +217,10 @@ def test_ompsingle_nested():
     single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
-    assert("Nodes of type 'OMPSingleDirective' cannot be enclosed by a" +
-           " OMPSingleTrans transformation." in str(err.value))
-
+    print(err.value)
+    assert("Transformation Error: Nodes of type 'OMPSingleDirective' cannot" +
+           " be enclosed by a OMPSingleTrans transformation"
+           in str(err.value))
 
 # Tests for ProfileTrans
 
