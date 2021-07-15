@@ -1258,9 +1258,7 @@ class Fparser2Reader(object):
             decl_list = []
             arg_list = []
         finally:
-            # A Fortran routine cannot contain any access statements so
-            # pass an empty dict for the visibillity_map.
-            self.process_declarations(new_schedule, decl_list, arg_list, {})
+            self.process_declarations(new_schedule, decl_list, arg_list)
 
         try:
             sub_exec = _first_type_match(subroutine.content,
@@ -1980,7 +1978,8 @@ class Fparser2Reader(object):
             # set the datatype of the DataTypeSymbol to UnknownFortranType.
             tsymbol.datatype = UnknownFortranType(str(decl))
 
-    def process_declarations(self, parent, nodes, arg_list, visibility_map):
+    def process_declarations(self, parent, nodes, arg_list,
+                             visibility_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
         symbols in the symbol table of the PSyIR parent node. The default
@@ -2010,6 +2009,9 @@ class Fparser2Reader(object):
                                or invalid fparser or Fortran expression.
 
         '''
+        if visibility_map is None:
+            visibility_map = {}
+
         # Look at any USE statements
         self._process_use_stmts(parent, nodes)
 
@@ -3771,9 +3773,7 @@ class Fparser2Reader(object):
             decl_list = []
             arg_list = []
         finally:
-            # A Fortran routine cannot contain any access statements so
-            # pass an empty dict for the visibillity_map.
-            self.process_declarations(routine, decl_list, arg_list, {})
+            self.process_declarations(routine, decl_list, arg_list)
 
         # If this is a function then work out the return type
         if isinstance(node, Fortran2003.Function_Subprogram):
@@ -3875,9 +3875,7 @@ class Fparser2Reader(object):
             # declarations. Continue with empty list.
             decl_list = []
         finally:
-            # A Fortran program cannot contain any access statements to pass
-            # empty dict for visibility map.
-            self.process_declarations(routine, decl_list, [], {})
+            self.process_declarations(routine, decl_list, [])
 
         try:
             prog_exec = _first_type_match(node.content,

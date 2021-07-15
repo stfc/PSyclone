@@ -250,7 +250,7 @@ def test_access_stmt_no_module(parser):
     module.__class__ = Fortran2003.Program
     spec_part = module.children[1]
     with pytest.raises(GenerationError) as err:
-        processor._parse_access_statements([spec_part])
+        processor.process_access_statements([spec_part])
     assert ("Found multiple access statements with omitted access-id-lists "
             "and no enclosing Module. Both of these things are invalid "
             "Fortran." in str(err.value))
@@ -323,6 +323,5 @@ def test_broken_access_spec(parser):
     access_spec = fparser2spec.children[0].children[1].children[0]
     access_spec.string = "not-private"
     with pytest.raises(InternalError) as err:
-        processor.process_declarations(
-            fake_parent, fparser2spec.children, [], {})
+        processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert "Unexpected Access Spec attribute 'not-private'" in str(err.value)

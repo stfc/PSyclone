@@ -113,7 +113,7 @@ def test_deferred_derived_type(type_name):
     reader = FortranStringReader("use my_mod\n"
                                  "type({0}) :: var".format(type_name))
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
     vsym = symtab.lookup("var")
     assert isinstance(vsym.datatype, DataTypeSymbol)
     assert isinstance(vsym.datatype.datatype, DeferredType)
@@ -132,8 +132,7 @@ def test_missing_derived_type():
     # This should raise an error because there's no Container from which
     # the definition of 'my_type' can be brought into scope.
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(
-            fake_parent, fparser2spec.content, [], {})
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert "No Symbol found for name 'my_type'" in str(err.value)
 
 
@@ -155,7 +154,7 @@ def test_name_clash_derived_type(f2008_parser, type_name):
     # This should raise an error because the Container symbol table should
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, spec_part.children, [], {})
+        processor.process_declarations(fake_parent, spec_part.children, [])
     assert ("Search for a DataTypeSymbol named '{0}' (required by "
             "specification 'TYPE({0})') found a 'RoutineSymbol' instead".
             format(type_name) in str(err.value))
@@ -184,8 +183,7 @@ def test_name_clash_derived_type_def(f2008_parser):
     # This should raise an error because the Container symbol table will
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(
-            fake_parent, fparser2spec.content, [], {})
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert ("Error processing definition of derived type 'my_type'. The "
             "symbol table already contains an entry with this name but it is a"
             " 'RoutineSymbol' when it should be a 'DataTypeSymbol' (for the "
@@ -200,8 +198,7 @@ def test_name_clash_derived_type_def(f2008_parser):
                             "  end type my_type2\n"
                             "end subroutine my_sub2\n"))
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(
-            fake_parent, fparser2spec.content, [], {})
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert ("Error processing definition of derived type 'my_type2'. The "
             "symbol table already contains a DataTypeSymbol with this name but"
             " it is of type 'UnknownFortranType' when it should be of "
@@ -228,7 +225,7 @@ def test_parse_derived_type(use_stmt, type_name):
                                  "type(my_type) :: var\n".format(use_stmt,
                                                                  type_name))
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
     assert isinstance(sym, DataTypeSymbol)
     assert isinstance(sym.datatype, StructureType)
@@ -260,7 +257,7 @@ def test_derived_type_self_ref(type_name):
                                  "end type my_type\n"
                                  "type({0}) :: var\n".format(type_name))
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
     assert isinstance(sym, DataTypeSymbol)
     assert isinstance(sym.datatype, UnknownFortranType)
@@ -282,7 +279,7 @@ def test_derived_type_accessibility():
                                  "  real, public :: scale\n"
                                  "end type my_type\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [], {})
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
     assert isinstance(sym, DataTypeSymbol)
     flag = sym.datatype.lookup("flag")

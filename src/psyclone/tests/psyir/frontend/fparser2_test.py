@@ -77,7 +77,7 @@ def process_declarations(code):
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(sched, fparser2spec, [], {})
+    processor.process_declarations(sched, fparser2spec, [])
     return sched, fparser2spec
 
 
@@ -595,7 +595,7 @@ def test_process_declarations():
     # Test simple declarations
     reader = FortranStringReader("integer :: l1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     l1_var = fake_parent.symbol_table.lookup("l1")
     assert l1_var.name == 'l1'
     assert isinstance(l1_var.datatype, ScalarType)
@@ -605,7 +605,7 @@ def test_process_declarations():
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     l2_var = fake_parent.symbol_table.lookup("l2")
     assert l2_var.name == "l2"
     assert isinstance(l2_var.datatype, ScalarType)
@@ -615,7 +615,7 @@ def test_process_declarations():
 
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     b_var = fake_parent.symbol_table.lookup("b")
     assert b_var.name == "b"
     # Symbol should be public by default
@@ -628,12 +628,12 @@ def test_process_declarations():
     # public/private attribute
     reader = FortranStringReader("real, public :: p2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert (fake_parent.symbol_table.lookup("p2").visibility ==
             Symbol.Visibility.PUBLIC)
     reader = FortranStringReader("real, private :: p3, p4")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert (fake_parent.symbol_table.lookup("p3").visibility ==
             Symbol.Visibility.PRIVATE)
     assert (fake_parent.symbol_table.lookup("p4").visibility ==
@@ -642,7 +642,7 @@ def test_process_declarations():
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     newsymbol = fake_parent.symbol_table.lookup("i1")
     assert newsymbol.is_constant
     assert isinstance(newsymbol.constant_value, Literal)
@@ -650,14 +650,14 @@ def test_process_declarations():
 
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
     assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
 
     # Initialisation with constant expressions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("i4").constant_value.value == "1.1"
     assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
                       BinaryOperation)
@@ -665,7 +665,7 @@ def test_process_declarations():
     # Initialisation with a constant expression (1) and with a symbol (val1)
     reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("val1").constant_value.value == "1"
     assert isinstance(
         fake_parent.symbol_table.lookup("val2").constant_value, Reference)
@@ -676,7 +676,7 @@ def test_process_declarations():
     reader = FortranStringReader(
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [], {})
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     # Val3 has been given a constant expression
     assert fake_parent.symbol_table.lookup("val3").constant_value
     # The new symbol (precisionkind) has been added to the parent Symbol Table
@@ -686,7 +686,7 @@ def test_process_declarations():
     reader = FortranStringReader("integer :: i2")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(SymbolError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [], {})
+        processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
 
@@ -708,7 +708,7 @@ def test_process_declarations_accessibility():
     reader = FortranStringReader("real :: y\n")
     fparser2spec = Specification_Part(reader).content
     sched.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
-    processor.process_declarations(sched, fparser2spec, [], {})
+    processor.process_declarations(sched, fparser2spec, [])
     ysym = sched.symbol_table.lookup("y")
     assert ysym.visibility == Symbol.Visibility.PRIVATE
     # Repeat but provide a visibility mapping
@@ -1374,7 +1374,8 @@ def test_process_declarations_unsupported_node():
     # Append an fparser2 node that is not a valid/supported declaration
     fparser2spec.content.append(Fortran2003.Name("wrong"))
     with pytest.raises(NotImplementedError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(
+            fake_parent, fparser2spec.content, [], {})
     assert "fparser2 node of type 'Name' not supported" in str(err.value)
 
 
