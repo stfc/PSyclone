@@ -312,7 +312,7 @@ def test_omp_single_validate_global_constraints():
     with pytest.raises(GenerationError) as excinfo:
         schedule.children[0].validate_global_constraints()
     assert ("OMPSingleDirective must be inside an OMP parallel region but " +
-            "could not find an ancestor OMPParallelDirective node") in
+            "could not find an ancestor OMPParallelDirective node") in \
     str(excinfo.value)
 
 
