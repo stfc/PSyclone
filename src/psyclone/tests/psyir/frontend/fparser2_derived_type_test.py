@@ -50,6 +50,7 @@ from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _create_struct_reference
 from fparser.two import Fortran2003
+from fparser.two.utils import walk
 from fparser.common.readfortran import FortranStringReader
 
 
@@ -150,11 +151,11 @@ def test_name_clash_derived_type(f2008_parser, type_name):
                                  "  type({0}) :: some_var\n"
                                  "end subroutine my_sub\n".format(type_name))
     fparser2spec = f2008_parser(reader)
+    spec_part = walk(fparser2spec, Fortran2003.Specification_Part)[0]
     # This should raise an error because the Container symbol table should
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(
-            fake_parent, fparser2spec.content, [], {})
+        processor.process_declarations(fake_parent, spec_part.children, [], {})
     assert ("Search for a DataTypeSymbol named '{0}' (required by "
             "specification 'TYPE({0})') found a 'RoutineSymbol' instead".
             format(type_name) in str(err.value))
