@@ -311,7 +311,6 @@ class ParallelLoopTrans(LoopTrans):
 
         return schedule, keep
 
-
 class OMPLoopTrans(ParallelLoopTrans):
 
     '''
@@ -1251,6 +1250,149 @@ class ParallelRegionTrans(RegionTrans):
         node_parent.addchild(directive, index=node_position)
 
         return schedule, keep
+
+class OMPSingleTrans(ParallelRegionTrans):
+    '''
+    Create an OpenMP SINGLE region by inserting directives. The most
+    likely use case for this transformation is to wrap around task-based
+    transformations. The parent region for this should usually also be
+    a OMPParallelTrans. For example:
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.parse.utils import ParseError
+    >>> from psyclone.psyGen import PSyFactory
+    >>> from psyclone.errors import GenerationError
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> singletrans = OMPSingleTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # SINGLE region
+    >>> singletrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> schedule.view()
+
+    '''
+    # The types of node that this transformation cannot enclose
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
+                           psyGen.HaloExchange)
+
+    def __init__(self, nowait=False):
+        super(OMPSingleTrans, self).__init__()
+        # Set the type of directive that the base class will use
+        self._pdirective = self._directive
+        #Store whether this single directive has a barrier or not
+        self._omp_nowait = nowait
+
+    def __str__(self):
+        return "Insert an OpenMP Single region"
+
+    @property
+    def omp_nowait(self):
+        ''' Returns whether or not this Single region uses a nowait
+            clause to remove the end barrier. The default value is False
+        '''
+        return self._omp_nowait
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+        return "OMPSingleTrans"
+
+    @omp_nowait.setter
+    def omp_nowait(self, value):
+        ''' Sets the nowait property that will be specified by
+            this transformation. Checks that the value supplied in
+            :py:obj:`value` is a bool '''
+        if not isinstance(value, bool):
+            raise TransformationError("Expected nowait to be a bool "
+                                      "but got {0}".format(value))
+        self._omp_nowait = value
+
+    def _directive(self, children):
+        '''
+        Creates the type of directive needed for this sub-class of
+        transformation.
+        :param children: list of Nodes that will be the children of \
+                         the created directive.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :rtype: :py:class:`psyclone.psyGen.OMPDoDirective`
+        :raises NotImplementedError: if a collapse argument is supplied
+        '''
+        _directive = nodes.OMPSingleDirective(children=children,
+                                        nowait=self.omp_nowait)
+        return _directive
+
+    def validate(self, node_list, options=None):
+        '''
+        Perform OpenMP-specific validation checks.
+
+        :param node_list: list of Nodes to put within serial region.
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param bool options["node-type-check"]: this flag controls if the \
+                type of the nodes enclosed in the region should be tested \
+                to avoid using unsupported nodes inside a region.
+
+        :raises TransformationError: if the target Nodes are already within \
+                                     some OMP single region.
+        '''
+        from psyclone.psyGen import OMPSingleDirective
+
+        if node_list[0].ancestor(OMPSingleDirective):
+            raise TransformationError("Error in OMPSingle transformation:" +
+                                      " cannot create an OpenMP SINGLE " +
+                                      "region within another OpenMP SINGLE region.")
+
+        # Now call the general validation checks
+        super(OMPSingleTrans, self).validate(node_list, options)
+
+    def apply(self, node, options=None):
+        '''Apply the OMPSingleTrans transformation to the specified node in a
+        Schedule. 
+
+        At code-generation time (when
+        :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
+        within (i.e. a child of) an OpenMP PARALLEL region.
+
+        If the keyword "nowait" is specified in the options, it will cause a
+        nowait clause to be added if it is set to True, otherwise
+        the no nowait clause will be added.
+
+        :param node: the supplied node to which we will apply the \
+                     OMPLoopTrans transformation
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations\
+                        and validation.
+        :type options: dictionary of string:values or None
+        :param bool options["nowait"]:
+                indicating whether or not to use a nowait clause on this single \
+                region.
+
+        :returns: (:py:class:`psyclone.psyir.nodes.Schedule`, \
+        :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        if not options:
+            options = {}
+        if options.get("nowait") != None:
+            self.omp_nowait(options.get("nowait"))
+
+        return super(OMPSingleTrans, self).apply(node, options)
 
 
 class OMPParallelTrans(ParallelRegionTrans):

@@ -43,10 +43,11 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import OMPDoDirective, Schedule, OMPDirective, \
-    OMPParallelDoDirective, Directive, colored, OMPParallelDirective
+    OMPParallelDoDirective, Directive, colored, OMPParallelDirective, \
+    OMPSingleDirective
 from psyclone.errors import InternalError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans
+    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -241,3 +242,21 @@ def test_omp_forward_dependence():
     assert sum_omp.forward_dependence() == global_sum_loop
     # c) global sum loop depends on next omp
     assert global_sum_loop.forward_dependence() == next_omp
+
+def test_omp_single_node_str():
+    ''' Test the node_str() method of the OMPSingle directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    single = OMPSingleTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    _, _ = single.apply(schedule.children[0])
+    omp_single_loop = schedule.children[0]
+    out = OMPSingleDirective.node_str(omp_single_loop)
+    directive = colored("Directive", Directive._colour)
+    expected_output = directive + "[OMP single]"
+    assert expected_output in out
+
+

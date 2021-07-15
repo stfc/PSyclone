@@ -106,6 +106,132 @@ class OMPDirective(Directive):
                             result.append(arg.name)
         return result
 
+class OMPSingleDirective(OMPDirective):
+
+    '''
+    Class representing an OpenMP SINGLE directive in the PSyclone AST.
+
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param bool nowait: Argument describing whether this single should have
+    a nowait clause applied.
+
+    '''
+    def __init__(self, children=None, parent=None, nowait=False):
+
+        if children is None:
+            children = []
+
+        self._nowait = nowait
+        # Call the init method of the base class once we've stored
+        # the nowait requirement
+        super(OMPSingleDirective, self).__init__(children=children,
+                                                 parent=parent)
+
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_single_" + str(position)
+
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) +  "[OMP single]"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPSingle is not enclosed \
+                            within some OpenMP parallel region.
+        :raises GenerationError: if this OMPSingle is enclosed within \
+                            some another OpenMP single region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As a Parallel Child
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        # Also check the single region is not enclosed within another OpenMP
+        # single region.
+        # It could in principle be allowed for that parent to be a ParallelDo
+        # directive, however I can't think of a use case that would be done
+        # best in a parallel code by that pattern
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPSingleDirective must be inside an OMP parallel region but "
+                "could not find an ancestor OMPParallelDirective node")
+
+        if self.ancestor(OMPSingleDirective):
+            raise GenerationError(
+                    "OMPSingleDirective must not be inside another OMP single"
+                    "region")
+
+
+        super(OMPSingleDirective, self).validate_global_constraints()
+
+    def gen_code(self, parent):
+        '''Generate the fortran OMP Single Directive and any associated
+        code'''
+        ##Not yet implemented
+        ##Check the constraints are correct
+        self.validate_global_constraints()
+
+        ##Capture the nowait section of the string if required
+        nowait_string = ""
+        if self._nowait:
+            nowait_string = "nowait"
+
+        parent.add(DirectiveGen(parent, "omp", "begin", "single", nowait_string))
+
+        ##Generate the code for all of this node's children
+        for child in self.children:
+            child.gen_code(parent)
+
+        ##Generate the end code for this node
+        parent.add(DirectiveGen(parent, "omp", "end", "single", ""))
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp sinigle". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        result = "omp single"
+
+        if self._nowait:
+            result = result + " nowait"
+        return result
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end single". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end single"
 
 class OMPParallelDirective(OMPDirective):
 

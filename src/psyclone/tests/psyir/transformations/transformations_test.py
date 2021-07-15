@@ -43,6 +43,10 @@ from __future__ import absolute_import, print_function
 import pytest
 
 from psyclone.errors import InternalError
+<<<<<<< HEAD
+=======
+from psyclone.psyGen import ACCLoopDirective, OMPSingleDirective
+>>>>>>> #1338 First commit containing an implementation for OpenMP single regions.
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
@@ -50,7 +54,8 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans
+    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
+    OMPSingleTrans
 
 
 def test_accloop():
@@ -174,6 +179,36 @@ def test_parallellooptrans_refuse_codeblock():
         otrans.validate(parent)
     assert ("Nodes of type 'CodeBlock' cannot be enclosed "
             "by a OMPParallelLoopTrans transformation" in str(err.value))
+
+# Tests for OMPSingleTrans
+def test_ompsingle():
+    ''' Generic tests for the OMPSingleTrans transformation class '''
+    trans = OMPSingleTrans()
+    assert trans.name == "OMPSingleTrans"
+    assert str(trans) == "Insert an OpenMP Single region"
+
+    assert trans.omp_nowait == False
+    trans.omp_nowait = True
+    assert trans.omp_nowait == True
+
+def test_ompsingle_invalidnowait():
+    ''' Tests to check OMPSingle rejects invalid attempts to pass nowait argument '''
+    trans = OMPSingleTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.omp_nowait ="string"
+    assert("Expected nowait to be a bool but got string")
+
+def test_ompsingle_nested():
+    ''' Tests to check OMPSingle rejects being applied to another OMPSingle '''
+    trans = OMPSingleTrans()
+    directive = OMPSingleDirective()
+    a = []
+    a.append(directive)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(a)
+    assert("Error in OMPSingle transformation: cannot create an OpenMP SINGLE region within another OpenMP SINGLE region.")
+
+
 
 # Tests for ProfileTrans
 
