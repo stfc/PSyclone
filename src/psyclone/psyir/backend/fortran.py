@@ -540,9 +540,9 @@ class FortranWriter(PSyIRVisitor):
         # If no default visibility has been set then we use the Fortran
         # default of public.
         if symbol_table.default_visibility in [None, Symbol.Visibility.PUBLIC]:
-            return "public\n"
+            return self._nindent + "public\n"
         if symbol_table.default_visibility == Symbol.Visibility.PRIVATE:
-            return "private\n"
+            return self._nindent + "private\n"
 
         raise InternalError(
             "Unrecognised visibility ('{0}') found when attempting to generate"
@@ -784,7 +784,7 @@ class FortranWriter(PSyIRVisitor):
         declarations = self.gen_decls(node.symbol_table, args_allowed=False)
 
         # Generate the access statement (PRIVATE or PUBLIC)
-        declarations += self._nindent + self.gen_access_stmt(node.symbol_table)
+        declarations += self.gen_access_stmt(node.symbol_table)
 
         # Accessibility statements for routine symbols
         declarations += self.gen_routine_access_stmts(node.symbol_table)

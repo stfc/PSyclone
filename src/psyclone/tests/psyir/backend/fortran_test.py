@@ -765,8 +765,12 @@ def test_gen_access_stmt(fortran_writer):
     symbol_table._default_visibility = None
     assert fortran_writer.gen_access_stmt(symbol_table) == "public\n"
     symbol_table.default_visibility = Symbol.Visibility.PUBLIC
-    assert fortran_writer.gen_access_stmt(symbol_table) == "public\n"
+    # Test indentation works as expected
+    fortran_writer._depth += 1
+    assert fortran_writer.gen_access_stmt(symbol_table) == "  public\n"
     symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert fortran_writer.gen_access_stmt(symbol_table) == "  private\n"
+    fortran_writer._depth -= 1
     assert fortran_writer.gen_access_stmt(symbol_table) == "private\n"
     # Invalid type (str instead of Symbol.Visibility)
     symbol_table._default_visibility = "public"
