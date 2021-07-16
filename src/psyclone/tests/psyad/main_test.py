@@ -50,9 +50,6 @@ TEST_PROG = (
     "a = 0\n"
     "end program test\n")
 
-# TODO we currently have no way of automatically capturing which variables
-# are active. The test harness code currently assumes that there's just
-# one active variable named 'field'.
 TEST_MOD = (
     "module my_mod\n"
     "  contains\n"
