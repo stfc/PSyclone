@@ -40,10 +40,10 @@ Implementation
 ==============
 
 The approach taken is the line-by-line method, where the order of
-computation is reversed and each line of the tangent linear code is
+computation is reversed and each line of the tangent-linear code is
 transformed into its adjoint form.
 
-This approach is implemented in PSyclone by parsing the tangent linear
+This approach is implemented in PSyclone by parsing the tangent-linear
 code and transforming it into the PSyIR (the PSyclone Internal
 Representation). Transformations have been written that tranform the
 PSyIR representation into its adjoint form. These transformations are
@@ -54,7 +54,7 @@ representation is then written back out as code.
 Active variables
 ++++++++++++++++
 
-When creating the adjoint of a tangent linear code the active
+When creating the adjoint of a tangent-linear code the active
 variables must be specified. The remaining variables are inactive (or
 trajectory) variables. The active variables are the ones that are
 transformed and reversed, whereas the inactive (trajectory) variables
@@ -78,87 +78,98 @@ through the rules for each supported statement type.
 Assignments
 -----------
 
-If a tangent linear assigment statement contains no active variables
+If a tangent-linear assigment statement contains no active variables
 then it is left unchanged when creating the adjoint code.
 
-If a tangent linear assignment statement contains one or more active
-variables then it must be in the following form:
+If a tangent-linear assignment statement contains one or more active
+variables then it must be in the following general form:
 
-.. code-block:: none
+.. math::
 
-    A = x*A + y*B + z*C + ...
+   A = xA + \sum_{i=0}^{N-1} y_i B_i
 
-If this is not the case the the associated PSyclone transformation
-will raise an exception, which will be reported to the user as an
-error when running the psyad script.
+where :math:`A` and :math:`B_i` are active variables, :math:`x` and
+:math:`y_i` are expressions that do not contain any active variables
+and there is no limit on the size of :math:`N`.
 
-If this assignment is shown in matrix form:
+If this is not the case the associated PSyclone transformation will
+raise an exception, which will be reported to the user as an error
+when running the psyad script.
 
-.. code-block:: none
+For illustration, consider the case where there are 3 active variables
+(equivalent to :math:`N=2`). We can then write this case in the
+following form:
 
-    A   x y z   A
-    B = 0 1 0 * B
-    C   0 0 1   C
+.. math::
 
-then the adjoint of the assignment is obtained by transposing the
-matrix:
+    A = xA + yB + zC
 
-.. code-block:: none
+where :math:`A`, :math:`B` and :math:`C` are active variables and
+:math:`x`, :math:`y` and :math:`z` are expressions that do not contain
+active variables.
 
-    A   x 0 0   A
-    B = y 1 0 * B
-    C   z 0 1   C
+If the above example is shown in matrix form, we have:
 
-which gives the following adjoint assignments
+.. math::
 
-.. code-block:: none
+    \begin{bmatrix} A \\ B \\ C \end{bmatrix} = \begin{bmatrix} x & y & z \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{bmatrix} * \begin{bmatrix} A \\ B \\ C \end{bmatrix}
 
-    C^ = C^ + z*A^
-    B^ = B^ + y*A^
-    A^ = x*A^
+The adjoint of the assignment is obtained by transposing the matrix:
 
-where the ^ indicates that the variable now represents the adjoint value.
+.. math::
 
-Notice that if `x=0` in the general form then the tangent linear code
-writes to `A`, rather than updating it i.e.:
+    \begin{bmatrix} \hat{A} \\ \hat{B} \\ \hat{C} \end{bmatrix} = \begin{bmatrix} x & 0 & 0 \\ y & 1 & 0 \\ z & 0 & 1 \end{bmatrix} * \begin{bmatrix} \hat{A} \\ \hat{B} \\ \hat{C} \end{bmatrix}
 
-.. code-block:: none
+where :math:`\hat{A}` denotes the adjoint of the original active variable :math:`A`. This gives the
+following adjoint assignments:
 
-    A = 0*A + y*B + y*C + ...
+.. math::
 
-which is:
+    \hat{C} = \hat{C} + z\hat{A} \\
+    \hat{B} = \hat{B} + y\hat{A} \\
+    \hat{A} = x\hat{A}
 
-.. code-block:: none
+Notice that if that expression :math:`x` is \math:`0` then the tangent-linear code
+writes to :math:`\hat{A}`, rather than updating it i.e.:
 
-    A = y*B + z*C + ...
+.. math::
 
-and its adjoint will set `A^` to zero:
-
-.. code-block:: none
-
-    C^ = C^ + zA^
-    B^ = B^ + yA^
-    A^ = 0
-
-Lastly, notice that if `x=y=z=0` then the original tangent linear code sets `A` to zero:
-
-.. code-block:: none
-
-    A = 0*A + 0*B + 0*C + ...
+    A = 0A + yB + yC
 
 which is:
 
-.. code-block:: none
+.. math::
+
+    A = yB + zC
+
+and its adjoint will set :math:`\hat{A}` to zero:
+
+.. math::
+
+    \hat{C} = \hat{C} + z\hat{A} \\
+    \hat{B} = \hat{B} + y\hat{A} \\
+    \hat{A} = 0
+
+Lastly, notice that if :math:`x=y=z=0` then the original
+tangent-linear code sets :math:`A` to zero:
+
+.. math::
+
+    A = 0A + 0B + 0C
+
+which is:
+
+.. math::
 
     A = 0
 
-and its adjoint sets A^ to zero
+and its adjoint sets :math:`A` to zero
 
-.. code-block:: none
+.. math::
 
-    A^ = 0
+    \hat{A} = 0
 
-.. Note:: in all cases `A^` should be written to after it has been
+.. note:: in all cases :math:`\hat{A}` should be written to after it has been
           read.
 
 Rules
@@ -166,86 +177,86 @@ Rules
 
 Rather than creating a matrix and transposing it, it can be seen that
 there are some relatively simple rules that can be followed in order
-to create the adjoint of a tangent linear assignment. This is how the
-PSyclone `AssigmentTrans` transformation is implemented. Let's look
-again at the general form of a tangent linear statement:
+to create the adjoint of a tangent-linear assignment. This is how the
+PSyAD `AssigmentTrans` transformation is implemented. Let's look
+again at the previous example tangent-linear statement:
 
-.. code-block:: none
+.. math::
 
-    A = x*A + y*B + z*C + ...
+    A = xA + yB + zC
 
-If each of the terms on the RHS of the statement are taken in turn
-(i.e. `x*A`, then `y*B`, then `x*C`, ...) there are two cases:
+If each of the terms on the right-hand-side (RHS) of the statement are taken in turn
+(i.e. :math:`xA`, then :math:`yB`, then :math:`xC`) there are two cases to consider:
 
 1) the active variable in the RHS term is different to the active
-   variable on the LHS of the assigment.
+   variable on the left-hand-side (LHS) of the assigment.
 2) the active variable in the RHS term is the same as the active
    variable on the LHS of the assigment.
 
 In case 1, the adjoint is simply the active variable on the RHS being
-updated by its associated expression multiplied by the left hand
-active variable. For example, take the case:
+updated with the product of its multiplier in the TL expression with
+the left-hand active variable. For example, take the case:
 
-.. code-block:: none
+.. math::
 
-    A = ... y*B ...
+    A = ... yB ...
 
 the adjoint for this term is:
 
-.. code-block:: none
+.. math::
 
-    B^ = B^ + y*A^
+    \hat{B} = \hat{B} + y\hat{A}
 
 In case 2, the adjoint is simply the active variable being multiplied
 by the associated term. For the case:
 
-.. code-block:: none
+.. math::
 
-    A = x*A ...
+    A = xA ...
 
 the adjoint for this term is:
 
-.. code-block:: none
+.. math::
 
-    A^ = x*A^
+    \hat{A} = x\hat{A}
 
-If there is no term for `A` on the RHS of the assignment then the
-adjoint variable `A^` must be set to zero:
+If there is no term for :math:`A` on the RHS of the assignment then the
+adjoint variable :math:`\hat{A}` must be set to zero:
 
-.. code-block:: none
+.. math::
 
-    A^ = 0
+    \hat{A} = 0
 
 Array accesses
 **************
 
 Active variables will typically be arrays that are accessed within a
-loop. These can usually be treated in the same way as scalars
+loop. These can usually be treated in the same way as the scalars
 illustrated above.
 
 However, in the case of stencils, accesses to different parts of an
 array in the same statement should be treated as if they were a
 different variable. For example:
 
-.. code-block:: none
+.. math::
 
-    A(i) = x*A(i) + y*A(i-1)
+    A(i) = xA(i) + yA(i-1)
 
 would become:
 
-.. code-block:: none
+.. math::
 
-    A^(i-1) = A^(i-1) + y*A^(i)
-    A^(i) = x*A^(i)
+    \hat{A}(i-1) = \hat{A}(i-1) + y\hat{A}(i) \\
+    \hat{A}(i) = x\hat{A}(i)
 
 .. warning:: The authors are not sure that this code is actually
    correct and it needs to be checked. It might be that all iterations
-   of the first adjoint assignment should be performed beore all
-   iterations of the second.
+   of the first adjoint assignment should be performed before all
+   iterations of the second (i.e. in separate loops).
 
-The creation of assignments that write outside of `i` is not allowed
-in LFRic and so appropriate transformations will need to be applied to
-restructure the code.
+In LFRic, a kernel is forbidden from writing to data outside the
+current column (e.g. to element :math:`i-1`) and therefore appropriate
+transformations will need to be applied to restructure the code.
 
 Transformation
 **************
