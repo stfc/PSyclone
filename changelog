@@ -105,6 +105,11 @@
 
 	36) #1319 for #1307. Add support for lower bounds in PSyIR ArrayType.
 
+	37) #1261 towards #1277. Gather more information in LFRicConstants
+	so values are not hardcoded in multiple locations. Includes adding
+	precision information derived from LFRic rules which is required
+	for mixed precision support.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
