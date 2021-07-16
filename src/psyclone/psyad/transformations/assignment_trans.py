@@ -57,13 +57,13 @@ class AssignmentTrans(AdjointTransformation):
     '''
     def apply(self, node, options=None):
         '''Apply the Assignment transformation to the specified node. The node
-        must be a valid tangent linear assignment . The assignment is
+        must be a valid tangent-linear assignment. The assignment is
         replaced with its adjoint version.
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         '''
         self.validate(node)
@@ -77,9 +77,9 @@ class AssignmentTrans(AdjointTransformation):
         # For each term
         for rhs_term in rhs_terms:
 
-            # Find the active var in rhs_term if one exists, storing
-            # it in 'active_var' and if so replace it with
-            # lhs_active_var storing the modified term in
+            # Find the active var in rhs_term if one exists (we may
+            # find 0.0), storing it in 'active_var' and if so replace
+            # it with lhs_active_var storing the modified term in
             # 'new_rhs_term'. Also determine whether this is an
             # increment, storing the result in 'increment'.
             increment = False
@@ -117,8 +117,9 @@ class AssignmentTrans(AdjointTransformation):
                 candidate = candidate.parent
 
             if not active_var:
-                # This is an expression without an active
-                # variable. There is therefore nothing to output.
+                # This is an expression without an active variable
+                # (which must be 0.0, otherwise validation will have
+                # rejected it). There is therefore nothing to output.
                 continue
 
             if increment:
@@ -162,12 +163,12 @@ class AssignmentTrans(AdjointTransformation):
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :raises TransformationError: if the node argument is not an \
             Assignment.
         :raises TangentLinearError: if the assignment does not conform \
-            to the required tangent linear structure.
+            to the required tangent-linear structure.
 
         '''
         # Check node argument is an assignment node
@@ -201,11 +202,10 @@ class AssignmentTrans(AdjointTransformation):
 
         # Check for the special case where RHS=0.0. This is really a
         # representation of multiplying an active variable by zero but
-        # this is obviously not visible in the code. Note that the
-        # checking for 0 here is fragile. It assumes a particular
-        # format and a particular datatype.
+        # this is obviously not visible in the code. Use 'float' to
+        # normalise different representations of 0.
         if (len(rhs_terms) == 1 and isinstance(rhs_terms[0], Literal) and
-                rhs_terms[0].value == "0.0"):
+                float(rhs_terms[0].value) == 0.0):
             return
 
         # Check each expression term. It must be in the form
@@ -233,7 +233,8 @@ class AssignmentTrans(AdjointTransformation):
 
             if isinstance(rhs_term, Reference) and rhs_term.symbol \
                in self._active_variables:
-                # This term is a single active variable and is therefore valid
+                # This term consists of a single active variable (with
+                # a multiplier of unity) and is therefore valid.
                 continue
 
             # Split the term into <expr> */ <expr> */ <expr>
@@ -241,9 +242,8 @@ class AssignmentTrans(AdjointTransformation):
                 rhs_term, [BinaryOperation.Operator.MUL,
                            BinaryOperation.Operator.DIV])
 
-            # One of expression terms must be an active variable or an
-            # active variable with a preceding + or -.
-            found = False
+            # One of the expression terms must be an active variable
+            # or an active variable with a preceding + or -.
             for expr_term in expr_terms:
                 check_term = expr_term
                 if (isinstance(expr_term, UnaryOperation) and
@@ -252,17 +252,19 @@ class AssignmentTrans(AdjointTransformation):
                     check_term = expr_term.children[0]
                 if (isinstance(check_term, Reference) and
                         check_term.symbol in self._active_variables):
-                    found = True
+                    active_variable = check_term
                     break
-            if not found:
+            else:
                 raise TangentLinearError(
-                    "Each term on the RHS of the assignment '{0}' must be an "
-                    "active variable multiplied or divided by an expression, "
-                    "but found '{1}'.".format(
+                    "Each term on the RHS of the assignment '{0}' must must "
+                    "consist of a product of an active variable with an "
+                    "in-active expression but found '{1}'.".format(
                         self._writer(node), self._writer(rhs_term)))
 
-            # The active variable must not be part of a divisor
-            candidate = check_term
+            # The term must be a product of an active variable with an
+            # inactive expression. Check that the active variable does
+            # not appear in a denominator.
+            candidate = active_variable
             parent = candidate.parent
             while not isinstance(parent, Assignment):
                 # Starting with the active variable reference, look up
@@ -270,13 +272,13 @@ class AssignmentTrans(AdjointTransformation):
                 # reaching the assignment node.
                 if (isinstance(parent, BinaryOperation) and
                     parent.operator == BinaryOperation.Operator.DIV and
-                        parent.children[1] == candidate):
+                        parent.children[1] is candidate):
                     # Found a divide and the active variable is on its RHS
                     raise TangentLinearError(
-                        "A term on the RHS of the assignment '{0}' with a "
-                        "division must not have the active variable as "
-                        "part of the divisor but found '{1}'.".format(
-                            self._writer(node), self._writer(rhs_term)))
+                        "In tangent-linear code an active variable cannot "
+                        "appear as a denominator but '{0}' was found in "
+                        "'{1}'.".format(
+                            self._writer(rhs_term), self._writer(node)))
                 # Continue up the PSyIR tree
                 candidate = parent
                 parent = candidate.parent
@@ -294,7 +296,7 @@ class AssignmentTrans(AdjointTransformation):
             :py:class:`psyclone.psyir.nodes.BinaryOperations.Operator`
 
         :returns: a list of sub-expressions.
-        :rtype: :py:class:`psyclone.psyir.nodes.DataNode`
+        :rtype: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
         '''
         if (isinstance(node, BinaryOperation)) and \
@@ -303,11 +305,11 @@ class AssignmentTrans(AdjointTransformation):
                 node.children[0], binary_operator_list)
             rhs_node_list = AssignmentTrans._split_nodes(
                 node.children[1], binary_operator_list)
-            return(lhs_node_list + rhs_node_list)
-        return([node])
+            return lhs_node_list + rhs_node_list
+        return [node]
 
     def __str__(self):
-        return "Convert a PSyIR Assignment to its adjoint form"
+        return "Convert a tangent-linear PSyIR Assignment to its adjoint form"
 
     @property
     def name(self):
@@ -319,4 +321,7 @@ class AssignmentTrans(AdjointTransformation):
         return type(self).__name__
 
 
+# =============================================================================
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
 __all__ = ["AssignmentTrans"]

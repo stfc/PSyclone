@@ -37,7 +37,6 @@
 import pytest
 
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
 from psyclone.psyir.backend.visitor import PSyIRVisitor
@@ -67,17 +66,17 @@ def test_args():
         def name(self):
             '''Dummy apply method to make a concrete transformation.'''
 
-    with pytest.raises(TransformationError) as info:
+    with pytest.raises(TypeError) as info:
         DummyTrans(None)
     assert ("The active variables argument should be a list, but found "
             "'NoneType'." in str(info.value))
 
-    with pytest.raises(TransformationError) as info:
+    with pytest.raises(TypeError) as info:
         DummyTrans([None])
     assert ("Active variables should be of type DataSymbol, but found "
             "'NoneType'." in str(info.value))
 
-    with pytest.raises(TransformationError) as info:
+    with pytest.raises(TypeError) as info:
         DummyTrans([], None)
     assert ("The writer argument should be a PSyIRVisitor but found "
             "'NoneType'." in str(info.value))

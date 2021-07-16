@@ -36,7 +36,8 @@
 
 import pytest
 
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
+    ScalarType
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
     Literal, UnaryOperation
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -706,6 +707,27 @@ def test_validate_active_rhs():
             in str(info.value))
 
 
+def test_validate_rhs_zero():
+    '''Test that the validate method returns successfully if the rhs
+    contains zero. There are various representations of zero so we
+    check these to make sure all are recognised as expected.
+
+    '''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
+    # Various forms of 0
+    for zero_str in ["0.0", "0", "0.00", "0.", "0.e0"]:
+        rhs_literal = Literal(zero_str, REAL_TYPE)
+        assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
+        trans.validate(assignment)
+    # 0 with a kind value
+    real_kind = DataSymbol("r_def", INTEGER_TYPE, constant_value=8)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
+    rhs_literal = Literal("0.0", scalar_type)
+    assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
+    trans.validate(assignment)
+
+
 @pytest.mark.parametrize("operator, string",
                          [(BinaryOperation.Operator.ADD, "+"),
                           (BinaryOperation.Operator.SUB, "-")])
@@ -853,9 +875,9 @@ def test_validate_rhs_active_divisor_direct():
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("A term on the RHS of the assignment 'a = x / b\n' with a "
-            "division must not have the active variable as part of the "
-            "divisor but found 'x / b'." in str(info.value))
+    assert ("In tangent-linear code an active variable cannot appear as a "
+            "denominator but 'x / b' was found in 'a = x / b\n'."
+            in str(info.value))
 
 
 def test_validate_rhs_active_divisor_indirect():
@@ -881,9 +903,9 @@ def test_validate_rhs_active_divisor_indirect():
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("A term on the RHS of the assignment 'a = x / (y * b)\n' with a "
-            "division must not have the active variable as part of the "
-            "divisor but found 'x / (y * b)'." in str(info.value))
+    assert ("In tangent-linear code an active variable cannot appear as a "
+            "denominator but 'x / (y * b)' was found in 'a = x / (y * b)\n'."
+            in str(info.value))
 
 
 def test_validate_rhs_active_var_no_mul():
@@ -905,9 +927,9 @@ def test_validate_rhs_active_var_no_mul():
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assignment 'a = b ** x\n' must be "
-            "an active variable multiplied or divided by an expression, but "
-            "found 'b ** x'." in str(info.value))
+    assert ("Each term on the RHS of the assignment 'a = b ** x\n' must must "
+            "consist of a product of an active variable with an in-active "
+            "expression but found 'b ** x'." in str(info.value))
 
 
 def test_validate_mixed_mul_add():
@@ -938,8 +960,8 @@ def test_validate_mixed_mul_add():
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
     assert ("Each term on the RHS of the assignment 'a = x * (b + y) + c\n' "
-            "must be an active variable multiplied or divided by an "
-            "expression, but found 'x * (b + y)'." in str(info.value))
+            "must must consist of a product of an active variable with an "
+            "in-active expression but found 'x * (b + y)'." in str(info.value))
 
 
 def test_validate_unaryop():
@@ -959,9 +981,9 @@ def test_validate_unaryop():
         lhs_symbol, rhs_symbol])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assignment 'a = SQRT(b)\n' must be "
-            "an active variable multiplied or divided by an expression, but "
-            "found 'SQRT(b)'." in str(info.value))
+    assert ("Each term on the RHS of the assignment 'a = SQRT(b)\n' must "
+            "must consist of a product of an active variable with an "
+            "in-active expression but found 'SQRT(b)'." in str(info.value))
 
 # _split_nodes() method
 
@@ -1031,8 +1053,8 @@ def test_str():
     ''' Test that the str operation returns the expected result.'''
 
     assignment_trans = AssignmentTrans([])
-    assert (str(assignment_trans) == "Convert a PSyIR Assignment to its "
-            "adjoint form")
+    assert (str(assignment_trans) == "Convert a tangent-linear PSyIR "
+            "Assignment to its adjoint form")
 
 
 def test_name():

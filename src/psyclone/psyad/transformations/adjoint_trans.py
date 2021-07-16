@@ -40,9 +40,16 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.symbols import DataSymbol
-from psyclone.psyir.transformations import TransformationError
 
+# AdjointTransformation is purposefully abstract. It does not
+# implement the validate or apply methods and instead provides
+# initialisation that all subclasses can benefit from. Therefore we
+# disable the pylint warning here.
 # pylint: disable=abstract-method
+
+# We make use of the form of super that works with both Python2 and
+# Python3 here so disable the pylint warning about using a Python3
+# specific version of super.
 # pylint: disable=super-with-arguments
 
 
@@ -66,18 +73,18 @@ class AdjointTransformation(Transformation):
         super(AdjointTransformation, self).__init__()
 
         if not isinstance(active_variables, list):
-            raise TransformationError(
+            raise TypeError(
                 "The active variables argument should be a list, but found "
                 "'{0}'.".format(type(active_variables).__name__))
 
         for active_variable in active_variables:
             if not isinstance(active_variable, DataSymbol):
-                raise TransformationError(
+                raise TypeError(
                     "Active variables should be of type DataSymbol, but "
                     "found '{0}'.".format(type(active_variable).__name__))
 
         if not isinstance(writer, PSyIRVisitor):
-            raise TransformationError(
+            raise TypeError(
                 "The writer argument should be a PSyIRVisitor but found "
                 "'{0}'.".format(type(writer).__name__))
 
@@ -87,4 +94,7 @@ class AdjointTransformation(Transformation):
         self._writer = writer
 
 
+# =============================================================================
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
 __all__ = ["AdjointTransformation"]

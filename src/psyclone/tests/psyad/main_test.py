@@ -170,8 +170,6 @@ def test_main_fileout(tmpdir, capsys):
 
 
 # -v output
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_main_verbose(tmpdir, capsys, caplog):
     '''Test that the the main() function outputs additional information if
     the -v flag is set. Actually -v seems to have no effect here as

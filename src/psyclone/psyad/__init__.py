@@ -38,4 +38,7 @@
 from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint
 from psyclone.psyad.main import main
 
+
+# The entities in the __all__ list are made available to import directly from
+# this package e.g. 'from psyclone.psyad import main'
 __all__ = ["main", "generate_adjoint_str", "generate_adjoint"]
