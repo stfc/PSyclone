@@ -554,6 +554,49 @@ def test_field_invoke_uniq_declns_valid_intrinsic():
                           "i5", "i6", "n5", "n6", "i7", "i8", "n7"]
 
 
+def test_field_arg_lfricconst_properties(monkeypatch):
+    ''' Tests that properties of all supported types of field arguments
+    ('real'-valued 'field_type' and 'integer'-valued 'integer_field_type')
+    defined in LFRicConstants are correctly set up in the DynKernelArgument
+    class.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "4.14_multikernel_invokes_real_int_field_fs.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # Test 'real'-valued fields of 'field_type'
+    kernel = schedule.kernels()[1]
+    field_arg = kernel.arguments.args[0]
+    assert field_arg.module_name == "field_mod"
+    assert field_arg.data_type == "field_type"
+    assert field_arg.proxy_data_type == "field_proxy_type"
+    assert field_arg.intrinsic_type == "real"
+    assert field_arg.precision == "r_def"
+
+    # Test 'integer'-valued fields of 'integer_field_type'
+    kernel = schedule.kernels()[0]
+    field_arg = kernel.arguments.args[0]
+    assert field_arg.module_name == "integer_field_mod"
+    assert field_arg.data_type == "integer_field_type"
+    assert field_arg.proxy_data_type == "integer_field_proxy_type"
+    assert field_arg.intrinsic_type == "integer"
+    assert field_arg.precision == "i_def"
+
+    # Monkeypatch to check with an invalid intrinsic type of a
+    # field argument
+    const = LFRicConstants()
+    monkeypatch.setattr(field_arg, "_intrinsic_type", "black")
+    with pytest.raises(InternalError) as err:
+        field_arg._init_data_type_properties()
+    assert ("Expected one of {0} intrinsic types for a field "
+            "argument but found 'black'.".
+            format(const.VALID_FIELD_INTRINSIC_TYPES)) in str(err.value)
+
+
 def test_multiple_updated_field_args():
     ''' Check that we successfully parse a kernel that writes to more
     than one of its field arguments '''

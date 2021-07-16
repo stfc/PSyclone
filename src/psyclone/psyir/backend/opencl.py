@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@ OpenCL code from PSyIR nodes.
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.nodes import Literal
+from psyclone.psyir.symbols import ScalarType, ArrayType
 
 
 class OpenCLWriter(CWriter):
@@ -148,9 +149,23 @@ class OpenCLWriter(CWriter):
 
         :returns: The OpenCL declaration of the given of the symbol.
         :rtype: str
+
+        :raises VisitorError: if an array is encountered that does not have \
+                              a lower bound of 1 for all of its dimensions.
         '''
         prefix = ""
         if symbol.shape:
+            for dim in symbol.shape:
+                if not isinstance(dim, ArrayType.ArrayBounds):
+                    continue
+                if (not isinstance(dim.lower, Literal) or
+                        dim.lower.value != "1"):
+                    raise VisitorError(
+                        "The OpenCL backend only supports arrays with a lower"
+                        " bound of 1 in each dimension. However, array '{0}' "
+                        "has a lower bound of '{1}' for dimension {2}".format(
+                            symbol.name, self._visit(dim.lower),
+                            symbol.shape.index(dim)))
             prefix += "__global "
         return prefix + super(OpenCLWriter, self).gen_declaration(symbol)
 

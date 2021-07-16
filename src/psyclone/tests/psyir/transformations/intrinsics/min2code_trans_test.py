@@ -76,7 +76,7 @@ def example_psyir_binary(create_expression):
         content of the first argument of the MIN operator.
 
     :returns: PSyIR MIN operator instance.
-    :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
+    :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
     '''
     symbol_table = SymbolTable()
@@ -103,7 +103,7 @@ def example_psyir_nary():
     intrinsic operator and returns the operator.
 
     :returns: PSyIR MIN operator instance.
-    :rtype: :py:class:`psyclone.psyGen.NaryOperation`
+    :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
 
     '''
     symbol_table = SymbolTable()

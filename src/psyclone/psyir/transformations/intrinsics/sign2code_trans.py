@@ -112,7 +112,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
         this is not the case.
 
         :param node: a SIGN BinaryOperation node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param symbol_table: the symbol table.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
