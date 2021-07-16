@@ -40,14 +40,14 @@ module testkern_mod
 
 contains
 
-  subroutine testkern_code(ascalar, field, npts)
+  subroutine testkern_code(ascalar, field1, field2, npts)
     real, intent(in) :: ascalar
     integer, intent(in) :: npts
-    real, intent(inout), dimension(npts) :: field
+    real, intent(in), dimension(npts) :: field2
+    real, intent(inout), dimension(npts) :: field1
 
-    field(:) = field(:) + ascalar
+    field1(:) = field1(:) + ascalar*field2(:)
 
-    
   end subroutine testkern_code
   
 end module testkern_mod

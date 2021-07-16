@@ -39,15 +39,19 @@ CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod \
                    test_harness.*
 
+# The first command will write the adjoint kernel to stdout. The second will
+# write both it and the corresponding test harness to separate files.
 transform:
 	$(PSYAD) testkern_mod.f90
-	$(PSYAD) -t -otest test_harness.f90 -oad testkernadj_mod.f90 testkern_mod.f90
+	$(PSYAD) -t -otest test_harness.f90 -oad testkernadj_mod.f90 \
+                 testkern_mod.f90
 
 compile: transform
 	$(F90) -c testkern_mod.f90
 	$(F90) -c testkernadj_mod.f90
 	$(F90) -c test_harness.f90
-	$(F90) -o test_harness.exe testkern_mod.o testkernadj_mod.o test_harness.o
+	$(F90) -o test_harness.exe testkern_mod.o testkernadj_mod.o \
+                  test_harness.o
 
 run: compile
 	@echo ""
