@@ -83,7 +83,7 @@ MODULE3_OUT = (
     "  public :: sub1, sub2\n\n"
     "  contains\n"
     "  subroutine sub1(a)\n"
-    "    real, intent(inout) :: a\n\n\n"
+    "    real :: a\n\n\n"
     "  end subroutine sub1\n"
     "  subroutine sub2()\n\n\n"
     "  end subroutine sub2\n\n"

@@ -499,9 +499,10 @@ def test_generate_schedule_dummy_subroutine(parser):
     schedule = processor.generate_schedule("dummy_code", ast)
     assert isinstance(schedule, KernelSchedule)
 
-    # Test argument intent is inferred when not available in the declaration
+    # Test that argument intent is left as UNKNOWN when not available in the
+    # declaration
     assert schedule.symbol_table.lookup('f3').interface.access is \
-        ArgumentInterface.Access.READWRITE
+        ArgumentInterface.Access.UNKNOWN
 
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule

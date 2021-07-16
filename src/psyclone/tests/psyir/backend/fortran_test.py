@@ -1110,7 +1110,7 @@ def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir):
     assert(
         "  contains\n"
         "  function tmp(b) result(val)\n"
-        "    real, intent(inout) :: b\n"
+        "    real :: b\n"
         "    real :: val\n\n"
         "    val = a + b\n\n"
         "  end function tmp\n" in result)

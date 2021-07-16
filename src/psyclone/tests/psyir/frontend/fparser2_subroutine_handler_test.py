@@ -63,7 +63,7 @@ SUB2_IN = (
     "end subroutine\n")
 SUB2_OUT = (
     "subroutine sub1(a)\n"
-    "  real, intent(inout) :: a\n\n\n"
+    "  real :: a\n\n\n"
     "end subroutine sub1\n")
 # subroutine with executable content
 SUB3_IN = (
