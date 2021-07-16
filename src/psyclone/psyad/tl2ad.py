@@ -44,24 +44,33 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
-    CodeBlock, FileContainer, ArrayReference, Range, DataNode
+    CodeBlock, FileContainer, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, GlobalInterface, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
     INTEGER_TYPE, REAL_DOUBLE_TYPE
 
 
+## The tolerance applied to the comparison of the inner product values in
+# the generated test-harness code.
+# TODO #1346 this tolerance should be user configurable.
+INNER_PRODUCT_TOLERANCE = "1.0e-10"
+
+
 def generate_adjoint_str(tl_fortran_str, create_test=False):
     '''Takes an LFRic tangent-linear kernel encoded as a string as input
-    and returns its adjoint encoded as a string.
+    and returns its adjoint encoded as a string along with (if requested)
+    a test harness, also encoded as a string.
 
     :param str tl_fortran_str: Fortran implementation of an LFRic \
         tangent-linear kernel.
     :param bool create_test: whether or not to create test code for the \
         adjoint kernel.
 
-    :returns: a string containing the Fortran implementation of the \
-        supplied tangent-linear kernel.
-    :rtype: str
+    :returns: a 2-tuple consisting of a string containing the Fortran \
+        implementation of the supplied tangent-linear kernel and (if \
+        requested) a string containing the Fortran implementation of a test \
+        harness for the adjoint kernel.
+    :rtype: 2-tuple of str
 
     '''
     logger = logging.getLogger(__name__)
@@ -88,6 +97,7 @@ def generate_adjoint_str(tl_fortran_str, create_test=False):
     if create_test:
         test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
         test_fortran_str = writer(test_psyir)
+        logger.debug(test_fortran_str)
 
     return adjoint_fortran_str, test_fortran_str
 
@@ -131,7 +141,7 @@ def generate_adjoint(tl_psyir):
     and returns its adjoint represented in language-level PSyIR.
 
     Currently just takes a copy of the supplied PSyIR and re-names the
-    Container and Routine.
+    Container (if there is one) and Routine nodes.
 
     :param tl_psyir: language-level PSyIR containing the LFRic \
         tangent-linear kernel.
@@ -154,14 +164,18 @@ def generate_adjoint(tl_psyir):
         "done now.")
 
     # Transform from TL to AD
-    logger.debug("Transformation from TL to AD should be done now.")
+    logger.debug("Transformation from TL to AD should be done now but instead "
+                 "we copy the input.")
     ad_psyir = tl_psyir.copy()
 
     # We permit the input code to be a single Program or Subroutine
     container = _find_container(ad_psyir)
     if container:
-        # Re-name the Container for the adjoint code
-        container.name = container.name + name_suffix
+        # Re-name the Container for the adjoint code. Use the symbol table
+        # for the existing TL code so that we don't accidentally clash with
+        # e.g. the name of the kernel routine.
+        container.name = container.symbol_table.next_available_name(
+            container.name + name_suffix)
 
     routines = ad_psyir.walk(Routine)
 
@@ -188,7 +202,10 @@ def generate_adjoint(tl_psyir):
         container.symbol_table.remove(kernel_sym)
         routine.name = adj_kernel_sym.name
     else:
-        routine.name = routine.name + name_suffix
+        routine.name = routine.symbol_table.next_available_name(
+            routine.name + name_suffix)
+
+    logger.debug("AD kernel will be named '{0}'".format(routine.name))
 
     return ad_psyir
 
@@ -217,6 +234,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         something other than ArrayType.Extent or a Reference.
 
     '''
+    logger = logging.getLogger(__name__)
+
     symbol_table = SymbolTable()
 
     # TODO #1331 provide some way of configuring the extent of the test arrays
@@ -255,14 +274,19 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     adjoint_kernel_name = ad_psyir.walk(Routine)[0].name
     adjoint_module_name = ad_psyir.walk(Container)[1].name
 
-    # Create a symbol for the TL kernel
+    logger.debug("Creating test harness for TL kernel '{0}' and AD kernel "
+                 "'{1}'".format(tl_kernel.name, adjoint_kernel_name))
+
+    # Create a symbol for the TL kernel so that the harness code is able
+    # to call it.
     csym = ContainerSymbol(container.name)
     symbol_table.add(csym)
     tl_kernel_sym = tl_kernel.symbol_table.lookup(tl_kernel.name).copy()
     tl_kernel_sym.interface = GlobalInterface(csym)
     symbol_table.add(tl_kernel_sym)
 
-    # Create a symbol for the adjoint kernel
+    # Create a symbol for the adjoint kernel so that the harness code is able
+    # to call it.
     adj_container = ContainerSymbol(adjoint_module_name)
     symbol_table.add(adj_container)
     adj_kernel_sym = symbol_table.new_symbol(
@@ -296,10 +320,15 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     for arg in tl_kernel.symbol_table.argument_datasymbols:
         if arg.is_array:
             for dim in arg.shape:
-                if isinstance(dim, DataNode):
-                    for ref in dim.walk(Reference):
-                        if ref.symbol in integer_scalars:
-                            dimensioning_args.add(ref.symbol)
+                if isinstance(dim, ArrayType.ArrayBounds):
+                    for bound in [dim.lower, dim.upper]:
+                        for ref in bound.walk(Reference):
+                            if ref.symbol in integer_scalars:
+                                dimensioning_args.add(ref.symbol)
+
+    logger.debug("Kernel '{0}' has the following dimensioning arguments: "
+                 "{1}".format(tl_kernel.name,
+                              [arg.name for arg in dimensioning_args]))
 
     # Create local versions of these dimensioning variables in the test
     # program. Since they are dimensioning variables, they have to be given
@@ -337,24 +366,37 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                     # This dimension is assumed size so we have to give it
                     # an explicit size in the test program.
                     new_shape.append(Reference(dim_size_sym))
-                elif isinstance(dim, Reference):
-                    if dim.symbol in new_dim_args_map:
-                        new_shape.append(
-                            Reference(new_dim_args_map[dim.symbol]))
-                    else:
-                        raise NotImplementedError(
-                            "Found argument '{0}' to kernel '{1}' which has a "
-                            "reference to '{2}' in its shape. However, '{2}' "
-                            "is not passed as an argument. This is not "
-                            "supported.".format(
-                                arg.name, tl_kernel.name, dim.symbol.name))
-                elif isinstance(dim, Literal):
-                    new_shape.append(dim.copy())
+                elif isinstance(dim, ArrayType.ArrayBounds):
+                    new_bounds = []
+                    for bound in [dim.lower, dim.upper]:
+                        if isinstance(bound, Reference):
+                            if bound.symbol in new_dim_args_map:
+                                new_bounds.append(
+                                    Reference(new_dim_args_map[bound.symbol]))
+                            else:
+                                raise NotImplementedError(
+                                    "Found argument '{0}' to kernel '{1}' "
+                                    "which has a reference to '{2}' in its "
+                                    "shape. However, '{2}' is not passed as an"
+                                    " argument. This is not supported.".format(
+                                        arg.name, tl_kernel.name,
+                                        bound.symbol.name))
+                        elif isinstance(bound, Literal):
+                            new_bounds.append(bound.copy())
+                        else:
+                            raise NotImplementedError(
+                                "Found argument '{0}' to kernel '{1}' which "
+                                "has an array bound specified by a {2}. Only "
+                                "Literals or References are supported.".format(
+                                    arg.name, tl_kernel.name,
+                                    type(bound).__name__))
+                    new_shape.append(ArrayType.ArrayBounds(new_bounds[0],
+                                                           new_bounds[1]))
                 else:
                     raise InternalError(
                         "Argument '{0}' to kernel '{1}' contains a '{2}' in "
                         "its shape definition but expected an ArrayType."
-                        "Extent, a Reference or a Literal".format(
+                        "Extent or ArrayType.ArrayBounds".format(
                             arg.name, tl_kernel.name, type(dim).__name__))
             new_sym = symbol_table.new_symbol(arg.name, symbol_type=DataSymbol,
                                               datatype=ArrayType(arg.datatype,
@@ -367,6 +409,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         inputs.append(new_sym)
         input_copies.append(input_sym)
 
+    logger.debug("Generated symbols for new argument list: {0}".format(
+        [arg.name for arg in new_arg_list]))
+
     statements = []
     # Initialise those variables and keep a copy of them.
     # TODO #1247 we need to add comments to the generated code!
@@ -375,6 +420,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         # create a CodeBlock for it. Happily, the intrinsic will initialise
         # all elements of an array passed to it so we don't have to take any
         # special action.
+        # TODO #1345 make this code language agnostic.
         ptree = Fortran2003.Call_Stmt(
             "call random_number({0})".format(sym.name))
         statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
@@ -397,8 +443,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     statements += _create_inner_product(inner2,
                                         zip(inputs, input_copies))
 
-    # Compare the inner products
-    tol_zero = Literal("1.0e-10", REAL_DOUBLE_TYPE)
+    # Compare the inner products.
+    tol_zero = Literal(INNER_PRODUCT_TOLERANCE, REAL_DOUBLE_TYPE)
 
     diff = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                   Reference(inner1), Reference(inner2))
@@ -406,6 +452,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     statements.append(Assignment.create(Reference(diff_sym), abs_diff))
 
     # If the test fails then the harness will print a message and return early.
+    # TODO #1345 make this code language agnostic.
     ptree = Fortran2003.Write_Stmt(
         "write(*,*) 'Test of adjoint of ''{0}'' failed: diff = ', {1}".format(
             tl_kernel.name, diff_sym.name))
@@ -418,14 +465,18 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                         Return()]))
 
     # Otherwise the harness prints a message reporting that all is well.
+    # TODO #1345 make this code language agnostic.
     ptree = Fortran2003.Write_Stmt(
         "write(*,*) 'Test of adjoint of ''{0}'' passed: diff = ', {1}".format(
             tl_kernel.name, diff_sym.name))
     statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
 
-    # Finally, create driver program from the list of statements.
+    # Finally, create the driver program from the list of statements.
     routine = Routine.create(
         "adj_test", symbol_table, statements, is_program=True)
+
+    logger.debug("Created test-harness program named '{0}'".format(
+        routine.name))
 
     return routine
 
@@ -443,8 +494,8 @@ def _create_inner_product(result, symbol_pairs):
     :type symbol_pairs: list of 2-tuples of \
                         :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-    :returns: PSyIR that performs the inner product and accumulates the result\
-        in the variable represented by the `result` Symbol.
+    :returns: PSyIR that performs the inner product and accumulates the \
+        result in the variable represented by the `result` Symbol.
     :rtype: list of :py:class:`psyclone.psyir.nodes.Assignment`
 
     :raises TypeError: if any pair of symbols represent different datatypes.

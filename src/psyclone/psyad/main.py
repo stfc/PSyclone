@@ -104,6 +104,8 @@ def main(args):
     # Output test framework if requested
     if generate_test:
         if args.test_filename:
+            logger.info("Writing test harness for adjoint kernel to file %s",
+                        args.test_filename)
             write_unicode_file(test_fortran_str, args.test_filename)
         else:
             print(test_fortran_str, file=sys.stdout)
