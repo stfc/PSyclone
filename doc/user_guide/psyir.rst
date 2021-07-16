@@ -183,7 +183,7 @@ To solve this issue some Nodes also provide methods for semantic navigation:
 - ``Array`` nodes (e.g. ``ArrayReference``, ``ArrayOfStructuresReference``):
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
 - ``Directive``:
-   .. automethod:: psyclone.psyGen.Directive.dir_body()
+   .. automethod:: psyclone.psyir.nodes.Directive.dir_body()
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
 
@@ -263,11 +263,13 @@ about its extent. It is necessary to distinguish between four cases:
 +--------------------------------------------+--------------------------------+
 |Description                                 | Entry in ``shape`` list        |
 +============================================+================================+
-|An array has a static extent known at       | Integer ``Literal``            |
-|compile time.                               |                                |
+|An array has a static extent known at       | ``ArrayType.ArrayBounds``      |
+|compile time.                               | containing integer ``Literal`` |
+|                                            | values                         |
 +--------------------------------------------+--------------------------------+
-|An array has an extent defined by another   | ``Symbol``                     |
-|symbol.                                     |                                |
+|An array has an extent defined by another   | ``ArrayType.ArrayBounds``      |
+|symbol or (constant) PSyIR expression.      | containing ``Reference`` or    |
+|                                            | ``Operation`` nodes            |
 +--------------------------------------------+--------------------------------+
 |An array has a definite extent which is not | ``ArrayType.Extent.ATTRIBUTE`` |
 |known at compile time but can be queried    |                                |
@@ -276,6 +278,10 @@ about its extent. It is necessary to distinguish between four cases:
 |It is not known whether an array has memory | ``ArrayType.Extent.DEFERRED``  |
 |allocated to it in the current scoping unit.|                                |
 +--------------------------------------------+--------------------------------+
+
+where ``ArrayType.ArrayBounds`` is a ``namedtuple`` with ``lower`` and
+``upper`` members holding the lower- and upper-bounds of the extent of a
+given array dimension.
 
 The distinction between the last two cases is that in the former the
 extents are known but are kept internally with the array (for example

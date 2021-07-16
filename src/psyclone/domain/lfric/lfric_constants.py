@@ -270,31 +270,56 @@ class LFRicConstants(object):
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
 
+        # ---------- Map from scalar intrinsic type to its precision ----------
+        LFRicConstants.SCALAR_PRECISION_MAP = \
+            OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
+                            ["r_def", "i_def", "l_def"]))
+
         # ---------- Infrastructure module maps -------------------------------
 
         # Dictionary allowing us to look-up the name of the Fortran module,
-        # type and proxy-type associated with each LFRic data type.
+        # type and proxy-type associated with each LFRic data structure type.
+        # Data structure type mandates its proxy name, Fortran intrinsic type
+        # of its data and the kind (precision) for the intrinsic type.
         LFRicConstants.DATA_TYPE_MAP = {
-            # 'real'-valued scalar of kind 'r_def' (used for global
+            # 'real'-valued scalar reduction of kind 'r_def' (used for global
             # reductions of "field_type" data)
-            "scalar": {"module": "scalar_mod",
-                       "type": "scalar_type"},
+            "reduction": {"module": "scalar_mod",
+                          "type": "scalar_type",
+                          "proxy_type": None,
+                          "intrinsic": "real",
+                          "kind": "r_def"},
             # 'real'-valued field with data of kind 'r_def'
             "field": {"module": "field_mod",
                       "type": "field_type",
-                      "proxy_type": "field_proxy_type"},
+                      "proxy_type": "field_proxy_type",
+                      "intrinsic": "real",
+                      "kind": "r_def"},
+            # 'real'-valued field with data of kind 'r_solver'
+            "r_solver_field": {"module": "r_solver_field_mod",
+                               "type": "r_solver_field_type",
+                               "proxy_type": "r_solver_field_proxy_type",
+                               "intrinsic": "real",
+                               "kind": "r_solver"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
-                              "proxy_type": "integer_field_proxy_type"},
+                              "proxy_type": "integer_field_proxy_type",
+                              "intrinsic": "integer",
+                              "kind": "i_def"},
             # 'real'-valued operator with data of kind 'r_def'
-            "lma_operator": {"module": "operator_mod",
-                             "type": "operator_type",
-                             "proxy_type": "operator_proxy_type"},
+            "operator": {"module": "operator_mod",
+                         "type": "operator_type",
+                         "proxy_type": "operator_proxy_type",
+                         "intrinsic": "real",
+                         "kind": "r_def"},
             # 'real'-valued columnwise operator with data of kind 'r_def'
-            "cma_operator": {"module": "operator_mod",
-                             "type": "columnwise_operator_type",
-                             "proxy_type": "columnwise_operator_proxy_type"}}
+            "columnwise_operator": {
+                "module": "operator_mod",
+                "type": "columnwise_operator_type",
+                "proxy_type": "columnwise_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_def"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.
