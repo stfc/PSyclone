@@ -105,7 +105,7 @@ class Abs2CodeTrans(Operator2CodeTrans):
         this is not the case.
 
         :param node: an ABS UnaryOperation node.
-        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.UnaryOperation`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 

@@ -1142,7 +1142,7 @@ class Node(object):
         ''':returns: True if this Node is within an OpenMP parallel region.
 
         '''
-        from psyclone.psyGen import OMPParallelDirective
+        from psyclone.psyir.nodes import OMPParallelDirective
         omp_dir = self.ancestor(OMPParallelDirective)
         if omp_dir:
             return True
