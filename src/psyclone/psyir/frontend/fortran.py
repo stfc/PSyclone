@@ -41,8 +41,8 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import NoMatchError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Assignment
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.nodes import Schedule, Assignment
+from psyclone.psyir.symbols import SymbolError, SymbolTable
 
 
 class FortranReader(object):
@@ -72,38 +72,44 @@ class FortranReader(object):
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
 
-    def psyir_from_expression(self, source_code):
+    def psyir_from_expression(self, source_code, symbol_table):
         '''
         Generate the PSyIR tree for the supplied Fortran expression.
-        Currently only supports expressions involving literals - the
-        presence of any symbols will result in a NotImplementedError.
+        Any symbols referenced in the expression are added to the supplied
+        symbol table.
 
         :param str source_code: text of the expression to be parsed.
-
+        :param symbol_table: the SymbolTable in which to search for any \
+                             symbols that are encountered.
         :returns: PSyIR representing the provided Fortran expression.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises TypeError: if no valid SymbolTable is supplied.
         :raises ValueError: if the supplied source does not represent a \
                             Fortran expression.
-        :raises NotImplementedError: if the supplied expression contains \
-                                     any variable symbols.
         '''
+        if not isinstance(symbol_table, SymbolTable):
+            raise TypeError("Must be supplied with a valid SymbolTable but got"
+                            " '{0}'".format(type(symbol_table).__name__))
+
         try:
             parse_tree = Fortran2003.Expr(source_code)
         except NoMatchError as err:
             six.raise_from(
                 ValueError("Supplied source does not represent a Fortran "
                            "expression: '{0}'".format(source_code)), err)
-        # An Assignment has no symbol table so any attempts to lookup
-        # symbols in the supplied expression will raise a Symbol Error
-        fake_assign = Assignment()
+
+        # Create a fake sub-tree connected to the supplied symbol table
+        fake_parent = Schedule(symbol_table=symbol_table)
+        fake_parent.addchild(Assignment())
+
         try:
-            self._processor.process_nodes(fake_assign, [parse_tree])
+            self._processor.process_nodes(fake_parent[0], [parse_tree])
         except SymbolError as err:
             six.raise_from(
-                NotImplementedError("Expression must contain only literals: "
-                                    "'{0}'".format(source_code)), err)
-        return fake_assign.children[0].detach()
+                SymbolError("Expression contains unresolved symbols: "
+                            "'{0}'".format(source_code)), err)
+        return fake_parent[0].children[0].detach()
 
     def psyir_from_file(self, file_path):
         ''' Generate the PSyIR tree representing the given Fortran file.
