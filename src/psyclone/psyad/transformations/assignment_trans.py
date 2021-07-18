@@ -219,8 +219,8 @@ class AssignmentTrans(AdjointTransformation):
             if not active_vars:
                 # This term must contain an active variable
                 raise TangentLinearError(
-                    "Each term on the RHS of the assigment '{0}' must have an "
-                    "active variable but '{1}' does not."
+                    "Each non-zero term on the RHS of the assigment '{0}' "
+                    "must have an active variable but '{1}' does not."
                     "".format(self._writer(node), self._writer(rhs_term)))
 
             if len(active_vars) > 1:
@@ -256,9 +256,9 @@ class AssignmentTrans(AdjointTransformation):
                     break
             else:
                 raise TangentLinearError(
-                    "Each term on the RHS of the assignment '{0}' must must "
-                    "consist of a product of an active variable with an "
-                    "in-active expression but found '{1}'.".format(
+                    "Each term on the RHS of the assignment '{0}' must "
+                    "be linear with respect to the active variable, but "
+                    "found '{1}'.".format(
                         self._writer(node), self._writer(rhs_term)))
 
             # The term must be a product of an active variable with an

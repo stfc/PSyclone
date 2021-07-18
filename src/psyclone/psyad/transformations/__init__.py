@@ -34,7 +34,7 @@
 
 '''PSyAD transformations package module'''
 
-from psyclone.psyad.transformations.tangentlinear_error import \
+from psyclone.psyad.transformations.tangent_linear_error import \
     TangentLinearError
 from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
 from psyclone.psyad.transformations.assignment_trans import AssignmentTrans

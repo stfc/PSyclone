@@ -34,12 +34,12 @@
 #
 '''Module to test the psyad adjoint base class transformation.'''
 
+from __future__ import absolute_import
 import pytest
 
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.sir import SIRWriter
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
-from psyclone.psyir.backend.visitor import PSyIRVisitor
 
 
 def test_abstract():
@@ -63,8 +63,9 @@ def test_args():
         def apply(self, _):
             '''Dummy apply method to make a concrete transformation.'''
 
+        @property
         def name(self):
-            '''Dummy apply method to make a concrete transformation.'''
+            '''Dummy name method to make a concrete transformation.'''
 
     with pytest.raises(TypeError) as info:
         DummyTrans(None)
@@ -72,21 +73,20 @@ def test_args():
             "'NoneType'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
+        DummyTrans([])
+    assert "There should be at least one active variable." in str(info.value)
+
+    with pytest.raises(TypeError) as info:
         DummyTrans([None])
     assert ("Active variables should be of type DataSymbol, but found "
             "'NoneType'." in str(info.value))
 
+    active_vars = [DataSymbol("x", REAL_TYPE)]
     with pytest.raises(TypeError) as info:
-        DummyTrans([], None)
+        DummyTrans(active_vars, None)
     assert ("The writer argument should be a PSyIRVisitor but found "
             "'NoneType'." in str(info.value))
 
-    dummy_trans = DummyTrans([])
-    assert isinstance(dummy_trans, AdjointTransformation)
-    assert dummy_trans._active_variables == []
-    assert isinstance(dummy_trans._writer, PSyIRVisitor)
-
-    active_vars = [DataSymbol("x", REAL_TYPE)]
     writer = SIRWriter()
     dummy_trans = DummyTrans(active_vars, writer)
     assert dummy_trans._active_variables is active_vars

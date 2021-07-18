@@ -77,6 +77,9 @@ class AdjointTransformation(Transformation):
                 "The active variables argument should be a list, but found "
                 "'{0}'.".format(type(active_variables).__name__))
 
+        if not active_variables:
+            raise TypeError("There should be at least one active variable.")
+
         for active_variable in active_variables:
             if not isinstance(active_variable, DataSymbol):
                 raise TypeError(
