@@ -258,6 +258,19 @@ In LFRic, a kernel is forbidden from writing to data outside the
 current column (e.g. to element :math:`i-1`) and therefore appropriate
 transformations will need to be applied to restructure the code.
 
+Limitations
+***********
+
+If an active variable is part of the denominator in a division then
+the transformation will always raise an exception stating that this
+assignment is in an invalid tangent-linear form. For example
+:math:`A=x/B` where :math:`A` and :math:`B` are active
+variables. However, if the active variable is within an even number of
+divides then it is is, in fact, valid and should not result in an
+exception. For example :math:`A=x(/y/B)` is equivalent to
+:math:`A=(x/y)B`. Issue #1348 captures this current limitation.
+
+
 Transformation
 **************
 

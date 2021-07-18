@@ -157,7 +157,7 @@ def test_zero(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(name="issue #1347, type declaration is being written in "
+@pytest.mark.xfail(reason="issue #1347, type declaration is being written in "
                    "the wrong order causing compilation failure.")
 def test_zero_fail(tmpdir):
     '''This test is split from the previous one as it is currently failing
@@ -233,7 +233,7 @@ def test_single_assign(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(name="issue #1347, type declaration is being written in "
+@pytest.mark.xfail(reason="issue #1347, type declaration is being written in "
                    "the wrong order causing compilation failure.")
 def test_single_assign_fail(tmpdir):
     '''This test is split from the previous one as it is currently failing
@@ -287,7 +287,7 @@ def test_single_valued_assign(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(message="issue #1332 literal math_equal() does "
+@pytest.mark.xfail(reason="issue #1332 literal math_equal() does "
                    "Not work properly.")
 def test_multi_add(tmpdir):
     '''Test the transformation works when there are many active variables
@@ -461,7 +461,7 @@ def test_single_valued_sub(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(message="issue #1333 Unary '-' should be enclosed in "
+@pytest.mark.xfail(reason="issue #1333 Unary '-' should be enclosed in "
                    "brackets.")
 def test_multi_valued_sub(tmpdir):
     '''Test the transformation works when there are multiple active
@@ -579,7 +579,7 @@ def test_different_indices(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(name="issue #1332 literal math_equal() does "
+@pytest.mark.xfail(reason="issue #1332 literal math_equal() does "
                    "not work properly.")
 def test_same_indices_ordering(tmpdir):
     '''Test the adjoint transformation recognises that an access is an
@@ -601,7 +601,7 @@ def test_same_indices_ordering(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(name="issue #1075: Better symbolic comparison of indices "
+@pytest.mark.xfail(reason="issue #1075: Better symbolic comparison of indices "
                    "is needed.")
 def test_same_indices_ordering2(tmpdir):
     '''Test the adjoint transformation recognises that an access is an
@@ -623,7 +623,7 @@ def test_same_indices_ordering2(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(name="issue #1332 math_equal thinks a%b(i) equals a%c(i)")
+@pytest.mark.xfail(reason="issue #1332 math_equal thinks a%b(i) equals a%c(i)")
 def test_different_structures(tmpdir):
     '''Test the adjoint transformation recognises that an access is
     not an increment when a structure access differs.
@@ -963,7 +963,7 @@ def test_validate_rhs_active_divisor_indirect():
             in str(info.value))
 
 
-@pytest.mark.xfail(name="issue #1348. If an active variable is within the "
+@pytest.mark.xfail(reason="issue #1348. If an active variable is within the "
                    "denominator for an even number of divisions it is "
                    "equivalent to a multiply.")
 def test_validate_rhs_active_multi_divisor():

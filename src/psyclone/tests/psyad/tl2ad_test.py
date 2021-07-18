@@ -40,6 +40,7 @@ within the psyad directory.
 from __future__ import print_function, absolute_import
 import logging
 import six
+import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -47,6 +48,10 @@ from psyclone.psyad import generate_adjoint_str, generate_adjoint
 
 
 # 1: generate_adjoint_str function
+
+# expected output
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
 def test_generate_adjoint_str(caplog):
     '''Test that the generate_adjoint_str() function works as expected
     including logging.
@@ -104,6 +109,8 @@ def test_generate_adjoint():
 
 
 # generate_adjoint function logging
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
 def test_generate_adjoint_logging(caplog):
     '''Test that logging works as expected in the generate_adjoint()
     function.

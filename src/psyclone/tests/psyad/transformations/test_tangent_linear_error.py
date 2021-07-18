@@ -32,7 +32,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 #
-'''Module to test the psyad adjoint TangentLinearError class.'''
+'''Module to test the PSyAD TangentLinearError class.'''
 
 import pytest
 
