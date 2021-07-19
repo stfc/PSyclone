@@ -8568,7 +8568,7 @@ class DynKernelArgument(KernelArgument):
         self._proxy_data_type = None
         # Set up kernel argument information for scalar, field and operator
         # arguments: precision, module name, data type and proxy data type
-        self._init_data_type_properties()
+        self._init_data_type_properties(arg_info._datatype)
 
     def ref_name(self, function_space=None):
         '''
@@ -8632,41 +8632,99 @@ class DynKernelArgument(KernelArgument):
             "DynKernelArgument.ref_name(fs): Found unsupported argument "
             "type '{0}'.".format(self._argument_type))
 
-    def _init_data_type_properties(self):
-        '''
-        Set up kernel argument information from LFRicConstants: precision,
+    def _init_data_type_properties(self, alg_datatype_info):
+        '''Set up kernel argument information from LFRicConstants: precision,
         data type, proxy data type and module name. This is currently
         supported for scalar, field and operator arguments.
 
+        :param alg_datatype_info: the type and precision of this \
+            argument as extracted from the algorithm layer with None \
+            indicating that no information could be extracted.
+        :type alg_datatype_info: (str or NoneType, str or NoneType)
+
         '''
+        alg_datatype = None
+        alg_precision = None
+        if alg_datatype_info:
+            alg_datatype, alg_precision = alg_datatype_info
+
         const = LFRicConstants()
 
         # All supported scalars have the same metadata, 'GH_SCALAR', so we
         # check by their intrinsic type
         if self.is_scalar:
 
+            # Check the type of scalar defined in the metadata is supported.
             if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
                 raise InternalError(
                     "Expected one of {0} intrinsic types for a scalar "
                     "argument but found '{1}'.".
                     format(const.VALID_INTRINSIC_TYPES, self.intrinsic_type))
+
+            # Check the metadata and algorithm types are consistent if
+            # the algorithm information is available.
+            if alg_datatype and alg_datatype != self.intrinsic_type:
+                raise GenerationError(
+                    "The kernel metadata for argument '{0}' in kernel '{1}' "
+                    "specifies this argument should be a scalar of type "
+                    "'{2}' but in the algorithm layer it is defined as a "
+                    "'{3}'.".format(
+                        self.name, "XXX", self.intrinsic_type, alg_datatype))
+
+            if alg_datatype and not alg_precision:
+                # If the datatype is known in the algorithm layer then
+                # its precision should also be defined.
+                raise GenerationError(
+                    "Scalars must have their precision defined in the "
+                    "algorithm layer but '{0}' in '{1}' does not."
+                    "".format(self.name, "XXX"))
+
             if self.intrinsic_type == "real" and self.access in \
                AccessType.get_valid_reduction_modes():
+                expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
+                # Check that the expected precision and the precision
+                # defined in the algorithn layer are consistent.
+                if alg_precision and alg_precision != expected_precision:
+                    raise GenerationError(
+                        "This scalar is a reduction which assumes precision "
+                        "of type '{0}' but the algorithm declares this "
+                        "scalar with precision '{1}'."
+                        "".format(expected_precision, alg_precision))
                 # Set 'real' scalar reduction properties as defined in
                 # the LFRic infrastructure
-                self._precision = const.DATA_TYPE_MAP["reduction"]["kind"]
+                self._precision = expected_precision
                 self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
                 self._proxy_data_type = const.DATA_TYPE_MAP[
                     "reduction"]["proxy_type"]
                 self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
             else:
                 # Set read-only scalar precision
-                self._precision = const.SCALAR_PRECISION_MAP[
-                    self.intrinsic_type]
+                if alg_precision:
+                    # Use the algorithm precision if it is available.
+                    self._precision = alg_precision
+                else:
+                    # Use default precision if algorithm precision is
+                    # not avaiable.
+                    self._precision = const.SCALAR_PRECISION_MAP[
+                        self.intrinsic_type]
 
         # All supported fields have the same metadata, 'GH_FIELD', so we
         # check by their intrinsic type
         if self.is_field:
+
+            # Check the algorithm information is available.
+            if not alg_datatype:
+                raise GenerationError(
+                    "it was not possible to determine the field type for "
+                    "argument '{0}' in kernel '{1}' from the algorithm code."
+                    "".format(self.name, "XXX", alg_datatype))
+            # Check the metadata and algorithm type are consistent.
+            if alg_datatype not in ["field_type"]:
+                raise GenerationError(
+                    "The metadata for argument '{0}' in kernel '{1}' "
+                    "specifies that this is a field, however it is declared "
+                    "as a '{2}' in the algorithm code."
+                    "".format(self.name, "XXX", alg_datatype))
 
             if self.intrinsic_type == "real":
                 argtype = "field"
@@ -8680,13 +8738,22 @@ class DynKernelArgument(KernelArgument):
                            self.intrinsic_type))
             # Set field properties as defined in the LFRic infrastructure
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
-            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+            self._data_type = alg_datatype
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
         # All supported operators have the same intrinsic type, 'real', so we
         # check by their argument type
         if self.is_operator:
+
+            # Check the metadata and algorithm type are consistent if
+            # the algorithm information is available.
+            if alg_datatype and alg_datatype not in ["operator_type", "columnwise_operator_type"]:
+                raise GenerationError(
+                    "The kernel metadata for argument '{0}' in kernel '{1}' "
+                    "specifies this argument should be an operator but it is "
+                    "declared as '{2}' in the algorithm layer."
+                    "".format(self.name, "XXX", alg_datatype))
 
             if self.argument_type == "gh_operator":
                 argtype = "operator"

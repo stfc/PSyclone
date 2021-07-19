@@ -2335,11 +2335,11 @@ def test_multiple_derived_type_args(dist_mem, tmpdir):
     # Check the four integer variables are named and declared correctly
     expected = (
         "    SUBROUTINE invoke_0(f1, obj_a_iflag, f2, m1, m2, "
-        "obj_b_iflag, obj_a_obj_b, obj_b_obj_a)\n")
+        "obj_b_iflag, obj_a_obj_b_iflag, obj_b_obj_a_iflag)\n")
     assert expected in gen
     expected = (
         "      INTEGER(KIND=i_def), intent(in) :: obj_a_iflag, obj_b_iflag, "
-        "obj_a_obj_b, obj_b_obj_a\n")
+        "obj_a_obj_b_iflag, obj_b_obj_a_iflag\n")
     assert expected in gen
     # Check that they are still named correctly when passed to the
     # kernels
@@ -2355,14 +2355,14 @@ def test_multiple_derived_type_args(dist_mem, tmpdir):
         "undf_w3, map_w3(:,cell))" in gen)
     assert (
         "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "obj_a_obj_b, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))" in gen)
+        "obj_a_obj_b_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
         "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "obj_b_obj_a, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))" in gen)
+        "obj_b_obj_a_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
 
 
 def test_haloexchange_unknown_halo_depth():

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ program multi_invoke_cma
 
   type(operator_type) :: lma_op1
   type(columnwise_operator_type) :: cma_op1, cma_opb, cma_opc
-  type(field_type) :: afield
+  type(field_type) :: afield, field_a, field_b
 
   call invoke( columnwise_op_asm_field_kernel_type(afield, lma_op1, cma_op1), &
                columnwise_op_app_kernel_type(field_a, field_b, cma_op1),      &
