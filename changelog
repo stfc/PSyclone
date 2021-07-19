@@ -113,6 +113,10 @@
 	38) PR #1317 for #1315. Fixes bug in dependence analysis caused by
 	introduction of FileContainer root node.
 
+	39) PR #1340 for #1334. Add support for symbols in
+	'psyir_from_expression()' and fix code generation bug for LFRic
+	"power" built-ins with literal constants that have explicit precision.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
