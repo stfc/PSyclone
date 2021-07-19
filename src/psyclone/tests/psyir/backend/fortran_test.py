@@ -111,11 +111,11 @@ def test_gen_dims(fortran_writer):
     one = Literal("1", scalar_type)
     arg_plus_1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(arg), one)
-    array_type = ArrayType(INTEGER_TYPE,
-                           [Reference(arg), 2, literal, arg_plus_1,
-                            ArrayType.Extent.ATTRIBUTE])
-    assert fortran_writer._gen_dims(array_type.shape) == ["arg", "2", "4",
-                                                          "arg + 1_4", ":"]
+    array_type = ArrayType(
+        INTEGER_TYPE, [Reference(arg), 2, (0, 4), literal, arg_plus_1,
+                       (2, arg_plus_1.copy()), ArrayType.Extent.ATTRIBUTE])
+    assert (fortran_writer._gen_dims(array_type.shape) ==
+            ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4", ":"])
 
 
 def test_gen_dims_error(monkeypatch, fortran_writer):
@@ -780,6 +780,12 @@ def test_gen_routine_access_stmts(fortran_writer):
         fortran_writer.gen_routine_access_stmts(symbol_table)
     assert ("Unrecognised visibility ('broken') found for symbol 'my_sub2'"
             in str(err.value))
+    symbol_table.remove(sub2)
+    # Check that we don't generate an accessibility statement for a
+    # RoutineSymbol tagged with 'own_routine_symbol'
+    symbol_table.add(RoutineSymbol("my_routine"), tag='own_routine_symbol')
+    code = fortran_writer.gen_routine_access_stmts(symbol_table)
+    assert "my_routine" not in code
 
 
 def test_fw_exception(fortran_writer):
@@ -1377,8 +1383,6 @@ def test_fw_reference(fortran_reader, fortran_writer, tmpdir):
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
 
-    # The asserts need to be split as the declaration order can change
-    # between different versions of Python.
     assert (
         "  subroutine tmp(a, n)\n"
         "    integer, intent(in) :: n\n"
@@ -2087,24 +2091,3 @@ def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
     assert len(cblocks) == 2
     gen = fortran_writer(call_node)
     assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
-
-
-def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
-    ''' Check that the FortranWriter raises the expected error if it
-    encounters an UnknownType that is not an UnknownFortranType. '''
-    # We can't create an UnknownType() object directly as it is abstract.
-    # Therefore we create a symbol of UnknownFortranType and then
-    # monkeypatch it.
-    sym = DataSymbol("b", UnknownFortranType("int b;"))
-    monkeypatch.setattr(sym.datatype, "__class__", UnknownType)
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.gen_vardecl(sym)
-    assert ("cannot handle the declaration of a symbol of 'UnknownType'" in
-            str(err.value))
-
-
-def test_fw_unknown_decln(fortran_writer):
-    ''' Check that the FortranWriter recreates a declaration that is of
-    UnknownFortranType. '''
-    sym = DataSymbol("b", UnknownFortranType("integer, value :: b"))
-    assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)

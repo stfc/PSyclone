@@ -43,8 +43,8 @@ from __future__ import absolute_import, print_function
 import sys
 from psyclone.errors import GenerationError
 from psyclone.psyir.transformations import ProfileTrans
-from psyclone.psyGen import Kern, Directive, ACCDirective
-from psyclone.psyir.nodes import Return
+from psyclone.psyGen import Kern
+from psyclone.psyir.nodes import Return, Directive, ACCDirective
 
 
 class Profiler():
