@@ -378,11 +378,11 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
     assert isinstance(lfric_datatype, ArrayType)
     assert isinstance(lfric_datatype._datatype, scalar_type)
     for idx, dim in enumerate(lfric_datatype.shape):
-        if isinstance(dim, Literal):
-            assert dim.value == str(dims[idx])
-        elif isinstance(dim, Reference):
-            assert dim is dims[idx]
-            assert dim.symbol is dims[idx].symbol
+        if isinstance(dim.upper, Literal):
+            assert dim.upper.value == str(dims[idx])
+        elif isinstance(dim.upper, Reference):
+            assert dim.upper is dims[idx]
+            assert dim.upper.symbol is dims[idx].symbol
         else:
             assert False, "unexpected type of dimension found"
     # Wrong number of dims
