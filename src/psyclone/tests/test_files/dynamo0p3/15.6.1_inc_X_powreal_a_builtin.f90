@@ -31,7 +31,7 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: I. Kavcic Met Office
+! Author: I. Kavcic, Met Office
 ! Modified: A. R. Porter, STFC Daresbury Laboratory
 
 program single_invoke

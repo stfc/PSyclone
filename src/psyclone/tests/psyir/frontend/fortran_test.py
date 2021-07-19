@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
+# Modifications: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
@@ -120,8 +120,8 @@ def test_fortran_psyir_from_expression(fortran_reader):
     # Symbol not found in supplied table
     with pytest.raises(SymbolError) as err:
         fortran_reader.psyir_from_expression("3.0 + a", SymbolTable())
-    assert ("Expression contains unresolved symbols: '3.0 + a'" in
-            str(err.value))
+    assert ("Expression '3.0 + a' contains symbols which are not present in "
+            "any symbol table and there are no" in str(err.value))
     # Now use the table with the container that has the wildcard import
     psyir = fortran_reader.psyir_from_expression("3.0 + a", table)
     assert isinstance(psyir, BinaryOperation)
@@ -136,10 +136,18 @@ def test_fortran_psyir_from_expression_invalid(fortran_reader):
         fortran_reader.psyir_from_expression("3.0 + sin(a)", None)
     assert ("Must be supplied with a valid SymbolTable but got 'NoneType'" in
             str(err.value))
+    with pytest.raises(TypeError) as err:
+        fortran_reader.psyir_from_expression("3.0 + sin(a)", "wrong")
+    assert ("Must be supplied with a valid SymbolTable but got 'str'" in
+            str(err.value))
+    with pytest.raises(TypeError) as err:
+        fortran_reader.psyir_from_expression("3.0 + sin(a)", None)
+    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'" in
+            str(err.value))
     table = SymbolTable()
     with pytest.raises(SymbolError) as err:
         fortran_reader.psyir_from_expression("return", table)
-    assert ("Expression contains unresolved symbols: 'return'" in
+    assert ("Expression 'return' contains symbols which are not present" in
             str(err.value))
     with pytest.raises(ValueError) as err:
         fortran_reader.psyir_from_expression("a = b", table)

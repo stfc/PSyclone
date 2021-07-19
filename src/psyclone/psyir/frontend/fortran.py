@@ -30,7 +30,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
+# Modifications: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides the PSyIR Fortran front-end.'''
@@ -86,7 +87,10 @@ class FortranReader(object):
 
         :raises TypeError: if no valid SymbolTable is supplied.
         :raises ValueError: if the supplied source does not represent a \
-                            Fortran expression.
+            Fortran expression.
+        :raises SymbolError: if the expression references a symbol which \
+            cannot be found in the symbol table (and there's no way for it to \
+            be brought into scope).
         '''
         if not isinstance(symbol_table, SymbolTable):
             raise TypeError("Must be supplied with a valid SymbolTable but got"
@@ -99,16 +103,22 @@ class FortranReader(object):
                 ValueError("Supplied source does not represent a Fortran "
                            "expression: '{0}'".format(source_code)), err)
 
-        # Create a fake sub-tree connected to the supplied symbol table
+        # Create a fake sub-tree connected to the supplied symbol table so
+        # that we can process the expression and lookup any symbols that it
+        # references.
         fake_parent = Schedule(symbol_table=symbol_table)
         fake_parent.addchild(Assignment())
 
         try:
+            # Process the expression, giving the Assignment we've just
+            # created as the parent.
             self._processor.process_nodes(fake_parent[0], [parse_tree])
         except SymbolError as err:
             six.raise_from(
-                SymbolError("Expression contains unresolved symbols: "
-                            "'{0}'".format(source_code)), err)
+                SymbolError("Expression '{0}' contains symbols which are not "
+                            "present in any symbol table and there are no "
+                            "wildcard imports which might be bringing them "
+                            "into scope.".format(source_code)), err)
         return fake_parent[0].children[0].detach()
 
     def psyir_from_file(self, file_path):
