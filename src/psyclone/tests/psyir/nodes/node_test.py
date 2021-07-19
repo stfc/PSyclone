@@ -1104,32 +1104,43 @@ def test_following_preceding():
         BinaryOperation.Operator.MUL, c_ref, d_ref)
     multiply2 = BinaryOperation.create(
         BinaryOperation.Operator.MUL, b_ref, multiply1)
-    assign = Assignment.create(a_ref, multiply2)
+    assign1 = Assignment.create(a_ref, multiply2)
 
     # 1a: First node.
-    assert assign.following() == [
+    assert assign1.following() == [
         a_ref, multiply2, b_ref, multiply1, c_ref, d_ref]
-    assert not assign.preceding()
+    assert not assign1.preceding()
 
     # 1b: Last node.
     assert not d_ref.following()
     assert d_ref.preceding() == [
-        assign, a_ref, multiply2, b_ref, multiply1, c_ref]
+        assign1, a_ref, multiply2, b_ref, multiply1, c_ref]
     assert d_ref.preceding(reverse=True) == [
-        c_ref, multiply1, b_ref, multiply2, a_ref, assign]
+        c_ref, multiply1, b_ref, multiply2, a_ref, assign1]
 
     # 1c: Middle node.
     assert multiply1.following() == [c_ref, d_ref]
-    assert multiply1.preceding() == [assign, a_ref, multiply2, b_ref]
+    assert multiply1.preceding() == [assign1, a_ref, multiply2, b_ref]
 
-    # 2: Routine is an ancestor node, but is not a root node.
-    routine = Routine.create("routine1", SymbolTable(), [assign])
-    container = Container.create("container", SymbolTable(), [routine])
-    # Middle node.
+    # 2: Routine is an ancestor node, but is not a root
+    # node.
+    routine1 = Routine.create("routine1", SymbolTable(), [assign1])
+    e_ref = Reference(DataSymbol("e", REAL_TYPE))
+    zero = Literal("0.0", REAL_TYPE)
+    assign2 = Assignment.create(e_ref, zero)
+    routine2 = Routine.create("routine2", SymbolTable(), [assign2])
+    container = Container.create(
+        "container", SymbolTable(), [routine1, routine2])
+
+    # 2a: Middle node. Additional container and routine2 nodes are not
+    # returned by default ('routine' argument defaults to True).
     assert multiply1.following() == [c_ref, d_ref]
-    assert multiply1.preceding() == [routine, assign, a_ref, multiply2, b_ref]
+    assert (multiply1.preceding() ==
+            [routine1, assign1, a_ref, multiply2, b_ref])
 
-    # 3: Routine is an ancestor node and routine argument is set to False.
-    assert multiply1.following(routine=False) == [c_ref, d_ref]
+    # 2b: Middle node. 'routine' argument is set to False. Additional
+    # container and routine2 nodes are returned.
+    assert (multiply1.following(routine=False) ==
+            [c_ref, d_ref, routine2, assign2, e_ref, zero])
     assert (multiply1.preceding(routine=False) ==
-            [container, routine, assign, a_ref, multiply2, b_ref])
+            [container, routine1, assign1, a_ref, multiply2, b_ref])
