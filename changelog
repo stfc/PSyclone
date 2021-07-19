@@ -110,6 +110,9 @@
 	precision information derived from LFRic rules which is required
 	for mixed precision support.
 
+	38) PR #1317 for #1315. Fixes bug in dependence analysis caused by
+	introduction of FileContainer root node.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
