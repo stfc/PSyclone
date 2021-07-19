@@ -1259,12 +1259,15 @@ class OMPSingleTrans(ParallelRegionTrans):
     Create an OpenMP SINGLE region by inserting directives. The most
     likely use case for this transformation is to wrap around task-based
     transformations. The parent region for this should usually also be
-    a OMPParallelTrans. For example:
+    a OMPParallelTrans.
+
+    :param str nowait: whether to apply a nowait clause to this \
+                       transformation. The default value is False
+
+    For example:
 
     >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
-    >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
@@ -1304,8 +1307,7 @@ class OMPSingleTrans(ParallelRegionTrans):
     @property
     def omp_nowait(self):
         ''' :returns: whether or not this Single region uses a nowait \
-                      clause to remove the end barrier. The default value \
-                      is False
+                      clause to remove the end barrier.
             :rtype: bool
         '''
         return self._omp_nowait
@@ -1356,23 +1358,23 @@ class OMPSingleTrans(ParallelRegionTrans):
         '''Apply the OMPSingleTrans transformation to the specified node in a
         Schedule.
 
-        At code-generation time (when
-        :py:meth:`OMPLoopDirective.gen_code` is called or when the PSyIR tree
-        is given to a backend), this node must be within (i.e. a child of) an
-        OpenMP PARALLEL region.
+        At code-generation time this node must be within (i.e. a child of)
+        an OpenMP PARALLEL region. Code generation happens when
+        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
+        tree is given to a backend.
 
         If the keyword "nowait" is specified in the options, it will cause a
         nowait clause to be added if it is set to True, otherwise
         the nowait clause will be added.
 
         :param node_list: the supplied node or node list to which we will \
-                          apply the OMPLoopTrans transformation
-        :type node_list: (list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations\
+                          apply the OMPSingleTrans transformation
+        :type node_list: (a dict of) :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dict with options for transformations \
                         and validation.
-        :type options: dictionary of string:values or None
+        :type options: a dict of string:values or None
         :param bool options["nowait"]:
-                indicating whether or not to use a nowait clause on this\
+                indicating whether or not to use a nowait clause on this \
                 single region.
 
         :returns: 2-tuple of new schedule and memento of transform.
@@ -2919,8 +2921,8 @@ class ACCKernelsTrans(RegionTrans):
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
 
-        :param node: a node or list of nodes in the PSyIR to enclose.
-        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param node: a node or dict of nodes in the PSyIR to enclose.
+        :type node: (a dict of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["default_present"]: whether or not the kernels \

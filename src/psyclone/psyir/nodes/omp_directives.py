@@ -109,7 +109,7 @@ class OMPDirective(Directive):
 
 class OMPSingleDirective(OMPDirective):
     '''
-    Class representing an OpenMP SINGLE directive in the PSyclone AST.
+    Class representing an OpenMP SINGLE directive in the PSyIR.
 
     :param list children: List of Nodes that are children of this Node.
     :param parent: The Node in the AST that has this directive as a child.
@@ -140,7 +140,7 @@ class OMPSingleDirective(OMPDirective):
         Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
 
-        :param bool colour: Whether or not to include colour control codes.
+        :param bool colour: whether or not to include colour control codes. \
                             Default value is True.
 
         :returns: description of this node, possibly coloured.
@@ -156,6 +156,8 @@ class OMPSingleDirective(OMPDirective):
 
         :raises GenerationError: if this OMPSingle is not enclosed \
                             within some OpenMP parallel region.
+        :raises GenerationError: if this OMPSingle is enclosed within \
+                            some OpenMP single region.
 
         '''
         # It is only at the point of code generation that we can check for
@@ -163,6 +165,8 @@ class OMPSingleDirective(OMPDirective):
         # can apply transformations to the code). As a Parallel Child
         # directive, we must have an OMPParallelDirective as an ancestor
         # somewhere back up the tree.
+        # Also check the single region is not enclosed within another OpenMP
+        # single region.
         # It could in principle be allowed for that parent to be a ParallelDo
         # directive, however I can't think of a use case that would be done
         # best in a parallel code by that pattern
@@ -171,6 +175,11 @@ class OMPSingleDirective(OMPDirective):
             raise GenerationError(
                 "OMPSingleDirective must be inside an OMP parallel region but "
                 "could not find an ancestor OMPParallelDirective node")
+
+        if self.ancestor(OMPSingleDirective):
+            raise GenerationError(
+                    "OMPSingleDirective must not be inside another OMP single "
+                    "region")
 
         super(OMPSingleDirective, self).validate_global_constraints()
 
@@ -464,7 +473,7 @@ class OMPParallelDirective(OMPDirective):
 
 class OMPDoDirective(OMPDirective):
     '''
-    Class representing an OpenMP DO directive in the PSyclone AST.
+    Class representing an OpenMP DO directive in the PSyIR.
 
     :param list children: list of Nodes that are children of this Node.
     :param parent: the Node in the AST that has this directive as a child.

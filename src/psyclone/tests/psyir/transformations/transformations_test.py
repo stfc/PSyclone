@@ -57,7 +57,8 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "..", "..", "test_files", "gocean1p0")
+                                os.pardir, os.pardir, "test_files",
+                                "gocean1p0")
 
 
 def test_accloop():
@@ -217,7 +218,6 @@ def test_ompsingle_nested():
     single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
-    print(err.value)
     assert("Transformation Error: Nodes of type 'OMPSingleDirective' cannot" +
            " be enclosed by a OMPSingleTrans transformation"
            in str(err.value))

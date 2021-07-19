@@ -291,7 +291,7 @@ can be found in the API-specific sections).
           halo swaps or global sums will produce an error. In such
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
-          performed outside the parallel region. The
+          performed outside the single region. The
 	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
@@ -609,13 +609,13 @@ examples/check_examples script).
 OpenMP
 ------
 
-OpenMP is added to a code by using transformations. The three
+OpenMP is added to a code by using transformations. The four
 transformations currently supported allow the addition of an
 **OpenMP Parallel** directive, an **OpenMP Do** directive, an
 **OpenMP Single** directive and an **OpenMP Parallel Do** 
 directive, respectively, to a code.
 
-The generic versions of these three transformations (i.e. ones that
+The generic versions of these four transformations (i.e. ones that
 theoretically work for all APIs) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of

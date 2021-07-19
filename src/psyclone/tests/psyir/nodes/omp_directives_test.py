@@ -42,6 +42,8 @@ import os
 import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir import nodes
+from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, Schedule, OMPDirective, \
     OMPParallelDoDirective, Directive, colored, OMPParallelDirective, \
     OMPSingleDirective
@@ -52,7 +54,8 @@ from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "..", "..", "test_files", "gocean1p0")
+                                os.pardir, os.pardir, "test_files",
+                                "gocean1p0")
 
 
 def test_ompdo_constructor():
@@ -313,7 +316,32 @@ def test_omp_single_validate_global_constraints():
         schedule.children[0].validate_global_constraints()
     assert ("OMPSingleDirective must be inside an OMP parallel region but " +
             "could not find an ancestor OMPParallelDirective node") in \
-    str(excinfo.value)
+        str(excinfo.value)
+
+
+def test_omp_single_nested_validate_global_constraints(monkeypatch):
+    ''' Test the validate_global_constraints method of the OMPSingle
+        directive fails when nested OMPSingles happen'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    single = OMPSingleTrans()
+    # Alternative excluded node types for monkeypatch
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
+                           psyGen.HaloExchange, nodes.OMPParallelDirective)
+    monkeypatch.setattr(single, "excluded_node_types", excluded_node_types)
+    parallel = OMPParallelTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    single.apply(schedule.children[0])
+    single_omp = schedule.children[0]
+    single.apply(schedule.children[0])
+    parallel.apply(schedule.children[0])
+    with pytest.raises(GenerationError) as excinfo:
+        single_omp.validate_global_constraints()
+    assert ("OMPSingleDirective must not be inside another OMP single " +
+            "region") in str(excinfo.value)
 
 
 @pytest.mark.parametrize("nowait", [False, True])
@@ -337,14 +365,13 @@ def test_omp_single_gencode(nowait):
     goceantrans.apply(schedule.children[0])
 
     code = str(psy.gen)
-    print(code)
     string = ""
     if nowait:
         string = " nowait"
     assert (
-         "    !$omp parallel default(shared), private(i,j)\n" +
-         "      !$omp single{0}\n".format(string) +
-         "      DO" in code)
+        "    !$omp parallel default(shared), private(i,j)\n" +
+        "      !$omp single{0}\n".format(string) +
+        "      DO" in code)
     assert (
         "      END DO\n" +
         "      !$omp end single\n" +
