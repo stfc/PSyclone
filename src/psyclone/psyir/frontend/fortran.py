@@ -89,8 +89,8 @@ class FortranReader(object):
         :raises ValueError: if the supplied source does not represent a \
             Fortran expression.
         :raises SymbolError: if the expression references a symbol which \
-            cannot be found in the symbol table (and there's no way for it to \
-            be brought into scope).
+            cannot be found in the symbol table (and there is no way for it \
+            to be brought into scope).
         '''
         if not isinstance(symbol_table, SymbolTable):
             raise TypeError("Must be supplied with a valid SymbolTable but got"
