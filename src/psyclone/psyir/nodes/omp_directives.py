@@ -243,9 +243,6 @@ class OMPMasterDirective(OMPSingleDirective):
     '''
     def __init__(self, children=None, parent=None):
 
-        if children is None:
-            children = []
-
         # Call the init method of the base class
         super(OMPMasterDirective, self).__init__(children=children,
                                                  parent=parent, nowait=False)
