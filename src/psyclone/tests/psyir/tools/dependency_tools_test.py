@@ -101,14 +101,14 @@ def test_nested_loop_detection(parser):
 
     # Not a nested loop
     parallel = dep_tools.can_loop_be_parallelised(loops[0], jk_symbol)
-    assert not parallel
+    assert parallel is False
     assert "Not a nested loop" in dep_tools.get_all_messages()[0]
 
     # Now disable the test for nested loops:
     parallel = dep_tools.can_loop_be_parallelised(loops[0], jk_symbol, False)
-    assert parallel
+    assert parallel is True
     # Make sure can_loop_be_parallelised clears old messages automatically
-    assert not dep_tools.get_all_messages()
+    assert dep_tools.get_all_messages() == []
 
 
 # -----------------------------------------------------------------------------
@@ -130,7 +130,7 @@ def test_loop_type(parser):
 
     # Check a loop that has the wrong loop type
     parallel = dep_tools.can_loop_be_parallelised(loop, "ji", False)
-    assert not parallel
+    assert parallel is False
     assert "wrong loop type 'lon'" in dep_tools.get_all_messages()[0]
 
 
@@ -171,29 +171,29 @@ def test_arrays_parallelise(parser):
     # Write to array that does not depend on parallel loop variable
     # Test that right default variable name (outer loop jj) is used.
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
-    assert not parallel
-    assert "Variable 'mask' is written to, and does not depend on the loop "\
-           "variable 'jj'" in dep_tools.get_all_messages()[0]
+    assert parallel is False
+    assert ("Variable 'mask' is written to, and does not depend on the loop "
+            "variable 'jj'" in dep_tools.get_all_messages()[0])
 
     jj_symbol = loops.scope.symbol_table.lookup("jj")
     # Write to array that does not depend on parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1], jj_symbol)
-    assert parallel
-    assert not dep_tools.get_all_messages()
+    assert parallel is True
+    assert dep_tools.get_all_messages() == []
 
     # Use parallel loop variable in more than one dimension
     parallel = dep_tools.can_loop_be_parallelised(loops[2], jj_symbol)
-    assert not parallel
-    assert "Variable 'mask' is written to and the loop variable 'jj' is " \
-           "used differently: mask(jj,jj) and mask(jj,jj)" \
-           in dep_tools.get_all_messages()[0]
+    assert parallel is False
+    assert ("Variable 'mask' is written to and the loop variable 'jj' is "
+            "used in different index locations: mask(jj,jj) and mask(jj,jj)"
+            in dep_tools.get_all_messages()[0])
 
     # Use a stencil access (with write), which prevents parallelisation
     parallel = dep_tools.can_loop_be_parallelised(loops[3], jj_symbol)
-    assert not parallel
-    assert "Variable mask is written and is accessed using indices jj + 1 "\
-           "and jj and can therefore not be parallelised" \
-           in dep_tools.get_all_messages()[0]
+    assert parallel is False
+    assert ("Variable 'mask' is written and is accessed using indices "
+            "'jj + 1' and 'jj' and can therefore not be parallelised"
+            in dep_tools.get_all_messages()[0])
 
 
 # -----------------------------------------------------------------------------
@@ -240,9 +240,9 @@ def test_array_access_consistent(parser):
                                                 [var_info0[sig_a],
                                                  var_info1[sig_b],
                                                  var_info1[sig_c]])
-    assert "Inconsistent signature provided in 'array_accesses_consistent'. " \
-           "Expected all access to be for 'a', but also got 'b,c'."\
-           in str(err.value)
+    assert ("Inconsistent signature provided in 'array_accesses_consistent'. "
+            "Expected all accesses to be for 'a', but also got 'b,c'."
+            in str(err.value))
 
     # Test 2: provide a consistent list of accesses.
     # Check number of messages and returned access array for correctness.
@@ -253,8 +253,8 @@ def test_array_access_consistent(parser):
                                                      [a_access_1st_loop,
                                                       a_access_2nd_loop],
                                                      all_ind)
-    assert consistent
-    assert len(dep_tools.get_all_messages()) == 0
+    assert consistent is True
+    assert dep_tools.get_all_messages() == []
     assert len(all_ind) == 3
     assert all_ind[0] == a_access_1st_loop[0].component_indices[(0, 1)]
     assert all_ind[1] == a_access_2nd_loop[0].component_indices[(0, 1)]
@@ -265,8 +265,8 @@ def test_array_access_consistent(parser):
     consistent = dep_tools.array_accesses_consistent(jj_symbol,
                                                      a_access_1st_loop,
                                                      all_ind)
-    assert consistent
-    assert len(dep_tools.get_all_messages()) == 0
+    assert consistent is True
+    assert dep_tools.get_all_messages() == []
     assert all_ind == [a_access_1st_loop[0].component_indices[(0, 1)]]
 
     # Test 4: trigger an error.
@@ -277,11 +277,11 @@ def test_array_access_consistent(parser):
                                                      [a_access_1st_loop,
                                                       a_access_3rd_loop],
                                                      all_ind)
-    assert not consistent
+    assert consistent is False
     assert len(dep_tools.get_all_messages()) == 1
-    assert "Variable 'a' is written to and the loop variable 'jj' is used " \
-           "differently: a(ji,jj) and a(jj,ji)." \
-           in dep_tools.get_all_messages()[0]
+    assert ("Variable 'a' is written to and the loop variable 'jj' is used "
+            "in different index locations: a(ji,jj) and a(jj,ji)."
+            in dep_tools.get_all_messages()[0])
 
 
 # -----------------------------------------------------------------------------
@@ -342,28 +342,27 @@ def test_scalar_parallelise(declaration, variable, parser):
     dep_tools = DependencyTools(["levels", "lat"],
                                 language_writer=FortranWriter())
 
-    # Test if supplying the loop name as symbol also works:
     jj_symbol = loops.scope.symbol_table.lookup("jj")
 
     # Read only scalar variable: a(ji, jj) = b
     parallel = dep_tools.can_loop_be_parallelised(loops[0], jj_symbol)
-    assert parallel
+    assert parallel is True
 
     # Write only scalar variable: a(ji, jj) = b
     parallel = dep_tools.can_loop_be_parallelised(loops[1], jj_symbol)
-    assert not parallel
-    assert "Scalar variable '{0}' is only written once".format(variable) \
-        in dep_tools.get_all_messages()[0]
+    assert parallel is False
+    assert ("Scalar variable '{0}' is only written once".format(variable)
+            in dep_tools.get_all_messages()[0])
 
     # Write to scalar variable happens first
     parallel = dep_tools.can_loop_be_parallelised(loops[2], jj_symbol)
-    assert parallel
+    assert parallel is True
 
     # Reduction operation on scalar variable
     parallel = dep_tools.can_loop_be_parallelised(loops[3], jj_symbol)
-    assert not parallel
-    assert "Variable '{0}' is read first, which indicates a reduction."\
-        .format(variable) in dep_tools.get_all_messages()[0]
+    assert parallel is False
+    assert ("Variable '{0}' is read first, which indicates a reduction."
+            .format(variable) in dep_tools.get_all_messages()[0])
 
 
 # -----------------------------------------------------------------------------
@@ -391,27 +390,39 @@ def test_derived_type(parser):
     dep_tools = DependencyTools(["levels", "lat"])
 
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
-    assert not parallel
+    assert parallel is False
 
     # Test that testing is stopped with the first unparallelisable statement
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
-    assert not parallel
+    assert parallel is False
     # Test that only one message is stored, i.e. no message for the
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
+    assert ("Variable 'a%b' is written and is accessed using indices 'jj - 1' "
+            "and 'jj' and can therefore not be parallelised."
+            in dep_tools.get_all_messages()[0])
 
     parallel = dep_tools.can_loop_be_parallelised(loops[1],
                                                   test_all_variables=True)
-    assert not parallel
+    assert parallel is False
     # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
+    assert ("Variable 'a%b' is written and is accessed using indices 'jj - 1' "
+            "and 'jj' and can therefore not be parallelised." in
+            dep_tools.get_all_messages()[0])
+    assert ("Variable 'b%b' is written and is accessed using indices 'jj - 1' "
+            "and 'jj' and can therefore not be parallelised." in
+            dep_tools.get_all_messages()[1])
 
     # Test that variables are ignored as expected.
     parallel = dep_tools.\
         can_loop_be_parallelised(loops[1],
                                  signatures_to_ignore=[Signature(("a", "b"))])
-    assert not parallel
+    assert parallel is False
     assert len(dep_tools.get_all_messages()) == 1
+    assert ("Variable 'b%b' is written and is accessed using indices 'jj - 1' "
+            "and 'jj' and can therefore not be parallelised." in
+            dep_tools.get_all_messages()[0])
 
     # If both derived types are ignored, the loop should be marked
     # to be parallelisable
@@ -419,8 +430,8 @@ def test_derived_type(parser):
         can_loop_be_parallelised(loops[1],
                                  signatures_to_ignore=[Signature(("a", "b")),
                                                        Signature(("b", "b"))])
-    assert len(dep_tools.get_all_messages()) == 0
-    assert parallel
+    assert dep_tools.get_all_messages() == []
+    assert parallel is True
 
 
 # -----------------------------------------------------------------------------

@@ -53,7 +53,7 @@ def test_access_info():
     access_info = AccessInfo(AccessType.READ, location, Node())
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
-    assert access_info.component_indices.get() == [[]]
+    assert access_info.component_indices.indices_lists == [[]]
     assert not access_info.is_array()
     assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
@@ -73,13 +73,13 @@ def test_access_info():
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node())
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.component_indices.get() == [[]]
+    assert access_info.component_indices.indices_lists == [[]]
 
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node(),
                              [["i", "j"]])
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.component_indices.get() == [["i", "j"]]
+    assert access_info.component_indices.indices_lists == [["i", "j"]]
 
 
 # -----------------------------------------------------------------------------
@@ -277,14 +277,14 @@ def test_variables_access_info_errors():
     with pytest.raises(InternalError) as err:
         var_accesses.add_access(Signature(("a", "b")), AccessType.READ, node,
                                 ComponentIndices([]))
-    assert "Cannot add '[[]]' as indices for 'a%b' as the number "\
-           "of components do not match." in str(err.value)
+    assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
+           "requires 2 elements." in str(err.value)
 
 
 # -----------------------------------------------------------------------------
 def test_component_indices_auto_extension():
     '''To make it more convenient for the user certain combinations of
-    signature and component_indices in the add_location vall will
+    signature and component_indices in the add_location call will
     automatically add empty indices to the component_indices. For example.
     adding "ssh_fld%grid%tmask" with indices ["i", "j"] will automatically
     create component_indices like [[], [], ["i", "j"]].
@@ -295,20 +295,21 @@ def test_component_indices_auto_extension():
     # This should auto-extent the component indices,
     # since they are specified as a simple list:
     var_accesses.add_access(sig, AccessType.READ, node, ["i", "j"])
-    assert var_accesses[sig][0].component_indices.get() == [[], [], ["i", "j"]]
+    assert (var_accesses[sig][0].component_indices.indices_lists ==
+            [[], [], ["i", "j"]])
 
     # This must trigger an exception, since a list of lists is used, which
     # should not get any values added:
     with pytest.raises(InternalError) as err:
         var_accesses.add_access(sig, AccessType.READ, node, [["i", "j"]])
-    assert "Cannot add '[['i', 'j']]' as indices for 'a%b%c' as the number "\
-           "of components do not match." in str(err.value)
+    assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
+            "which requires 3 elements." in str(err.value))
 
     component_indices = ComponentIndices(["i", "j"])
     with pytest.raises(InternalError) as err:
         var_accesses.add_access(sig, AccessType.READ, node, component_indices)
-    assert "Cannot add '[['i', 'j']]' as indices for 'a%b%c' as the number "\
-           "of components do not match." in str(err.value)
+    assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
+            "which requires 3 elements." in str(err.value))
 
 
 # -----------------------------------------------------------------------------

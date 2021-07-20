@@ -91,8 +91,8 @@ def test_assignment(parser):
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
     var_accesses = VariablesAccessInfo(array_assignment)
-    assert str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "\
-                                "i: READ, j: READ, x: READ, y: READ"
+    assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "
+                                 "i: READ, j: READ, x: READ, y: READ")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
@@ -142,8 +142,8 @@ def test_double_variable_lhs(parser):
     var_accesses = VariablesAccessInfo()
     with pytest.raises(NotImplementedError) as err:
         indirect_addressing.reference_accesses(var_accesses)
-    assert "The variable 'g' appears more than once on the left-hand side "\
-           "of an assignment." in str(err.value)
+    assert ("The variable 'g' appears more than once on the left-hand side "
+            "of an assignment." in str(err.value))
 
 
 def test_if_statement(parser):
@@ -165,8 +165,8 @@ def test_if_statement(parser):
     if_stmt = schedule.children[0]
     assert isinstance(if_stmt, IfBlock)
     var_accesses = VariablesAccessInfo(if_stmt)
-    assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
-                                "q: READ+WRITE, r: READ"
+    assert (str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "
+                                 "q: READ+WRITE, r: READ")
     # Test that the two accesses to 'q' indeed show up as
     q_accesses = var_accesses[Signature("q")].all_accesses
     assert len(q_accesses) == 2
@@ -211,8 +211,8 @@ def test_do_loop(parser):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "\
-                                "s: WRITE, t: READ"
+    assert (str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "
+                                 "s: WRITE, t: READ")
 
 
 def test_nemo_array_range(parser):
@@ -251,9 +251,9 @@ def test_goloop():
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "\
-                                "j: READ+WRITE, " "ssh_fld: READ+WRITE, "\
-                                "tmask: READ"
+    assert (str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "
+                                 "j: READ+WRITE, " "ssh_fld: READ+WRITE, "
+                                 "tmask: READ")
     # TODO #440: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
     # The empty value is caused by not having start, stop, end of the loop
     # defined at this stage.
@@ -276,9 +276,9 @@ def test_goloop_partially():
     assert not do_loop.args[3].is_scalar
 
     var_accesses = VariablesAccessInfo(do_loop)
-    assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
-           "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "\
-           "ssh_fld%grid%tmask: READ" in str(var_accesses)
+    assert ("a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "
+            "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
+            "ssh_fld%grid%tmask: READ" in str(var_accesses))
 
 
 def test_goloop_field_accesses():
@@ -298,12 +298,13 @@ def test_goloop_field_accesses():
     cu_fld = var_accesses[Signature("cu_fld")]
     assert len(cu_fld.all_accesses) == 1
     assert cu_fld.all_accesses[0].access_type == AccessType.WRITE
-    assert cu_fld.all_accesses[0].component_indices.get() == [["i", "j"]]
+    assert (cu_fld.all_accesses[0].component_indices.indices_lists
+            == [["i", "j"]])
 
     # The stencil is defined to be GO_STENCIL(123,110,100)) for
     # p_fld. Make sure that these 9 accesses are indeed reported:
     p_fld = var_accesses[Signature("p_fld")]
-    all_indices = [access.component_indices.get()
+    all_indices = [access.component_indices.indices_lists
                    for access in p_fld.all_accesses]
 
     for test_index in [["i-1", "j+1"],
@@ -336,10 +337,10 @@ def test_dynamo():
     schedule = invoke.schedule
 
     var_accesses = VariablesAccessInfo(schedule)
-    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "\
-        "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "\
-        "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "\
-        "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ"
+    assert (str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "
+            "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "
+            "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
+            "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
 
 
 def test_location(parser):

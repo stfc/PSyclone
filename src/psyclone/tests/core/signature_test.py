@@ -180,7 +180,7 @@ def test_signature_comparison():
         in str(err.value)
 
 
-def test_to_fortran():
+def test_to_language_fortran():
     '''Test that conversion of a Signature with a ComponentIndices argument
     gives the expected results.
     '''
@@ -196,12 +196,12 @@ def test_to_fortran():
     assert sig.to_language(comp) == "a(j)"
 
     # Test error condition if number of components in signature does not
-    # math the number of indices in ComponentIndices
+    # match the number of indices in ComponentIndices
     comp = ComponentIndices([[1], [2]])
     with pytest.raises(InternalError) as err:
         sig.to_language(comp)
-    assert "Signature a has 1 components, but component_indices [[1], [2]] " \
-           "has 2." in str(err.value)
+    assert ("Signature 'a' has 1 components, but component_indices [[1], [2]] "
+            "has 2." in str(err.value))
 
     sig = Signature(("a", "b", "c"))
     comp = ComponentIndices([[1], [], ["i", "j"]])

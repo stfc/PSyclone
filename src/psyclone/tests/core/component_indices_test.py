@@ -47,16 +47,16 @@ def test_component_indices():
     '''
 
     component_indices = ComponentIndices()
-    assert component_indices.get() == [[]]
+    assert component_indices.indices_lists == [[]]
     assert str(component_indices) == "[[]]"
     assert len(component_indices) == 1
 
     component_indices = ComponentIndices(["a"])
-    assert component_indices.get() == [["a"]]
+    assert component_indices.indices_lists == [["a"]]
     assert str(component_indices) == "[['a']]"
     assert component_indices[0] == ['a']
 
-    component_indices = ComponentIndices([["a", "b"], ["c"]]).get()
+    component_indices = ComponentIndices([["a", "b"], ["c"]]).indices_lists
     assert component_indices == [["a", "b"], ["c"]]
     assert component_indices[0] == ["a", "b"]
     assert component_indices[1] == ["c"]
@@ -102,3 +102,26 @@ def test_iterating():
     for count, indx in enumerate(component_indices.iterate()):
         assert correct_index_pairs[count] == indx
         assert correct[count] == component_indices[indx]
+
+
+# -----------------------------------------------------------------------------
+def test_component_indices_getitem_exceptions():
+    '''Tests useful error messages are provided if a tuple is provided that
+    is out of bounds.
+    '''
+    component_indices = ComponentIndices([["a", "b"], ["c"]])
+    with pytest.raises(IndexError) as err:
+        _ = component_indices[(2, 0)]
+    assert "First index (2) of (2, 0) is out of range." in str(err.value)
+
+    with pytest.raises(IndexError) as err:
+        _ = component_indices[(1, 2)]
+    assert "Second index (2) of (1, 2) is out of range." in str(err.value)
+
+    with pytest.raises(IndexError) as err:
+        _ = component_indices[(-1, 0)]
+    assert "First index (-1) of (-1, 0) is out of range." in str(err.value)
+
+    with pytest.raises(IndexError) as err:
+        _ = component_indices[(1, -1)]
+    assert "Second index (-1) of (1, -1) is out of range." in str(err.value)

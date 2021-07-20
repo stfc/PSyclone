@@ -133,7 +133,7 @@ class Signature(object):
         # Check if number of components between self and component_indices
         # is consistent:
         if len(self._signature) != len(component_indices):
-            raise InternalError("Signature {0} has {1} components, but "
+            raise InternalError("Signature '{0}' has {1} components, but "
                                 "component_indices {2} has {3}."
                                 .format(self, len(self._signature),
                                         component_indices,

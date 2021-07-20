@@ -176,7 +176,7 @@ class CWriter(LanguageWriter):
         PSyIR tree.
 
         :param node: An Assignment PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Assigment`
+        :type node: :py:class:`psyclone.psyir.nodes.Assignment``
 
         :returns: The C code as a string.
         :rtype: str
@@ -468,7 +468,7 @@ class CWriter(LanguageWriter):
         the statements in between as a string (depending on the language).
 
         :param node: a Directive PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Directive`
+        :type node: :py:class:`psyclone.psyir.nodes.Directive`
 
         :returns: the C code as a string.
         :rtype: str

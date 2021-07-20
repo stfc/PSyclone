@@ -166,8 +166,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
         :param loop_variable: symbol of the variable associated with the \
             loops being fused.
-        :type loop_variable: \
-            :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`
+        :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises TransformationError: an array that is written to uses \
             inconsistent indices, e.g. a(i,j) and a(j,i).
