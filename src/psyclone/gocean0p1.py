@@ -349,7 +349,7 @@ class GOKern(CodedKern):
         metadata. Uses this information to generate appropriate PSy layer
         code for the Kernel instance. Specialises the gen_code method to
         create the appropriate GOcean specific kernel call. '''
-    def __init__(self):
+    def __init__(self, check=True):
         # pylint: disable=using-constant-test
         if False:
             self._arguments = GOKernelArguments(None, None)  # for pyreverse
@@ -389,7 +389,7 @@ class GOKernelArguments(Arguments):
     ''' Provides information about GOcean kernel call arguments collectively,
         as specified by the kernel argument metadata. This class ensures that
         initialisation is performed correctly. It also adds three '''
-    def __init__(self, call, parent_call):
+    def __init__(self, call, parent_call, check=True):
         # pylint: disable=using-constant-test
         if False:
             self._0_to_n = GOKernelArgument(None, None, None)  # for pyreverse

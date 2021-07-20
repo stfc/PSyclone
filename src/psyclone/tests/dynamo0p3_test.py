@@ -1573,9 +1573,9 @@ def test_initdatatypeproperties_unknown_field_type():
         api=TEST_API)
     with pytest.raises(GenerationError) as info:
         psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert ("It was not possible to determine the field type for argument "
-            "'box_chi' in kernel 'testkern_coord_w0_code' from the algorithm "
-            "layer." in str(info.value))
+    assert ("It was not possible to determine the field type from the "
+            "algorithm layer for argument 'box_chi' in kernel "
+            "'testkern_coord_w0_code'." in str(info.value))
 
 
 # End New tests here

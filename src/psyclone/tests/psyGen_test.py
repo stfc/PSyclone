@@ -687,7 +687,7 @@ def test_call_abstract_methods():
 
     class DummyArguments(Arguments):
         ''' temporary dummy class '''
-        def __init__(self, call, parent_call):
+        def __init__(self, call, parent_call, check):
             Arguments.__init__(self, parent_call)
 
     dummy_call = DummyClass(my_ktype)
@@ -982,47 +982,6 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
     assert(
         "PSyclone currently only supports a single reduction in a kernel "
         "or builtin" in str(err.value))
-
-
-def test_reduction_no_set_precision(monkeypatch, dist_mem):
-    ''' Test that the zero_reduction_variable() method generates correct
-    code when a reduction argument does not have a defined precision (only
-    a zero summation value is generated in this case).
-
-    '''
-    # Set precision of 'real' scalar arguments in LFRic to an empty string
-    const = LFRicConstants()
-    monkeypatch.setitem(
-        const.DATA_TYPE_MAP, name="reduction",
-        value={"module": "scalar_mod", "type": "scalar_type",
-               "proxy_type": None, "intrinsic": "real", "kind": ""})
-    # Generate code for sum_X built-in with no precision for zero reduction
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.8.1_sum_X_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
-                     distributed_memory=dist_mem).create(invoke_info)
-    generated_code = str(psy.gen)
-
-    if dist_mem:
-        zero_sum_decls = (
-            "      USE scalar_mod, ONLY: scalar_type\n"
-            "      REAL, intent(out) :: asum\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
-            "      TYPE(scalar_type) global_sum\n"
-            "      INTEGER df\n")
-    else:
-        zero_sum_decls = (
-            "      REAL, intent(out) :: asum\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
-            "      INTEGER df\n")
-    assert zero_sum_decls in generated_code
-
-    zero_sum_output = (
-        "      ! Zero summation variables\n"
-        "      !\n"
-        "      asum = 0.0\n")
-    assert zero_sum_output in generated_code
 
 
 def test_invokes_wrong_schedule_gen_code():

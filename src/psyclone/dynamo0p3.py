@@ -7425,7 +7425,7 @@ class DynKern(CodedKern):
                     # Add a quadrature argument for each required quadrature
                     # rule.
                     args.append(Arg("variable", "qr_"+shape))
-        self._setup(ktype, "dummy_name", args, None)
+        self._setup(ktype, "dummy_name", args, None, check=False)
 
     def _setup_basis(self, kmetadata):
         '''
@@ -7442,7 +7442,7 @@ class DynKern(CodedKern):
                 self._eval_shapes = kmetadata.eval_shapes[:]
                 break
 
-    def _setup(self, ktype, module_name, args, parent):
+    def _setup(self, ktype, module_name, args, parent, check=True):
         '''
         Internal setup of kernel information.
 
@@ -7462,7 +7462,7 @@ class DynKern(CodedKern):
         # pylint: disable=too-many-branches, too-many-locals
         CodedKern.__init__(self, DynKernelArguments,
                            KernelCall(module_name, ktype, args),
-                           parent, check=False)
+                           parent, check)
         # Remove "_code" from the name if it exists to determine the
         # base name which (if dynamo0.3 naming conventions are
         # followed) is used as the root for the module and subroutine
@@ -8187,10 +8187,12 @@ class DynKernelArguments(Arguments):
     :type call: :py:class:`psyclone.parse.KernelCall`
     :param parent_call: the kernel-call object.
     :type parent_call: :py:class:`psyclone.dynamo0p3.DynKern`
+    :param bool check: whether to check for consistency between the \
+        kernel metadata and the algorithm layer. Defaults to True.
 
     :raises GenerationError: if the kernel meta-data specifies stencil extent.
     '''
-    def __init__(self, call, parent_call):
+    def __init__(self, call, parent_call, check=True):
         # pylint: disable=too-many-branches
         if False:  # pylint: disable=using-constant-test
             # For pyreverse
@@ -8208,7 +8210,7 @@ class DynKernelArguments(Arguments):
         idx = 0
         for arg in call.ktype.arg_descriptors:
             dyn_argument = DynKernelArgument(self, arg, call.args[idx],
-                                             parent_call)
+                                             parent_call, check)
             idx += 1
             if dyn_argument.descriptor.stencil:
                 # Create a stencil object and store a reference to it in our
@@ -8505,17 +8507,18 @@ class DynKernelArgument(KernelArgument):
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the kernel object with which this argument is associated.
     :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+    :param bool check: whether to check for consistency between the \
+        kernel metadata and the algorithm layer. Defaults to True.
 
     :raises InternalError: for an unsupported metadata in the argument \
                            descriptor data type.
 
     '''
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
-    def __init__(self, kernel_args, arg_meta_data, arg_info, call):
+    def __init__(self, kernel_args, arg_meta_data, arg_info, call, check=True):
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
-        print (type(arg_info))
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
         self._argument_type = arg_meta_data.argument_type
@@ -8569,7 +8572,7 @@ class DynKernelArgument(KernelArgument):
         self._proxy_data_type = None
         # Set up kernel argument information for scalar, field and operator
         # arguments: precision, module name, data type and proxy data type
-        self._init_data_type_properties(arg_info._datatype)
+        self._init_data_type_properties(arg_info._datatype, check)
 
     def ref_name(self, function_space=None):
         '''
@@ -8633,7 +8636,7 @@ class DynKernelArgument(KernelArgument):
             "DynKernelArgument.ref_name(fs): Found unsupported argument "
             "type '{0}'.".format(self._argument_type))
 
-    def _init_data_type_properties(self, alg_datatype_info):
+    def _init_data_type_properties(self, alg_datatype_info, check=True):
         '''Set up kernel argument information from LFRicConstants: precision,
         data type, proxy data type and module name. This is currently
         supported for scalar, field and operator arguments.
@@ -8642,6 +8645,8 @@ class DynKernelArgument(KernelArgument):
             argument as extracted from the algorithm layer with None \
             indicating that no information could be extracted.
         :type alg_datatype_info: (str or NoneType, str or NoneType)
+        :param bool check: whether to check for consistency between \
+        the kernel metadata and the algorithm layer. Defaults to True.
 
         '''
         alg_datatype = None
@@ -8664,7 +8669,7 @@ class DynKernelArgument(KernelArgument):
 
             # Check the metadata and algorithm types are consistent if
             # the algorithm information is available.
-            if alg_datatype and alg_datatype != self.intrinsic_type:
+            if check and alg_datatype and alg_datatype != self.intrinsic_type:
                 raise GenerationError(
                     "The kernel metadata for argument '{0}' in kernel '{1}' "
                     "specifies this argument should be a scalar of type "
@@ -8672,7 +8677,7 @@ class DynKernelArgument(KernelArgument):
                     "'{3}'.".format(
                         self.name, self._call.name, self.intrinsic_type, alg_datatype))
 
-            if alg_datatype and not alg_precision:
+            if check and alg_datatype and not alg_precision:
                 # If the datatype is known in the algorithm layer then
                 # its precision should also be defined.
                 raise GenerationError(
@@ -8685,7 +8690,7 @@ class DynKernelArgument(KernelArgument):
                 expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
                 # Check that the expected precision and the precision
                 # defined in the algorithn layer are consistent.
-                if alg_precision and alg_precision != expected_precision:
+                if check and alg_precision and alg_precision != expected_precision:
                     raise GenerationError(
                         "This scalar is a reduction which assumes precision "
                         "of type '{0}' but the algorithm declares this "
@@ -8714,22 +8719,28 @@ class DynKernelArgument(KernelArgument):
         if self.is_field:
 
             # Check the algorithm information is available.
-            if not alg_datatype:
+            if check and not alg_datatype:
                 raise GenerationError(
                     "It was not possible to determine the field type from "
                     "the algorithm layer for argument '{0}' in kernel '{1}'."
                     "".format(self.name, self._call.name, alg_datatype))
-            # Check the metadata and algorithm type are consistent.
-            if alg_datatype not in ["field_type"]:
-                raise GenerationError(
-                    "The metadata for argument '{0}' in kernel '{1}' "
-                    "specifies that this is a field, however it is declared "
-                    "as a '{2}' in the algorithm code."
-                    "".format(self.name, self._call.name, alg_datatype))
 
+            # Check the metadata and algorithm type are consistent.
             if self.intrinsic_type == "real":
+                if check and alg_datatype != "field_type":
+                    raise GenerationError(
+                        "The metadata for argument '{0}' in kernel '{1}' "
+                        "specifies that this is a real field, however it is "
+                        "declared as a '{2}' in the algorithm code."
+                        "".format(self.name, self._call.name, alg_datatype))
                 argtype = "field"
             elif self.intrinsic_type == "integer":
+                if check and alg_datatype != "integer_field_type":
+                    raise GenerationError(
+                        "The metadata for argument '{0}' in kernel '{1}' "
+                        "specifies that this is an integer field, however it "
+                        "is declared as a '{2}' in the algorithm code."
+                        "".format(self.name, self._call.name, alg_datatype))
                 argtype = "integer_field"
             else:
                 raise InternalError(
@@ -8739,7 +8750,10 @@ class DynKernelArgument(KernelArgument):
                            self.intrinsic_type))
             # Set field properties as defined in the LFRic infrastructure
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
-            self._data_type = alg_datatype
+            if alg_datatype:
+                self._data_type = alg_datatype
+            else:
+                self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
@@ -8749,7 +8763,7 @@ class DynKernelArgument(KernelArgument):
 
             # Check the metadata and algorithm type are consistent if
             # the algorithm information is available.
-            if alg_datatype and alg_datatype not in ["operator_type", "columnwise_operator_type"]:
+            if check and alg_datatype and alg_datatype not in ["operator_type", "columnwise_operator_type"]:
                 raise GenerationError(
                     "The kernel metadata for argument '{0}' in kernel '{1}' "
                     "specifies this argument should be an operator but it is "

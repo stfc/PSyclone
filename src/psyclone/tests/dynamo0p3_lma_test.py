@@ -458,7 +458,7 @@ def test_operator_arg_lfricconst_properties(monkeypatch):
                         ["tuxedo"])
     monkeypatch.setattr(op_arg, "_argument_type", "tuxedo")
     with pytest.raises(InternalError) as err:
-        op_arg._init_data_type_properties()
+        op_arg._init_data_type_properties(None)
     assert ("Expected 'gh_operator' or 'gh_columnwise_operator' "
             "argument type but found 'tuxedo'." in str(err.value))
 

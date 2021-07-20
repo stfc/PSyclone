@@ -2304,14 +2304,22 @@ class GOFparser2Reader(Fparser2Reader):
 
 class GOKernelArguments(Arguments):
     '''Provides information about GOcean kernel-call arguments
-        collectively, as specified by the kernel argument
-        metadata. This class ensures that initialisation is performed
-        correctly. It also overrides the iteration_space_arg method to
-        supply a GOcean-specific dictionary for the mapping of
-        argument-access types.
+    collectively, as specified by the kernel argument metadata. This
+    class ensures that initialisation is performed correctly. It also
+    overrides the iteration_space_arg method to supply a
+    GOcean-specific dictionary for the mapping of argument-access
+    types.
+
+    :param call: the kernel meta-data for which to extract argument info.
+    :type call: :py:class:`psyclone.parse.KernelCall`
+    :param parent_call: the kernel-call object.
+    :type parent_call: :py:class:`psyclone.gocean1p0.GOKern`
+    :param bool check: whether to check for consistency between the \
+        kernel metadata and the algorithm layer. Defaults to \
+        True. Currently does nothing in this API.
 
     '''
-    def __init__(self, call, parent_call):
+    def __init__(self, call, parent_call, check=True):
         if False:  # pylint: disable=using-constant-test
             self._0_to_n = GOKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)

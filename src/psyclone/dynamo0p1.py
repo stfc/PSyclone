@@ -328,7 +328,7 @@ class DynKern(CodedKern):
         if False:
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
 
-    def load(self, call, parent):
+    def load(self, call, parent, check=True):
         '''
         Load this DynKern object with state pulled from the call object.
 
@@ -422,7 +422,7 @@ class DynKernelArguments(Arguments):
         as specified by the kernel argument metadata. This class currently
         adds no additional functionality to its base class other than
         ensuring that initialisation is performed correctly. '''
-    def __init__(self, call, parent_call):
+    def __init__(self, call, parent_call, check=True):
         if False:
             self._0_to_n = DynKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)
