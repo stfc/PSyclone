@@ -31,8 +31,9 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
-! Modified by R. W. Ford, STFC Daresbury Lab.
+! Author: I. Kavcic, Met Office
+! Modified: A. R. Porter, STFC Daresbury Laboratory
+! Modified: R. W. Ford, STFC Daresbury Laboratory
 
 program single_invoke
 
@@ -53,7 +54,7 @@ program single_invoke
   type(my_type) :: my_var
 
   call invoke( inc_X_powint_n(f1, i_scalar), &
-               inc_X_powint_n(f1, -2),       &
+               inc_X_powint_n(f1, -2_i_def),       &
                inc_X_powint_n(f1, my_var%a_scalar) )
 
 end program single_invoke

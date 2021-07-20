@@ -8874,7 +8874,7 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_literal:
             reader = FortranReader()
-            return reader.psyir_from_expression(self.name)
+            return reader.psyir_from_expression(self.name, symbol_table)
 
         if self.is_scalar:
             try:
