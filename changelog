@@ -117,6 +117,9 @@
 	'psyir_from_expression()' and fix code generation bug for LFRic
 	"power" built-ins with literal constants that have explicit precision.
 
+	40) PR #1323 for #1305. Capture the default visibility of a Fortran
+	module and store it in the symbol table.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
