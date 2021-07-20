@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
-    SymbolError, RoutineSymbol, NoType
+    SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol
 from psyclone.errors import InternalError
 
 
@@ -83,6 +83,7 @@ def test_instance():
     assert sym_table._argument_list == []
     assert sym_table._tags == {}
     assert sym_table._node is None
+    assert sym_table._default_visibility is Symbol.Visibility.PUBLIC
 
     with pytest.raises(TypeError) as info:
         _ = SymbolTable(node="hello")
@@ -96,6 +97,27 @@ def test_instance():
     assert sym_table._argument_list == []
     assert sym_table._tags == {}
     assert sym_table._node is schedule
+    assert sym_table._default_visibility is Symbol.Visibility.PUBLIC
+
+    sym_table = SymbolTable(default_visibility=Symbol.Visibility.PUBLIC)
+    assert sym_table._default_visibility == Symbol.Visibility.PUBLIC
+
+    with pytest.raises(TypeError) as info:
+        SymbolTable(default_visibility=1)
+    assert ("Default visibility must be an instance of psyir.symbols.Symbol."
+            "Visibility but got 'int'" in str(info.value))
+
+
+def test_default_vis_symbol_table():
+    ''' Test the setter and getter for the default_visibility property. '''
+    sym_table = SymbolTable()
+    assert sym_table.default_visibility is Symbol.Visibility.PUBLIC
+    sym_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert sym_table.default_visibility == Symbol.Visibility.PRIVATE
+    with pytest.raises(TypeError) as info:
+        sym_table.default_visibility = 1
+    assert ("Default visibility must be an instance of psyir.symbols.Symbol."
+            "Visibility but got 'int'" in str(info.value))
 
 
 def test_parent_symbol_table():
@@ -986,6 +1008,42 @@ def test_local_datasymbols():
     assert sym_table.lookup("var4") not in sym_table.local_datasymbols
 
 
+def test_argument_datasymbols():
+    ''' Test that the argument_datasymbols property returns a list of the
+    correct symbols. '''
+    sym_table = SymbolTable()
+    assert sym_table.argument_datasymbols == []
+    var1 = DataSymbol("var1", REAL_TYPE, interface=ArgumentInterface())
+    sym_table.add(var1)
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    var2 = DataSymbol("var2", array_type, interface=ArgumentInterface())
+    sym_table.add(var2)
+    sym_table.add(DataSymbol("var3", REAL_TYPE))
+    sym_table.specify_argument_list([var1, var2])
+    assert sym_table.argument_datasymbols == [var1, var2]
+
+
+def test_local_datatypesymbols():
+    ''' Test that the local_datatypesymbols property returns a list of the
+    correct symbols. '''
+    sym_table = SymbolTable()
+    assert sym_table.local_datatypesymbols == []
+    region_type = StructureType.create([
+        ("startx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    region_sym = DataTypeSymbol("region_type", region_type)
+    sym_table.add(region_sym)
+    # Add another DataTypeSymbol but have it imported from a Container (so it
+    # is not local).
+    csym = ContainerSymbol("my_mod")
+    sym_table.add(csym)
+    var1 = DataTypeSymbol("other_type", DeferredType(),
+                          interface=GlobalInterface(csym))
+    sym_table.add(var1)
+    var2 = DataSymbol("arg_var", region_type, interface=ArgumentInterface())
+    sym_table.specify_argument_list([var2])
+    assert sym_table.local_datatypesymbols == [region_sym]
+
+
 def test_global_symbols():
     '''Test that the global_symbols property returns those Symbols with
     'global' scope (i.e. that represent data/code that exists outside
@@ -1161,7 +1219,8 @@ def test_shallow_copy():
 
     # Create an initial SymbolTable
     dummy = Schedule()
-    symtab = SymbolTable(node=dummy)
+    symtab = SymbolTable(node=dummy,
+                         default_visibility=Symbol.Visibility.PRIVATE)
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
@@ -1177,6 +1236,7 @@ def test_shallow_copy():
     assert symtab2.lookup_with_tag("tag1") == sym2
     assert symtab2._node == dummy
     assert sym1 in symtab2.argument_list
+    assert symtab2.default_visibility == Symbol.Visibility.PRIVATE
 
     # Add new symbols in both symbols tables and check they are not added
     # to the other symbol table
@@ -1194,7 +1254,8 @@ def test_deep_copy():
 
     # Create an initial SymbolTable
     dummy = Schedule()
-    symtab = SymbolTable(node=dummy)
+    symtab = SymbolTable(node=dummy,
+                         default_visibility=Symbol.Visibility.PRIVATE)
     mod = ContainerSymbol("my_mod")
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
@@ -1214,6 +1275,7 @@ def test_deep_copy():
     assert symtab2.lookup_with_tag("tag1") is symtab2.lookup("symbol2")
     assert symtab2.lookup("symbol1") in symtab2.argument_list
     assert symtab2._node == dummy
+    assert symtab2.default_visibility == Symbol.Visibility.PRIVATE
 
     # But the symbols are not the same objects as the original ones
     assert symtab2.lookup("symbol1") is not sym1

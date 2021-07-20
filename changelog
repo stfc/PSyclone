@@ -110,6 +110,20 @@
 	precision information derived from LFRic rules which is required
 	for mixed precision support.
 
+	38) PR #1317 for #1315. Fixes bug in dependence analysis caused by
+	introduction of FileContainer root node.
+
+	39) PR #1340 for #1334. Add support for symbols in
+	'psyir_from_expression()' and fix code generation bug for LFRic
+	"power" built-ins with literal constants that have explicit precision.
+
+	40) PR #1323 for #1305. Capture the default visibility of a Fortran
+	module and store it in the symbol table.
+
+ 	41) PR #1313 for #1268 and #1269. Adds new ComponentIndices class
+	to manage indices for component accesses.
+
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
