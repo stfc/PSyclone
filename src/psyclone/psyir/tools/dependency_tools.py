@@ -133,8 +133,7 @@ class DependencyTools(object):
 
         :param loop_variable: symbol of the variable associated with the \
             loops being fused.
-        :type loop_variable: \
-            :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`
+        :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param var_infos: access information for an array. Can be either a \
             single object, or a list of access objects.
         :type var_infos: a list or a single instance of \
@@ -279,8 +278,7 @@ class DependencyTools(object):
           `a(i,j) = a(j,i) + 1`.
 
         :param loop_variable: symbol of the variable that is parallelised.
-        :type loop_variable: \
-            :py:class:`psyclone.psyir.symbol.datasymbol.DataSymbol`
+        :type loop_variable: :py:class:`psyclone.psyir.symbol.DataSymbol`
         :param var_info: access information for this variable.
         :type var_info: \
             :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
@@ -410,8 +408,7 @@ class DependencyTools(object):
         :param loop_variable: Optional symbol of the variable that is \
             parallelised. If not specified, the loop variable of the loop \
             is used.
-        :type loop_variable: \
-            :py:class:`psyclone.psyir.symbol.datasymbol.DataSymbol`
+        :type loop_variable: :py:class:`psyclone.psyir.symbol.DataSymbol`
         :param bool only_nested_loops: if True, a loop must have an inner\
                                        loop in order to be considered\
                                        parallelisable (default: True).

@@ -116,7 +116,8 @@ class ComponentIndices(object):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`, or \
             :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises IndexError:
+        :raises IndexError: if a tuple is given and one of the indices is \
+            outside of the valid range.
 
         '''
         if isinstance(indx, tuple):

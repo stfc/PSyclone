@@ -106,7 +106,7 @@ def test_iterating():
 
 # -----------------------------------------------------------------------------
 def test_component_indices_getitem_exceptions():
-    '''Tests useful error messages are provides if a tuple is provided that
+    '''Tests useful error messages are provided if a tuple is provided that
     is out of bounds.
     '''
     component_indices = ComponentIndices([["a", "b"], ["c"]])
@@ -117,3 +117,11 @@ def test_component_indices_getitem_exceptions():
     with pytest.raises(IndexError) as err:
         _ = component_indices[(1, 2)]
     assert "Second index (2) of (1, 2) is out of range." in str(err.value)
+
+    with pytest.raises(IndexError) as err:
+        _ = component_indices[(-1, 0)]
+    assert "First index (-1) of (-1, 0) is out of range." in str(err.value)
+
+    with pytest.raises(IndexError) as err:
+        _ = component_indices[(1, -1)]
+    assert "Second index (-1) of (1, -1) is out of range." in str(err.value)
