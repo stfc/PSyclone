@@ -42,6 +42,11 @@ from psyclone.domain.gocean.nodes import GOceanExtractNode
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
+from psyclone.psyir.nodes import Routine, FileContainer
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
+    GlobalInterface, DataTypeSymbol, DeferredType
+from psyclone.psyir.backend.fortran import FortranWriter
+
 
 class GOceanExtractTrans(ExtractTrans):
     ''' GOcean1.0 API application of ExtractTrans transformation \
@@ -151,4 +156,75 @@ class GOceanExtractTrans(ExtractTrans):
         # Just call the base function, this function is here only to
         # document all options.
         # pylint: disable=useless-super-delegation
-        return super(GOceanExtractTrans, self).apply(nodes, options)
+
+        if options.get("create_driver", False):
+            from psyclone.psyir.tools.dependency_tools import DependencyTools
+            dep = DependencyTools()
+            input_list, output_list = dep.get_in_out_parameters(nodes)
+            print("IO", input_list, output_list)
+            self.psyir_create_driver(nodes, input_list, output_list, options)
+
+        result = super(GOceanExtractTrans, self).apply(nodes, options)
+
+        if options is None:
+            options = {}
+        return result
+
+    # -------------------------------------------------------------------------
+    def psyir_create_driver(self, nodes, input_list, output_list, options):
+        '''This function uses the PSyIR to create a stand-alone driver
+        that reads in a previously created file with kernel input and
+        output information, and calls the kernel with the parameters from
+        the file.
+
+        :param input_list: list of variables that are input parameters.
+        :type input_list: list of str
+        :param output_list: list of variables that are output parameters.
+        :type output_list: list or str
+        '''
+
+        # module_name, region_name = self.region_identifier
+        module_name, region_name = "module", "region"
+        unit_name = "{0}_{1}".format(module_name, region_name)
+
+        # First create the file container, which will only store the program:
+        file_container = FileContainer(unit_name)
+
+        # Create the program and add it to the file container:
+        program = Routine(unit_name, is_program=True)
+        program_symbol_table = program.symbol_table
+        file_container.addchild(program)
+
+        # Import the PSyDataType:
+        psy_data_mod = ContainerSymbol("psy_data_mod")
+        program_symbol_table.add(psy_data_mod)
+        psy_data_type = DataTypeSymbol("PsyDataType", DeferredType(),
+                                       interface=GlobalInterface(psy_data_mod))
+        program_symbol_table.add(psy_data_type)
+
+        # Declare a variable of the above PSyDataType:
+        prefix = options.get("prefix", "")
+        if prefix:
+            # Add an _ if there is a prefix
+            prefix += "_"
+
+        root_name = prefix + "psy_data"
+
+        psy_data = program_symbol_table.new_symbol(root_name=root_name,
+                                                   symbol_type=DataSymbol,
+                                                   datatype=psy_data_type)
+
+        writer = FortranWriter()
+        schedule_copy = nodes[0].parent.copy()
+        schedule_copy.lower_to_language_level()
+        all_children = schedule_copy.pop_all_children()
+        for child in all_children:
+            program.addchild(child)
+
+        code = writer(file_container)
+        print("CODE", code)
+
+        # with open("driver-{0}-{1}.f90".
+        #           format(module_name, region_name), "w") as out:
+        #     out.write(code)
+        return
