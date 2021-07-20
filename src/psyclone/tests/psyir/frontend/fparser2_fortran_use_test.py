@@ -41,10 +41,11 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import ContainerSymbol, SymbolError
-from psyclone.psyir.nodes import KernelSchedule
 from psyclone.psyGen import GenerationError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import KernelSchedule, Container
+from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
+    DataSymbol, LocalInterface, INTEGER_SINGLE_TYPE
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -64,6 +65,8 @@ def test_use_stmt():
     for module_name in ["my_mod", "this_mod", "other_mod"]:
         container = symtab.lookup(module_name)
         assert isinstance(container, ContainerSymbol)
+        # Default visibility is public
+        assert container.visibility == Symbol.Visibility.PUBLIC
         assert container.name == module_name
         # Container reference is not updated until explicitly requested
         assert not container._reference
@@ -211,6 +214,7 @@ def test_redundant_empty_only_list():
     assert sym_table.imported_symbols(csym)[0].name == "bob"
 
 
+@pytest.mark.usefixtures("parser")
 def test_use_same_symbol():
     ''' Check that we handle the case where the same symbol is imported from
     different modules.
@@ -231,11 +235,10 @@ def test_use_same_symbol():
     assert not fake_parent.symbol_table.imported_symbols(csym)
 
 
+@pytest.mark.usefixtures("parser")
 def test_use_local_symbol_error():
     ''' Check that we raise the expected error if we encounter an import of
     a symbol that is already declared to be local. '''
-    from psyclone.psyir.symbols import DataSymbol, LocalInterface, \
-        INTEGER_SINGLE_TYPE
     fake_parent = KernelSchedule("dummy_schedule")
     # In practise this situation is hard to trigger as USE statements must
     # come before local declarations. Therefore we manually add a symbol
@@ -248,3 +251,26 @@ def test_use_local_symbol_error():
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert "'fred' is imported from module 'mod2' but is" in str(err.value)
+
+
+@pytest.mark.usefixtures("parser")
+def test_use_symbol_visibility():
+    ''' Check that all container symbols imported into a module are given
+    the default visibility defined in that module.
+
+    '''
+    fake_parent = Container("dummy_mod")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("use mod2, only: fred\n"
+                                 "use mod3\n"
+                                 "private\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    default_vis, vis_map = processor.process_access_statements(
+        fparser2spec.content)
+    fake_parent.symbol_table.default_visibility = default_vis
+    processor.process_declarations(fake_parent, fparser2spec.content, [],
+                                   vis_map)
+    csym2 = fake_parent.symbol_table.lookup("mod2")
+    assert csym2.visibility == Symbol.Visibility.PRIVATE
+    csym3 = fake_parent.symbol_table.lookup("mod3")
+    assert csym3.visibility == Symbol.Visibility.PRIVATE

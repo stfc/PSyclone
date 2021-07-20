@@ -59,7 +59,8 @@ def test_program_handler(parser):
         "end subroutine")
     expected = (
         "module a\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module a\n"
         "program b\n\n\n"
