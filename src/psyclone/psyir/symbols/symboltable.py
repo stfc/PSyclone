@@ -55,17 +55,23 @@ class SymbolTable(object):
     symbols and look up existing symbols. Nested scopes are supported
     and, by default, the add and lookup methods take any ancestor
     symbol tables into consideration (ones attached to nodes that are
-    ancestors of the node that this symbol table is attached to).
+    ancestors of the node that this symbol table is attached to). If the
+    default visibility is not specified then it defaults to
+    Symbol.Visbility.PUBLIC.
 
     :param node: reference to the Schedule or Container to which this \
         symbol table belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
         :py:class:`psyclone.psyir.nodes.Container` or NoneType
+    :param default_visibility: optional default visibility value for this \
+        symbol table, if not provided it defaults to PUBLIC visibility.
+    :type default_visibillity: \
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
     '''
-    def __init__(self, node=None):
+    def __init__(self, node=None, default_visibility=Symbol.Visibility.PUBLIC):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
         # produce code with declarations in the same order.
@@ -83,6 +89,35 @@ class SymbolTable(object):
                 "Schedule or a Container but found '{0}'."
                 "".format(type(node).__name__))
         self._node = node
+        # The default visibility of symbols in this symbol table. The
+        # setter does validation of the supplied quantity.
+        self._default_visibility = None
+        self.default_visibility = default_visibility
+
+    @property
+    def default_visibility(self):
+        '''
+        :returns: the default visibility of symbols in this table.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        '''
+        return self._default_visibility
+
+    @default_visibility.setter
+    def default_visibility(self, vis):
+        '''
+        Sets the default visibility of symbols in this table.
+
+        :param vis: the default visibility.
+        :type vis: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :raises TypeError: if the supplied value is of the wrong type.
+
+        '''
+        if not isinstance(vis, Symbol.Visibility):
+            raise TypeError(
+                "Default visibility must be an instance of psyir.symbols."
+                "Symbol.Visibility but got '{0}'".format(type(vis).__name__))
+        self._default_visibility = vis
 
     @property
     def node(self):
@@ -204,6 +239,7 @@ class SymbolTable(object):
         new_st._argument_list = copy.copy(self._argument_list)
         new_st._tags = copy.copy(self._tags)
         new_st._node = self.node
+        new_st._default_visibility = self.default_visibility
         return new_st
 
     def deep_copy(self):
@@ -239,6 +275,9 @@ class SymbolTable(object):
             name = symbol.interface.container_symbol.name
             new_container = new_st.lookup(name)
             symbol.interface = GlobalInterface(new_container)
+
+        # Set the default visibility
+        new_st._default_visibility = self.default_visibility
 
         return new_st
 
