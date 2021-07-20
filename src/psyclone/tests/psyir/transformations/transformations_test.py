@@ -52,7 +52,7 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans
+    OMPSingleTrans, OMPMasterTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -221,6 +221,15 @@ def test_ompsingle_nested():
     assert("Transformation Error: Nodes of type 'OMPSingleDirective' cannot" +
            " be enclosed by a OMPSingleTrans transformation"
            in str(err.value))
+
+
+# Tests for OMPMasterTrans
+def test_ompmaster():
+    ''' Generic tests for the OMPMasterTrans transformation class '''
+    trans = OMPMasterTrans()
+    assert trans.name == "OMPMasterTrans"
+    assert str(trans) == "Insert an OpenMP Master region"
+
 
 # Tests for ProfileTrans
 

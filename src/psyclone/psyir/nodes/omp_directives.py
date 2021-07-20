@@ -232,6 +232,86 @@ class OMPSingleDirective(OMPDirective):
         return "omp end single"
 
 
+class OMPMasterDirective(OMPSingleDirective):
+    '''
+    Class representing an OpenMP MASTER directive in the PSyclone AST.
+
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    def __init__(self, children=None, parent=None):
+
+        if children is None:
+            children = []
+
+        # Call the init method of the base class
+        super(OMPMasterDirective, self).__init__(children=children,
+                                                 parent=parent, nowait=False)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_master_" + str(position)
+
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[OMP master]"
+
+    def gen_code(self, parent):
+        '''Generate the Fortran OMP Master Directive and any associated
+        code'''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
+
+        # Generate the code for all of this node's children
+        for child in self.children:
+            child.gen_code(parent)
+
+        # Generate the end code for this node
+        parent.add(DirectiveGen(parent, "omp", "end", "master", ""))
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp master". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        result = "omp master"
+
+        return result
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end master". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end master"
+
+
 class OMPParallelDirective(OMPDirective):
 
     @property
@@ -742,4 +822,4 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
 # For automatic API documentation generation
 __all__ = ["OMPDirective", "OMPParallelDirective", "OMPSingleDirective",
-           "OMPDoDirective", "OMPParallelDoDirective"]
+           "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective"]

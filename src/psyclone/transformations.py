@@ -1390,6 +1390,54 @@ class OMPSingleTrans(ParallelRegionTrans):
         return super(OMPSingleTrans, self).apply(node_list, options)
 
 
+class OMPMasterTrans(OMPSingleTrans):
+    '''
+    Create an OpenMP SINGLE region by inserting directives. The most
+    likely use case for this transformation is to wrap around task-based
+    transformations. The parent region for this should usually also be
+    a OMPParallelTrans. For example:
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPMasterTrans
+    >>> mastertrans = OMPMasterTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # MASTER region
+    >>> mastertrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> schedule.view()
+
+    '''
+
+    def __init__(self):
+        super(OMPMasterTrans, self).__init__(False)
+        # Set the type of directive that the base class will use
+        self._pdirective = nodes.OMPMasterDirective
+
+    def __str__(self):
+        return "Insert an OpenMP Master region"
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+        return "OMPMasterTrans"
+
+
 class OMPParallelTrans(ParallelRegionTrans):
     '''
     Create an OpenMP PARALLEL region by inserting directives. For

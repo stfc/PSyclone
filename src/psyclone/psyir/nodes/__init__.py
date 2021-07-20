@@ -77,7 +77,8 @@ from psyclone.psyir.nodes.acc_directives import ACCDirective, \
     ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
     ACCKernelsDirective, ACCDataDirective
 from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
-    OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective
+    OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
+    OMPMasterDirective
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -131,6 +132,7 @@ __all__ = [
         'OMPDirective',
         'OMPParallelDirective',
         'OMPSingleDirective',
+        'OMPMasterDirective',
         'OMPDoDirective',
         'OMPParallelDoDirective'
         ]
