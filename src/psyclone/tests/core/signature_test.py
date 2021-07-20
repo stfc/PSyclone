@@ -52,7 +52,16 @@ def test_signature():
     assert repr(Signature("a")) == "Signature(a)"
     assert repr(Signature(("a",))) == "Signature(a)"
     assert repr(Signature(("a", "b", "c"))) == "Signature(a%b%c)"
+    assert repr(Signature(["a", "b", "c"])) == "Signature(a%b%c)"
     assert Signature("a") != "a"
+    sig = Signature(("a", "b", "c"))
+    assert sig.is_structure
+    assert sig[0] == "a"
+    assert sig[2] == "c"
+    assert sig[-1] == "c"
+    assert sig[0:2] == ("a", "b")
+    assert Signature(["a", "b", "c"]).is_structure
+    assert not Signature(("a")).is_structure
 
 
 def test_signature_errors():
@@ -118,3 +127,49 @@ def test_signature_sort():
     sig_list.sort()
     assert str(sig_list) == "[Signature(a), Signature(a%b), Signature(a%c), " \
                             "Signature(b), Signature(b%a), Signature(c)]"
+
+
+def test_signature_comparison():
+    ''' Test that two Signatures can be compared for equality and not
+    equality.
+    '''
+    # pylint: disable=unneeded-not
+    assert Signature(("a", "b")) == Signature(("a", "b"))
+    assert not Signature(("a", "b")) == Signature(("a", "c"))
+
+    assert Signature(("a", "b")) != Signature(("a", "c"))
+    assert not Signature(("a", "b")) != Signature(("a", "b"))
+    assert Signature(("a", "c")) >= Signature(("a", "b"))
+    assert not Signature(("a", "b")) >= Signature(("a", "c"))
+    assert Signature(("a", "c")) > Signature(("a", "b"))
+    assert not Signature(("a", "b")) > Signature(("a", "c"))
+    assert Signature(("a", "b")) <= Signature(("a", "c"))
+    assert not Signature(("a", "c")) <= Signature(("a", "b"))
+    assert Signature(("a", "b")) < Signature(("a", "c"))
+    assert not Signature(("a", "c")) < Signature(("a", "b"))
+
+    # Comparison with other types should work for == and !=:
+    assert not Signature(("a", "b")) == 2
+    assert Signature(("a", "b")) != 2
+    # pylint: enable=unneeded-not
+
+    # Error cases: comparison of signature with other type.
+    with pytest.raises(TypeError) as err:
+        _ = Signature(("a", "b")) < 1
+    assert "'<' not supported between instances of 'Signature' and 'int'" \
+        in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        _ = Signature(("a", "b")) <= "a"
+    assert "'<=' not supported between instances of 'Signature' and 'str'" \
+        in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        _ = Signature(("a", "b")) > [1]
+    assert "'>' not supported between instances of 'Signature' and 'list'" \
+        in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        _ = Signature(("a", "b")) >= (1, 2)
+    assert "'>=' not supported between instances of 'Signature' and 'tuple'" \
+        in str(err.value)

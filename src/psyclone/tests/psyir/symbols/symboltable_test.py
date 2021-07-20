@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
-    SymbolError, RoutineSymbol
+    SymbolError, RoutineSymbol, NoType
 from psyclone.errors import InternalError
 
 
@@ -239,17 +239,19 @@ def test_add_1():
             ScalarType.Precision.UNDEFINED)
     var1_datatype = var1_symbol.datatype
     assert len(var1_datatype.shape) == 2
-    assert isinstance(var1_datatype.shape[0], Literal)
-    assert var1_datatype.shape[0].value == "5"
-    assert (var1_datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(var1_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(var1_datatype.shape[0].upper, Literal)
+    assert var1_datatype.shape[0].upper.value == "5"
+    assert (var1_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (var1_datatype.shape[0].datatype.precision ==
+    assert (var1_datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(var1_datatype.shape[1], Literal)
-    assert var1_datatype.shape[1].value == "1"
-    assert (var1_datatype.shape[1].datatype.intrinsic ==
+    assert isinstance(var1_datatype.shape[1], ArrayType.ArrayBounds)
+    assert isinstance(var1_datatype.shape[1].upper, Literal)
+    assert var1_datatype.shape[1].upper.value == "1"
+    assert (var1_datatype.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (var1_datatype.shape[1].datatype.precision ==
+    assert (var1_datatype.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     assert var1_symbol.interface.container_symbol == my_mod
 
@@ -558,8 +560,8 @@ def test_swap_symbol_properties():
     assert symbol1.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol1.datatype.precision == ScalarType.Precision.UNDEFINED
     assert len(symbol1.datatype.shape) == 2
-    assert symbol1.datatype.shape[0].symbol == symbol2
-    assert symbol1.datatype.shape[1].symbol == symbol3
+    assert symbol1.datatype.shape[0].upper.symbol == symbol2
+    assert symbol1.datatype.shape[1].upper.symbol == symbol3
     assert symbol1.is_argument
     assert symbol1.constant_value is None
     assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
@@ -577,8 +579,8 @@ def test_swap_symbol_properties():
 
     # Check symbol references are unaffected
     sym_table.swap_symbol_properties(symbol2, symbol3)
-    assert symbol1.shape[0].name == "dim1"
-    assert symbol1.shape[1].name == "dim2"
+    assert symbol1.shape[0].upper.name == "dim1"
+    assert symbol1.shape[1].upper.name == "dim2"
 
     # Check argument positions are updated. The original positions
     # were [dim1, dim2, var2]. They should now be [dim2, dim1, var1]
@@ -1010,7 +1012,7 @@ def test_global_symbols():
     assert len(gsymbols) == 1
     assert sym_table.lookup("gvar2") not in gsymbols
     # Add another global symbol
-    sym_table.add(RoutineSymbol("my_sub",
+    sym_table.add(RoutineSymbol("my_sub", INTEGER_TYPE,
                                 interface=GlobalInterface(
                                     ContainerSymbol("my_mod"))))
     assert sym_table.lookup("my_sub") in sym_table.global_symbols
@@ -1193,10 +1195,12 @@ def test_deep_copy():
     # Create an initial SymbolTable
     dummy = Schedule()
     symtab = SymbolTable(node=dummy)
+    mod = ContainerSymbol("my_mod")
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
-    sym2 = Symbol("symbol2")
+    sym2 = Symbol("symbol2", interface=GlobalInterface(mod))
+    symtab.add(mod)
     symtab.add(sym1)
     symtab.add(sym2, tag="tag1")
     symtab.specify_argument_list([sym1])
@@ -1216,6 +1220,11 @@ def test_deep_copy():
     assert symtab2.lookup_with_tag("tag1") is not sym2
     assert sym1 not in symtab2.argument_list
     assert symtab2.lookup("symbol1") not in symtab.argument_list
+
+    # Check that the internal links between GlobalInterfaces and
+    # ContainerSymbols have been updated
+    assert symtab2.lookup("symbol2").interface.container_symbol is \
+        symtab2.lookup("my_mod")
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
@@ -1372,6 +1381,7 @@ def test_new_symbol():
     assert sym2.visibility is Symbol.Visibility.PUBLIC
     assert isinstance(sym1.interface, LocalInterface)
     assert isinstance(sym2.interface, LocalInterface)
+    assert isinstance(sym1.datatype, NoType)
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is None
 
@@ -1379,6 +1389,7 @@ def test_new_symbol():
     # keyword parameters
     sym1 = symtab.new_symbol("routine",
                              symbol_type=RoutineSymbol,
+                             datatype=DeferredType(),
                              visibility=Symbol.Visibility.PRIVATE)
     sym2 = symtab.new_symbol("data", symbol_type=DataSymbol,
                              datatype=INTEGER_TYPE,
@@ -1392,6 +1403,7 @@ def test_new_symbol():
     assert symtab.lookup("data_1") is sym2
     assert sym1.visibility is Symbol.Visibility.PRIVATE
     assert sym2.visibility is Symbol.Visibility.PRIVATE
+    assert isinstance(sym1.datatype, DeferredType)
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is not None
 
@@ -1482,12 +1494,12 @@ def test_rename_symbol():
     assert symbol.name == "symbol1"
     assert symbol is schedule_symbol_table.lookup("symbol1")
     assert sched[0].rhs.symbol.name == "symbol1"
-    assert array.datatype.shape[0].symbol.name == "symbol1"
+    assert array.datatype.shape[0].upper.symbol.name == "symbol1"
     schedule_symbol_table.rename_symbol(symbol, "other")
     assert symbol.name == "other"
     assert symbol is schedule_symbol_table.lookup("other")
     assert sched[0].rhs.symbol.name == "other"
-    assert array.datatype.shape[0].symbol.name == "other"
+    assert array.datatype.shape[0].upper.symbol.name == "other"
 
     # The previous name should fail the lookup now
     with pytest.raises(KeyError) as err:

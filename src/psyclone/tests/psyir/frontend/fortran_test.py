@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
+# Modifications: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
@@ -42,7 +42,10 @@ import pytest
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Routine, FileContainer
+from psyclone.psyir.nodes import Routine, FileContainer, UnaryOperation, \
+    BinaryOperation, Literal
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
+    ScalarType, SymbolError, ContainerSymbol
 
 
 # The 'contiguous' keyword is just valid with Fortran 2008
@@ -80,6 +83,83 @@ def test_fortran_psyir_from_source():
     assert isinstance(file_container, FileContainer)
     subroutine = file_container.children[0]
     assert isinstance(subroutine, Routine)
+
+
+def test_fortran_psyir_from_expression(fortran_reader):
+    ''' Test that the psyir_from_expression method generates the
+    expected PSyIR. '''
+    table = SymbolTable()
+    psyir = fortran_reader.psyir_from_expression("3.0", table)
+    assert isinstance(psyir, Literal)
+    assert psyir.value == "3.0"
+    psyir = fortran_reader.psyir_from_expression("-3.0 + 1.0", table)
+    assert isinstance(psyir, BinaryOperation)
+    assert psyir.operator == BinaryOperation.Operator.ADD
+    assert isinstance(psyir.children[0], UnaryOperation)
+    assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
+    assert isinstance(psyir.children[0].children[0], Literal)
+    assert psyir.children[0].children[0].value == "3.0"
+    psyir = fortran_reader.psyir_from_expression("ABS(-3.0)", table)
+    assert isinstance(psyir, UnaryOperation)
+    assert psyir.operator == UnaryOperation.Operator.ABS
+    assert isinstance(psyir.children[0], UnaryOperation)
+    assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
+    assert isinstance(psyir.children[0].children[0], Literal)
+    # With kind specified by a kind parameter. Add a ContainerSymbol with a
+    # wildcard import so there's some way that 'r_def' can be brought into
+    # scope.
+    csym = table.new_symbol("kind_params_mod", symbol_type=ContainerSymbol)
+    csym.wildcard_import = True
+    fortran_reader.psyir_from_expression("3.0_r_def", table)
+    assert "r_def" in table
+    psyir = fortran_reader.psyir_from_expression("3.0_r_def", table)
+    assert isinstance(psyir, Literal)
+    assert isinstance(psyir.datatype, ScalarType)
+    assert isinstance(psyir.datatype.precision, DataSymbol)
+    assert psyir.datatype.precision is table.lookup("r_def")
+    # Symbol not found in supplied table
+    with pytest.raises(SymbolError) as err:
+        fortran_reader.psyir_from_expression("3.0 + a", SymbolTable())
+    assert ("Expression '3.0 + a' contains symbols which are not present in "
+            "any symbol table and there are no" in str(err.value))
+    # Now use the table with the container that has the wildcard import
+    psyir = fortran_reader.psyir_from_expression("3.0 + a", table)
+    assert isinstance(psyir, BinaryOperation)
+    assert "a" in table
+
+
+def test_fortran_psyir_from_expression_invalid(fortran_reader):
+    ''' Test that the psyir_from_expression method raises the expected
+    error when given something that is not an expression. '''
+    # No supplied table
+    with pytest.raises(TypeError) as err:
+        fortran_reader.psyir_from_expression("3.0 + sin(a)", None)
+    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'" in
+            str(err.value))
+    with pytest.raises(TypeError) as err:
+        fortran_reader.psyir_from_expression("3.0 + sin(a)", "wrong")
+    assert ("Must be supplied with a valid SymbolTable but got 'str'" in
+            str(err.value))
+    with pytest.raises(TypeError) as err:
+        fortran_reader.psyir_from_expression("3.0 + sin(a)", None)
+    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'" in
+            str(err.value))
+    table = SymbolTable()
+    with pytest.raises(SymbolError) as err:
+        fortran_reader.psyir_from_expression("return", table)
+    assert ("Expression 'return' contains symbols which are not present" in
+            str(err.value))
+    with pytest.raises(ValueError) as err:
+        fortran_reader.psyir_from_expression("a = b", table)
+    assert "not represent a Fortran expression: 'a = b'" in str(err.value)
+    with pytest.raises(ValueError) as err:
+        fortran_reader.psyir_from_expression("if(3 == 2)then", table)
+    assert ("not represent a Fortran expression: 'if(3 == 2)then'" in
+            str(err.value))
+    with pytest.raises(ValueError) as err:
+        fortran_reader.psyir_from_expression("this is not Fortran", table)
+    assert ("not represent a Fortran expression: 'this is not Fortran'" in
+            str(err.value))
 
 
 def test_fortran_psyir_from_file(tmpdir_factory):

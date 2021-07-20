@@ -51,6 +51,7 @@ from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import PSycloneError
+from psyclone.psyir.nodes import ScopingNode
 
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
@@ -303,12 +304,21 @@ class Compile(object):
         :rtype: bool
 
         '''
-        kernel_modules = set()
-        # Get the names of the modules associated with the kernels.
-        # By definition, built-ins do not have associated Fortran modules.
+        modules = set()
+        # Get the names of all the imported modules as these are dependencies
+        # that will need to be compiled first
         for invoke in psy_ast.invokes.invoke_list:
+            # Get any module that is imported in the PSyIR tree
+            for scope in invoke.schedule.root.walk(ScopingNode):
+                for symbol in scope.symbol_table.containersymbols:
+                    modules.add(symbol.name)
+
+            # Not everything is captured by PSyIR yet (some API PSy-layers are
+            # fully or partially f2pygen), in these cases we still need to
+            # import the kernel modules used in these PSy-layers.
+            # By definition, built-ins do not have associated Fortran modules.
             for call in invoke.schedule.coded_kernels():
-                kernel_modules.add(call.module_name)
+                modules.add(call.module_name)
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
@@ -324,12 +334,15 @@ class Compile(object):
 
         success = True
 
+        build_list = []
+        # We must ensure that we build any dependencies first and in
+        # the order supplied.
         if dependencies:
-            # We must ensure that we build any dependencies first and in
-            # the order supplied.
-            build_list = dependencies + list(kernel_modules)
-        else:
-            build_list = list(kernel_modules)
+            build_list.extend(dependencies)
+        # Then add the modules we found on the tree
+        for module in modules:
+            if module not in build_list:
+                build_list.append(module)
 
         try:
             # Build the dependencies and then the kernels. We allow kernels
@@ -347,6 +360,10 @@ class Compile(object):
                 self.compile_file(name)
             # Finally, we can build the psy file we have generated
             self.compile_file(psy_filename)
+        except IOError:
+            # Not all modules need to be found, for example API infrastructure
+            # modules will be provided already built.
+            pass
         except CompileError:
             # Failed to compile one of the files
             success = False

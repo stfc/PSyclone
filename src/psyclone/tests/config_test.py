@@ -256,7 +256,7 @@ def test_search_env(monkeypatch, tmpdir):
         os.mkdir(cfg_dir)
         with open(os.path.join(cfg_dir, "psyclone.cfg"), "w") as cfile:
             cfile.write(TEST_CONFIG)
-        # Point PSYCLONE_CONFIG to a non-existant file - we should revert
+        # Point PSYCLONE_CONFIG to a non-existent file - we should revert
         # to the normal search path in this case
         cfg_file = os.path.join(cwd, "not_a_dir", "psyclone.cfg")
         monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)

@@ -60,39 +60,39 @@ from psyclone.configuration import Config
 from psyclone.parse.utils import check_api, check_line_length, ParseError
 
 
-def get_kernel_filepath(module_name, kernel_path, alg_filename):
+def get_kernel_filepath(module_name, kernel_paths, alg_filename):
     '''Search for a kernel module file containing a module with
     'module_name'. The assumed convention is that the name of the
     kernel file is the name of the module with .f90 or .F90 appended.
 
     Look in the directories and all subdirectories associated with the
     supplied kernel paths or in the same directory as the algorithm
-    file if the kernel path is empty.
+    file if not found within the kernel paths.
 
     Return the filepath if the file is found.
 
     :param str module_name: the name of the module to search for. The \
-    assumption is that the file containing the module will have the \
-    same name as the module name with .f90 or .F90 appended.
-    :param str kernel_path: directory in which to search for the module \
-    file. If nothing is supplied then look in the same directory as the \
-    algorithm file. Directories below the specified directory are \
-    recursively searched.
+        assumption is that the file containing the module will have the \
+        same name as the module name with .f90 or .F90 appended.
+    :param kernel_paths: directories in which to search for the module \
+        file. If nothing is supplied then look in the same directory \
+        as the algorithm file. Directories below the specified \
+        directories are recursively searched.
+    :type list_kernels: list of str
     :param str alg_filename: the name of the algorithm file. This is \
-    used to determine its directory location if required.
+        used to determine its directory location if required.
 
     :returns: a filepath to the file containing the specified module \
-    name.
+        name.
     :rtype: str
 
     :raises ParseError: if the supplied kernel directory does not \
-    exist
-    :raises ParseError: if the file can not be found
+        exist.
+    :raises ParseError: if the file can not be found.
     :raises ParseError: if more than one file with the specified name \
-    is found
+        is found.
 
     '''
-
     # Only consider files with the suffixes .f90 and .F90 when
     # searching for the kernel source (we perform a case insensitive
     # match).
@@ -101,7 +101,7 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
 
     # If a search path has been specified then look there. Otherwise
     # look in the directory containing the algorithm definition file.
-    if kernel_path:
+    for kernel_path in kernel_paths:
         # Look for the file in the supplied directory and recursively
         # in any subdirectories.
         cdir = os.path.abspath(kernel_path)
@@ -118,7 +118,7 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
                 # perform a case insensitive match
                 if filename.lower() == search_string.lower():
                     matches.append(os.path.join(root, filename))
-    else:
+    if not kernel_paths:
         # Look *only* in the directory that contained the algorithm
         # file.
         cdir = os.path.abspath(os.path.dirname(alg_filename))
@@ -172,10 +172,10 @@ def get_kernel_parse_tree(filepath):
     return parse_tree
 
 
-def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
+def get_kernel_ast(module_name, alg_filename, kernel_paths, line_length):
     '''Search for the kernel source code containing a module with the name
     'module_name' looking in the directory and subdirectories
-    associated with the supplied 'kernel_path' or in the same
+    associated with the supplied 'kernel_paths' or in the same
     directory as the 'algorithm_filename' if the kernel path is
     empty. If the file is found then check it conforms to the
     'line_length' restriction if this is set and then parse this file
@@ -183,17 +183,18 @@ def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
 
     :param str module_name: the name of the module to search for.
     :param str alg_filename: the name of the algorithm file.
-    :param str kernel_path: directory in which to search for the module \
-    file.
+    :param kernel_paths: directory in which to search for the module \
+        file.
+    :type kernel_paths: list of str
     :param bool line_length: whether to check that the kernel code \
-    conforms to the 132 character line length limit (True) or not \
-    (False).
+        conforms to the 132 character line length limit (True) or not \
+        (False).
 
-    :returns: Parse tree of the kernel module with the name 'module_name'
+    :returns: Parse tree of the kernel module with the name 'module_name'.
     :rtype: :py:class:`fparser.one.block_statements.BeginSource`
 
     '''
-    filepath = get_kernel_filepath(module_name, kernel_path, alg_filename)
+    filepath = get_kernel_filepath(module_name, kernel_paths, alg_filename)
     if line_length:
         check_line_length(filepath)
     parse_tree = get_kernel_parse_tree(filepath)

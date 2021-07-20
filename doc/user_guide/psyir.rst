@@ -33,7 +33,15 @@
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
 .. Modified by R. W. Ford, STFC Daresbury Lab
-      
+
+.. The following section imports those Python modules that are needed in
+   subsequent doctest snippets.
+.. testsetup::
+
+        from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType, \
+	    REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
+	from psyclone.psyir.nodes import Reference
+
 .. _psyir-ug:
 
 ==============================================
@@ -175,7 +183,7 @@ To solve this issue some Nodes also provide methods for semantic navigation:
 - ``Array`` nodes (e.g. ``ArrayReference``, ``ArrayOfStructuresReference``):
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
 - ``Directive``:
-   .. automethod:: psyclone.psyGen.Directive.dir_body()
+   .. automethod:: psyclone.psyir.nodes.Directive.dir_body()
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
 
@@ -193,13 +201,18 @@ information about the exact location.
 DataTypes
 =========
 
-The PSyIR supports scalar, array, structure, deferred and unknown
-datatypes. These datatypes are used when creating instances of
-DataSymbol and Literal. The 'deferred' and 'unknown' types are both
-used when processing existing code. The former is used when a symbol
-is being imported from some other scope (e.g. via a USE statement in
-Fortran) that hasn't yet been resolved and the latter is used when an
-unsupported form of declaration is encountered.
+The PSyIR supports the following datatypes: ``ScalarType``,
+``ArrayType``, ``StructureType``, ``DeferredType``, ``UnknownType``
+and ``NoType``.  These datatypes are used when creating instances of
+DataSymbol, RoutineSymbol and Literal (although note that ``NoType`` may
+only be used with a RoutineSymbol). ``DeferredType`` and ``UnknownType``
+are both used when processing existing code. The former is used
+when a symbol is being imported from some other scope (e.g. via a USE
+statement in Fortran) that hasn't yet been resolved and the latter is
+used when an unsupported form of declaration is encountered.
+
+More information on each of these various datatypes is given in the
+following subsections.
 
 Scalar DataType
 ---------------
@@ -216,18 +229,15 @@ value specifying the precision in bytes, or a datasymbol (see Section
 by the system so may be different for different architectures. For
 example:
 
-::
+.. doctest::
 
-   > char_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
-   >                        ScalarType.Precision.UNDEFINED)
-   >
-   > int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
-   >                       ScalarType.Precision.SINGLE)
-   >
-   > bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
-   >
-   > symbol = DataSymbol("rdef", int_type, constant_value=4)
-   > scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
+    >>> char_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+    ...                        ScalarType.Precision.UNDEFINED)
+    >>> int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+    ...                       ScalarType.Precision.SINGLE)
+    >>> bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
+    >>> symbol = DataSymbol("rdef", int_type, constant_value=4)
+    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
 
 For convenience PSyclone predefines a number of scalar datatypes:
 
@@ -253,11 +263,13 @@ about its extent. It is necessary to distinguish between four cases:
 +--------------------------------------------+--------------------------------+
 |Description                                 | Entry in ``shape`` list        |
 +============================================+================================+
-|An array has a static extent known at       | Integer ``Literal``            |
-|compile time.                               |                                |
+|An array has a static extent known at       | ``ArrayType.ArrayBounds``      |
+|compile time.                               | containing integer ``Literal`` |
+|                                            | values                         |
 +--------------------------------------------+--------------------------------+
-|An array has an extent defined by another   | ``Symbol``                     |
-|symbol.                                     |                                |
+|An array has an extent defined by another   | ``ArrayType.ArrayBounds``      |
+|symbol or (constant) PSyIR expression.      | containing ``Reference`` or    |
+|                                            | ``Operation`` nodes            |
 +--------------------------------------------+--------------------------------+
 |An array has a definite extent which is not | ``ArrayType.Extent.ATTRIBUTE`` |
 |known at compile time but can be queried    |                                |
@@ -266,6 +278,10 @@ about its extent. It is necessary to distinguish between four cases:
 |It is not known whether an array has memory | ``ArrayType.Extent.DEFERRED``  |
 |allocated to it in the current scoping unit.|                                |
 +--------------------------------------------+--------------------------------+
+
+where ``ArrayType.ArrayBounds`` is a ``namedtuple`` with ``lower`` and
+``upper`` members holding the lower- and upper-bounds of the extent of a
+given array dimension.
 
 The distinction between the last two cases is that in the former the
 extents are known but are kept internally with the array (for example
@@ -276,17 +292,18 @@ yet.
 
 For example:
 
-.. code-block:: python
+.. doctest::
 
-   array_type = ArrayType(REAL4_TYPE, [5, 10])
+    >>> array_type = ArrayType(REAL4_TYPE, [5, 10])
 
-   n_var = DataSymbol("n", INTEGER_TYPE)
-   array_type = ArrayType(INTEGER_TYPE, [n_var, n_var])
+    >>> n_var = DataSymbol("n", INTEGER_TYPE)
+    >>> array_type = ArrayType(INTEGER_TYPE, [Reference(n_var),
+    ...                                       Reference(n_var)])
 
-   array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                       ArrayType.Extent.ATTRIBUTE])
+    >>> array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
+    ...                                     ArrayType.Extent.ATTRIBUTE])
 
-   array_type = ArrayType(LOGICAL_TYPE, [ArrayType.Extent.DEFERRED])
+    >>> array_type = ArrayType(BOOLEAN_TYPE, [ArrayType.Extent.DEFERRED])
 
 Structure Datatype
 ------------------
@@ -325,6 +342,14 @@ If a PSyIR frontend encounters an unsupported declaration then the
 corresponding Symbol is given `UnknownType <https://psyclone-ref.readthedocs.io/en/latest/autogenerated/psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType>`_. The text of the original
 declaration is stored in the type object and is available via the
 ``declaration`` property.
+
+
+NoType
+------
+
+``NoType`` represents the empty type, equivalent to ``void`` in C. It
+is currently only used to describe a RoutineSymbol that has no return
+type (such as a Fortran subroutine).
 
 .. _symbol-label:
 

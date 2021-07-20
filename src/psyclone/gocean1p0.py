@@ -51,7 +51,8 @@ from __future__ import print_function
 import re
 import six
 
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, Comment
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
@@ -66,16 +67,18 @@ from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, ACCEnterDataDirective, HaloExchange
+    AccessType, HaloExchange
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment
+    Call, Assignment, CodeBlock, PSyDataNode, ACCEnterDataDirective, \
+    ACCParallelDirective, ACCKernelsDirective
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
     ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
-    REAL_TYPE, UnknownFortranType, LocalInterface
+    UnknownFortranType, LocalInterface, BOOLEAN_TYPE
+
 
 # Specify which OpenCL command queue to use for management operations like
 # data transfers when generating an OpenCL PSy-layer
@@ -184,6 +187,88 @@ class GOInvokes(Invokes):
                          funcnames=["get_rank"]))
         return "get_rank()"
 
+    def gen_code(self, parent):
+        '''
+        GOcean redefines the Invokes.gen_code() to start using the PSyIR
+        backend when possible. In cases where the backend can not be used yet
+        (e.g. OpenCL and PSyDataNodes) the parent class will be called. This
+        is a temporary workaround to avoid modifying the generator file while
+        other APIs still use the f2pygen module for code generation.
+        Once the PSyIR backend has generated an output, this is added into a
+        f2pygen PSyIRGen block in the f2pygen AST for each Invoke in the
+        PSy layer.
+
+        :param parent: the parent node in the f2pygen AST to which to add \
+                       content.
+        :type parent: `psyclone.f2pygen.ModuleGen`
+        '''
+        # First check if there is any unsupported invoke, in this case the
+        # f2pygen gen_code path is used instead
+        for invoke in self.invoke_list:
+            # TODO 1134: The opencl path is still largely implemented using
+            # the f2pygen and cannot be processed by the backend yet.
+            if invoke.schedule.opencl:
+                super(GOInvokes, self).gen_code(parent)
+                return
+
+            # TODO 1168: PSyDataNodes are not supported by the backend yet.
+            if invoke.schedule.root.walk(PSyDataNode):
+                super(GOInvokes, self).gen_code(parent)
+                return
+
+        # If the const_loop_bounds flag is True for any invoke, we need to
+        # declare and initialize the loop bounds variables.
+        # TODO 1256: The code below should be moved to the const_loop_bounds
+        # transformation itself.
+        for invoke in self.invoke_list:
+            if invoke.schedule.const_loop_bounds:
+                i_stop = invoke.schedule.symbol_table.new_symbol(
+                    invoke.schedule.iloop_stop, symbol_type=DataSymbol,
+                    datatype=INTEGER_TYPE)
+                j_stop = invoke.schedule.symbol_table.new_symbol(
+                    invoke.schedule.jloop_stop, symbol_type=DataSymbol,
+                    datatype=INTEGER_TYPE)
+
+                # Look-up the loop bounds using the first field object in the
+                # list
+                api_config = Config.get().api_conf("gocean1.0")
+                arg = invoke.schedule.symbol_table.argument_list[0].name
+                xstop = api_config.grid_properties["go_grid_xstop"].fortran \
+                    .format(arg)
+                ystop = api_config.grid_properties["go_grid_ystop"].fortran \
+                    .format(arg)
+
+                block = Comment(FortranStringReader(
+                    "! Look-up loop bounds\n", ignore_comments=False))
+                codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
+                invoke.schedule.children.insert(0, codeblock)
+                # Get a field argument from the argument list
+                for arg in invoke.schedule.symbol_table.argument_list:
+                    if isinstance(arg.datatype, DataTypeSymbol):
+                        if arg.datatype.name == "r2d_field":
+                            field = arg
+                            break
+                assign1 = Assignment.create(
+                            Reference(i_stop),
+                            StructureReference.create(
+                                field, xstop.split('%')[1:]))
+                assign2 = Assignment.create(
+                            Reference(j_stop),
+                            StructureReference.create(
+                                field, ystop.split('%')[1:]))
+                invoke.schedule.children.insert(1, assign1)
+                invoke.schedule.children.insert(2, assign2)
+
+        # Lower the GOcean PSyIR to language level so it can be visited
+        # by the backends
+        invoke.schedule.root.lower_to_language_level()
+        # Then insert it into a f2pygen AST as a PSyIRGen node.
+        # Note that other routines besides the Invoke could have been
+        # inserted during the lowering (e.g. module-inlined kernels),
+        # so have to iterate over all current children of root.
+        for child in invoke.schedule.root.children:
+            parent.add(PSyIRGen(parent, child))
+
 
 class GOInvoke(Invoke):
     '''
@@ -271,20 +356,19 @@ class GOInvoke(Invoke):
         '''
 
         def sort_by_interface(symbol_names):
-            ''' Utility to help differentiate between arguments, local symbols
-            and other symbols (globals, unresolved, ...).
+            ''' Utility to help differentiate between arguments and local
+            symbols from a given list of symbols names. Other symbols are
+            ignored.
 
             :param symbol_names: a list of symbols to categorise.
             :type symbol_names: list of str
 
-            :returns: a tuple of 3 lists with the given symbol_names \
-                      categorised as argument symbols, local symbols and \
-                      other symbols.
-            :rtype: 3-tuple of lists of str
+            :returns: a tuple of 2 lists with the given symbol_names \
+                      categorised as argument symbols and local symbols.
+            :rtype: 2-tuple of lists of str
             '''
             arg_symbols = []
             local_symbols = []
-            other_symbols = []
             symtab = self.schedule.symbol_table
             for name in symbol_names:
                 interface = symtab.lookup(name).interface
@@ -292,9 +376,8 @@ class GOInvoke(Invoke):
                     local_symbols.append(name)
                 elif isinstance(interface, ArgumentInterface):
                     arg_symbols.append(name)
-                else:
-                    other_symbols.append(name)
-            return arg_symbols, local_symbols, other_symbols
+                # Other symbols are ignored
+            return arg_symbols, local_symbols
 
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
@@ -324,7 +407,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_arrays)
 
         # Add the subroutine argument declarations for real scalars
-        r_args, _, _ = sort_by_interface(self.unique_args_rscalars)
+        r_args, _ = sort_by_interface(self.unique_args_rscalars)
         if r_args:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
@@ -332,7 +415,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_rscalars)
 
         # Add the subroutine declarations for integer scalars
-        int_args, int_locals, _ = sort_by_interface(self.unique_args_iscalars)
+        int_args, int_locals = sort_by_interface(self.unique_args_iscalars)
         if int_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
@@ -464,20 +547,28 @@ class GOLoop(Loop):
         in the Dynamo api.
 
         :param parent: optional parent node (default None).
-        :type parent: :py:class:`psyclone.psyGen.node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str topology_name: optional opology of the loop (unused atm).
         :param str loop_type: loop type - must be 'inner' or 'outer'.
+
+        :raises GenerationError: if the loop is not inserted inside a \
+            GOInvokeSchedule region.
 
     '''
     _bounds_lookup = {}
 
-    def __init__(self, parent=None,
-                 topology_name="", loop_type=""):
+    def __init__(self, parent=None, topology_name="", loop_type=""):
         # pylint: disable=unused-argument
         const = GOceanConstants()
         Loop.__init__(self, parent=parent,
                       valid_loop_types=const.VALID_LOOP_TYPES)
         self.loop_type = loop_type
+
+        # Check that the GOLoop is inside the GOcean PSy-layer
+        if not self.ancestor(GOInvokeSchedule):
+            raise GenerationError(
+                "GOLoops must always be constructed with a parent which is"
+                " inside (directly or indirectly) of a GOInvokeSchedule")
 
         # We set the loop variable name in the constructor so that it is
         # available when we're determining which vars should be OpenMP
@@ -493,7 +584,11 @@ class GOLoop(Loop):
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, const.VALID_LOOP_TYPES))
 
-        symtab = self.scope.symbol_table
+        # In the GOcean API the loop iteration variables are declared in the
+        # Invoke routine scope in order to share them between all GOLoops.
+        # This is important because some transformations/scripts work with
+        # this assumption when moving or fusing loops.
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         try:
             self.variable = symtab.lookup_with_tag(tag)
         except KeyError:
@@ -954,11 +1049,23 @@ class GOLoop(Loop):
         expressions of the Loop contain the boundaries defined by the API.
 
         '''
+        # Check that it is a properly formed GOLoop
+        self._validate_loop()
+
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
         self.stop_expr = self.upper_bound()
 
-        return super(GOLoop, self).lower_to_language_level()
+        # Once the bounds are set, lower the loops multiple children
+        for child in self.children:
+            child.lower_to_language_level()
+
+        # Finally, lose the DSL-level abstraction since the lower_bound() and
+        # upper_bound() methods will fail after lowering because they rely on
+        # a GOKern to be found inside the Loop, and this doesn't exist anymore
+        new_loop = Loop(variable=self.variable)
+        new_loop.children = self.pop_all_children()
+        self.replace_with(new_loop)
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -984,12 +1091,9 @@ class GOLoop(Loop):
 
         return super(GOLoop, self).__str__()
 
-    def gen_code(self, parent):
-        ''' Create the f2pygen AST for this loop (and update the PSyIR
-        representing the loop bounds if necessary).
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+    def _validate_loop(self):
+        ''' Validate that the GOLoop has all necessary boundaries information
+        to lower or gen_code to f2pygen.
 
         :raises GenerationError: if we can't find an enclosing Schedule.
         :raises GenerationError: if this loop does not enclose a Kernel.
@@ -1002,15 +1106,15 @@ class GOLoop(Loop):
         # Our schedule holds the names to use for the loop bounds.
         # Climb up the tree looking for our enclosing GOInvokeSchedule
         schedule = self.ancestor(GOInvokeSchedule)
-        if schedule is None or not isinstance(schedule, GOInvokeSchedule):
-            raise GenerationError("Internal error: cannot find parent"
-                                  " GOInvokeSchedule for this Do loop")
+        if schedule is None:
+            raise GenerationError("Cannot find a GOInvokeSchedule ancestor "
+                                  "for this GOLoop.")
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
         go_kernels = self.walk(GOKern)
         if not go_kernels:
-            raise GenerationError("Internal error: cannot find the "
+            raise GenerationError("Cannot find the "
                                   "GOcean Kernel enclosed by this loop")
         index_offset = go_kernels[0].index_offset
         const = GOceanConstants()
@@ -1026,11 +1130,22 @@ class GOLoop(Loop):
         for kernel in go_kernels:
             if kernel.index_offset != index_offset:
                 raise GenerationError("All Kernels must expect the same "
-                                      "grid offset but kernel {0} has offset "
-                                      "{1} which does not match {2}".
+                                      "grid offset but kernel '{0}' has offset"
+                                      " '{1}' which does not match '{2}'.".
                                       format(kernel.name,
                                              kernel.index_offset,
                                              index_offset))
+
+    def gen_code(self, parent):
+        ''' Create the f2pygen AST for this loop (and update the PSyIR
+        representing the loop bounds if necessary).
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        # Check that it is a properly formed GOLoop
+        self._validate_loop()
 
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
@@ -1128,12 +1243,13 @@ class GOKern(CodedKern):
             return var_name + "+" + str(depth)
         return var_name
 
-    def _record_stencil_accesses(self, var_name, arg, var_accesses):
+    def _record_stencil_accesses(self, signature, arg, var_accesses):
         '''This function adds accesses to a field depending on the
         meta-data declaration for this argument (i.e. accounting for
         any stencil accesses).
 
-        :param str var_name: name of the variable.
+        :param signature: signature of the variable.
+        :type signature: :py:class:`psyclone.core.Signature`
         :param arg:  the meta-data information for this argument.
         :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
         :param var_accesses: VariablesAccessInfo instance that stores the\
@@ -1151,7 +1267,7 @@ class GOKern(CodedKern):
                 for current_depth in range(1, depth+1):
                     i_expr = GOKern._format_access("i", i, current_depth)
                     j_expr = GOKern._format_access("j", j, current_depth)
-                    var_accesses.add_access(Signature(var_name), arg.access,
+                    var_accesses.add_access(signature, arg.access,
                                             self, [[i_expr, j_expr]])
 
     def reference_accesses(self, var_accesses):
@@ -1176,22 +1292,22 @@ class GOKern(CodedKern):
             else:
                 var_name = arg.name
 
+            signature = Signature(var_name.split("%"))
             if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
-                    var_accesses.add_access(Signature(var_name), arg.access,
-                                            self)
+                    var_accesses.add_access(signature, arg.access, self)
             else:
                 if arg.argument_type == "field":
                     # Now add 'artificial' accesses to this field depending
                     # on meta-data (access-mode and stencil information):
-                    self._record_stencil_accesses(var_name, arg,
+                    self._record_stencil_accesses(signature, arg,
                                                   var_accesses)
                 else:
                     # In case of an array for now add an arbitrary array
                     # reference to (i,j) so it is properly recognised as
                     # an array access.
-                    var_accesses.add_access(Signature(var_name), arg.access,
+                    var_accesses.add_access(signature, arg.access,
                                             self, [["i", "j"]])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
@@ -2414,6 +2530,13 @@ class GOKernelArgument(KernelArgument):
                                "scalar".
 
         '''
+        # If the argument name is just a number (e.g. '0') we return a
+        # constant Literal expression
+        # six.text_type is needed in Python2 to use the isnumeric method
+        if six.text_type(self.name).isnumeric():
+            return Literal(self.name, INTEGER_TYPE)
+
+        # Otherwise it's some form of Reference
         symbol = self._call.scope.symbol_table.lookup(self.name)
 
         # Gocean field arguments are StructureReferences to the %data attribute
@@ -2440,19 +2563,22 @@ class GOKernelArgument(KernelArgument):
                                property is not 'go_r_scalar' or 'go_i_scalar'.
 
         '''
-        # All GOcean fields are r2d_type.
+        # All GOcean fields are r2d_field
         if self.argument_type == "field":
-            # r2d_type can have DeferredType and UnresolvedInterface because
+            # r2d_field can have DeferredType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = self._call.root.symbol_table.symbol_from_tag(
-                "r2d_type", symbol_type=DataTypeSymbol,
+                "r2d_field", symbol_type=DataTypeSymbol,
                 datatype=DeferredType(), interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
-                return REAL_TYPE
+                go_wp = self._call.root.symbol_table.symbol_from_tag(
+                    "go_wp", symbol_type=DataSymbol, datatype=DeferredType(),
+                    interface=UnresolvedInterface())
+                return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
             if self.space.lower() == "go_i_scalar":
                 return INTEGER_TYPE
             raise InternalError("GOcean expects scalar arguments to be of"
@@ -3147,6 +3273,31 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
         return symtab.lookup_with_tag("openacc_read_func")
 
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic PSyIR
+        constructs. In addition to calling this method in the base class, the
+        GOACCEnterDataDirective sets up the 'data_on_device' flag for
+        each of the fields accessed.
+
+        '''
+        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                (ACCParallelDirective, ACCKernelsDirective))
+        obj_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.fields:
+                if var not in obj_list:
+                    obj_list.append(var)
+
+        for var in obj_list:
+            symbol = self.scope.symbol_table.lookup(var)
+            assignment = Assignment.create(
+                StructureReference.create(symbol, ['data_on_device']),
+                Literal("true", BOOLEAN_TYPE))
+            self.parent.children.insert(self.position, assignment)
+
+        super(GOACCEnterDataDirective, self).lower_to_language_level()
+
 
 class GOSymbolTable(SymbolTable):
     '''
@@ -3237,6 +3388,21 @@ class GOHaloExchange(HaloExchange):
 
         # Name of the HaloExchange method in the GOcean infrastructure.
         self._halo_exchange_name = "halo_exchange"
+
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs. A GOHaloExchange is replaced by a call to the
+        appropriate library method.
+
+        '''
+        # Call the halo_exchange routine with depth argument to 1
+        # Currently we create an symbol name with % as a workaround of not
+        # having type bound routines.
+        rsymbol = RoutineSymbol(self.field.name + "%" +
+                                self._halo_exchange_name)
+        call_node = Call.create(rsymbol, [Literal("1", INTEGER_TYPE)])
+        self.replace_with(call_node)
 
     def gen_code(self, parent):
         '''GOcean specific code generation for this class.

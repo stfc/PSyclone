@@ -47,14 +47,14 @@ from fparser.two.Fortran2003 import Specification_Part, \
     Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
-    ArrayReference, Container, Literal, Range, KernelSchedule
-from psyclone.psyGen import PSyFactory, Directive
+    ArrayReference, Container, Literal, Range, KernelSchedule, Directive
+from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
     REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
-    GlobalInterface)
+    GlobalInterface, BOOLEAN_TYPE)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -431,7 +431,7 @@ def test_generate_schedule_empty_subroutine(parser):
     rsym = container.symbol_table.lookup("dummy_code")
     assert isinstance(rsym, RoutineSymbol)
 
-    # Test that we get an error for a nonexistant subroutine name
+    # Test that we get an error for a nonexistent subroutine name
     with pytest.raises(GenerationError) as error:
         schedule = processor.generate_schedule("nonexistent_code", ast)
     assert "Unexpected kernel AST. Could not find " \
@@ -908,19 +908,25 @@ def test_process_array_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l5_datatype = fake_parent.symbol_table.lookup("l5").datatype
     assert len(l5_datatype.shape) == 1
-    assert isinstance(l5_datatype.shape[0], Literal)
-    assert l5_datatype.shape[0].value == '2'
-    assert (l5_datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(l5_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(l5_datatype.shape[0].lower, Literal)
+    assert isinstance(l5_datatype.shape[0].upper, Literal)
+    assert l5_datatype.shape[0].lower.value == '1'
+    assert l5_datatype.shape[0].upper.value == '2'
+    assert (l5_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (l5_datatype.shape[0].datatype.precision ==
+    assert (l5_datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     l6_datatype = fake_parent.symbol_table.lookup("l6").datatype
     assert len(l6_datatype.shape) == 1
-    assert isinstance(l6_datatype.shape[0], Literal)
-    assert l6_datatype.shape[0].value == '3'
-    assert (l6_datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(l6_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(l6_datatype.shape[0].lower, Literal)
+    assert isinstance(l6_datatype.shape[0].upper, Literal)
+    assert l6_datatype.shape[0].lower.value == '1'
+    assert l6_datatype.shape[0].upper.value == '3'
+    assert (l6_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (l6_datatype.shape[0].datatype.precision ==
+    assert (l6_datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
 
     # Test that component-array-spec has priority over dimension attribute
@@ -931,17 +937,19 @@ def test_process_array_declarations():
     assert l7_datasymbol.name == 'l7'
     assert len(l7_datasymbol.shape) == 2
     l7_datatype = l7_datasymbol.datatype
-    assert isinstance(l7_datatype.shape[0], Literal)
-    assert l7_datatype.shape[0].value == '3'
-    assert (l7_datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(l7_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(l7_datatype.shape[0].upper, Literal)
+    assert l7_datatype.shape[0].upper.value == '3'
+    assert (l7_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (l7_datatype.shape[0].datatype.precision ==
+    assert (l7_datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(l7_datatype.shape[1], Literal)
-    assert l7_datatype.shape[1].value == '2'
-    assert (l7_datatype.shape[1].datatype.intrinsic ==
+    assert isinstance(l7_datatype.shape[1], ArrayType.ArrayBounds)
+    assert isinstance(l7_datatype.shape[1].upper, Literal)
+    assert l7_datatype.shape[1].upper.value == '2'
+    assert (l7_datatype.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (l7_datatype.shape[1].datatype.precision ==
+    assert (l7_datatype.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
 
     # Allocatable
@@ -980,8 +988,8 @@ def test_process_array_declarations():
     symbol = fake_parent.symbol_table.lookup("l11")
     assert symbol.name == "l11"
     assert len(symbol.shape) == 1
-    # Extent symbol should be udim
-    reference = symbol.shape[0]
+    # Upper bound of extent should be the udim Symbol
+    reference = symbol.shape[0].upper
     assert isinstance(reference, Reference)
     assert reference.name == "udim"
     assert reference.symbol is udim
@@ -997,8 +1005,9 @@ def test_process_array_declarations():
     symbol = fake_parent.symbol_table.lookup("l12")
     assert symbol.name == "l12"
     assert len(symbol.shape) == 1
-    # Extent symbol should now be ddim
-    reference = symbol.shape[0]
+    assert isinstance(symbol.shape[0].lower, Literal)
+    # Upper bound of extent should now be the ddim Symbol
+    reference = symbol.shape[0].upper
     assert reference.name == "ddim"
     assert reference.symbol is ddim
     assert isinstance(reference.symbol.datatype, DeferredType)
@@ -1115,7 +1124,7 @@ def test_process_save_attribute_declarations(parser):
         "integer, save :: var3\n"
         "end subroutine name")
     fparser2spec = parser(reader).content[0].content[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert isinstance(fake_parent.symbol_table.lookup("var3").datatype,
                       UnknownFortranType)
 
@@ -1125,7 +1134,7 @@ def test_process_save_attribute_declarations(parser):
         "integer, save :: var4\n"
         "end module modulename")
     fparser2spec = parser(reader).content[0].content[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, fparser2spec.children, [])
     var4 = fake_parent.symbol_table.lookup("var4")
     assert var4.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
@@ -1201,7 +1210,7 @@ def test_process_declarations_kind_new_param():
     # Change the variable name too to prevent a clash
     fp2spec[0].children[2].children[0].items[0].string = "var3"
     processor = Fparser2Reader()
-    processor.process_declarations(fake_parent, fp2spec[0], [])
+    processor.process_declarations(fake_parent, [fp2spec[0]], [])
     sym = fake_parent.symbol_table.lookup("var3")
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, UnknownFortranType)
@@ -1361,6 +1370,22 @@ def test_process_declarations_stmt_functions():
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_unsupported_node():
+    ''' Check that process_declarations raises the expected error if it
+    encounters an unsupported fparser2 node. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
+                                 "real(kind=r_def) :: var2")
+    fparser2spec = Specification_Part(reader)
+    # Append an fparser2 node that is not a valid/supported declaration
+    fparser2spec.content.append(Fortran2003.Name("wrong"))
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert "fparser2 node of type 'Name' not supported" in str(err.value)
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
@@ -1380,14 +1405,45 @@ def test_parse_array_dimensions_attributes():
     reader = FortranStringReader("dimension(3,5)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
-    assert shape == [3, 5]
+    assert len(shape) == 2
+    assert shape[0][0].value == "1"
+    assert shape[0][1].value == "3"
+    assert shape[1][0].value == "1"
+    assert shape[1][1].value == "5"
 
     sym_table.add(DataSymbol('var1', INTEGER_TYPE))
+    sym_table.add(DataSymbol('var1_upper', INTEGER_TYPE))
+
     reader = FortranStringReader("dimension(var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert shape[0].symbol == sym_table.lookup('var1')
+    assert shape[0][0].value == "1"
+    assert shape[0][1].symbol == sym_table.lookup('var1')
+
+    reader = FortranStringReader("dimension(0:3,var1)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    # First dim is specified with both lower and upper bounds so should
+    # have a tuple
+    assert isinstance(shape[0], tuple)
+    assert len(shape[0]) == 2
+    assert shape[0][0].value == "0"
+    assert shape[0][1].value == "3"
+    assert shape[1][0].value == "1"
+    assert shape[1][1].symbol is sym_table.lookup('var1')
+
+    reader = FortranStringReader("dimension(0:3,var1:var1_upper)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    assert isinstance(shape[0], tuple)
+    assert len(shape[0]) == 2
+    assert shape[0][0].value == "0"
+    assert shape[0][1].value == "3"
+    assert isinstance(shape[1], tuple)
+    assert len(shape[1]) == 2
+    assert shape[1][0].symbol is sym_table.lookup('var1')
+    assert shape[1][1].symbol is sym_table.lookup('var1_upper')
 
     # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
@@ -1405,7 +1461,7 @@ def test_parse_array_dimensions_attributes():
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
-            "explicit shape array declarations.") in str(error.value)
+            "explicit-shape array declarations.") in str(error.value)
 
     # Explicit shape symbols can only be Literal or Symbol
     with pytest.raises(NotImplementedError) as error:
@@ -1416,7 +1472,7 @@ def test_parse_array_dimensions_attributes():
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
-            "explicit shape array declarations.") in str(error.value)
+            "explicit-shape array declarations.") in str(error.value)
 
     # Shape specified by an unknown Symbol
     reader = FortranStringReader("dimension(var3)")
@@ -1427,12 +1483,13 @@ def test_parse_array_dimensions_attributes():
     assert type(vsym) == Symbol
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert isinstance(shape[0], Reference)
+    assert shape[0][0].value == "1"
+    assert isinstance(shape[0][1], Reference)
     # Symbol is the same object but is now a DataSymbol
-    assert shape[0].symbol is vsym
-    assert isinstance(shape[0].symbol, DataSymbol)
-    assert shape[0].symbol.name == "var3"
-    assert isinstance(shape[0].symbol.interface, GlobalInterface)
+    assert shape[0][1].symbol is vsym
+    assert isinstance(shape[0][1].symbol, DataSymbol)
+    assert shape[0][1].symbol.name == "var3"
+    assert isinstance(shape[0][1].symbol.interface, GlobalInterface)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
@@ -1480,7 +1537,8 @@ def test_unresolved_array_size():
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
     processor.process_declarations(fake_parent, fparser2spec, [])
-    assert fake_parent.symbol_table.lookup("array4").shape[0].symbol is dim_sym
+    assert (fake_parent.symbol_table.lookup("array4").shape[0].upper.symbol is
+            dim_sym)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1533,16 +1591,43 @@ def test_use_stmt_error(monkeypatch):
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_unrecognised_attribute():
     ''' Check that a declaration with an unrecognised attribute results in
-    a symbol with UnknownFortranType. '''
+    a symbol with UnknownFortranType and the correct visibility. '''
     fake_parent = KernelSchedule("dummy")
     processor = Fparser2Reader()
-    reader = FortranStringReader("integer, private :: idx1\n")
+    reader = FortranStringReader("integer, private, target :: idx1\n")
     fparser2spec = Specification_Part(reader)
-    # Replace the Attr_Spec with a str
-    fparser2spec.children[0].children[1].items = ("not-a-spec",)
     processor.process_declarations(fake_parent, fparser2spec.children, [])
-    assert isinstance(fake_parent.symbol_table.lookup("idx1").datatype,
-                      UnknownFortranType)
+    sym = fake_parent.symbol_table.lookup("idx1")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.visibility == Symbol.Visibility.PRIVATE
+    # No access statement so should be public (the default in Fortran)
+    reader = FortranStringReader("integer, target :: idx2\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.children, [])
+    sym = fake_parent.symbol_table.lookup("idx2")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.visibility == Symbol.Visibility.PUBLIC
+    # No access statement so should pick up the default visibility supplied
+    # to the process_declarations call.
+    reader = FortranStringReader("integer, target :: idx3\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(
+        fake_parent, fparser2spec.children, [],
+        default_visibility=Symbol.Visibility.PRIVATE)
+    sym = fake_parent.symbol_table.lookup("idx3")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.visibility == Symbol.Visibility.PRIVATE
+    # No access statement but visibility provided in visibility_map argument
+    # to process_declarations()
+    reader = FortranStringReader("integer, target :: idx4\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(
+        fake_parent, fparser2spec.children, [],
+        visibility_map={"idx4": Symbol.Visibility.PUBLIC},
+        default_visibility=Symbol.Visibility.PRIVATE)
+    sym = fake_parent.symbol_table.lookup("idx4")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.visibility == Symbol.Visibility.PUBLIC
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1571,18 +1656,18 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     assert " has not been handled." in str(error.value)
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_assignment_stmt():
     ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     reader = FortranStringReader("x=1")
     fparser2assignment = Execution_Part.match(reader)[0][0]
 
     fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2assignment])
     # Check a new node was generated and connected to parent
@@ -1590,6 +1675,20 @@ def test_handling_assignment_stmt():
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Assignment)
     assert len(new_node.children) == 2
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_labelled_assignment_stmt():
+    ''' Test that a labelled assignment is represented by a CodeBlock. '''
+    reader = FortranStringReader("111 x=1")
+    fparser2assignment = Execution_Part.match(reader)[0][0]
+    fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2assignment])
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2067,18 +2166,20 @@ def test_handling_array_product():
     assert not fake_parent.walk(CodeBlock)
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_if_stmt():
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     reader = FortranStringReader("if(x==1)y=1")
     fparser2if_stmt = Execution_Part.match(reader)[0][0]
 
     fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    fake_parent.symbol_table.new_symbol("y", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2if_stmt])
     # Check a new node was generated and connected to parent
@@ -2086,6 +2187,26 @@ def test_handling_if_stmt():
     new_node = fake_parent.children[0]
     assert isinstance(new_node, IfBlock)
     assert len(new_node.children) == 2
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_labelled_if_stmt():
+    ''' Test that a labelled fparser2 If_Stmt is converted to a CodeBlock.
+
+    '''
+    reader = FortranStringReader("200 if(x==1)y=1")
+    fparser2if_stmt = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    fake_parent.symbol_table.new_symbol("y", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2if_stmt])
+    # Check that a CodeBlock was created
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
@@ -2210,6 +2331,28 @@ def test_handling_if_construct_errors():
         processor.process_nodes(fake_parent, [fparser2if_construct])
     assert ("Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt are "
             "expected, but found") in str(error.value)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_labelled_if_construct():
+    ''' Test that a labelled if construct is captured as a CodeBlock.
+
+    '''
+    reader = FortranStringReader(
+        '''181 if (condition1) then
+        elseif (condition2) then
+        endif''')
+
+    fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("condition1", symbol_type=DataSymbol,
+                                        datatype=BOOLEAN_TYPE)
+    fake_parent.symbol_table.new_symbol("condition2", symbol_type=DataSymbol,
+                                        datatype=BOOLEAN_TYPE)
+    processor = Fparser2Reader()
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    processor.process_nodes(fake_parent, [fparser2if_construct])
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
@@ -2493,6 +2636,29 @@ def test_handling_invalid_case_construct():
     assert "to be a Case_Selector but got" in str(error.value)
 
 
+@pytest.mark.usefixtures("parser")
+def test_handling_labelled_case_construct():
+    ''' Test that a labelled case construct results in a CodeBlock. '''
+    reader = FortranStringReader(
+        '''999 SELECT CASE (selector)
+            CASE (pick_me)
+                branch3 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("selector", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    fake_parent.symbol_table.new_symbol("pick_me", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    fake_parent.symbol_table.new_symbol("branch3", symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2case_construct])
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_case_default_only():
     ''' Check that we handle a select case that contains only a
@@ -2647,6 +2813,22 @@ def test_handling_return_stmt():
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Return)
     assert not new_node.children
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_labelled_return_stmt():
+    ''' Test that a labelled fparser2 Return_Stmt is converted to a CodeBlock.
+    '''
+    reader = FortranStringReader("999 return")
+    return_stmt = Execution_Part.match(reader)[0][0]
+    assert isinstance(return_stmt, Return_Stmt)
+
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [return_stmt])
+    # Check a new node was generated and connected to parent
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("f2008_parser")
