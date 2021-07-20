@@ -105,6 +105,18 @@
 
 	36) #1319 for #1307. Add support for lower bounds in PSyIR ArrayType.
 
+	37) #1261 towards #1277. Gather more information in LFRicConstants
+	so values are not hardcoded in multiple locations. Includes adding
+	precision information derived from LFRic rules which is required
+	for mixed precision support.
+
+	38) PR #1317 for #1315. Fixes bug in dependence analysis caused by
+	introduction of FileContainer root node.
+
+	39) PR #1340 for #1334. Add support for symbols in
+	'psyir_from_expression()' and fix code generation bug for LFRic
+	"power" built-ins with literal constants that have explicit precision.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

@@ -52,7 +52,7 @@ from fparser.two import Fortran2003
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import lfric_builtins
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
     DynKernelArguments, DynGlobalSum
@@ -905,62 +905,124 @@ def test_args_filter2():
     assert len(args) == len(expected_output)
 
 
-def test_reduction_var_error():
+def test_reduction_var_error(dist_mem):
     ''' Check that we raise an exception if the zero_reduction_variable()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        call = schedule.kernels()[0]
-        # args[1] is of type gh_field
-        call._reduction_arg = call.arguments.args[1]
-        with pytest.raises(GenerationError) as err:
-            call.zero_reduction_variable(None)
-        assert ("Kern.zero_reduction_variable() should be a scalar but "
-                "found 'gh_field'." in str(err.value))
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    call = schedule.kernels()[0]
+    # args[1] is of type gh_field
+    call._reduction_arg = call.arguments.args[1]
+    with pytest.raises(GenerationError) as err:
+        call.zero_reduction_variable(None)
+    assert("Kern.zero_reduction_variable() should be a scalar but "
+           "found 'gh_field'." in str(err.value))
 
 
-def test_reduction_sum_error():
+def test_reduction_var_invalid_scalar_error(dist_mem):
+    ''' Check that we raise an exception if the zero_reduction_variable()
+    method is provided with an incorrect intrinsic type of scalar
+    argument (other than 'real' or 'integer').
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.7_single_invoke_3scalar.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    call = schedule.kernels()[0]
+    # args[5] is a scalar of data type gh_logical
+    call._reduction_arg = call.arguments.args[5]
+    with pytest.raises(GenerationError) as err:
+        call.zero_reduction_variable(None)
+    assert("Kern.zero_reduction_variable() should be either a 'real' "
+           "or an 'integer' scalar but found scalar of type 'logical'."
+           in str(err.value))
+
+
+def test_reduction_sum_error(dist_mem):
     ''' Check that we raise an exception if the reduction_sum_loop()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        call = schedule.kernels()[0]
-        # args[1] is of type gh_field
-        call._reduction_arg = call.arguments.args[1]
-        with pytest.raises(GenerationError) as err:
-            call.reduction_sum_loop(None)
-        assert (
-            "Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
-            "reduction_sum_loop(). Expected one of ['gh_sum']."
-            in str(err.value))
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    call = schedule.kernels()[0]
+    # args[1] is of type gh_field
+    call._reduction_arg = call.arguments.args[1]
+    with pytest.raises(GenerationError) as err:
+        call.reduction_sum_loop(None)
+    assert(
+        "Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
+        "reduction_sum_loop(). Expected one of ['gh_sum']."
+        in str(err.value))
 
 
-def test_call_multi_reduction_error(monkeypatch):
-    '''Check that we raise an exception if we try to create a Call (a
-    Kernel or a Builtin) with more than one reduction in it. Since we have
-    a rule that only Builtins can write to scalars we need a built-in that
-    attempts to perform two reductions. '''
+def test_call_multi_reduction_error(monkeypatch, dist_mem):
+    ''' Check that we raise an exception if we try to create a Call (a
+    Kernel or a Built-in) with more than one reduction in it. Since we have
+    a rule that only Built-ins can write to scalars we need a Built-in that
+    attempts to perform two reductions.
+
+    '''
     monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "multi_reduction_builtins_mod.f90"))
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
-            api="dynamo0.3")
-        with pytest.raises(GenerationError) as err:
-            _ = PSyFactory("dynamo0.3",
-                           distributed_memory=dist_mem).create(invoke_info)
-        assert (
-            "PSyclone currently only supports a single reduction in a kernel "
-            "or builtin" in str(err.value))
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
+        api="dynamo0.3")
+    with pytest.raises(GenerationError) as err:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=dist_mem).create(invoke_info)
+    assert(
+        "PSyclone currently only supports a single reduction in a kernel "
+        "or builtin" in str(err.value))
+
+
+def test_reduction_no_set_precision(monkeypatch, dist_mem):
+    ''' Test that the zero_reduction_variable() method generates correct
+    code when a reduction argument does not have a defined precision (only
+    a zero summation value is generated in this case).
+
+    '''
+    # Set precision of 'real' scalar arguments in LFRic to an empty string
+    const = LFRicConstants()
+    monkeypatch.setitem(
+        const.DATA_TYPE_MAP, name="reduction",
+        value={"module": "scalar_mod", "type": "scalar_type",
+               "proxy_type": None, "intrinsic": "real", "kind": ""})
+    # Generate code for sum_X built-in with no precision for zero reduction
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.8.1_sum_X_builtin.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    if dist_mem:
+        zero_sum_decls = (
+            "      USE scalar_mod, ONLY: scalar_type\n"
+            "      REAL, intent(out) :: asum\n"
+            "      TYPE(field_type), intent(in) :: f1\n"
+            "      TYPE(scalar_type) global_sum\n"
+            "      INTEGER df\n")
+    else:
+        zero_sum_decls = (
+            "      REAL, intent(out) :: asum\n"
+            "      TYPE(field_type), intent(in) :: f1\n"
+            "      INTEGER df\n")
+    assert zero_sum_decls in generated_code
+
+    zero_sum_output = (
+        "      ! Zero summation variables\n"
+        "      !\n"
+        "      asum = 0.0\n")
+    assert zero_sum_output in generated_code
 
 
 def test_invokes_wrong_schedule_gen_code():
@@ -1061,6 +1123,35 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     assert (
         "REPROD_PAD_SIZE in {0} should be a positive "
         "integer".format(Config.get().filename) in str(excinfo.value))
+
+
+def test_argument_properties():
+    ''' Check the default values for properties of a generic
+    argument instance. Also check that when the internal values
+    are changed, the related property methods return the
+    updated values (where applicable).
+
+    '''
+    # Instantiate a generic argument and check the default
+    # property values
+    arg = Argument(None, None, None)
+    assert arg.is_literal is False
+    assert arg.argument_type == "field"
+    assert arg.precision is None
+    assert arg.data_type is None
+    assert arg.module_name is None
+
+    # Change the internal values and check the properties
+    # again (note that the "argument_type" property is
+    # hard-coded to return "field")
+    arg._is_literal = True
+    arg._precision = "i_def"
+    arg._data_type = "field_type"
+    arg._module_name = "operator_mod"
+    assert arg.is_literal is True
+    assert arg.precision == "i_def"
+    assert arg.data_type == "field_type"
+    assert arg.module_name == "operator_mod"
 
 
 def test_argument_infer_datatype():

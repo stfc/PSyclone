@@ -48,7 +48,8 @@ import six
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicScalarArgs, LFRicConstants
+from psyclone.dynamo0p3 import (DynKern, DynKernMetadata,
+                                LFRicScalarArgs, LFRicConstants)
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -399,6 +400,75 @@ def test_scalar_invoke_uniq_declns_valid_intrinsic():
         const.VALID_SCALAR_NAMES, intrinsic_type="logical")
     scalars_logical = [arg.declaration_name for arg in scalars_logical_args]
     assert scalars_logical == ["lswitch"]
+
+
+def test_scalar_arg_lfricconst_properties(monkeypatch):
+    ''' Tests that properties of all supported types of user-defined,
+    read-only, scalar arguments ('real', 'integer' and 'logical') defined
+    in LFRicConstants are correctly set up in the DynKernelArgument class.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+
+    # Test 'real' scalars
+    scalar_arg = kernel.arguments.args[0]
+    assert scalar_arg.module_name is None
+    assert scalar_arg.data_type is None
+    assert scalar_arg.proxy_data_type is None
+    assert scalar_arg.intrinsic_type == "real"
+    assert scalar_arg.precision == "r_def"
+
+    # Test 'integer' scalars
+    scalar_arg = kernel.arguments.args[6]
+    assert scalar_arg.module_name is None
+    assert scalar_arg.data_type is None
+    assert scalar_arg.proxy_data_type is None
+    assert scalar_arg.intrinsic_type == "integer"
+    assert scalar_arg.precision == "i_def"
+
+    # Test 'logical' scalars
+    scalar_arg = kernel.arguments.args[5]
+    assert scalar_arg.module_name is None
+    assert scalar_arg.data_type is None
+    assert scalar_arg.proxy_data_type is None
+    assert scalar_arg.intrinsic_type == "logical"
+    assert scalar_arg.precision == "l_def"
+
+    # Monkeypatch to check with an invalid intrinsic type of a
+    # scalar argument
+    const = LFRicConstants()
+    monkeypatch.setattr(scalar_arg, "_intrinsic_type", "tabby")
+    with pytest.raises(InternalError) as err:
+        scalar_arg._init_data_type_properties()
+    assert ("Expected one of {0} intrinsic types for a scalar "
+            "argument but found 'tabby'.".
+            format(const.VALID_INTRINSIC_TYPES)) in str(err.value)
+
+
+def test_scalar_reduction_lfricconst_properties():
+    ''' Tests that properties of 'real' scalar reduction arguments defined
+    in LFRicConstants are correctly set up in the DynKernelArgument class.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.9.1_X_innerproduct_Y_builtin.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.kernels()[0]
+    reduction_arg = kernel.arguments.args[0]
+
+    assert reduction_arg.module_name == "scalar_mod"
+    assert reduction_arg.data_type == "scalar_type"
+    assert reduction_arg.proxy_data_type is None
+    assert reduction_arg.intrinsic_type == "real"
+    assert reduction_arg.precision == "r_def"
 
 
 def test_multiple_updated_scalar_args():
