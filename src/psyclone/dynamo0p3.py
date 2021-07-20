@@ -8515,6 +8515,7 @@ class DynKernelArgument(KernelArgument):
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
+        print (type(arg_info))
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
         self._argument_type = arg_meta_data.argument_type
@@ -8669,7 +8670,7 @@ class DynKernelArgument(KernelArgument):
                     "specifies this argument should be a scalar of type "
                     "'{2}' but in the algorithm layer it is defined as a "
                     "'{3}'.".format(
-                        self.name, "XXX", self.intrinsic_type, alg_datatype))
+                        self.name, self._call.name, self.intrinsic_type, alg_datatype))
 
             if alg_datatype and not alg_precision:
                 # If the datatype is known in the algorithm layer then
@@ -8677,7 +8678,7 @@ class DynKernelArgument(KernelArgument):
                 raise GenerationError(
                     "Scalars must have their precision defined in the "
                     "algorithm layer but '{0}' in '{1}' does not."
-                    "".format(self.name, "XXX"))
+                    "".format(self.name, self._call.name))
 
             if self.intrinsic_type == "real" and self.access in \
                AccessType.get_valid_reduction_modes():
@@ -8715,16 +8716,16 @@ class DynKernelArgument(KernelArgument):
             # Check the algorithm information is available.
             if not alg_datatype:
                 raise GenerationError(
-                    "it was not possible to determine the field type for "
-                    "argument '{0}' in kernel '{1}' from the algorithm code."
-                    "".format(self.name, "XXX", alg_datatype))
+                    "It was not possible to determine the field type from "
+                    "the algorithm layer for argument '{0}' in kernel '{1}'."
+                    "".format(self.name, self._call.name, alg_datatype))
             # Check the metadata and algorithm type are consistent.
             if alg_datatype not in ["field_type"]:
                 raise GenerationError(
                     "The metadata for argument '{0}' in kernel '{1}' "
                     "specifies that this is a field, however it is declared "
                     "as a '{2}' in the algorithm code."
-                    "".format(self.name, "XXX", alg_datatype))
+                    "".format(self.name, self._call.name, alg_datatype))
 
             if self.intrinsic_type == "real":
                 argtype = "field"
@@ -8753,7 +8754,7 @@ class DynKernelArgument(KernelArgument):
                     "The kernel metadata for argument '{0}' in kernel '{1}' "
                     "specifies this argument should be an operator but it is "
                     "declared as '{2}' in the algorithm layer."
-                    "".format(self.name, "XXX", alg_datatype))
+                    "".format(self.name, self._call.name, alg_datatype))
 
             if self.argument_type == "gh_operator":
                 argtype = "operator"

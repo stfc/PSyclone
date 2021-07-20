@@ -1252,6 +1252,8 @@ def test_dynkernmetadata_read_fs_error():
             "specifies writing to the read-only function space 'wchi'."
             in str(info.value))
 
+# DynKernelArgument tests
+
 
 def test_dynkernelargument_intent_invalid(dist_mem):
     ''' Tests that an error is raised in DynKernelArgument when an invalid
@@ -1556,6 +1558,28 @@ def test_arg_intrinsic_type_error():
     assert ("DynKernelArgument.__init__(): Found unsupported data "
             "type 'gh_unreal' in the kernel argument descriptor '{0}'.".
             format(expected_descriptor) in str(excinfo.value))
+
+
+# New tests here *******
+def test_initdatatypeproperties_unknown_field_type():
+    '''Test that DynKernelArgument._init_data_type_properties raises the
+    expected exception when the type of a field can not be determined
+    from the algorithm layer. In this case this is because a
+    field_collection is dereferenced.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "8.1_vector_field_deref.f90"),
+        api=TEST_API)
+    with pytest.raises(GenerationError) as info:
+        psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    assert ("It was not possible to determine the field type for argument "
+            "'box_chi' in kernel 'testkern_coord_w0_code' from the algorithm "
+            "layer." in str(info.value))
+
+
+# End New tests here
+# DynKernelArguments tests
 
 
 @pytest.mark.skipif(

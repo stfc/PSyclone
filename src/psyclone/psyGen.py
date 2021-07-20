@@ -1405,9 +1405,9 @@ class Kern(Statement):
 
     def __init__(self, parent, call, name, ArgumentsClass):
         super(Kern, self).__init__(self, parent=parent)
-        self._arguments = ArgumentsClass(call, self)
         self._name = name
         self._iterates_over = call.ktype.iterates_over
+        self._arguments = ArgumentsClass(call, self)
 
         # check algorithm arguments are unique for a kernel or
         # built-in call
@@ -1714,10 +1714,13 @@ class CodedKern(Kern):
     _colour = "magenta"
 
     def __init__(self, KernelArguments, call, parent=None, check=True):
+        # Set module_name first in case there is an error when
+        # processing arguments, as we can then return the module_name
+        # from where it happened.
+        self._module_name = call.module_name
         super(CodedKern, self).__init__(parent, call,
                                         call.ktype.procedure.name,
                                         KernelArguments)
-        self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  # The fparser2 AST for the kernel
