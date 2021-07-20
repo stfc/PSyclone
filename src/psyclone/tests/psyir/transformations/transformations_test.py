@@ -191,9 +191,9 @@ def test_ompsingle():
     assert trans.name == "OMPSingleTrans"
     assert str(trans) == "Insert an OpenMP Single region"
 
-    assert not trans.omp_nowait
+    assert trans.omp_nowait is False
     trans.omp_nowait = True
-    assert trans.omp_nowait
+    assert trans.omp_nowait is True
 
 
 def test_ompsingle_invalid_nowait():
@@ -202,7 +202,7 @@ def test_ompsingle_invalid_nowait():
     trans = OMPSingleTrans()
     with pytest.raises(TypeError) as err:
         trans.omp_nowait = "string"
-    assert ("Expected nowait to be a bool but got string"
+    assert ("Expected nowait to be a bool but got a str"
             in str(err.value))
 
 

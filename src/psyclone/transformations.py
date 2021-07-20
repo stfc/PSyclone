@@ -448,7 +448,8 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         At code-generation time (when
         :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
-        within (i.e. a child of) an OpenMP PARALLEL region.
+        within (i.e. a child of) an OpenMP PARALLEL region otherwise no
+        clause will be added.
 
         If the keyword "reprod" is specified in the options, it will cause a
         reproducible reduction to be generated if it is set to True, otherwise
@@ -1261,7 +1262,7 @@ class OMPSingleTrans(ParallelRegionTrans):
     transformations. The parent region for this should usually also be
     a OMPParallelTrans.
 
-    :param str nowait: whether to apply a nowait clause to this \
+    :param bool nowait: whether to apply a nowait clause to this \
                        transformation. The default value is False
 
     For example:
@@ -1334,7 +1335,7 @@ class OMPSingleTrans(ParallelRegionTrans):
         '''
         if not isinstance(value, bool):
             raise TypeError("Expected nowait to be a bool "
-                            "but got {0}".format(value))
+                            "but got a {0}".format(type(value).__name__))
         self._omp_nowait = value
 
     def _directive(self, children):
@@ -1369,8 +1370,8 @@ class OMPSingleTrans(ParallelRegionTrans):
 
         :param node_list: the supplied node or node list to which we will \
                           apply the OMPSingleTrans transformation
-        :type node_list: (a dict of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dict with options for transformations \
+        :type node_list: (a list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a list with options for transformations \
                         and validation.
         :type options: a dict of string:values or None
         :param bool options["nowait"]:
@@ -2921,8 +2922,8 @@ class ACCKernelsTrans(RegionTrans):
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
 
-        :param node: a node or dict of nodes in the PSyIR to enclose.
-        :type node: (a dict of) :py:class:`psyclone.psyir.nodes.Node`
+        :param node: a node or list of nodes in the PSyIR to enclose.
+        :type node: (a list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["default_present"]: whether or not the kernels \
