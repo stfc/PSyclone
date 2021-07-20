@@ -120,6 +120,10 @@
 	40) PR #1323 for #1305. Capture the default visibility of a Fortran
 	module and store it in the symbol table.
 
+ 	41) PR #1313 for #1268 and #1269. Adds new ComponentIndices class
+	to manage indices for component accesses.
+
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
