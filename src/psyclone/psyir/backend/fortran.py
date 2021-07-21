@@ -305,6 +305,7 @@ class FortranWriter(PSyIRVisitor):
     generating Fortran).
 
     '''
+    _COMMENT_PREFIX = "! "
 
     def _gen_dims(self, shape):
         '''Given a list of PSyIR nodes representing the dimensions of an
