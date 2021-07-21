@@ -45,6 +45,7 @@ import inspect
 import six
 from psyclone.psyir.nodes import Node
 from psyclone.errors import PSycloneError
+from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
 
 class VisitorError(PSycloneError):
@@ -79,6 +80,8 @@ class PSyIRVisitor(object):
     :raises TypeError: if any of the supplied parameters are of the wrong type.
 
     '''
+    _COMMENT_PREFIX = None
+
     def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0, check_global_constraints=True):
 
@@ -230,8 +233,32 @@ class PSyIRVisitor(object):
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
             try:
+                result = ""
+
+                # Add preceding comment if available
+                if isinstance(node, CommentableMixin):
+                    if node.preceding_comment and self._COMMENT_PREFIX:
+                        result += (self._nindent + self._COMMENT_PREFIX +
+                                   node.preceding_comment + "\n")
+
                 # pylint: disable=eval-used
-                return eval("self.{0}(node)".format(method_name))
+                result += eval("self.{0}(node)".format(method_name))
+
+                # Add inline comment if available
+                if isinstance(node, CommentableMixin):
+                    if node.inline_comment and self._COMMENT_PREFIX:
+                        if result[-1] != "\n":
+                            raise VisitorError(
+                                "An inline_comment can only be added to a "
+                                "construct that finishes with a '\\n', "
+                                "indicating that the line has ended, but"
+                                " node '{0}' results in '{1}'."
+                                "".format(node, result))
+                        # Add the comment before the last line break
+                        result = (result[:-1] + "  " + self._COMMENT_PREFIX +
+                                  node.inline_comment + "\n")
+
+                return result
 
             except AttributeError as excinfo:
                 if "attribute '{0}'".format(method_name) in str(excinfo):
