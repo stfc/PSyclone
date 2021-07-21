@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,16 @@ def test_api_specific_name():
     assert AccessType.READ.api_specific_name() == "gh_read"
     assert AccessType.READWRITE.api_specific_name() == "gh_readwrite"
     assert AccessType.SUM.api_specific_name() == "gh_sum"
+    assert AccessType.get_valid_reduction_modes() == [AccessType.SUM]
+    assert AccessType.get_valid_reduction_names() == ["gh_sum"]
+    # Use set to make this independent of the order:
+    assert set(AccessType.all_write_accesses()) == set([AccessType.WRITE,
+                                                        AccessType.READWRITE,
+                                                        AccessType.INC,
+                                                        AccessType.SUM])
+    assert set(AccessType.all_read_accesses()) == set([AccessType.READ,
+                                                       AccessType.INC,
+                                                       AccessType.READWRITE])
 
 
 def test_from_string():
