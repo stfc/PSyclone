@@ -849,7 +849,7 @@ class ACCUpdateDirective(ACCDirective):
     def __init__(self, symbol, direction, children=None, parent=None):
         super(ACCUpdateDirective, self).__init__(children=children,
                                                  parent=parent)
-        if not isinstance(direction, str) and direction not in \
+        if not isinstance(direction, str) or direction not in \
                 self._VALID_DIRECTIONS:
             raise AttributeError(
                 "The ACCUpdateDirective direction argument must be a string "
@@ -858,8 +858,8 @@ class ACCUpdateDirective(ACCDirective):
 
         if not isinstance(symbol, DataSymbol):
             raise AttributeError(
-                "The ACCUpdateDirective symbol argument must be a DataSymbol "
-                "but found '{1}'.".format(type(symbol).__name__))
+                "The ACCUpdateDirective symbol argument must be a 'DataSymbol"
+                "' but found '{0}'.".format(type(symbol).__name__))
 
         self._direction = direction
         self._symbol = symbol

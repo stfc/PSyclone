@@ -46,11 +46,11 @@ from importlib import import_module
 import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
+    GOMoveIterationBoundariesInsideKernelTrans, GOceanExtractTrans
 from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOLoop
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
 from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
@@ -1833,6 +1833,9 @@ def test_acc_loop_not_within_data_region():
 
 
 def test_acc_enter_directive_infrastructure_setup():
+    ''' Test that the GOcean-specific OpenACC EnterData directive also sets
+    up the necessary GOcean infrastructure to keep track and update the
+    data allocated on the device. '''
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
@@ -1846,14 +1849,82 @@ def test_acc_enter_directive_infrastructure_setup():
     acclpt.apply(schedule[1])
     # Add an enclosing parallel region
     accpara.apply(schedule[1])
-
     # Add a data region. This directive will set-up the necessary GOcean
     # infrastructure device pointers
     accdata.apply(schedule)
 
-    schedule.view()
+    # Generate the code
     gen = str(psy.gen)
-    print(gen)
+
+    # Check that the read_from_device routine has been generated
+    expected = """\
+    SUBROUTINE read_from_device(from, to, startx, starty, nx, ny, blocking)
+      USE iso_c_binding, ONLY: c_ptr
+      USE kind_params_mod, ONLY: go_wp
+      TYPE(c_ptr), intent(in) :: from
+      REAL(KIND=go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
+      INTEGER, intent(in) :: startx
+      INTEGER, intent(in) :: starty
+      INTEGER, intent(in) :: nx
+      INTEGER, intent(in) :: ny
+      LOGICAL, intent(in) :: blocking
+
+      !$acc update host(to)
+
+    END SUBROUTINE read_from_device"""
+    assert expected in gen
+
+    # Check that the routine has been introduced to the tree (with the
+    # appropriate tag) and only once (even if there are 3 fields)
+    symbol = schedule.symbol_table.lookup_with_tag("openacc_read_func")
+    assert symbol.name == "read_from_device"
+    assert len(schedule.parent.children) == 2
+    assert isinstance(schedule.parent.children[1], Routine)
+    assert schedule.parent.children[1].name == symbol.name
+    count = count_lines(gen, "SUBROUTINE read_from_device(")
+    assert count == 1
+
+    # Check that each field data_on_device and read_from_device_f have been
+    # initialised
+    for field in ["cv_fld", "p_fld", "v_fld"]:
+        assert "{0}%data_on_device = .true.\n".format(field) in gen
+        assert ("{0}%read_from_device_f => read_from_device\n".format(field)
+                in gen)
+
+
+def test_acc_enter_directive_infrastructure_setup_gen_code():
+    ''' Test that the GOcean-specific OpenACC EnterData directive also sets
+    up the necessary GOcean infrastructure to keep track and update the
+    data allocated on the device.
+
+    TODO #1010: This is the same as the previous test but forcing the f2pygen
+    code generation path. This test can be removed when GOcean PSy-layer will
+    exclusively use the PSyIR backend to generate code.
+
+    '''
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+    etrans = GOceanExtractTrans()
+
+    # Apply ACCLoopTrans to just the second loop
+    acclpt.apply(schedule[1])
+    # Add an enclosing parallel region
+    accpara.apply(schedule[1])
+    # Add a data region. This directive will set-up the necessary GOcean
+    # infrastructure device pointers
+    accdata.apply(schedule)
+
+    # Apply Extract Transformation to force f2pygen code generation path
+    etrans.apply(schedule)
+
+    # Generate the code
+    gen = str(psy.gen)
 
     # Check that the read_from_device routine has been generated
     expected = """\
@@ -1876,8 +1947,9 @@ def test_acc_enter_directive_infrastructure_setup():
     # Check that each field data_on_device and read_from_device_f have been
     # initialised
     for field in ["cv_fld", "p_fld", "v_fld"]:
-        assert "{0}%data_on_device = .true.\n".format(field)
-        assert "{0}%read_from_device_f = read_from_device\n".format(field)
+        assert "{0}%data_on_device = .true.\n".format(field) in gen
+        assert ("{0}%read_from_device_f => read_from_device\n".format(field)
+                in gen)
 
 
 def test_acc_loop_before_enter_data():
