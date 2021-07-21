@@ -676,17 +676,13 @@ def test_omp_region_commutes_with_loop_trans(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
+def test_omp_region_commutes_with_loop_trans(tmpdir):
     ''' Test that the OpenMP PARALLEL region and (orphan) loop
-    transformations commute after constant bounds have been
-    switched off - i.e. we get the same result
+    transformations commute - i.e. we get the same result
     independent of the order in which they are applied. '''
     psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
-    # Turn-off constant loop bounds
-    cbtrans = GOConstLoopBoundsTrans()
-    cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put an OpenMP do directive around each loop contained
     # in the schedule
@@ -708,9 +704,6 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
-    # Turn-off constant loop bounds
-    cbtrans = GOConstLoopBoundsTrans()
-    cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put all of the loops in the schedule within a single
     # OpenMP region
@@ -1747,14 +1740,10 @@ def test_accloop(tmpdir, fortran_writer):
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
-    cbtrans = GOConstLoopBoundsTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
-
-    # This test expects constant loop bounds
-    cbtrans.apply(schedule)
 
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
@@ -1789,13 +1778,15 @@ def test_accloop(tmpdir, fortran_writer):
     accdata.apply(schedule)
 
     gen = fortran_writer(psy.container)
+    print(gen)
     assert '''\
             !$acc parallel default(present)
             !$acc loop independent
-            do j = 2, jstop, 1''' in gen
+            do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1''' in gen
     assert ("enddo\n"
             "            !$acc loop independent\n"
-            "            do j = 2, jstop+1, 1" in gen)
+            "            do j = cv_fld%internal%ystart, cv_fld%internal%ystop"
+            ", 1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1856,7 +1847,6 @@ def test_acc_loop_before_enter_data():
 
 def test_acc_collapse(tmpdir):
     ''' Tests for the collapse clause to a loop directive '''
-    cbtrans = GOConstLoopBoundsTrans()
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
@@ -1864,8 +1854,6 @@ def test_acc_collapse(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    _, _ = cbtrans.apply(schedule, {"const_bounds": True})
     child = schedule.children[0]
 
     # Check that we reject non-integer collapse arguments
@@ -1896,8 +1884,8 @@ def test_acc_collapse(tmpdir):
     gen = str(psy.gen)
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop independent collapse(2)\n"
-            "      DO j = 2, jstop, 1\n"
-            "        DO i = 2, istop+1, 1\n"
+            "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+            "        DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -1908,20 +1896,18 @@ def test_acc_indep(tmpdir):
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
-    cbtrans = GOConstLoopBoundsTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    cbtrans.apply(schedule)
     acclpt.apply(schedule.children[0], {"independent": False})
     acclpt.apply(schedule.children[1], {"independent": True})
     accpara.apply(schedule.children)
     accdata.apply(schedule)
     # Check the generated code
     gen = str(psy.gen)
-    assert "!$acc loop\n      DO j = 2, jstop, 1" in gen
-    assert "!$acc loop independent\n      DO j = 2, jstop+1, 1" in gen
+    assert "!$acc loop\n      DO j = cu_fld%internal%ystart," in gen
+    assert "!$acc loop independent\n      DO j = cv_fld%internal%ystart" in gen
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -1932,19 +1918,19 @@ def test_acc_loop_seq():
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
-    cbtrans = GOConstLoopBoundsTrans()
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    cbtrans.apply(schedule)
     acclpt.apply(schedule.children[0], {"sequential": True})
     accpara.apply(schedule.children)
     accdata.apply(schedule)
     # Check the generated code
     gen = str(psy.gen).lower()
+    print(gen)
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop seq\n"
-            "      do j = 2, jstop, 1\n" in gen)
+            "      do j = cu_fld%internal%ystart, cu_fld%internal%ystop"
+            ", 1\n" in gen)
 
 
 def test_acc_loop_view(capsys):

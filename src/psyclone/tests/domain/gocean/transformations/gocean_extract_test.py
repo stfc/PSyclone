@@ -46,8 +46,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
-from psyclone.psyir.nodes import ExtractNode
-from psyclone.psyGen import Loop
+from psyclone.psyir.nodes import ExtractNode, Loop, OMPDirective
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
                                       ACCLoopTrans, GOceanOMPLoopTrans,
@@ -483,13 +482,16 @@ def test_node_list_ompparallel_gocean1p0():
     # Apply GOConstLoopBoundsTrans
     ctrans.apply(schedule)
     # Apply GOceanOMPParallelLoopTrans to the first two Loops
-    ltrans.apply(schedule.children[0])
-    ltrans.apply(schedule.children[1])
+    outerloops = schedule.walk(Loop, stop_type=Loop)
+    ltrans.apply(outerloops[0])
+    ltrans.apply(outerloops[1])
     # and enclose them within a parallel region
-    otrans.apply(schedule.children[0:2])
+    directives = schedule.walk(OMPDirective, stop_type=OMPDirective)
+    otrans.apply(directives)
     # Now enclose the parallel region within an ExtractNode (inserted
     # at the previous location of the OMPParallelDirective
-    etrans.apply(schedule.children[0])
+    directive = schedule.walk(OMPDirective, stop_type=OMPDirective)
+    etrans.apply(directive)
 
     code = str(psy.gen)
     output = """
@@ -588,7 +590,8 @@ def test_driver_creation(tmpdir):
     # This test expects constant loop bounds
     ctrans.apply(schedule)
 
-    etrans.apply(schedule.children[0], {'create_driver': True})
+    outerloops = schedule.walk(Loop, stop_type=Loop)
+    etrans.apply(outerloops[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 

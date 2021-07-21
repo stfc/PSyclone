@@ -171,8 +171,8 @@ class GOConstLoopBoundsTrans(Transformation):
                     Reference(j_stop),
                     StructureReference.create(
                         field, ystop.split('%')[1:]))
-        node.children.insert(1, assign1)
-        node.children.insert(2, assign2)
+        node.children.insert(0, assign2)
+        node.children.insert(0, assign1)
         assign1.preceding_comment = "Look-up loop bounds"
 
         return node, None
