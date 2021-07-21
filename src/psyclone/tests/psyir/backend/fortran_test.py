@@ -362,7 +362,7 @@ def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
         "type my_type\nend type my_type"))
     assert (fortran_writer.gen_typedecl(tsymbol) ==
-            "type my_type\nend type my_type")
+            "type my_type\nend type my_type\n")
 
 
 def test_gen_typedecl(fortran_writer):
@@ -755,6 +755,32 @@ def test_gen_decls_routine(fortran_writer):
     assert result == ""
 
 
+def test_gen_access_stmt(fortran_writer):
+    '''
+    Tests for the gen_access_stmt method of FortranWriter.
+    '''
+    symbol_table = SymbolTable()
+    # If no default visibility is specified then the Fortran default
+    # is 'public'
+    symbol_table._default_visibility = None
+    assert fortran_writer.gen_access_stmt(symbol_table) == "public\n"
+    symbol_table.default_visibility = Symbol.Visibility.PUBLIC
+    # Test indentation works as expected
+    fortran_writer._depth += 1
+    assert fortran_writer.gen_access_stmt(symbol_table) == "  public\n"
+    symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert fortran_writer.gen_access_stmt(symbol_table) == "  private\n"
+    fortran_writer._depth -= 1
+    assert fortran_writer.gen_access_stmt(symbol_table) == "private\n"
+    # Invalid type (str instead of Symbol.Visibility)
+    symbol_table._default_visibility = "public"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_access_stmt(symbol_table)
+    assert ("Unrecognised visibility ('public') found when attempting to "
+            "generate access statement. Should be either 'Symbol.Visibility."
+            "PUBLIC' or 'Symbol.Visibility.PRIVATE'" in str(err.value))
+
+
 def test_gen_routine_access_stmts(fortran_writer):
     '''
     Tests for the gen_routine_access_stmts method of FortranWriter.
@@ -826,7 +852,8 @@ def test_fw_filecontainer_2(fortran_writer):
     result = fortran_writer(file_container)
     expected = (
         "module mod_name\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module mod_name\n"
         "subroutine sub_name()\n\n\n"
@@ -877,7 +904,8 @@ def test_fw_container_1(fortran_writer, monkeypatch):
     result = fortran_writer(container)
     assert (
         "module test\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module test\n" in result)
 
@@ -915,7 +943,8 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
         "  use iso_c_binding, only : c_int\n"
         "  implicit none\n"
         "  real :: c\n"
-        "  real :: d\n\n"
+        "  real :: d\n"
+        "  public\n\n"
         "  public :: tmp\n\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"
@@ -968,15 +997,27 @@ def test_fw_container_4(fortran_writer):
     container.symbol_table.lookup("mod2").wildcard_import = True
     container.symbol_table.add(ContainerSymbol("mod3"))
     container.symbol_table.lookup("mod3").wildcard_import = True
-    result = fortran_writer(container)
+    # Default symbol visibility is public
     assert (
         "module test\n"
         "  use mod1\n"
         "  use mod2\n"
         "  use mod3\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
-        "end module test\n" in result)
+        "end module test\n" in fortran_writer(container))
+    # Change the default visibility to private
+    container.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert (
+        "module test\n"
+        "  use mod1\n"
+        "  use mod2\n"
+        "  use mod3\n"
+        "  implicit none\n"
+        "  private\n\n"
+        "  contains\n\n"
+        "end module test\n" in fortran_writer(container))
 
 
 def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
@@ -2091,3 +2132,57 @@ def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
     assert len(cblocks) == 2
     gen = fortran_writer(call_node)
     assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
+
+
+def test_fw_comments(fortran_writer):
+    ''' Test the generation of Fortran from PSyIR with comments. '''
+
+    container = Container("my_container")
+    routine = Routine("my_routine")
+    container.addchild(routine)
+    statement1 = Return()
+    statement2 = Return()
+    statement3 = Return()
+    routine.children = [statement1, statement2, statement3]
+
+    # If the comments are empty, they don't appear at all
+    expected = (
+        "module my_container\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  subroutine my_routine()\n\n"
+        "    return\n"
+        "    return\n"
+        "    return\n\n"
+        "  end subroutine my_routine\n\n"
+        "end module my_container\n")
+    assert expected == fortran_writer(container)
+
+    # Add comments
+    container.preceding_comment = "My container preceding comment"
+    container.inline_comment = "My container inline comment"
+    routine.preceding_comment = "My routine preceding comment"
+    routine.inline_comment = "My routine inline comment"
+    statement1.preceding_comment = "My statement with a preceding comment"
+    statement2.preceding_comment = "My statement with a preceding comment ..."
+    statement2.inline_comment = "... and an inline comment"
+    statement3.inline_comment = "Statement with only an inline comment"
+
+    # Now they are placed in the appropriate position
+    expected = (
+        "! My container preceding comment\n"
+        "module my_container\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  ! My routine preceding comment\n"
+        "  subroutine my_routine()\n\n"
+        "    ! My statement with a preceding comment\n"
+        "    return\n"
+        "    ! My statement with a preceding comment ...\n"
+        "    return  ! ... and an inline comment\n"
+        "    return  ! Statement with only an inline comment\n\n"
+        "  end subroutine my_routine  ! My routine inline comment\n\n"
+        "end module my_container  ! My container inline comment\n")
+    assert expected == fortran_writer(container)

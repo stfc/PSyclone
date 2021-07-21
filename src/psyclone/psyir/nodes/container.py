@@ -43,9 +43,10 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
 
-class Container(ScopingNode):
+class Container(ScopingNode, CommentableMixin):
     '''Node representing a set of Routine and/or Container nodes, as well
     as a name and a SymbolTable. This construct can be used to scope
     symbols of variables, Routine names and Container names. In

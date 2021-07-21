@@ -329,8 +329,8 @@ def test_fuse_different_loop_vars(fortran_reader, fortran_writer):
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Loop variables must be the same, but are 'jj' and 'ji'" \
-        in str(err.value)
+    assert ("Loop variables must be the same, but are 'jj' and 'ji'"
+            in str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -416,9 +416,10 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
 
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Variable 's' is written to in one or both of the loops and the "\
-        "loop variable jj is used in different index locations ((0, 1) and "\
-        "(0, 0)) when accessing it." in str(err.value)
+    assert ("Variable 's' is written to and the "
+            "loop variable 'jj' is used in different index locations: "
+            "s(ji,jj) and s(jj,ji)."
+            in str(err.value))
 
     # This cannot be fused, since 's' is read in the
     # first iteration and written in the second with
@@ -440,9 +441,33 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
 
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Variable 's' is written to in one or both of the loops and the " \
-           "loop variable jj is used in different index locations ((0, 0) "\
-           "and (0, 1)) when accessing it." in str(err.value)
+    assert ("Variable 's' is written to and the loop variable 'jj' is "
+            "used in different index locations: s(jj,ji) and s(ji,jj)."
+            in str(err.value))
+
+    # Same test using a structure type:
+    code = '''subroutine sub()
+              use my_module
+              integer :: ji, jj, n
+              type(my_type) :: s, t, u
+              do jj=1, n+1
+                 do ji=1, 10
+                    u%comp1(ji)%comp2(jj)=s%comp1(jj)%comp2(ji)+1
+                 enddo
+              enddo
+              do jj=1, n+1
+                 do ji=1, 10
+                    s%comp1(ji)%comp2(jj)=t%comp1(ji)%comp2(jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(code, fortran_reader, fortran_writer)
+    assert ("Variable 's' is written to and the loop variable 'jj' is used "
+            "in different index locations: s%comp1(jj)%comp2(ji) and "
+            "s%comp1(ji)%comp2(jj)."
+            in str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -472,8 +497,8 @@ def test_fuse_independent_array(fortran_reader, fortran_writer):
 
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Variable 's' does not depend on loop variable 'jj', but is " \
-           "read and written" in str(err.value)
+    assert ("Variable 's' does not depend on loop variable 'jj', but is "
+            "read and written" in str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -521,8 +546,8 @@ def test_fuse_scalars(tmpdir, fortran_reader, fortran_writer):
 
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Scalar variable 'a' is written in one loop, but only read in " \
-           "the other loop." in str(err.value)
+    assert ("Scalar variable 'a' is written in one loop, but only read in "
+            "the other loop." in str(err.value))
 
     # Third test: write/read of scalar variable
     code = '''subroutine sub()
@@ -598,8 +623,8 @@ def test_fuse_scalars_incorrect(fortran_reader, fortran_writer):
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Scalar variable 'b' might not be written in one loop" \
-        in str(err.value)
+    assert ("Scalar variable 'b' might not be written in one loop"
+            in str(err.value))
 
 
 # ----------------------------------------------------------------------------
