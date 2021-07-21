@@ -213,8 +213,13 @@ def test_cw_ifblock():
 
     # Fill the if_body and else_body
     ifblock.addchild(Schedule(parent=ifblock))
-    ifblock.addchild(Schedule(parent=ifblock))
     ifblock.if_body.addchild(Return(parent=ifblock.if_body))
+    if_only = cwriter(ifblock)
+    assert if_only == (
+        "if (a) {\n"
+        "  return;\n"
+        "}\n")
+    ifblock.addchild(Schedule(parent=ifblock))
 
     condition = Reference(DataSymbol('b', REAL_TYPE))
     then_content = [Return()]
