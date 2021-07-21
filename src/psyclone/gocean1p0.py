@@ -52,7 +52,8 @@ import re
 import six
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, Comment
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, Comment, \
+    Pointer_Assignment_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
@@ -73,7 +74,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
     Call, Assignment, CodeBlock, PSyDataNode, ACCEnterDataDirective, \
-    ACCParallelDirective, ACCKernelsDirective
+    ACCParallelDirective, ACCKernelsDirective, Container, ACCUpdateDirective
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
     ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
@@ -3232,7 +3233,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                         pointer=True))
                     obj_list.append(var)
 
-    def _read_from_device_routine(self, f2pygen_module):
+    def _read_from_device_routine(self, f2pygen_module=None, psyir=None):
         ''' Return the symbol of the routine that reads data from the OpenACC
         device, if it doesn't exist create the Routine and the Symbol. '''
         symtab = self.root.symbol_table
@@ -3256,7 +3257,6 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                 real(go_wp), dimension(:,:), intent(inout), target :: to
                 integer, intent(in) :: startx, starty, nx, ny
                 logical, intent(in) :: blocking
-                !$acc update host(to)
             end subroutine read_openacc
             '''
 
@@ -3264,12 +3264,20 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
+        # Add an ACCUpdateDirective inside the subroutine
+        symbol = subroutine.symbol_table.lookup("to")
+        subroutine.addchild(ACCUpdateDirective(symbol, "host"))
 
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # Insert the code in the invoke module
-        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+        # If a f2pygen modu is provided insert a PSyIRGen node
+        if f2pygen_module:
+            f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        # If a psyir is provided insert the routine as a Container child
+        if psyir:
+            psyir.ancestor(Container).addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("openacc_read_func")
 
@@ -3289,12 +3297,22 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                 if var not in obj_list:
                     obj_list.append(var)
 
+        read_routine_symbol = self._read_from_device_routine(psyir=self)
+
         for var in obj_list:
             symbol = self.scope.symbol_table.lookup(var)
             assignment = Assignment.create(
                 StructureReference.create(symbol, ['data_on_device']),
                 Literal("true", BOOLEAN_TYPE))
             self.parent.children.insert(self.position, assignment)
+
+            # The preceding whitespace is needed to discorage fparser to
+            # consider it a comment statement when the field starts with c
+            block = Pointer_Assignment_Stmt(FortranStringReader(
+                " {0}%read_from_device_f => {1}\n"
+                "".format(symbol.name, read_routine_symbol.name)))
+            codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
+            self.parent.children.insert(self.position, codeblock)
 
         super(GOACCEnterDataDirective, self).lower_to_language_level()
 

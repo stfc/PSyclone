@@ -49,6 +49,7 @@ from psyclone.psyir.nodes.directive import Directive
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.core import AccessType, VariablesAccessInfo
 
 
@@ -875,6 +876,16 @@ class ACCUpdateDirective(ACCDirective):
 
         '''
         return "acc update " + self._direction + "(" + self._symbol.name + ")"
+
+    def end_string(self):
+        '''
+        This statement has no end string, so it returns an empty string.
+
+        :returns: an empty string.
+        :rtype: str
+
+        '''
+        return ""
 
 
 # For automatic API documentation generation
