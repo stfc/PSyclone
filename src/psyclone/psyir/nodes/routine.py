@@ -43,9 +43,10 @@ from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, DeferredType
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols.symboltable import SymbolTable
+from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
 
-class Routine(Schedule):
+class Routine(Schedule, CommentableMixin):
     '''
     A sub-class of a Schedule that represents a subroutine, function or
     program unit.
