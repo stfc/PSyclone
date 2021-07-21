@@ -70,7 +70,7 @@ class NanTestTrans(ReadOnlyVerifyTrans):
     '''
     # The types of node that this transformation can enclose
     valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, nodes.Literal, nodes.Reference)
+                        nodes.Directive, nodes.Literal, nodes.Reference)
 
     def __init__(self, node_class=NanTestNode):
         # This function is only here to change the default node type

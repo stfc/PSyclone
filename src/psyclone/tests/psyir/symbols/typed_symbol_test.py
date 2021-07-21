@@ -161,14 +161,22 @@ def test_typed_symbol_copy():
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
     assert len(symbol.shape) == 2
-    assert isinstance(symbol.shape[0], Literal)
-    assert symbol.shape[0].value == "1"
-    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
-    assert isinstance(symbol.shape[1], Literal)
-    assert symbol.shape[1].value == "2"
-    assert symbol.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(symbol.shape[0].lower, Literal)
+    assert isinstance(symbol.shape[0].upper, Literal)
+    assert symbol.shape[0].lower.value == "1"
+    assert symbol.shape[0].upper.value == "1"
+    assert (symbol.shape[0].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[0].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(symbol.shape[1].lower, Literal)
+    assert isinstance(symbol.shape[1].upper, Literal)
+    assert symbol.shape[1].lower.value == "1"
+    assert symbol.shape[1].upper.value == "2"
+    assert (symbol.shape[1].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[1].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
 
 def test_typed_symbol_copy_properties():

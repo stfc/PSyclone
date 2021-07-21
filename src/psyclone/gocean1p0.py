@@ -66,13 +66,13 @@ from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, ACCEnterDataDirective, HaloExchange, ACCParallelDirective, \
-    ACCKernelsDirective
+    AccessType, HaloExchange
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment, CodeBlock, PSyDataNode
+    Call, Assignment, PSyDataNode, ACCEnterDataDirective, \
+    ACCParallelDirective, ACCKernelsDirective
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
     ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
@@ -503,7 +503,7 @@ class GOLoop(Loop):
         in the Dynamo api.
 
         :param parent: optional parent node (default None).
-        :type parent: :py:class:`psyclone.psyGen.node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str topology_name: optional opology of the loop (unused atm).
         :param str loop_type: loop type - must be 'inner' or 'outer'.
 
@@ -1224,7 +1224,7 @@ class GOKern(CodedKern):
                     i_expr = GOKern._format_access("i", i, current_depth)
                     j_expr = GOKern._format_access("j", j, current_depth)
                     var_accesses.add_access(signature, arg.access,
-                                            self, [[i_expr, j_expr]])
+                                            self, [i_expr, j_expr])
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -1264,7 +1264,7 @@ class GOKern(CodedKern):
                     # reference to (i,j) so it is properly recognised as
                     # an array access.
                     var_accesses.add_access(signature, arg.access,
-                                            self, [["i", "j"]])
+                                            self, ["i", "j"])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 

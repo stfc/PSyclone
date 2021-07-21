@@ -37,14 +37,11 @@
 
 '''This module contains the GOConstLoopBoundsTrans.'''
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Comment
 from psyclone.psyir.transformations import TransformationError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, DataTypeSymbol
-from psyclone.psyir.nodes import (CodeBlock, Assignment, Reference,
-                                  StructureReference)
+from psyclone.psyir.nodes import Assignment, Reference, StructureReference
 from psyclone.configuration import Config
 
 
@@ -157,18 +154,15 @@ class GOConstLoopBoundsTrans(Transformation):
         ystop = api_config.grid_properties["go_grid_ystop"].fortran \
             .format(arg)
 
-        # Add a comment
-        block = Comment(FortranStringReader(
-            "! Look-up loop bounds\n", ignore_comments=False))
-        codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
-        node.children.insert(0, codeblock)
-
         # Get a field argument from the argument list
         for arg in node.symbol_table.argument_list:
             if isinstance(arg.datatype, DataTypeSymbol):
                 if arg.datatype.name == "r2d_field":
                     field = arg
                     break
+
+        # Add the assignments of the bounds to its variables at the
+        # beginning of the invoke.
         assign1 = Assignment.create(
                     Reference(i_stop),
                     StructureReference.create(
@@ -179,5 +173,6 @@ class GOConstLoopBoundsTrans(Transformation):
                         field, ystop.split('%')[1:]))
         node.children.insert(1, assign1)
         node.children.insert(2, assign2)
+        assign1.preceding_comment = "Look-up loop bounds"
 
         return node, None
