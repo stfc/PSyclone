@@ -112,7 +112,8 @@ def test_function_handler(fortran_reader, fortran_writer):
         "end module\n")
     expected = (
         "module a\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  public :: my_func\n\n"
         "  contains\n"
         "  function my_func()\n"
@@ -157,7 +158,8 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
         "end module\n".format(basic_type, rhs_val))
     expected = (
         "module a\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  public :: my_fUnc\n\n"
         "  contains\n"
         "  function my_fUnc()\n"

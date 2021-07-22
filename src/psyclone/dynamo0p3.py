@@ -1878,9 +1878,12 @@ class LFRicMeshProperties(DynCollection):
                 adj_face = self._symbol_table.symbol_from_tag(
                     "adjacent_face").name
                 if var_accesses is not None:
+                    # TODO #1320 Replace [1]
+                    # The [1] just indicates that this variable is accessed
+                    # as a rank 1 array. #1320 will improve this.
                     var_accesses.add_access(Signature(adj_face),
                                             AccessType.READ, self._kernel,
-                                            [[1]])
+                                            [1])
                 if not stub:
                     # This is a kernel call from within an invoke
                     cell_name = "cell"
@@ -8806,7 +8809,7 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_literal:
             reader = FortranReader()
-            return reader.psyir_from_expression(self.name)
+            return reader.psyir_from_expression(self.name, symbol_table)
 
         if self.is_scalar:
             try:

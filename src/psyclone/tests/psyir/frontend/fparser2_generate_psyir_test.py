@@ -58,7 +58,8 @@ MODULE_IN = (
     "end module\n")
 MODULE_OUT = (
     "module a\n"
-    "  implicit none\n\n"
+    "  implicit none\n"
+    "  public\n\n"
     "  public :: sub1, sub2\n\n"
     "  contains\n"
     "  subroutine sub1(a)\n"
