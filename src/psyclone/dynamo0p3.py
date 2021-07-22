@@ -8764,18 +8764,28 @@ class DynKernelArgument(KernelArgument):
         # check by their argument type
         if self.is_operator:
 
-            # Check the metadata and algorithm type are consistent if
-            # the algorithm information is available.
-            if check and alg_datatype and alg_datatype not in ["operator_type", "columnwise_operator_type"]:
+            # Check the algorithm information is available.
+            if check and not alg_datatype:
                 raise GenerationError(
-                    "The kernel metadata for argument '{0}' in kernel '{1}' "
-                    "specifies this argument should be an operator but it is "
-                    "declared as '{2}' in the algorithm layer."
+                    "It was not possible to determine the operator type from "
+                    "the algorithm layer for argument '{0}' in kernel '{1}'."
                     "".format(self.name, self._call.name, alg_datatype))
 
             if self.argument_type == "gh_operator":
+                if check and alg_datatype != "operator_type":
+                    raise GenerationError(
+                        "The metadata for argument '{0}' in kernel '{1}' "
+                        "specifies that this is an operator, however it is "
+                        "declared as a '{2}' in the algorithm code."
+                        "".format(self.name, self._call.name, alg_datatype))
                 argtype = "operator"
             elif self.argument_type == "gh_columnwise_operator":
+                if check and alg_datatype != "columnwise_operator_type":
+                    raise GenerationError(
+                        "The metadata for argument '{0}' in kernel '{1}' "
+                        "specifies that this is a columnwise operator, "
+                        "however it is declared as a '{2}' in the algorithm "
+                        "code.".format(self.name, self._call.name, alg_datatype))
                 argtype = "columnwise_operator"
             else:
                 raise InternalError(
@@ -8784,7 +8794,10 @@ class DynKernelArgument(KernelArgument):
                     format(self.argument_type))
             # Set operator properties as defined in the LFRic infrastructure
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
-            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+            if alg_datatype:
+                self._data_type = alg_datatype
+            else:
+                self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
