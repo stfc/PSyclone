@@ -2135,6 +2135,8 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
+        assert ("f1_proxy%data(df) = f1_proxy%data(df) ** 1.0e-3_r_def\n"
+                in code)
 
 
 def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
@@ -2190,7 +2192,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
 
-        assert "f1_proxy%data(df) = f1_proxy%data(df) ** (-2)\n" in code
+        assert "f1_proxy%data(df) = f1_proxy%data(df) ** (-2_i_def)\n" in code
         assert ("f1_proxy%data(df) = f1_proxy%data(df) ** my_var_a_scalar\n"
                 in code)
 

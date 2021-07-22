@@ -1510,8 +1510,7 @@ class Kern(Statement):
         '''
         Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
-        reductions, if specified. Note: this method is currently only supported
-        for LFRic API.
+        reductions, if specified.
 
         :param parent: the Node in the AST to which to add new code.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -1520,6 +1519,8 @@ class Kern(Statement):
         :raises GenerationError: if the variable to zero is not a scalar.
         :raises GenerationError: if the reprod_pad_size (read from the \
                                  configuration file) is less than 1.
+        :raises GenerationError: for a reduction into a scalar that is \
+                                 neither 'real' nor 'integer'.
 
         '''
         from psyclone.f2pygen import AssignGen, DeclGen, AllocateGen
@@ -1537,12 +1538,22 @@ class Kern(Statement):
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
             data_value = "0.0"
-        if var_data_type == "integer":
+        elif var_data_type == "integer":
             data_value = "0"
-        kind_type = \
-            Config.get().api_conf("dynamo0.3").default_kind[var_data_type]
-        zero = "_".join([data_value, kind_type])
-        parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
+        else:
+            raise GenerationError(
+                "Kern.zero_reduction_variable() should be either a 'real' "
+                "or an 'integer' scalar but found scalar of type '{0}'.".
+                format(var_arg.intrinsic_type))
+        # Retrieve the precision information (if set) and append it
+        # to the initial reduction value
+        if var_arg.precision:
+            kind_type = var_arg.precision
+            zero_sum_variable = "_".join([data_value, kind_type])
+        else:
+            kind_type = ""
+            zero_sum_variable = data_value
+        parent.add(AssignGen(parent, lhs=var_name, rhs=zero_sum_variable),
                    position=position)
         if self.reprod_reduction:
             parent.add(DeclGen(parent, datatype=var_data_type,
@@ -1560,7 +1571,7 @@ class Kern(Statement):
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
-                                 rhs=zero), position=position)
+                                 rhs=zero_sum_variable), position=position)
 
     def reduction_sum_loop(self, parent):
         '''
@@ -2727,7 +2738,13 @@ class Argument(object):
             self._orig_name = ""
             self._form = ""
             self._is_literal = False
+        # Initialise access
         self._access = access
+        # Default the precision, data type and module to 'None' (no
+        # explicit property specified)
+        self._precision = None
+        self._data_type = None
+        self._module_name = None
 
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
@@ -2849,6 +2866,38 @@ class Argument(object):
         :rtype: str
 
         '''
+
+    @property
+    def precision(self):
+        '''
+        :returns: the precision of this argument. Default value is None, \
+                  explicit implementation is left to a specific API.
+        :rtype: str or NoneType
+
+        '''
+        return self._precision
+
+    @property
+    def data_type(self):
+        '''
+        :returns: the data type of this argument. Default value is None, \
+                  explicit implementation is left to a specific API.
+        :rtype: str or NoneType
+
+        '''
+        return self._data_type
+
+    @property
+    def module_name(self):
+        '''
+        :returns: the name of the Fortran module that contains definitions \
+                  for the argument data type. Default value is None, \
+                  explicit implementation is left to a specific API.
+        :rtype: str or NoneType
+
+
+        '''
+        return self._module_name
 
     @property
     def call(self):
@@ -3335,5 +3384,4 @@ class DummyTransformation(Transformation):
 __all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
            'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
            'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
-           'TransInfo', 'Transformation', 'DummyTransformation',
-           'ACCKernelsDirective', 'ACCDataDirective']
+           'TransInfo', 'Transformation', 'DummyTransformation']
