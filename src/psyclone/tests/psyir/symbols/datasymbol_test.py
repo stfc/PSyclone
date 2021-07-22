@@ -103,26 +103,6 @@ def test_datasymbol_initialisation():
                       DataSymbol)
 
 
-def test_datasymbol_init_errors():
-    ''' Test that the Symbol constructor raises appropriate errors if supplied
-    with invalid arguments. '''
-
-    with pytest.raises(TypeError) as error:
-        DataSymbol(None, None)
-    assert ("DataSymbol 'name' attribute should be of type 'str' but "
-            "'NoneType' found." in str(error.value))
-
-    with pytest.raises(TypeError) as error:
-        DataSymbol('a', 'invalidtype')
-    assert ("datatype of a DataSymbol must be specified using either a "
-            "DataType or a DataTypeSymbol but got: 'str'" in str(error.value))
-
-    with pytest.raises(TypeError) as error:
-        DataSymbol('a', 3)
-    assert ("datatype of a DataSymbol must be specified using either a "
-            "DataType or a DataTypeSymbol but got:" in str(error.value))
-
-
 def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
@@ -137,8 +117,7 @@ def test_datasymbol_can_be_printed():
                            [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
     assert ("s2: <Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', "
-            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>], "
-            "Reference[name:'s1']]>, Local>" in str(sym2))
+            "2, Reference[name:'s1']]>, Local>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
@@ -296,27 +275,41 @@ def test_datasymbol_copy():
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
     assert len(symbol.shape) == 2
-    assert isinstance(symbol.shape[0], Literal)
-    assert symbol.shape[0].value == "1"
-    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
-    assert isinstance(symbol.shape[1], Literal)
-    assert symbol.shape[1].value == "2"
-    assert symbol.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(symbol.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(symbol.shape[0].lower, Literal)
+    assert isinstance(symbol.shape[0].upper, Literal)
+    assert symbol.shape[0].lower.value == "1"
+    assert symbol.shape[0].upper.value == "1"
+    assert (symbol.shape[0].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[0].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(symbol.shape[1], ArrayType.ArrayBounds)
+    assert isinstance(symbol.shape[1].lower, Literal)
+    assert isinstance(symbol.shape[1].upper, Literal)
+    assert symbol.shape[1].lower.value == "1"
+    assert symbol.shape[1].upper.value == "2"
+    assert (symbol.shape[1].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[1].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     assert not symbol.constant_value
 
     # Now check constant_value
     new_symbol.constant_value = 3
 
-    assert isinstance(symbol.shape[0], Literal)
-    assert symbol.shape[0].value == "1"
-    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
-    assert isinstance(symbol.shape[1], Literal)
-    assert symbol.shape[1].value == "2"
-    assert symbol.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(symbol.shape[0].upper, Literal)
+    assert symbol.shape[0].upper.value == "1"
+    assert (symbol.shape[0].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[0].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(symbol.shape[1].upper, Literal)
+    assert symbol.shape[1].upper.value == "2"
+    assert (symbol.shape[1].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[1].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     assert not symbol.constant_value
 
 

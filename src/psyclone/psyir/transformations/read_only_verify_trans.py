@@ -39,10 +39,10 @@
 '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import (BuiltIn, Directive, Kern, OMPParallelDirective,
-                             ACCParallelDirective)
-from psyclone.psyir.nodes import (Literal, Loop, ReadOnlyVerifyNode,
-                                  Reference, Schedule)
+from psyclone.psyGen import BuiltIn, Kern
+from psyclone.psyir.nodes import (Literal, Loop, ReadOnlyVerifyNode, Directive,
+                                  Reference, Schedule, OMPParallelDirective,
+                                  ACCParallelDirective)
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError

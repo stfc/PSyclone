@@ -316,6 +316,53 @@ def test_psyirvisitor_visit_skip_nodes():
     assert result == "testnode2\n"
 
 
+def test_psyir_comments_no_prefix():
+    ''' Test the visitor behaviour for PSyIR with comments '''
+
+    class TestVisitorNoPrefix(PSyIRVisitor):
+        ''' Subclass of PSyIRVisitor with a statement visitor '''
+        def statement_node(self, _):
+            ''' Statement node visitor. '''
+            return "statement\n"
+
+    class TestVisitorPrefix(TestVisitorNoPrefix):
+        ''' Same as above but with a _COMMENT_PREFIX '''
+        _COMMENT_PREFIX = ":) "
+
+    statement = Return()
+    statement.preceding_comment = "C1"
+    statement.inline_comment = "C2"
+    visitor_no_prefix = TestVisitorNoPrefix()
+    visitor_prefix = TestVisitorPrefix()
+    # If the backend doesn't have a prefix, comments are ignored
+    assert visitor_no_prefix(statement) == "statement\n"
+    # Otherwise comments are inserted
+    assert visitor_prefix(statement) == ":) C1\nstatement  :) C2\n"
+
+
+def test_psyir_inline_comments_error():
+    ''' Test that a Visitor don't allow inline comments if the produced
+    output doesn't terminate with a line break '''
+
+    class TestVisitor(PSyIRVisitor):
+        ''' Subclass of PSyIRVisitor used to check that inline statements
+        with non-terminated constructs would fail '''
+        _COMMENT_PREFIX = ":) "
+
+        def statement_node(self, _):
+            ''' Statement node visitor. '''
+            return "statement"
+
+    statement = Return()
+    statement.inline_comment = "An inline comment"
+    test_visitor = TestVisitor()
+    with pytest.raises(VisitorError) as err:
+        _ = test_visitor(statement)
+    assert ("An inline_comment can only be added to a construct that finishes "
+            "with a '\\n', indicating that the line has ended, but node "
+            "'Return[]' results in 'statement'." in str(err.value))
+
+
 def test_psyirvisitor_validation():
     ''' Check that validation of the tree is performed and can be
     switched off. '''
@@ -379,8 +426,7 @@ def test_psyirvisitor_visit_return_node():
     with pytest.raises(VisitorError) as excinfo:
         _ = test_visitor(return_node)
     assert ("Visitor Error: Unsupported node 'Return' found: method names "
-            "attempted were ['return_node', 'statement_node', 'node_node']."
-            in str(excinfo.value))
+            "attempted were ['return_node', " in str(excinfo.value))
 
 
 def test_reference():

@@ -38,8 +38,10 @@
 '''
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, FileContainer
-from psyclone.psyGen import OMPDoDirective, ACCDirective, ACCLoopDirective
+from psyclone.nemo import NemoInvoke
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
+    OMPDoDirective, ACCDirective, ACCLoopDirective, FileContainer
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError

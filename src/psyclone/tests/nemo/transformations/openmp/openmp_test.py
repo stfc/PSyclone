@@ -45,8 +45,11 @@ from psyclone.psyGen import TransInfo, PSyFactory, OMPDoDirective, \
     OMPParallelDirective, OMPParallelDoDirective
 from psyclone.psyir.nodes import Return
 from psyclone.tests.utilities import get_invoke
+from psyclone import nemo
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans
+from psyclone.psyir.nodes import Statement, OMPDoDirective, \
+    OMPParallelDirective, OMPParallelDoDirective
 
 # Constants
 API = "nemo"

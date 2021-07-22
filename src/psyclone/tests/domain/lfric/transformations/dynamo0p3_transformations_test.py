@@ -48,9 +48,9 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynLoop
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import OMPDoDirective, InvokeSchedule, Directive, \
-    GlobalSum, BuiltIn
-from psyclone.psyir.nodes import colored, Loop, Schedule, Literal
+from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
+from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
+    OMPDoDirective
 from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
@@ -6199,7 +6199,7 @@ def test_accenterdatatrans():
 
     '''
     from psyclone.transformations import ACCEnterDataTrans
-    from psyclone.psyGen import ACCEnterDataDirective
+    from psyclone.psyir.nodes import ACCEnterDataDirective
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            name="invoke_0_testkern_type", dist_mem=False)

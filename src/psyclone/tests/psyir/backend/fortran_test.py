@@ -111,11 +111,11 @@ def test_gen_dims(fortran_writer):
     one = Literal("1", scalar_type)
     arg_plus_1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(arg), one)
-    array_type = ArrayType(INTEGER_TYPE,
-                           [Reference(arg), 2, literal, arg_plus_1,
-                            ArrayType.Extent.ATTRIBUTE])
-    assert fortran_writer._gen_dims(array_type.shape) == ["arg", "2", "4",
-                                                          "arg + 1_4", ":"]
+    array_type = ArrayType(
+        INTEGER_TYPE, [Reference(arg), 2, (0, 4), literal, arg_plus_1,
+                       (2, arg_plus_1.copy()), ArrayType.Extent.ATTRIBUTE])
+    assert (fortran_writer._gen_dims(array_type.shape) ==
+            ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4", ":"])
 
 
 def test_gen_dims_error(monkeypatch, fortran_writer):
@@ -751,6 +751,32 @@ def test_gen_decls_routine(fortran_writer):
     assert result == ""
 
 
+def test_gen_access_stmt(fortran_writer):
+    '''
+    Tests for the gen_access_stmt method of FortranWriter.
+    '''
+    symbol_table = SymbolTable()
+    # If no default visibility is specified then the Fortran default
+    # is 'public'
+    symbol_table._default_visibility = None
+    assert fortran_writer.gen_access_stmt(symbol_table) == "public\n"
+    symbol_table.default_visibility = Symbol.Visibility.PUBLIC
+    # Test indentation works as expected
+    fortran_writer._depth += 1
+    assert fortran_writer.gen_access_stmt(symbol_table) == "  public\n"
+    symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert fortran_writer.gen_access_stmt(symbol_table) == "  private\n"
+    fortran_writer._depth -= 1
+    assert fortran_writer.gen_access_stmt(symbol_table) == "private\n"
+    # Invalid type (str instead of Symbol.Visibility)
+    symbol_table._default_visibility = "public"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_access_stmt(symbol_table)
+    assert ("Unrecognised visibility ('public') found when attempting to "
+            "generate access statement. Should be either 'Symbol.Visibility."
+            "PUBLIC' or 'Symbol.Visibility.PRIVATE'" in str(err.value))
+
+
 def test_gen_routine_access_stmts(fortran_writer):
     '''
     Tests for the gen_routine_access_stmts method of FortranWriter.
@@ -776,6 +802,12 @@ def test_gen_routine_access_stmts(fortran_writer):
         fortran_writer.gen_routine_access_stmts(symbol_table)
     assert ("Unrecognised visibility ('broken') found for symbol 'my_sub2'"
             in str(err.value))
+    symbol_table.remove(sub2)
+    # Check that we don't generate an accessibility statement for a
+    # RoutineSymbol tagged with 'own_routine_symbol'
+    symbol_table.add(RoutineSymbol("my_routine"), tag='own_routine_symbol')
+    code = fortran_writer.gen_routine_access_stmts(symbol_table)
+    assert "my_routine" not in code
 
 
 def test_fw_exception(fortran_writer):
@@ -816,7 +848,8 @@ def test_fw_filecontainer_2(fortran_writer):
     result = fortran_writer(file_container)
     expected = (
         "module mod_name\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module mod_name\n"
         "subroutine sub_name()\n\n\n"
@@ -867,7 +900,8 @@ def test_fw_container_1(fortran_writer, monkeypatch):
     result = fortran_writer(container)
     assert (
         "module test\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module test\n" in result)
 
@@ -905,7 +939,8 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
         "  use iso_c_binding, only : c_int\n"
         "  implicit none\n"
         "  real :: c\n"
-        "  real :: d\n\n"
+        "  real :: d\n"
+        "  public\n\n"
         "  public :: tmp\n\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"
@@ -959,15 +994,27 @@ def test_fw_container_4(fortran_writer):
     container.symbol_table.lookup("mod2").wildcard_import = True
     container.symbol_table.add(ContainerSymbol("mod3"))
     container.symbol_table.lookup("mod3").wildcard_import = True
-    result = fortran_writer(container)
+    # Default symbol visibility is public
     assert (
         "module test\n"
         "  use mod1\n"
         "  use mod2\n"
         "  use mod3\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
-        "end module test\n" in result)
+        "end module test\n" in fortran_writer(container))
+    # Change the default visibility to private
+    container.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert (
+        "module test\n"
+        "  use mod1\n"
+        "  use mod2\n"
+        "  use mod3\n"
+        "  implicit none\n"
+        "  private\n\n"
+        "  contains\n\n"
+        "end module test\n" in fortran_writer(container))
 
 
 def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
@@ -1273,8 +1320,15 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = -a * (-b + c)\n"
         "    a = (-a) * (-b + c)\n"
         "    a = -a + (-b + (-c))\n"
+        "    a = -a + (-b - (-c))\n"
+        "    b = c * (-2.0)\n"
+        "    a = abs(-b - (-c))\n"
         "    e = .not. f .or. .not. g\n"
         "    a = log(b*c)\n"
+        "    a = b**(-c)\n"
+        "    a = b**(-b + c)\n"
+        "    a = (-b)**c\n"
+        "    a = -(-b)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1283,9 +1337,16 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
     expected = (
         "    a = -a * (-b + c)\n"
         "    a = -a * (-b + c)\n"
-        "    a = -a + (-b + -c)\n"
-        "    e = .NOT.f .OR. .NOT.g\n"
-        "    a = LOG(b * c)\n")
+        "    a = -a + (-b + (-c))\n"
+        "    a = -a + (-b - (-c))\n"
+        "    b = c * (-2.0)\n"
+        "    a = ABS(-b - (-c))\n"
+        "    e = .NOT.f .OR. (.NOT.g)\n"
+        "    a = LOG(b * c)\n"
+        "    a = b ** (-c)\n"
+        "    a = b ** (-b + c)\n"
+        "    a = -b ** c\n"
+        "    a = -(-b)\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -1360,8 +1421,6 @@ def test_fw_reference(fortran_reader, fortran_writer, tmpdir):
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
 
-    # The asserts need to be split as the declaration order can change
-    # between different versions of Python.
     assert (
         "  subroutine tmp(a, n)\n"
         "    integer, intent(in) :: n\n"
@@ -1416,10 +1475,7 @@ def test_fw_arrayreference_incomplete(fortran_writer):
 
 def test_fw_range(fortran_writer):
     '''Check the FortranWriter class range_node and arrayreference_node methods
-    produce the expected code when an array section is specified. We
-    can't test the Range node in isolation as one of the checks in the
-    Range code requires access to the (ArrayReference) parent (to
-    determine the array index of a Range node).
+    produce the expected code when an array section is specified.
 
     '''
     array_type = ArrayType(REAL_TYPE, [10, 10])
@@ -1451,9 +1507,16 @@ def test_fw_range(fortran_writer):
         BinaryOperation.Operator.ADD,
         Reference(DataSymbol("b", REAL_TYPE)),
         Reference(DataSymbol("c", REAL_TYPE)))
+    range1 = Range.create(one.copy(), dim1_bound_stop)
+    range2 = Range.create(dim2_bound_start, plus, step=three)
+    # Check the ranges in isolation
+    result = fortran_writer(range1)
+    assert result == "1:UBOUND(a, 1)"
+    result = fortran_writer(range2)
+    assert result == "LBOUND(a, 2):b + c:3"
+    # Check the ranges in context
     array = ArrayReference.create(
-        symbol, [Range.create(one.copy(), dim1_bound_stop),
-                 Range.create(dim2_bound_start, plus, step=three)])
+        symbol, [range1, range2])
     result = fortran_writer.arrayreference_node(array)
     assert result == "a(1:,:b + c:3)"
 
@@ -1489,6 +1552,36 @@ def test_fw_range(fortran_writer):
     result = fortran_writer.arrayreference_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
+
+
+def test_fw_range_structureref(fortran_writer):
+    '''
+    Check the FortranWriter for Range nodes within structure references.
+    '''
+    grid_type = DataTypeSymbol("grid_type", DeferredType())
+    symbol = DataSymbol("my_grid", grid_type)
+    grid_array_type = ArrayType(grid_type, [5, 5])
+    array_symbol = DataSymbol("my_grids", grid_array_type)
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    data_ref = StructureReference.create(symbol, ["data"])
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   data_ref.copy(), one.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  data_ref.copy(), one.copy())
+    ref = StructureReference.create(symbol, [("data",
+                                              [Range.create(start, stop)])])
+    result = fortran_writer(ref)
+    assert result == "my_grid%data(:)"
+    data_ref = Reference(array_symbol)
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   data_ref.copy(), two.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  data_ref.copy(), two.copy())
+    aref = ArrayOfStructuresReference.create(
+        array_symbol, [one.copy(), Range.create(start, stop)], ["flag"])
+    result = fortran_writer(aref)
+    assert result == "my_grids(1,:)%flag"
 
 
 def test_fw_structureref(fortran_writer):
@@ -2025,22 +2118,75 @@ def test_fw_call_node(fortran_writer):
     assert expected in result
 
 
-def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
-    ''' Check that the FortranWriter raises the expected error if it
-    encounters an UnknownType that is not an UnknownFortranType. '''
-    # We can't create an UnknownType() object directly as it is abstract.
-    # Therefore we create a symbol of UnknownFortranType and then
-    # monkeypatch it.
-    sym = DataSymbol("b", UnknownFortranType("int b;"))
-    monkeypatch.setattr(sym.datatype, "__class__", UnknownType)
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.gen_vardecl(sym)
-    assert ("cannot handle the declaration of a symbol of 'UnknownType'" in
-            str(err.value))
+def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
+    '''Test that a PSyIR call node with arguments represented by CodeBlocks
+    is translated to the required Fortran code.
+
+    '''
+    # It's not easy to construct CodeBlocks from scratch as we need bits of
+    # an fparser2 parse tree. Therefore just use the frontend.
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine test()\n"
+        "  use my_mod, only : kernel\n"
+        "  real :: a, b\n"
+        "  call kernel(a, 'not'//'nice', name=\"roo\", b)\n"
+        "end subroutine")
+    call_node = psyir.walk(Call)[0]
+    cblocks = psyir.walk(CodeBlock)
+    assert len(cblocks) == 2
+    gen = fortran_writer(call_node)
+    assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
 
 
-def test_fw_unknown_decln(fortran_writer):
-    ''' Check that the FortranWriter recreates a declaration that is of
-    UnknownFortranType. '''
-    sym = DataSymbol("b", UnknownFortranType("integer, value :: b"))
-    assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)
+def test_fw_comments(fortran_writer):
+    ''' Test the generation of Fortran from PSyIR with comments. '''
+
+    container = Container("my_container")
+    routine = Routine("my_routine")
+    container.addchild(routine)
+    statement1 = Return()
+    statement2 = Return()
+    statement3 = Return()
+    routine.children = [statement1, statement2, statement3]
+
+    # If the comments are empty, they don't appear at all
+    expected = (
+        "module my_container\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  subroutine my_routine()\n\n"
+        "    return\n"
+        "    return\n"
+        "    return\n\n"
+        "  end subroutine my_routine\n\n"
+        "end module my_container\n")
+    assert expected == fortran_writer(container)
+
+    # Add comments
+    container.preceding_comment = "My container preceding comment"
+    container.inline_comment = "My container inline comment"
+    routine.preceding_comment = "My routine preceding comment"
+    routine.inline_comment = "My routine inline comment"
+    statement1.preceding_comment = "My statement with a preceding comment"
+    statement2.preceding_comment = "My statement with a preceding comment ..."
+    statement2.inline_comment = "... and an inline comment"
+    statement3.inline_comment = "Statement with only an inline comment"
+
+    # Now they are placed in the appropriate position
+    expected = (
+        "! My container preceding comment\n"
+        "module my_container\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  ! My routine preceding comment\n"
+        "  subroutine my_routine()\n\n"
+        "    ! My statement with a preceding comment\n"
+        "    return\n"
+        "    ! My statement with a preceding comment ...\n"
+        "    return  ! ... and an inline comment\n"
+        "    return  ! Statement with only an inline comment\n\n"
+        "  end subroutine my_routine  ! My routine inline comment\n\n"
+        "end module my_container  ! My container inline comment\n")
+    assert expected == fortran_writer(container)

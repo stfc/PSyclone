@@ -43,9 +43,8 @@ from __future__ import absolute_import, print_function
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyGen import ACCLoopDirective
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement
+    Reference, Schedule, Statement, ACCLoopDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError

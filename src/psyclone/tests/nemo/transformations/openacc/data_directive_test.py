@@ -48,7 +48,8 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOACCEnterDataDirective
-from psyclone.psyGen import PSyFactory, TransInfo, ACCDataDirective
+from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyir.nodes import ACCDataDirective
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
 

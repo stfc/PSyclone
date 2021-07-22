@@ -59,17 +59,21 @@ def test_literal_init():
     assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert literal.datatype.precision == ScalarType.Precision.DOUBLE
     assert len(literal.datatype.shape) == 2
-    assert isinstance(literal.datatype.shape[0], Literal)
-    assert literal.datatype.shape[0].value == '10'
-    assert (literal.datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(literal.datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(literal.datatype.shape[0].lower, Literal)
+    assert isinstance(literal.datatype.shape[0].upper, Literal)
+    assert literal.datatype.shape[0].lower.value == '1'
+    assert literal.datatype.shape[0].upper.value == '10'
+    assert (literal.datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (literal.datatype.shape[0].datatype.precision ==
+    assert (literal.datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(literal.datatype.shape[1], Literal)
-    assert literal.datatype.shape[1].value == '10'
-    assert (literal.datatype.shape[1].datatype.intrinsic ==
+    assert isinstance(literal.datatype.shape[1].upper, Literal)
+    assert literal.datatype.shape[1].lower.value == '1'
+    assert literal.datatype.shape[1].upper.value == '10'
+    assert (literal.datatype.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (literal.datatype.shape[1].datatype.precision ==
+    assert (literal.datatype.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
 
     literal = Literal("true", BOOLEAN_TYPE)
@@ -172,8 +176,7 @@ def test_literal_node_str():
     literal = Literal("1", array_type)
     coloredtext = colored("Literal", Literal._colour)
     assert (coloredtext+"[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
-            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>]"
+            "shape=[10, 10]>]"
             in literal.node_str())
 
 
@@ -182,9 +185,7 @@ def test_literal_can_be_printed():
     initialised fully)'''
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
-    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
-            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>]"
+    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, shape=[10, 10]>]"
             in str(literal))
 
 

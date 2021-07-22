@@ -62,8 +62,8 @@ from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
-from psyclone.psyir.nodes import colored
+from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
+from psyclone.psyir.nodes import colored, UnaryOperation, Reference
 from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
@@ -551,113 +551,57 @@ def test_invoke_uniq_declns_invalid_intrinsic():
 def test_invoke_uniq_declns_valid_access():
     ''' Tests that all valid access modes for user-defined arguments
     (AccessType.READ, AccessType.INC, AccessType.WRITE, AccessType.READWRITE)
-    are accepted by Invoke.unique_declarations(). '''
+    are accepted by Invoke.unique_declarations(). Also tests the correctness
+    of names of field arguments and their proxies.
 
+    '''
     # Test READ and INC
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_read_args = psy.invokes.invoke_list[0]\
-        .unique_declarations(["gh_field"], access=AccessType.READ)
+    fields_read_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_field"], access=AccessType.READ))
     fields_read = [arg.declaration_name for arg in fields_read_args]
+    fields_proxy_read = [arg.proxy_declaration_name for arg in
+                         fields_read_args]
     assert fields_read == ["f2", "m1", "m2"]
-    fields_incremented_args = psy.invokes.invoke_list[0]\
-        .unique_declarations(["gh_field"], access=AccessType.INC)
+    assert fields_proxy_read == ["f2_proxy", "m1_proxy", "m2_proxy"]
+    fields_incremented_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_field"], access=AccessType.INC))
     fields_incremented = [arg.declaration_name for arg in
                           fields_incremented_args]
+    fields_proxy_incremented = [arg.proxy_declaration_name for arg in
+                                fields_incremented_args]
     assert fields_incremented == ["f1"]
+    assert fields_proxy_incremented == ["f1_proxy"]
 
     # Test WRITE
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke_w3_only_vector.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_written_args = psy.invokes.invoke_list[0]\
-        .unique_declarations(["gh_field"], access=AccessType.WRITE)
+    fields_written_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_field"], access=AccessType.WRITE))
     fields_written = [arg.declaration_name for arg in fields_written_args]
+    fields_proxy_written = [arg.proxy_declaration_name for arg in
+                            fields_written_args]
     assert fields_written == ["f1(3)"]
+    assert fields_proxy_written == ["f1_proxy(3)"]
 
     # Test READWRITE
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke_w2v.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_readwritten_args = psy.invokes.invoke_list[0]\
-        .unique_declarations(["gh_field"], access=AccessType.READWRITE)
+    fields_readwritten_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_field"], access=AccessType.READWRITE))
     fields_readwritten = [arg.declaration_name for arg in
                           fields_readwritten_args]
+    fields_proxy_readwritten = [arg.proxy_declaration_name for arg in
+                                fields_readwritten_args]
     assert fields_readwritten == ["f1"]
-
-
-def test_invoke_uniq_proxy_declns():
-    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid argument type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_proxy_declarations(["not_a_type"])
-    const = LFRicConstants()
-    assert ("Expected one of {0} as a valid argument type but found "
-            "['not_a_type'].".format(const.VALID_ARG_TYPE_NAMES)
-            in str(excinfo.value))
-
-
-def test_uniq_proxy_declns_invalid_access():
-    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid access type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    api_config = Config.get().api_conf("dynamo0.3")
-    valid_access_names = api_config.get_valid_accesses_api()
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_proxy_declarations(
-            ["gh_field"],
-            access="invalid_acc")
-    assert ("Expected one of {0} as a valid access type but found "
-            "'invalid_acc'.".format(valid_access_names) in str(excinfo.value))
-
-
-def test_uniq_proxy_declns_invalid_intrinsic_type():
-    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid intrinsic type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_proxy_declarations(
-            ["gh_field"], intrinsic_type="not_intrinsic_type")
-    const = LFRicConstants()
-    assert ("Expected one of {0} as a valid intrinsic type but found "
-            "'not_intrinsic_type'.".format(const.VALID_INTRINSIC_TYPES)
-            in str(excinfo.value))
-
-
-def test_uniq_proxy_declns_valid_parameters():
-    ''' Tests that valid intrinsic_type and access are accepted,
-    and will be correctly handled.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
-        ["gh_field"], intrinsic_type="integer")
-    assert decl == []
-    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
-        ["gh_field"], intrinsic_type="real")
-    assert decl == ['f1_proxy', 'f2_proxy', 'm1_proxy', 'm2_proxy']
-
-    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
-        ["gh_field"], access=AccessType.READ)
-    assert decl == ['f2_proxy', 'm1_proxy', 'm2_proxy']
-    decl = psy.invokes.invoke_list[0].unique_proxy_declarations(
-        ["gh_field"], access=AccessType.WRITE)
-    assert decl == []
+    assert fields_proxy_readwritten == ["f1_proxy"]
 
 
 def test_dyninvoke_first_access():
@@ -1259,74 +1203,6 @@ def test_kernel_datatype_not_found():
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
 
-STENCIL_CODE = '''
-module stencil_mod
-  type, extends(kernel_type) :: stencil_type
-     type(arg_type), meta_args(2) =                                   &
-          (/ arg_type(gh_field, gh_real, gh_inc, w1),                 &
-             arg_type(gh_field, gh_real, gh_read, w2, stencil(cross)) &
-           /)
-     integer :: operates_on = cell_column
-   contains
-     procedure, nopass :: code => stencil_code
-  end type stencil_type
-contains
-  subroutine stencil_code()
-  end subroutine stencil_code
-end module stencil_mod
-'''
-
-
-def test_stencil_metadata():
-    ''' Check that we can parse Kernels with stencil metadata. '''
-    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-
-    stencil_descriptor_0 = metadata.arg_descriptors[0]
-    assert stencil_descriptor_0.stencil is None
-    stencil_descriptor_1 = metadata.arg_descriptors[1]
-    assert stencil_descriptor_1.stencil['type'] == 'cross'
-    # stencil extent is not provided in the above metadata
-    assert stencil_descriptor_1.stencil['extent'] is None
-
-    # Check other LFRicArgDescriptor argument properties for a
-    # field stencil argument
-    assert stencil_descriptor_1.argument_type == "gh_field"
-    assert stencil_descriptor_1.data_type == "gh_real"
-    assert stencil_descriptor_1.function_space == "w2"
-    assert stencil_descriptor_1.function_spaces == ['w2']
-    assert str(stencil_descriptor_1.access) == "READ"
-    assert stencil_descriptor_1.mesh is None
-    assert stencil_descriptor_1.vector_size == 1
-
-
-def test_stencil_field_metadata_too_many_arguments():
-    ''' Check that we raise an exception if more than 5 arguments
-    are provided in the metadata for a 'gh_field' argument type
-    with stencil access.
-
-    '''
-    result = STENCIL_CODE.replace(
-        "(gh_field, gh_real, gh_read, w2, stencil(cross))",
-        "(gh_field, gh_real, gh_read, w2, stencil(cross), w1)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert ("each 'meta_arg' entry must have at most 5 arguments" in
-            str(excinfo.value))
-
-
-def test_unsupported_second_argument():
-    '''Check that we raise an exception if stencil extent is specified, as
-    we do not currently support it'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "Kernels with fixed stencil extents are not currently supported" \
-        in str(excinfo.value)
-
-
 def test_arg_descriptor_funcs_method_error():
     ''' Tests that an internal error is raised in LFRicArgDescriptor
     when function_spaces is called and the internal type is an
@@ -1549,6 +1425,57 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     with pytest.raises(NotImplementedError) as err:
         arg.infer_datatype(proxy)
     assert "'f1' is not a scalar, field or operator argument" in str(err.value)
+
+
+def test_dynkernelargument_psyir_expression(monkeypatch):
+    ''' Tests for the psyir_expression() method of DynKernelArgument. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    # First argument should be a real scalar variable
+    first_arg = first_kernel.arguments.args[0]
+    psyir = first_arg.psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "a"
+    assert isinstance(psyir.symbol.datatype, ScalarType)
+    assert psyir.symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    # Repeat but force the symbol for 'a' to be created
+    del first_invoke.schedule.symbol_table._symbols["a"]
+    psyir = first_arg.psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "a"
+    # Second argument is a real-valued field
+    second_arg = first_kernel.arguments.args[1]
+    psyir = second_arg.psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "f1_proxy"
+    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
+    assert psyir.symbol.datatype.name == "field_proxy_type"
+    # Repeat but force the symbol for 'f1_proxy' to be created
+    del first_kernel.scope.symbol_table._symbols["f1_proxy"]
+    psyir = second_arg.psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "f1_proxy"
+    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
+    assert psyir.symbol.datatype.name == "field_proxy_type"
+    # Break the argument type
+    monkeypatch.setattr(second_arg, "_argument_type", "gh_wrong")
+    with pytest.raises(NotImplementedError) as err:
+        second_arg.psyir_expression()
+    assert ("Unsupported kernel argument type: 'f1' is of type 'gh_wrong'"
+            in str(err))
+    # Second argument to the (builtin) kernel is a literal expression
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.6.2_inc_X_powint_n_builtin.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.walk(BuiltIn)[1]
+    psyir = kern.arguments.args[1].psyir_expression()
+    assert isinstance(psyir, UnaryOperation)
+    assert psyir.operator == UnaryOperation.Operator.MINUS
 
 
 def test_arg_ref_name_method_error1():

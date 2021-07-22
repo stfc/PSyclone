@@ -41,8 +41,8 @@
 from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo, Directive
-from psyclone.psyir.nodes import Assignment, Reference, Loop
+from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyir.nodes import Assignment, Reference, Loop, Directive
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
@@ -204,13 +204,13 @@ def test_nemo_acc_parallel(parser):
     fort_writer = FortranWriter(check_global_constraints=False)
     result = fort_writer(nemo_sched)
 
-    correct = '''  !$acc parallel default(present)
-  do i = 1, 20, 2
-    a = 2 * i + d(i)
-    c(i) = a
-    b(i) = b(i) + a + c(i)
-  enddo
-  !$acc end parallel'''
+    correct = '''!$acc parallel default(present)
+do i = 1, 20, 2
+  a = 2 * i + d(i)
+  c(i) = a
+  b(i) = b(i) + a + c(i)
+enddo
+!$acc end parallel'''
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
