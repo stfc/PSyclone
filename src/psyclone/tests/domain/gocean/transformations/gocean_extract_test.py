@@ -207,8 +207,6 @@ def test_single_node_ompparalleldo_gocean1p0():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    schedule._const_loop_bounds = True
 
     # Apply GOceanOMPParallelLoopTrans to the second Loop
     otrans.apply(schedule.children[1])
@@ -216,7 +214,13 @@ def test_single_node_ompparalleldo_gocean1p0():
     # at the previous location of the OMPParallelDoDirective
     etrans.apply(schedule.children[1])
 
+    # This test expects constant loop bounds
+    ctrans = GOConstLoopBoundsTrans()
+    ctrans.apply(schedule)
+    schedule.view()
+
     code = str(psy.gen)
+    print(code)
     output = """      ! ExtractStart
       !
       CALL extract_psy_data%PreStart("psy_single_invoke_three_kernels", """ \
@@ -270,9 +274,6 @@ def test_single_node_ompparalleldo_gocean1p0_with_workaround():
 
     # Apply GOceanOMPParallelLoopTrans to the second Loop
     otrans.apply(schedule.children[1])
-
-    # TODO #969: this call will define the loop boundaries
-    schedule.view()
 
     # Now enclose the parallel region within an ExtractNode (inserted
     # at the previous location of the OMPParallelDoDirective
@@ -514,13 +515,13 @@ def test_node_list_ompparallel_gocean1p0():
       !$omp parallel default(shared), private(i,j)
       !$omp do schedule(static)
       DO j=2,jstop
-        DO i=2,istop+1
+        DO i=2,istop + 1
           CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO
       !$omp end do
       !$omp do schedule(static)
-      DO j=2,jstop+1
+      DO j=2,jstop + 1
         DO i=2,istop
           CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
         END DO
@@ -633,7 +634,7 @@ def test_driver_creation(tmpdir):
       CALL extract_psy_data%ReadVariable("in_fld%grid%gphiu", gphiu)
       ! RegionStart
       DO j=2,jstop
-        DO i=2,istop+1
+        DO i=2,istop + 1
           CALL compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, ''' \
       '''dx, dx_1, gphiu)
         END DO
@@ -947,8 +948,11 @@ def test_change_prefix(tmpdir, monkeypatch):
                   'prefix': "NEW"})
 
     # Test that the extraction code contains the new prefix:
-    assert 'CALL NEW_psy_data%PreStart("main", "update", 4, 3)' \
-        in str(psy.gen)
+    invoke.schedule.view()
+    gen = str(psy.gen)
+    print(gen)
+    assert 'CALL NEW_psy_data%PreStart("main", "update", 8, 3)' \
+        in gen
 
     # Now test if the created driver has the right prefix:
     driver_name = tmpdir.join("driver-main-update.f90")

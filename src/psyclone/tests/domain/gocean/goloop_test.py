@@ -46,7 +46,7 @@ from fparser.two.parser import ParserFactory
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
-    Literal, Loop
+    Node
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
 
@@ -90,6 +90,7 @@ def test_goloop_no_children():
         goiloop.gen_code(None)
 
 
+@pytest.mark.xfail(reason="Relocate to GOConstLoopBoundTrans?")
 def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
@@ -100,7 +101,7 @@ def test_goloop_unsupp_offset():
     gosched.addchild(gojloop)
     goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
-    gokern = GOKern()
+    gokern = GOKern(None)
     # Set the index-offset of this kernel to a value that is not
     # supported when using constant loop bounds
     gokern._index_offset = "offset_se"
@@ -109,6 +110,7 @@ def test_goloop_unsupp_offset():
         goiloop.gen_code(None)
 
 
+@pytest.mark.xfail(reason="Relocate to GOConstLoopBoundTrans?")
 def test_goloop_unmatched_offsets():
     ''' Attempt to generate code for a loop with constant bounds with
     two different index offsets '''
@@ -176,32 +178,6 @@ def test_goloop_grid_property_psyir_expression():
     assert gref.symbol.name == "cv_fld"
 
 
-def test_goloop_lower_to_language_level(monkeypatch):
-    ''' Tests that the GOLoop lower_to_language_level method provides the start
-    and stop expressions for the loops using the upper/lower_bound methods. '''
-    schedule = GOInvokeSchedule('name', [])
-    goloop = GOLoop(loop_type="inner", parent=schedule)
-    schedule.addchild(goloop)
-    assert goloop.start_expr.value == 'NOT_INITIALISED'
-    assert goloop.stop_expr.value == 'NOT_INITIALISED'
-
-    # Monkeypatch the called GOLoops methods as this will be tested separately
-    monkeypatch.setattr(GOLoop, "lower_bound",
-                        lambda x: Literal("1", INTEGER_TYPE))
-    monkeypatch.setattr(GOLoop, "upper_bound",
-                        lambda x: Literal("1", INTEGER_TYPE))
-    monkeypatch.setattr(GOLoop, "_validate_loop",
-                        lambda x: True)
-
-    # Lower to language level and check the resulting Loop is as expected
-    goloop.lower_to_language_level()
-    new_loop = schedule.children[0]
-    # pylint: disable=unidiomatic-typecheck
-    assert type(new_loop) == Loop
-    assert new_loop.start_expr.value == '1'
-    assert new_loop.stop_expr.value == '1'
-
-
 def test_goloop_validate_loop():
     ''' Tests that the GOLoop _validate_loop raises the appropriate errors when
     the Loop is not valid. '''
@@ -227,11 +203,15 @@ def test_goloop_validate_loop():
     assert ("Cannot find the GOcean Kernel enclosed by this loop"
             in str(err.value))
 
+    class GOKernMock(GOKern):
+        def __init__(self):
+            Node.__init__(self)  # Ignore hierarchy constructors
+
     # Test Loop containing kernels with different offsets
-    gokern1 = GOKern()
+    gokern1 = GOKernMock()
     gokern1._index_offset = "offset_se"
     gokern1._name = "kernel1"
-    gokern2 = GOKern()
+    gokern2 = GOKernMock()
     gokern2._index_offset = "offset_sw"
     gokern2._name = "kernel2"
     goloop.loop_body.addchild(gokern1)

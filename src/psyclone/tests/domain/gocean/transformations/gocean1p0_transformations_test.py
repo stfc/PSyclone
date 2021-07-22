@@ -88,9 +88,9 @@ def test_const_loop_bounds_not_schedule():
         _, _ = cbtrans.apply(schedule.children[0])
 
 
-def test_const_loop_bounds_enabled_and_disabled(tmpdir):
-    ''' Check that we can turn the constant loop bounds on and off and
-    that the default behaviour is "on" '''
+def test_const_loop_bounds_trans(tmpdir):
+    ''' Check that we can turn the loop bounds constant (with a single
+    variable holding them). '''
     psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                              API, idx=0)
     schedule = invoke.schedule
@@ -98,7 +98,6 @@ def test_const_loop_bounds_enabled_and_disabled(tmpdir):
 
     # First check that the generated code doesn't use constant loop
     # bounds by default.
-    assert schedule._const_loop_bounds is False
     gen = str(psy.gen)
     assert "DO j = cv_fld%internal%ystart, cv_fld%internal%ystop" in gen
     assert "DO i = cv_fld%internal%xstart, cv_fld%internal%xstop" in gen
@@ -112,12 +111,12 @@ def test_const_loop_bounds_enabled_and_disabled(tmpdir):
     schedule = invoke.schedule
     cbtrans.apply(schedule)
     gen = str(psy.gen)
-    assert schedule._const_loop_bounds is True
+    print(gen)
     assert "INTEGER istop" in gen
     assert "INTEGER istop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j = 2, jstop-1" in gen
+    assert "DO j = 2, jstop - 1" in gen
     assert "DO i = 2, istop" in gen
 
     # Next, check that applying the constant loop-bounds
@@ -128,7 +127,7 @@ def test_const_loop_bounds_enabled_and_disabled(tmpdir):
     assert "INTEGER jstop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j = 2, jstop-1" in gen
+    assert "DO j = 2, jstop - 1" in gen
     assert "DO i = 2, istop" in gen
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -138,13 +137,15 @@ def test_const_loop_bounds_invalid_offset():
     ''' Test that we raise an appropriate error if we attempt to generate
     code with constant loop bounds for a kernel that expects an
     unsupported grid-offset '''
-    psy, invoke = get_invoke("test26_const_bounds_invalid_offset.f90",
-                             API, idx=0)
+    _, invoke = get_invoke("test26_const_bounds_invalid_offset.f90",
+                           API, idx=0)
     cbtrans = GOConstLoopBoundsTrans()
     schedule = invoke.schedule
-    cbtrans.apply(schedule, {"const_bounds": True})
-    with pytest.raises(GenerationError):
-        _ = psy.gen
+    with pytest.raises(TransformationError) as err:
+        cbtrans.apply(schedule)
+    assert ("Constant bounds generation not implemented for a grid offset of "
+            "'go_offset_nw'. Supported offsets are ['go_offset_ne', "
+            "'go_offset_sw', 'go_offset_any']" in str(err.value))
 
 
 def test_loop_fuse_different_iterates_over():
@@ -228,7 +229,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
     expected = ("!$omp parallel do default(shared), private(i,j), "
                 "schedule(static)\n"
                 "    do j = 2, jstop, 1\n"
-                "      do i = 2, istop+1, 1\n"
+                "      do i = 2, istop + 1, 1\n"
                 "        call compute_cu_code(i, j, cu_fld%data, "
                 "p_fld%data, u_fld%data)\n"
                 "      enddo\n"

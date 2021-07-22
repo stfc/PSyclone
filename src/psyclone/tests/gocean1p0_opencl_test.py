@@ -119,7 +119,12 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       use clfortran
       use iso_c_binding
       type(r2d_field), intent(inout), target :: cu_fld, p_fld, u_fld
-      integer xstart, xstop, ystart, ystop
+      integer ystop
+      integer ystart
+      integer xstop
+      integer xstart
+      integer i
+      integer j
       integer(kind=c_size_t), target :: localsize(2)
       integer(kind=c_size_t), target :: globalsize(2)
       integer(kind=c_intptr_t) u_fld_cl_mem
@@ -131,6 +136,7 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
       integer, save :: num_cmd_queues
       '''
+    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 

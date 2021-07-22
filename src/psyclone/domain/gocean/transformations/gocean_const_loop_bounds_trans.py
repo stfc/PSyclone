@@ -38,11 +38,13 @@
 '''This module contains the GOConstLoopBoundsTrans.'''
 
 from psyclone.psyir.transformations import TransformationError
-from psyclone.gocean1p0 import GOInvokeSchedule
+from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop, GOKern
 from psyclone.psyGen import Transformation
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, DataTypeSymbol
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference
+from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, DataTypeSymbol
 from psyclone.configuration import Config
+from psyclone.domain.gocean import GOceanConstants
 
 
 class GOConstLoopBoundsTrans(Transformation):
@@ -136,14 +138,10 @@ class GOConstLoopBoundsTrans(Transformation):
         '''
         self.validate(node, options=options)
 
-        node.const_loop_bounds = True
-
         i_stop = node.symbol_table.new_symbol(
-            node.iloop_stop, symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            "istop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
         j_stop = node.symbol_table.new_symbol(
-            node.jloop_stop, symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            "jstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         # Look-up the loop bounds using the first field object in the
         # list
@@ -174,5 +172,55 @@ class GOConstLoopBoundsTrans(Transformation):
         node.children.insert(0, assign2)
         node.children.insert(0, assign1)
         assign1.preceding_comment = "Look-up loop bounds"
+
+        # Fortran reader needed to parse constructed bound expressions
+        fortran_reader = FortranReader()
+
+        const = GOceanConstants()
+        # Update all GOLoop bounds with the new variables
+        for loop in node.walk(GOLoop):
+            index_offset = ""
+            # Look for a child kernel in order to get the index offset.
+            # Since this is the __str__ method we have no guarantee
+            # what state we expect our object to be in so we allow
+            # for the case where we don't have any child kernels.
+            go_kernels = loop.walk(GOKern)
+            if go_kernels:
+                index_offset = go_kernels[0].index_offset
+
+            if index_offset not in const.SUPPORTED_OFFSETS:
+                raise TransformationError(
+                    "Constant bounds generation not implemented for a grid "
+                    "offset of '{0}'. Supported offsets are {1}"
+                    "".format(index_offset, const.SUPPORTED_OFFSETS))
+            if loop._loop_type == "inner":
+                stop = i_stop.name
+            else:
+                stop = j_stop.name
+            # Get the bounds map
+            bounds = GOLoop._bounds_lookup[index_offset][loop.field_space][
+                loop._iteration_space][loop._loop_type]
+
+            # Set the lower bound
+            start_expr = bounds["start"].format(start='2', stop=stop)
+            start_expr = "".join(start_expr.split())  # Remove white spaces
+            # This common case is a bit of compile-time computation
+            # but it helps with fixing all of the test cases.
+            if start_expr == "2-1":
+                start_expr = "1"
+            psyir = fortran_reader.psyir_from_expression(
+                    start_expr, node.symbol_table)
+            loop.children[0].replace_with(psyir)
+
+            # Set the upper bound
+            stop_expr = bounds["stop"].format(start='2', stop=stop)
+            stop_expr = "".join(stop_expr.split())  # Remove white spaces
+            # This common case is a bit of compile-time computation
+            # but it helps to fix all of the test cases.
+            if stop_expr == "2-1":
+                stop_expr = "1"
+            psyir = fortran_reader.psyir_from_expression(
+                    stop_expr, node.symbol_table)
+            loop.children[1].replace_with(psyir)
 
         return node, None
