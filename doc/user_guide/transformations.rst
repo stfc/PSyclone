@@ -280,6 +280,23 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.transformations.OMPSingleTrans
+    :inherited-members:
+    :exclude-members: name, psyGen
+    :noindex:
+
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP single regions.  Attempting to
+          create a single region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the single region. The
+	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          for this.
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
     :noindex:
@@ -592,12 +609,13 @@ examples/check_examples script).
 OpenMP
 ------
 
-OpenMP is added to a code by using transformations. The three
+OpenMP is added to a code by using transformations. The four
 transformations currently supported allow the addition of an
-**OpenMP Parallel** directive, an **OpenMP Do** directive and an
-**OpenMP Parallel Do** directive, respectively, to a code.
+**OpenMP Parallel** directive, an **OpenMP Do** directive, an
+**OpenMP Single** directive and an **OpenMP Parallel Do** 
+directive, respectively, to a code.
 
-The generic versions of these three transformations (i.e. ones that
+The generic versions of these four transformations (i.e. ones that
 theoretically work for all APIs) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
