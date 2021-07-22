@@ -448,8 +448,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         At code-generation time (when
         :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
-        within (i.e. a child of) an OpenMP PARALLEL region otherwise no
-        clause will be added.
+        within (i.e. a child of) an OpenMP PARALLEL region.
 
         If the keyword "reprod" is specified in the options, it will cause a
         reproducible reduction to be generated if it is set to True, otherwise
@@ -1365,8 +1364,8 @@ class OMPSingleTrans(ParallelRegionTrans):
         tree is given to a backend.
 
         If the keyword "nowait" is specified in the options, it will cause a
-        nowait clause to be added if it is set to True, otherwise
-        the nowait clause will be added.
+        nowait clause to be added if it is set to True, otherwise no clause
+        will be added.
 
         :param node_list: the supplied node or node list to which we will \
                           apply the OMPSingleTrans transformation
