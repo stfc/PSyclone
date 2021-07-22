@@ -1392,7 +1392,7 @@ class OMPSingleTrans(ParallelRegionTrans):
 
 class OMPMasterTrans(OMPSingleTrans):
     '''
-    Create an OpenMP SINGLE region by inserting directives. The most
+    Create an OpenMP MASTER region by inserting directives. The most
     likely use case for this transformation is to wrap around task-based
     transformations. The parent region for this should usually also be
     a OMPParallelTrans. For example:
