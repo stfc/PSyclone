@@ -208,7 +208,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     const = LFRicConstants()
     monkeypatch.setattr(stencil_arg, "_intrinsic_type", "tortoiseshell")
     with pytest.raises(InternalError) as err:
-        stencil_arg._init_data_type_properties()
+        stencil_arg._init_data_type_properties(None, False)
     assert ("Expected one of {0} intrinsic types for a field "
             "argument but found 'tortoiseshell'.".
             format(const.VALID_FIELD_INTRINSIC_TYPES)) in str(err.value)

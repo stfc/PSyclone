@@ -44,11 +44,13 @@ LFRic field arguments.
 from __future__ import absolute_import, print_function
 import os
 import pytest
+
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynKernelArgument
+from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.errors import GenerationError
 
 
 # Constants
@@ -749,9 +751,18 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
 # integer-valued fields
 
 
-def test_int_real_field_invalid():
-    ''' Tests that the same field cannot have different data types
-    in different kernels within the same Invoke. '''
+def test_int_real_field_invalid(monkeypatch):
+    '''Tests that the same field cannot have different data types in
+    different kernels within the same Invoke. It is not possible to
+    get to this exception in PSyclone as we require all fields to have
+    a known datatype and we check for consistency with the metadata
+    and therefore raise an earlier exception. We therefore need to
+    monkeypatch.
+
+    '''
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties",
+        lambda arg1, arg2, arg3=True: None)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "4.15_multikernel_invokes_real_int_field_invalid.f90"),

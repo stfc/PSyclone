@@ -31,10 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Modified R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
@@ -45,17 +45,17 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 
-from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
+from psyclone.dynamo0p3 import DynKernelArgument
 from psyclone.errors import GenerationError
+from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, Reference, UnaryOperation, Literal, \
     StructureReference
 from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
-from psyclone.psyGen import PSyFactory
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants
-from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
-
 from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants
@@ -214,9 +214,17 @@ def test_builtin_zero_writes(monkeypatch):
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
-def test_builtin_no_field_args():
-    ''' Check that we raise appropriate error if we encounter a built-in
-    that does not have any field arguments. '''
+def test_builtin_no_field_args(monkeypatch):
+    '''Check that we raise appropriate error if we encounter a built-in
+    that does not have any field arguments.
+
+    '''
+    # It is not possible to raise the required exception in normal
+    # circumstances as PSyclone will complain that the datatype and
+    # the metadata do not match. Therefore monkeypatch.
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties",
+        lambda arg1, arg2, arg3=True: None)
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "setval_X"
@@ -249,6 +257,12 @@ def test_builtin_invalid_argument_type(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
     # Restore the actual built-in-definitions file name
     monkeypatch.undo()
+    # It is not possible to raise the required exception in normal
+    # circumstances as PSyclone will complain that the datatype and
+    # the metadata do not match. Therefore monkeypatch.
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties",
+        lambda arg1, arg2, arg3=True: None)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
@@ -275,6 +289,12 @@ def test_builtin_invalid_data_type(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
     # Restore the actual built-in-definitions file name
     monkeypatch.undo()
+    # It is not possible to raise the required exception in normal
+    # circumstances as PSyclone will complain that the datatype and
+    # the metadata do not match. Therefore monkeypatch.
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties",
+        lambda arg1, arg2, arg3=True: None)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
@@ -331,6 +351,12 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
         api=API)
     # Restore the actual built-in-definitions file name
     monkeypatch.undo()
+    # It is not possible to raise the required exception in normal
+    # circumstances as PSyclone will complain that the datatype and
+    # the metadata do not match. Therefore monkeypatch.
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties",
+        lambda arg1, arg2, arg3=True: None)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)

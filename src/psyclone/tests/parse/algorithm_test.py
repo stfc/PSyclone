@@ -225,7 +225,7 @@ def test_parser_invokeinfo_containers(tmpdir, code, name):
 def test_parser_invokeinfo_datatypes():
     '''Test that the invoke_info method in the Parser class captures the
     required datatype information for "standard" fields, operators and
-    scalars i.e. defined as field_type, operator_type and r_def
+    scalars i.e. defined as field_type, operator_type and i_def
     respectively. We also capture the datatype of quadrature but don't
     care. field_type is actually a vector which shows that the code
     works with arrays as well as individual types.
@@ -238,7 +238,7 @@ def test_parser_invokeinfo_datatypes():
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype == ("operator_type", None)
     assert args[1]._datatype == ("field_type", None)
-    assert args[2]._datatype == ("real", "r_def")
+    assert args[2]._datatype == ("integer", "i_def")
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 

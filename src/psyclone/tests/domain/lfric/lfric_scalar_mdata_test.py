@@ -444,7 +444,7 @@ def test_scalar_arg_lfricconst_properties(monkeypatch):
     const = LFRicConstants()
     monkeypatch.setattr(scalar_arg, "_intrinsic_type", "tabby")
     with pytest.raises(InternalError) as err:
-        scalar_arg._init_data_type_properties()
+        scalar_arg._init_data_type_properties(None)
     assert ("Expected one of {0} intrinsic types for a scalar "
             "argument but found 'tabby'.".
             format(const.VALID_INTRINSIC_TYPES)) in str(err.value)
