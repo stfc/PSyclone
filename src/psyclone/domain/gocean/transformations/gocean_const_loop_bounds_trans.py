@@ -165,13 +165,13 @@ class GOConstLoopBoundsTrans(Transformation):
                     Reference(i_stop),
                     StructureReference.create(
                         field, xstop.split('%')[1:]))
+        assign1.preceding_comment = "Look-up loop bounds"
         assign2 = Assignment.create(
                     Reference(j_stop),
                     StructureReference.create(
                         field, ystop.split('%')[1:]))
-        node.children.insert(0, assign2)
         node.children.insert(0, assign1)
-        assign1.preceding_comment = "Look-up loop bounds"
+        node.children.insert(1, assign2)
 
         # Fortran reader needed to parse constructed bound expressions
         fortran_reader = FortranReader()

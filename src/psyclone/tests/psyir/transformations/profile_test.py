@@ -89,7 +89,7 @@ def test_profile_basic(capsys):
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
     expected = (
-        gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
+        gsched + "[invoke='invoke_0', Constant loop bounds=False]\n"
         "    0: " + profile + "[]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='outer', field_space='go_cv', "
@@ -101,47 +101,13 @@ def test_profile_basic(capsys):
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    prt.apply(invoke.schedule[0].profile_body[0].loop_body[0])
+    node = invoke.schedule[0].profile_body[0].loop_body[0]
+    prt.apply(node)
 
-    new_sched_str = str(invoke.schedule)
-    correct = ("""GOInvokeSchedule[invoke='invoke_0', \
-Constant loop bounds=True]:
-ProfileStart[var=profile_psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop-1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-ProfileStart[var=profile_psy_data_1]
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: compute_cv_code
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule""")
-    assert correct in new_sched_str
+    assert isinstance(invoke.schedule[0].profile_body[0].loop_body[0],
+                      ProfileNode)
+    assert invoke.schedule[0].profile_body[0].loop_body[0].children[0].\
+        children[0] is node
 
     Profiler.set_options(None)
 
