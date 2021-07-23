@@ -522,7 +522,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%PreEnd
-      !$omp parallel do default(shared) private(df) schedule(static)
+      !$omp parallel do default(shared), private(df), schedule(static)
       DO df=1,undf_aspc1_f1
         f1_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + f2_proxy%data(df)
       END DO
@@ -716,7 +716,7 @@ def test_extract_colouring_omp_dynamo0p3():
       CALL extract_psy_data%ProvideVariable("weights_z_qr", weights_z_qr)
       CALL extract_psy_data%PreEnd
       DO colour=1,ncolour
-        !$omp parallel do default(shared) private(cell) schedule(static)
+        !$omp parallel do default(shared), private(cell), schedule(static)
         DO cell=1,mesh%get_last_edge_cell_per_colour(colour)
           !
           CALL ru_code(nlayers, b_proxy%data, a_proxy%data, istp, rdt, """

@@ -1131,35 +1131,6 @@ class InvokeSchedule(Routine):
         self.parent._symbol_table = psy_symbol_table_before_gen
         # pylint: enable=protected-access
 
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this parallel do is nested within another \
-            parallel region, has more than one child or its child is not a \
-            loop.
-
-        '''
-        if self.ancestor(OMPParallelDirective):
-            raise GenerationError(
-                "Nested parallelism is not supported: an OpenMP parallel do "
-                "cannot be nested inside another OMP parallel region")
-
-        # Since this is an OpenMP (parallel) do, it can only be applied
-        # to a single loop.
-        if len(self.dir_body.children) != 1:
-            raise GenerationError(
-                "An OpenMP PARALLEL DO can only be applied to a single loop "
-                "but this Node has {0} children: {1}".
-                format(len(self.dir_body.children), self.dir_body.children))
-
-        if not isinstance(self.dir_body[0], Loop):
-            raise GenerationError(
-                "An OpenMP PARALLEL DO can only be applied to a loop but "
-                "found a node of type '{0}'".format(
-                    type(self.dir_body[0]).__name__))
-
     @property
     def opencl(self):
         '''
@@ -2405,6 +2376,7 @@ class InlinedKern(Kern):
         Node.__init__(self, parent=parent)
         schedule = Schedule(children=psyir_nodes, parent=self)
         self.children = [schedule]
+        self._arguments = None
 
     @staticmethod
     def _validate_child(position, child):

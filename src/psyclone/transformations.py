@@ -57,6 +57,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOLoop
+from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
@@ -2847,8 +2848,8 @@ class ACCKernelsTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Check that the front-end is valid
-        sched = node_list[0].ancestor(GOInvokeSchedule)
-        if sched:
+        sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
+        if not sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")

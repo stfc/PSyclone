@@ -62,7 +62,7 @@ def test_openmp_region():
     gen = str(psy.gen)
 
     # Check that our list of private variables is correct
-    assert "!$omp parallel default(shared) private(cell,map)" in gen
+    assert "!$omp parallel default(shared), private(cell,map)" in gen
 
     for idx, line in enumerate(gen.split('\n')):
         if "!$omp parallel default(shared)" in line:

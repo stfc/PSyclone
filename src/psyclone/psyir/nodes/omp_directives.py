@@ -99,6 +99,8 @@ class OMPDirective(Directive):
         result = []
         const = Config.get().api_conf().get_constants()
         for call in self.kernels():
+            if not call.arguments:
+                continue
             for arg in call.arguments.args:
                 if arg.argument_type in const.VALID_SCALAR_NAMES:
                     if arg.descriptor.access == reduction_type:

@@ -41,7 +41,6 @@
 from __future__ import print_function, absolute_import
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.nodes import ACCParallelDirective
 
 
 # The PSyclone API under test
