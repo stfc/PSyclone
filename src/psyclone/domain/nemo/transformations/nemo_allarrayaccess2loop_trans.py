@@ -52,32 +52,35 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
     '''Provides a transformation from a PSyIR Assignment containing
     constant index accesses to an array into single trip loops: For
     example:
-    >>> from psyclone.domain.nemo.transformations import \
-    >>>     NemoAllArrayAccess2LoopTrans
+    >>> from psyclone.domain.nemo.transformations import \\
+    ...     NemoAllArrayAccess2LoopTrans
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Assignment
-    >>> code = ("program example\n"
-    >>>         "  real a(10,10), b(10,10)\n"
-    >>>         "  integer :: n\n"
-    >>>         "  a(1,n-1) = b(1,n-1)\n"
-    >>>         "end program example\n")
+    >>> code = ("program example\\n"
+    ...         "  real a(10,10), b(10,10)\\n"
+    ...         "  integer :: n\\n"
+    ...         "  a(1,n-1) = b(1,n-1)\\n"
+    ...         "end program example\\n")
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> assignment = psyir.walk(Assignment)[0]
     >>> NemoAllArrayAccess2LoopTrans().apply(assignment)
-    >>> print (FortranWriter()(psyir))
-          program example
-            real, dimension(10,10) :: a
-            real, dimension(10,10) :: b
-            integer :: n
-            integer :: ji
-            integer :: jj
-            do ji = 1, 1, 1
-              do jj = n - 1, n - 1, 1
-                a(ji,jj) = b(ji,jj)
-              enddo
-            enddo
-          end program example
+    >>> print(FortranWriter()(psyir))
+    program example
+      real, dimension(10,10) :: a
+      real, dimension(10,10) :: b
+      integer :: n
+      integer :: ji
+      integer :: jj
+    <BLANKLINE>
+      do ji = 1, 1, 1
+        do jj = n - 1, n - 1, 1
+          a(ji,jj) = b(ji,jj)
+        enddo
+      enddo
+    <BLANKLINE>
+    end program example
+    <BLANKLINE>
 
     '''
     def apply(self, node, options=None):
@@ -91,7 +94,7 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
 
         If any of the NemoAllArrayAccess2Loop constraints are not
         satisfied for a loop index then this transformation does
-        nothing for this index and silently moves to the next.
+        nothing for that index and silently moves to the next.
 
         :param node: an assignment.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`

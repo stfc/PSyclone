@@ -47,6 +47,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.transformations import TransformationError
+from psyclone.tests.utilities import Compile
 
 # Constants
 API = "nemo"
@@ -55,17 +56,20 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 TEST_CONFIG = os.path.join(BASE_PATH, "nemo_test.cfg")
 
 
-def check_transformation(code, expected_result, statement=0):
+def check_transformation(tmpdir, code, expected_result, statement=0):
     '''Utility function to check that the result of applying the
     NemoAllArrayAccess2LoopTrans transformation to the code supplied
-    in the code argument for the statement number specified in the
-    statement argument and the array access index specified in the
-    index argument produces the result specified in the
-    expected_result argument.
+    in the "code" argument for the statement number specified in the
+    "statement" argument produces the result specified in the
+    "expected_result" argument. Also check that the resultant code
+    compiles.
 
+    :param tmpdir: path to a test-specific temporary directory in \
+        which to test compilation.
+    :type tmpdir: :py:class:`py._path.local.LocalPath`
     :param str code: the input code to be transformed.
     :param str expected_result: the code expected after transformation.
-    :param int statement: the index of the required statement in the top \
+    :param int statement: the index of the required assignment in the top \
         level of the PSyIR tree associated with the input code. \
         Defaults to 0.
 
@@ -83,6 +87,8 @@ def check_transformation(code, expected_result, statement=0):
     result = writer(psyir)
     assert result == output_code
 
+    assert Compile(tmpdir).string_compiles(result)
+
 
 def test_transform():
     '''Check that it is possible to create an instance of
@@ -94,7 +100,7 @@ def test_transform():
     assert isinstance(NemoAllArrayAccess2LoopTrans(), Transformation)
 
 
-def test_apply_no_change():
+def test_apply_no_change(tmpdir):
     '''Check that no modifications are made to the code when the
     assignment is not an array or the array indices are not constant.
 
@@ -106,7 +112,7 @@ def test_apply_no_change():
     expected_result = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  a = b\n\n")
-    check_transformation(code, expected_result)
+    check_transformation(tmpdir, code, expected_result)
     # array with no constant indices
     code = (
         "  real :: a(10,10), b(10,10)\n"
@@ -124,10 +130,10 @@ def test_apply_no_change():
         "      a(ji,jj) = b(ji,jj)\n"
         "    enddo\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, statement=0)
+    check_transformation(tmpdir, code, expected_result, statement=0)
 
 
-def test_apply_multi_change():
+def test_apply_multi_change(tmpdir):
     '''Check that both dimensions are modified when there is a constant
     index in each.
 
@@ -144,15 +150,15 @@ def test_apply_multi_change():
         "      a(ji,jj) = b(ji,jj)\n"
         "    enddo\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, statement=0)
+    check_transformation(tmpdir, code, expected_result, statement=0)
 
 
-def test_apply_mixed():
+def test_apply_mixed(tmpdir):
     '''Check that both dimensions are modified when there is a constant
     index in two dimensions and an existing loop in another. The
-    generated code does not have the loops in the expected order and a
-    separate loop re-order transformation would need to be applied if
-    required.
+    generated code does not have the loops in the order that might be
+    expected for most efficient memory access and a separate loop
+    re-order transformation would need to be applied if required.
 
     '''
     code = (
@@ -171,7 +177,7 @@ def test_apply_mixed():
         "      enddo\n"
         "    enddo\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, statement=0)
+    check_transformation(tmpdir, code, expected_result, statement=0)
 
 
 def test_apply_validate():

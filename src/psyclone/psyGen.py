@@ -424,7 +424,7 @@ class Invokes(object):
 
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CallGen, UseGen, CharDeclGen, IfThenGen
+            CharDeclGen, IfThenGen
 
         def bool_to_fortran(value):
             '''
@@ -1003,8 +1003,7 @@ class InvokeSchedule(Routine):
                        which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, IfThenGen, \
-            CallGen
+        from psyclone.f2pygen import DeclGen, AssignGen, IfThenGen
 
         # The gen_code methods may generate new Symbol names, however, we want
         # subsequent calls to invoke.gen_code() to produce the exact same code,
@@ -2183,7 +2182,6 @@ class CodedKern(Kern):
             # limit the line length). This test is only required
             # whilst old style (direct fp2) transformations still
             # exist.
-            from psyclone.psyir.backend.fortran import FortranWriter
             fortran_writer = FortranWriter()
             # Start from the root of the schedule as we want to output
             # any module information surrounding the kernel subroutine
@@ -3285,8 +3283,9 @@ class Transformation(object):
     '''Abstract baseclass for a transformation. Uses the abc module so it
     can not be instantiated.
 
-    :param writer: optional argument to set the writer to use in \
-        transformations. Defaults to FortranWriter().
+    :param writer: optional argument to set the type of writer to \
+        provide to a transformation for use when constructing error \
+        messages. Defaults to FortranWriter().
     :type writer: :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
 
     '''
@@ -3373,6 +3372,8 @@ class Transformation(object):
 
 class DummyTransformation(Transformation):
     '''Dummy transformation use elsewhere to keep pyreverse happy.'''
+
+    @property
     def name(self):
         return
 

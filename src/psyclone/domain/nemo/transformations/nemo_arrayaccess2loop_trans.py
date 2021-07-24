@@ -63,26 +63,29 @@ class NemoArrayAccess2LoopTrans(Transformation):
     an array (i.e. one that does not contain a loop iterator) to a
     single trip loop. For example:
 
-    >>> from psyclone.domain.nemo.transformations import \
-    >>>     NemoArrayAccess2LoopTrans
+    >>> from psyclone.domain.nemo.transformations import \\
+    ...     NemoArrayAccess2LoopTrans
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Assignment
-    >>> code = ("program example\n"
-    >>>         "  real a(10)\n"
-    >>>         "  a(1) = 0.0\n"
-    >>>         "end program example\n")
+    >>> code = ("program example\\n"
+    ...         "  real a(10)\\n"
+    ...         "  a(1) = 0.0\\n"
+    ...         "end program example\\n")
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> assignment = psyir.walk(Assignment)[0]
     >>> NemoArrayAccess2LoopTrans().apply(assignment.lhs.children[0])
-    >>> print (FortranWriter()(psyir))
-          program example
-            real, dimension(10) :: a
-            integer :: ji
-            do ji = 1, 1, 1
-              a(ji) = 0.0
-            enddo
-          end program example
+    >>> print(FortranWriter()(psyir))
+    program example
+      real, dimension(10) :: a
+      integer :: ji
+    <BLANKLINE>
+      do ji = 1, 1, 1
+        a(ji) = 0.0
+      enddo
+    <BLANKLINE>
+    end program example
+    <BLANKLINE>
 
     '''
     def apply(self, node, options=None):
@@ -175,9 +178,9 @@ class NemoArrayAccess2LoopTrans(Transformation):
 
         # Add a NemoKern if required.
         if not nemo_kern and not assignment.walk(Range):
-            # There were previously no loops therefore there was not
-            # inlined kernel node and there are no range nodes in the
-            # array reference, so we now need to add an inlined
+            # This was not previously a NemoKern (as it contained no
+            # loops). However, we have now created a loop so, provided
+            # there are no range nodes, we must create an inlined
             # kernel.
             CreateNemoKernelTrans().apply(assignment.parent)
 
@@ -213,7 +216,8 @@ class NemoArrayAccess2LoopTrans(Transformation):
             raise TransformationError(
                 "Error in NemoArrayAccess2LoopTrans transformation. The "
                 "supplied node argument should be within an ArrayReference "
-                "node that is within an Assignment node, but found '{0}'."
+                "node that is within an Assignment node, but found '{0}' "
+                "instead of an Assignment."
                 .format(type(array_ref.parent).__name__))
         assignment = array_ref.parent
         # Array reference not on lhs of the assignment
@@ -229,8 +233,9 @@ class NemoArrayAccess2LoopTrans(Transformation):
         if node.walk(Range):
             raise TransformationError(
                 "Error in NemoArrayAccess2LoopTrans transformation. The "
-                "supplied node should not be or contain a Range node as it "
-                "should be single valued.")
+                "supplied node should not be or contain a Range node "
+                "(array notation) as it should be single valued, but found "
+                "'{0}'.".format(self._writer(node)))
 
         # Capture loop iterator symbols in order
         iterator_symbols = []
@@ -253,9 +258,11 @@ class NemoArrayAccess2LoopTrans(Transformation):
                     var.name.lower() for var in iterator_symbols]):
                 raise TransformationError(
                     "Error in NemoArrayAccess2LoopTrans transformation. The "
-                    "NEMO API expects this index to use the '{0}' iterator "
-                    "variable, but it is already being used in another index."
-                    "".format(loop_variable_name.lower()))
+                    "NEMO API expects index {0} to use the '{1}' iterator "
+                    "variable, but it is already being used in another index "
+                    "'{2}'.".format(
+                        node.position, loop_variable_name.lower(),
+                        self._writer(assignment.lhs)))
         except IndexError:
             # There is no defined iterator name for this index
             pass

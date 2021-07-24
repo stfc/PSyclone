@@ -43,6 +43,7 @@ import pytest
 
 from psyclone.domain.nemo.transformations import NemoArrayAccess2LoopTrans, \
     CreateNemoPSyTrans
+from psyclone.nemo import NemoKern
 from psyclone.psyGen import Transformation, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -50,6 +51,7 @@ from psyclone.psyir.nodes import Assignment, ArrayReference, Literal, Node
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
 from psyclone.psyir.transformations import TransformationError
+from psyclone.tests.utilities import Compile
 
 # Constants
 API = "nemo"
@@ -58,19 +60,23 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 TEST_CONFIG = os.path.join(BASE_PATH, "nemo_test.cfg")
 
 
-def check_transformation(code, expected_result, index=0, statement=0):
+def check_transformation(tmpdir, code, expected_result, index=0, statement=0):
     '''Utility function to check that the result of applying the
     NemoArrayAccess2LoopTrans transformation to the code supplied in
-    the code argument for the statement number specified in the
-    statement argument and the array access index specified in the
-    index argument produces the result specified in the
-    expected_result argument.
+    the "code" argument (which is assumed to be the content of a valid
+    program) for the statement number specified in the "statement"
+    argument and the array access index specified in the "index"
+    argument produces the result specified in the "expected_result"
+    argument. Also check that the resultant code compiles.
 
+    :param tmpdir: path to a test-specific temporary directory in \
+        which to test compilation.
+    :type tmpdir: :py:class:`py._path.local.LocalPath`
     :param str code: the input code to be transformed.
     :param str expected_result: the code expected after transformation.
     :param int index: the array index on which to apply the \
         transformation.
-    :param int statement: the index of the required statement in the top \
+    :param int statement: the index of the required assignment in the top \
         level of the PSyIR tree associated with the input code. \
         Defaults to 0.
 
@@ -81,15 +87,42 @@ def check_transformation(code, expected_result, index=0, statement=0):
     psyir = reader.psyir_from_source(input_code)
     assignment = psyir.walk(Assignment)[statement]
     array_reference = assignment.lhs
-    index_node = array_reference.children[index]
+    index_node = array_reference.indices[index]
+    trans_write_check(psyir, index_node, output_code, tmpdir)
 
+
+def trans_write_check(psyir, index_node, expected_result, tmpdir,
+                      compile=True):
+    '''Utility function to check that the result of applying the
+    NemoArrayAccess2LoopTrans transformation to the node supplied in
+    the "index_node" argument within the psyir tree supplied in the
+    "psyir" argument produces the expected Fortran code provided in
+    the "expected_result" argument when output via a Fortran
+    writer. It also checks that the output code compiles if the
+    compile argument is set to True.
+
+    :param psyir: the full PSyIR tree.
+    :type psyir: :py:class:`psyclone.psyir.nodes.Node`
+    :param index_node: the PSyIR node that the transformation will be \
+        applied to.
+    :type index_node: :py:class:`psyclone.psyir.nodes.Node`
+    :param str expected_result: the code that is expected to be \
+        produced after the PSyIR is transformed and converted into \
+        Fortran.
+    :param tmpdir: path to a test-specific temporary directory in \
+        which to test compilation.
+    :type tmpdir: :py:class:`py._path.local.LocalPath`
+    :param bool compile: whether to compile the resultant code. \
+        Defaults to True.
+
+    '''
     trans = NemoArrayAccess2LoopTrans()
     trans.apply(index_node)
-
     writer = FortranWriter()
     result = writer(psyir)
-
-    assert result == output_code
+    assert expected_result in result
+    if compile:
+        assert Compile(tmpdir).string_compiles(result)
 
 
 def test_transform():
@@ -104,7 +137,7 @@ def test_transform():
 # apply() method
 
 
-def test_apply_single_dim_value():
+def test_apply_single_dim_value(tmpdir):
     '''Check that the expected code is produced when there is a 1D array,
     the access to its 1st dimension is an integer value and this 1st
     index is provided to the transformation.
@@ -119,10 +152,10 @@ def test_apply_single_dim_value():
         "  do ji = 1, 1, 1\n"
         "    a(ji) = b(ji)\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result)
+    check_transformation(tmpdir, code, expected_result)
 
 
-def test_apply_second_dim_var():
+def test_apply_second_dim_var(tmpdir):
     '''Check that the expected code is produced for a 2D array where the
     access to its 2nd dimension is via a scalar variable (that is not
     a loop iterator) and the 2nd dimension is provided to the
@@ -142,10 +175,10 @@ def test_apply_second_dim_var():
         "  do jj = n, n, 1\n"
         "    a(1,jj) = b(1,jj)\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, index=1, statement=1)
+    check_transformation(tmpdir, code, expected_result, index=1, statement=1)
 
 
-def test_apply_third_dim_expr():
+def test_apply_third_dim_expr(tmpdir):
     '''Check that the expected code is produced for a 3D array where the
     access to its 3rd dimension is via an expression (that does not
     contain a loop iterator) and this dimension is provided to the
@@ -162,10 +195,10 @@ def test_apply_third_dim_expr():
         "  do jk = 2 * n + 1, 2 * n + 1, 1\n"
         "    a(1,n,jk) = b(1,n,jk)\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, index=2)
+    check_transformation(tmpdir, code, expected_result, index=2)
 
 
-def test_apply_fifth_dim_expr():
+def test_apply_fifth_dim_expr(tmpdir):
     '''Check that the expected code is produced for a 5D array where there
     is no loop index information in the nemo api for the outermost
     dimension so a new loop variable name is required.
@@ -180,10 +213,10 @@ def test_apply_fifth_dim_expr():
         "  do idx = 1, 1, 1\n"
         "    a(1,1,1,1,idx) = 0.0\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, index=4)
+    check_transformation(tmpdir, code, expected_result, index=4)
 
 
-def test_apply_indirection():
+def test_apply_indirection(tmpdir):
     '''Check that the expected code is produced for a 1D array where the
     access to its 1st dimension index is via a lookup (that does not
     contain a loop iterator) and this dimension is provided to the
@@ -204,10 +237,10 @@ def test_apply_indirection():
         "  do ji = lookup(n), lookup(n), 1\n"
         "    a(ji) = b(ji)\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result)
+    check_transformation(tmpdir, code, expected_result)
 
 
-def test_apply_loop_order():
+def test_apply_loop_order(tmpdir):
     '''Check that the expected code is produced for a 3D array where it is
     accessed with the inner and outer dimensions being loop indices,
     but the middle dimension being a variable and this middle
@@ -234,10 +267,10 @@ def test_apply_loop_order():
         "      enddo\n"
         "    enddo\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, index=1)
+    check_transformation(tmpdir, code, expected_result, index=1)
 
 
-def test_apply_ranges():
+def test_apply_ranges(tmpdir):
     '''Check that the expected code is produced for a 3D array where its
     inner two dimensions are array ranges (array notation), its outer
     dimension is a variable and the outer dimension is provided to the
@@ -255,15 +288,13 @@ def test_apply_ranges():
         "  do jk = jpk, jpk, 1\n"
         "    a(:,:,jk) = 0.0e0\n"
         "  enddo\n\n")
-    check_transformation(code, expected_result, index=2)
+    check_transformation(tmpdir, code, expected_result, index=2)
 
 
-def test_apply_inline_kern():
+def test_apply_inline_kern(tmpdir):
     '''Check that the transformation places a loop innermost where there
     is a Nemo-specific inlined kern node. We create such a node by
-    first applying the NemoAllArrayRange2LoopTrans transformation. We
-    don't use nemo-specific code for all tests because the NEMO-api
-    does not currently write symbol table information. A subsequent
+    using the CreateNemoPSyTrans() transformation. A subsequent
     transformation would be needed to put the loops in ji,jj,jk form
     if needed.
 
@@ -288,17 +319,20 @@ def test_apply_inline_kern():
         "enddo\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
+    assert not psyir.walk(NemoKern)
     nemo_trans = CreateNemoPSyTrans()
     nemo_trans.apply(psyir)
+    assert len(psyir.walk(NemoKern)) == 1
     index_node = psyir.walk(Assignment)[0].lhs.children[2]
-    trans = NemoArrayAccess2LoopTrans()
-    trans.apply(index_node)
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert result == expected_result
+    # It is not possible to compile this code, as CreateNemoPSyTrans()
+    # adds a NemoInvokeSchedule which currently only outputs the
+    # content of a routine (i.e. the "program" and "end program"
+    # statements and declarations are not output (issue #430).
+    trans_write_check(
+        psyir, index_node, expected_result, tmpdir, compile=False)
 
 
-def test_inlined_kern():
+def test_inlined_kern(tmpdir):
     '''Check that the apply() method creates an InlinedKern node if
     appropriate.
 
@@ -333,12 +367,9 @@ def test_inlined_kern():
     assert isinstance(psyir.children[0][0].loop_body[0], InlinedKern)
     # Turn another array access to a loop
     index_node = psyir.walk(Assignment)[0].lhs.children[0]
-    trans.apply(index_node)
+    trans_write_check(psyir, index_node, expected_result, tmpdir)
     # Still only one InlinedKern
     assert len(psyir.walk(InlinedKern)) == 1
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert result == expected_result
 
 
 def test_apply_calls_validate():
@@ -351,7 +382,7 @@ def test_apply_calls_validate():
            in str(info.value))
 
 
-def test_apply_multi_iterator():
+def test_apply_multi_iterator(tmpdir):
     '''Check that the apply method works as expected if a different loop
     index has more than one loop iterator and does not care what name
     is used as long as it is not the same as the iterator name for
@@ -382,17 +413,13 @@ def test_apply_multi_iterator():
         "end program test\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
     outer_loop = psyir.children[0].children[0]
     assignment = outer_loop.loop_body[0].loop_body[0]
     index_node = assignment.lhs.children[1]
-    trans.apply(index_node)
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert expected_code in result
+    trans_write_check(psyir, index_node, expected_code, tmpdir)
 
 
-def test_apply_same_iterator():
+def test_apply_same_iterator(tmpdir):
     '''Check that the apply method works as expected if different loop
     indices use the same iterator in more than one loop index and does
     not care what name is used as long as it is not the same as the
@@ -419,15 +446,11 @@ def test_apply_same_iterator():
         "end program test\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
     index_node = psyir.children[0].children[0].loop_body[0].lhs.children[2]
-    trans.apply(index_node)
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert expected_code in result
+    trans_write_check(psyir, index_node, expected_code, tmpdir)
 
 
-def test_apply_index_order():
+def test_apply_index_order(tmpdir):
     '''Check that the apply method works as expected if loop indices are
     not used in the same order as array dimensions and does not care
     what name is used as long as it is not the same as the iterator
@@ -458,15 +481,10 @@ def test_apply_index_order():
         "end program test\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
     outer_loop = psyir.children[0].children[0]
     assignment = outer_loop.loop_body[0].loop_body[0]
     index_node = assignment.lhs.children[2]
-    trans.apply(index_node)
-    writer = FortranWriter()
-    result = writer(psyir)
-    print(result)
-    assert expected_code in result
+    trans_write_check(psyir, index_node, expected_code, tmpdir)
 
 # validate() method
 
@@ -501,13 +519,25 @@ def test_validate_structure_error():
     the transformation to raise the expected exception.
 
     '''
+    # It is not possible to use the check_transformation() utility
+    # here as the path to the variable index differs due to the
+    # structure.
     code = (
+        "program test\n"
         "  use my_struct, only : x\n"
-        "  x%a(1) = x%b(1)\n")
+        "  x%a(1) = x%b(1)\n"
+        "end program test\n")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    assignment = psyir.walk(Assignment)[0]
+    array_reference = assignment.lhs
+    index_node = array_reference.children[0].indices[0]
+    trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
-        check_transformation(code, None)
-    assert ("The supplied node argument should be within an ArrayReference "
-            "node, but found 'StructureReference'." in str(info.value))
+        trans.validate(index_node)
+    assert ("Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+            "node argument should be within an ArrayReference node, but "
+            "found 'ArrayMember'" in str(info.value))
 
 
 def test_validate_assignment():
@@ -525,7 +555,8 @@ def test_validate_assignment():
     assert(
         "Error in NemoArrayAccess2LoopTrans transformation. The supplied node "
         "argument should be within an ArrayReference node that is within an "
-        "Assignment node, but found 'NoneType'." in str(info.value))
+        "Assignment node, but found 'NoneType' instead of an Assignment."
+        in str(info.value))
 
 
 def test_validate_lhs_assignment():
@@ -550,7 +581,7 @@ def test_validate_lhs_assignment():
         "the right-hand-side of 'x(1) = y(1)\n'." in str(info.value))
 
 
-def test_validate_range():
+def test_validate_range(tmpdir):
     '''Check that the validate() method raises the expected exception if
     the supplied node is, or contains, a Range node as it should be
     single valued.
@@ -561,11 +592,11 @@ def test_validate_range():
         "  a(:) = 0.0e0\n")
     expected_result = None
     with pytest.raises(TransformationError) as info:
-        check_transformation(code, expected_result)
+        check_transformation(tmpdir, code, expected_result)
     assert (
         "Error in NemoArrayAccess2LoopTrans transformation. The supplied "
-        "node should not be or contain a Range node as it should be single "
-        "valued." in str(info.value))
+        "node should not be or contain a Range node (array notation) as it "
+        "should be single valued, but found ':'." in str(info.value))
 
 
 def test_validate_iterator_name():
@@ -589,10 +620,9 @@ def test_validate_iterator_name():
     with pytest.raises(TransformationError) as info:
         trans.apply(index_node)
     assert(
-        "The NEMO API expects this index to use the 'jj' iterator variable, "
-        "but it is already being used in another index." in str(info.value))
-
-# TODO Check validate is happy if the index has no defined name in the nemo API
+        "The NEMO API expects index 1 to use the 'jj' iterator variable, "
+        "but it is already being used in another index 'a(jj,10)'."
+        in str(info.value))
 
 
 def test_validate_iterator():
@@ -602,10 +632,10 @@ def test_validate_iterator():
     '''
     input_code = (
         "program test\n"
-        "  real :: a(10)\n"
-        "  integer :: i\n"
+        "  real :: a(20)\n"
+        "  integer :: i, n\n"
         "  do i=1,10\n"
-        "    a(i) = 0.0e0\n"
+        "    a(i+n) = 0.0e0\n"
         "  end do\n"
         "end program test")
     reader = FortranReader()
@@ -613,7 +643,7 @@ def test_validate_iterator():
     trans = NemoArrayAccess2LoopTrans()
     index_node = psyir.children[0].children[0].loop_body[0].lhs.children[0]
     with pytest.raises(TransformationError) as info:
-        trans.apply(index_node)
+        trans.validate(index_node)
     assert(
         "The supplied node should not be or contain a loop iterator, it "
         "should be single valued." in str(info.value))
