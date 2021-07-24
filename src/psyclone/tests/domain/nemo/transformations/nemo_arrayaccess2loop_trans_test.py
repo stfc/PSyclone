@@ -92,14 +92,14 @@ def check_transformation(tmpdir, code, expected_result, index=0, statement=0):
 
 
 def trans_write_check(psyir, index_node, expected_result, tmpdir,
-                      compile=True):
+                      compiles=True):
     '''Utility function to check that the result of applying the
     NemoArrayAccess2LoopTrans transformation to the node supplied in
     the "index_node" argument within the psyir tree supplied in the
     "psyir" argument produces the expected Fortran code provided in
     the "expected_result" argument when output via a Fortran
     writer. It also checks that the output code compiles if the
-    compile argument is set to True.
+    compiles argument is set to True.
 
     :param psyir: the full PSyIR tree.
     :type psyir: :py:class:`psyclone.psyir.nodes.Node`
@@ -112,7 +112,7 @@ def trans_write_check(psyir, index_node, expected_result, tmpdir,
     :param tmpdir: path to a test-specific temporary directory in \
         which to test compilation.
     :type tmpdir: :py:class:`py._path.local.LocalPath`
-    :param bool compile: whether to compile the resultant code. \
+    :param bool compiles: whether to compile the resultant code. \
         Defaults to True.
 
     '''
@@ -121,7 +121,7 @@ def trans_write_check(psyir, index_node, expected_result, tmpdir,
     writer = FortranWriter()
     result = writer(psyir)
     assert expected_result in result
-    if compile:
+    if compiles:
         assert Compile(tmpdir).string_compiles(result)
 
 
@@ -329,7 +329,7 @@ def test_apply_inline_kern(tmpdir):
     # content of a routine (i.e. the "program" and "end program"
     # statements and declarations are not output (issue #430).
     trans_write_check(
-        psyir, index_node, expected_result, tmpdir, compile=False)
+        psyir, index_node, expected_result, tmpdir, compiles=False)
 
 
 def test_inlined_kern(tmpdir):
@@ -521,7 +521,7 @@ def test_validate_structure_error():
     '''
     # It is not possible to use the check_transformation() utility
     # here as the path to the variable index differs due to the
-    # structure.
+    # structure in the assignment.
     code = (
         "program test\n"
         "  use my_struct, only : x\n"
@@ -581,7 +581,7 @@ def test_validate_lhs_assignment():
         "the right-hand-side of 'x(1) = y(1)\n'." in str(info.value))
 
 
-def test_validate_range(tmpdir):
+def test_validate_range():
     '''Check that the validate() method raises the expected exception if
     the supplied node is, or contains, a Range node as it should be
     single valued.
@@ -590,9 +590,8 @@ def test_validate_range(tmpdir):
     code = (
         "  real :: a(10)\n"
         "  a(:) = 0.0e0\n")
-    expected_result = None
     with pytest.raises(TransformationError) as info:
-        check_transformation(tmpdir, code, expected_result)
+        check_transformation(None, code, None)
     assert (
         "Error in NemoArrayAccess2LoopTrans transformation. The supplied "
         "node should not be or contain a Range node (array notation) as it "
@@ -606,19 +605,13 @@ def test_validate_iterator_name():
 
     '''
     input_code = (
-        "program test\n"
         "  real :: a(10,10)\n"
         "  integer :: jj\n"
         "  do jj=1,10\n"
         "    a(jj,10) = 0.0e0\n"
-        "  end do\n"
-        "end program test")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
-    index_node = psyir.children[0].children[0].loop_body[0].lhs.children[1]
+        "  end do\n")
     with pytest.raises(TransformationError) as info:
-        trans.apply(index_node)
+        check_transformation(None, input_code, None, index=1)
     assert(
         "The NEMO API expects index 1 to use the 'jj' iterator variable, "
         "but it is already being used in another index 'a(jj,10)'."
@@ -631,74 +624,78 @@ def test_validate_iterator():
 
     '''
     input_code = (
-        "program test\n"
         "  real :: a(20)\n"
         "  integer :: i, n\n"
         "  do i=1,10\n"
         "    a(i+n) = 0.0e0\n"
-        "  end do\n"
-        "end program test")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
-    index_node = psyir.children[0].children[0].loop_body[0].lhs.children[0]
+        "  end do\n")
     with pytest.raises(TransformationError) as info:
-        trans.validate(index_node)
+        check_transformation(None, input_code, None)
     assert(
         "The supplied node should not be or contain a loop iterator, it "
         "should be single valued." in str(info.value))
 
 
-def test_validate_same_index_error():
+def test_validate_same_index_error(tmpdir):
     '''Check that the validate() method raises the expected exception if
     the indices of the lhs and rhs arrays do not match, but is OK if they do.
 
     '''
     # Same values
     input_code = (
-        "program test\n"
         "  real :: a(10), b(10)\n"
         "  integer :: n\n"
-        "  a(n+1) = b(1+n)\n"
-        "end program test")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
-    index_node = psyir.children[0].children[0].lhs.children[0]
-    trans.apply(index_node)
+        "  a(n+1) = b(1+n)\n")
+    expected_result = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  integer :: n\n  integer :: ji\n\n"
+        "  do ji = n + 1, n + 1, 1\n"
+        "    a(ji) = b(ji)\n"
+        "  enddo\n\n")
+    check_transformation(tmpdir, input_code, expected_result)
 
     # different values
     input_code = (
-        "program test\n"
         "  real :: a(10), b(10)\n"
         "  integer :: n\n"
-        "  a(n+1) = b(n)\n"
-        "end program test")
-    psyir = reader.psyir_from_source(input_code)
-    trans = NemoArrayAccess2LoopTrans()
-    index_node = psyir.children[0].children[0].lhs.children[0]
+        "  a(n+1) = b(n)\n")
     with pytest.raises(TransformationError) as info:
-        trans.apply(index_node)
+        check_transformation(None, input_code, None)
     assert(
         "Expected index '0' for rhs array 'b' to be the same as the lhs "
         "array 'a', but they differ." in str(info.value))
 
 
-def test_validate_indirection():
-    '''Check that validation works with valid indirection.'''
+def test_validate_indirection(tmpdir):
+    '''Check that validation works with valid indirection and raises an
+    exception with invalid indirection.
 
+    '''
     code = (
-        "program tmp\n"
         "  real :: a(10), b(10)\n"
         "  integer :: lookup(10)\n"
         "  integer :: n\n"
-        "  a(lookup(n)) = b(lookup(n))\n"
-        "end program tmp\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
-    trans = NemoArrayAccess2LoopTrans()
-    index_node = psyir.children[0].children[0].lhs.children[0]
-    trans.validate(index_node)
+        "  a(lookup(n)) = b(lookup(n))\n")
+    expected_result = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  integer, dimension(10) :: lookup\n  integer :: n\n"
+        "  integer :: ji\n\n"
+        "  do ji = lookup(n), lookup(n), 1\n"
+        "    a(ji) = b(ji)\n"
+        "  enddo\n\n")
+    check_transformation(tmpdir, code, expected_result)
+
+    # different values
+    input_code = (
+        "  real :: a(10), b(10)\n"
+        "  integer :: lookup(10)\n"
+        "  integer :: n\n"
+        "  a(lookup(n)) = b(lookup(1))\n")
+    with pytest.raises(TransformationError) as info:
+        check_transformation(None, input_code, None)
+    assert(
+        "Expected index '0' for rhs array 'b' to be the same as the lhs "
+        "array 'a', but they differ." in str(info.value))
 
 # str() and name() methods
 
