@@ -177,13 +177,7 @@ class AssignmentTrans(AdjointTransformation):
                 "Node argument in assignment transformation should be a PSyIR "
                 "Assignment, but found '{0}'.".format(type(node).__name__))
 
-        # If there are no active variables then return
-        assignment_active_var_names = [
-            var.name for var in node.walk(Reference)
-            if var.symbol in self._active_variables]
-        if not assignment_active_var_names:
-            # No active variables in this assigment so the assignment
-            # remains unchanged.
+        if not self.active(node):
             return
 
         # The lhs of the assignment node should be an active variable
@@ -282,6 +276,20 @@ class AssignmentTrans(AdjointTransformation):
                 # Continue up the PSyIR tree
                 candidate = parent
                 parent = candidate.parent
+
+    def active(self, node):
+        '''If there are no active variables in this assignment then return
+        True otherwise return False.
+
+        '''
+        assignment_active_var_names = [
+            var.name for var in node.walk(Reference)
+            if var.symbol in self._active_variables]
+        if not assignment_active_var_names:
+            # No active variables in this assigment so the assignment
+            # remains unchanged.
+            return False
+        return True
 
     @staticmethod
     def _split_nodes(node, binary_operator_list):
