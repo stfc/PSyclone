@@ -75,79 +75,6 @@ def setup():
     Config._instance = None
 
 
-def test_const_loop_bounds_not_schedule():
-    ''' Check that we raise an error if we attempt to apply the
-    constant loop-bounds transformation to something that is
-    not an InvokeSchedule '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           API, idx=0)
-    schedule = invoke.schedule
-    cbtrans = GOConstLoopBoundsTrans()
-
-    with pytest.raises(TransformationError):
-        _, _ = cbtrans.apply(schedule.children[0])
-
-
-def test_const_loop_bounds_trans(tmpdir):
-    ''' Check that we can turn the loop bounds constant (with a single
-    variable holding them). '''
-    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                             API, idx=0)
-    schedule = invoke.schedule
-    cbtrans = GOConstLoopBoundsTrans()
-
-    # First check that the generated code doesn't use constant loop
-    # bounds by default.
-    gen = str(psy.gen)
-    assert "DO j = cv_fld%internal%ystart, cv_fld%internal%ystop" in gen
-    assert "DO i = cv_fld%internal%xstart, cv_fld%internal%xstop" in gen
-    assert "DO j = p_fld%whole%ystart, p_fld%whole%ystop" in gen
-    assert "DO i = p_fld%whole%xstart, p_fld%whole%xstop" in gen
-
-    # Next, check the generated code applying the constant loop-bounds
-    # transformation.
-    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                             API, idx=0)
-    schedule = invoke.schedule
-    cbtrans.apply(schedule)
-    gen = str(psy.gen)
-    print(gen)
-    assert "INTEGER istop" in gen
-    assert "INTEGER istop" in gen
-    assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
-    assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j = 2, jstop - 1" in gen
-    assert "DO i = 2, istop" in gen
-
-    # Next, check that applying the constant loop-bounds
-    # transformation again has no effect.
-    cbtrans.apply(schedule)
-    gen = str(psy.gen)
-    assert "INTEGER istop" in gen
-    assert "INTEGER jstop" in gen
-    assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
-    assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j = 2, jstop - 1" in gen
-    assert "DO i = 2, istop" in gen
-
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_const_loop_bounds_invalid_offset():
-    ''' Test that we raise an appropriate error if we attempt to generate
-    code with constant loop bounds for a kernel that expects an
-    unsupported grid-offset '''
-    _, invoke = get_invoke("test26_const_bounds_invalid_offset.f90",
-                           API, idx=0)
-    cbtrans = GOConstLoopBoundsTrans()
-    schedule = invoke.schedule
-    with pytest.raises(TransformationError) as err:
-        cbtrans.apply(schedule)
-    assert ("Constant bounds generation not implemented for a grid offset of "
-            "'go_offset_nw'. Supported offsets are ['go_offset_ne', "
-            "'go_offset_sw', 'go_offset_any']" in str(err.value))
-
-
 def test_loop_fuse_different_iterates_over():
     ''' Test that an appropriate error is raised when we attempt to
     fuse two loops that have differing values of ITERATES_OVER '''
@@ -406,7 +333,7 @@ def test_omp_region_no_slice_no_const_bounds(tmpdir):
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
 
-    cbtrans.apply(schedule, {"const_bounds": False})
+    cbtrans.apply(schedule)
     ompr.apply(schedule.children)
     # Store the results of applying this code transformation as
     # a string
