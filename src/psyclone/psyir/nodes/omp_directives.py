@@ -40,7 +40,11 @@
 ''' This module contains the implementation of the various OpenMP Directive
 nodes.'''
 
+
 from __future__ import absolute_import
+import abc
+import six
+
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
@@ -107,7 +111,16 @@ class OMPDirective(Directive):
         return result
 
 
-class OMPSingleDirective(OMPDirective):
+@six.add_metaclass(abc.ABCMeta)
+class OMPSerialDirective(OMPDirective):
+    '''
+    Abstract class representing OpenMP serial regions, e.g.
+    OpenMP SINGLE or OpenMP Master.
+
+    '''
+
+
+class OMPSingleDirective(OMPSerialDirective):
     '''
     Class representing an OpenMP SINGLE directive in the PSyIR.
 
@@ -157,7 +170,7 @@ class OMPSingleDirective(OMPDirective):
         :raises GenerationError: if this OMPSingle is not enclosed \
                             within some OpenMP parallel region.
         :raises GenerationError: if this OMPSingle is enclosed within \
-                            some OpenMP single region.
+                            any OMPSerialDirective subclass region.
 
         '''
         # It is only at the point of code generation that we can check for
@@ -176,16 +189,21 @@ class OMPSingleDirective(OMPDirective):
                 "OMPSingleDirective must be inside an OMP parallel region but "
                 "could not find an ancestor OMPParallelDirective node")
 
-        if self.ancestor(OMPSingleDirective):
+        if self.ancestor(OMPSerialDirective):
             raise GenerationError(
-                    "OMPSingleDirective must not be inside another OMP single "
-                    "region")
+                    "OMPSingleDirective must not be inside another OpenMP "
+                    "serial region")
 
         super(OMPSingleDirective, self).validate_global_constraints()
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Single Directive and any associated
-        code'''
+        code
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
         # Check the constraints are correct
         self.validate_global_constraints()
 
@@ -232,7 +250,7 @@ class OMPSingleDirective(OMPDirective):
         return "omp end single"
 
 
-class OMPMasterDirective(OMPSingleDirective):
+class OMPMasterDirective(OMPSerialDirective):
     '''
     Class representing an OpenMP MASTER directive in the PSyclone AST.
 
@@ -245,7 +263,7 @@ class OMPMasterDirective(OMPSingleDirective):
 
         # Call the init method of the base class
         super(OMPMasterDirective, self).__init__(children=children,
-                                                 parent=parent, nowait=False)
+                                                 parent=parent)
 
     @property
     def dag_name(self):
@@ -270,7 +288,13 @@ class OMPMasterDirective(OMPSingleDirective):
 
     def gen_code(self, parent):
         '''Generate the Fortran OMP Master Directive and any associated
-        code'''
+        code
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+
         # Check the constraints are correct
         self.validate_global_constraints()
 
@@ -292,9 +316,8 @@ class OMPMasterDirective(OMPSingleDirective):
         :rtype: str
 
         '''
-        result = "omp master"
-
-        return result
+        # pylint: disable=no-self-use
+        return "omp master"
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
@@ -307,6 +330,40 @@ class OMPMasterDirective(OMPSingleDirective):
         '''
         # pylint: disable=no-self-use
         return "omp end master"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPMaster is not enclosed \
+                            within some OpenMP parallel region.
+        :raises GenerationError: if this OMPMaster is enclosed within \
+                            any OMPSerialDirective subclass region.
+
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As a Parallel Child
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        # Also check the single region is not enclosed within another OpenMP
+        # single region.
+        # It could in principle be allowed for that parent to be a ParallelDo
+        # directive, however I can't think of a use case that would be done
+        # best in a parallel code by that pattern
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPMasterDirective must be inside an OMP parallel region but "
+                "could not find an ancestor OMPParallelDirective node")
+
+        if self.ancestor(OMPSerialDirective):
+            raise GenerationError(
+                    "OMPMasterDirective must not be inside another OpenMP "
+                    "serial region")
+
+        super(OMPMasterDirective, self).validate_global_constraints()
 
 
 class OMPParallelDirective(OMPDirective):
@@ -819,4 +876,5 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
 # For automatic API documentation generation
 __all__ = ["OMPDirective", "OMPParallelDirective", "OMPSingleDirective",
-           "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective"]
+           "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
+           "OMPSerialDirective"]

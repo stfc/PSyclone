@@ -341,7 +341,7 @@ def test_omp_single_nested_validate_global_constraints(monkeypatch):
     parallel.apply(schedule.children[0])
     with pytest.raises(GenerationError) as excinfo:
         single_omp.validate_global_constraints()
-    assert ("OMPSingleDirective must not be inside another OMP single " +
+    assert ("OMPSingleDirective must not be inside another OpenMP serial " +
             "region") in str(excinfo.value)
 
 
@@ -385,22 +385,14 @@ def test_omp_master_dag_name():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    _, _ = master.apply(schedule.children[0])
+    master.apply(schedule.children[0])
     assert schedule.children[0].dag_name == "OMP_master_1"
 
 
 def test_omp_master_strings():
     ''' Test the begin_string and end_string methods of the OMPMaster
         directive '''
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
-    master = OMPMasterTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    master.apply(schedule[0])
-    omp_master = schedule[0]
+    omp_master = OMPMasterDirective()
 
     assert omp_master.begin_string() == "omp master"
     assert omp_master.end_string() == "omp end master"
@@ -449,3 +441,46 @@ def test_omp_master_gencode():
         "      END DO\n" +
         "      !$omp end master\n" +
         "      !$omp end parallel" in code)
+
+
+def test_omp_master_validate_global_constraints():
+    ''' Test the validate_global_constraints method of the OMPMaster
+        directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    master = OMPMasterTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    master.apply(schedule.children[0])
+    with pytest.raises(GenerationError) as excinfo:
+        schedule.children[0].validate_global_constraints()
+    assert ("OMPMasterDirective must be inside an OMP parallel region but " +
+            "could not find an ancestor OMPParallelDirective node") in \
+        str(excinfo.value)
+
+
+def test_omp_master_nested_validate_global_constraints(monkeypatch):
+    ''' Test the validate_global_constraints method of the OMPMaster
+        directive fails when nested OMPSingles happen'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    master = OMPMasterTrans()
+    # Alternative excluded node types for monkeypatch
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
+                           psyGen.HaloExchange, nodes.OMPParallelDirective)
+    monkeypatch.setattr(master, "excluded_node_types", excluded_node_types)
+    parallel = OMPParallelTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    master.apply(schedule.children[0])
+    master_omp = schedule.children[0]
+    master.apply(schedule.children[0])
+    parallel.apply(schedule.children[0])
+    with pytest.raises(GenerationError) as excinfo:
+        master_omp.validate_global_constraints()
+    assert ("OMPMasterDirective must not be inside another OpenMP serial " +
+            "region") in str(excinfo.value)

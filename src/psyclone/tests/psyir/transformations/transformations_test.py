@@ -231,6 +231,25 @@ def test_ompmaster():
     assert str(trans) == "Insert an OpenMP Master region"
 
 
+def test_ompmaster_nested():
+    '''Tests to check OMPMasterTrans rejects being applied to another
+    OMPMasterTrans'''
+
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    master = OMPMasterTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    master.apply(schedule[0])
+    with pytest.raises(TransformationError) as err:
+        master.apply(schedule[0])
+    assert("Transformation Error: Nodes of type 'OMPMasterDirective' cannot" +
+           " be enclosed by a OMPMasterTrans transformation"
+           in str(err.value))
+
+
 # Tests for ProfileTrans
 
 

@@ -265,7 +265,7 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPParallelTrans
     :inherited-members:
-    :exclude-members: name, psyGen
+    :exclude-members: name
     :noindex:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
@@ -282,7 +282,7 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPSingleTrans
     :inherited-members:
-    :exclude-members: name, psyGen
+    :exclude-members: name
     :noindex:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
@@ -299,7 +299,7 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPMasterTrans
     :inherited-members:
-    :exclude-members: name, psyGen, omp_nowait
+    :exclude-members: name
     :noindex:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
