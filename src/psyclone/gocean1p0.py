@@ -402,26 +402,6 @@ class GOInvokeSchedule(InvokeSchedule):
                                 GOBuiltInCallFactory,
                                 alg_calls, reserved_names, parent=parent)
 
-    def node_str(self, colour=True):
-        ''' Creates a text description of this node with (optional) control
-        codes to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return "{0}[invoke='{1}', Constant loop bounds=False]".format(
-            self.coloured_name(colour), self.invoke.name)
-
-    def __str__(self):
-        ''' Returns the string representation of this GOInvokeSchedule '''
-        result = self.node_str(False) + ":\n"
-        for entity in self._children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
-        return result
-
 
 # pylint: disable=too-many-instance-attributes
 class GOLoop(Loop):

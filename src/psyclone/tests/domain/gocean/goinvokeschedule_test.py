@@ -53,43 +53,6 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "gocean1p0")
 
 
-def test_goschedule_view(capsys):
-    ''' Test that the GOInvokeSchedule::view() method works as expected '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "single_invoke_two_kernels.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-
-    # Ensure we check for the correct (colour) control codes in the output
-    isched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
-    invoke.schedule.view()
-
-    # The view method writes to stdout and this is captured by py.test
-    # by default. We have to query this captured output.
-    out, _ = capsys.readouterr()
-
-    expected_output = (
-            isched + "[invoke='invoke_0', Constant loop bounds=False]\n"
-            + "    0:")  # It prints enumerated children
-    assert expected_output in out
-
-
-def test_goschedule_str():
-    ''' Test that the GOInvokeSchedule::__str__ method works as expected '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "single_invoke_two_kernels.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-
-    sched_str = str(schedule)
-    assert sched_str.startswith(
-        "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=False]:\n")
-    assert sched_str.endswith("End Schedule")
-
-
 def test_gosched_parent():
     ''' Check that the GOInvokeSchedule constructor allows the parent node
     to be supplied or omitted. '''

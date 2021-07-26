@@ -95,8 +95,6 @@ def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
     gosched = GOInvokeSchedule('name', [])
-    # This test expects constant loop bounds
-    gosched._const_loop_bounds = True
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     gosched.addchild(gojloop)
     goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
@@ -140,8 +138,6 @@ def test_goloop_bounds_invalid_iteration_space():
     if the iteration space is not recognised. '''
     gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    # Have to turn-off constant loop bounds to get to the error condition
-    gosched._const_loop_bounds = False
     # Set the iteration space to something invalid
     gojloop._iteration_space = "broken"
     with pytest.raises(GenerationError) as err:

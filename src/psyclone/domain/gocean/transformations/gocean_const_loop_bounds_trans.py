@@ -48,10 +48,9 @@ from psyclone.domain.gocean import GOceanConstants
 
 
 class GOConstLoopBoundsTrans(Transformation):
-    ''' Switch on (or off) the use of constant loop bounds within
-    a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
-    generate loops where the bounds are obtained by de-referencing a field
-    object, e.g.:
+    ''' Use of a common constant variable for each loop bound within
+    a GOInvokeSchedule. By deafault, PSyclone generates loops where
+    the bounds are obtained by de-referencing a field object, e.g.:
 
     .. code-block:: fortran
 
@@ -59,8 +58,8 @@ class GOConstLoopBoundsTrans(Transformation):
 
     Some compilers are able to produce more efficient code if they are
     provided with information on the relative trip-counts of the loops
-    within an Invoke. With constant loop bounds switched on, PSyclone
-    generates code like:
+    within an Invoke. With constant loop bounds, PSyclone generates code
+    like:
 
     .. code-block:: fortran
 
@@ -68,8 +67,8 @@ class GOConstLoopBoundsTrans(Transformation):
       ...
       DO j = 1, ny-1
 
-    In practice, the application of the constant loop bounds looks
-    something like, e.g.:
+    In practice, the application of the constant loop bounds transformation
+    looks something like, e.g.:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -86,9 +85,6 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> clbtrans = GOConstLoopBoundsTrans()
     >>>
     >>> clbtrans.apply(schedule)
-    >>> # or, to turn off const. looop bounds:
-    >>> # clbtrans.apply(schedule, const_bounds=False)
-    >>>
     >>> schedule.view()
 
     '''
@@ -119,17 +115,14 @@ class GOConstLoopBoundsTrans(Transformation):
                                       "node is not a GOInvokeSchedule")
 
     def apply(self, node, options=None):
-        '''Switches constant loop bounds on or off for all loops in a
-        GOInvokeSchedule. Default is 'off'.
+        ''' Modify the GOcean kernel loops in a GOInvokeSchedule to use
+        common constant loop bound variables.
 
         :param node: the GOInvokeSchedule of which all loops will get the
-            constant loop bounds switched on or off.
+            constant loop bounds.
         :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-
-        :param bool options["const_bounds"]: whether the constant loop should\
-            be used (True) or not (False). Default is True.
 
         :returns: 2-tuple of new schedule and memento of transform.
         :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \

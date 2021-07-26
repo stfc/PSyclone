@@ -89,7 +89,7 @@ def test_profile_basic(capsys):
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
     expected = (
-        gsched + "[invoke='invoke_0', Constant loop bounds=False]\n"
+        gsched + "[invoke='invoke_0']\n"
         "    0: " + profile + "[]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='outer', field_space='go_cv', "
