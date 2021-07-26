@@ -1999,3 +1999,57 @@ def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
     assert len(cblocks) == 2
     gen = fortran_writer(call_node)
     assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
+
+
+def test_fw_comments(fortran_writer):
+    ''' Test the generation of Fortran from PSyIR with comments. '''
+
+    container = Container("my_container")
+    routine = Routine("my_routine")
+    container.addchild(routine)
+    statement1 = Return()
+    statement2 = Return()
+    statement3 = Return()
+    routine.children = [statement1, statement2, statement3]
+
+    # If the comments are empty, they don't appear at all
+    expected = (
+        "module my_container\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  subroutine my_routine()\n\n"
+        "    return\n"
+        "    return\n"
+        "    return\n\n"
+        "  end subroutine my_routine\n\n"
+        "end module my_container\n")
+    assert expected == fortran_writer(container)
+
+    # Add comments
+    container.preceding_comment = "My container preceding comment"
+    container.inline_comment = "My container inline comment"
+    routine.preceding_comment = "My routine preceding comment"
+    routine.inline_comment = "My routine inline comment"
+    statement1.preceding_comment = "My statement with a preceding comment"
+    statement2.preceding_comment = "My statement with a preceding comment ..."
+    statement2.inline_comment = "... and an inline comment"
+    statement3.inline_comment = "Statement with only an inline comment"
+
+    # Now they are placed in the appropriate position
+    expected = (
+        "! My container preceding comment\n"
+        "module my_container\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  ! My routine preceding comment\n"
+        "  subroutine my_routine()\n\n"
+        "    ! My statement with a preceding comment\n"
+        "    return\n"
+        "    ! My statement with a preceding comment ...\n"
+        "    return  ! ... and an inline comment\n"
+        "    return  ! Statement with only an inline comment\n\n"
+        "  end subroutine my_routine  ! My routine inline comment\n\n"
+        "end module my_container  ! My container inline comment\n")
+    assert expected == fortran_writer(container)

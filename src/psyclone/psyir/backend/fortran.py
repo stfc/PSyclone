@@ -326,6 +326,8 @@ class FortranWriter(LanguageWriter):
     :raises TypeError: if any of the supplied parameters are of the wrong type.
 
     '''
+    _COMMENT_PREFIX = "! "
+
     def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0, check_global_constraints=True):
         # Construct the base class using () as array parenthesis, and

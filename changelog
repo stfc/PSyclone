@@ -123,6 +123,11 @@
  	41) PR #1313 for #1268 and #1269. Adds new ComponentIndices class
 	to manage indices for component accesses.
 
+	42) PR #1325 for #1247. Adds PSyIR support for comments (associated with
+	Container, Routine and Statement nodes).
+
+	43) PR #1342 towards #1338. Adds the OMPSingleTrans transformation for
+	creating an OMP SINGLE region.
 
 release 2.0.0 28th April 2021
 
