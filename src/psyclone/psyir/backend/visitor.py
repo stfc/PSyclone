@@ -214,6 +214,7 @@ class PSyIRVisitor(object):
             raises an AttributeError.
 
         '''
+        # pylint: disable=too-many-branches
         if not isinstance(node, Node):
             raise VisitorError(
                 "Expected argument to be of type 'Node' but found '{0}'."

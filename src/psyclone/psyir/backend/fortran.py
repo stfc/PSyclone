@@ -691,6 +691,7 @@ class FortranWriter(LanguageWriter):
             wildcard imports.
 
         '''
+        # pylint: disable=too-many-branches
         declarations = ""
         # Keep a record of whether we've already checked for any wildcard
         # imports to save doing so repeatedly
