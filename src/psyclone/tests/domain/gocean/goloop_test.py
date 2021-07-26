@@ -46,7 +46,7 @@ from fparser.two.parser import ParserFactory
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
-    Node
+    Node, Literal
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
 
@@ -80,14 +80,13 @@ def test_goloop_no_children():
     ''' Attempt to generate code for a loop that has no child
     kernel calls '''
     gosched = GOInvokeSchedule('name', [])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    gosched.addchild(gojloop)
-    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
-    gojloop.loop_body.addchild(goiloop)
+    goloop = GOLoop(parent=gosched, loop_type="outer")
     # Try and generate the code for this loop even though it
     # has no children
-    with pytest.raises(GenerationError):
-        goiloop.gen_code(None)
+    with pytest.raises(GenerationError) as err:
+        goloop.gen_code(None)
+    assert "Cannot find the GOcean Kernel enclosed by this loop" \
+        in str(err.value)
 
 
 def test_goloop_bounds_invalid_iteration_space():
@@ -139,6 +138,10 @@ def test_goloop_validate_loop():
     # check that the validation works as expected.
     schedule = GOInvokeSchedule('name', [])
     goloop = GOLoop(loop_type="inner", parent=schedule)
+    goloop.addchild(Literal("1", INTEGER_TYPE))
+    goloop.addchild(Literal("1", INTEGER_TYPE))
+    goloop.addchild(Literal("1", INTEGER_TYPE))
+    goloop.addchild(Schedule())
     schedule.addchild(goloop)
     goloop.detach()
 

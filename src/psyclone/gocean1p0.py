@@ -413,8 +413,10 @@ class GOLoop(Loop):
 
         :param parent: optional parent node (default None).
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param str topology_name: optional opology of the loop (unused atm).
         :param str loop_type: loop type - must be 'inner' or 'outer'.
+        :param str field_name: name of the field this loop iterates on.
+        :param str field_space: space of the field this loop iterates on.
+        :param str iteration_space: iteration space of the loop.
 
         :raises GenerationError: if the loop is not inserted inside a \
             GOInvokeSchedule region.
@@ -422,10 +424,10 @@ class GOLoop(Loop):
     '''
     _bounds_lookup = {}
 
-    def __init__(self, parent=None, topology_name="", loop_type="",
-                 field_name="", field_space="", iteration_space=""):
-        # pylint: disable=unused-argument
+    def __init__(self, parent, loop_type="", field_name="", field_space="",
+                 iteration_space=""):
         const = GOceanConstants()
+
         Loop.__init__(self, parent=parent,
                       valid_loop_types=const.VALID_LOOP_TYPES)
         self.loop_type = loop_type
@@ -465,26 +467,36 @@ class GOLoop(Loop):
                 suggested_name, tag, symbol_type=DataSymbol,
                 datatype=INTEGER_TYPE)
 
-        # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
-                              parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
-                              parent=self))  # stop
-        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
-        self.addchild(Schedule(parent=self))  # loop body
-
+        # Initialise bounds lookup map if it is not already
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
 
-        try:
-            self.start_expr = self.lower_bound()
-            self.stop_expr = self.upper_bound()
-        except:
-            pass
-
     @staticmethod
-    def create(parent=None):
-        pass
+    def create(parent, loop_type, field_name="", field_space="",
+               iteration_space=""):
+        '''
+        :param parent: parent node of this GOLoop.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param str loop_type: loop type - must be 'inner' or 'outer'.
+        :param str field_name: name of the field this loop iterates on.
+        :param str field_space: space of the field this loop iterates on.
+        :param str iteration_space: iteration space of the loop.
+
+        :returns: a new GOLoop and its children.
+        :rtype: :py:class:`psyclone.gocean1p0.GOLoop`
+        '''
+
+        # Create loop node
+        node = GOLoop(parent, loop_type, field_name, field_space,
+                      iteration_space)
+
+        # Add start, stop, step and body and Loop children
+        node.addchild(node.lower_bound())
+        node.addchild(node.upper_bound())
+        node.addchild(Literal("1", INTEGER_TYPE))
+        node.addchild(Schedule())
+
+        return node
 
     # -------------------------------------------------------------------------
     def _halo_read_access(self, arg):
@@ -828,6 +840,8 @@ class GOLoop(Loop):
         elif self._iteration_space.lower() == "go_all_pts":
             key = "whole"
         else:
+            # FIXME: There can be custom iteration spaces defined in the
+            # Config file.
             raise GenerationError("Unrecognised iteration space, '{0}'. "
                                   "Cannot generate loop bounds.".
                                   format(self._iteration_space))
@@ -936,6 +950,7 @@ class GOKernCallFactory():
     def create(call, parent=None):
         ''' Create a new instance of a call to a GO kernel. Includes the
         looping structure as well as the call to the kernel itself. '''
+        # Add temporary parent as it needs to find the InvokeSchedule
         gocall = GOKern(call, parent=parent)
 
         # Determine Loop information from the enclosed Kernel
@@ -944,15 +959,19 @@ class GOKernCallFactory():
         field_name = gocall.arguments.iteration_space_arg().name
 
         # Create the double loop structure
-        outer_loop = GOLoop(parent=parent, loop_type="outer",
-                            iteration_space=iteration_space,
-                            field_space=field_space,
-                            field_name=field_name)
-        inner_loop = GOLoop(parent=outer_loop.loop_body, loop_type="inner",
-                            iteration_space=iteration_space,
-                            field_space=field_space,
-                            field_name=field_name)
+        outer_loop = GOLoop.create(loop_type="outer",
+                                   iteration_space=iteration_space,
+                                   field_space=field_space,
+                                   field_name=field_name,
+                                   parent=parent)
+        inner_loop = GOLoop.create(loop_type="inner",
+                                   iteration_space=iteration_space,
+                                   field_space=field_space,
+                                   field_name=field_name,
+                                   parent=outer_loop.loop_body)
         outer_loop.loop_body.addchild(inner_loop)
+        # Remove temporary parent
+        # pylint: disable=protected-access
         gocall._parent = None
         inner_loop.loop_body.addchild(gocall)
         return outer_loop

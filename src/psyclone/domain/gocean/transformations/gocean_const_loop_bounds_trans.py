@@ -186,13 +186,13 @@ class GOConstLoopBoundsTrans(Transformation):
                     "Constant bounds generation not implemented for a grid "
                     "offset of '{0}'. Supported offsets are {1}"
                     "".format(index_offset, const.SUPPORTED_OFFSETS))
-            if loop._loop_type == "inner":
+            if loop.loop_type == "inner":
                 stop = i_stop.name
             else:
                 stop = j_stop.name
             # Get the bounds map
             bounds = GOLoop._bounds_lookup[index_offset][loop.field_space][
-                loop._iteration_space][loop._loop_type]
+                loop.iteration_space][loop.loop_type]
 
             # Set the lower bound
             start_expr = bounds["start"].format(start='2', stop=stop)

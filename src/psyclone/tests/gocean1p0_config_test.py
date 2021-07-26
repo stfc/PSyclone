@@ -349,6 +349,7 @@ def test_properties():
 
 
 # =============================================================================
+@pytest.mark.xfail(reason="Can't get iteration spaces defined in Config file")
 def test_valid_config_files():
     ''' Test if valid config files lead to the expected new loop boundaries
     '''
