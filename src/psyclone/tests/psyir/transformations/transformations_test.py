@@ -53,7 +53,7 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -107,6 +107,16 @@ def test_omploop_no_collapse():
         _ = trans._directive(cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err.value))
+
+def test_omptaskloop_no_collapse():
+    ''' Check that the OMPTaskloopTrans.directive() method rejects
+    the collapse argument '''
+    trans = OMPTaskloopTrans()
+    cnode = Node()
+    with pytest.raises(NotImplementedError) as err:
+        trans._directive(cnode, collapse=True)
+    assert ("The COLLAPSE clause is not yet supported for "
+            "'!$omp taskloop' directives" in str(err.value))
 
 
 def test_ifblock_children_region():

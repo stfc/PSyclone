@@ -597,6 +597,114 @@ class OMPParallelDirective(OMPDirective):
             end_text="end parallel")
 
 
+class OMPTaskloopDirective(OMPDirective):
+    '''
+    Class representing an OpenMP TASKLOOP directive in the PSyIR.
+
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    '''
+    def __init__(self, children=None, parent=None):
+        super(OMPTaskloopDirective, self).__init__(children=children,
+                                                   parent=parent)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_taskloop_" + str(position)
+
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return "{0}[OMP taskloop]".format(self.coloured_name(colour))
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPTaskloopDirective is not \
+                                 enclosed within an OpenMP parallel \
+                                 region and an OpenMP single region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As an orphaned taskloop
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree and an OMPSerialDirective as an
+        # ancestor back up the tree.
+        if not (self.ancestor(OMPParallelDirective,
+                              excluding=OMPParallelDoDirective) and
+                self.ancestor(OMPSerialDirective)):
+            raise GenerationError(
+                "OMPTaskloopDirective must be inside an OMP parallel region "
+                "and an OMP Serial region but could not find both "
+                "ancestor nodes")
+
+        super(OMPTaskloopDirective, self).validate_global_constraints()
+
+    def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenMP
+        taskloop directive.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if this "!$omp taskloop" is not enclosed \
+                                 within an OMP Parallel region and an OMP \
+                                 Serial region.
+
+        '''
+        self.validate_global_constraints()
+
+        parent.add(DirectiveGen(parent, "omp", "begin", "taskloop", ""))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+        # make sure the directive occurs straight after the loop body
+        position = parent.previous_loop()
+        parent.add(DirectiveGen(parent, "omp", "end", "taskloop", ""),
+                   position=["after", position])
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp do ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp taskloop"
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end do". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end taskloop"
+
+
 class OMPDoDirective(OMPDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
@@ -869,4 +977,4 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 # For automatic API documentation generation
 __all__ = ["OMPDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
-           "OMPSerialDirective"]
+           "OMPSerialDirective", "OMPTaskloopDirective"]

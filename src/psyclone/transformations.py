@@ -63,7 +63,7 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective
+    ACCKernelsDirective, OMPTaskloopDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -311,6 +311,75 @@ class ParallelLoopTrans(LoopTrans):
         node_parent.addchild(directive, index=node_position)
 
         return schedule, keep
+
+
+class OMPTaskloopTrans(ParallelLoopTrans):
+
+    '''
+    Adds an orphaned OpenMP taskloop directive to a loop. i.e. the
+    directive must be inside the scope of some other OMP Parallel
+    region, and must also be inside an OMP Serial region
+    (OMP Master or OMP Single). These conditions are tested at
+    code-generation time.
+
+    For example:
+
+    >>> from pysclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> from psyclone.transformations import OMPTaskloopTrans
+    >>> singletrans = OMPSingleTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>> tasklooptrans = OMPTaskloopTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    # Apply the OpenMP Taskloop transformation to *every* loop
+    # in the schedule.
+    # FIXME: This ignores loop dependencies
+    >>> for child in schedule.children:
+    >>>     tasklooptrans.apply(child)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # SINGLE region
+    >>> singletrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> schedule.view()
+
+    '''
+    def __init__(self):
+        super(OMPTaskloopTrans, self).__init__()
+
+    def __str__(self):
+        return "Adds an 'OpenMP TASKLOOP' directive to a loop"
+
+    def _directive(self, children, collapse=None):
+        '''
+        Creates the type of directive needed for this sub-class of
+        transformation.
+
+        :param children: list of Nodes that will be the children of \
+                         the created directive.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param int collapse: currently un-used but required to keep \
+                             interface the same as in base class.
+        :returns: the new node representing the directive in the AST
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
+        :raises NotImplementedError: if a collapse argument is supplied
+        '''
+        if collapse:
+            raise NotImplementedError(
+                "The COLLAPSE clause is not yet supported for "
+                "'!$omp taskloop' directives.")
+        _directive = OMPTaskloopDirective(children=children)
+        return _directive
 
 
 class OMPLoopTrans(ParallelLoopTrans):
