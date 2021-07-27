@@ -416,8 +416,9 @@ def test_cma_operator_arg_lfricconst_properties(monkeypatch):
     monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
                         ["calico"])
     monkeypatch.setattr(cma_op_arg, "_argument_type", "calico")
+
     with pytest.raises(InternalError) as err:
-        cma_op_arg._init_data_type_properties(None)
+        cma_op_arg._init_data_type_properties(None, use_alg_info=False)
     assert ("Expected 'gh_operator' or 'gh_columnwise_operator' "
             "argument type but found 'calico'." in str(err.value))
 
