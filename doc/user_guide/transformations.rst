@@ -32,7 +32,6 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab.
-..             A. B. G. Chalk, STFC Daresbury Lab.
 ..             I. Kavcic, Met Office.
 
 .. _transformations:
@@ -443,7 +442,7 @@ forbid the ``bc_ssh_code`` kernel from accessing the ``forbidden_var``
 variable that is available to it from the enclosing module scope.
 
 .. note:: these rules *only* apply to kernels that are the target of
-      PSyclone kernel transformations.
+	  PSyclone kernel transformations.
 
 Available Kernel Transformations
 ++++++++++++++++++++++++++++++++
@@ -589,7 +588,7 @@ PSyclone also provides the same functionality via a function (which is
 what the **psyclone** script calls internally).
 
 .. autofunction:: psyclone.generator.generate
-          :noindex:
+		  :noindex:
 
 A valid script file must contain a **trans** function which accepts a **PSy**
 object as an argument and returns a **PSy** object, i.e.:

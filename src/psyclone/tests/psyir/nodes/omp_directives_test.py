@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -288,8 +287,16 @@ def test_omp_single_strings(nowait):
 
 def test_omp_single_node_str():
     ''' Test the node_str() method of the OMPSingle directive '''
-    single_directive = OMPSingleDirective()
-    out = single_directive.node_str()
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    single = OMPSingleTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    single.apply(schedule.children[0])
+    omp_single_loop = schedule.children[0]
+    out = OMPSingleDirective.node_str(omp_single_loop)
     directive = colored("Directive", Directive._colour)
     expected_output = directive + "[OMP single]"
     assert expected_output in out
@@ -393,8 +400,16 @@ def test_omp_master_strings():
 
 def test_omp_master_node_str():
     ''' Test the node_str() method of the OMPMaster directive '''
-    master_directive = OMPMasterDirective()
-    out = master_directive.node_str()
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    master = OMPMasterTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    master.apply(schedule.children[0])
+    omp_master = schedule.children[0]
+    out = OMPMasterDirective.node_str(omp_master)
     directive = colored("Directive", Directive._colour)
     expected_output = directive + "[OMP master]"
     assert expected_output in out
