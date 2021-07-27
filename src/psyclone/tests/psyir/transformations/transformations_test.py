@@ -243,7 +243,7 @@ def test_ompmaster_nested():
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    #Successful transformation test
+    # Successful transformation test
     node = schedule[0]
     master.apply(node)
     assert isinstance(schedule[0], OMPMasterDirective)

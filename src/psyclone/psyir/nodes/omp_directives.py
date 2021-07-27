@@ -255,10 +255,6 @@ class OMPMasterDirective(OMPSerialDirective):
     '''
     Class representing an OpenMP MASTER directive in the PSyclone AST.
 
-    :param list children: list of Nodes that are children of this Node.
-    :param parent: the Node in the AST that has this directive as a child.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
 
     @property

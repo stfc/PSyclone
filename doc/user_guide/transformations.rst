@@ -276,7 +276,7 @@ can be found in the API-specific sections).
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
           performed outside the parallel region. The
-      :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
 ####
@@ -293,7 +293,7 @@ can be found in the API-specific sections).
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
           performed outside the single region. The
-      :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
 ####
@@ -310,7 +310,7 @@ can be found in the API-specific sections).
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
           performed outside the single region. The
-      :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
 ####
@@ -333,8 +333,8 @@ can be found in the API-specific sections).
 
 .. warning:: This transformation assumes that the SIGN Operator acts
              on PSyIR Real scalar data and does not check whether or not
-         this is the case. Once issue #658 is on master then this
-         limitation can be fixed.
+             this is the case. Once issue #658 is on master then this
+             limitation can be fixed.
 
 Kernels
 -------
@@ -605,13 +605,13 @@ below does the same thing as the example in the
 ::
 
     def trans(psy):
-    from psyclone.transformations import OMPParallelLoopTrans
+        from psyclone.transformations import OMPParallelLoopTrans
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
         schedule = invoke.schedule
         ol = OMPParallelLoopTrans()
         new_schedule, _ = ol.apply(schedule.children[0])
         invoke.schedule = new_schedule
-    return psy
+        return psy
 
 Of course the script may apply as many transformations as is required
 for a particular schedule and may apply transformations to all the
