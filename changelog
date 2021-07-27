@@ -126,6 +126,9 @@
 	42) PR #1325 for #1247. Adds PSyIR support for comments (associated with
 	Container, Routine and Statement nodes).
 
+	43) PR #1342 towards #1338. Adds the OMPSingleTrans transformation for
+	creating an OMP SINGLE region.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
