@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, and S. Siso STFC Daresbury Lab
+#         A. B. G. Chalk STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -1251,6 +1252,220 @@ class ParallelRegionTrans(RegionTrans):
         node_parent.addchild(directive, index=node_position)
 
         return schedule, keep
+
+
+class OMPSingleTrans(ParallelRegionTrans):
+    '''
+    Create an OpenMP SINGLE region by inserting directives. The most
+    likely use case for this transformation is to wrap around task-based
+    transformations. The parent region for this should usually also be
+    a OMPParallelTrans.
+
+    :param bool nowait: whether to apply a nowait clause to this \
+                       transformation. The default value is False
+
+    For example:
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> singletrans = OMPSingleTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # SINGLE region
+    >>> singletrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> schedule.view()
+
+    '''
+    # The types of node that this transformation cannot enclose
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
+                           psyGen.HaloExchange, nodes.OMPSerialDirective,
+                           nodes.OMPParallelDirective)
+
+    def __init__(self, nowait=False):
+        super(OMPSingleTrans, self).__init__()
+        # Set the type of directive that the base class will use
+        self._pdirective = self._directive
+        # Store whether this single directive has a barrier or not
+        self._omp_nowait = nowait
+
+    def __str__(self):
+        return "Insert an OpenMP Single region"
+
+    @property
+    def omp_nowait(self):
+        ''' :returns: whether or not this Single region uses a nowait \
+                      clause to remove the end barrier.
+            :rtype: bool
+        '''
+        return self._omp_nowait
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+        '''
+        return "OMPSingleTrans"
+
+    @omp_nowait.setter
+    def omp_nowait(self, value):
+        ''' Sets the nowait property that will be specified by
+            this transformation. Checks that the value supplied in
+            :py:obj:`value` is a bool
+
+            :param bool value: Whether this Single clause should have a \
+                               nowait applied.
+
+            :raises TypeError: if the value parameter is not a bool.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError("Expected nowait to be a bool "
+                            "but got a {0}".format(type(value).__name__))
+        self._omp_nowait = value
+
+    def _directive(self, children):
+        '''
+        Creates the type of directive needed for this sub-class of
+        transformation.
+
+        :param children: list of Nodes that will be the children of \
+                         the created directive.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: The directive created for the OpenMP Single Directive
+        :rtype: :py:class:`psyclone.psyGen.OMPSingleDirective`
+
+        '''
+        _directive = nodes.OMPSingleDirective(children=children,
+                                              nowait=self.omp_nowait)
+        return _directive
+
+    def apply(self, node_list, options=None):
+        '''Apply the OMPSingleTrans transformation to the specified node in a
+        Schedule.
+
+        At code-generation time this node must be within (i.e. a child of)
+        an OpenMP PARALLEL region. Code generation happens when
+        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
+        tree is given to a backend.
+
+        If the keyword "nowait" is specified in the options, it will cause a
+        nowait clause to be added if it is set to True, otherwise no clause
+        will be added.
+
+        :param node_list: the supplied node or node list to which we will \
+                          apply the OMPSingleTrans transformation
+        :type node_list: (a list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a list with options for transformations \
+                        and validation.
+        :type options: a dict of string:values or None
+        :param bool options["nowait"]:
+                indicating whether or not to use a nowait clause on this \
+                single region.
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`,
+                 :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        if not options:
+            options = {}
+        if options.get("nowait") is not None:
+            self.omp_nowait = options.get("nowait")
+
+        return super(OMPSingleTrans, self).apply(node_list, options)
+
+
+class OMPMasterTrans(ParallelRegionTrans):
+    '''
+    Create an OpenMP MASTER region by inserting directives. The most
+    likely use case for this transformation is to wrap around task-based
+    transformations. The parent region for this should usually also be
+    a OMPParallelTrans. For example:
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPMasterTrans
+    >>> mastertrans = OMPMasterTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # MASTER region
+    >>> mastertrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> schedule.view()
+
+    '''
+    # The types of node that this transformation cannot enclose
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
+                           psyGen.HaloExchange, nodes.OMPSerialDirective,
+                           nodes.OMPParallelDirective)
+
+    def __init__(self):
+        super(OMPMasterTrans, self).__init__()
+        # Set the type of directive that the base class will use
+        self._pdirective = nodes.OMPMasterDirective
+
+    def __str__(self):
+        return "Insert an OpenMP Master region"
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+        return "OMPMasterTrans"
+
+    def apply(self, node_list, options=None):
+        '''Apply the OMPMasterTrans transformation to the specified node in a
+        Schedule.
+
+        At code-generation time this node must be within (i.e. a child of)
+        an OpenMP PARALLEL region. Code generation happens when
+        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
+        tree is given to a backend.
+
+        :param node_list: the supplied node or node list to which we will \
+                          apply the OMPSingleTrans transformation
+        :type node_list: (a list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a list with options for transformations \
+                        and validation.
+        :type options: a dict of string:values or None
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`,
+                 :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        if not options:
+            options = {}
+
+        return super(OMPMasterTrans, self).apply(node_list, options)
 
 
 class OMPParallelTrans(ParallelRegionTrans):
@@ -2785,7 +3000,7 @@ class ACCKernelsTrans(RegionTrans):
         Kernels region.
 
         :param node: a node or list of nodes in the PSyIR to enclose.
-        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :type node: (a list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["default_present"]: whether or not the kernels \
@@ -3147,6 +3362,8 @@ __all__ = ["KernelTrans",
            "KernelModuleInlineTrans",
            "Dynamo0p3ColourTrans",
            "ParallelRegionTrans",
+           "OMPSingleTrans",
+           "OMPMasterTrans",
            "OMPParallelTrans",
            "ACCParallelTrans",
            "GOConstLoopBoundsTrans",
