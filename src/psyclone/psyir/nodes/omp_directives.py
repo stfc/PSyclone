@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         A. B. G. Chalk, STFC Daresbury Lab
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
@@ -259,11 +260,6 @@ class OMPMasterDirective(OMPSerialDirective):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, children=None, parent=None):
-
-        # Call the init method of the base class
-        super(OMPMasterDirective, self).__init__(children=children,
-                                                 parent=parent)
 
     @property
     def dag_name(self):

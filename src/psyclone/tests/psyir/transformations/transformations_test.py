@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
@@ -45,7 +46,7 @@ import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement, ACCLoopDirective
+    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
@@ -242,7 +243,11 @@ def test_ompmaster_nested():
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    master.apply(schedule[0])
+    #Successful transformation test
+    node = schedule[0]
+    master.apply(node)
+    assert isinstance(schedule[0], OMPMasterDirective)
+    assert schedule[0].dir_body[0] is node
     with pytest.raises(TransformationError) as err:
         master.apply(schedule[0])
     assert("Transformation Error: Nodes of type 'OMPMasterDirective' cannot" +
