@@ -41,9 +41,10 @@ of an Invoke into a stand-alone application."
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import (BuiltIn, Directive, Kern, OMPParallelDirective,
-                             ACCParallelDirective, HaloExchange, GlobalSum)
-from psyclone.psyir.nodes import CodeBlock, ExtractNode, Loop, Schedule
+from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalSum
+from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
+                                  Directive, OMPParallelDirective,
+                                  ACCParallelDirective)
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError

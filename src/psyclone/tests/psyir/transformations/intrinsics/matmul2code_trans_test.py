@@ -446,14 +446,19 @@ def test_apply3(tmpdir):
     lhs_vector = matrix.parent.parent.lhs
     matrix_symbol = matrix.symbol
     matmul.children[0] = Reference(matrix_symbol)
-    matrix_symbol.datatype._shape = [Literal("10", INTEGER_TYPE),
-                                     Literal("20", INTEGER_TYPE)]
+    one = Literal("1", INTEGER_TYPE)
+    ten = Literal("10", INTEGER_TYPE)
+    twenty = Literal("20", INTEGER_TYPE)
+    matrix_symbol.datatype._shape = [
+        ArrayType.ArrayBounds(one.copy(), ten.copy()),
+        ArrayType.ArrayBounds(one.copy(), twenty.copy())]
     rhs_vector = matmul.children[1]
     rhs_vector_symbol = rhs_vector.symbol
-    rhs_vector_symbol.datatype._shape = [Literal("20", INTEGER_TYPE)]
+    rhs_vector_symbol.datatype._shape = [ArrayType.ArrayBounds(one.copy(),
+                                                               twenty.copy())]
     matmul.children[1] = Reference(rhs_vector_symbol)
     lhs_vector_symbol = lhs_vector.symbol
-    lhs_vector_symbol._shape = [Literal("10", INTEGER_TYPE)]
+    lhs_vector_symbol._shape = [ArrayType.ArrayBounds(one.copy(), ten.copy())]
     lhs_vector.replace_with(Reference(lhs_vector_symbol))
     trans.apply(matmul)
     writer = FortranWriter()

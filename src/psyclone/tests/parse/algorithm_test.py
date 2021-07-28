@@ -49,17 +49,66 @@ from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor, \
 from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
-    FileInfo
+    parse, FileInfo
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
 
-LFRIC_TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+
+LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                os.path.pardir, "test_files", "dynamo0p3")
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.path.pardir, "test_files", "gocean1p0")
+
 # This ParserFactory call needs to happen at the top-level in order for the
 # fparser.two.Fortran2003 import to work as expected.
 ParserFactory().create(std="f2008")
 
+# function parse() tests
+
+
+def test_parse_kernel_paths():
+    '''Check that the parse function behaves as expected with the
+    kernel_paths argument.
+
+    '''
+    alg_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    # No argument
+    parse(alg_name, api="dynamo0.3")
+    # None argument
+    parse(alg_name, api="dynamo0.3", kernel_paths=None)
+    # Empty list
+    parse(alg_name, api="dynamo0.3", kernel_paths=[])
+    # Invalid path
+    with pytest.raises(ParseError) as info:
+        parse(alg_name, api="dynamo0.3", kernel_paths=["invalid"])
+    assert ("Supplied kernel search path does not exist or cannot be read"
+            in str(info.value))
+    # Multiple kernel paths
+    parse(alg_name, api="dynamo0.3", kernel_paths=[
+        LFRIC_BASE_PATH, GOCEAN_BASE_PATH])
+
 # class Parser() tests
+
+
+def test_parser_init_kernel_paths():
+    '''Check that the Parser class stores the kernel_paths optional
+    argument as expected.
+
+    '''
+    # No argument
+    parser = Parser()
+    assert parser._kernel_paths == []
+    # None argument
+    parser = Parser(kernel_paths=None)
+    assert parser._kernel_paths == []
+    # Empty list
+    parser = Parser(kernel_paths=[])
+    assert parser._kernel_paths == []
+    # Multiple kernel paths
+    paths = [LFRIC_BASE_PATH, GOCEAN_BASE_PATH]
+    parser = Parser(kernel_paths=paths)
+    assert parser._kernel_paths == paths
+
 
 # Parser.parse() method tests
 
@@ -72,11 +121,11 @@ def test_parser_parse_linelength():
 
     '''
     parser = Parser()
-    parser.parse(os.path.join(LFRIC_TEST_PATH, "13_alg_long_line.f90"))
+    parser.parse(os.path.join(LFRIC_BASE_PATH, "13_alg_long_line.f90"))
 
     parser = Parser(line_length=True)
     with pytest.raises(ParseError) as info:
-        parser.parse(os.path.join(LFRIC_TEST_PATH, "13_alg_long_line.f90"))
+        parser.parse(os.path.join(LFRIC_BASE_PATH, "13_alg_long_line.f90"))
     assert ("the file does not conform to the specified 132 line length "
             "limit" in str(info.value))
 
@@ -90,7 +139,7 @@ def test_parser_parse_nemo():
     '''
     parser = Parser(api="nemo")
     res1, res2 = parser.parse(os.path.join(
-        LFRIC_TEST_PATH, "1_single_invoke.f90"))
+        LFRIC_BASE_PATH, "1_single_invoke.f90"))
     assert res1 is None
     assert isinstance(res2, Program)
     assert "PROGRAM single_invoke" in str(res2)
@@ -106,7 +155,7 @@ def test_parser_parse():
     parser = Parser(api="dynamo0.3")
     assert parser._alg_filename is None
     res1, res2 = parser.parse(os.path.join(
-        LFRIC_TEST_PATH, "1_single_invoke.f90"))
+        LFRIC_BASE_PATH, "1_single_invoke.f90"))
     assert "1_single_invoke.f90" in parser._alg_filename
     assert isinstance(res1, Program)
     assert "PROGRAM single_invoke" in str(res1)
@@ -174,16 +223,16 @@ def test_parser_invokeinfo_containers(tmpdir, code, name):
 
 
 def test_parser_invokeinfo_datatypes():
-    '''Test that the invoke_info method in the Parser class
-    captures the required datatype information for "standard" fields,
-    operators and scalars i.e. defined as field_type, operator_type
-    and r_def respectively. We also capture the datatype of quadrature
-    but don't care. field_type is actually a vector which shows that
-    the code works with arrays as well as individual types.
+    '''Test that the invoke_info method in the Parser class captures the
+    required datatype information for "standard" fields, operators and
+    scalars i.e. defined as field_type, operator_type and r_def
+    respectively. We also capture the datatype of quadrature but don't
+    care. field_type is actually a vector which shows that the code
+    works with arrays as well as individual types.
 
     '''
-    alg_filename = os.path.join(LFRIC_TEST_PATH, "10_operator.f90")
-    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+    alg_filename = os.path.join(LFRIC_BASE_PATH, "10_operator.f90")
+    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
@@ -202,12 +251,12 @@ def test_parser_invokeinfo_datatypes_mixed():
     Also tests that the datatype information is always lower case
     irrespective of the case of the declaration and argument. This
     covers the situation where the variable is declared and used with
-    different case e.g. real a\n call invoke(kern(A))
+    different case e.g. real a\n call invoke(kern(A)).
 
     '''
     alg_filename = os.path.join(
-        LFRIC_TEST_PATH, "26.1_mixed_precision.f90")
-    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+        LFRIC_BASE_PATH, "26.1_mixed_precision.f90")
+    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
@@ -224,8 +273,8 @@ def test_parser_invokeinfo_datatypes_self():
 
     '''
     alg_filename = os.path.join(
-        LFRIC_TEST_PATH, "26.2_mixed_precision_self.f90")
-    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+        LFRIC_BASE_PATH, "26.2_mixed_precision_self.f90")
+    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
@@ -236,17 +285,17 @@ def test_parser_invokeinfo_datatypes_self():
 
 
 def test_parser_invokeinfo_use_error():
-    '''Test that the invoke_info method in the Parser class
-    provides None as the datatype to the associated Arg class if an
-    argument to an invoke comes from a use statement (as we then do
-    not know its datatype). Also check for the same behaviour if the
-    variable is not declared at all i.e. is included via a wildcard
-    use statement, or implicit none is not specified.
+    '''Test that the invoke_info method in the Parser class provides None
+    as the datatype to the associated Arg class if an argument to an
+    invoke comes from a use statement (as we then do not know its
+    datatype). Also check for the same behaviour if the variable is
+    not declared at all i.e. is included via a wildcard use statement,
+    or implicit none is not specified.
 
     '''
     alg_filename = os.path.join(
-        LFRIC_TEST_PATH, "26.4_mixed_precision_use.f90")
-    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+        LFRIC_BASE_PATH, "26.4_mixed_precision_use.f90")
+    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
@@ -257,17 +306,16 @@ def test_parser_invokeinfo_use_error():
 
 
 def test_parser_invokeinfo_structure_error():
-    '''Test that the invoke_info method in the Parser class
-    provides None as the datatype to the associated Arg class if an
-    argument to an invoke is a structure that comes from a use
-    statement (as we then do not know its datatype), but that the
-    datatype for a structure is found if the structure is declared
-    within the code.
+    '''Test that the invoke_info method in the Parser class provides None
+    as the datatype to the associated Arg class if an argument to an
+    invoke is a structure that comes from a use statement (as we then
+    do not know its datatype), but that the datatype for a structure
+    is found if the structure is declared within the code.
 
     '''
     alg_filename = os.path.join(
-        LFRIC_TEST_PATH, "26.5_mixed_precision_structure.f90")
-    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+        LFRIC_BASE_PATH, "26.5_mixed_precision_structure.f90")
+    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
@@ -284,8 +332,8 @@ def test_parser_invokeinfo_internalerror():
 
     '''
     alg_filename = os.path.join(
-        LFRIC_TEST_PATH, "26.1_mixed_precision.f90")
-    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+        LFRIC_BASE_PATH, "26.1_mixed_precision.f90")
+    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     # Modify parse tree to make it invalid
     alg_parse_tree.children[0].children[1].children[9].items = ["hello"]
@@ -298,8 +346,8 @@ def test_parser_invokeinfo_internalerror():
 
 
 def test_parser_invokeinfo_datatypes_clash():
-    '''Test that the invoke_info method in the Parser class
-    allows multiple symbols with the same name and type but raises an
+    '''Test that the invoke_info method in the Parser class allows
+    multiple symbols with the same name and type but raises an
     exception if a symbol has the same name but a different type. This
     is simply a limitation of the current implementation as we do not
     capture the context of a symbol so do not deal with variable
@@ -308,8 +356,8 @@ def test_parser_invokeinfo_datatypes_clash():
 
     '''
     alg_filename = os.path.join(
-        LFRIC_TEST_PATH, "26.3_mixed_precision_error.f90")
-    parser = Parser(kernel_path=LFRIC_TEST_PATH)
+        LFRIC_BASE_PATH, "26.3_mixed_precision_error.f90")
+    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     with pytest.raises(NotImplementedError) as info:
         parser.invoke_info(alg_parse_tree)
@@ -332,8 +380,8 @@ def test_parser_createinvokecall():
         "call invoke(name=\"dummy\", setval_c(a,1.0), setval_c(a,1), "
         "setval_c(a,b), setval_c(a%c, b), setval_c(self%a, 1.0), "
         "setval_c(self%a, b))")
-    parse = Parser()
-    _ = parse.create_invoke_call(statement)
+    parser = Parser()
+    _ = parser.create_invoke_call(statement)
 
 
 def test_parser_createinvokecall_error():
@@ -349,11 +397,44 @@ def test_parser_createinvokecall_error():
         "Expecting argument to be of the form 'name=xxx' or a Kernel call "
         "but found '0.0' in file 'None'.") in str(excinfo.value)
 
+# create_coded_kernel_call tests
+
+
+def test_parser_codedkernelcall_kernel_paths():
+    '''Check that the Parser class passes the kernel_paths information
+    through to the get_kernel_ast() function from the
+    coded_kernel_call() method.
+
+    '''
+    alg_filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    parse_tree = parse_fp2(alg_filename)
+    invoke_call = parse_tree.children[0].children[2].children[0]
+    invoke_argument = invoke_call.children[1].children[0]
+    kernel_name, args = get_kernel(invoke_argument, alg_filename, {})
+    parser = Parser()
+    parser._alg_filename = alg_filename
+    use_statement = parse_tree.children[0].children[1].children[2]
+    parser.update_arg_to_module_map(use_statement)
+    # No paths
+    parser.create_coded_kernel_call(kernel_name, args)
+    # Invalid kernel path
+    parser._kernel_paths = ["invalid"]
+    with pytest.raises(ParseError) as info:
+        parser.create_coded_kernel_call(kernel_name, args)
+    assert ("Supplied kernel search path does not exist or cannot be read"
+            in str(info.value))
+    # Multiple kernel paths
+    paths = [LFRIC_BASE_PATH, GOCEAN_BASE_PATH]
+    parser._kernel_paths = paths
+    parser.create_coded_kernel_call(kernel_name, args)
+
 
 def test_parser_updateargtomodulemap_invalid():
-    '''Test that if the statement argument to the
-    update_arg_to_module_map method is not a use statement that the
-    appropriate exception is raised.'''
+    '''Test that if the statement argument to the update_arg_to_module_map
+    method is not a use statement that the appropriate exception is
+    raised.
+
+    '''
     tmp = Parser()
     with pytest.raises(InternalError) as excinfo:
         tmp.update_arg_to_module_map("invalid")
@@ -683,7 +764,10 @@ def test_createvarname(expression, expected):
 
 
 def test_kernelcall_repr():
-    '''Test that the __repr__ method in KernelCall() behaves as expected.'''
+    '''Test that the __repr__ method in KernelCall() behaves as
+    expected.
+
+    '''
 
     class KtypeDummy(object):
         '''A fake KernelType class which provides the required variables to
@@ -703,7 +787,10 @@ def test_kernelcall_repr():
 
 
 def test_builtincall_repr():
-    '''Test that the __repr__ method in BuiltInCall() behaves as expected.'''
+    '''Test that the __repr__ method in BuiltInCall() behaves as
+    expected.
+
+    '''
 
     class KtypeDummy(object):
         '''A fake KernelType class which provides the required variables to
@@ -734,7 +821,7 @@ def test_arg_unknown():
 
 
 def test_arg_str():
-    '''Test that the __str__ method in Arg() behaves as expected'''
+    '''Test that the __str__ method in Arg() behaves as expected.'''
 
     # without the optional varname argument
     tmp = Arg("literal", "0.0")

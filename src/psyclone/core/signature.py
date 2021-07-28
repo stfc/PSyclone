@@ -92,12 +92,87 @@ class Signature(object):
         return len(self._signature) > 1
 
     # ------------------------------------------------------------------------
+    def __len__(self):
+        ''':returns: the number of components of this signature.
+        :rtype: int'''
+        return len(self._signature)
+
+    # ------------------------------------------------------------------------
     def __getitem__(self, indx):
         return self._signature[indx]
 
     # ------------------------------------------------------------------------
     def __str__(self):
         return "%".join(self._signature)
+
+    # ------------------------------------------------------------------------
+    def to_language(self, component_indices, language_writer=None):
+        '''Converts this signature with the provided indices to a string
+        in the selected language.
+
+        :param component_indices: the indices for each component of \
+            the signature.
+        :type component_indices: \
+            :py:class:`psyclone.core.component_indices.ComponentIndices`
+        :param language_writer: a backend visitor to convert PSyIR \
+            expressions to a representation in the selected language. \
+            This is used when creating error and warning messages.
+        :type language_writer: None (default is Fortran), or an \
+            instance of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
+
+        :raises InternalError: if the number of components in this signature \
+            is different from the number of indices in component_indices.
+        '''
+
+        # Check if number of components between self and component_indices
+        # is consistent:
+        if len(self._signature) != len(component_indices):
+            raise InternalError("Signature '{0}' has {1} components, but "
+                                "component_indices {2} has {3}."
+                                .format(self, len(self._signature),
+                                        component_indices,
+                                        len(component_indices)))
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.fortran import FortranWriter
+        from psyclone.psyir.nodes import Node
+
+        if language_writer is None:
+            writer = FortranWriter()
+        else:
+            writer = language_writer
+
+        # out_list collects the string representation of the components
+        # including indices
+        out_list = []
+
+        # TODO #1324 At this stage even if the C-writer is selected
+        # the output will still look like Fortran, because this function
+        # uses () and % when creating the access string. With proper
+        # refactoring as part of #1324 this should also become flexible.
+        # One option (if we still have to remove strings) would be to
+        # create a Fortran string, parse it, and then use the C-writer.
+        # Or maybe the strings as indices could be temporarily converted
+        # to References, and then the writer functionality can be used.
+        for i, component in enumerate(self._signature):
+            indices = component_indices[i]
+            if not indices:
+                out_list.append(component)
+            else:
+                # If there are indices, add the "(ind1, ind2, ...)"
+                index_list = []
+                for dimension in indices:
+                    if isinstance(dimension, Node):
+                        index_list.append(writer(dimension))
+                    else:
+                        # Some tests and work in progress still uses strings
+                        # so support strings as indices as well:
+                        index_list.append(str(dimension))
+                out_list.append(component+"("+",".join(index_list)+")")
+
+        # Combine the components in out_list to form the language string.
+        # TODO #1324 - this still assumes Fortran
+        return "%".join(out_list)
 
     # ------------------------------------------------------------------------
     def __repr__(self):
