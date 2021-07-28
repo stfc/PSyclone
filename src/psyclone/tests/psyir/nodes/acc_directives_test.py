@@ -40,19 +40,30 @@
 from __future__ import absolute_import
 import os
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
+
+from psyclone.configuration import Config
+from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import colored, Directive, ACCEnterDataDirective, \
     ACCKernelsDirective, Schedule, Loop, ACCUpdateDirective
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCLoopTrans, ACCEnterDataTrans, \
     ACCParallelTrans, ACCKernelsTrans
-from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use a new Config instance.'''
+    Config._instance = None
+    yield()
+    Config._instance = None
 
 
 def test_acc_dir_node_str():
