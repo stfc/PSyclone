@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -46,10 +47,12 @@ from psyclone.psyir import nodes
 from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, Schedule, OMPDirective, \
     OMPParallelDoDirective, Directive, colored, OMPParallelDirective, \
-    OMPSingleDirective
+    OMPSingleDirective, OMPMasterDirective
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans
+    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
+    OMPMasterTrans
+from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -285,16 +288,8 @@ def test_omp_single_strings(nowait):
 
 def test_omp_single_node_str():
     ''' Test the node_str() method of the OMPSingle directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    single = OMPSingleTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    single.apply(schedule.children[0])
-    omp_single_loop = schedule.children[0]
-    out = OMPSingleDirective.node_str(omp_single_loop)
+    single_directive = OMPSingleDirective()
+    out = single_directive.node_str()
     directive = colored("Directive", Directive._colour)
     expected_output = directive + "[OMP single]"
     assert expected_output in out
@@ -311,7 +306,6 @@ def test_omp_single_validate_global_constraints():
     schedule = psy.invokes.invoke_list[0].schedule
 
     single.apply(schedule.children[0])
-    omp_single_loop = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
         schedule.children[0].validate_global_constraints()
     assert ("OMPSingleDirective must be inside an OMP parallel region but " +
@@ -340,7 +334,7 @@ def test_omp_single_nested_validate_global_constraints(monkeypatch):
     parallel.apply(schedule.children[0])
     with pytest.raises(GenerationError) as excinfo:
         single_omp.validate_global_constraints()
-    assert ("OMPSingleDirective must not be inside another OMP single " +
+    assert ("OMPSingleDirective must not be inside another OpenMP serial " +
             "region") in str(excinfo.value)
 
 
@@ -349,7 +343,6 @@ def test_omp_single_gencode(nowait):
     '''Check that the gen_code method in the OMPSingleDirective class
     generates the expected code. Use the gocean API.
     '''
-    from psyclone.domain.gocean.transformations import GOceanExtractTrans
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
     single = OMPSingleTrans()
@@ -359,7 +352,6 @@ def test_omp_single_gencode(nowait):
     schedule = psy.invokes.invoke_list[0].schedule
 
     single.apply(schedule.children[0], {"nowait": nowait})
-    omp_single_loop = schedule.children[0]
     parallel.apply(schedule.children[0])
     goceantrans = GOceanExtractTrans()
     goceantrans.apply(schedule.children[0])
@@ -376,3 +368,104 @@ def test_omp_single_gencode(nowait):
         "      END DO\n" +
         "      !$omp end single\n" +
         "      !$omp end parallel" in code)
+
+
+def test_omp_master_dag_name():
+    ''' Test the dag_name() method of the OMPMaster directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    master = OMPMasterTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    master.apply(schedule.children[0])
+    assert schedule.children[0].dag_name == "OMP_master_1"
+
+
+def test_omp_master_strings():
+    ''' Test the begin_string and end_string methods of the OMPMaster
+        directive '''
+    omp_master = OMPMasterDirective()
+
+    assert omp_master.begin_string() == "omp master"
+    assert omp_master.end_string() == "omp end master"
+
+
+def test_omp_master_node_str():
+    ''' Test the node_str() method of the OMPMaster directive '''
+    master_directive = OMPMasterDirective()
+    out = master_directive.node_str()
+    directive = colored("Directive", Directive._colour)
+    expected_output = directive + "[OMP master]"
+    assert expected_output in out
+
+
+def test_omp_master_gencode():
+    '''Check that the gen_code method in the OMPMasterDirective class
+    generates the expected code. Use the gocean API.
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    master = OMPMasterTrans()
+    parallel = OMPParallelTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    master.apply(schedule.children[0])
+    parallel.apply(schedule.children[0])
+    goceantrans = GOceanExtractTrans()
+    goceantrans.apply(schedule.children[0])
+
+    code = str(psy.gen)
+    assert (
+        "    !$omp parallel default(shared), private(i,j)\n" +
+        "      !$omp master\n" +
+        "      DO" in code)
+    assert (
+        "      END DO\n" +
+        "      !$omp end master\n" +
+        "      !$omp end parallel" in code)
+
+
+def test_omp_master_validate_global_constraints():
+    ''' Test the validate_global_constraints method of the OMPMaster
+        directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    master = OMPMasterTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    master.apply(schedule.children[0])
+    with pytest.raises(GenerationError) as excinfo:
+        schedule.children[0].validate_global_constraints()
+    assert ("OMPMasterDirective must be inside an OMP parallel region but " +
+            "could not find an ancestor OMPParallelDirective node") in \
+        str(excinfo.value)
+
+
+def test_omp_master_nested_validate_global_constraints(monkeypatch):
+    ''' Test the validate_global_constraints method of the OMPMaster
+        directive fails when nested OMPSingles happen'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    master = OMPMasterTrans()
+    # Alternative excluded node types for monkeypatch
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
+                           psyGen.HaloExchange, nodes.OMPParallelDirective)
+    monkeypatch.setattr(master, "excluded_node_types", excluded_node_types)
+    parallel = OMPParallelTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    master.apply(schedule.children[0])
+    master_omp = schedule.children[0]
+    master.apply(schedule.children[0])
+    parallel.apply(schedule.children[0])
+    with pytest.raises(GenerationError) as excinfo:
+        master_omp.validate_global_constraints()
+    assert ("OMPMasterDirective must not be inside another OpenMP serial " +
+            "region") in str(excinfo.value)
