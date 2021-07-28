@@ -604,8 +604,21 @@ class OMPTaskloopDirective(OMPDirective):
     :param list children: list of Nodes that are children of this Node.
     :param parent: the Node in the AST that has this directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param grainsize: The grainsize value used to specify the grainsize \
+                      clause on this OpenMP directive. If this is None \
+                      the grainsize clause is not applied. Default \
+                      value is None.
+    :type grainsize: int or None.
+    :param num_tasks: The num_tasks value used to specify the num_tasks \
+                      clause on this OpenMP directive. If this is None \
+                      the num_tasks clause is not applied. Default value \
+                      is None.
+    :type num_tasks: int or None.
     '''
-    def __init__(self, children=None, parent=None):
+    def __init__(self, children=None, parent=None, grainsize=None,
+                 num_tasks=None):
+        self._grainsize = grainsize
+        self._num_tasks = num_tasks
         super(OMPTaskloopDirective, self).__init__(children=children,
                                                    parent=parent)
 
@@ -638,6 +651,9 @@ class OMPTaskloopDirective(OMPDirective):
         :raises GenerationError: if this OMPTaskloopDirective is not \
                                  enclosed within an OpenMP parallel \
                                  region and an OpenMP single region.
+        :raises GenerationError: if this OMPTaskloopDirective has both \
+                                 a grainsize and num_tasks value \
+                                 specified.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
@@ -652,6 +668,10 @@ class OMPTaskloopDirective(OMPDirective):
                 "OMPTaskloopDirective must be inside an OMP parallel region "
                 "and an OMP Serial region but could not find both "
                 "ancestor nodes")
+        if self._grainsize is not None and self._num_tasks is not None:
+            raise GenerationError(
+                "OMPTaskloopDirective must not have both grainsize and "
+                "numtasks clauses specified.")
 
         super(OMPTaskloopDirective, self).validate_global_constraints()
 
@@ -670,7 +690,13 @@ class OMPTaskloopDirective(OMPDirective):
         '''
         self.validate_global_constraints()
 
-        parent.add(DirectiveGen(parent, "omp", "begin", "taskloop", ""))
+        extra_clauses = ""
+        if self._grainsize is not None:
+            extra_clauses = "grainsize({0})".format(self._grainsize)
+        if self._num_tasks is not None:
+            extra_clauses = "num_tasks({0})".format(self._num_tasks)
+
+        parent.add(DirectiveGen(parent, "omp", "begin", "taskloop", extra_clauses))
 
         for child in self.children:
             child.gen_code(parent)
@@ -690,7 +716,12 @@ class OMPTaskloopDirective(OMPDirective):
 
         '''
         # pylint: disable=no-self-use
-        return "omp taskloop"
+        clauses = ""
+        if self._grainsize is not None:
+            clauses = " grainsize({0})".format(self._grainsize)
+        if self._num_tasks is not None:
+            clauses = " num_tasks({0})".format(self._num_tasks)
+        return "omp taskloop" + clauses
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.

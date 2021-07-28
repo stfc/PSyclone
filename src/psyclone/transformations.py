@@ -354,11 +354,79 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> schedule.view()
 
     '''
-    def __init__(self):
+    def __init__(self, grainsize=None, num_tasks=None):
+        self._grainsize = None
+        self._num_tasks = None
+        if grainsize is not None:
+            self.omp_grainsize = grainsize
+        if num_tasks is not None:
+            self.omp_num_tasks = num_tasks
+
         super(OMPTaskloopTrans, self).__init__()
 
     def __str__(self):
         return "Adds an 'OpenMP TASKLOOP' directive to a loop"
+
+    @property
+    def omp_grainsize(self):
+        ''' Returns the grainsize that will be specified by
+            this transformation. By default the grainsize  
+            clause is not applied, so grainsize is None.'''
+        return self._grainsize
+
+    @omp_grainsize.setter
+    def omp_grainsize(self, value):
+        '''
+        Sets the grainsize that will be specified by
+        this transformation. Checks the grainsize is
+        a positive integer value 
+
+        :param value: Integer value to use in the grainsize clause.
+        :type value: int
+
+        :raises TransformationError: If value is not an int.
+        :raises TransformationError: If value is negative.
+        '''
+        if not isinstance(value, int):
+            raise TransformationError("grainsize must be an integer, "
+                                      "got {0}".format(type(value).__name__))
+
+        if value <= 0:
+            raise TransformationError("grainsize must be a positive "
+                                      "integer, got {0}".format(value))
+
+        self._grainsize = value
+
+    @property
+    def omp_num_tasks(self):
+        ''' Returns the num_tasks that will be specified
+            by this transformation. By default the num_tasks
+            clause is not applied so num_tasks is None. '''
+        return self._num_tasks
+
+    @omp_num_tasks.setter
+    def omp_num_tasks(self, value):
+        ''' 
+        Sets the num_tasks that will be specified by
+        this transformation. Checks the num_tasks is
+        a positive integer value
+        
+        :param value: Integer value to use in the num_tasks clause.
+        :type value: int
+
+        :raises TransformationError: If value is not an int.
+        :raises TransformationError: If value is negative.
+        
+        '''
+        if not isinstance(value, int):
+            raise TransformationError("num_tasks must be an integer, "
+                                      "got {0}".format(type(value).__name__))
+
+        if value <= 0:
+            raise TransformationError("num_tasks must be a positive "
+                                      "integer, got {0}".format(value))
+        
+        self._num_tasks = value
 
     def _directive(self, children, collapse=None):
         '''
@@ -372,13 +440,23 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST
         :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
+
         :raises NotImplementedError: if a collapse argument is supplied
+        :raises TransformationError: if grainsize and num_tasks are \
+                                     both specified.
         '''
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for "
                 "'!$omp taskloop' directives.")
-        _directive = OMPTaskloopDirective(children=children)
+        if self.omp_grainsize is not None and \
+           self.omp_num_tasks is not None:
+            raise TransformationError(
+                "The grainsize and num_tasks clauses are both "
+                "specified for this Taskloop transformation")
+        _directive = OMPTaskloopDirective(children=children,
+                                          grainsize=self.omp_grainsize,
+                                          num_tasks=self.omp_num_tasks)
         return _directive
 
 
