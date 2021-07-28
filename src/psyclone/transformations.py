@@ -370,7 +370,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     @property
     def omp_grainsize(self):
         ''' Returns the grainsize that will be specified by
-            this transformation. By default the grainsize  
+            this transformation. By default the grainsize
             clause is not applied, so grainsize is None.'''
         return self._grainsize
 
@@ -379,7 +379,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         '''
         Sets the grainsize that will be specified by
         this transformation. Checks the grainsize is
-        a positive integer value 
+        a positive integer value.
 
         :param value: Integer value to use in the grainsize clause.
         :type value: int
@@ -406,17 +406,17 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
     @omp_num_tasks.setter
     def omp_num_tasks(self, value):
-        ''' 
+        '''
         Sets the num_tasks that will be specified by
         this transformation. Checks the num_tasks is
         a positive integer value
-        
+
         :param value: Integer value to use in the num_tasks clause.
         :type value: int
 
         :raises TransformationError: If value is not an int.
         :raises TransformationError: If value is negative.
-        
+
         '''
         if not isinstance(value, int):
             raise TransformationError("num_tasks must be an integer, "
@@ -425,7 +425,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         if value <= 0:
             raise TransformationError("num_tasks must be a positive "
                                       "integer, got {0}".format(value))
-        
+
         self._num_tasks = value
 
     def _directive(self, children, collapse=None):

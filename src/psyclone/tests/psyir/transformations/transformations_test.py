@@ -108,6 +108,7 @@ def test_omploop_no_collapse():
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err.value))
 
+
 def test_omptaskloop_no_collapse():
     ''' Check that the OMPTaskloopTrans.directive() method rejects
     the collapse argument '''
@@ -139,7 +140,7 @@ def test_omptaskloop_getters_and_setters():
     assert trans.omp_num_tasks == 32
     trans.omp_grainsize = 32
     assert trans.omp_grainsize == 32
-    
+
     trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
     assert trans.omp_num_tasks == 32
     assert trans.omp_grainsize == 32
@@ -148,7 +149,6 @@ def test_omptaskloop_getters_and_setters():
         a = trans._directive(children=None)
     assert("The grainsize and num_tasks clauses are both "
            "specified for this Taskloop transformation" in str(err.value))
-
 
 
 def test_ifblock_children_region():

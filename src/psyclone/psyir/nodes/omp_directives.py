@@ -696,7 +696,8 @@ class OMPTaskloopDirective(OMPDirective):
         if self._num_tasks is not None:
             extra_clauses = "num_tasks({0})".format(self._num_tasks)
 
-        parent.add(DirectiveGen(parent, "omp", "begin", "taskloop", extra_clauses))
+        parent.add(DirectiveGen(parent, "omp", "begin", "taskloop",
+                                extra_clauses))
 
         for child in self.children:
             child.gen_code(parent)
@@ -715,7 +716,6 @@ class OMPTaskloopDirective(OMPDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         clauses = ""
         if self._grainsize is not None:
             clauses = " grainsize({0})".format(self._grainsize)
