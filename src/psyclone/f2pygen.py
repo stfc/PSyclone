@@ -567,8 +567,8 @@ class PSyIRGen(BaseGen):
         # If the fparser content is larger than 1, add all the nodes but
         # the last one as siblings of self. This is done because self
         # can only represent one node.
-        for remaining_node in fparser1_parser.block.content[:-1]:
-            f2pygen_node = BaseGen(parent, remaining_node)
+        for fparser_node in fparser1_parser.block.content[:-1]:
+            f2pygen_node = BaseGen(parent, fparser_node)
             f2pygen_node.root.parent = parent.root
             parent.add(f2pygen_node)
 
