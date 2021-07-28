@@ -564,8 +564,17 @@ class PSyIRGen(BaseGen):
         fparser1_parser = FortranParser(reader, ignore_comments=False)
         fparser1_parser.parse()
 
-        # Update the f2pygen AST with the newly parsed fparser1 AST content
-        BaseGen.__init__(self, parent, fparser1_parser.block.content[0])
+        # If the fparser content is larger than 1, add all the nodes but
+        # the last one as siblings of self. This is done because self
+        # can only represent one node.
+        for remaining_node in fparser1_parser.block.content[:-1]:
+            f2pygen_node = BaseGen(parent, remaining_node)
+            f2pygen_node.root.parent = parent.root
+            parent.add(f2pygen_node)
+
+        # Update this f2pygen node to be equivalent to the last of the
+        # fparser nodes that represent the provided content.
+        BaseGen.__init__(self, parent, fparser1_parser.block.content[-1])
         self.root.parent = parent.root
 
 

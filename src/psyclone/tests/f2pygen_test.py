@@ -39,9 +39,9 @@ from __future__ import absolute_import, print_function
 import pytest
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
-    CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
+    CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen, PSyIRGen
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Node, Return
 from psyclone.tests.utilities import Compile, count_lines, line_number
 
 # Fortran we have to add to some of the generated code in order to
@@ -1446,3 +1446,58 @@ def test_basegen_previous_loop_no_loop():
     with pytest.raises(RuntimeError) as err:
         sub.previous_loop()
     assert "no loop found - there is no previous loop" in str(err.value)
+
+
+def test_psyirgen_node():
+    '''Check that the PSyIRGen prints the content of the provided PSyIR
+    node inside the f2pygen node.
+    '''
+    module = ModuleGen(name="testmodule")
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+
+    # Now add a PSyIR node inside the f2pygen tree
+    node = Return()
+    subroutine.add(PSyIRGen(subroutine, node))
+
+    generated_code = str(module.root)
+    expected = '''\
+  MODULE testmodule
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE testsubroutine()
+      RETURN
+    END SUBROUTINE testsubroutine
+  END MODULE testmodule'''
+
+    assert generated_code == expected
+
+
+def test_psyirgen_multiple_fparser_nodes():
+    '''Check that the PSyIRGen prints the content of the provided PSyIR
+    node inside the f2pygen node when the PSyIR node maps to more than
+    one fparser nodes.
+    '''
+    module = ModuleGen(name="testmodule")
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+
+    # Create single PSyIR node that maps to 2 fparser nodes: a comment
+    # statement and a return statement.
+    node = Return()
+    node.preceding_comment = "Comment statement"
+
+    subroutine.add(PSyIRGen(subroutine, node))
+
+    generated_code = str(module.root)
+    expected = '''\
+  MODULE testmodule
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE testsubroutine()
+      ! Comment statement
+      RETURN
+    END SUBROUTINE testsubroutine
+  END MODULE testmodule'''
+
+    assert generated_code == expected
