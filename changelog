@@ -129,6 +129,9 @@
 	43) PR #1342 towards #1338. Adds the OMPSingleTrans transformation for
 	creating an OMP SINGLE region.
 
+	44) PR #1352 towards #1338. Adds the OMPMasterTrans transformation for
+	creating an OMP MASTER region.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
