@@ -1629,19 +1629,39 @@ def test_dynkernelargument_idtp_reduction():
     reduction = builtin.args[0]
     assert reduction.is_scalar
 
-    # No algorithm information - use default values
+    # No algorithm information - use default precision
     reduction._init_data_type_properties(None)
     assert reduction._precision == "r_def"
     assert reduction._data_type == "scalar_type"
     assert reduction._proxy_data_type == None
     assert reduction._module_name == "scalar_mod"
 
-    # TODO check scalar reduction with inconsistent precision
-    # TODO invalid reduction type (not a 'real')
+    # Consistent lgorithm information
+    reduction._init_data_type_properties(("real", "r_def"))
+    assert reduction._precision == "r_def"
+    assert reduction._data_type == "scalar_type"
+    assert reduction._proxy_data_type == None
+    assert reduction._module_name == "scalar_mod"
 
-def test_dynkernelargument_idtp_field():
+    # Scalar reduction with inconsistent precision (expects 'r_def')
+    with pytest.raises(GenerationError) as info:
+        reduction._init_data_type_properties(("real", "i_def"))
+    assert ("This scalar is a reduction which assumes precision of type "
+            "'r_def' but the algorithm declares this scalar with precision "
+            "'i_def'" in str(info.value))
+
+    # Invalid reduction type (not a 'real')
+    with pytest.raises(GenerationError) as info:
+        reduction._init_data_type_properties(("integer", "i_def"))
+    assert ("The kernel metadata for argument 'asum' in kernel "
+            "'x_innerproduct_y' specifies this argument should be a scalar "
+            "of type 'real' but in the algorithm layer it is defined as a "
+            "'integer'." in str(info.value))
+
+
+def test_dynkernelargument_idtp_real_field():
     '''Test the _init_data_type_properties method in the DynKernelArgument
-    class for a field.
+    class for a real field.
 
     '''
     # Use one of the examples to create an instance of
@@ -1651,6 +1671,10 @@ def test_dynkernelargument_idtp_field():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     field_argument = psy.invokes.invoke_list[0].schedule.args[1]
     assert field_argument.is_field
+    assert field_argument._precision == "r_def"
+    assert field_argument._data_type == "field_type"
+    assert field_argument._proxy_data_type == "field_proxy_type"
+    assert field_argument._module_name == "field_mod"
 
     # No algorithm information - exception
     with pytest.raises(GenerationError) as info:
@@ -1659,19 +1683,26 @@ def test_dynkernelargument_idtp_field():
             "algorithm layer for argument 'f1' in kernel 'testkern_code'"
             in str(info.value))
 
-    # Algorithm information - use supplied type
+    # Algorithm information - same as default
     field_argument._init_data_type_properties(("field_type", None))
     assert field_argument._precision == "r_def"
     assert field_argument._data_type == "field_type"
     assert field_argument._proxy_data_type == "field_proxy_type"
     assert field_argument._module_name == "field_mod"
 
+    # Algorithm information - different to default
+    field_argument._init_data_type_properties(("r_solver_field_type", None))
+    assert field_argument._precision == "r_solver"
+    assert field_argument._data_type == "r_solver_field_type"
+    assert field_argument._proxy_data_type == "r_solver_field_proxy_type"
+    assert field_argument._module_name == "r_solver_field_mod"
+
     # Inconsistent datatype
     with pytest.raises(GenerationError) as info:
-        field_argument._init_data_type_properties(("r_solver_field_type", None))
+        field_argument._init_data_type_properties(("integer_field_type", None))
     assert ("The metadata for argument 'f1' in kernel 'testkern_code' "
             "specifies that this is a real field, however it is declared as "
-            "a 'r_solver_field_type' in the algorithm code." in str(info.value))
+            "a 'integer_field_type' in the algorithm code." in str(info.value))
 
     # Inconsistent datatype - no check - use metadata
     field_argument._init_data_type_properties(
@@ -1681,11 +1712,62 @@ def test_dynkernelargument_idtp_field():
     assert field_argument._proxy_data_type == "field_proxy_type"
     assert field_argument._module_name == "field_mod"
 
-# TODO test r_solver_field, integer_field
 
-# TODO. Some actual examples that have algorithm metadata and generate psy-layer code to make sure it works.
-#       Need scalar, field and operator examples.
-# TODO. x-failing test when vector_field is used
+def test_dynkernelargument_idtp_integer_field():
+    '''Test the _init_data_type_properties method in the DynKernelArgument
+    class for a real field.
+
+    '''
+    # Use one of the examples to create an instance of
+    # DynKernelArgument that describes a field.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.3_int_X_builtin.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    field_argument = psy.invokes.invoke_list[0].schedule.args[0]
+    assert field_argument.is_field
+    assert field_argument._precision == "i_def"
+    assert field_argument._data_type == "integer_field_type"
+    assert field_argument._proxy_data_type == "integer_field_proxy_type"
+    assert field_argument._module_name == "integer_field_mod"
+
+    # Algorithm information - use supplied type
+    field_argument._init_data_type_properties(("integer_field_type", None))
+    assert field_argument._precision == "i_def"
+    assert field_argument._data_type == "integer_field_type"
+    assert field_argument._proxy_data_type == "integer_field_proxy_type"
+    assert field_argument._module_name == "integer_field_mod"
+
+
+def test_dynkernelargument_idtp_vector_field():
+    '''Test the _init_data_type_properties method in the DynKernelArgument
+    class for a field that is part of a vector_field (a collection of
+    fields used in the solver code) in the algorithm layer and is
+    de-referenced to a field in an invoke argument list.
+
+    '''
+    # Use one of the examples to create an instance of
+    # DynKernelArgument that describes a field declared as a vector
+    # field.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "26.6_mixed_precision_solver_vector.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    field_argument = psy.invokes.invoke_list[0].schedule.args[1]
+    assert field_argument.is_field
+    assert field_argument._precision == "r_def"
+    assert field_argument._data_type == "field_type"
+    assert field_argument._proxy_data_type == "field_proxy_type"
+    assert field_argument._module_name == "field_mod"
+
+# TODO. Write down rules in user guide.
+# TODO. add tests to check expected code is being generated when
+#       datatype information is overidden (real_field and scalars).
+# TODO. An actual example (in examples dir) that have algorithm
+#       metadata and generate psy-layer code to make sure it works.
+#       Need scalar, field and operator examples. Need mixed
+#       r_solver_field, field to check declarations work.
+
 
 def test_dynkernelargument_idtp_operator():
     '''Test the _init_data_type_properties method in the DynKernelArgument
@@ -1699,6 +1781,10 @@ def test_dynkernelargument_idtp_operator():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     operator_argument = psy.invokes.invoke_list[0].schedule.args[0]
     assert operator_argument.is_operator
+    assert operator_argument._precision == "r_def"
+    assert operator_argument._data_type == "operator_type"
+    assert operator_argument._proxy_data_type == "operator_proxy_type"
+    assert operator_argument._module_name == "operator_mod"
 
     # No algorithm information - invalid
     with pytest.raises(GenerationError) as info:
@@ -1707,7 +1793,7 @@ def test_dynkernelargument_idtp_operator():
             "algorithm layer for argument 'mm_w0' in kernel "
             "'testkern_operator_code'." in str(info.value))
 
-    # Algorithm information - use supplied type
+    # Algorithm information - same as default
     operator_argument._init_data_type_properties(("operator_type", None))
     assert operator_argument._precision == "r_def"
     assert operator_argument._data_type == "operator_type"
@@ -1716,10 +1802,11 @@ def test_dynkernelargument_idtp_operator():
 
     # Inconsistent datatype
     with pytest.raises(GenerationError) as info:
-        operator_argument._init_data_type_properties(("dense_operator_type", None))
+        operator_argument._init_data_type_properties(
+            ("columnwise_operator_type", None))
     assert ("The metadata for argument 'mm_w0' in kernel "
             "'testkern_operator_code' specifies that this is an operator, "
-            "however it is declared as a 'dense_operator_type' in the "
+            "however it is declared as a 'columnwise_operator_type' in the "
             "algorithm code." in str(info.value))
 
     # Inconsistent datatype - no check - use metadata
@@ -1730,7 +1817,48 @@ def test_dynkernelargument_idtp_operator():
     assert operator_argument._proxy_data_type == "operator_proxy_type"
     assert operator_argument._module_name == "operator_mod"
 
-# TODO: different types of operator : gh_columnwise
+
+def test_dynkernelargument_idtp_columnwise_operator():
+    '''Test the _init_data_type_properties method in the DynKernelArgument
+    class for a columnwise operator.
+
+    '''
+    # Use one of the examples to create an instance of
+    # DynKernelArgument that describes a columnwise operator.
+    _, invoke_info = parse(os.path.join(BASE_PATH, "20.1_cma_apply.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    operator_argument = psy.invokes.invoke_list[0].schedule.args[2]
+    assert operator_argument.is_operator
+    assert operator_argument._precision == "r_def"
+    assert operator_argument._data_type == "columnwise_operator_type"
+    assert (operator_argument._proxy_data_type ==
+            "columnwise_operator_proxy_type")
+    assert operator_argument._module_name == "operator_mod"
+
+    # No algorithm information - invalid
+    with pytest.raises(GenerationError) as info:
+        operator_argument._init_data_type_properties(None)
+    assert ("It was not possible to determine the operator type from the "
+            "algorithm layer for argument 'cma_op1' in kernel "
+            "'columnwise_op_app_kernel_code'." in str(info.value))
+
+    # Algorithm information - same as default
+    operator_argument._init_data_type_properties(
+        ("columnwise_operator_type", None))
+    assert operator_argument._precision == "r_def"
+    assert operator_argument._data_type == "columnwise_operator_type"
+    assert (operator_argument._proxy_data_type ==
+            "columnwise_operator_proxy_type")
+    assert operator_argument._module_name == "operator_mod"
+
+    # Inconsistent datatype
+    with pytest.raises(GenerationError) as info:
+        operator_argument._init_data_type_properties(("operator_type", None))
+    assert ("The metadata for argument 'cma_op1' in kernel "
+            "'columnwise_op_app_kernel_code' specifies that this is a "
+            "columnwise operator, however it is declared as a 'operator_type' "
+            "in the algorithm code." in str(info.value))
 
 
 def test_initdatatypeproperties_unknown_field_type():

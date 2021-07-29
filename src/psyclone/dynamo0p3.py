@@ -8746,13 +8746,20 @@ class DynKernelArgument(KernelArgument):
             # check the metadata and algorithm type are consistent and
             # that the metadata specifies a supported intrinsic type.
             if self.intrinsic_type == "real":
-                if use_alg_info and alg_datatype != "field_type":
+                if use_alg_info and alg_datatype == "r_solver_field_type":
+                    argtype = "r_solver_field"
+                elif use_alg_info and alg_datatype != "field_type":
                     raise GenerationError(
                         "The metadata for argument '{0}' in kernel '{1}' "
                         "specifies that this is a real field, however it is "
                         "declared as a '{2}' in the algorithm code."
                         "".format(self.name, self._call.name, alg_datatype))
-                argtype = "field"
+                else:
+                    # alg_info specifies "field_type" or the algorithm
+                    # information is being ignored so the default
+                    # "field_type" is assumed.
+                    argtype = "field"
+
             elif self.intrinsic_type == "integer":
                 if use_alg_info and alg_datatype != "integer_field_type":
                     raise GenerationError(
