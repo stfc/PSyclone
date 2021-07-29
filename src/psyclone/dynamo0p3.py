@@ -1027,6 +1027,7 @@ class DynamoPSy(PSy):
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
+                       const.DATA_TYPE_MAP["r_solver_field"]["module"],
                        const.DATA_TYPE_MAP["integer_field"]["module"],
                        const.DATA_TYPE_MAP["operator"]["module"]]
         self._infrastructure_modules = OrderedDict(
@@ -2773,16 +2774,33 @@ class LFRicFields(DynCollection):
                 format(list(fld_multi_type), self._invoke.name,
                        const.VALID_FIELD_DATA_TYPES))
 
+        #RF CREATE A MAP HERE WITH DATATYPE AS THE KEY, KEEPING REAL_FIELD_ARGS AS IS
+        rfa_datatype_map = {}
+        for arg in real_field_args:
+            try:
+                rfa_datatype_map[arg.data_type].append(arg)
+            except KeyError:
+                rfa_datatype_map[arg.data_type] = [arg]
         # Add the Invoke subroutine argument declarations for real
         # and integer fields
-        if real_field_arg_list:
-            fld_type = real_field_args[0].data_type
-            fld_mod = real_field_args[0].module_name
+        for fld_type in rfa_datatype_map:
+            args = rfa_datatype_map[fld_type]
+            fld_mod = args[0].module_name
+            arg_list = [arg.declaration_name for arg in args]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=real_field_arg_list,
+                                   entity_decls=arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
+        #exit(1)
+        #if real_field_arg_list:
+        #    fld_type = real_field_args[0].data_type
+        #    fld_mod = real_field_args[0].module_name
+        #    parent.add(TypeDeclGen(parent, datatype=fld_type,
+        #                           entity_decls=real_field_arg_list,
+        #                           intent="in"))
+        #    (self._invoke.invokes.psy.
+        #     infrastructure_modules[fld_mod].add(fld_type))
         if int_field_arg_list:
             fld_type = int_field_args[0].data_type
             fld_mod = int_field_args[0].module_name

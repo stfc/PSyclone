@@ -1877,8 +1877,27 @@ def test_initdatatypeproperties_unknown_field_type():
             "algorithm layer for argument 'box_chi' in kernel "
             "'testkern_coord_w0_code'." in str(info.value))
 
+# Functional tests
 
-# End New tests here
+def test_r_solver():
+    '''Test that fields and scalars declared as r_solver are given the
+    appropriate precision in the PSy-layer and all required constants
+    are declared.
+
+    '''
+    # TODO: all fields are declared as r_solver_field_type : fixed
+    # TODO: Same problem as above with field_proxy
+    # TODO: r_solver precision is not declared.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "26.1_mixed_precision.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print (gen_code)
+    exit(1)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
 # DynKernelArguments tests
 
 
