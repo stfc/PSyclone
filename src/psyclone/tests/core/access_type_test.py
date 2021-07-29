@@ -72,6 +72,8 @@ def test_api_specific_name():
     assert set(AccessType.all_read_accesses()) == set([AccessType.READ,
                                                        AccessType.INC,
                                                        AccessType.READWRITE])
+    # Clean up the Config instance
+    Config._instance = None
 
 
 def test_from_string():
