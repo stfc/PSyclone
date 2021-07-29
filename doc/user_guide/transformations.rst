@@ -258,6 +258,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.transformations.OMPTaskloopTrans
+    :members: apply, omp_grainsize, omp_num_tasks
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
     :members: apply
     :noindex:
@@ -627,13 +633,14 @@ examples/check_examples script).
 OpenMP
 ------
 
-OpenMP is added to a code by using transformations. The five
+OpenMP is added to a code by using transformations. The six
 transformations currently supported allow the addition of an
 **OpenMP Parallel** directive, an **OpenMP Do** directive, an
 **OpenMP Single** directive, an **OpenMP Master** directive, 
-and an **OpenMP Parallel Do** directive, respectively, to a code.
+an **OpenMP Taskloop** directive, and an 
+**OpenMP Parallel Do** directive, respectively, to a code.
 
-The generic versions of these five transformations (i.e. ones that
+The generic versions of these six transformations (i.e. ones that
 theoretically work for all APIs) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
