@@ -322,6 +322,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     (OMP Master or OMP Single). These conditions are tested at
     code-generation time.
 
+    TODO: #1364 Taskloops do not yet support reduction clauses.
+
     For example:
 
     >>> from pysclone.parse.algorithm import parse
