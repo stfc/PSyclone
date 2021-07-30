@@ -132,6 +132,8 @@
 	44) PR #1352 towards #1338. Adds the OMPMasterTrans transformation for
 	creating an OMP MASTER region.
 
+	45) PR #1360 for #1359. Fix pytest fixtures tear downs.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
