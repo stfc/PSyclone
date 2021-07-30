@@ -123,6 +123,10 @@ class ExtractDriverCreator:
         return new_symbol
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def flatten_string(fortran_string):
+        return fortran_string.replace("%", "_")
+    # -------------------------------------------------------------------------
     def flatten_reference(self, old_reference, symbol_table,
                           writer=FortranWriter()):
         '''Replaces `old_reference` which is a structure type with a new
@@ -133,15 +137,18 @@ class ExtractDriverCreator:
         try:
             symbol = symbol_table.lookup_with_tag(fortran_string)
         except KeyError:
-            new_name = fortran_string.replace("%", "_")
-            print("New symbol", fortran_string)
+            flattened_name = \
+                ExtractDriverCreator.flatten_string(fortran_string)
             # Symbol already in table
-            symbol = self.get_type(new_name, old_reference,
+            symbol = self.get_type(flattened_name, old_reference,
                                    symbol_table, writer)
-            print("ST", symbol_table)
             symbol_table.add(symbol, tag=fortran_string)
 
-        old_reference.symbol = symbol
+        # We need to create a new, flattened Reference and replace the
+        # StructureReference with it:
+        new_ref = Reference(symbol)
+        position = old_reference.position
+        old_reference.parent.children[position] = new_ref
 
     # -------------------------------------------------------------------------
     def add_all_kernel_symbols(self, nodes, symbol_table,
