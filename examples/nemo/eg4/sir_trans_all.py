@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
                                   NaryOperation, Operation, Assignment)
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
-    Min2CodeTrans
+    Min2CodeTrans, HoistTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
 
@@ -76,6 +76,7 @@ def trans(psy):
     sign_trans = Sign2CodeTrans()
     min_trans = Min2CodeTrans()
     nemo_loop_trans = NemoAllArrayRange2LoopTrans()
+    hoist_trans = HoistTrans()
 
     sir_writer = SIRWriter()
     fortran_writer = FortranWriter()
@@ -108,6 +109,17 @@ def trans(psy):
                                        NaryOperation.Operator.MIN]:
                     # Apply (2-n arg) MIN transformation
                     min_trans.apply(oper, symbol_table)
+
+        # Remove any loop invariant code inside k-loops to make them
+        # perfectly nested.
+        # TODO: generalise this.
+        for loop in schedule.loops():
+            # outermost only
+            if loop.loop_type == "levels":
+                for child in loop.loop_body[:]:
+                    if isinstance(child, Assignment):
+                        hoist_trans.apply(child)
+
         kern = fortran_writer(schedule)
         print(kern)
         kern = sir_writer(schedule)
