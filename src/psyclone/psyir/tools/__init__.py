@@ -37,9 +37,11 @@
 '''
 
 from psyclone.psyir.tools.dependency_tools import DependencyTools
+from psyclone.psyir.tools.extract_driver_creator import ExtractDriverCreator
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.tools import DependencyTools
 
-__all__ = ['DependencyTools']
+__all__ = ['DependencyTools',
+           'ExtractDriverCreator']
