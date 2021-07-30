@@ -43,17 +43,21 @@ import six
 from psyclone.configuration import Config
 from psyclone.domain.gocean.nodes import GOceanExtractNode
 from psyclone.gocean1p0 import GOLoop
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
+
 
 from psyclone.psyir.nodes import Routine, FileContainer
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     GlobalInterface, DataTypeSymbol, DeferredType
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Reference, \
+from psyclone.psyir.nodes import Call, Literal, Reference, \
     StructureReference
-from psyclone.psyir.symbols import ArrayType, \
+from psyclone.psyir.symbols import ArrayType, CHARACTER_TYPE, \
     REAL8_TYPE, REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, \
-    INTEGER_TYPE, LocalInterface, ScalarType
+    INTEGER_TYPE, LocalInterface, ScalarType, RoutineSymbol
+
+from psyclone.psyGen import Kern, InvokeSchedule
 
 
 class ExtractDriverCreator:
@@ -100,7 +104,6 @@ class ExtractDriverCreator:
                 "Could not find type for reference '{0}'."
                 .format(fortran_expression))
         try:
-            print(self._default_types)
             base_type = self._default_types[gocean_property.intrinsic_type]
         except KeyError as err:
             raise six.raise_from(
@@ -126,6 +129,7 @@ class ExtractDriverCreator:
     @staticmethod
     def flatten_string(fortran_string):
         return fortran_string.replace("%", "_")
+
     # -------------------------------------------------------------------------
     def flatten_reference(self, old_reference, symbol_table,
                           writer=FortranWriter()):
@@ -208,6 +212,19 @@ class ExtractDriverCreator:
             self.flatten_reference(reference, symbol_table, writer=writer)
 
     # -------------------------------------------------------------------------
+    def create_call(self, name, args):
+        fortran = ("subroutine tmp\n"
+                   "use mymod\n"
+                   "call something%{0}(i)\n"
+                   "end subroutine".format(name))
+        routine_symbol = RoutineSymbol(name)
+        all_refs = []
+        for arg in args:
+            all_refs.append(arg)
+        call = Call.create(routine_symbol, all_refs)
+        return call
+
+    # -------------------------------------------------------------------------
     def create(self, nodes, input_list, output_list, options):
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -220,8 +237,17 @@ class ExtractDriverCreator:
         :type output_list: list or str
         '''
 
+        if options.get("region_name", False):
+            module_name, region_name = options["region_name"]
+        else:
+            if isinstance(nodes, list):
+                invoke = nodes[0].ancestor(InvokeSchedule).invoke
+            else:
+                invoke = nodes.ancestor(InvokeSchedule).invoke
+            module_name = invoke.invokes.psy.name
+            region_name = invoke.name
+
         # module_name, region_name = self.region_identifier
-        module_name, region_name = "module", "region"
         unit_name = "{0}_{1}".format(module_name, region_name)
 
         # First create the file container, which will only store the program:
@@ -256,6 +282,30 @@ class ExtractDriverCreator:
         schedule_copy.lower_to_language_level()
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                     writer)
+
+        module_str = Literal("module", CHARACTER_TYPE)
+        region_str = Literal("region", CHARACTER_TYPE)
+        call = self.create_call("{0}%OpenRead".format(psy_data.name),
+                                [module_str, region_str])
+        program.addchild(call)
+        # Read in all input variables:
+        for signature in input_list:
+            # Find the right symbol for the variable.
+            sig_str = str(signature)
+            try:
+                sym = program_symbol_table.lookup_with_tag(sig_str)
+            except KeyError:
+                # In gocean a field `fld` as input variable will have the
+                # tag 'fld%data' as tag (which gives a valid flattened name
+                # `fld_data..` which is unique)
+                sig_str = sig_str + "%data"
+                sym = program_symbol_table.lookup_with_tag(sig_str)
+
+            name_str = Literal(sym.name, CHARACTER_TYPE)
+            call = self.create_call("{0}%readdata".format(psy_data.name),
+                                    [name_str, Reference(sym)])
+            program.addchild(call)
+
         all_children = schedule_copy.pop_all_children()
         for child in all_children:
             program.addchild(child)
