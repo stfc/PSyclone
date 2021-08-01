@@ -44,7 +44,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
-def generate_adjoint_str(tl_fortran_str):
+def generate_adjoint_str(tl_fortran_str, active_variables):
     '''Takes an LFRic tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string.
 
@@ -68,7 +68,7 @@ def generate_adjoint_str(tl_fortran_str):
     # logger.debug(tl_psyir.view())
 
     # TL to AD translation
-    ad_psyir = generate_adjoint(tl_psyir)
+    ad_psyir = generate_adjoint(tl_psyir, active_variables)
 
     # AD Fortran code
     writer = FortranWriter()
@@ -78,7 +78,7 @@ def generate_adjoint_str(tl_fortran_str):
     return adjoint_fortran_str
 
 
-def generate_adjoint(tl_psyir):
+def generate_adjoint(tl_psyir, active_variables):
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
@@ -95,10 +95,7 @@ def generate_adjoint(tl_psyir):
 
     # Translate from TL to AD
     logger.debug("Translating from TL to AD.")
-    # TODO: specify active variable names on the command line
-    # active_variable_names = ["a", "b", "c"]
-    active_variable_names = ["rho_e", "rho", "r_exner", "theta_vd_e", "moist_dyn_gas", "theta", "rho_at_quad", "rho_e", "theta_vd_at_quad", "exner_at_quad", "exner_e", "exner"]
-    adjoint_visitor = AdjointVisitor(active_variable_names)
+    adjoint_visitor = AdjointVisitor(active_variables)
     ad_psyir = adjoint_visitor(tl_psyir)
 
     return ad_psyir

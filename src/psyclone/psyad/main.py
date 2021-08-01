@@ -66,6 +66,7 @@ def main(args):
         action='store_true')
     parser.add_argument('-oad', help='filename for the transformed code')
     parser.add_argument('filename', help='LFRic tangent-linear kernel source')
+    parser.add_argument('-a', nargs='+', help='active variable names')
 
     args = parser.parse_args(args)
 
@@ -79,7 +80,16 @@ def main(args):
         tl_fortran_str = my_file.read()
         tl_fortran_str = six.text_type(tl_fortran_str)
 
-    ad_fortran_str = generate_adjoint_str(tl_fortran_str)
+    from psyclone.psyad.transformations import TangentLinearError
+    try:
+        ad_fortran_str = generate_adjoint_str(
+            tl_fortran_str, args.a)
+    except KeyError as info:
+        print(str(info))
+        exit(1)
+    except TangentLinearError as info:
+        print(str(info))
+        exit(1)
 
     # AD Fortran code
     if args.oad:
