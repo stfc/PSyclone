@@ -49,10 +49,43 @@ from psyclone.psyad.transformations import AdjointTransformation, \
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-branches
 
+def active(node, active_variables):
+    ''' Determines whether this node contains variables that are active.
+
+    :param node: the PSyIR node that is being evaluated.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param active_variables: a list of active variables.
+    :type active_variables: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: True if active and False otherwise.
+    :rtype: bool
+
+    '''
+    for reference in node.walk(Reference):
+        if reference.symbol in active_variables:
+            return True
+    return False
+
+
+def passive(node):
+    '''Determines whether this node contains only variables that are
+    passive.
+
+    :param node: the PSyIR node that is being evaluated.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param active_variables: a list of active variables.
+    :type active_variables: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: True if passive and False otherwise.
+    :rtype: bool
+
+    '''
+    return not active(node, active_variables)
+
 
 class ScheduleTrans(AdjointTransformation):
     '''Implements a transformation to translate the contents of a
-    Tangent-Linear PSyIR schedule with its adjoint form.
+    Tangent-Linear PSyIR schedule to its adjoint form.
 
     '''
     def apply(self, node, options=None):
@@ -71,6 +104,7 @@ class ScheduleTrans(AdjointTransformation):
         orig_schedule = node
         assign_trans = AssignmentTrans(self._active_variables)
 
+        # TODO: use SERGI's pop_all_children
         nodes = orig_schedule.children[:]
         # Detach nodes from a copy of the original list, otherwise
         # we are modifying a list as we iterate over it which can
@@ -78,24 +112,32 @@ class ScheduleTrans(AdjointTransformation):
         for node in nodes:
             node.detach()
 
-        # split active and inactive assignments.
+        # split active and passive nodes.
         active_nodes = []
         for node in nodes:
-            if not assign_trans.active(node):
-                # Add inactive assignments back into the schedule.
+            if passive(node, self._active_variables):
+                # Add inactive nodes back into the schedule.
                 orig_schedule.children.append(node)
             else:
-                # Store active asignments for further processing.
+                # Store active nodes for further processing.
                 active_nodes.append(node)
 
-        # Reverse active assignments.
+        # Reverse active nodes.
         active_nodes.reverse()
 
-        # Add active assignments back into the schedule and transform
+        # Add active nodes back into the schedule and transform
         # them.
         for node in active_nodes:
             orig_schedule.children.append(node)
-            assign_trans.apply(node)
+            if isinstance(node, Assignment):
+                assign_trans.apply(node)
+            else:
+                # TODO: Should we really be using a visitor? And if so
+                # how?
+                # TODO: This should be part of validate.
+                raise NotImplementedError(
+                    "The translation of an active '{0}' node is not currently "
+                    "supported.".format(type(node).__name__))
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the

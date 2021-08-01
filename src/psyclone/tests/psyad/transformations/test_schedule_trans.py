@@ -191,7 +191,7 @@ def test_apply_one_inactive(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_apply_one_inactive(tmpdir):
+def test_apply_multi_inactive(tmpdir):
     '''Test the ScheduleTrans apply method works when there are multiple
     inactive assignments in the schedule.
 

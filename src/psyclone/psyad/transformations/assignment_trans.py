@@ -184,10 +184,9 @@ class AssignmentTrans(AdjointTransformation):
         if node.lhs.symbol not in self._active_variables:
             # There are active vars on RHS but not on LHS
             raise TangentLinearError(
-                "Assignment node '{0}' has the following active variables on "
-                "its RHS '{1}' but its LHS '{2}' is not an active variable."
-                "".format(self._writer(node), assignment_active_var_names,
-                          node.lhs.name))
+                "Assignment node '{0}' has active variables on "
+                "its RHS but its LHS '{1}' is not an active variable."
+                "".format(self._writer(node), node.lhs.name))
 
         # Split the RHS of the assignment into <expr> +- <expr> +- <expr>
         rhs_terms = self._split_nodes(
