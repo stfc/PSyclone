@@ -264,17 +264,16 @@ class ExtractDriverCreator:
             # Add an _ if there is a prefix
             prefix += "_"
 
-        root_name = prefix + "psy_data"
-
-        psy_data = program_symbol_table.new_symbol(root_name=root_name,
-                                                   symbol_type=DataSymbol,
-                                                   datatype=psy_data_type)
-
         writer = FortranWriter()
         schedule_copy = nodes[0].parent.copy()
         schedule_copy.lower_to_language_level()
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                     writer)
+
+        root_name = prefix + "psy_data"
+        psy_data = program_symbol_table.new_symbol(root_name=root_name,
+                                                   symbol_type=DataSymbol,
+                                                   datatype=psy_data_type)
 
         module_str = Literal("module", CHARACTER_TYPE)
         region_str = Literal("region", CHARACTER_TYPE)
