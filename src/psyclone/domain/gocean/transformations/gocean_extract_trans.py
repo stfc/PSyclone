@@ -163,7 +163,6 @@ class GOceanExtractTrans(ExtractTrans):
         if options.get("create_driver", False):
             dep = DependencyTools()
             input_list, output_list = dep.get_in_out_parameters(nodes)
-            print("IO", input_list, output_list)
             self._driver_creator.create(nodes, input_list, output_list,
                                         options)
 
