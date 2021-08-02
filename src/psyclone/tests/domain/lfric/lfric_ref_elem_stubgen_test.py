@@ -56,6 +56,8 @@ TEST_API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 REF_ELEM_QUAD_MDATA = '''

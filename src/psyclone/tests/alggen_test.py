@@ -50,6 +50,8 @@ from psyclone.errors import InternalError
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
