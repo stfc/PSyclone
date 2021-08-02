@@ -1,9 +1,12 @@
 from __future__ import print_function
+import logging
 
 from psyclone.psyad.transformations import AssignmentTrans
 from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, Reference, UnaryOperation, \
+    BinaryOperation, Literal
+from psyclone.psyir.symbols import REAL_TYPE
 
 
 def active(node, active_variables):
@@ -18,7 +21,6 @@ def active(node, active_variables):
     :rtype: bool
 
     '''
-    from psyclone.psyir.nodes import Reference
     for reference in node.walk(Reference):
         if reference.symbol in active_variables:
             return True
@@ -41,28 +43,41 @@ def passive(node, active_variables):
     return not active(node, active_variables)
 
 
+def negate(expr):
+    ''' xxx '''
+
+    if isinstance(expr, Literal):
+        return UnaryOperation.create(UnaryOperation.Operator.MINUS, expr)
+    return BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Literal("-1", INTEGER_TYPE), expr)
+
+
 class AdjointVisitor(PSyIRVisitor):
     ''' Visitor implementing an Adjoint Visitor. '''
 
     def __init__(self, active_variable_names):
         super(AdjointVisitor, self).__init__()
+        if not active_variable_names:
+            raise TypeError("There should be at least one active variable supplied")
         self._active_variable_names = active_variable_names
         self._active_variables = None
+        self._logger = logging.getLogger(__name__)
 
     def filecontainer_node(self, node):
         '''This method is called if the visitor finds a FileContainer node.'''
-        print("Copying FileContainer")
+
+        self._logger.debug("Copying FileContainer")
         node_copy = node.copy()
         node_copy.children = []
         for child in node.children:
             result = self._visit(child)
-            if result:
-                node_copy.children.append(result)
+            node_copy.children.append(result)
         return node_copy
-        
+
     def schedule_node(self, node):
         '''This method is called if the visitor finds a Schedule node.'''
-        print ("Transforming Schedule")
+
+        self._logger.debug("Transforming Schedule")
         # A schedule has a scope so determine and store active variables
         symbol_table = node.scope.symbol_table
         self._active_variables = []
@@ -73,6 +88,7 @@ class AdjointVisitor(PSyIRVisitor):
         node_copy.children = []
 
         # split active and passive nodes.
+        self._logger.debug("Adding passive code")
         active_nodes = []
         for child in node.children:
             if passive(child, self._active_variables):
@@ -84,22 +100,24 @@ class AdjointVisitor(PSyIRVisitor):
                 active_nodes.append(child)
 
         # Reverse active nodes.
+        self._logger.debug("Reversing order of active code")
         active_nodes.reverse()
 
         # Process active nodes.
+        self._logger.debug("Processing active code")
         for child in active_nodes:
             result = self._visit(child)
-            if result:
-                if isinstance(result, list):
-                    node_copy.children.extend(result)
-                else:
-                    node_copy.children.append(result)
+            if isinstance(result, list):
+                node_copy.children.extend(result)
+            else:
+                node_copy.children.append(result)
 
         return node_copy
 
     def assignment_node(self, node):
         '''This method is called if the visitor finds an Assignment node.'''
-        print ("Transforming active assignment")
+
+        self._logger.debug("Transforming active assignment")
         assign_trans = AssignmentTrans(self._active_variables)
         new_node = node.copy()
         # Temporary parent schedule required by the transformation.
@@ -110,8 +128,13 @@ class AdjointVisitor(PSyIRVisitor):
 
     def loop_node(self, node):
         '''This method is called if the visitor finds a Loop node.'''
-        print ("Transforming active loop")
+
+        self._logger.debug("Transforming active loop")
         new_node = node.copy()
-        # TODO. Reverse loop order
+        # Reverse loop order
+        start_expr = new_node.start_expr.copy()
+        new_node.start_expr = new_node.stop_expr.copy()
+        new_node.stop_expr = start_expr
+        new_node.step_expr = negate(new_node.step_expr.copy())
         new_node.children[3] = self._visit(node.children[3])
         return new_node

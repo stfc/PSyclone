@@ -84,7 +84,7 @@ def main(args):
     try:
         ad_fortran_str = generate_adjoint_str(
             tl_fortran_str, args.a)
-    except KeyError as info:
+    except (KeyError, TypeError) as info:
         print(str(info))
         exit(1)
     except TangentLinearError as info:
