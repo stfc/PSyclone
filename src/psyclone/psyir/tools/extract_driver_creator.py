@@ -213,15 +213,8 @@ class ExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     def create_call(self, name, args):
-        fortran = ("subroutine tmp\n"
-                   "use mymod\n"
-                   "call something%{0}(i)\n"
-                   "end subroutine".format(name))
         routine_symbol = RoutineSymbol(name)
-        all_refs = []
-        for arg in args:
-            all_refs.append(arg)
-        call = Call.create(routine_symbol, all_refs)
+        call = Call.create(routine_symbol, args)
         return call
 
     # -------------------------------------------------------------------------
