@@ -909,7 +909,7 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     # First check that the correct field types and constants are used
     output = (
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n")

@@ -3062,7 +3062,7 @@ class DynProxies(DynCollection):
         '''
         # Declarations of real and integer field proxies
         const = LFRicConstants()
-        # Filter field arguments by intent and intrinsic type
+        # Filter field arguments by intrinsic type
         real_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
@@ -3089,8 +3089,7 @@ class DynProxies(DynCollection):
             args = field_datatype_map[(fld_type, fld_mod)]
             arg_list = [arg.proxy_declaration_name for arg in args]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=arg_list,
-                                   intent="in"))
+                                   entity_decls=arg_list))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
 
@@ -3404,8 +3403,10 @@ class LFRicScalarArgs(DynCollection):
                 dkind = self._logical_scalars[intent][0].precision
                 if self._invoke:
                     const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-                    (self._invoke.invokes.psy.
-                     infrastructure_modules[const_mod].add(dkind))
+                    psy = self._invoke.invokes.psy
+                    const_module = psy.infrastructure_modules[const_mod]
+                    if not dkind in const_module:
+                        const_module.append(dkind)
                 if self._kernel:
                     self._kernel.argument_kinds.add(dkind)
                 logical_scalar_names = [arg.declaration_name for arg
@@ -8817,19 +8818,13 @@ class DynKernelArgument(KernelArgument):
         # check by their argument type
         if self.is_operator:
 
-            # If the algorithm information is not being ignored then
-            # it must be available.
-            if use_alg_info and not alg_datatype:
-                raise GenerationError(
-                    "It was not possible to determine the operator type from "
-                    "the algorithm layer for argument '{0}' in kernel '{1}'."
-                    "".format(self.name, self._call.name, alg_datatype))
-
-            # If the algorithm information is not being ignored then
-            # check the metadata and algorithm type are consistent and
-            # that the metadata specifies a supported operator type.
+            # If the algorithm information is not being ignored and is
+            # available from the algorithm layer then check the
+            # metadata and algorithm type are consistent and that the
+            # metadata specifies a supported operator type.
             if self.argument_type == "gh_operator":
-                if use_alg_info and alg_datatype != "operator_type":
+                if use_alg_info and alg_datatype and \
+                   alg_datatype != "operator_type":
                     raise GenerationError(
                         "The metadata for argument '{0}' in kernel '{1}' "
                         "specifies that this is an operator, however it is "
@@ -8837,7 +8832,8 @@ class DynKernelArgument(KernelArgument):
                         "".format(self.name, self._call.name, alg_datatype))
                 argtype = "operator"
             elif self.argument_type == "gh_columnwise_operator":
-                if use_alg_info and alg_datatype != "columnwise_operator_type":
+                if use_alg_info and alg_datatype and \
+                   alg_datatype != "columnwise_operator_type":
                     raise GenerationError(
                         "The metadata for argument '{0}' in kernel '{1}' "
                         "specifies that this is a columnwise operator, "

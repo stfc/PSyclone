@@ -244,9 +244,9 @@ def test_parser_invokeinfo_datatypes():
 
 def test_parser_invokeinfo_datatypes_mixed():
     '''Test that the invoke_info method in the Parser class captures the
-    required datatype information with mixed-precision fields,
-    operators and scalars e.g. defined as r_solver_field_type,
-    r_solver_operator_type and r_solver respectively.
+    required datatype information with mixed-precision fields, and
+    scalars e.g. defined as r_solver_field_type and r_solver
+    respectively.
 
     Also tests that the datatype information is always lower case
     irrespective of the case of the declaration and argument. This
@@ -260,10 +260,11 @@ def test_parser_invokeinfo_datatypes_mixed():
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
-    assert args[0]._datatype == ("r_solver_operator_type", None)
+    assert args[0]._datatype == ("real", "r_solver")
     assert args[1]._datatype == ("r_solver_field_type", None)
-    assert args[2]._datatype == ("real", "r_solver")
-    assert args[3]._datatype == ("quadrature_xyoz_type", None)
+    assert args[2]._datatype == ("r_solver_field_type", None)
+    assert args[3]._datatype == ("field_type", None)
+    assert args[4]._datatype == ("field_type", None)
 
 
 def test_parser_invokeinfo_datatypes_self():
@@ -336,7 +337,7 @@ def test_parser_invokeinfo_internalerror():
     parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     # Modify parse tree to make it invalid
-    alg_parse_tree.children[0].children[1].children[9].items = ["hello"]
+    alg_parse_tree.children[0].children[1].children[5].items = ["hello"]
     with pytest.raises(InternalError) as info:
         parser.invoke_info(alg_parse_tree)
     assert (

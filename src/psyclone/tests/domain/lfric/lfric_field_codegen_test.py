@@ -151,7 +151,7 @@ def test_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = (
         "  MODULE single_invoke_fs_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -430,7 +430,7 @@ def test_int_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = (
         "  MODULE single_invoke_fs_int_field_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: i_def\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n"
         "    IMPLICIT NONE\n"
@@ -760,9 +760,17 @@ def test_int_real_field_invalid(monkeypatch):
     monkeypatch.
 
     '''
+    def dummy(self, _1, _2=True):
+        '''Dummy routine that replaces _init_data_type_properties when used
+        with monkeypatch and sets the minimum needed values to return
+        without error for the associated example.
+
+        '''
+        self._precision = "r_def"
+
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties",
-        lambda arg1, arg2, arg3=True: None)
+        DynKernelArgument, "_init_data_type_properties", dummy)
+
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "4.15_multikernel_invokes_real_int_field_invalid.f90"),
@@ -796,7 +804,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
 
     output = (
         "  MODULE multikernel_invokes_real_int_field_fs_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n"
