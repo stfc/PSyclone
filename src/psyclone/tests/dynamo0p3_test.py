@@ -1881,22 +1881,32 @@ def test_initdatatypeproperties_unknown_field_type():
 
 # Functional tests
 
-def test_r_solver():
+def test_r_solver(tmpdir):
     '''Test that fields and scalars declared as r_solver are given the
     appropriate precision in the PSy-layer and all required constants
     are declared.
 
     '''
-    # TODO: all fields are declared as r_solver_field_type : fixed
-    # TODO: Same problem as above with field_proxy
-    # TODO: r_solver precision is not declared.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "26.1_mixed_precision.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print (gen_code)
-    exit(1)
+    assert (
+        "  MODULE r_solver_example_psy\n"
+        "    USE constants_mod, ONLY: r_solver, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    USE r_solver_field_mod, ONLY: r_solver_field_type, r_solver_field_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, f3, f4)\n"
+        "      USE testkern_mod, ONLY: testkern_code\n"
+        "      REAL(KIND=r_solver), intent(in) :: a\n"
+        "      TYPE(r_solver_field_type), intent(in) :: f1, f2\n"
+        "      TYPE(field_type), intent(in) :: f3, f4\n"
+        "      TYPE(r_solver_field_proxy_type), intent(in) :: f1_proxy, f2_proxy\n"
+        "      TYPE(field_proxy_type), intent(in) :: f3_proxy, f4_proxy\n"
+        in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

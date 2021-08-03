@@ -1035,9 +1035,24 @@ class DynamoPSy(PSy):
         # Get configuration for valid argument kinds (start with
         # 'real' and 'integer' kinds)
         api_config = Config.get().api_conf("dynamo0.3")
-        self._infrastructure_modules[const_mod] = {
-            api_config.default_kind["real"],
-            api_config.default_kind["integer"]}
+
+        kind_names = set()
+        # The infrastructure declares integer types with default
+        # precision so always add this.
+        kind_names.add(api_config.default_kind["integer"])
+
+        # Add any precision associated with scalar kernel arguments.
+        for invoke in self.invokes.invoke_list:
+            schedule = invoke.schedule
+            for kernel in schedule.kernels():
+                for arg in kernel.args:
+                    if arg.is_scalar:
+                        kind_names.add(arg.precision)
+        # Add precision names. The assumption is that all of these
+        # come from the same infrastructure module. Sort the names so
+        # that all versions of Python return the same value (for
+        # testing purposes).
+        self._infrastructure_modules[const_mod] = list(sorted(kind_names))
 
     @property
     def name(self):
@@ -2774,38 +2789,25 @@ class LFRicFields(DynCollection):
                 format(list(fld_multi_type), self._invoke.name,
                        const.VALID_FIELD_DATA_TYPES))
 
-        #RF CREATE A MAP HERE WITH DATATYPE AS THE KEY, KEEPING REAL_FIELD_ARGS AS IS
-        rfa_datatype_map = {}
-        for arg in real_field_args:
+        # Create a field argument map that splits the (real and
+        # integer) fields into their different datatypes.
+        field_datatype_map = {}
+        for arg in real_field_args + int_field_args:
             try:
-                rfa_datatype_map[arg.data_type].append(arg)
+                field_datatype_map[
+                    (arg.data_type, arg.module_name)].append(arg)
             except KeyError:
-                rfa_datatype_map[arg.data_type] = [arg]
-        # Add the Invoke subroutine argument declarations for real
-        # and integer fields
-        for fld_type in rfa_datatype_map:
-            args = rfa_datatype_map[fld_type]
-            fld_mod = args[0].module_name
+                # This datatype has not been seen before so create a
+                # new entry
+                field_datatype_map[(arg.data_type, arg.module_name)] = [arg]
+
+        # Add the Invoke subroutine argument declarations for the
+        # different fields types
+        for fld_type, fld_mod in field_datatype_map:
+            args = field_datatype_map[(fld_type, fld_mod)]
             arg_list = [arg.declaration_name for arg in args]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=arg_list,
-                                   intent="in"))
-            (self._invoke.invokes.psy.
-             infrastructure_modules[fld_mod].add(fld_type))
-        #exit(1)
-        #if real_field_arg_list:
-        #    fld_type = real_field_args[0].data_type
-        #    fld_mod = real_field_args[0].module_name
-        #    parent.add(TypeDeclGen(parent, datatype=fld_type,
-        #                           entity_decls=real_field_arg_list,
-        #                           intent="in"))
-        #    (self._invoke.invokes.psy.
-        #     infrastructure_modules[fld_mod].add(fld_type))
-        if int_field_arg_list:
-            fld_type = int_field_args[0].data_type
-            fld_mod = int_field_args[0].module_name
-            parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=int_field_arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
@@ -3060,34 +3062,37 @@ class DynProxies(DynCollection):
         '''
         # Declarations of real and integer field proxies
         const = LFRicConstants()
-        # Real field proxies
+        # Filter field arguments by intent and intrinsic type
         real_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        real_field_proxy_decs = [arg.proxy_declaration_name for
-                                 arg in real_field_args]
-        if real_field_proxy_decs:
-            fld_type = real_field_args[0].proxy_data_type
-            fld_mod = real_field_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=fld_type,
-                                   entity_decls=real_field_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
-             add(fld_type))
-        # Integer field proxies
         int_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
-        int_field_proxy_decs = [arg.proxy_declaration_name for
-                                arg in int_field_args]
-        if int_field_proxy_decs:
-            fld_type = int_field_args[0].proxy_data_type
-            fld_mod = int_field_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=fld_type,
-                                   entity_decls=int_field_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
-             add(fld_type))
+
+        # Create a field argument map that splits the (real and
+        # integer) fields into their different datatypes for their
+        # proxy's
+        field_datatype_map = {}
+        for arg in real_field_args + int_field_args:
+            try:
+                field_datatype_map[
+                    (arg.proxy_data_type, arg.module_name)].append(arg)
+            except KeyError:
+                # This datatype has not been seen before so create a
+                # new entry
+                field_datatype_map[(arg.proxy_data_type, arg.module_name)] = [arg]
+
+        # Add the Invoke subroutine argument declarations for the
+        # different fields type proxy's
+        for fld_type, fld_mod in field_datatype_map:
+            args = field_datatype_map[(fld_type, fld_mod)]
+            arg_list = [arg.proxy_declaration_name for arg in args]
+            parent.add(TypeDeclGen(parent, datatype=fld_type,
+                                   entity_decls=arg_list,
+                                   intent="in"))
+            (self._invoke.invokes.psy.
+             infrastructure_modules[fld_mod].add(fld_type))
 
         # Declarations of LMA operator proxies
         op_args = self._invoke.unique_declarations(
@@ -9248,7 +9253,10 @@ class DynKernelArgument(KernelArgument):
                     kind_name = const.DATA_TYPE_MAP["reduction"]["kind"]
                 else:
                     # Set read-only 'real' scalar precision
-                    kind_name = const.SCALAR_PRECISION_MAP["real"]
+                    if self._precision:
+                        kind_name = self._precision
+                    else:
+                        kind_name = const.SCALAR_PRECISION_MAP["real"]
                 prim_type = ScalarType.Intrinsic.REAL
             elif self.intrinsic_type == "integer":
                 kind_name = const.SCALAR_PRECISION_MAP["integer"]
