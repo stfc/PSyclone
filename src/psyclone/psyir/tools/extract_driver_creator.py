@@ -47,7 +47,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
-from psyclone.psyir.nodes import Routine, FileContainer
+from psyclone.psyir.nodes import Routine, FileContainer, Schedule
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     GlobalInterface, DataTypeSymbol, DeferredType
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -72,11 +72,13 @@ class ExtractDriverCreator:
     :type real_type: :py:class:`psyclone.psyir.symbol.ScalarType`
 
     '''
-    def __init__(self, integer_type=INTEGER_TYPE,
+    def __init__(self, prefix,
+                 integer_type=INTEGER_TYPE,
                  real_type=REAL8_TYPE):
         # Set the integer and real types to use. If required, the constructor
         # could take a parameter to change these.
         # For convenience, also add the names used in the gocean config file:
+        self._prefix = prefix
         self._default_types = {ScalarType.Intrinsic.INTEGER: integer_type,
                                "integer": integer_type,
                                ScalarType.Intrinsic.REAL: real_type,
@@ -137,7 +139,16 @@ class ExtractDriverCreator:
         simple variable name (replacing all % with _).
         '''
 
+        # A field access (`fld%data`) will get the `%data` removed, since then
+        # there is less of a chance of a name class (`fld` is guaranteed to
+        # be unique, since it's a variable already, but `fld_data` could clash
+        # with a user variable if the user uses `fld` and `fld_data`).
+        # Furthermore, the netcdf file declares the variable without '%data',
+        # so removing this here also simplifies this.
+        signature, _ = old_reference.get_signature_and_indices()
         fortran_string = writer(old_reference)
+        if signature[-1] == "data":
+            fortran_string = fortran_string[:-5]
         try:
             symbol = symbol_table.lookup_with_tag(fortran_string)
         except KeyError:
@@ -218,6 +229,61 @@ class ExtractDriverCreator:
         return call
 
     # -------------------------------------------------------------------------
+    def create_read_in_code(self, program, psy_data, input_list, output_list):
+        all_sigs = list(set(input_list).union(set(output_list)))
+        all_sigs.sort()
+        symbol_table = program.scope.symbol_table
+        # Read in all input variables:
+        for signature in all_sigs:
+            # Find the right symbol for the variable.
+            sig_str = str(signature)
+            sym = symbol_table.lookup_with_tag(sig_str)
+            is_input = signature in input_list
+            is_output = signature in output_list
+
+            if is_input:
+                name_str = Literal(sig_str, CHARACTER_TYPE)
+                call = self.create_call("{0}%ReadVariable"
+                                        .format(psy_data.name),
+                                        [name_str, Reference(sym)])
+                program.addchild(call)
+            if is_input and not is_output:
+                # input only variable, nothing else to do.
+                continue
+            # Now we also need to declare and read-in a 'post' variable
+            post_name = sig_str+"_post"
+            new_type = self._default_types[sym.datatype.intrinsic]
+
+            post_sym = symbol_table.new_symbol(symbol_type=DataSymbol,
+                                               datatype=new_type)
+            call = self.create_call("{0}%ReadVariable".format(psy_data.name),
+                                    [Literal(post_name, CHARACTER_TYPE),
+                                     Reference(post_sym)])
+            program.addchild(call)
+
+    # -------------------------------------------------------------------------
+    def import_modules(self, nodes, program):
+        '''This function adds all the import statements required for the
+        actual kernel calls.
+
+        '''
+        symbol_table = program.scope.symbol_table
+        for call in nodes.walk(Call):
+            routine = call.routine
+            if not isinstance(routine.interface, GlobalInterface):
+                continue
+            if routine.name in symbol_table:
+                # Symbol has already been added - ignore
+                continue
+            # We need to create a new symbol for the routine called, which
+            # will also trigger to add the import statement:
+            module = ContainerSymbol(routine.interface.container_symbol.name)
+            symbol_table.add(module)
+            new_routine_sym = DataTypeSymbol(routine.name, DeferredType(),
+                                             interface=GlobalInterface(module))
+            symbol_table.add(new_routine_sym)
+
+    # -------------------------------------------------------------------------
     def create(self, nodes, input_list, output_list, options):
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -252,21 +318,20 @@ class ExtractDriverCreator:
         file_container.addchild(program)
 
         # Import the PSyDataType:
-        psy_data_mod = ContainerSymbol("psy_data_mod")
+        if self._prefix:
+            prefix = self._prefix+"_"
+        else:
+            prefix = ""
+        psy_data_mod = ContainerSymbol(prefix+"psy_data_mod")
         program_symbol_table.add(psy_data_mod)
-        psy_data_type = DataTypeSymbol("PsyDataType", DeferredType(),
+        psy_data_type = DataTypeSymbol(prefix+"PsyDataType", DeferredType(),
                                        interface=GlobalInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
-
-        # Declare a variable of the above PSyDataType:
-        prefix = options.get("prefix", "")
-        if prefix:
-            # Add an _ if there is a prefix
-            prefix += "_"
 
         writer = FortranWriter()
         schedule_copy = nodes[0].parent.copy()
         schedule_copy.lower_to_language_level()
+        self.import_modules(schedule_copy, program)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                     writer)
 
@@ -275,28 +340,13 @@ class ExtractDriverCreator:
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
 
-        module_str = Literal("module", CHARACTER_TYPE)
-        region_str = Literal("region", CHARACTER_TYPE)
+        module_str = Literal("main", CHARACTER_TYPE)
+        region_str = Literal("update", CHARACTER_TYPE)
         call = self.create_call("{0}%OpenRead".format(psy_data.name),
                                 [module_str, region_str])
         program.addchild(call)
-        # Read in all input variables:
-        for signature in input_list:
-            # Find the right symbol for the variable.
-            sig_str = str(signature)
-            try:
-                sym = program_symbol_table.lookup_with_tag(sig_str)
-            except KeyError:
-                # In gocean a field `fld` as input variable will have the
-                # tag 'fld%data' as tag (which gives a valid flattened name
-                # `fld_data..` which is unique)
-                sig_str = sig_str + "%data"
-                sym = program_symbol_table.lookup_with_tag(sig_str)
 
-            name_str = Literal(sym.name, CHARACTER_TYPE)
-            call = self.create_call("{0}%readdata".format(psy_data.name),
-                                    [name_str, Reference(sym)])
-            program.addchild(call)
+        self.create_read_in_code(program, psy_data, input_list, output_list)
 
         all_children = schedule_copy.pop_all_children()
         for child in all_children:
@@ -304,6 +354,11 @@ class ExtractDriverCreator:
 
         code = writer(file_container)
         print("CODE", code)
+
+        # with open("driver-{0}-{1}.f90".
+        with open("xx.f90".
+                  format(module_name, region_name), "w") as out:
+            out.write(code)
 
         # with open("driver-{0}-{1}.f90".
         #           format(module_name, region_name), "w") as out:

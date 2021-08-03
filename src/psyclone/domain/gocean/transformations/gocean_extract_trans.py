@@ -70,8 +70,9 @@ class GOceanExtractTrans(ExtractTrans):
         super(GOceanExtractTrans, self).__init__(GOceanExtractNode)
         # Set the integer and real types to use. If required, the constructor
         # could take a parameter to change these.
-        # For convenience, also add the names used in the gocean config file:
-        self._driver_creator = ExtractDriverCreator(INTEGER_TYPE, REAL8_TYPE)
+
+        self._driver_creator = ExtractDriverCreator("extract", INTEGER_TYPE,
+                                                    REAL8_TYPE)
 
     # ------------------------------------------------------------------------
     def validate(self, node_list, options=None):
