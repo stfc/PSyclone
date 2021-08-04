@@ -41,23 +41,20 @@ the output data contained in the input file.
 import six
 
 from psyclone.configuration import Config
-from psyclone.domain.gocean.nodes import GOceanExtractNode
-from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.psyir.transformations import TransformationError
 
 
-from psyclone.psyir.nodes import Routine, FileContainer, Schedule
+from psyclone.psyir.nodes import Assignment, Routine, FileContainer
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     GlobalInterface, DataTypeSymbol, DeferredType
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Call, Literal, Reference, \
     StructureReference
 from psyclone.psyir.symbols import ArrayType, CHARACTER_TYPE, \
-    REAL8_TYPE, REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, \
-    INTEGER_TYPE, LocalInterface, ScalarType, RoutineSymbol
+    REAL8_TYPE, INTEGER_TYPE, ScalarType, RoutineSymbol
 
-from psyclone.psyGen import Kern, InvokeSchedule
+from psyclone.psyGen import InvokeSchedule
 
 
 class ExtractDriverCreator:
@@ -75,10 +72,10 @@ class ExtractDriverCreator:
     def __init__(self, prefix,
                  integer_type=INTEGER_TYPE,
                  real_type=REAL8_TYPE):
+        self._prefix = prefix
         # Set the integer and real types to use. If required, the constructor
         # could take a parameter to change these.
         # For convenience, also add the names used in the gocean config file:
-        self._prefix = prefix
         self._default_types = {ScalarType.Intrinsic.INTEGER: integer_type,
                                "integer": integer_type,
                                ScalarType.Intrinsic.REAL: real_type,
@@ -130,24 +127,41 @@ class ExtractDriverCreator:
     # -------------------------------------------------------------------------
     @staticmethod
     def flatten_string(fortran_string):
+        '''Replaces all `%` with `_` in the string, creating a 'flattened'
+        name.
+
+        :param str fortran_string: the Fortran string containing '%'.
+        '''
         return fortran_string.replace("%", "_")
 
     # -------------------------------------------------------------------------
     def flatten_reference(self, old_reference, symbol_table,
                           writer=FortranWriter()):
         '''Replaces `old_reference` which is a structure type with a new
-        simple variable name (replacing all % with _).
+        simple Reference and a flattened name (replacing all % with _).
+
+        :param old_reference: a reference to a structured member.
+        :type old_reference: \
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+        :param symbol_table: the symbol table to which to add the newly \
+            defind flattened symbol.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param writer: a Fortran writer used when flattening a \
+            `StructureReference`.
+        :type writer: :py:`psyclone.psyir.backend.fortan.FortranWriter`
+
         '''
 
         # A field access (`fld%data`) will get the `%data` removed, since then
         # there is less of a chance of a name class (`fld` is guaranteed to
         # be unique, since it's a variable already, but `fld_data` could clash
         # with a user variable if the user uses `fld` and `fld_data`).
-        # Furthermore, the netcdf file declares the variable without '%data',
-        # so removing this here also simplifies this.
+        # Furthermore, the netcdf file declares the variable without `%data`,
+        # so removing `%data` here also simplifies code creation later on.
         signature, _ = old_reference.get_signature_and_indices()
         fortran_string = writer(old_reference)
         if signature[-1] == "data":
+            # Remove %data
             fortran_string = fortran_string[:-5]
         try:
             symbol = symbol_table.lookup_with_tag(fortran_string)
@@ -172,11 +186,21 @@ class ExtractDriverCreator:
         It uses GOcean-specific knowledge to declare fields and flatten their
         name.
 
+        :param nodes: the schedule that will be called by this driver program.
+        :type nodes: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param symbol_table: the symbol table to which to add all found \
+            symbols.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param writer: a Fortran writer used when flattening a \
+            `StructureReference`.
+        :type writer: :py:`psyclone.psyir.backend.fortan.FortranWriter`
+
         '''
+        all_references = nodes.walk(Reference)
         # First we add all non-structure names to the symbol table. This way
         # the flattened name can be ensured not to clash with a variable name
         # used in the program.
-        for reference in nodes.walk(Reference):
+        for reference in all_references:
             # For now ignore structure names, which require flattening
             if isinstance(reference, StructureReference):
                 continue
@@ -212,59 +236,152 @@ class ExtractDriverCreator:
         # non-structured type. We also need to make sure that a flattened
         # name does not clash with a variable declared by the user. We use
         # the structured name (with '%') as tag to handle this.
-        for reference in nodes.walk(Reference):
+        for reference in all_references:
             if not isinstance(reference, StructureReference):
                 continue
             old_symbol = reference.symbol
             if old_symbol.datatype.name != "r2d_field":
                 raise TransformationError("Unknown derived type '{0}'."
                                           .format(old_symbol.datatype.name))
-            # We have a structure reference to a field, flatten it:
+            # We have a structure reference to a field, flatten it, and
+            # replace the StructureReference with a new Reference to this
+            # flattened name (e.g. `fld%data` becomes `fld_data`)
             self.flatten_reference(reference, symbol_table, writer=writer)
 
     # -------------------------------------------------------------------------
-    def create_call(self, name, args):
-        routine_symbol = RoutineSymbol(name)
+    @staticmethod
+    def add_call(program, name, args):
+        '''This function creates a call to the subroutine of the given name,
+        providing the arguments. The call will be added to the program and
+        to the symbol table.
+
+        :param program: the program PSyIR Routine to which any code must \
+            be added. It also contains the symbol table to be used.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param str name: name of the subroutine to call.
+        :param args: list of all arguments for the call.
+        :type args: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        if name in program.symbol_table:
+            routine_symbol = program.symbol_table.lookup(name)
+        else:
+            routine_symbol = RoutineSymbol(name)
+            program.symbol_table.add(routine_symbol)
         call = Call.create(routine_symbol, args)
-        return call
+        program.addchild(call)
 
     # -------------------------------------------------------------------------
-    def create_read_in_code(self, program, psy_data, input_list, output_list):
+    @staticmethod
+    def create_read_in_code(program, psy_data, input_list, output_list):
+        '''This function creates the code that reads in the NetCDF file
+        produced during extraction. For each:
+        - variable that is read-only, it will declare the symbol and add code
+            that reads in the variable using the PSyData library.
+        - variable that is read and written, it will create code to read in the
+            variable that is read, and create a new variable with the same name
+            and "_post" added which is read in to store the values from the
+            NetCDF file after the instrumented region was executed. In the end,
+            the variable that was read and written should have the same value
+            as the corresponding "_post" variable.
+        - variable that is written only, it will create a cariable with "_post"
+            as postfix that reads in the output data from the NetCDF file. It
+            then also declares a variable without postfix (which will be the
+            parameter to the function), allocates it based on the shape of
+            the corresponding "_post" variable, and initialises it with 0.
+
+        :param program: the program PSyIR Routine to which any code must \
+            be added. It also contains the symbol table to be used.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param psy_data: the PSyData symbol to be used.
+        :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param input_list: list of all signatures that are input variables \
+            to the instrumended region.
+        :type input_list: list of :py:class:`psyclone.core.Signature`
+        :param output_list: list of all signatures that are output \
+            variables to the instrumended region.
+        :type output_list: list of :py:class:`psyclone.core.Signature`
+
+        '''
+        # pylint: disable=too-many-locals
         all_sigs = list(set(input_list).union(set(output_list)))
         all_sigs.sort()
         symbol_table = program.scope.symbol_table
-        # Read in all input variables:
+        read_var = "{0}%ReadVariable".format(psy_data.name)
+
         for signature in all_sigs:
-            # Find the right symbol for the variable.
+            # Find the right symbol for the variable. Note that all variables
+            # in the input and output list have been detected as being used
+            # when the variable accesses were analysed. Therefore, these
+            # variables have References, and will already have been declared
+            # in the symbol table (in add_all_kernel_symbols).
             sig_str = str(signature)
             sym = symbol_table.lookup_with_tag(sig_str)
             is_input = signature in input_list
             is_output = signature in output_list
 
+            # First handle variables that are read:
+            # -------------------------------------
             if is_input:
-                name_str = Literal(sig_str, CHARACTER_TYPE)
-                call = self.create_call("{0}%ReadVariable"
-                                        .format(psy_data.name),
-                                        [name_str, Reference(sym)])
-                program.addchild(call)
-            if is_input and not is_output:
-                # input only variable, nothing else to do.
-                continue
-            # Now we also need to declare and read-in a 'post' variable
-            post_name = sig_str+"_post"
-            new_type = self._default_types[sym.datatype.intrinsic]
+                name_lit = Literal(sig_str, CHARACTER_TYPE)
+                ExtractDriverCreator.add_call(program, read_var,
+                                              [name_lit, Reference(sym)])
+                if not is_output:
+                    # input only variable, nothing else to do.
+                    continue
 
-            post_sym = symbol_table.new_symbol(symbol_type=DataSymbol,
-                                               datatype=new_type)
-            call = self.create_call("{0}%ReadVariable".format(psy_data.name),
-                                    [Literal(post_name, CHARACTER_TYPE),
-                                     Reference(post_sym)])
-            program.addchild(call)
+            # The variable is written (and maybe read as well)
+            # ------------------------------------------------
+            # Declare a 'post' variable of the same type and
+            # read in its value.
+            post_name = sig_str+"_post"
+            post_sym = symbol_table.new_symbol(post_name,
+                                               symbol_type=DataSymbol,
+                                               datatype=sym.datatype)
+            ExtractDriverCreator.add_call(program, read_var,
+                                          [Literal(post_name, CHARACTER_TYPE),
+                                           Reference(post_sym)])
+
+            # Now if a variable is written to, but not read, the variable
+            # is not allocated. So we need to allocate it and set it to 0.
+            if not is_input:
+                if isinstance(post_sym.datatype, ArrayType):
+                    # TODO #1366 Once allocate is supported in PSyIR
+                    # this parsing of a file can be replaced.
+                    code = '''
+                        module test
+                        contains
+                        subroutine tmp()
+                          integer, allocatable, dimension(:,:) :: b
+                          allocate({0}(size({1},1), size({1},2)))
+                          !allocate({0}, mold={1})
+                        end subroutine tmp
+                        end module test'''.format(sig_str, post_name)
+                    fortran_reader = FortranReader()
+                    container = fortran_reader.psyir_from_source(code)\
+                        .children[0]
+                    alloc = container.children[0].children[0]
+                    alloc.parent.children.remove(alloc)
+                    program.addchild(alloc)
+                set_zero = Assignment.create(Reference(sym),
+                                             Literal("0", INTEGER_TYPE))
+                program.addchild(set_zero)
 
     # -------------------------------------------------------------------------
-    def import_modules(self, nodes, program):
+    @staticmethod
+    def import_modules(program, nodes):
         '''This function adds all the import statements required for the
-        actual kernel calls.
+        actual kernel calls. It find all calls in the PSyIR trees and
+        checks for calls with a GlobalInterface. Any such call will
+        get a ContainerSymbol added for the module, and a RoutineSymbol
+        with a global interface pointing to this module.
+
+        :param program: the program PSyIR Routine to which any code must \
+            be added. It also contains the symbol table to be used.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param nodes: the schedule that will be called by the driver \
+            program created.
+        :type nodes: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
         symbol_table = program.scope.symbol_table
@@ -275,12 +392,12 @@ class ExtractDriverCreator:
             if routine.name in symbol_table:
                 # Symbol has already been added - ignore
                 continue
-            # We need to create a new symbol for the routine called, which
-            # will also trigger to add the import statement:
+            # We need to create a new symbol for the module and the routine
+            # called (which will  trigger to add the import statement later):
             module = ContainerSymbol(routine.interface.container_symbol.name)
             symbol_table.add(module)
-            new_routine_sym = DataTypeSymbol(routine.name, DeferredType(),
-                                             interface=GlobalInterface(module))
+            new_routine_sym = RoutineSymbol(routine.name, DeferredType(),
+                                            interface=GlobalInterface(module))
             symbol_table.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
@@ -291,11 +408,12 @@ class ExtractDriverCreator:
         the file.
 
         :param input_list: list of variables that are input parameters.
-        :type input_list: list of str
+        :type input_list: list of :py:class:`psyclone.core.Signature`
         :param output_list: list of variables that are output parameters.
-        :type output_list: list or str
-        '''
+        :type output_list: list or :py:class:`psyclone.core.Signature`
 
+        '''
+        # pylint: disable=too-many-locals
         if options.get("region_name", False):
             module_name, region_name = options["region_name"]
         else:
@@ -331,7 +449,7 @@ class ExtractDriverCreator:
         writer = FortranWriter()
         schedule_copy = nodes[0].parent.copy()
         schedule_copy.lower_to_language_level()
-        self.import_modules(schedule_copy, program)
+        ExtractDriverCreator.import_modules(program, schedule_copy)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                     writer)
 
@@ -340,33 +458,21 @@ class ExtractDriverCreator:
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
 
-        module_str = Literal("main", CHARACTER_TYPE)
-        region_str = Literal("update", CHARACTER_TYPE)
-        call = self.create_call("{0}%OpenRead".format(psy_data.name),
-                                [module_str, region_str])
-        program.addchild(call)
+        module_str = Literal(module_name, CHARACTER_TYPE)
+        region_str = Literal(region_name, CHARACTER_TYPE)
+        ExtractDriverCreator.add_call(program,
+                                      "{0}%OpenRead".format(psy_data.name),
+                                      [module_str, region_str])
 
-        self.create_read_in_code(program, psy_data, input_list, output_list)
+        ExtractDriverCreator.create_read_in_code(program, psy_data,
+                                                 input_list, output_list)
 
         all_children = schedule_copy.pop_all_children()
         for child in all_children:
             program.addchild(child)
 
         code = writer(file_container)
-        print("CODE", code)
 
-        # with open("driver-{0}-{1}.f90".
-        with open("xx.f90".
+        with open("driver-{0}-{1}.f90".
                   format(module_name, region_name), "w") as out:
             out.write(code)
-
-        # with open("driver-{0}-{1}.f90".
-        #           format(module_name, region_name), "w") as out:
-        #     out.write(code)
-        # file_container = FileContainer.create(
-        #     "dummy", SymbolTable(), [container, program])
-        # writer = FortranWriter()
-        # result = writer(file_container)
-        # print("--------------", module_name, region_name)
-        # print(result)
-        # print("--------------", module_name, region_name)
