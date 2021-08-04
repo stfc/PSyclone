@@ -49,7 +49,7 @@ module vector_type
 contains
 
   type :: some_type
-     type(field_vector_type) :: vec_type
+     type(field_vector_type) :: vec_type(10)
    contains
      procedure, public :: my_sub
   end type some_type
@@ -63,7 +63,7 @@ contains
     real(r_def) :: a
     select type (x)
     type is (field_vector_type)
-      call invoke(testkern_type(a, x%vector(1), self%vec_type%vector(1), m1, m2))
+      call invoke(testkern_type(a, x%vector(1), self%vec_type(1)%vector(1), m1, m2))
     class default
       print *,"Error"
     end select

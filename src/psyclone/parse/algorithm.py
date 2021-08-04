@@ -752,7 +752,7 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                     collection = collection.children[0]
                 if isinstance(collection, Name):
                     collection_type = arg_type_defns.get(
-                        argument.children[-2].string.lower())
+                        collection.tostr().lower())
             if collection_type:
                 arguments.append(
                     Arg('collection', full_text,
