@@ -745,11 +745,14 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             var_name = create_var_name(argument).lower()
             collection_type = None
             if not datatype and isinstance(argument, Data_Ref):
-                if (len(argument.children) == 2 and
-                        isinstance(argument.children[0], Name)):
-                    # This could be a collection of some sort
+                # This could be a collection of some sort.
+                # Find the name of the parent type.
+                collection = argument.children[-2]
+                if isinstance(collection, Part_Ref):
+                    collection = collection.children[0]
+                if isinstance(collection, Name):
                     collection_type = arg_type_defns.get(
-                        argument.children[0].string.lower())
+                        argument.children[-2].string.lower())
             if collection_type:
                 arguments.append(
                     Arg('collection', full_text,
