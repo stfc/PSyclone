@@ -60,7 +60,7 @@ from psyclone.dynamo0p3 import DynACCEnterDataDirective, \
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
-from psyclone.parse.algorithm import parse
+from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import colored, UnaryOperation, Reference
@@ -1585,31 +1585,34 @@ def test_dynkernelargument_idtp_scalar():
     assert scalar_argument._module_name == None
 
     # Algorithm information - use supplied precision
-    scalar_argument._init_data_type_properties(("real", "roo_def"))
+    arg = Arg("variable", None, None, ("real", "roo_def"))
+    scalar_argument._init_data_type_properties(arg)
     assert scalar_argument._precision == "roo_def"
     assert scalar_argument._data_type == None
     assert scalar_argument._proxy_data_type == None
     assert scalar_argument._module_name == None
 
     # Inconsistent datatype
+    arg = Arg("variable", None, None, ("integer", "i_def"))
     with pytest.raises(GenerationError) as info:
-        scalar_argument._init_data_type_properties(("integer", "i_def"))
+        scalar_argument._init_data_type_properties(arg)
     assert ("The kernel metadata for argument 'a' in kernel 'testkern_code' "
             "specifies this argument should be a scalar of type 'real' but "
             "in the algorithm layer it is defined as a 'integer'."
             in str(info.value))
 
     # Inconsistent datatype - no check - use default precision
-    scalar_argument._init_data_type_properties(
-        ("integer", "roo_def"), use_alg_info=False)
+    arg = Arg("variable", None, None, ("integer", "roo_def"))
+    scalar_argument._init_data_type_properties(arg, use_alg_info=False)
     assert scalar_argument._precision == "r_def"
     assert scalar_argument._data_type == None
     assert scalar_argument._proxy_data_type == None
     assert scalar_argument._module_name == None
 
     # Algorithm information - no precision
+    arg = Arg("variable", None, None, ("real", None))
     with pytest.raises(GenerationError) as info:
-        scalar_argument._init_data_type_properties(("real", None))
+        scalar_argument._init_data_type_properties(arg)
     assert ("Scalars must have their precision defined in the algorithm layer "
             "but 'a' in 'testkern_code' does not." in str(info.value))
 
@@ -1638,23 +1641,26 @@ def test_dynkernelargument_idtp_reduction():
     assert reduction._proxy_data_type == None
     assert reduction._module_name == "scalar_mod"
 
-    # Consistent lgorithm information
-    reduction._init_data_type_properties(("real", "r_def"))
+    # Consistent algorithm information
+    arg = Arg("variable", None, None, ("real", "r_def"))
+    reduction._init_data_type_properties(arg)
     assert reduction._precision == "r_def"
     assert reduction._data_type == "scalar_type"
     assert reduction._proxy_data_type == None
     assert reduction._module_name == "scalar_mod"
 
     # Scalar reduction with inconsistent precision (expects 'r_def')
+    arg = Arg("variable", None, None, ("real", "i_def"))
     with pytest.raises(GenerationError) as info:
-        reduction._init_data_type_properties(("real", "i_def"))
+        reduction._init_data_type_properties(arg)
     assert ("This scalar is a reduction which assumes precision of type "
             "'r_def' but the algorithm declares this scalar with precision "
             "'i_def'" in str(info.value))
 
     # Invalid reduction type (not a 'real')
+    arg = Arg("variable", None, None, ("integer", "i_def"))
     with pytest.raises(GenerationError) as info:
-        reduction._init_data_type_properties(("integer", "i_def"))
+        reduction._init_data_type_properties(arg)
     assert ("The kernel metadata for argument 'asum' in kernel "
             "'x_innerproduct_y' specifies this argument should be a scalar "
             "of type 'real' but in the algorithm layer it is defined as a "
@@ -1686,29 +1692,32 @@ def test_dynkernelargument_idtp_real_field():
             in str(info.value))
 
     # Algorithm information - same as default
-    field_argument._init_data_type_properties(("field_type", None))
+    arg = Arg("variable", None, None, ("field_type", None))
+    field_argument._init_data_type_properties(arg)
     assert field_argument._precision == "r_def"
     assert field_argument._data_type == "field_type"
     assert field_argument._proxy_data_type == "field_proxy_type"
     assert field_argument._module_name == "field_mod"
 
     # Algorithm information - different to default
-    field_argument._init_data_type_properties(("r_solver_field_type", None))
+    arg = Arg("variable", None, None, ("r_solver_field_type", None))
+    field_argument._init_data_type_properties(arg)
     assert field_argument._precision == "r_solver"
     assert field_argument._data_type == "r_solver_field_type"
     assert field_argument._proxy_data_type == "r_solver_field_proxy_type"
     assert field_argument._module_name == "r_solver_field_mod"
 
     # Inconsistent datatype
+    arg = Arg("variable", None, None, ("integer_field_type", None))
     with pytest.raises(GenerationError) as info:
-        field_argument._init_data_type_properties(("integer_field_type", None))
+        field_argument._init_data_type_properties(arg)
     assert ("The metadata for argument 'f1' in kernel 'testkern_code' "
             "specifies that this is a real field, however it is declared as "
             "a 'integer_field_type' in the algorithm code." in str(info.value))
 
     # Inconsistent datatype - no check - use metadata
-    field_argument._init_data_type_properties(
-        ("integer", "roo_def"), use_alg_info=False)
+    arg = Arg("variable", None, None, ("integer", "roo_def"))
+    field_argument._init_data_type_properties(arg, use_alg_info=False)
     assert field_argument._precision == "r_def"
     assert field_argument._data_type == "field_type"
     assert field_argument._proxy_data_type == "field_proxy_type"
@@ -1734,14 +1743,14 @@ def test_dynkernelargument_idtp_integer_field():
     assert field_argument._module_name == "integer_field_mod"
 
     # Algorithm information - use supplied type
-    field_argument._init_data_type_properties(("integer_field_type", None))
+    arg = Arg("variable", None, None, ("integer_field_type", None))
+    field_argument._init_data_type_properties(arg)
     assert field_argument._precision == "i_def"
     assert field_argument._data_type == "integer_field_type"
     assert field_argument._proxy_data_type == "integer_field_proxy_type"
     assert field_argument._module_name == "integer_field_mod"
 
 
-@pytest.mark.xfail(message="TBD")
 def test_dynkernelargument_idtp_vector_field():
     '''Test the _init_data_type_properties method in the DynKernelArgument
     class for a field that is part of a vector_field (a collection of
@@ -1797,24 +1806,25 @@ def test_dynkernelargument_idtp_operator():
     assert operator_argument._module_name == "operator_mod"
 
     # Algorithm information - same as default
-    operator_argument._init_data_type_properties(("operator_type", None))
+    arg = Arg("variable", None, None, ("operator_type", None))
+    operator_argument._init_data_type_properties(arg)
     assert operator_argument._precision == "r_def"
     assert operator_argument._data_type == "operator_type"
     assert operator_argument._proxy_data_type == "operator_proxy_type"
     assert operator_argument._module_name == "operator_mod"
 
     # Inconsistent datatype
+    arg = Arg("variable", None, None, ("columnwise_operator_type", None))
     with pytest.raises(GenerationError) as info:
-        operator_argument._init_data_type_properties(
-            ("columnwise_operator_type", None))
+        operator_argument._init_data_type_properties(arg)
     assert ("The metadata for argument 'mm_w0' in kernel "
             "'testkern_operator_code' specifies that this is an operator, "
             "however it is declared as a 'columnwise_operator_type' in the "
             "algorithm code." in str(info.value))
 
     # Inconsistent datatype - no check - use metadata
-    operator_argument._init_data_type_properties(
-        ("integer", "roo_def"), use_alg_info=False)
+    arg = Arg("variable", None, None, ("integer", "roo_def"))
+    operator_argument._init_data_type_properties(arg, use_alg_info=False)
     assert operator_argument._precision == "r_def"
     assert operator_argument._data_type == "operator_type"
     assert operator_argument._proxy_data_type == "operator_proxy_type"
@@ -1848,8 +1858,8 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._module_name == "operator_mod"
 
     # Algorithm information - same as default
-    operator_argument._init_data_type_properties(
-        ("columnwise_operator_type", None))
+    arg = Arg("variable", None, None, ("columnwise_operator_type", None))
+    operator_argument._init_data_type_properties(arg)
     assert operator_argument._precision == "r_def"
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
@@ -1857,8 +1867,9 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._module_name == "operator_mod"
 
     # Inconsistent datatype
+    arg = Arg("variable", None, None, ("operator_type", None))
     with pytest.raises(GenerationError) as info:
-        operator_argument._init_data_type_properties(("operator_type", None))
+        operator_argument._init_data_type_properties(arg)
     assert ("The metadata for argument 'cma_op1' in kernel "
             "'columnwise_op_app_kernel_code' specifies that this is a "
             "columnwise operator, however it is declared as a 'operator_type' "

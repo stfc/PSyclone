@@ -47,12 +47,16 @@ module helmholtz_solver_alg_mod
 
   subroutine apply_helmholtz_lhs(Hp, p)
 
+    use field_mod, only : field_type
+    use operator_mod, only : operator_type
     use scaled_matrix_vector_kernel_mod, only: opt_scaled_matrix_vector_kernel_type
 
     implicit none
 
     type(field_type), intent(inout) :: Hp
     type(field_type), intent(in)    :: p
+    type(field_type) :: grad_p, hb_inv, u_normalisation
+    type(operator_type) :: div_star
 
     call invoke( setval_c( grad_p, 0.0_r_def ),                                 &
                  opt_scaled_matrix_vector_kernel_type(grad_p, p, div_star,      &

@@ -818,7 +818,8 @@ def test_arg_unknown():
         _ = Arg("invalid", "0.0")
     assert (
         "Unknown arg type provided. Expected one of ['literal', 'variable', "
-        "'indexed_variable'] but found 'invalid'.") in str(excinfo.value)
+        "'indexed_variable', 'collection'] but found 'invalid'."
+        in str(excinfo.value))
 
 
 def test_arg_str():

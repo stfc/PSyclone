@@ -8599,7 +8599,7 @@ class DynKernelArgument(KernelArgument):
         self._proxy_data_type = None
         # Set up kernel argument information for scalar, field and operator
         # arguments: precision, module name, data type and proxy data type
-        self._init_data_type_properties(arg_info._datatype, check)
+        self._init_data_type_properties(arg_info, check)
 
     def ref_name(self, function_space=None):
         '''
@@ -8663,7 +8663,7 @@ class DynKernelArgument(KernelArgument):
             "DynKernelArgument.ref_name(fs): Found unsupported argument "
             "type '{0}'.".format(self._argument_type))
 
-    def _init_data_type_properties(self, alg_datatype_info, use_alg_info=True):
+    def _init_data_type_properties(self, arg_info, use_alg_info=True):
         '''Set up kernel argument information from LFRicConstants: precision,
         data type, proxy data type and module name. This is currently
         supported for scalar, field and operator arguments.
@@ -8676,10 +8676,23 @@ class DynKernelArgument(KernelArgument):
             information. Defaults to True.
 
         '''
+        alg_datatype_info = None
+        if arg_info:
+            alg_datatype_info = arg_info._datatype
         alg_datatype = None
         alg_precision = None
         if alg_datatype_info:
             alg_datatype, alg_precision = alg_datatype_info
+
+        if arg_info and arg_info.form == "collection":
+            if alg_datatype in ["abstract_vector_type", "field_vector_type"]:
+                # This is a field that has been passed by de-referencing
+                # from a field_vector_type. The type of fields within
+                # field_vector_type is always field_type.
+                alg_datatype = "field_type"
+            else:
+                # The collection datatype is not recognised.
+                alg_datatype = None
 
         const = LFRicConstants()
 

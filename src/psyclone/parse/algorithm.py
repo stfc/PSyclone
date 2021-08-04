@@ -743,8 +743,20 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             datatype = arg_type_defns.get(arg)
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
-            arguments.append(Arg('variable', full_text,
-                                 varname=var_name, datatype=datatype))
+            collection_type = None
+            if not datatype and isinstance(argument, Data_Ref):
+                if (len(argument.children) == 2 and
+                        isinstance(argument.children[0], Name)):
+                    # This could be a collection of some sort
+                    collection_type = arg_type_defns.get(
+                        argument.children[0].string.lower())
+            if collection_type:
+                arguments.append(
+                    Arg('collection', full_text,
+                        varname=var_name, datatype=collection_type))
+            else:
+                arguments.append(Arg('variable', full_text,
+                                     varname=var_name, datatype=datatype))
         elif isinstance(argument, (Level_2_Unary_Expr, Add_Operand,
                                    Parenthesis)):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
@@ -1063,7 +1075,7 @@ class Arg(object):
     supported types as specified in the local form_options list.
 
     '''
-    form_options = ["literal", "variable", "indexed_variable"]
+    form_options = ["literal", "variable", "indexed_variable", "collection"]
 
     def __init__(self, form, text, varname=None, datatype=None):
         self._form = form
