@@ -73,11 +73,10 @@ def trans(psy):
 
     invoke = psy.invokes.get("invoke_1_update_field")
     schedule = invoke.schedule
-
+    schedule.view()
     # Enclose everything in a extract region
     extract.apply(schedule.children,
                   {"create_driver": True,
                    "region_name": ("main", "update")})
 
-    schedule.view()
     return psy
