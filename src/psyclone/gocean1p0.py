@@ -61,9 +61,9 @@ from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
+from psyclone.parse.algorithm import Arg
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.parse.algorithm import Arg
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, HaloExchange
@@ -76,7 +76,7 @@ from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
     ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
-    UnknownFortranType, LocalInterface, BOOLEAN_TYPE
+    UnknownFortranType, LocalInterface, BOOLEAN_TYPE, REAL_TYPE
 
 
 # Specify which OpenCL command queue to use for management operations like
@@ -2534,6 +2534,13 @@ class GOKernelArgument(KernelArgument):
         # six.text_type is needed in Python2 to use the isnumeric method
         if six.text_type(self.name).isnumeric():
             return Literal(self.name, INTEGER_TYPE)
+
+        # Now try for a real value:
+        try:
+            float(self.name)
+            return Literal(self.name, REAL_TYPE)
+        except ValueError:
+            pass
 
         # Otherwise it's some form of Reference
         symbol = self._call.scope.symbol_table.lookup(self.name)

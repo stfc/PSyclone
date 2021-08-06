@@ -74,7 +74,7 @@ class Literal(DataNode):
     _children_valid_format = "<LeafNode>"
     _text_name = "Literal"
     _colour = "yellow"
-    _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?(e[+-]?[0-9]+)?$'
+    _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?$'
 
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
