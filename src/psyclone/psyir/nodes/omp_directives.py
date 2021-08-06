@@ -120,6 +120,41 @@ class OMPSerialDirective(OMPDirective):
 
     '''
 
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPSerial is not enclosed \
+                            within some OpenMP parallel region.
+        :raises GenerationError: if this OMPSerial is enclosed within \
+                            any OMPSerialDirective subclass region.
+
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As a Parallel Child
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        # Also check the single region is not enclosed within another OpenMP
+        # single region.
+        # It could in principle be allowed for that parent to be a ParallelDo
+        # directive, however I can't think of a use case that would be done
+        # best in a parallel code by that pattern
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "{} must be inside an OMP parallel region but "
+                "could not find an ancestor OMPParallelDirective node".format(
+                    self._text_name))
+
+        if self.ancestor(OMPSerialDirective):
+            raise GenerationError(
+                    "{} must not be inside another OpenMP "
+                    "serial region".format(self._text_name))
+
+        super(OMPSerialDirective, self).validate_global_constraints()
+
 
 class OMPSingleDirective(OMPSerialDirective):
     '''
@@ -132,6 +167,9 @@ class OMPSingleDirective(OMPSerialDirective):
         a nowait clause applied. Default value is False.
 
     '''
+    # Textual description of the node
+    _text_name = "OMPSingleDirective"
+
     def __init__(self, children=None, parent=None, nowait=False):
 
         self._nowait = nowait
@@ -162,40 +200,6 @@ class OMPSingleDirective(OMPSerialDirective):
 
         '''
         return self.coloured_name(colour) + "[OMP single]"
-
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this OMPSingle is not enclosed \
-                            within some OpenMP parallel region.
-        :raises GenerationError: if this OMPSingle is enclosed within \
-                            any OMPSerialDirective subclass region.
-
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As a Parallel Child
-        # directive, we must have an OMPParallelDirective as an ancestor
-        # somewhere back up the tree.
-        # Also check the single region is not enclosed within another OpenMP
-        # single region.
-        # It could in principle be allowed for that parent to be a ParallelDo
-        # directive, however I can't think of a use case that would be done
-        # best in a parallel code by that pattern
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
-            raise GenerationError(
-                "OMPSingleDirective must be inside an OMP parallel region but "
-                "could not find an ancestor OMPParallelDirective node")
-
-        if self.ancestor(OMPSerialDirective):
-            raise GenerationError(
-                    "OMPSingleDirective must not be inside another OpenMP "
-                    "serial region")
-
-        super(OMPSingleDirective, self).validate_global_constraints()
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Single Directive and any associated
@@ -256,6 +260,9 @@ class OMPMasterDirective(OMPSerialDirective):
     Class representing an OpenMP MASTER directive in the PSyclone AST.
 
     '''
+
+    # Textual description of the node
+    _text_name = "OMPMasterDirective"
 
     @property
     def dag_name(self):
@@ -322,40 +329,6 @@ class OMPMasterDirective(OMPSerialDirective):
         '''
         # pylint: disable=no-self-use
         return "omp end master"
-
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this OMPMaster is not enclosed \
-                            within some OpenMP parallel region.
-        :raises GenerationError: if this OMPMaster is enclosed within \
-                            any OMPSerialDirective subclass region.
-
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As a Parallel Child
-        # directive, we must have an OMPParallelDirective as an ancestor
-        # somewhere back up the tree.
-        # Also check the single region is not enclosed within another OpenMP
-        # single region.
-        # It could in principle be allowed for that parent to be a ParallelDo
-        # directive, however I can't think of a use case that would be done
-        # best in a parallel code by that pattern
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
-            raise GenerationError(
-                "OMPMasterDirective must be inside an OMP parallel region but "
-                "could not find an ancestor OMPParallelDirective node")
-
-        if self.ancestor(OMPSerialDirective):
-            raise GenerationError(
-                    "OMPMasterDirective must not be inside another OpenMP "
-                    "serial region")
-
-        super(OMPMasterDirective, self).validate_global_constraints()
 
 
 class OMPParallelDirective(OMPDirective):
@@ -657,15 +630,14 @@ class OMPTaskloopDirective(OMPDirective):
         time.
 
         :raises GenerationError: if this OMPTaskloopDirective is not \
-                                 enclosed within an OpenMP parallel \
-                                 region and an OpenMP single region.
+                                 enclsed within an OpenMP serial region.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
         # can apply transformations to the code). As an  taskloop
         # directive, we must have an OMPSerialDirective as an
         # ancestor back up the tree.
-        if not (self.ancestor(OMPSerialDirective)):
+        if not self.ancestor(OMPSerialDirective):
             raise GenerationError(
                 "OMPTaskloopDirective must be inside an OMP Serial region "
                 "but could not find an ancestor node")

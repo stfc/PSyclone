@@ -635,6 +635,7 @@ OpenMP
 
 OpenMP is added to a code by using transformations. The OpenMP
 transformations currently supported allow the addition of:
+
 * an **OpenMP Parallel** directive
 * an **OpenMP Do** directive
 * an **OpenMP Single** directive

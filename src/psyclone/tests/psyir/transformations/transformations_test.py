@@ -152,6 +152,7 @@ def test_omptaskloop_getters_and_setters():
 
     trans = OMPTaskloopTrans(num_tasks=32)
     assert trans.omp_num_tasks == 32
+    trans = None
     trans = OMPTaskloopTrans(grainsize=32)
     assert trans.omp_grainsize == 32
 

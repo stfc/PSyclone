@@ -34,6 +34,7 @@
 # Author S. Siso, STFC Daresbury Lab
 # Modified: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''
