@@ -46,6 +46,7 @@ import six
 
 from psyclone.generator import write_unicode_file
 from psyclone.psyad import generate_adjoint_str
+from psyclone.psyad.transformations import TangentLinearError
 
 
 def main(args):
@@ -58,15 +59,25 @@ def main(args):
     '''
     logger = logging.getLogger(__name__)
 
+    def msg():
+        '''Function to overide the argpass usage message'''
+        return "psyad [-h] [-oad OAD] [-v] -a ACTIVE [ACTIVE ...] -- filename"
+
+    # There is a bug in arparse when mixing positional and variable
+    # arguments. The simplest solution is to separate them with
+    # --. The usage message is therefore manually updated to reflect
+    # this workaround.
     parser = argparse.ArgumentParser(
         description="Run the PSyclone adjoint code generator on an LFRic "
-        "tangent-linear kernel file")
+        "tangent-linear kernel file", usage=msg())
+    parser.add_argument(
+        '-a', '--active', nargs='+', help='active variable names',
+        required=True)
+    parser.add_argument('filename', help='LFRic tangent-linear kernel source')
+    parser.add_argument('-oad', help='filename for the transformed code')
     parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
-    parser.add_argument('-oad', help='filename for the transformed code')
-    parser.add_argument('filename', help='LFRic tangent-linear kernel source')
-    parser.add_argument('-a', nargs='+', help='active variable names')
 
     args = parser.parse_args(args)
 
@@ -76,20 +87,22 @@ def main(args):
     # TL Fortran code
     filename = args.filename
     logger.info("Reading kernel file %s", filename)
-    with open(filename) as my_file:
-        tl_fortran_str = my_file.read()
-        tl_fortran_str = six.text_type(tl_fortran_str)
+    try:
+        with open(filename) as my_file:
+            tl_fortran_str = my_file.read()
+            tl_fortran_str = six.text_type(tl_fortran_str)
+    except FileNotFoundError as info:
+        print(
+            "psyad: error: file '{0}', not found.".format(filename),
+            file=sys.stderr)
+        sys.exit(1)
 
-    from psyclone.psyad.transformations import TangentLinearError
     try:
         ad_fortran_str = generate_adjoint_str(
-            tl_fortran_str, args.a)
-    except (KeyError, TypeError) as info:
-        print(str(info))
-        exit(1)
-    except TangentLinearError as info:
-        print(str(info))
-        exit(1)
+            tl_fortran_str, args.active)
+    except (KeyError, TypeError, TangentLinearError) as info:
+        print("psyad: error: {0}".format(str(info)), file=sys.stderr)
+        sys.exit(1)
 
     # AD Fortran code
     if args.oad:

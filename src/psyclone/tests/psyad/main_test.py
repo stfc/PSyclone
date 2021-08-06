@@ -59,23 +59,25 @@ def test_main_h_option(capsys):
     # when using pytest, therefore we split this test into sections.
     expected1 = "usage: "
     expected2 = (
-        "[-h] [-v] [-oad OAD] filename\n\n"
+        "[-h] [-oad OAD] [-v] -a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
-        "  filename       LFRic tangent-linear kernel source\n\n"
+        "  filename              LFRic tangent-linear kernel source\n\n"
         "optional arguments:\n"
-        "  -h, --help     show this help message and exit\n"
-        "  -v, --verbose  increase the verbosity of the output\n"
-        "  -oad OAD       filename for the transformed code\n")
+        "  -h, --help            show this help message and exit\n"
+        "  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
+        "                        active variable names\n"
+        "  -oad OAD              filename for the transformed code\n"
+        "  -v, --verbose         increase the verbosity of the output\n")
     assert expected1 in output
     assert expected2 in output
 
 
-# no filename
-def test_main_no_filename(capsys):
-    '''Test that the main() function raises an exception if the filename
-    argument is not supplied.
+# no args
+def test_main_no_args(capsys):
+    '''Test that the main() function raises an exception if the required
+    arguments are not supplied.
 
     '''
     with pytest.raises(SystemExit) as info:
@@ -87,20 +89,68 @@ def test_main_no_filename(capsys):
     # of the executable is replaced with either pytest or -c when
     # using pytest, therefore we split the test into sections.
     expected1 = "usage: "
-    expected2 = "[-h] [-v] [-oad OAD] filename"
+    expected2 = "[-h] [-oad OAD] [-v] -a ACTIVE [ACTIVE ...] -- filename"
     if six.PY2:
         expected3 = "error: too few arguments\n"
     else:
-        expected3 = "error: the following arguments are required: filename\n"
+        expected3 = ("error: the following arguments are required: "
+                     "-a/--active, filename")
     assert expected1 in error
     assert expected2 in error
     assert expected3 in error
 
 
+# no -a
+def test_main_no_a_arg(capsys):
+    '''Test that the main() function raises an exception if the -a
+    argument is not supplied.
+
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["file"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = ("error: the following arguments are required: "
+                "-a/--active")
+    assert expected in error
+
+
+# no -a arg arg
+def test_main_no_a_arg_arg(capsys):
+    '''Test that the main() function raises an exception if an argument to
+    the -a argument is not supplied.
+
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["file", "-a"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = ("error: argument -a/--active: expected at least one "
+                "argument")
+    assert expected in error
+
+
+# no filename
+def test_main_no_filename(capsys):
+    '''Test that the main() function raises an exception if no filename is
+    supplied.
+
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "var"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = "error: the following arguments are required: filename\n"
+    assert expected in error
+
+
 # invalid filename
-def test_main_invalid_filename():
+def test_main_invalid_filename(capsys):
     '''Test that the the main() function raises an exception if the
-    filename does not exist.
+    file specified by filename does not exist.
 
     '''
     # FileNotFoundError does not exist in Python2
@@ -109,10 +159,12 @@ def test_main_invalid_filename():
     except NameError:
         # pylint: disable=redefined-builtin
         FileNotFoundError = IOError
-    with pytest.raises(FileNotFoundError) as info:
-        main(["does_not_exist.f90"])
-    assert ("[Errno 2] No such file or directory: 'does_not_exist.f90'"
-            in str(info.value))
+    with pytest.raises(SystemExit):
+        main(["-a", "arg", "--", "does_not_exist.f90"])
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = "psyad: error: file 'does_not_exist.f90', not found."
+    assert expected in error
 
 
 # writing to stdout
@@ -134,7 +186,7 @@ def test_main_stdout(tmpdir, capsys):
     filename = six.text_type(tmpdir.join("tl.f90"))
     with open(filename, "a") as my_file:
         my_file.write(tl_code)
-    main([filename])
+    main(["-a", "a", "--", filename])
     output, error = capsys.readouterr()
     assert error == ""
     assert expected in output
@@ -160,7 +212,7 @@ def test_main_fileout(tmpdir, capsys):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(tl_code)
-    main([filename_in, "-oad", filename_out])
+    main([filename_in, "-oad", filename_out, "-a", "a"])
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
@@ -189,15 +241,47 @@ def test_main_verbose(tmpdir, capsys, caplog):
     with open(filename_in, "a") as my_file:
         my_file.write(tl_code)
     with caplog.at_level(logging.DEBUG):
-        main([filename_in, "-v", "-oad", filename_out])
+        main([filename_in, "-v", "-oad", filename_out, "-a", "a"])
 
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
-    assert ("INFO     psyclone.psyad.main:main.py:77 Reading kernel file /"
+    assert ("INFO     psyclone.psyad.main:main.py:89 Reading kernel file /"
             in caplog.text)
     assert "/tl.f90" in caplog.text
     assert "/tl.f90" in caplog.text
-    assert ("INFO     psyclone.psyad.main:main.py:86 Writing adjoint of "
+    assert ("INFO     psyclone.psyad.main:main.py:109 Writing adjoint of "
             "kernel to file /" in caplog.text)
     assert "/ad.f90" in caplog.text
+
+
+def test_active(tmpdir, capsys):
+    '''Test that active variable names provided via the -a option are
+    passed on to to the generate_adjoint_str function and that the
+    code aborts with the expected messages when they are not found in
+    the code or result in invalid tangent linear code.
+
+    '''
+    tl_code = (
+        "program test\n"
+        "integer :: a, b\n"
+        "a = b\n"
+        "end program test\n")
+    filename_in = str(tmpdir.join("tl.f90"))
+    with open(filename_in, "a") as my_file:
+        my_file.write(tl_code)
+    # invalid active variable
+    with pytest.raises(SystemExit):
+        main([filename_in, "-a", "c"])
+    output, error = capsys.readouterr()
+    assert output == ""
+    assert "psyad: error: \"Could not find 'c' in the Symbol Table.\"" in error
+    # invalid tangent linear code
+    with pytest.raises(SystemExit):
+        main([filename_in, "-a", "b"])
+    output, error = capsys.readouterr()
+    assert output == ""
+    assert (
+        "psyad: error: TangentLinearError: Assignment node 'a = b\n' has "
+        "active variables on its RHS but its LHS 'a' is not an active "
+        "variable." in error)
