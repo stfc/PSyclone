@@ -453,6 +453,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
         :raises NotImplementedError: if a collapse argument is supplied
         '''
+        # TODO 1370: OpenMP loop functions don't support collapse
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for "
@@ -572,6 +573,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective`
         :raises NotImplementedError: if a collapse argument is supplied
         '''
+        # TODO 1370: OpenMP loop functions don't support collapse
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for '!$omp do' "
