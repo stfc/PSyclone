@@ -614,11 +614,19 @@ class OMPTaskloopDirective(OMPDirective):
                       the num_tasks clause is not applied. Default value \
                       is None.
     :type num_tasks: int or None.
+
+    :raises GenerationError: if this OMPTaskloopDirective has both \
+                             a grainsize and num_tasks value \
+                             specified.
     '''
     def __init__(self, children=None, parent=None, grainsize=None,
                  num_tasks=None):
         self._grainsize = grainsize
         self._num_tasks = num_tasks
+        if self._grainsize is not None and self._num_tasks is not None:
+            raise GenerationError(
+                "OMPTaskloopDirective must not have both grainsize and "
+                "numtasks clauses specified.")
         super(OMPTaskloopDirective, self).__init__(children=children,
                                                    parent=parent)
 
@@ -651,27 +659,16 @@ class OMPTaskloopDirective(OMPDirective):
         :raises GenerationError: if this OMPTaskloopDirective is not \
                                  enclosed within an OpenMP parallel \
                                  region and an OpenMP single region.
-        :raises GenerationError: if this OMPTaskloopDirective has both \
-                                 a grainsize and num_tasks value \
-                                 specified.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As an orphaned taskloop
-        # directive, we must have an OMPParallelDirective as an ancestor
-        # somewhere back up the tree and an OMPSerialDirective as an
+        # can apply transformations to the code). As an  taskloop
+        # directive, we must have an OMPSerialDirective as an
         # ancestor back up the tree.
-        if not (self.ancestor(OMPParallelDirective,
-                              excluding=OMPParallelDoDirective) and
-                self.ancestor(OMPSerialDirective)):
+        if not (self.ancestor(OMPSerialDirective)):
             raise GenerationError(
-                "OMPTaskloopDirective must be inside an OMP parallel region "
-                "and an OMP Serial region but could not find both "
-                "ancestor nodes")
-        if self._grainsize is not None and self._num_tasks is not None:
-            raise GenerationError(
-                "OMPTaskloopDirective must not have both grainsize and "
-                "numtasks clauses specified.")
+                "OMPTaskloopDirective must be inside an OMP Serial region "
+                "but could not find an ancestor node")
 
         super(OMPTaskloopDirective, self).validate_global_constraints()
 
@@ -813,7 +810,7 @@ class OMPDoDirective(OMPDirective):
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As an orphaned loop
+        # can apply transformations to the code). As a loop
         # directive, we must have an OMPParallelDirective as an ancestor
         # somewhere back up the tree.
         if not self.ancestor(OMPParallelDirective,
@@ -843,7 +840,7 @@ class OMPDoDirective(OMPDirective):
         else:
             local_reduction_string = self._reduction_string()
 
-        # As we're an orphaned loop we don't specify the scope
+        # As we're a loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
         options = "schedule({0})".format(self._omp_schedule) + \

@@ -126,29 +126,40 @@ def test_omptaskloop_getters_and_setters():
     trans = OMPTaskloopTrans()
     with pytest.raises(TransformationError) as err:
         trans.omp_num_tasks = "String"
-    assert("num_tasks must be an integer, got str" in str(err.value))
+    assert "num_tasks must be an integer or None, got str" in str(err.value)
     with pytest.raises(TransformationError) as err:
         trans.omp_num_tasks = -1
-    assert("num_tasks must be a positive integer, got -1" in str(err.value))
+    assert "num_tasks must be a positive integer, got -1" in str(err.value)
     with pytest.raises(TransformationError) as err:
         trans.omp_grainsize = "String"
-    assert("grainsize must be an integer, got str" in str(err.value))
+    assert "grainsize must be an integer or None, got str" in str(err.value)
     with pytest.raises(TransformationError) as err:
         trans.omp_grainsize = -1
-    assert("grainsize must be a positive integer, got -1" in str(err.value))
+    assert "grainsize must be a positive integer, got -1" in str(err.value)
     trans.omp_num_tasks = 32
     assert trans.omp_num_tasks == 32
+    with pytest.raises(TransformationError) as err:
+        trans.omp_grainsize = 32
+    assert("The grainsize and num_tasks clauses would both "
+           "be specified for this Taskloop transformation"
+           in str(err.value))
+    trans.omp_num_tasks = None
+    assert trans.omp_num_tasks is None
     trans.omp_grainsize = 32
     assert trans.omp_grainsize == 32
+    trans.grainsize = None
+    assert trans.grainsize is None
 
-    trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
+    trans = OMPTaskloopTrans(num_tasks=32)
     assert trans.omp_num_tasks == 32
+    trans = OMPTaskloopTrans(grainsize=32)
     assert trans.omp_grainsize == 32
 
     with pytest.raises(TransformationError) as err:
-        a = trans._directive(children=None)
-    assert("The grainsize and num_tasks clauses are both "
-           "specified for this Taskloop transformation" in str(err.value))
+        trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
+    assert("The grainsize and num_tasks clauses would both "
+           "be specified for this Taskloop transformation"
+           in str(err.value))
 
 
 def test_ifblock_children_region():

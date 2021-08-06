@@ -316,11 +316,7 @@ class ParallelLoopTrans(LoopTrans):
 class OMPTaskloopTrans(ParallelLoopTrans):
 
     '''
-    Adds an orphaned OpenMP taskloop directive to a loop. i.e. the
-    directive must be inside the scope of some other OMP Parallel
-    region, and must also be inside an OMP Serial region
-    (OMP Master or OMP Single). These conditions are tested at
-    code-generation time.
+    Adds an OpenMP taskloop directive to a loop.
 
     TODO: #1364 Taskloops do not yet support reduction clauses.
 
@@ -381,22 +377,28 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         '''
         Sets the grainsize that will be specified by
         this transformation. Checks the grainsize is
-        a positive integer value.
+        a positive integer value or None.
 
         :param value: Integer value to use in the grainsize clause.
         :type value: int
 
         :raises TransformationError: If value is not an int.
         :raises TransformationError: If value is negative.
+        :raises TransformationError: if grainsize and num_tasks are \
+                                     both specified.
         '''
-        if not isinstance(value, int):
-            raise TransformationError("grainsize must be an integer, "
+        if (not isinstance(value, int)) and (value is not None):
+            raise TransformationError("grainsize must be an integer or None, "
                                       "got {0}".format(type(value).__name__))
 
-        if value <= 0:
+        if (value is not None) and (value <= 0):
             raise TransformationError("grainsize must be a positive "
                                       "integer, got {0}".format(value))
 
+        if self.omp_num_tasks is not None:
+            raise TransformationError(
+                "The grainsize and num_tasks clauses would both "
+                "be specified for this Taskloop transformation")
         self._grainsize = value
 
     @property
@@ -410,24 +412,30 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     def omp_num_tasks(self, value):
         '''
         Sets the num_tasks that will be specified by
-        this transformation. Checks the num_tasks is
-        a positive integer value
+        this transformation. Checks that num_tasks is
+        a positive integer value or None.
 
         :param value: Integer value to use in the num_tasks clause.
         :type value: int
 
-        :raises TransformationError: If value is not an int.
+        :raises TransformationError: If value is not an int or None.
         :raises TransformationError: If value is negative.
+        :raises TransformationError: if grainsize and num_tasks are \
+                                     both specified.
 
         '''
-        if not isinstance(value, int):
-            raise TransformationError("num_tasks must be an integer, "
-                                      "got {0}".format(type(value).__name__))
+        if (not isinstance(value, int)) and (value is not None):
+            raise TransformationError("num_tasks must be an integer or None,"
+                                      " got {0}".format(type(value).__name__))
 
-        if value <= 0:
+        if (value is not None) and (value <= 0):
             raise TransformationError("num_tasks must be a positive "
                                       "integer, got {0}".format(value))
 
+        if self.omp_grainsize is not None:
+            raise TransformationError(
+                "The grainsize and num_tasks clauses would both "
+                "be specified for this Taskloop transformation")
         self._num_tasks = value
 
     def _directive(self, children, collapse=None):
@@ -444,18 +452,11 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
 
         :raises NotImplementedError: if a collapse argument is supplied
-        :raises TransformationError: if grainsize and num_tasks are \
-                                     both specified.
         '''
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for "
                 "'!$omp taskloop' directives.")
-        if self.omp_grainsize is not None and \
-           self.omp_num_tasks is not None:
-            raise TransformationError(
-                "The grainsize and num_tasks clauses are both "
-                "specified for this Taskloop transformation")
         _directive = OMPTaskloopDirective(children=children,
                                           grainsize=self.omp_grainsize,
                                           num_tasks=self.omp_num_tasks)
@@ -465,9 +466,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 class OMPLoopTrans(ParallelLoopTrans):
 
     '''
-    Adds an orphaned OpenMP directive to a loop. i.e. the directive
-    must be inside the scope of some other OMP Parallel
-    REGION. This condition is tested at code-generation time. The
+    Adds an OpenMP directive to a loop. The
     optional 'reprod' argument in the apply method decides whether
     standard OpenMP reduction support is to be used (which is not
     reproducible) or whether a manual reproducible reproduction is

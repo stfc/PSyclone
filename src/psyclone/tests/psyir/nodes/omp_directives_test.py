@@ -492,17 +492,17 @@ def test_omp_taskloop_strings():
     assert omp_taskloop.end_string() == "omp end taskloop"
 
 
+def test_omp_taskloop_init():
+    ''' Test the constructor of the OMPTaskloop directive'''
+    with pytest.raises(GenerationError) as excinfo:
+        OMPTaskloopDirective(grainsize=32, num_tasks=32)
+    assert("OMPTaskloopDirective must not have both grainsize and "
+           "numtasks clauses specified.") in str(excinfo.value)
+
+
 def test_omp_taskloop_node_str():
     ''' Test the node_str() method of the OMPTaskloop directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    taskloop = OMPTaskloopTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    taskloop.apply(schedule.children[0])
-    omp_taskloop = schedule.children[0]
+    omp_taskloop = OMPTaskloopDirective()
     out = OMPTaskloopDirective.node_str(omp_taskloop)
     directive = colored("Directive", Directive._colour)
     expected_output = directive + "[OMP taskloop]"
@@ -553,7 +553,7 @@ def test_omp_taskloop_gencode(grainsize, num_tasks):
     assert taskloop_node.begin_string() == "omp taskloop{0}".format(clauses)
 
 
-def test_omp_taskloop_validate_global_constraints(monkeypatch):
+def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -566,40 +566,6 @@ def test_omp_taskloop_validate_global_constraints(monkeypatch):
     taskloop.apply(schedule.children[0])
     with pytest.raises(GenerationError) as excinfo:
         schedule.children[0].validate_global_constraints()
-    assert ("OMPTaskloopDirective must be inside an OMP parallel region "
-            "and an OMP Serial region but could not find both "
-            "ancestor nodes" in str(excinfo.value))
-    taskloop_sched = schedule.children[0]
-    parallel = OMPParallelTrans()
-    parallel.apply(schedule.children[0])
-    with pytest.raises(GenerationError) as excinfo:
-        taskloop_sched.validate_global_constraints()
-    assert ("OMPTaskloopDirective must be inside an OMP parallel region "
-            "and an OMP Serial region but could not find both "
-            "ancestor nodes" in str(excinfo.value))
-
-    # To test that validate_global_constaints fails when both the
-    # grainsize and num_tasks clauses are applied we need to use
-    # monkeypatch
-    def temp_directive(self, children, collapse=None):
-        '''Temporary _directive function for OMPTaskloopTrans
-        to enable testing certain sections of the code'''
-        _directive = OMPTaskloopDirective(children=children,
-                                          grainsize=self.omp_grainsize,
-                                          num_tasks=self.omp_num_tasks)
-        return _directive
-
-    monkeypatch.setattr(OMPTaskloopTrans, "_directive", temp_directive)
-    taskloop = OMPTaskloopTrans(grainsize=32, num_tasks=32)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    taskloop.apply(schedule.children[0])
-    sched = schedule.children[0]
-    single = OMPSingleTrans()
-    single.apply(schedule[0])
-    parallel.apply(schedule[0])
-    with pytest.raises(GenerationError) as excinfo:
-        sched.validate_global_constraints()
-    assert ("OMPTaskloopDirective must not have both grainsize and "
-            "numtasks clauses specified." in str(excinfo.value))
+    assert ("OMPTaskloopDirective must be inside an OMP "
+            "Serial region but could not find an ancestor node"
+            in str(excinfo.value))

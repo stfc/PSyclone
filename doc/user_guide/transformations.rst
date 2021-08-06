@@ -633,14 +633,16 @@ examples/check_examples script).
 OpenMP
 ------
 
-OpenMP is added to a code by using transformations. The six
-transformations currently supported allow the addition of an
-**OpenMP Parallel** directive, an **OpenMP Do** directive, an
-**OpenMP Single** directive, an **OpenMP Master** directive, 
-an **OpenMP Taskloop** directive, and an 
-**OpenMP Parallel Do** directive, respectively, to a code.
+OpenMP is added to a code by using transformations. The OpenMP
+transformations currently supported allow the addition of:
+* an **OpenMP Parallel** directive
+* an **OpenMP Do** directive
+* an **OpenMP Single** directive
+* an **OpenMP Master** directive
+* an **OpenMP Taskloop** directive; and
+* an **OpenMP Parallel Do** directive.
 
-The generic versions of these six transformations (i.e. ones that
+The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
