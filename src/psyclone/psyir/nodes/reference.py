@@ -160,6 +160,33 @@ class Reference(DataNode):
                 index.reference_accesses(var_accesses)
         var_accesses.add_access(sig, AccessType.READ, self, all_indices)
 
+    @property
+    def previous_reference(self):
+        '''
+        returns: the closest preceding reference in the PSyIR tree \
+            (depth first) that has the same reference as this one or \
+            None if one is not found.
+        rtype: :py:class:`psyclone.psyir.nodes.Reference` or NoneType
+
+        '''
+        for node in self.walk_preceding(Reference):
+            if node.symbol is self.symbol:
+                return node
+        return None
+
+    @property
+    def next_reference(self):
+        '''
+        returns: the closest following reference in the PSyIR tree \
+            (depth first) that has the same reference as this one or \
+            None if one is not found.
+        rtype: :py:class:`psyclone.psyir.nodes.Reference` or NoneType
+
+        '''
+        for node in self.walk_following(Reference):
+            if node.symbol is self.symbol:
+                return node
+        return None
 
 # For AutoAPI documentation generation
 __all__ = ['Reference']

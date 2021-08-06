@@ -33,12 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-'''This module contains HoistTrans. HoistTrans moves an assignment out
-of a parent loop if it is safe to do so. Hoist is a name that is often
-used to describe this type of transformation.
+'''This module contains the HoistTrans transformation. HoistTrans
+moves an assignment out of a parent loop if it is safe to do so. Hoist
+is a name that is often used to describe this type of transformation.
 
 '''
-
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -91,8 +90,9 @@ class HoistTrans(Transformation):
             independent of the loop.
 
         '''
-        # TODO remove this and use the existing self._writer when PR
-        # #xxxx puts this change on master.
+        # TODO remove the following two lines and use the pre-existing
+        # self._writer from the base class when PR #1263 adds this
+        # change to master.
         from psyclone.psyir.backend.fortran import FortranWriter
         self._writer = FortranWriter()
 
@@ -124,8 +124,10 @@ class HoistTrans(Transformation):
         # is just a simple check that does not cover all cases. Talk
         # to Joerg about dependence analysis.
 
-        # All accesses in the assignment should be independent of the
-        # loop iterator.
+        # Dependency checks
+        
+        # 1: All accesses in the assignment should be independent of
+        # the loop iterator.
         iterator = parent_loop.variable
         for reference in node.walk(Reference):
             if reference.symbol is iterator:
@@ -133,6 +135,43 @@ class HoistTrans(Transformation):
                     "The supplied assignment node '{0}' depends on the parent "
                     "loop iterator '{1}'.".format(self._writer(node), iterator.name))
 
+        # Known limitations for this dependence analysis
+        # 1: Assumes all accesses are dependent (so does not
+        # take into account a(1) and a(2) being different)
+        # 2: Ignores potential side-effects within calls.
+
+        # 2: The modified reference symbol should not be read or
+        # written within the loop before this assigment.
+        lhs_reference = assignment.lhs
+        prev_reference = lhs_reference.previous_reference
+        if prev_reference.abs_position > parent_loop.abs_position:
+            raise TransformationError(
+                "Writer has a previous read or write within the loop")
+
+        # 3: The reference symbols that are read should not be written
+        # within the loop before this assigment.
+        for reference in self.rhs.walk(Reference):
+            prev_reference = reference.previous_reference(access=WRITE)
+            if prev_reference.abs_position > parent_loop.abs_position:
+                raise TransformationError(
+                    "Reader has a previous write within the loop")
+
+        # 4: The writer can't be read and then written in the loop afterwards
+        lhs_reference = assignment.lhs
+        next_reference = lhs_reference.following_reference
+        if next_reference.READ and next_reference.abs_position <= after_parent_loop.abs_position:
+            next_write_reference = lhs_reference.following_reference(access=WRITE)
+            if next_reference.abs_position <= after_parent_loop.abs_position:
+                raise TransformationError(
+                    "Writer has a following read then write within the loop")
+            
+        # 5: The readers can't be written in the loop afterwards
+        for reference in self.rhs.walk(Reference):
+            next_reference = reference.following_reference(access=WRITE)
+            if next_reference.abs_position <= after_parent_loop.abs_position:
+                raise TransformationError(
+                    "Reader has a subsequent write within the loop")
+        
     @property
     def name(self):
         '''
