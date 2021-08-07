@@ -69,17 +69,17 @@ def test_generate_adjoint_str(caplog):
         "end program test\n")
 
     with caplog.at_level(logging.INFO):
-        result = generate_adjoint_str(tl_code)
+        result = generate_adjoint_str(tl_code, ["a"])
 
-    assert caplog.text == ""
+    assert expected == result
     assert expected in result
 
     with caplog.at_level(logging.DEBUG):
-        result = generate_adjoint_str(tl_code)
+        result = generate_adjoint_str(tl_code, ["a"])
 
-    assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:58" in caplog.text
+    assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:60" in caplog.text
     assert tl_code in caplog.text
-    assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:74" in caplog.text
+    assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:76" in caplog.text
     assert expected in caplog.text
     assert expected in result
 
@@ -101,7 +101,7 @@ def test_generate_adjoint():
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
-    ad_psyir = generate_adjoint(tl_psyir)
+    ad_psyir = generate_adjoint(tl_psyir, ["a"])
 
     writer = FortranWriter()
     ad_fortran_str = writer(ad_psyir)
@@ -130,7 +130,7 @@ def test_generate_adjoint_logging(caplog):
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
     with caplog.at_level(logging.INFO):
-        ad_psyir = generate_adjoint(tl_psyir)
+        ad_psyir = generate_adjoint(tl_psyir, ["a"])
     assert caplog.text == ""
 
     writer = FortranWriter()
@@ -138,19 +138,16 @@ def test_generate_adjoint_logging(caplog):
     assert expected_ad_fortran_str in ad_fortran_str
 
     with caplog.at_level(logging.DEBUG):
-        ad_psyir = generate_adjoint(tl_psyir)
+        ad_psyir = generate_adjoint(tl_psyir, ["a"])
     # Python2 and 3 report different line numbers
     if six.PY2:
-        line_number = 96
+        line_number = 98
     else:
-        line_number = 95
+        line_number = 97
     assert (
-        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:{0} Translation from generic "
-        "PSyIR to LFRic-specific PSyIR should be done now.".format(line_number)
+        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:{0} Translating from TL to AD."
+        "".format(line_number)
         in caplog.text)
-    assert (
-        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:100 Transformation from TL to "
-        "AD should be done now." in caplog.text)
 
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
