@@ -6,7 +6,7 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Schedule, Reference, UnaryOperation, \
     BinaryOperation, Literal
-from psyclone.psyir.symbols import REAL_TYPE
+from psyclone.psyir.symbols import REAL_TYPE, INTEGER_TYPE
 
 
 def active(node, active_variables):
@@ -48,6 +48,9 @@ def negate(expr):
 
     if isinstance(expr, Literal):
         return UnaryOperation.create(UnaryOperation.Operator.MINUS, expr)
+    elif (isinstance(expr, UnaryOperation) and
+          expr.operator == UnaryOperation.Operator.MINUS):
+        return expr.children[0].detach()
     return BinaryOperation.create(
         BinaryOperation.Operator.MUL, Literal("-1", INTEGER_TYPE), expr)
 
@@ -148,8 +151,28 @@ class AdjointVisitor(PSyIRVisitor):
         return dummy_schedule.pop_all_children()
 
     def loop_node(self, node):
-        '''This method is called if the visitor finds a Loop node.'''
+        '''This method is called if the visitor finds a Loop node.
 
+        :param node: a Loop PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :returns: a new PSyIR tree containing the adjoint equivalent \
+            of this node and its children nodes.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises VisitorError: if the loop body contains no active \
+            variables.
+
+        '''
+        if not self._active_variables:
+            raise VisitorError(
+                "A loop node should not be called without a schedule "
+                "being called beforehand as the latter sets up the active "
+                "variables.")
+        if passive(node, self._active_variables):
+            raise VisitorError(
+                "Visitor loop_node tangent-linear to adjoint method called "
+                "with a loop that contains no active variables.")
         self._logger.debug("Transforming active loop")
         new_node = node.copy()
         # Reverse loop order
@@ -157,5 +180,6 @@ class AdjointVisitor(PSyIRVisitor):
         new_node.start_expr = new_node.stop_expr.copy()
         new_node.stop_expr = start_expr
         new_node.step_expr = negate(new_node.step_expr.copy())
+        # Determine the adjoint of the loop body
         new_node.children[3] = self._visit(node.children[3])
         return new_node
