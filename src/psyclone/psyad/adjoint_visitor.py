@@ -2,7 +2,7 @@ from __future__ import print_function
 import logging
 
 from psyclone.psyad.transformations import AssignmentTrans
-from psyclone.psyir.backend.visitor import PSyIRVisitor
+from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Schedule, Reference, UnaryOperation, \
     BinaryOperation, Literal
@@ -53,19 +53,35 @@ def negate(expr):
 
 
 class AdjointVisitor(PSyIRVisitor):
-    ''' Visitor implementing an Adjoint Visitor. '''
+    '''An Adjoint Visitor that translates a PSyIR tree representation of a
+    tangent linear code to its adjoint.
+
+    :param active_variables_names: a list of the active variables.
+    :type active_variables_names: list of str
+
+    :raises TypeError: if not active variables are supplied.
+
+    '''
 
     def __init__(self, active_variable_names):
         super(AdjointVisitor, self).__init__()
         if not active_variable_names:
-            raise TypeError("There should be at least one active variable supplied")
+            raise TypeError("There should be at least one active variable supplied.")
         self._active_variable_names = active_variable_names
         self._active_variables = None
         self._logger = logging.getLogger(__name__)
 
     def filecontainer_node(self, node):
-        '''This method is called if the visitor finds a FileContainer node.'''
+        '''This method is called if the visitor finds a FileContainer node.
 
+        :param node: a FileContainer PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+        :returns: a new PSyIR tree containing the adjoint equivalent \
+            of this node and its children nodes.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
         self._logger.debug("Copying FileContainer")
         node_copy = node.copy()
         node_copy.children = []
@@ -118,6 +134,11 @@ class AdjointVisitor(PSyIRVisitor):
         '''This method is called if the visitor finds an Assignment node.'''
 
         self._logger.debug("Transforming active assignment")
+        if not self._active_variables:
+            raise VisitorError(
+                "An assignment node should not be called without a schedule "
+                "being called beforehand as the latter sets up the active "
+                "variables.")
         assign_trans = AssignmentTrans(self._active_variables)
         new_node = node.copy()
         # Temporary parent schedule required by the transformation.
