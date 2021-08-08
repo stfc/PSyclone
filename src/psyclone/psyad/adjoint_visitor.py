@@ -106,7 +106,7 @@ class AdjointVisitor(PSyIRVisitor):
         node_copy = node.copy()
         node_copy.children = []
 
-        # split active and passive nodes.
+        # Split active and passive nodes.
         self._logger.debug("Adding passive code")
         active_nodes = []
         for child in node.children:

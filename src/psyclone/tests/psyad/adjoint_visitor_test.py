@@ -46,8 +46,61 @@ from psyclone.psyad import AdjointVisitor
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import FileContainer, Assignment, Loop
+from psyclone.psyir.nodes import FileContainer, Assignment, Loop, Schedule
 from psyclone.tests.utilities import Compile
+
+
+def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
+                  tmpdir):
+    '''Utility routine that takes tangent linear fortran code as input in
+    the argument 'tl_fortran', transforms this code into its adjoint
+    using the active variables specified in the
+    'active_variable_names' argument and tests whether the result is
+    the same as the expected result in the 'expected_ad_fortran'
+    argument.
+
+    To help keep the test code short this routine also adds the
+    subroutine / end subroutine lines to the incoming code.
+
+    :param str tl_fortran: tangent linear code.
+    :param list of str active_variable_names: a list of active \
+        variable names.
+    :param str tl_fortran: the expected adjoint code to be produced.
+    :param str tmpdir: temporary directory created by pytest in which
+    to perform compilation.
+
+    '''
+    # Add "subroutine / end subroutine" lines to the incoming code.
+    input_code = ("subroutine test()\n{0}end subroutine test\n"
+                  "".format(tl_fortran))
+    expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
+                            "".format(expected_ad_fortran))
+
+    # Translate the tangent linear code to PSyIR.
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(input_code)
+
+    # Find the schedule in the PSyIR.
+    schedule = psyir.children[0]
+    assert isinstance(schedule, Schedule)
+
+    # Create the visitor
+    adj_visitor = AdjointVisitor(active_variable_names)
+
+    # Apply the tangent linear to adjoint transformation.
+    ad_psyir = adj_visitor(schedule)
+
+    # Translate the adjoint code to Fortran.
+    writer = FortranWriter()
+    ad_fortran = writer(ad_psyir)
+
+    # Check that the code produced is the same as the expected code
+    # provided.
+    assert ad_fortran == expected_output_code
+
+    # Check that the code produced will compile.
+    assert Compile(tmpdir).string_compiles(ad_fortran)
+
 
 # TODO function active
 # TODO function passive
@@ -130,7 +183,125 @@ def test_filecontainer_logging(caplog):
     assert "Copying FileContainer" in caplog.text
 
 
-# TODO visitor schedule
+# Visitor schedule
+def test_schedule_active(tmpdir):
+    '''Test the validate schedule_node method works when there are
+    multiple active assignments in the schedule.
+
+    '''
+    tl_fortran = (
+        "  real a, b, c, d\n"
+        "  real w, x, y, z\n"
+        "  a = w*a+x*b+y*c+d*z\n"
+        "  b = b+x*d\n"
+        "  c = y*a\n")
+    active_variables = ["a", "b", "c", "d"]
+    ad_fortran = (
+        "  real :: a\n  real :: b\n"
+        "  real :: c\n  real :: d\n"
+        "  real :: w\n  real :: x\n"
+        "  real :: y\n  real :: z\n\n"
+        ""
+        "  a = a + y * c\n"
+        "  c = 0.0\n"
+        ""
+        "  d = d + x * b\n"
+        ""
+        "  b = b + x * a\n"
+        "  c = c + y * a\n"
+        "  d = d + a * z\n"
+        "  a = w * a\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
+def test_schedule_inactive(tmpdir):
+    '''Test the visitor schedule_node method works when there are multiple
+    inactive assignments in the schedule.
+
+    '''
+    tl_fortran = (
+        "  real a, b, c, d\n"
+        "  real w, x, y, z\n"
+        "  w = x*y*z\n"
+        "  x = y\n"
+        "  z = z/w\n")
+    active_variables = ["a", "b", "c", "d"]
+    ad_fortran = (
+        "  real :: a\n  real :: b\n"
+        "  real :: c\n  real :: d\n"
+        "  real :: w\n  real :: x\n"
+        "  real :: y\n  real :: z\n\n"
+        "  w = x * y * z\n"
+        "  x = y\n"
+        "  z = z / w\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
+def test_schedule_mixed(tmpdir):
+    '''Test the visitor schedule_node method works when there is a mixture
+   of active and inactive assignments in the schedule.
+
+    '''
+    tl_fortran = (
+        "  real a, b, c, d\n"
+        "  real w, x, y, z\n"
+        "  c = y*a\n"
+        "  x = y*z\n"
+        "  b = b+x*d\n"
+        "  z = x+y\n"
+        "  a = w*a+x*b+y*c+d*z\n")
+    active_variables = ["a", "b", "c", "d"]
+    ad_fortran = (
+        "  real :: a\n  real :: b\n"
+        "  real :: c\n  real :: d\n"
+        "  real :: w\n  real :: x\n"
+        "  real :: y\n  real :: z\n\n"
+        ""
+        "  x = y * z\n"
+        "  z = x + y\n"
+        ""
+        "  b = b + x * a\n"
+        "  c = c + y * a\n"
+        "  d = d + a * z\n"
+        "  a = w * a\n"
+        ""
+        "  d = d + x * b\n"
+        ""
+        "  a = a + y * c\n"
+        "  c = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
+@pytest.mark.xfail(reason="Incorrect code is output if the variable in an inactive "
+                   "assignment is read by an earlier statement.")
+def test_schedule_dependent_active(tmpdir):
+    '''Test the validate schedule_node method works when there is a
+   mixture of active and inactive assignments in the schedule, the
+   inactive variables are updated and have both forward and backward
+   dependencies (i.e. the updated inactive variable is read both
+   before and after it is updated).
+
+    '''
+    tl_fortran = (
+        "  real a, b, c\n"
+        "  real y\n"
+        "  y = 2\n"
+        "  a = a + y*b\n"
+        "  y = 3\n"
+        "  b = b + y*c\n")
+    active_variables = ["a", "b", "c"]
+    ad_fortran = (
+        "  real :: a\n  real :: b\n"
+        "  real :: c\n  real :: y\n\n"
+        "  y = 3\n"
+        "  c = c + y * b\n"
+        "  y = 2\n"
+        "  b = b + y * a\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
+# TODO schedule loops and recursion
+# TODO schedule logging
 
 
 # visitor assignment
