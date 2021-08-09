@@ -120,7 +120,7 @@
 	40) PR #1323 for #1305. Capture the default visibility of a Fortran
 	module and store it in the symbol table.
 
- 	41) PR #1313 for #1268 and #1269. Adds new ComponentIndices class
+	41) PR #1313 for #1268 and #1269. Adds new ComponentIndices class
 	to manage indices for component accesses.
 
 	42) PR #1325 for #1247. Adds PSyIR support for comments (associated with
@@ -133,6 +133,9 @@
 	creating an OMP MASTER region.
 
 	45) PR #1360 for #1359. Fix pytest fixtures tear downs.
+
+	46) PR #1353 for #1324. Add support for generating structure accesses in
+	the C backends.
 
 release 2.0.0 28th April 2021
 

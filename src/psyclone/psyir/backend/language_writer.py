@@ -52,7 +52,7 @@ class LanguageWriter(PSyIRVisitor):
     :param array_parenthesis: a tuple of two strings that contain the \
         opening and closing parenthesis used for array accesses - e.g.:
         ("(", ")").
-    :type array_parenthesis: list of str of len 2
+    :type array_parenthesis: 2-tuple of str
     :param str structure_symbol: the symbol to be used to address a
         member of a structure, e.g. "%".
     :param bool skip_nodes: If skip_nodes is False then an exception \
