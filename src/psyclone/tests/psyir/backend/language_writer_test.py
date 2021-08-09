@@ -46,7 +46,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.symbols import ArrayType, DataSymbol, DataTypeSymbol, \
     INTEGER_TYPE, REAL_TYPE, Symbol, StructureType
 from psyclone.psyir.nodes import ArrayOfStructuresReference, ArrayReference, \
-    Literal, StructureReference
+    Literal, Member, StructureReference
 from psyclone.tests.utilities import Compile
 
 
@@ -213,3 +213,28 @@ def test_lw_arrayofstructuresref(fortran_writer):
         fortran_writer.arrayofstructuresreference_node(grid_ref)
     assert ("An ArrayOfStructuresReference must have at least two children "
             "but found 1" in str(err.value))
+
+
+def test_member_node(fortran_writer):
+    '''Explicitly test the member_node function.'''
+    region_type = StructureType.create([
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    region_type_sym = DataTypeSymbol("grid_type", region_type)
+    region_array_type = ArrayType(region_type_sym, [2, 2])
+    # The grid type contains an array of region-type structures
+    grid_type = StructureType.create([
+        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
+    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
+    grid_var = DataSymbol("grid", grid_type_sym)
+    # Reference to a member of a structure that is an element of an array
+    grid_ref = StructureReference.create(grid_var,
+                                         [("levels",
+                                           [Literal("1", INTEGER_TYPE),
+                                            Literal("1", INTEGER_TYPE)]),
+                                          "nx"])
+
+    # Specifically test member_node:
+    member = grid_ref.children[0]
+    assert isinstance(member, Member)
+    assert fortran_writer.member_node(member) == "levels(1,1)%nx"
