@@ -63,7 +63,7 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective
+    ACCKernelsDirective, OMPTaskloopDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -313,12 +313,178 @@ class ParallelLoopTrans(LoopTrans):
         return schedule, keep
 
 
+class OMPTaskloopTrans(ParallelLoopTrans):
+
+    '''
+    Adds an OpenMP taskloop directive to a loop. Only one of grainsize or
+    num_tasks must be specified.
+
+    TODO: #1364 Taskloops do not yet support reduction clauses.
+
+    :param grainsize: the grainsize to use in for this transformation.
+    :type grainsize: int or None
+    :param num_tasks: the num_tasks to use for this transformation.
+    :type num_tasks: int or None
+
+    For example:
+
+    >>> from pysclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> from psyclone.transformations import OMPTaskloopTrans
+    >>> singletrans = OMPSingleTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>> tasklooptrans = OMPTaskloopTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Apply the OpenMP Taskloop transformation to *every* loop
+    >>> # in the schedule.
+    >>> # This ignores loop dependencies. These must be manually handled
+    >>> # either through end of regions.
+    >>> # TODO: #1368 These can also be handled through the taskwait
+    >>> # directive
+    >>> for child in schedule.children:
+    >>>     tasklooptrans.apply(child)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # SINGLE region
+    >>> singletrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> schedule.view()
+
+    '''
+    def __init__(self, grainsize=None, num_tasks=None):
+        self._grainsize = None
+        self._num_tasks = None
+        self.omp_grainsize = grainsize
+        self.omp_num_tasks = num_tasks
+
+        super(OMPTaskloopTrans, self).__init__()
+
+    def __str__(self):
+        return "Adds an 'OpenMP TASKLOOP' directive to a loop"
+
+    @property
+    def omp_grainsize(self):
+        '''
+        Returns the grainsize that will be specified by
+        this transformation. By default the grainsize
+        clause is not applied, so grainsize is None.
+
+        :returns: The grainsize specified by this transformation.
+        :rtype: int or None
+        '''
+        return self._grainsize
+
+    @omp_grainsize.setter
+    def omp_grainsize(self, value):
+        '''
+        Sets the grainsize that will be specified by
+        this transformation. Checks the grainsize is
+        a positive integer value or None.
+
+        :param value: integer value to use in the grainsize clause.
+        :type value: int or None
+
+        :raises TransformationError: if value is not an int and is not None.
+        :raises TransformationError: if value is negative.
+        :raises TransformationError: if grainsize and num_tasks are \
+                                     both specified.
+        '''
+        if (not isinstance(value, int)) and (value is not None):
+            raise TransformationError("grainsize must be an integer or None, "
+                                      "got {0}".format(type(value).__name__))
+
+        if (value is not None) and (value <= 0):
+            raise TransformationError("grainsize must be a positive "
+                                      "integer, got {0}".format(value))
+
+        if value is not None and self.omp_num_tasks is not None:
+            raise TransformationError(
+                "The grainsize and num_tasks clauses would both "
+                "be specified for this Taskloop transformation")
+        self._grainsize = value
+
+    @property
+    def omp_num_tasks(self):
+        '''
+        Returns the num_tasks that will be specified
+        by this transformation. By default the num_tasks
+        clause is not applied so num_tasks is None.
+
+        :returns: The grainsize specified by this transformation.
+        :rtype: int or None
+        '''
+        return self._num_tasks
+
+    @omp_num_tasks.setter
+    def omp_num_tasks(self, value):
+        '''
+        Sets the num_tasks that will be specified by
+        this transformation. Checks that num_tasks is
+        a positive integer value or None.
+
+        :param value: integer value to use in the num_tasks clause.
+        :type value: int or None
+
+        :raises TransformationError: if value is not an int and is not None.
+        :raises TransformationError: if value is negative.
+        :raises TransformationError: if grainsize and num_tasks are \
+                                     both specified.
+
+        '''
+        if (not isinstance(value, int)) and (value is not None):
+            raise TransformationError("num_tasks must be an integer or None,"
+                                      " got {0}".format(type(value).__name__))
+
+        if (value is not None) and (value <= 0):
+            raise TransformationError("num_tasks must be a positive "
+                                      "integer, got {0}".format(value))
+
+        if value is not None and self.omp_grainsize is not None:
+            raise TransformationError(
+                "The grainsize and num_tasks clauses would both "
+                "be specified for this Taskloop transformation")
+        self._num_tasks = value
+
+    def _directive(self, children, collapse=None):
+        '''
+        Creates the type of directive needed for this sub-class of
+        transformation.
+
+        :param children: list of Nodes that will be the children of \
+                         the created directive.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param int collapse: currently un-used but required to keep \
+                             interface the same as in base class.
+        :returns: the new node representing the directive in the AST.
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
+
+        :raises NotImplementedError: if a collapse argument is supplied
+        '''
+        # TODO 1370: OpenMP loop functions don't support collapse
+        if collapse:
+            raise NotImplementedError(
+                "The COLLAPSE clause is not yet supported for "
+                "'!$omp taskloop' directives.")
+        _directive = OMPTaskloopDirective(children=children,
+                                          grainsize=self.omp_grainsize,
+                                          num_tasks=self.omp_num_tasks)
+        return _directive
+
+
 class OMPLoopTrans(ParallelLoopTrans):
 
     '''
-    Adds an orphaned OpenMP directive to a loop. i.e. the directive
-    must be inside the scope of some other OMP Parallel
-    REGION. This condition is tested at code-generation time. The
+    Adds an OpenMP directive to a loop. The
     optional 'reprod' argument in the apply method decides whether
     standard OpenMP reduction support is to be used (which is not
     reproducible) or whether a manual reproducible reproduction is
@@ -422,8 +588,9 @@ class OMPLoopTrans(ParallelLoopTrans):
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST
         :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective`
-        :raises NotImplementedError: if a collapse argument is supplied
+        :raises NotImplementedError: if a collapse argument is supplied.
         '''
+        # TODO 1370: OpenMP loop functions don't support collapse
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for '!$omp do' "
