@@ -69,6 +69,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
+    yield()
+    Config._instance = None
 
 
 def test_field(tmpdir, dist_mem):
