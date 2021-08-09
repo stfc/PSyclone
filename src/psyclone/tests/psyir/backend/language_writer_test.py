@@ -77,15 +77,15 @@ def test_language_writer_constructor_errors():
                "a string of length 2, got '" in str(err.value)
 
 
-def test_gen_dims_error():
-    '''Check the _gen_dims method raises an exception if a symbol shape
+def test_gen_indices_error():
+    '''Check the _gen_indices method raises an exception if a symbol shape
     entry is not supported.
 
     '''
     writer = LanguageWriter(["(", ")"], "%")
     with pytest.raises(NotImplementedError) as err:
-        writer.gen_dims([])
-    assert "gen_dims() is abstract" in str(err.value)
+        writer.gen_indices([])
+    assert "gen_indices() is abstract" in str(err.value)
 
 
 def test_lw_arrayreference_incomplete(fortran_writer):

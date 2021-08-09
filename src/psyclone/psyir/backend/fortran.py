@@ -336,13 +336,13 @@ class FortranWriter(LanguageWriter):
                                             initial_indent_depth,
                                             check_global_constraints)
 
-    def gen_dims(self, shape, var_name=None):
+    def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
         This is used both for array references and array declarations.
 
-        :param shape: list of PSyIR nodes.
-        :type shape: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param indices: list of PSyIR nodes.
+        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
         :param str var_name: name of the variable for which the dimensions \
             are created. Not used in the Fortran implementation.
 
@@ -354,7 +354,7 @@ class FortranWriter(LanguageWriter):
 
         '''
         dims = []
-        for index in shape:
+        for index in indices:
             if isinstance(index, (DataNode, Range)):
                 # literal constant, symbol reference, or computed
                 # dimension
@@ -375,7 +375,7 @@ class FortranWriter(LanguageWriter):
                 dims.append(":")
             else:
                 raise NotImplementedError(
-                    "unsupported gen_dims index '{0}'".format(str(index)))
+                    "unsupported gen_indices index '{0}'".format(str(index)))
         return dims
 
     def gen_use(self, symbol, symbol_table):
@@ -502,7 +502,7 @@ class FortranWriter(LanguageWriter):
                     "A Fortran declaration of an allocatable array must have"
                     " the extent of every dimension as 'DEFERRED' but "
                     "symbol '{0}' has shape: {1}.".format(
-                        symbol.name, self.gen_dims(array_shape)))
+                        symbol.name, self.gen_indices(array_shape)))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
         if ArrayType.Extent.ATTRIBUTE in array_shape:
@@ -516,9 +516,9 @@ class FortranWriter(LanguageWriter):
                         "An assumed-size Fortran array must only have its "
                         "last dimension unspecified (as 'ATTRIBUTE') but "
                         "symbol '{0}' has shape: {1}."
-                        "".format(symbol.name, self.gen_dims(array_shape)))
+                        "".format(symbol.name, self.gen_indices(array_shape)))
         if array_shape:
-            dims = self.gen_dims(array_shape)
+            dims = self.gen_indices(array_shape)
             result += ", dimension({0})".format(",".join(dims))
         if is_symbol:
             # A member of a derived type cannot have the 'intent' or

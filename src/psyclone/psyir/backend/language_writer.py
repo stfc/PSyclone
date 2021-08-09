@@ -110,12 +110,12 @@ class LanguageWriter(PSyIRVisitor):
 
     # ------------------------------------------------------------------------
     @abc.abstractmethod
-    def gen_dims(self, shape, var_name=None):
+    def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
 
-        :param shape: list of PSyIR nodes.
-        :type shape: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param indices: list of PSyIR nodes.
+        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
         :param str var_name: name of the variable for which the dimensions \
             are created. Only used in the C implementation.
 
@@ -123,7 +123,7 @@ class LanguageWriter(PSyIRVisitor):
         :rtype: list of str
 
         '''
-        raise NotImplementedError("gen_dims() is abstract")
+        raise NotImplementedError("gen_indices() is abstract")
 
     # ------------------------------------------------------------------------
     def arrayreference_node(self, node):
@@ -143,7 +143,7 @@ class LanguageWriter(PSyIRVisitor):
             raise VisitorError(
                 "Incomplete ArrayReference node (for symbol '{0}') found: "
                 "must have one or more children.".format(node.name))
-        args = self.gen_dims(node.children, node.name)
+        args = self.gen_indices(node.children, node.name)
         result = "{0}{2}{1}{3}".format(node.name,
                                        ",".join(args),
                                        self._array_parenthesis[0],
@@ -198,13 +198,13 @@ class LanguageWriter(PSyIRVisitor):
 
         if isinstance(node.children[0], Member):
             if len(node.children) > 1:
-                args = self.gen_dims(node.children[1:], node.name)
+                args = self.gen_indices(node.children[1:], node.name)
                 result += "{0}{1}{2}".format(self._array_parenthesis[0],
                                              ",".join(args),
                                              self._array_parenthesis[1])
             result += self._structure_character + self._visit(node.children[0])
         else:
-            args = self.gen_dims(node.children, node.name)
+            args = self.gen_indices(node.children, node.name)
             result += "{0}{1}{2}".format(self._array_parenthesis[0],
                                          ",".join(args),
                                          self._array_parenthesis[1])
@@ -239,7 +239,7 @@ class LanguageWriter(PSyIRVisitor):
 
         # Generate the array reference. We need to skip over the first child
         # (as that refers to the member of the derived type being accessed).
-        args = self.gen_dims(node.children[1:])
+        args = self.gen_indices(node.children[1:])
 
         result = (node.symbol.name + self._array_parenthesis[0] +
                   ",".join(args) + self._array_parenthesis[1] +

@@ -98,8 +98,8 @@ def test_gen_intent_error(monkeypatch):
     assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo.value)
 
 
-def test_gen_dims(fortran_writer):
-    '''Check the gen_dims function produces the expected dimension
+def test_gen_indices(fortran_writer):
+    '''Check the gen_indices function produces the expected dimension
     strings.
 
     '''
@@ -114,20 +114,20 @@ def test_gen_dims(fortran_writer):
     array_type = ArrayType(
         INTEGER_TYPE, [Reference(arg), 2, (0, 4), literal, arg_plus_1,
                        (2, arg_plus_1.copy()), ArrayType.Extent.ATTRIBUTE])
-    assert (fortran_writer.gen_dims(array_type.shape) ==
+    assert (fortran_writer.gen_indices(array_type.shape) ==
             ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4", ":"])
 
 
-def test_gen_dims_error(monkeypatch, fortran_writer):
-    '''Check the _gen_dims method raises an exception if a symbol shape
+def test_gen_indices_error(monkeypatch, fortran_writer):
+    '''Check the _gen_indices method raises an exception if a symbol shape
     entry is not supported.
 
     '''
     array_type = ArrayType(INTEGER_TYPE, [10])
     monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = fortran_writer.gen_dims(array_type.shape)
-    assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
+        _ = fortran_writer.gen_indices(array_type.shape)
+    assert "unsupported gen_indices index 'invalid'" in str(excinfo.value)
 
 
 @pytest.mark.parametrize(

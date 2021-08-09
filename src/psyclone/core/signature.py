@@ -163,8 +163,8 @@ class Signature(object):
             else:
                 # If there are indices, add the "(ind1, ind2, ...)"
                 # TODO 1320: since we support strings and integer, we cannot
-                # simply pass the list of indices to writer.gen_dim (since it
-                # only accepts PSyIR Nodes). Instead we convert each
+                # simply pass the list of indices to writer.gen_indices
+                # (since it only accepts PSyIR Nodes). Instead we convert each
                 # string to a Reference, and each integer to a Literal
                 index_list = []
 
@@ -177,7 +177,7 @@ class Signature(object):
                     else:
                         ref = Reference(DataSymbol(dimension, INTEGER_TYPE))
                         index_list.append(ref)
-                dims = writer.gen_dims(index_list, component)
+                dims = writer.gen_indices(index_list, component)
 
                 parenthesis = writer.array_parenthesis
                 out_list.append(component + parenthesis[0] +

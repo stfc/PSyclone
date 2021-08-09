@@ -84,12 +84,12 @@ class CWriter(LanguageWriter):
                                       initial_indent_depth,
                                       check_global_constraints)
 
-    def gen_dims(self, shape, var_name=None):
+    def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
 
-        :param shape: list of PSyIR nodes.
-        :type shape: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param indices: list of PSyIR nodes.
+        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
         :param str var_name: Name of the field for which the indices are \
             created. The C-interface uses {var_name}LEN{n} as the size \
             of the corresonding dimension `n`.
@@ -111,7 +111,7 @@ class CWriter(LanguageWriter):
         # ALEN1 * ALEN2 * ...
         multiplicator = ""
 
-        for dimension, child in enumerate(shape):
+        for dimension, child in enumerate(indices):
             expression = self._visit(child)
             dim_str = "{0}LEN{1}".format(var_name, dimension+1)
             if multiplicator:
