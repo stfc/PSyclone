@@ -316,9 +316,15 @@ class ParallelLoopTrans(LoopTrans):
 class OMPTaskloopTrans(ParallelLoopTrans):
 
     '''
-    Adds an OpenMP taskloop directive to a loop.
+    Adds an OpenMP taskloop directive to a loop. Only one of grainsize or
+    num_tasks must be specified.
 
     TODO: #1364 Taskloops do not yet support reduction clauses.
+
+    :param grainsize: the grainsize to use in for this transformation.
+    :type grainsize: int or None
+    :param num_tasks: the num_tasks to use for this transformation.
+    :type num_tasks: int or None
 
     For example:
 
@@ -338,11 +344,12 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
-    # Apply the OpenMP Taskloop transformation to *every* loop
-    # in the schedule.
-    # This ignores loop dependencies. These must be manually handled
-    # either through end of regions.
-    # TODO: #1368 These can also be handled through the taskwait directive
+    >>> # Apply the OpenMP Taskloop transformation to *every* loop
+    >>> # in the schedule.
+    >>> # This ignores loop dependencies. These must be manually handled
+    >>> # either through end of regions.
+    >>> # TODO: #1368 These can also be handled through the taskwait
+    >>> # directive
     >>> for child in schedule.children:
     >>>     tasklooptrans.apply(child)
     >>> # Enclose all of these loops within a single OpenMP
@@ -367,12 +374,12 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
     @property
     def omp_grainsize(self):
-        ''' 
+        '''
         Returns the grainsize that will be specified by
         this transformation. By default the grainsize
         clause is not applied, so grainsize is None.
 
-        :returns: The grainsize specified by this transformation
+        :returns: The grainsize specified by this transformation.
         :rtype: int or None
         '''
         return self._grainsize
@@ -384,11 +391,11 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         this transformation. Checks the grainsize is
         a positive integer value or None.
 
-        :param value: Integer value to use in the grainsize clause.
+        :param value: integer value to use in the grainsize clause.
         :type value: int or None
 
-        :raises TransformationError: If value is not an int and is not None.
-        :raises TransformationError: If value is negative.
+        :raises TransformationError: if value is not an int and is not None.
+        :raises TransformationError: if value is negative.
         :raises TransformationError: if grainsize and num_tasks are \
                                      both specified.
         '''
@@ -408,12 +415,12 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
     @property
     def omp_num_tasks(self):
-        ''' 
+        '''
         Returns the num_tasks that will be specified
         by this transformation. By default the num_tasks
         clause is not applied so num_tasks is None.
 
-        :returns: The grainsize specified by this transformation
+        :returns: The grainsize specified by this transformation.
         :rtype: int or None
         '''
         return self._num_tasks
@@ -425,11 +432,11 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         this transformation. Checks that num_tasks is
         a positive integer value or None.
 
-        :param value: Integer value to use in the num_tasks clause.
+        :param value: integer value to use in the num_tasks clause.
         :type value: int or None
 
-        :raises TransformationError: If value is not an int and is not None.
-        :raises TransformationError: If value is negative.
+        :raises TransformationError: if value is not an int and is not None.
+        :raises TransformationError: if value is negative.
         :raises TransformationError: if grainsize and num_tasks are \
                                      both specified.
 
@@ -458,7 +465,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: currently un-used but required to keep \
                              interface the same as in base class.
-        :returns: the new node representing the directive in the AST
+        :returns: the new node representing the directive in the AST.
         :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
 
         :raises NotImplementedError: if a collapse argument is supplied
@@ -581,7 +588,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST
         :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective`
-        :raises NotImplementedError: if a collapse argument is supplied
+        :raises NotImplementedError: if a collapse argument is supplied.
         '''
         # TODO 1370: OpenMP loop functions don't support collapse
         if collapse:

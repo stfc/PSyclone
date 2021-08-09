@@ -126,9 +126,9 @@ class OMPSerialDirective(OMPDirective):
         time.
 
         :raises GenerationError: if this OMPSerial is not enclosed \
-                            within some OpenMP parallel region.
+                                 within some OpenMP parallel region.
         :raises GenerationError: if this OMPSerial is enclosed within \
-                            any OMPSerialDirective subclass region.
+                                 any OMPSerialDirective subclass region.
 
         '''
         # It is only at the point of code generation that we can check for
@@ -630,11 +630,11 @@ class OMPTaskloopDirective(OMPDirective):
         time.
 
         :raises GenerationError: if this OMPTaskloopDirective is not \
-                                 enclsed within an OpenMP serial region.
+                                 enclosed within an OpenMP serial region.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As an  taskloop
+        # can apply transformations to the code). A taskloop
         # directive, we must have an OMPSerialDirective as an
         # ancestor back up the tree.
         if not self.ancestor(OMPSerialDirective):
