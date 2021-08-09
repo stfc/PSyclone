@@ -290,9 +290,9 @@ def test_omp_single_node_str():
     ''' Test the node_str() method of the OMPSingle directive '''
     single_directive = OMPSingleDirective()
     out = single_directive.node_str()
-    directive = colored("Directive", Directive._colour)
+    directive = colored("OMPSingleDirective", Directive._colour)
     expected_output = directive + "[OMP single]"
-    assert expected_output in out
+    assert expected_output == out
 
 
 def test_omp_single_validate_global_constraints():
@@ -395,9 +395,9 @@ def test_omp_master_node_str():
     ''' Test the node_str() method of the OMPMaster directive '''
     master_directive = OMPMasterDirective()
     out = master_directive.node_str()
-    directive = colored("Directive", Directive._colour)
+    directive = colored("OMPMasterDirective", Directive._colour)
     expected_output = directive + "[OMP master]"
-    assert expected_output in out
+    assert expected_output == out
 
 
 def test_omp_master_gencode():
