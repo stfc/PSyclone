@@ -320,9 +320,7 @@ class FortranWriter(LanguageWriter):
     :param int initial_indent_depth: Specifies how much indentation to \
         start with. This is an optional argument that defaults to 0.
     :param bool check_global_constraints: whether or not to validate all \
-        global constraints when walking the tree.
-
-    :raises TypeError: if any of the supplied parameters are of the wrong type.
+        global constraints when walking the tree. Defaults to True.
 
     '''
     _COMMENT_PREFIX = "! "
@@ -339,7 +337,8 @@ class FortranWriter(LanguageWriter):
     def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
-        This is used both for array references and array declarations.
+        This is used both for array references and array declarations. Note
+        that 'indices' can also be a shape in case of Fortran.
 
         :param indices: list of PSyIR nodes.
         :type indices: list of :py:class:`psyclone.psyir.symbols.Node`

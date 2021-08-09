@@ -34,7 +34,8 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-'''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
+'''Performs pytest tests on the psyclone.psyir.backend.language_writer
+module.'''
 
 from __future__ import absolute_import
 
@@ -74,7 +75,7 @@ def test_language_writer_constructor_errors():
         with pytest.raises(TypeError) as err:
             _ = LanguageWriter(["(", ")"], invalid_structure_character)
         assert "Invalid structure_character parameter, must be " \
-               "a string of length 2, got '" in str(err.value)
+               "a string, got '" in str(err.value)
 
 
 def test_gen_indices_error():

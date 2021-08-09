@@ -211,7 +211,7 @@ def test_cw_ifblock():
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 1." in str(err.value))
 
-    # Fill the if_body and else_body
+    # Fill the if_body
     ifblock.addchild(Schedule(parent=ifblock))
     ifblock.if_body.addchild(Return(parent=ifblock.if_body))
     if_only = cwriter(ifblock)
@@ -219,6 +219,7 @@ def test_cw_ifblock():
         "if (a) {\n"
         "  return;\n"
         "}\n")
+    # Fill the else_body
     ifblock.addchild(Schedule(parent=ifblock))
 
     condition = Reference(DataSymbol('b', REAL_TYPE))
@@ -302,8 +303,8 @@ def test_cw_unaryoperator():
 
     # Test that an unsupported operator raises an error
     class Unsupported(object):
-        # pylint: disable=missing-class-docstring
-        pass
+        ''' Mock Unsupported object '''
+
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
         _ = cwriter(unary_operation)

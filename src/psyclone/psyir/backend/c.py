@@ -71,9 +71,7 @@ class CWriter(LanguageWriter):
     :param int initial_indent_depth: Specifies how much indentation to \
         start with. This is an optional argument that defaults to 0.
     :param bool check_global_constraints: whether or not to validate all \
-        global constraints when walking the tree.
-
-    :raises TypeError: if any of the supplied parameters are of the wrong type.
+        global constraints when walking the tree. Defaults to True.
 
     '''
     def __init__(self, skip_nodes=False, indent_string="  ",
@@ -96,9 +94,6 @@ class CWriter(LanguageWriter):
 
         :returns: the C representation of the dimensions.
         :rtype: list of str
-
-        :raises NotImplementedError: if the format of the dimension is not \
-            supported.
 
         '''
         # In C array expressions should be reversed from the PSyIR order

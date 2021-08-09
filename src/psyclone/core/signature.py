@@ -108,12 +108,13 @@ class Signature(object):
 
     # ------------------------------------------------------------------------
     def to_language(self, component_indices, language_writer=None):
-        # TODO 1320 This subroutine can be removed when we stop supporting
-        # strings - then we can use a PSyIR writer for the ReferenceNode
-        # to provide the right string.
         # pylint: disable=too-many-locals
         '''Converts this signature with the provided indices to a string
         in the selected language.
+
+        TODO 1320 This subroutine can be removed when we stop supporting
+        strings - then we can use a PSyIR writer for the ReferenceNode
+        to provide the right string.
 
         :param component_indices: the indices for each component of \
             the signature.
@@ -141,7 +142,7 @@ class Signature(object):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.fortran import FortranWriter
-        from psyclone.psyir.nodes import Node
+        from psyclone.psyir.nodes import Literal, Node, Reference
 
         if language_writer is None:
             writer = FortranWriter()
@@ -151,11 +152,6 @@ class Signature(object):
         # out_list collects the string representation of the components
         # including indices
         out_list = []
-
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Literal, Reference
-
         for i, component in enumerate(self._signature):
             indices = component_indices[i]
             if not indices:

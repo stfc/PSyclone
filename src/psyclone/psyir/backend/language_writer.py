@@ -45,8 +45,8 @@ from psyclone.psyir.nodes import Member
 
 
 class LanguageWriter(PSyIRVisitor):
-    '''A convenience PSyIR visitor base class. It provides configuration
-    options and functions that can be shared between different
+    '''A convenience PSyIR visitor intermediate class. It provides
+    configuration options and functions that can be shared between different
     language-specific visitors.
 
     :param array_parenthesis: a list of two strings that contain the \
@@ -64,7 +64,7 @@ class LanguageWriter(PSyIRVisitor):
     :param int initial_indent_depth: Specifies how much indentation to \
         start with. This is an optional argument that defaults to 0.
     :param bool check_global_constraints: whether or not to validate all \
-        global constraints when walking the tree.
+        global constraints when walking the tree. Defaults to True.
 
     :raises TypeError: if any of the supplied parameters are of the wrong type.
 
@@ -84,7 +84,7 @@ class LanguageWriter(PSyIRVisitor):
                             .format(array_parenthesis))
         if not isinstance(structure_character, str):
             raise TypeError("Invalid structure_character parameter, must be "
-                            "a string of length 2, got '{0}'."
+                            "a string, got '{0}'."
                             .format(array_parenthesis))
 
         self._array_parenthesis = array_parenthesis
@@ -194,16 +194,26 @@ class LanguageWriter(PSyIRVisitor):
         '''
         result = node.name
         if not node.children:
+            # A simple member access that does not access any further
+            # structures, so just return the name itself
             return result
 
         if isinstance(node.children[0], Member):
+            # If the first child is a member, we are accessing a structure:
             if len(node.children) > 1:
-                args = self.gen_indices(node.children[1:], node.name)
+                # If the node has more children, any additional children are
+                # array indices. Add the indices to the output string:
+                indices = self.gen_indices(node.children[1:], node.name)
                 result += "{0}{1}{2}".format(self._array_parenthesis[0],
-                                             ",".join(args),
+                                             ",".join(indices),
                                              self._array_parenthesis[1])
+            # Now add the first child, which is the member that is being
+            # accessed, to the output string
             result += self._structure_character + self._visit(node.children[0])
         else:
+            # There is no access of a structure element, add the children
+            # (which exist since this was tested above) as indices to the
+            # output string.
             args = self.gen_indices(node.children, node.name)
             result += "{0}{1}{2}".format(self._array_parenthesis[0],
                                          ",".join(args),

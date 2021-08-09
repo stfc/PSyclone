@@ -75,7 +75,7 @@ class PSyIRVisitor(object):
     :param int initial_indent_depth: Specifies how much indentation to \
         start with. This is an optional argument that defaults to 0.
     :param bool check_global_constraints: whether or not to validate all \
-        global constraints when walking the tree.
+        global constraints when walking the tree. Defaults to True.
 
     :raises TypeError: if any of the supplied parameters are of the wrong type.
 
