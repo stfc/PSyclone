@@ -77,7 +77,7 @@ class CWriter(LanguageWriter):
     def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0, check_global_constraints=True):
 
-        super(CWriter, self).__init__(["[", "]"], ".", skip_nodes,
+        super(CWriter, self).__init__(("[", "]"), ".", skip_nodes,
                                       indent_string,
                                       initial_indent_depth,
                                       check_global_constraints)

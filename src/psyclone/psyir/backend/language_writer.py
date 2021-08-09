@@ -49,9 +49,9 @@ class LanguageWriter(PSyIRVisitor):
     configuration options and functions that can be shared between different
     language-specific visitors.
 
-    :param array_parenthesis: a list of two strings that contain the \
+    :param array_parenthesis: a tuple of two strings that contain the \
         opening and closing parenthesis used for array accesses - e.g.:
-        ["(", ")"].
+        ("(", ")").
     :type array_parenthesis: list of str of len 2
     :param str structure_symbol: the symbol to be used to address a
         member of a structure, e.g. "%".
@@ -77,10 +77,10 @@ class LanguageWriter(PSyIRVisitor):
         super(LanguageWriter, self).__init__(skip_nodes, indent_string,
                                              initial_indent_depth,
                                              check_global_constraints)
-        if not isinstance(array_parenthesis, list) or \
+        if not isinstance(array_parenthesis, tuple) or \
                 len(array_parenthesis) != 2:
             raise TypeError("Invalid array-parenthesis parameter, must be "
-                            "a list of two strings, got '{0}'."
+                            "a tuple of two strings, got '{0}'."
                             .format(array_parenthesis))
         if not isinstance(structure_character, str):
             raise TypeError("Invalid structure_character parameter, must be "

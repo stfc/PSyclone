@@ -54,26 +54,26 @@ def test_language_writer_constructor():
     '''Tests the constructor.
 
     '''
-    fwriter = LanguageWriter(["(", ")"], "%")
-    assert fwriter.array_parenthesis == ["(", ")"]
+    fwriter = LanguageWriter(("(", ")"), "%")
+    assert fwriter.array_parenthesis == ("(", ")")
     assert fwriter.structure_character == "%"
-    cwriter = LanguageWriter(["[", "]"], ".")
-    assert cwriter.array_parenthesis == ["[", "]"]
+    cwriter = LanguageWriter(("[", "]"), ".")
+    assert cwriter.array_parenthesis == ("[", "]")
     assert cwriter.structure_character == "."
 
 
 def test_language_writer_constructor_errors():
     '''Test that invalid parameters in the constructor are detected.
     '''
-    for invalid_parenthesis in [123, "()", ['[', '[', ']']]:
+    for invalid_parenthesis in [123, "()", ['[', '[', ']'], ["(", ")"]]:
         with pytest.raises(TypeError) as err:
             _ = LanguageWriter(invalid_parenthesis, "%")
         assert "Invalid array-parenthesis parameter, must be " \
-               "a list of two strings, got '" in str(err.value)
+               "a tuple of two strings, got '" in str(err.value)
 
     for invalid_structure_character in [123, []]:
         with pytest.raises(TypeError) as err:
-            _ = LanguageWriter(["(", ")"], invalid_structure_character)
+            _ = LanguageWriter(("(", ")"), invalid_structure_character)
         assert "Invalid structure_character parameter, must be " \
                "a string, got '" in str(err.value)
 
