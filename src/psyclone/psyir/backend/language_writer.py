@@ -123,7 +123,6 @@ class LanguageWriter(PSyIRVisitor):
         :rtype: list of str
 
         '''
-        raise NotImplementedError("gen_indices() is abstract")
 
     # ------------------------------------------------------------------------
     def arrayreference_node(self, node):

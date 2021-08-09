@@ -78,17 +78,6 @@ def test_language_writer_constructor_errors():
                "a string, got '" in str(err.value)
 
 
-def test_gen_indices_error():
-    '''Check the _gen_indices method raises an exception if a symbol shape
-    entry is not supported.
-
-    '''
-    writer = LanguageWriter(["(", ")"], "%")
-    with pytest.raises(NotImplementedError) as err:
-        writer.gen_indices([])
-    assert "gen_indices() is abstract" in str(err.value)
-
-
 def test_lw_arrayreference_incomplete(fortran_writer):
     '''
     Test that the correct error is raised if an incomplete ArrayReference
