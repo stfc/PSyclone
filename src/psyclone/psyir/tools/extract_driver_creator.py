@@ -41,20 +41,16 @@ the output data contained in the input file.
 import six
 
 from psyclone.configuration import Config
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Assignment, Call, FileContainer, \
+    Literal, Reference, Routine, StructureReference
 from psyclone.psyir.transformations import TransformationError
 
-
-from psyclone.psyir.nodes import Assignment, Routine, FileContainer
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    GlobalInterface, DataTypeSymbol, DeferredType
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Call, Literal, Reference, \
-    StructureReference
 from psyclone.psyir.symbols import ArrayType, CHARACTER_TYPE, \
-    REAL8_TYPE, INTEGER_TYPE, ScalarType, RoutineSymbol
-
-from psyclone.psyGen import InvokeSchedule
+    ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, \
+    GlobalInterface, INTEGER_TYPE, REAL8_TYPE, RoutineSymbol, ScalarType
 
 
 class ExtractDriverCreator:
@@ -87,8 +83,8 @@ class ExtractDriverCreator:
         '''Takes a reference to a structure and determines the Fortran type.
         E.g. fld%data will be mapped to `real, dimension(:,:)`, and
         `fld%data$whole%xstart` to `integer`.
-        '''
 
+        '''
         fortran_expression = writer(reference)
         api_config = Config.get().api_conf("gocean1.0")
         grid_properties = api_config.grid_properties
@@ -303,6 +299,14 @@ class ExtractDriverCreator:
             variables to the instrumended region.
         :type output_list: list of :py:class:`psyclone.core.Signature`
 
+        :returns: a list with all output parameters, i.e. variables that \
+            need to be verified after executing the kernel. Each entry is \
+            a 2-tuple containing the symbol of the computed variable, and \
+            the symbol of the variable that contains the value read from \
+            the file.
+        :type: list of 2-tuples of \
+            :py:class:`psyclone.psyir.symbols.Symbol`
+
         '''
         # pylint: disable=too-many-locals
         all_sigs = list(set(input_list).union(set(output_list)))
@@ -356,7 +360,10 @@ class ExtractDriverCreator:
             if not is_input:
                 if isinstance(post_sym.datatype, ArrayType):
                     # TODO #1366 Once allocate is supported in PSyIR
-                    # this parsing of a file can be replaced.
+                    # this parsing of a file can be replaced. Also,
+                    # if the mold parameter is supported, we can
+                    # use the second allocate statement to create code
+                    # that's independent of the number of dimensions.
                     code = '''
                         module test
                         contains
@@ -416,6 +423,16 @@ class ExtractDriverCreator:
     def add_result_tests(program, output_symbols):
         '''Adds tests to check that all output variables have the expected
         value.
+
+        :param program: the program to which the tests should be added.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param output_symbols: a list containing all output variables of \
+            the executed code. Each entry in the list is a 2-tuple, \
+            containing first the symbol that was computed when executing \
+            the kernels, and then the symbol containing the expected \
+            values that have been read in from a file.
+        :type output_symbols: list of 2-tuples of \
+            :py:class:`psyclone.psyir.symbols.Symbol`
         '''
 
         for (sym_computed, sym_read) in output_symbols:
