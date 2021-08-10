@@ -140,6 +140,8 @@
 	47) PR #1358 towards #1338. Add the OpenMP Taskloop directive and its
 	corresponding insertion transformation.
 
+	48) PR #1369 for #1367. GOcean supports REAL literals in kernel arguments.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
