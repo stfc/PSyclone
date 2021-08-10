@@ -58,7 +58,7 @@ from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, GlobalInterface, ScalarType, INTEGER_TYPE, \
     ArgumentInterface, DataTypeSymbol
 from psyclone.psyir.nodes import Node, StructureReference, Member, \
-    StructureMember, Reference
+    StructureMember, Reference, Literal
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 API = "gocean1.0"
@@ -1595,6 +1595,32 @@ def test_gokernelargument_psyir_expression():
         _ = argument_list.args[0].psyir_expression()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
             "'scalar' but found 'incompatible'." in str(excinfo.value))
+
+
+def test_gokernelargument_constant_psyir_expression():
+    '''Test various constant arguments and their conversion to PSyIR.
+    '''
+
+    # Parse an invoke with a scalar int and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    for (const, intr_type) in [("1", ScalarType.Intrinsic.INTEGER),
+                               ("1.0", ScalarType.Intrinsic.REAL),
+                               ("1.0e+0", ScalarType.Intrinsic.REAL),
+                               ("1.0E-0", ScalarType.Intrinsic.REAL)]:
+        argument_list.args[0]._name = const
+        expr = argument_list.args[0].psyir_expression()
+        assert isinstance(expr, Literal)
+        assert expr.datatype.intrinsic == intr_type
 
 
 def test_gokernelargument_type(monkeypatch):
