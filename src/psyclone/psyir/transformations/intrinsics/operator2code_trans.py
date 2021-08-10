@@ -81,7 +81,7 @@ class Operator2CodeTrans(Transformation):
         an intrinsic transformation to the supplied Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyGen.Operation`
+        :type node: :py:class:`psyclone.psyir.nodes.Operation`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 

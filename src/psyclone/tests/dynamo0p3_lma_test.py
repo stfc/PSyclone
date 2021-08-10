@@ -96,6 +96,8 @@ end module testkern_qr
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 def test_get_op_wrong_name():
@@ -386,6 +388,81 @@ def test_fsdesc_fs_not_in_argdesc():
         _ = DynKernMetadata(ast, name=name)
     assert 'function spaces specified in meta_funcs must exist in ' + \
         'meta_args' in str(excinfo.value)
+
+
+def test_invoke_uniq_declns_valid_access_op():
+    ''' Tests that all valid access modes for user-defined LMA operator
+    arguments (AccessType.READ, AccessType.WRITE, AccessType.READWRITE)
+    are accepted by Invoke.unique_declarations(). Also tests the
+    correctness of names of arguments and their proxies.
+
+    '''
+    # Test READ
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5.2_multikernel_invokes.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    ops_read_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.READ))
+    ops_read = [arg.declaration_name for arg in ops_read_args]
+    ops_proxy_read = [arg.proxy_declaration_name for arg in ops_read_args]
+    assert ops_read == ["op", "op3", "op4", "op5"]
+    assert ops_proxy_read == ["op_proxy", "op3_proxy",
+                              "op4_proxy", "op5_proxy"]
+
+    # Test READWRITE
+    ops_readwritten_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.READWRITE))
+    ops_readwritten = [arg.declaration_name for arg in ops_readwritten_args]
+    ops_proxy_readwritten = [arg.proxy_declaration_name for arg in
+                             ops_readwritten_args]
+    assert ops_readwritten == ["op", "op2"]
+    assert ops_proxy_readwritten == ["op_proxy", "op2_proxy"]
+
+    # Test WRITE
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    ops_written_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.WRITE))
+    ops_written = [arg.declaration_name for arg in ops_written_args]
+    ops_proxy_written = [arg.proxy_declaration_name for arg
+                         in ops_written_args]
+    assert ops_written == ["op4"]
+    assert ops_proxy_written == ["op4_proxy"]
+
+
+def test_operator_arg_lfricconst_properties(monkeypatch):
+    ''' Tests that properties of supported LMA operator arguments
+    ('real'-valued 'operator_type') defined in LFRicConstants are
+    correctly set up in the DynKernelArgument class.
+
+    '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+
+    op_arg = kernel.arguments.args[3]
+    assert op_arg.module_name == "operator_mod"
+    assert op_arg.data_type == "operator_type"
+    assert op_arg.proxy_data_type == "operator_proxy_type"
+    assert op_arg.intrinsic_type == "real"
+    assert op_arg.precision == "r_def"
+
+    # Monkeypatch to check with an invalid argument type of an
+    # operator argument. The LFRicConstants class needs to be
+    # initialised before the monkeypatch.
+    _ = LFRicConstants()
+    monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
+                        ["tuxedo"])
+    monkeypatch.setattr(op_arg, "_argument_type", "tuxedo")
+    with pytest.raises(InternalError) as err:
+        op_arg._init_data_type_properties()
+    assert ("Expected 'gh_operator' or 'gh_columnwise_operator' "
+            "argument type but found 'tuxedo'." in str(err.value))
 
 
 def test_operator(tmpdir):

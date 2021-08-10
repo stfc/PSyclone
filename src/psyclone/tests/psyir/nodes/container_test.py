@@ -102,7 +102,8 @@ def test_container_create():
     assert result == (
         "module container_name\n"
         "  implicit none\n"
-        "  real :: tmp\n\n"
+        "  real :: tmp\n"
+        "  public\n\n"
         "  contains\n"
         "  subroutine mod_1()\n\n\n"
         "  end subroutine mod_1\n"

@@ -41,8 +41,11 @@ Currently limited to just a few PSyIR nodes to support the OpenCL generation,
 it needs to be extended for generating pure C code.
 
 '''
+import six
 
-from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.backend.language_writer import LanguageWriter
+from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.nodes import BinaryOperation, UnaryOperation
 from psyclone.psyir.symbols import ScalarType
 
 
@@ -56,10 +59,65 @@ TYPE_MAP_TO_C = {ScalarType.Intrinsic.INTEGER: "int",
                  ScalarType.Intrinsic.REAL: "double"}
 
 
-class CWriter(PSyIRVisitor):
+class CWriter(LanguageWriter):
     '''Implements a PSyIR-to-C back-end for the PSyIR AST.
 
+    :param bool skip_nodes: If skip_nodes is False then an exception \
+        is raised if a visitor method for a PSyIR node has not been \
+        implemented, otherwise the visitor silently continues. This is an \
+        optional argument which defaults to False.
+    :param str indent_string: Specifies what to use for indentation. This \
+        is an optional argument that defaults to two spaces.
+    :param int initial_indent_depth: Specifies how much indentation to \
+        start with. This is an optional argument that defaults to 0.
+    :param bool check_global_constraints: whether or not to validate all \
+        global constraints when walking the tree. Defaults to True.
+
     '''
+    def __init__(self, skip_nodes=False, indent_string="  ",
+                 initial_indent_depth=0, check_global_constraints=True):
+
+        super(CWriter, self).__init__(("[", "]"), ".", skip_nodes,
+                                      indent_string,
+                                      initial_indent_depth,
+                                      check_global_constraints)
+
+    def gen_indices(self, indices, var_name=None):
+        '''Given a list of PSyIR nodes representing the dimensions of an
+        array, return a list of strings representing those array dimensions.
+
+        :param indices: list of PSyIR nodes.
+        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param str var_name: Name of the field for which the indices are \
+            created. The C-interface uses {var_name}LEN{n} as the size \
+            of the corresonding dimension `n`.
+
+        :returns: the C representation of the dimensions.
+        :rtype: list of str
+
+        '''
+        # In C array expressions should be reversed from the PSyIR order
+        # (column-major to row-major order) and flattened (1D).
+
+        # This collects the individual terms for each dimension that
+        # must be added:
+        summands = []
+        # This is the ongoing product of all dimension sizes, i.e.
+        # ALEN1 * ALEN2 * ...
+        multiplicator = ""
+
+        for dimension, child in enumerate(indices):
+            expression = self._visit(child)
+            dim_str = "{0}LEN{1}".format(var_name, dimension+1)
+            if multiplicator:
+                summands.append(expression + " * " + multiplicator)
+                multiplicator = multiplicator + " * " + dim_str
+            else:
+                summands.append(expression)
+                multiplicator = dim_str
+        # This function must return a list of indices, since in C
+        # there is only one dimension, return a one-dimensional list.
+        return [" + ".join(summands)]
 
     def gen_declaration(self, symbol):
         # pylint: disable=no-self-use
@@ -81,11 +139,11 @@ class CWriter(PSyIRVisitor):
         try:
             intrinsic = symbol.datatype.intrinsic
             code = code + TYPE_MAP_TO_C[intrinsic] + " "
-        except (AttributeError, KeyError):
-            raise NotImplementedError(
+        except (AttributeError, KeyError) as err:
+            raise six.raise_from(NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "
                 "type '{1}' is currently not supported."
-                "".format(symbol.name, symbol.datatype))
+                "".format(symbol.name, symbol.datatype)), err)
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
@@ -112,7 +170,7 @@ class CWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: An Assignment PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Assigment`
+        :type node: :py:class:`psyclone.psyir.nodes.Assignment``
 
         :returns: The C code as a string.
         :rtype: str
@@ -123,44 +181,6 @@ class CWriter(PSyIRVisitor):
 
         result = "{0}{1} = {2};\n".format(self._nindent, lhs, rhs)
         return result
-
-    def arrayreference_node(self, node):
-        '''This method is called when an ArrayReference instance is found
-        in the PSyIR tree.
-
-        :param node: An Array PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
-
-        :returns: The C code as a string.
-        :rtype: str
-
-        :raises VisitorError: If this node has no children.
-
-        '''
-        code = node.name + "["
-
-        dimensions_remaining = len(node.children)
-        if dimensions_remaining < 1:
-            raise VisitorError(
-                "Arrays must have at least 1 dimension but found node: '{0}'."
-                "".format(str(node)))
-
-        # In C array expressions should be reversed from the PSyIR order
-        # (column-major to row-major order) and flattened (1D).
-        for child in reversed(node.children):
-            code = code + self._visit(child)
-            # For each dimension bigger than one, it needs to write the
-            # appropriate operation to flatten the array. By convention,
-            # the array dimensions are <name>LEN<DIM>.
-            # (e.g. A[3,5,2] -> A[3 * ALEN2 * ALEN1 + 5 * ALEN1 + 2])
-            for dim in reversed(range(1, dimensions_remaining)):
-                dimstring = node.name + "LEN" + str(dim)
-                code = code + " * " + dimstring
-            dimensions_remaining = dimensions_remaining - 1
-            code = code + " + "
-
-        code = code[:-3] + "]"  # Delete last ' + ' and close bracket
-        return code
 
     def literal_node(self, node):
         # pylint: disable=no-self-use
@@ -280,7 +300,6 @@ class CWriter(PSyIRVisitor):
 
         # Define a map with the operator string and the formatter function
         # associated with each UnaryOperation.Operator
-        from psyclone.psyir.nodes import UnaryOperation
         opmap = {
             UnaryOperation.Operator.MINUS: ("-", operator_format),
             UnaryOperation.Operator.PLUS: ("+", operator_format),
@@ -301,10 +320,10 @@ class CWriter(PSyIRVisitor):
         # an Error.
         try:
             opstring, formatter = opmap[node.operator]
-        except KeyError:
-            raise NotImplementedError(
+        except KeyError as err:
+            raise six.raise_from(NotImplementedError(
                 "The C backend does not support the '{0}' operator."
-                "".format(node.operator))
+                "".format(node.operator)), err)
 
         return formatter(opstring, self._visit(node.children[0]))
 
@@ -353,7 +372,6 @@ class CWriter(PSyIRVisitor):
 
         # Define a map with the operator string and the formatter function
         # associated with each BinaryOperation.Operator
-        from psyclone.psyir.nodes import BinaryOperation
         opmap = {
             BinaryOperation.Operator.ADD: ("+", operator_format),
             BinaryOperation.Operator.SUB: ("-", operator_format),
@@ -377,10 +395,10 @@ class CWriter(PSyIRVisitor):
         # an Error.
         try:
             opstring, formatter = opmap[node.operator]
-        except KeyError:
-            raise VisitorError(
+        except KeyError as err:
+            raise six.raise_from(VisitorError(
                 "The C backend does not support the '{0}' operator."
-                "".format(node.operator))
+                "".format(node.operator)), err)
 
         return formatter(opstring,
                          self._visit(node.children[0]),
@@ -444,7 +462,7 @@ class CWriter(PSyIRVisitor):
         the statements in between as a string (depending on the language).
 
         :param node: a Directive PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Directive`
+        :type node: :py:class:`psyclone.psyir.nodes.Directive`
 
         :returns: the C code as a string.
         :rtype: str

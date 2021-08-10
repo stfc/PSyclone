@@ -49,7 +49,8 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernelArguments, DynKernMetadata, DynStencils
+from psyclone.dynamo0p3 import (DynKern, DynKernelArguments,
+                                DynKernMetadata, DynStencils)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -69,6 +70,8 @@ TEST_API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 # Tests
 
@@ -114,6 +117,33 @@ def test_stencil_metadata():
     assert stencil_descriptor_1.vector_size == 1
 
 
+def test_stencil_field_metadata_too_many_arguments():
+    ''' Check that we raise an exception if more than 5 arguments
+    are provided in the metadata for a 'gh_field' argument type
+    with stencil access.
+
+    '''
+    result = STENCIL_CODE.replace(
+        "(gh_field, gh_real, gh_read, w2, stencil(cross))",
+        "(gh_field, gh_real, gh_read, w2, stencil(cross), w1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert ("each 'meta_arg' entry must have at most 5 arguments" in
+            str(excinfo.value))
+
+
+def test_unsupported_second_argument():
+    '''Check that we raise an exception if stencil extent is specified, as
+    we do not currently support it'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "Kernels with fixed stencil extents are not currently supported" \
+        in str(excinfo.value)
+
+
 def test_valid_stencil_types():
     ''' Check that we successfully parse all valid stencil types. '''
     const = LFRicConstants()
@@ -136,6 +166,54 @@ def test_stencil_read_only():
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
             str(excinfo.value))
+
+
+def test_stencil_field_arg_lfricconst_properties(monkeypatch):
+    ''' Tests that properties of all supported types of field arguments
+    with stencil access ('real'-valued 'field_type' and 'integer'-valued
+    'integer_field_type') defined in LFRicConstants are correctly set up
+    in the DynKernelArgument class.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "stencil_type"
+
+    # Test 'real'-valued field of 'field_type' with stencil access
+    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    stencil_arg = kernel.arguments.args[1]
+    assert stencil_arg.module_name == "field_mod"
+    assert stencil_arg.data_type == "field_type"
+    assert stencil_arg.proxy_data_type == "field_proxy_type"
+    assert stencil_arg.intrinsic_type == "real"
+    assert stencil_arg.precision == "r_def"
+
+    # Test 'integer'-valued fields of 'integer_field_type' with
+    # stencil access
+    code = STENCIL_CODE.replace("gh_field, gh_real",
+                                "gh_field, gh_integer")
+    ast = fpapi.parse(code, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    stencil_arg = kernel.arguments.args[1]
+    assert stencil_arg.module_name == "integer_field_mod"
+    assert stencil_arg.data_type == "integer_field_type"
+    assert stencil_arg.proxy_data_type == "integer_field_proxy_type"
+    assert stencil_arg.intrinsic_type == "integer"
+    assert stencil_arg.precision == "i_def"
+
+    # Monkeypatch to check with an invalid intrinsic type of a
+    # field stencil argument
+    const = LFRicConstants()
+    monkeypatch.setattr(stencil_arg, "_intrinsic_type", "tortoiseshell")
+    with pytest.raises(InternalError) as err:
+        stencil_arg._init_data_type_properties()
+    assert ("Expected one of {0} intrinsic types for a field "
+            "argument but found 'tortoiseshell'.".
+            format(const.VALID_FIELD_INTRINSIC_TYPES)) in str(err.value)
 
 
 def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
@@ -1042,6 +1120,102 @@ def test_multiple_stencils(dist_mem, tmpdir):
         "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))")
+    assert output7 in result
+
+
+def test_multiple_stencils_int_field(dist_mem, tmpdir):
+    ''' Test for correct output when there is more than one stencil in a
+    kernel that contains integer-valued fields. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.25_multiple_stencils_int_field.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output1 = (
+        "    USE integer_field_mod, ONLY: integer_field_type, "
+        "integer_field_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_testkern_stencil_multi_int_field_type(f1, "
+        "f2, f3, f4, f2_extent, f3_extent, f3_direction)")
+    assert output1 in result
+    output2 = (
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n"
+        "      TYPE(integer_field_type), intent(in) :: f1, f2, f3, f4\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
+    assert output2 in result
+    output3 = (
+        "      TYPE(integer_field_proxy_type) f1_proxy, f2_proxy, "
+        "f3_proxy, f4_proxy\n")
+    assert output3 in result
+    output4 = (
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_size(:) => null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n")
+    assert output4 in result
+    output5 = (
+        "      ! Initialise stencil dofmaps\n"
+        "      !\n"
+        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_CROSS,f2_extent)\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
+        "      IF (f3_direction .eq. x_direction) THEN\n"
+        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_1DX,f3_extent)\n"
+        "      END IF\n"
+        "      IF (f3_direction .eq. y_direction) THEN\n"
+        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_1DY,f3_extent)\n"
+        "      END IF\n"
+        "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
+        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
+        "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_1DX,2)\n"
+        "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
+        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
+        "      !\n")
+    assert output5 in result
+    if dist_mem:
+        output6 = (
+            "      !\n"
+            "      IF (f3_proxy%is_dirty(depth=f3_extent)) THEN\n"
+            "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (f4_proxy%is_dirty(depth=2)) THEN\n"
+            "        CALL f4_proxy%halo_exchange(depth=2)\n"
+            "      END IF\n")
+        assert output6 in result
+    output7 = (
+        "        CALL testkern_stencil_multi_int_field_code(nlayers, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), "
+        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f3_stencil_size(cell), "
+        "f3_direction, f3_stencil_dofmap(:,:,cell), f4_proxy%data, "
+        "f4_stencil_size(cell), f4_stencil_dofmap(:,:,cell), ndf_w2broken, "
+        "undf_w2broken, map_w2broken(:,cell), ndf_w1, undf_w1, "
+        "map_w1(:,cell), ndf_w0, undf_w0, map_w0(:,cell), ndf_w2v, "
+        "undf_w2v, map_w2v(:,cell))")
     assert output7 in result
 
 
