@@ -2535,9 +2535,9 @@ class GOKernelArgument(KernelArgument):
         if six.text_type(self.name).isnumeric():
             return Literal(self.name, INTEGER_TYPE)
 
-        # Now try for a real value:
+        # Now try for a real value. The constructor will raise an exception
+        # if the string is not a valid floating point number.
         try:
-            float(self.name)
             return Literal(self.name, REAL_TYPE)
         except ValueError:
             pass
