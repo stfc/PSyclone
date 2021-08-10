@@ -102,7 +102,7 @@ class Literal(DataNode):
                 "'false' but found '{0}'.".format(value))
 
         if (datatype.intrinsic == ScalarType.Intrinsic.REAL and not
-                re.search(Literal._real_value, value)):
+                re.match(Literal._real_value, value)):
             raise ValueError(
                 "A scalar real literal value must conform to the "
                 "supported format ('{0}') but found '{1}'."
