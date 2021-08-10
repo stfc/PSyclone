@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
@@ -45,14 +46,14 @@ import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement, ACCLoopDirective
+    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -106,6 +107,59 @@ def test_omploop_no_collapse():
         _ = trans._directive(cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err.value))
+
+
+def test_omptaskloop_no_collapse():
+    ''' Check that the OMPTaskloopTrans.directive() method rejects
+    the collapse argument '''
+    trans = OMPTaskloopTrans()
+    cnode = Node()
+    with pytest.raises(NotImplementedError) as err:
+        trans._directive(cnode, collapse=True)
+    assert ("The COLLAPSE clause is not yet supported for "
+            "'!$omp taskloop' directives" in str(err.value))
+
+
+def test_omptaskloop_getters_and_setters():
+    ''' Check that the OMPTaskloopTrans getters and setters
+    correctly throw TransformationErrors on illegal values '''
+    trans = OMPTaskloopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.omp_num_tasks = "String"
+    assert "num_tasks must be an integer or None, got str" in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.omp_num_tasks = -1
+    assert "num_tasks must be a positive integer, got -1" in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.omp_grainsize = "String"
+    assert "grainsize must be an integer or None, got str" in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.omp_grainsize = -1
+    assert "grainsize must be a positive integer, got -1" in str(err.value)
+    trans.omp_num_tasks = 32
+    assert trans.omp_num_tasks == 32
+    with pytest.raises(TransformationError) as err:
+        trans.omp_grainsize = 32
+    assert("The grainsize and num_tasks clauses would both "
+           "be specified for this Taskloop transformation"
+           in str(err.value))
+    trans.omp_num_tasks = None
+    assert trans.omp_num_tasks is None
+    trans.omp_grainsize = 32
+    assert trans.omp_grainsize == 32
+    trans.grainsize = None
+    assert trans.grainsize is None
+
+    trans = OMPTaskloopTrans(num_tasks=32)
+    assert trans.omp_num_tasks == 32
+    trans = OMPTaskloopTrans(grainsize=32)
+    assert trans.omp_grainsize == 32
+
+    with pytest.raises(TransformationError) as err:
+        trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
+    assert("The grainsize and num_tasks clauses would both "
+           "be specified for this Taskloop transformation"
+           in str(err.value))
 
 
 def test_ifblock_children_region():
@@ -221,6 +275,38 @@ def test_ompsingle_nested():
     assert("Transformation Error: Nodes of type 'OMPSingleDirective' cannot" +
            " be enclosed by a OMPSingleTrans transformation"
            in str(err.value))
+
+
+# Tests for OMPMasterTrans
+def test_ompmaster():
+    ''' Generic tests for the OMPMasterTrans transformation class '''
+    trans = OMPMasterTrans()
+    assert trans.name == "OMPMasterTrans"
+    assert str(trans) == "Insert an OpenMP Master region"
+
+
+def test_ompmaster_nested():
+    '''Tests to check OMPMasterTrans rejects being applied to another
+    OMPMasterTrans'''
+
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    master = OMPMasterTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # Successful transformation test
+    node = schedule[0]
+    master.apply(node)
+    assert isinstance(schedule[0], OMPMasterDirective)
+    assert schedule[0].dir_body[0] is node
+    with pytest.raises(TransformationError) as err:
+        master.apply(schedule[0])
+    assert("Transformation Error: Nodes of type 'OMPMasterDirective' cannot" +
+           " be enclosed by a OMPMasterTrans transformation"
+           in str(err.value))
+
 
 # Tests for ProfileTrans
 
