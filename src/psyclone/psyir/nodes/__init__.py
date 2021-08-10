@@ -34,6 +34,7 @@
 # Author S. Siso, STFC Daresbury Lab
 # Modified: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''
@@ -78,7 +79,7 @@ from psyclone.psyir.nodes.acc_directives import ACCDirective, \
     ACCKernelsDirective, ACCDataDirective
 from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
-    OMPMasterDirective, OMPSerialDirective
+    OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -134,6 +135,7 @@ __all__ = [
         'OMPSerialDirective',
         'OMPSingleDirective',
         'OMPMasterDirective',
+        'OMPTaskloopDirective',
         'OMPDoDirective',
         'OMPParallelDoDirective'
         ]
