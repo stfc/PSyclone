@@ -172,11 +172,8 @@ class GOConstLoopBoundsTrans(Transformation):
         const = GOceanConstants()
         # Update all GOLoop bounds with the new variables
         for loop in node.walk(GOLoop):
-            index_offset = ""
             # Look for a child kernel in order to get the index offset.
-            # Since this is the __str__ method we have no guarantee
-            # what state we expect our object to be in so we allow
-            # for the case where we don't have any child kernels.
+            index_offset = ""
             go_kernels = loop.walk(GOKern)
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
@@ -186,12 +183,15 @@ class GOConstLoopBoundsTrans(Transformation):
                     "Constant bounds generation not implemented for a grid "
                     "offset of '{0}'. Supported offsets are {1}"
                     "".format(index_offset, const.SUPPORTED_OFFSETS))
+
+            # Chose the variable depending if it is an inner or outer loop
             if loop.loop_type == "inner":
                 stop = i_stop.name
             else:
                 stop = j_stop.name
+
             # Get the bounds map
-            bounds = GOLoop._bounds_lookup[index_offset][loop.field_space][
+            bounds = loop.bounds_lookup[index_offset][loop.field_space][
                 loop.iteration_space][loop.loop_type]
 
             # Set the lower bound
@@ -208,10 +208,6 @@ class GOConstLoopBoundsTrans(Transformation):
             # Set the upper bound
             stop_expr = bounds["stop"].format(start='2', stop=stop)
             stop_expr = "".join(stop_expr.split())  # Remove white spaces
-            # This common case is a bit of compile-time computation
-            # but it helps to fix all of the test cases.
-            if stop_expr == "2-1":
-                stop_expr = "1"
             psyir = fortran_reader.psyir_from_expression(
                     stop_expr, node.symbol_table)
             loop.children[1].replace_with(psyir)

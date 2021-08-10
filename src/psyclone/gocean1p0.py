@@ -554,6 +554,14 @@ class GOLoop(Loop):
         exchange = GOHaloExchange(halo_field, parent=self.parent)
         self.parent.children.insert(self.position, exchange)
 
+    @property
+    def bounds_lookup(self):
+        '''
+        :returns: the GOcean loop bounds lookup table.
+        :rtype: dict
+        '''
+        return self._bounds_lookup
+
     # -------------------------------------------------------------------------
     @staticmethod
     def setup_bounds():

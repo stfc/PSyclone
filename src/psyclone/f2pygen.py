@@ -567,7 +567,6 @@ class PSyIRGen(BaseGen):
         fparser1_parser.parse()
 
         # Update the f2pygen AST with the newly parsed fparser1 AST content
-        # FIXME: Issue when len(content) > 1
         BaseGen.__init__(self, parent, fparser1_parser.block.content[0])
         self.root.parent = parent.root
 
