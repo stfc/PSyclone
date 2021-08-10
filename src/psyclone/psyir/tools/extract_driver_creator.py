@@ -214,7 +214,8 @@ class ExtractDriverCreator:
 
             # We found a new symbol, so we create a new symbol in the new
             # symbol table here. GOcean does not support any array types
-            # as parameter, so we only need to declare scalars here.
+            # as parameter (besides fields), so we only need to declare
+            # scalars here.
             try:
                 new_type = self._default_types[old_symbol.datatype.intrinsic]
             except KeyError as err:
@@ -309,6 +310,14 @@ class ExtractDriverCreator:
         symbol_table = program.scope.symbol_table
         read_var = "{0}%ReadVariable".format(psy_data.name)
 
+        # Collect all output symbols to later create the tests for
+        # correctness. This list stores 2-tuples: first one the
+        # variable that stores the output from the kernel, the second
+        # one the variable that stores the output values read from the
+        # file. The content of these two variables should be identical
+        # at the end.
+        output_symbols = []
+
         for signature in all_sigs:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
@@ -366,6 +375,8 @@ class ExtractDriverCreator:
                 set_zero = Assignment.create(Reference(sym),
                                              Literal("0", INTEGER_TYPE))
                 program.addchild(set_zero)
+            output_symbols.append((sym, post_sym))
+        return output_symbols
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -399,6 +410,47 @@ class ExtractDriverCreator:
             new_routine_sym = RoutineSymbol(routine.name, DeferredType(),
                                             interface=GlobalInterface(module))
             symbol_table.add(new_routine_sym)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def add_result_tests(program, output_symbols):
+        '''Adds tests to check that all output variables have the expected
+        value.
+        '''
+
+        for (sym_computed, sym_read) in output_symbols:
+            if isinstance(sym_computed.datatype, ArrayType):
+                cond = "all({0} - {1} == 0.0)".format(sym_computed.name,
+                                                      sym_read.name)
+            else:
+                cond = "{0} == {1}".format(sym_computed.name,
+                                           sym_read.name)
+
+            code = '''
+                module test
+                contains
+                subroutine tmp()
+                  integer :: {0}, {1}
+                  if ({2}) then
+                     print *,"{0} correct"
+                  else
+                     print *,"{0} incorrect. Values are:"
+                     print *,{0}
+                     print *,"{0} values should be:"
+                     print *,{1}
+                  endif
+                end subroutine tmp
+                end module test'''.format(sym_computed.name,
+                                          sym_read.name, cond)
+
+            fortran_reader = FortranReader()
+            container = fortran_reader.psyir_from_source(code)\
+                .children[0]
+            if_block = container.children[0].children[0]
+            # Remove from the parent, otherwise it can't be added:
+            if_block.parent.children.remove(if_block)
+
+            program.addchild(if_block)
 
     # -------------------------------------------------------------------------
     def create(self, nodes, input_list, output_list, options):
@@ -464,12 +516,15 @@ class ExtractDriverCreator:
                                       "{0}%OpenRead".format(psy_data.name),
                                       [module_str, region_str])
 
-        ExtractDriverCreator.create_read_in_code(program, psy_data,
-                                                 input_list, output_list)
+        output_symbols = \
+            ExtractDriverCreator.create_read_in_code(program, psy_data,
+                                                     input_list, output_list)
 
         all_children = schedule_copy.pop_all_children()
         for child in all_children:
             program.addchild(child)
+
+        ExtractDriverCreator.add_result_tests(program, output_symbols)
 
         code = writer(file_container)
 
