@@ -58,11 +58,11 @@ TEST_CONFIG = os.path.join(BASE_PATH, "nemo_test.cfg")
 
 def check_transformation(tmpdir, code, expected_result, statement=0):
     '''Utility function to check that the result of applying the
-    NemoAllArrayAccess2LoopTrans transformation to the code supplied
-    in the "code" argument for the statement number specified in the
-    "statement" argument produces the result specified in the
-    "expected_result" argument. Also check that the resultant code
-    compiles.
+    NemoAllArrayAccess2LoopTrans transformation to the code supplied in
+    the "code" argument (which is assumed to be the content of a valid
+    program) for the statement number specified in the "statement" argument
+    produces the result specified in the "expected_result" argument. Also
+    check that the resultant code compiles.
 
     :param tmpdir: path to a test-specific temporary directory in \
         which to test compilation.
