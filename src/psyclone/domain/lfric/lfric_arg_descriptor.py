@@ -391,7 +391,8 @@ class LFRicArgDescriptor(Descriptor):
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
-        field_cont_accesses = [AccessType.READ, AccessType.INC, AccessType.READINC]
+        field_cont_accesses = [AccessType.READ, AccessType.INC,
+                               AccessType.READINC]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()

@@ -727,29 +727,17 @@ later in this section (see :ref:`lfric-kernel-valid-data-type`).
 The third component of argument metadata describes how the Kernel
 makes use of the data being passed into it (the way it is accessed
 within a Kernel). This information is mandatory. There are currently 6
-possible values of this metadata ``GH_WRITE``, ``GH_READ``,
-``GH_INC``, ``GH_READINC``, ``GH_READWRITE`` and ``GH_SUM``. However,
+possible values of this metadata ``GH_READ``, ``GH_WRITE``,
+``GH_READWRITE``, ``GH_INC``, ``GH_READINC`` and ``GH_SUM``. However,
 not all combinations of metadata entries are valid and PSyclone will
 raise an exception if an invalid combination is specified. Valid
 combinations are specified later in this section (see
 :ref:`dynamo0.3-kernel-valid-access`).
 
-* ``GH_WRITE`` indicates the data is modified in the Kernel before
-  (optionally) being read.
-
 * ``GH_READ`` indicates that the data is read and is unmodified.
 
-* ``GH_INC`` indicates that different iterations of a Kernel make
-  contributions to shared values. For example, values at cell faces
-  may receive contributions from cells on either side of the
-  face. This means that such a Kernel needs appropriate
-  synchronisation (or colouring) to run in parallel.
-
-* ``GH_READINC`` indicates that the data is first read and then
-  subsequently incremented. Therefore this is equivalent to a
-  ``GH_READ`` followed by a ``GH_INC``. It is important that
-  ``GH_INC`` is not incorrectly used in place of ``GH_READINC`` as it
-  would result in the reading of data from a dirty outermost halo.
+* ``GH_WRITE`` indicates the data is modified in the Kernel before
+  (optionally) being read.
 
 * ``GH_READWRITE`` indicates that different iterations of a Kernel
   update quantities which do not share DoFs, such as operators and
@@ -760,19 +748,34 @@ combinations are specified later in this section (see
   Kernel means that synchronisation or colouring is required for
   parallel runs.
 
+* ``GH_INC`` indicates that different iterations of a Kernel make
+  contributions to shared values. For example, values at cell faces
+  may receive contributions from cells on either side of the
+  face. This means that such a Kernel needs appropriate
+  synchronisation (or colouring) to run in parallel.
+
+* ``GH_READINC`` indicates that the data is first read and then
+  subsequently incremented. Therefore this is equivalent to a
+  ``GH_READ`` followed by a ``GH_INC``.
+
 * ``GH_SUM`` is an example of a reduction and is the only reduction
   currently supported in PSyclone. This metadata indicates that values
   are summed over calls to Kernel code.
 
 For example::
 
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_SCALAR, GH_REAL, GH_SUM),                           &
-       arg_type(GH_FIELD, GH_INTEGER, GH_INC, ... ),                   &
-       arg_type(GH_FIELD, GH_REAL, GH_READINC, ... ),                  &
-       arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, ... ),                  &
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ...)                    &
+  type(arg_type) :: meta_args(6) = (/                            &
+       arg_type(GH_OPERATOR, GH_REAL,    GH_READ,      ... ),    &
+       arg_type(GH_FIELD*3,  GH_REAL,    GH_WRITE,     ... ),    &
+       arg_type(GH_FIELD,    GH_REAL,    GH_READWRITE, ... ),    &
+       arg_type(GH_FIELD,    GH_INTEGER, GH_INC,       ... ),    &
+       arg_type(GH_FIELD,    GH_REAL,    GH_READINC,   ... ),    &
+       arg_type(GH_SCALAR,   GH_REAL,    GH_SUM)                 &
        /)
+
+.. warning:: It is important that ``GH_INC`` is not incorrectly used
+  in place of ``GH_READINC`` as it would result in the reading of data
+  from a dirty outermost halo when run in parallel.
 
 .. note:: In the LFRic API only :ref:`lfric-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).

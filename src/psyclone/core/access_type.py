@@ -46,12 +46,12 @@ class AccessType(Enum):
     '''A simple enum-class for the various valid access types.
     '''
 
-    INC = 1
+    READ = 1
     WRITE = 2
-    READ = 3
-    READWRITE = 4
-    SUM = 5
-    READINC = 6
+    READWRITE = 3
+    INC = 4
+    READINC = 5
+    SUM = 6
     # This is used internally to indicate unknown access type of
     # a variable, e.g. when a variable is passed to a subroutine
     # and the access type of this variable in the subroutine
@@ -100,7 +100,7 @@ class AccessType(Enum):
                      argument in some form.
         :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC, \
+        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC,
                 AccessType.READINC] + AccessType.get_valid_reduction_modes()
 
     @staticmethod

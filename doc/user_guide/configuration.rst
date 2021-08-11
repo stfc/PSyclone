@@ -190,9 +190,9 @@ access_mapping          This field defines the strings that are used by a
                         gh_inc: inc, gh_readinc: gh_sum: sum``
 
                         At this stage these 6 types are defined for
-                        read, write, read+write, increment
+                        read, write, read+write, increment,
                         read+increment and summation access by
-                        PSyclone.  Sum is a form of reduction.  The
+                        PSyclone. Sum is a form of reduction. The
                         GOcean APIs do not support increment or sum,
                         so they only define three mappings for read,
                         write, and readwrite.

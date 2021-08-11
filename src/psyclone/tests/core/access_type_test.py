@@ -45,12 +45,12 @@ from psyclone.core.access_type import AccessType
 def test_str():
     '''Tests conversion to a string.'''
 
-    assert str(AccessType.INC) == "INC"
-    assert str(AccessType.WRITE) == "WRITE"
     assert str(AccessType.READ) == "READ"
+    assert str(AccessType.WRITE) == "WRITE"
     assert str(AccessType.READWRITE) == "READWRITE"
-    assert str(AccessType.SUM) == "SUM"
+    assert str(AccessType.INC) == "INC"
     assert str(AccessType.READINC) == "READINC"
+    assert str(AccessType.SUM) == "SUM"
 
 
 def test_api_specific_name():
@@ -59,22 +59,24 @@ def test_api_specific_name():
 
     Config.get().api = "dynamo0.3"
 
-    assert AccessType.INC.api_specific_name() == "gh_inc"
-    assert AccessType.WRITE.api_specific_name() == "gh_write"
     assert AccessType.READ.api_specific_name() == "gh_read"
+    assert AccessType.WRITE.api_specific_name() == "gh_write"
     assert AccessType.READWRITE.api_specific_name() == "gh_readwrite"
-    assert AccessType.SUM.api_specific_name() == "gh_sum"
+    assert AccessType.INC.api_specific_name() == "gh_inc"
     assert AccessType.READINC.api_specific_name() == "gh_readinc"
+    assert AccessType.SUM.api_specific_name() == "gh_sum"
     assert AccessType.get_valid_reduction_modes() == [AccessType.SUM]
     assert AccessType.get_valid_reduction_names() == ["gh_sum"]
     # Use set to make this independent of the order:
     assert set(AccessType.all_write_accesses()) == set([AccessType.WRITE,
                                                         AccessType.READWRITE,
                                                         AccessType.INC,
+                                                        AccessType.READINC,
                                                         AccessType.SUM])
     assert set(AccessType.all_read_accesses()) == set([AccessType.READ,
-                                                       AccessType.INC,
-                                                       AccessType.READWRITE])
+                                                       AccessType.READWRITE,
+                                                       AccessType.READINC,
+                                                       AccessType.INC])
     # Clean up the Config instance
     Config._instance = None
 
@@ -82,13 +84,13 @@ def test_api_specific_name():
 def test_from_string():
     '''Test the from_string method.'''
 
-    assert AccessType.from_string("inc") == AccessType.INC
-    assert AccessType.from_string("write") == AccessType.WRITE
     assert AccessType.from_string("read") == AccessType.READ
+    assert AccessType.from_string("write") == AccessType.WRITE
     assert AccessType.from_string("readwrite") == AccessType.READWRITE
-    assert AccessType.from_string("unknown") == AccessType.UNKNOWN
-    assert AccessType.from_string("sum") == AccessType.SUM
+    assert AccessType.from_string("inc") == AccessType.INC
     assert AccessType.from_string("readinc") == AccessType.READINC
+    assert AccessType.from_string("sum") == AccessType.SUM
+    assert AccessType.from_string("unknown") == AccessType.UNKNOWN
 
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
