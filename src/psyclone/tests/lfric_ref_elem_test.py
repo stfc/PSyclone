@@ -83,6 +83,8 @@ end module testkern_refelem_mod
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 def test_mdata_parse():

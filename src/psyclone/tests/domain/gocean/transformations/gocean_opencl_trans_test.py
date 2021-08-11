@@ -42,16 +42,16 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.transformations import TransformationError
-from psyclone.gocean1p0 import GOKernelSchedule
+from psyclone.domain.gocean.transformations import \
+    GOMoveIterationBoundariesInsideKernelTrans, GOOpenCLTrans
 from psyclone.errors import GenerationError
+from psyclone.gocean1p0 import GOKernelSchedule
+from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
-from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
-from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
 from psyclone.tests.utilities import Compile, get_invoke
+from psyclone.transformations import TransformationError
 
 # PSyclone API under test
 API = "gocean1.0"
@@ -503,7 +503,7 @@ field%device_ptr)
 def test_psy_init(kernel_outputdir, monkeypatch):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=True)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
@@ -1062,8 +1062,8 @@ def test_opencl_kernel_code_generation():
         "  int uLEN2 = get_global_size(1);\n"
         "  int i = get_global_id(0);\n"
         "  int j = get_global_id(1);\n"
-        "  cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
-        " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
+        "  cu[i + j * cuLEN1] = ((0.5e0 * (p[(i + 1) + j * pLEN1]"
+        " + p[i + j * pLEN1])) * u[i + j * uLEN1]);\n"
         "}\n\n"
         )
 
@@ -1107,8 +1107,8 @@ def test_opencl_code_generation_with_boundary_mask():
         " (j > ystop)))) {\n"
         "    return;\n"
         "  }\n"
-        "  cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
-        " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
+        "  cu[i + j * cuLEN1] = ((0.5e0 * (p[(i + 1) + j * pLEN1]"
+        " + p[i + j * pLEN1])) * u[i + j * uLEN1]);\n"
         "}\n\n"
         )
 
@@ -1251,8 +1251,7 @@ def test_symtab_implementation_for_opencl():
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
-            " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=["
-            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>' for "
+            " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=[10]>' for "
             "kernel 'test'." in str(err.value))
 
 

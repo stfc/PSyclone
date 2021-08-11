@@ -160,6 +160,12 @@ def create_psyir_tree():
     container = Container.create("CONTAINER", container_symbol_table,
                                  [routine])
 
+    # Container, Routines and any statement can have comments
+    container.preceding_comment = "PSyIR Node creation example"
+    routine.preceding_comment = "Example work routine"
+    call.preceding_comment = "Any statement can have preceding ..."
+    call.inline_comment = " ... and inline comments."
+
     # Import data from another container
     external_container = ContainerSymbol("some_mod")
     container_symbol_table.add(external_container)

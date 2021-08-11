@@ -41,8 +41,8 @@
 from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo, Directive
-from psyclone.psyir.nodes import Assignment, Reference, Loop
+from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyir.nodes import Assignment, Reference, Loop, Directive
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
