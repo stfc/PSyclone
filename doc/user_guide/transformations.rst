@@ -716,7 +716,7 @@ The current available options are:
 +--------------+---------------------------------------------+---------+
 
 
-Below is an example of a PSyclone script that uses an ``GOOpenCLTrans`` with
+Below is an example of a PSyclone script that uses a ``GOOpenCLTrans`` with
 multiple InvokeSchedule and kernel-specific optimization options.
 
 

@@ -50,8 +50,16 @@ class GOOpenCLTrans(Transformation):
     InvokeSchedule. Additionally, it will generate OpenCL kernels for
     each of the kernels referenced by the Invoke. For example:
 
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> API = "gocean1.0"
+    >>> FILENAME = "shallow_alg.f90" # examples/gocean/eg1
+    >>> ast, invoke_info = parse(FILENAME, api=API)
+    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> ocl_trans = GOOpenCLTrans()
-    >>> ocl_trans.apply(invoke.schedule)
+    >>> ocl_trans.apply(schedule)
+    >>> schedule.view()
 
     '''
     @property
@@ -73,7 +81,7 @@ class GOOpenCLTrans(Transformation):
         :param sched: the InvokeSchedule to transform.
         :type sched: :py:class:`psyclone.psyGen.GOInvokeSchedule`
         :param options: set of option to tune the OpenCL generation.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
         :param bool options["opencl"]: whether or not to enable OpenCL \
                                        generation.
 
@@ -112,7 +120,7 @@ class GOOpenCLTrans(Transformation):
         :param sched: the Schedule to check.
         :type sched: :py:class:`psyclone.psyGen.InvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :raises TransformationError: if the InvokeSchedule is not for the \
                                      GOcean1.0 API.
@@ -125,7 +133,7 @@ class GOOpenCLTrans(Transformation):
                 raise TransformationError(
                     "OpenCL generation is currently only supported for the "
                     "GOcean API but got an InvokeSchedule of type: '{0}'".
-                    format(type(sched)))
+                    format(type(sched).__name__))
         else:
             raise TransformationError(
                 "Error in GOOpenCLTrans: the supplied node must be a (sub-"
@@ -155,3 +163,7 @@ class GOOpenCLTrans(Transformation):
                     "transformation to convert such symbols to kernel "
                     "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
+
+
+# For AutoAPI documentation generation
+__all__ = ["GOOpenCLTrans"]

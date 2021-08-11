@@ -35,8 +35,7 @@
 # Modified by R. W. Ford, STFC Daresbury Lab
 # ----------------------------------------------------------------------------
 
-''' Module containing tests for PSyclone GOcean OpenCL transformation.
-'''
+''' Module containing tests for the PSyclone GOcean OpenCL transformation.'''
 
 from __future__ import absolute_import
 import os
@@ -54,7 +53,7 @@ from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
     GOMoveIterationBoundariesInsideKernelTrans
 from psyclone.tests.utilities import Compile, get_invoke
 
-# API names
+# PSyclone API under test
 API = "gocean1.0"
 
 
@@ -368,7 +367,6 @@ gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
 
 
 def test_opencl_routines_initialisation(kernel_outputdir):
-    # pylint: disable=unused-argument
     ''' Test that an OpenCL invoke file has the necessary routines
     to initialise, read and write from buffers. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
