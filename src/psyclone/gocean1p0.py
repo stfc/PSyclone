@@ -425,7 +425,7 @@ class GOLoop(Loop):
     _bounds_lookup = {}
 
     def __init__(self, parent, loop_type="", field_name="", field_space="",
-                 iteration_space=""):
+                 iteration_space="", index_offset=""):
         const = GOceanConstants()
 
         Loop.__init__(self, parent=parent,
@@ -434,6 +434,7 @@ class GOLoop(Loop):
         self.field_name = field_name
         self.field_space = field_space
         self.iteration_space = iteration_space
+        self.index_offset = index_offset
 
         # Check that the GOLoop is inside the GOcean PSy-layer
         if not self.ancestor(GOInvokeSchedule):
@@ -473,7 +474,7 @@ class GOLoop(Loop):
 
     @staticmethod
     def create(parent, loop_type, field_name="", field_space="",
-               iteration_space=""):
+               iteration_space="", index_offset=""):
         '''
         :param parent: parent node of this GOLoop.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -488,7 +489,7 @@ class GOLoop(Loop):
 
         # Create loop node
         node = GOLoop(parent, loop_type, field_name, field_space,
-                      iteration_space)
+                      iteration_space, index_offset)
 
         # Add start, stop, step and body and Loop children
         node.addchild(node.lower_bound())
@@ -794,9 +795,9 @@ class GOLoop(Loop):
             # the array itself
             stop = BinaryOperation(BinaryOperation.Operator.SIZE,
                                    self)
-            api_config = Config.get().api_conf("gocean1.0")
             # Use the data property to access the member of the field that
             # contains the actual grid points.
+            api_config = Config.get().api_conf("gocean1.0")
             sref = self._grid_property_psyir_expression(
                 api_config.grid_properties["go_grid_data"].fortran)
             stop.addchild(sref)
@@ -810,14 +811,14 @@ class GOLoop(Loop):
         # is more straightforward for us but provides the
         # Fortran compiler with less information.
 
-        if self._iteration_space.lower() == "go_internal_pts":
+        if self.iteration_space.lower() == "go_internal_pts":
             key = "internal"
-        elif self._iteration_space.lower() == "go_all_pts":
+        elif self.iteration_space.lower() == "go_all_pts":
             key = "whole"
         else:
-            raise GenerationError("Unrecognised iteration space, '{0}'. "
-                                  "Cannot generate loop bounds.".
-                                  format(self._iteration_space))
+            bound_str = self.get_custom_bound_string("stop")
+            return FortranReader().psyir_from_expression(
+                        bound_str, self.scope.symbol_table)
 
         api_config = Config.get().api_conf("gocean1.0")
         props = api_config.grid_properties
@@ -826,6 +827,39 @@ class GOLoop(Loop):
         # defined in the config file:
         return self._grid_property_psyir_expression(
             props["go_grid_{0}_{1}_stop".format(key, self._loop_type)].fortran)
+
+    def get_custom_bound_string(self, side):
+        api_config = Config.get().api_conf("gocean1.0")
+        # Get a field argument from the argument list
+        field = None
+        for arg in self.ancestor(InvokeSchedule).symbol_table.argument_list:
+            if isinstance(arg.datatype, DataTypeSymbol):
+                if arg.datatype.name == "r2d_field":
+                    field = arg
+                    break
+
+        if field is None:
+            raise GenerationError(
+                "Cannot generate custom loop bound for loop {0}. Couldn't"
+                " fine any suitable field.".format(str(self)))
+
+        if self.loop_type == "inner":
+            prop_access = api_config.grid_properties["go_grid_xstop"]
+        else:
+            prop_access = api_config.grid_properties["go_grid_ystop"]
+
+        stop_expr = prop_access.fortran.format(field.name)
+        try:
+            bound = self.bounds_lookup[self.index_offset][self.field_space][
+                self.iteration_space][self.loop_type][side].format(
+                    start='2', stop=stop_expr)
+        except KeyError:
+            raise GenerationError(
+                "Cannot generate custom loop bound for '{0}' '{1}' '{2}' "
+                "".format(self.index_offset, self.field_space,
+                          self.iteration_space))
+
+        return bound
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -843,16 +877,15 @@ class GOLoop(Loop):
         # Loop bounds are pulled from the field object which is more
         # straightforward for us but provides the Fortran compiler
         # with less information.
-        if self._iteration_space.lower() == "go_internal_pts":
+        if self.iteration_space.lower() == "go_internal_pts":
             key = "internal"
-        elif self._iteration_space.lower() == "go_all_pts":
+        elif self.iteration_space.lower() == "go_all_pts":
             key = "whole"
         else:
-            # FIXME: There can be custom iteration spaces defined in the
-            # Config file.
-            raise GenerationError("Unrecognised iteration space, '{0}'. "
-                                  "Cannot generate loop bounds.".
-                                  format(self._iteration_space))
+            bound_str = self.get_custom_bound_string("start")
+            return FortranReader().psyir_from_expression(
+                        bound_str, self.scope.symbol_table)
+
         api_config = Config.get().api_conf("gocean1.0")
         props = api_config.grid_properties
         # key is 'internal' or 'whole', and _loop_type is either
@@ -965,17 +998,20 @@ class GOKernCallFactory():
         iteration_space = gocall.iterates_over
         field_space = gocall.arguments.iteration_space_arg().function_space
         field_name = gocall.arguments.iteration_space_arg().name
+        index_offset = gocall.index_offset
 
         # Create the double loop structure
         outer_loop = GOLoop.create(loop_type="outer",
                                    iteration_space=iteration_space,
                                    field_space=field_space,
                                    field_name=field_name,
+                                   index_offset=index_offset,
                                    parent=parent)
         inner_loop = GOLoop.create(loop_type="inner",
                                    iteration_space=iteration_space,
                                    field_space=field_space,
                                    field_name=field_name,
+                                   index_offset=index_offset,
                                    parent=outer_loop.loop_body)
         outer_loop.loop_body.addchild(inner_loop)
         # Remove temporary parent

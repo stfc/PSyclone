@@ -157,7 +157,7 @@ class GOConstLoopBoundsTrans(Transformation):
         assign1 = Assignment.create(
                     Reference(i_stop),
                     StructureReference.create(
-                        field, xstop.split('%')[1:]))
+                            field, xstop.split('%')[1:]))
         assign1.preceding_comment = "Look-up loop bounds"
         assign2 = Assignment.create(
                     Reference(j_stop),
@@ -173,10 +173,7 @@ class GOConstLoopBoundsTrans(Transformation):
         # Update all GOLoop bounds with the new variables
         for loop in node.walk(GOLoop):
             # Look for a child kernel in order to get the index offset.
-            index_offset = ""
-            go_kernels = loop.walk(GOKern)
-            if go_kernels:
-                index_offset = go_kernels[0].index_offset
+            index_offset = loop.index_offset
 
             if index_offset not in const.SUPPORTED_OFFSETS:
                 raise TransformationError(
@@ -208,6 +205,8 @@ class GOConstLoopBoundsTrans(Transformation):
             # Set the upper bound
             stop_expr = bounds["stop"].format(start='2', stop=stop)
             stop_expr = "".join(stop_expr.split())  # Remove white spaces
+            if stop_expr == "2-1":
+                stop_expr = "1"
             psyir = fortran_reader.psyir_from_expression(
                     stop_expr, node.symbol_table)
             loop.children[1].replace_with(psyir)

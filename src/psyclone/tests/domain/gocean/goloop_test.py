@@ -98,10 +98,10 @@ def test_goloop_bounds_invalid_iteration_space():
     gojloop._iteration_space = "broken"
     with pytest.raises(GenerationError) as err:
         gojloop.upper_bound()
-    assert "Unrecognised iteration space, 'broken'." in str(err.value)
+    assert "Cannot generate custom loop bound for loop GOLoop" in str(err.value)
     with pytest.raises(GenerationError) as err:
         gojloop.lower_bound()
-    assert "Unrecognised iteration space, 'broken'." in str(err.value)
+    assert "Cannot generate custom loop bound for loop GOLoop" in str(err.value)
 
 
 def test_goloop_grid_property_psyir_expression():

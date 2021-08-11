@@ -1268,7 +1268,7 @@ def test05p1_kernel_invalid_iterates_over():
               api="gocean1.0")
 
 
-@pytest.mark.xfail(reason="Invalid iterates over can not generate loops")
+#@pytest.mark.xfail(reason="Invalid iterates over can not generate loops")
 def test05p1_kernel_add_iteration_spaces():
     '''Check that adding a new iteration space works
     '''
@@ -1284,7 +1284,25 @@ def test05p1_kernel_add_iteration_spaces():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    # This test expects constant loop bounds
+    expected_sched = (
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
+        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
+        "StructureReference[name:'cu_fld']\n"
+        "StructureMember[name:'grid']\n"
+        "StructureMember[name:'subdomain']\n"
+        "StructureMember[name:'internal']\n"
+        "Member[name:'xstop']\n"
+        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        "Schedule:\n"
+        "kern call: compute_cu_code\n")
+    assert expected_sched in str(schedule)
+
+    # Also check with constant loop bounds
     clb_trans = GOConstLoopBoundsTrans()
     clb_trans.apply(schedule)
     expected_sched = (
@@ -1295,7 +1313,7 @@ def test05p1_kernel_add_iteration_spaces():
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
         "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
-        "Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]\n"
+        "Reference[name:'istop']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n")
