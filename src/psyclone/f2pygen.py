@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Fortran code-generation library. This wraps the f2py fortran parser to
     provide routines which can be used to generate fortran code. '''
@@ -139,7 +140,8 @@ class OMPDirective(Directive):
                          'parallel do').
     '''
     def __init__(self, root, line, position, dir_type):
-        self._types = ["parallel do", "parallel", "do", "master", "single"]
+        self._types = ["parallel do", "parallel", "do", "master", "single",
+                       "taskloop"]
         self._positions = ["begin", "end"]
 
         super(OMPDirective, self).__init__(root, line, position, dir_type)
