@@ -3235,7 +3235,19 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
     def _read_from_device_routine(self, f2pygen_module=None, psyir=None):
         ''' Return the symbol of the routine that reads data from the OpenACC
-        device, if it doesn't exist create the Routine and the Symbol. '''
+        device, if it doesn't exist create the Routine and the Symbol.
+
+        :param f2pygen_module: optional f2pygen module where to insert the \
+                               generated read_from_device routine.
+        :type f2pygen_module: :py:class:`psyclone.f2pygen.ModuleGen` or \
+                              NoneType
+        :param psyir: optional psyir tree where to insert the generated \
+                      read_from_device routine.
+        :type psyir: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+
+        :returns: the symbol representing the read_from_device routine.
+        :rtype: :py:class:`psyclone.psyir.symbols.symbol`
+        '''
         symtab = self.root.symbol_table
         try:
             return symtab.lookup_with_tag("openacc_read_func")
@@ -3271,11 +3283,12 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # If a f2pygen modu is provided insert a PSyIRGen node
+        # If a f2pygen module is provided insert a PSyIRGen node
         if f2pygen_module:
             f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
 
-        # If a psyir is provided insert the routine as a Container child
+        # If PSyIR is provided insert the routine as a child of the parent
+        # Container
         if psyir:
             psyir.ancestor(Container).addchild(subroutine.detach())
 
