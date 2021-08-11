@@ -1892,6 +1892,40 @@ def test_acc_enter_directive_infrastructure_setup():
                 in gen)
 
 
+def test_acc_enter_directive_infrastructure_setup_error():
+    ''' Test that the GOcean-specific OpenACC EnterData directive also sets
+    up the necessary GOcean infrastructure to keep track and update the
+    data allocated on the device. '''
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+
+    # Apply ACCLoopTrans to just the second loop
+    acclpt.apply(schedule[1])
+    # Add an enclosing parallel region
+    accpara.apply(schedule[1])
+    # Add a data region. This directive will set-up the necessary GOcean
+    # infrastructure device pointers
+    accdata.apply(schedule)
+
+    # Remove the InvokeSchedule from its Container so that OpenACC will not
+    # find where to add the read_from_device function.
+    schedule.detach()
+
+    # Generate the code
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("The GOACCEnterDataDirective can only be generated/lowered inside "
+            "a Container in order to insert a sibling subroutine, but "
+            "'Directive[ACC enter data]' is not inside a Container." in
+            str(err.value))
+
+
 def test_acc_enter_directive_infrastructure_setup_gen_code():
     ''' Test that the GOcean-specific OpenACC EnterData directive also sets
     up the necessary GOcean infrastructure to keep track and update the

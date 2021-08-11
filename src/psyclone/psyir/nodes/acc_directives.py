@@ -827,20 +827,20 @@ class ACCUpdateDirective(ACCDirective):
     It includes a direction attribute that can be set to 'host' or 'device' and
     the symbol that is being updated.
 
+    :param symbol: the symbol to synchronise with the accelerator.
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`.
+    :param str direction: the direction of the synchronisation.
     :param children: list of nodes which this directive should \
                      have as children.
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`.
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`.
-    :param symbol: the symbol to synchronise with the accelerator.
-    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`.
-    :param str direction: the direction of the synchronisation.
 
 
-    :raises AttributeError: if the direction argument is not a string with \
+    :raises ValueError: if the direction argument is not a string with \
                             value 'host' or 'device'.
-    :raises AttributeError: if the symbol is not a DataSymbol.
+    :raises TypeError: if the symbol is not a DataSymbol.
 
     '''
 
@@ -849,15 +849,15 @@ class ACCUpdateDirective(ACCDirective):
     def __init__(self, symbol, direction, children=None, parent=None):
         super(ACCUpdateDirective, self).__init__(children=children,
                                                  parent=parent)
-        if not isinstance(direction, str) or direction not in \
+        if not isinstance(direction, six.string_types) or direction not in \
                 self._VALID_DIRECTIONS:
-            raise AttributeError(
+            raise ValueError(
                 "The ACCUpdateDirective direction argument must be a string "
                 "with any of the values in '{0}' but found '{1}'.".format(
                     self._VALID_DIRECTIONS, direction))
 
         if not isinstance(symbol, DataSymbol):
-            raise AttributeError(
+            raise TypeError(
                 "The ACCUpdateDirective symbol argument must be a 'DataSymbol"
                 "' but found '{0}'.".format(type(symbol).__name__))
 
@@ -878,6 +878,7 @@ class ACCUpdateDirective(ACCDirective):
         return "acc update " + self._direction + "(" + self._symbol.name + ")"
 
     def end_string(self):
+        # pylint: disable=no-self-use
         '''
         This statement has no end string, so it returns an empty string.
 

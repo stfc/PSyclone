@@ -52,6 +52,7 @@ import re
 import six
 
 from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, \
     Pointer_Assignment_Stmt
 from fparser.two.parser import ParserFactory
@@ -3290,6 +3291,12 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         # If PSyIR is provided insert the routine as a child of the parent
         # Container
         if psyir:
+            if not psyir.ancestor(Container):
+                raise GenerationError(
+                    "The GOACCEnterDataDirective can only be generated/lowered"
+                    " inside a Container in order to insert a sibling "
+                    "subroutine, but '{0}' is not inside a Container."
+                    "".format(psyir))
             psyir.ancestor(Container).addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("openacc_read_func")
@@ -3319,11 +3326,12 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                 Literal("true", BOOLEAN_TYPE))
             self.parent.children.insert(self.position, assignment)
 
-            # The preceding whitespace is needed to discourage fparser to
-            # consider it a comment statement when the field starts with c
-            block = Pointer_Assignment_Stmt(FortranStringReader(
-                " {0}%read_from_device_f => {1}\n"
-                "".format(symbol.name, read_routine_symbol.name)))
+            # Use a CodeBlock to encode a Fortran pointer assignment
+            reader = FortranStringReader(
+                        "{0}%read_from_device_f => {1}\n"
+                        "".format(symbol.name, read_routine_symbol.name))
+            reader.set_format(FortranFormat(True, True))
+            block = Pointer_Assignment_Stmt(reader)
             codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
             self.parent.children.insert(self.position, codeblock)
 

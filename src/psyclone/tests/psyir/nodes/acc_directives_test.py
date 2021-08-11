@@ -362,13 +362,13 @@ def test_accupdatedirective_init():
     ''' Test the constructor of ACCUpdateDirective node'''
 
     # Check argument validations
-    with pytest.raises(AttributeError) as err:
+    with pytest.raises(TypeError) as err:
         _ = ACCUpdateDirective("invalid", "host")
     assert ("The ACCUpdateDirective symbol argument must be a 'DataSymbol' "
             "but found 'str'." in str(err.value))
 
     symbol = DataSymbol("x", REAL_TYPE)
-    with pytest.raises(AttributeError) as err:
+    with pytest.raises(ValueError) as err:
         _ = ACCUpdateDirective(symbol, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
             "any of the values in '('host', 'device')' but found 'invalid'."
