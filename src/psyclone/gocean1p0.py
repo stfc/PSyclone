@@ -499,6 +499,48 @@ class GOLoop(Loop):
 
         return node
 
+    @property
+    def field_space(self):
+        '''
+        :returns: the loop's field space.
+        :rtype: str
+        '''
+        return self._field_space
+
+    @field_space.setter
+    def field_space(self, my_field_space):
+        ''' Sets new value for the field_space and updates the Loop bounds,
+        if these exist, to match the given field_space.
+
+        :param str my_field_space: new field_space value.
+        '''
+        self._field_space = my_field_space
+        if len(self.children) > 1:
+            self.children[0].replace_with(self.lower_bound())
+        if len(self.children) > 2:
+            self.children[1].replace_with(self.upper_bound())
+
+    @property
+    def iteration_space(self):
+        '''
+        :returns: the loop's iteration space.
+        :rtype: str
+        '''
+        return self._iteration_space
+
+    @iteration_space.setter
+    def iteration_space(self, it_space):
+        ''' Sets new value for the iteration_space and updates the Loop bounds,
+        if these exist, to match the given iteration_space.
+
+        :param str it_space: new iteration_space value.
+        '''
+        self._iteration_space = it_space
+        if len(self.children) > 1:
+            self.children[0].replace_with(self.lower_bound())
+        if len(self.children) > 2:
+            self.children[1].replace_with(self.upper_bound())
+
     # -------------------------------------------------------------------------
     def _halo_read_access(self, arg):
         '''Determines whether the supplied argument has (or might have) its
@@ -793,8 +835,7 @@ class GOLoop(Loop):
 
             # We look-up the upper bounds by enquiring about the SIZE of
             # the array itself
-            stop = BinaryOperation(BinaryOperation.Operator.SIZE,
-                                   self)
+            stop = BinaryOperation(BinaryOperation.Operator.SIZE)
             # Use the data property to access the member of the field that
             # contains the actual grid points.
             api_config = Config.get().api_conf("gocean1.0")
@@ -872,7 +913,7 @@ class GOLoop(Loop):
         '''
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-            return Literal("1", INTEGER_TYPE, self)
+            return Literal("1", INTEGER_TYPE)
 
         # Loop bounds are pulled from the field object which is more
         # straightforward for us but provides the Fortran compiler

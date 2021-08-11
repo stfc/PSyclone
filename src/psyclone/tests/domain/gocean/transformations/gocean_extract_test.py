@@ -809,9 +809,7 @@ def test_change_prefix(tmpdir, monkeypatch):
                   'prefix': "NEW"})
 
     # Test that the extraction code contains the new prefix:
-    invoke.schedule.view()
     gen = str(psy.gen)
-    print(gen)
     assert 'CALL NEW_psy_data%PreStart("main", "update", 8, 3)' \
         in gen
 
