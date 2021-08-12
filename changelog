@@ -142,6 +142,9 @@
 
 	48) PR #1369 for #1367. GOcean supports REAL literals in kernel arguments.
 
+	49) PR #1362 for #1361. Fix bug in PSyIRGen when PSyIR node corresponds
+	to more than one fparser2 node.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
