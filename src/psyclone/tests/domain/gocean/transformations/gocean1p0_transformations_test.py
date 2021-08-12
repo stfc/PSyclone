@@ -1706,7 +1706,6 @@ def test_accloop(tmpdir, fortran_writer):
     accdata.apply(schedule)
 
     gen = fortran_writer(psy.container)
-    print(gen)
     assert '''\
             !$acc parallel default(present)
             !$acc loop independent
@@ -1854,7 +1853,6 @@ def test_acc_loop_seq():
     accdata.apply(schedule)
     # Check the generated code
     gen = str(psy.gen).lower()
-    print(gen)
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop seq\n"
             "      do j = cu_fld%internal%ystart, cu_fld%internal%ystop"

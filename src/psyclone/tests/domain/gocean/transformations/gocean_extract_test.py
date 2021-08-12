@@ -259,7 +259,7 @@ def test_single_node_ompparalleldo_gocean1p0():
 
 
 # -----------------------------------------------------------------------------
-def test_single_node_ompparalleldo_gocean1p0_failing_const_loop():
+def test_single_node_ompparalleldo_gocean1p0_const_loop():
     ''' Test that applying Extract Transformation on a Node enclosed
     within an OMP Parallel DO Directive produces the correct result
     in GOcean1.0 API. This test is mostly identical to the previous one,
