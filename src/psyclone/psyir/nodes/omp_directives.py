@@ -440,7 +440,7 @@ class OMPParallelDirective(OMPDirective):
         :rtype: str
 
         '''
-        result = "omp parallel"
+        result = "omp parallel default(shared)"
         # TODO #514: not yet working with NEMO, so commented out for now
         # if not self._reprod:
         #     result += self._reduction_string()
@@ -448,7 +448,7 @@ class OMPParallelDirective(OMPDirective):
         private_str = ",".join(private_list)
 
         if private_str:
-            result = "{0} private({1})".format(result, private_str)
+            result = "{0}, private({1})".format(result, private_str)
         return result
 
     def end_string(self):
@@ -793,7 +793,30 @@ class OMPDoDirective(OMPDirective):
                 "OMPDoDirective must be inside an OMP parallel region but "
                 "could not find an ancestor OMPParallelDirective node")
 
+        self._validate_single_loop()
+
         super(OMPDoDirective, self).validate_global_constraints()
+
+    def _validate_single_loop(self):
+        '''
+        Checks that this directive is only applied to a single Loop node.
+
+        :raises GenerationError: if this directive has more than one child.
+        :raises GenerationError: if the child of this directive is not a Loop.
+
+        '''
+        if len(self.dir_body.children) != 1:
+            raise GenerationError(
+                "An {0} can only be applied to a single loop "
+                "but this Node has {1} children: {2}".
+                format(type(self).__name__, len(self.dir_body.children),
+                       self.dir_body.children))
+
+        if not isinstance(self.dir_body[0], Loop):
+            raise GenerationError(
+                "An {0} can only be applied to a loop "
+                "but this Node has a child of type '{1}'".format(
+                    type(self).__name__, type(self.dir_body[0]).__name__))
 
     def gen_code(self, parent):
         '''
@@ -861,14 +884,6 @@ class OMPDoDirective(OMPDirective):
                                  of the OpenMP parallel do.
         '''
         self.validate_global_constraints()
-
-        # Since this is an OpenMP do, it can only be applied
-        # to a single loop.
-        if len(self.dir_body.children) != 1:
-            raise GenerationError(
-                "An OpenMP DO can only be applied to a single loop "
-                "but this Node has {0} children: {1}".
-                format(len(self.dir_body.children), self.dir_body.children))
 
         self._add_region(start_text="do schedule({0})".format(
             self._omp_schedule), end_text="end do")
@@ -957,23 +972,24 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         Updates the fparser2 AST by inserting nodes for this OpenMP
         parallel do.
 
-        :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenMP parallel do.
         '''
-        # Since this is an OpenMP (parallel) do, it can only be applied
-        # to a single loop.
-        if len(self.dir_body.children) != 1:
-            raise GenerationError(
-                "An OpenMP PARALLEL DO can only be applied to a single loop "
-                "but this Node has {0} children: {1}".
-                format(len(self.dir_body.children), self.dir_body.children))
+        self.validate_global_constraints()
 
         self._add_region(
             start_text="parallel do default(shared), private({0}), "
             "schedule({1})".format(",".join(self._get_private_list()),
                                    self._omp_schedule),
             end_text="end parallel do")
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        '''
+        super(OMPParallelDoDirective, self).validate_global_constraints()
+
+        self._validate_single_loop()
 
 
 # For automatic API documentation generation

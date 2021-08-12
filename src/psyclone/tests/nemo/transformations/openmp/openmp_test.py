@@ -234,13 +234,13 @@ def test_omp_do_children_err():
     directive.dir_body.children.append(directive.dir_body[0].copy())
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("An OpenMP PARALLEL DO can only be applied to a single loop but "
-            "this Node has 2 children:" in str(err.value))
+    assert ("An OMPParallelDoDirective can only be applied to a single loop "
+            "but this Node has 2 children:" in str(err.value))
     directive.dir_body.children = [Return()]
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("An OpenMP PARALLEL DO can only be applied to a loop but "
-            "found a node of type 'Return'" in str(err.value))
+    assert ("An OMPParallelDoDirective can only be applied to a loop but "
+            "this Node has a child of type 'Return'" in str(err.value))
 
 
 def test_omp_do_within_if():
@@ -255,7 +255,7 @@ def test_omp_do_within_if():
     gen = str(psy.gen).lower()
     expected = (
         "      else\n"
-        "        !$omp parallel do default(shared), private(ji,jj) "
+        "        !$omp parallel do default(shared), private(ji,jj), "
         "schedule(static)\n"
         "        do jj = 1, jpj, 1\n"
         "          do ji = 1, jpi, 1\n"
