@@ -219,23 +219,15 @@ def test_output_languages():
     sig = Signature(("a"))
     comp = ComponentIndices([["i", "j"]])
     f_writer = FortranWriter()
+    c_writer = CWriter()
     # Check that it defaults to Fortran
     assert sig.to_language(comp) == "a(i,j)"
     assert sig.to_language(comp, f_writer) == "a(i,j)"
-
-
-@pytest.mark.xfail(reason="#1324 C backend does not support structures yet")
-def test_output_c_not_yet_working():
-    '''Tests that error messages can be created in different languages.
-    At this stage the C backend does not support structures yet and fails.
-    Once this test works, it can be combined with the previous test.
-    '''
+    assert sig.to_language(comp, c_writer) == "a[i + j * aLEN1]"
 
     sig = Signature(("a", "b", "c"))
     comp = ComponentIndices([[1], [], ["i", "j"]])
-    f_writer = FortranWriter()
-    c_writer = CWriter()
     # Check that it defaults to Fortran
     assert sig.to_language(comp) == "a(1)%b%c(i,j)"
     assert sig.to_language(comp, f_writer) == "a(1)%b%c(i,j)"
-    assert sig.to_language(comp, c_writer) == "a[1]%b%c[j * ALEN1 + i]"
+    assert sig.to_language(comp, c_writer) == "a[1].b.c[i + j * cLEN1]"

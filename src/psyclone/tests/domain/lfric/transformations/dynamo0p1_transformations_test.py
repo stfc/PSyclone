@@ -49,6 +49,8 @@ TEST_API = "dynamo0.1"
 def setup():
     '''Make sure that all tests here use dynamo0.1 as API.'''
     Config.get().api = "dynamo0.1"
+    yield()
+    Config._instance = None
 
 
 def test_openmp_region():
