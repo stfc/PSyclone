@@ -491,12 +491,6 @@ class FortranWriter(PSyIRVisitor):
         if is_symbol:
             # A member of a derived type cannot have the 'intent' or
             # 'parameter' attribute.
-            # TODO #1306. The fparser2 frontend gives any argument symbols
-            # that do not have an explicit INTENT an Access of UNKNOWN. It
-            # may be that some compilers will generate more performant code
-            # if we *are* able to explicitly give an INTENT here. To do so
-            # we will have to analyse the body of the routine using the
-            # dependence analysis tools.
             intent = gen_intent(symbol)
             if intent:
                 result += ", intent({0})".format(intent)
