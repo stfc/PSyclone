@@ -41,17 +41,22 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
+# pylint: disable=too-many-lines
 from __future__ import absolute_import
+import six
+
 from fparser.two import Fortran2003
+
+from psyclone.errors import InternalError
+from psyclone.psyir.backend.language_writer import LanguageWriter
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
-    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, DataTypeSymbol
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Routine, Literal, DataNode, CodeBlock, Member, Range, Schedule
-from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.errors import InternalError
+from psyclone.psyir.nodes import BinaryOperation, CodeBlock, DataNode, \
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation
+from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
+    ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, ScalarType, \
+    Symbol, SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -88,8 +93,9 @@ def gen_intent(symbol):
         try:
             return mapping[symbol.interface.access]
         except KeyError as excinfo:
-            raise VisitorError("Unsupported access '{0}' found."
-                               "".format(str(excinfo)))
+            raise six.raise_from(
+                VisitorError("Unsupported access '{0}' found."
+                             "".format(str(excinfo))), excinfo)
     else:
         return None  # non-Arguments do not have intent
 
@@ -133,10 +139,10 @@ def gen_datatype(datatype, name):
 
     try:
         fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
-    except KeyError:
-        raise NotImplementedError(
+    except KeyError as error:
+        raise six.raise_from(NotImplementedError(
             "Unsupported datatype '{0}' for symbol '{1}' found in "
-            "gen_datatype().".format(datatype.intrinsic, name))
+            "gen_datatype().".format(datatype.intrinsic, name)), error)
 
     precision = datatype.precision
 
@@ -299,21 +305,45 @@ def precedence(fortran_operator):
     raise KeyError()
 
 
-class FortranWriter(PSyIRVisitor):
+class FortranWriter(LanguageWriter):
+    # pylint: disable=too-many-public-methods
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
     generating Fortran).
 
+    :param bool skip_nodes: If skip_nodes is False then an exception \
+        is raised if a visitor method for a PSyIR node has not been \
+        implemented, otherwise the visitor silently continues. This is an \
+        optional argument which defaults to False.
+    :param str indent_string: Specifies what to use for indentation. This \
+        is an optional argument that defaults to two spaces.
+    :param int initial_indent_depth: Specifies how much indentation to \
+        start with. This is an optional argument that defaults to 0.
+    :param bool check_global_constraints: whether or not to validate all \
+        global constraints when walking the tree. Defaults to True.
+
     '''
     _COMMENT_PREFIX = "! "
 
-    def _gen_dims(self, shape):
+    def __init__(self, skip_nodes=False, indent_string="  ",
+                 initial_indent_depth=0, check_global_constraints=True):
+        # Construct the base class using () as array parenthesis, and
+        # % as structure access symbol
+        super(FortranWriter, self).__init__(("(", ")"), "%", skip_nodes,
+                                            indent_string,
+                                            initial_indent_depth,
+                                            check_global_constraints)
+
+    def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
-        This is used both for array references and array declarations.
+        This is used both for array references and array declarations. Note
+        that 'indices' can also be a shape in case of Fortran.
 
-        :param shape: list of PSyIR nodes.
-        :type shape: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param indices: list of PSyIR nodes.
+        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param str var_name: name of the variable for which the dimensions \
+            are created. Not used in the Fortran implementation.
 
         :returns: the Fortran representation of the dimensions.
         :rtype: list of str
@@ -323,7 +353,7 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         dims = []
-        for index in shape:
+        for index in indices:
             if isinstance(index, (DataNode, Range)):
                 # literal constant, symbol reference, or computed
                 # dimension
@@ -344,7 +374,7 @@ class FortranWriter(PSyIRVisitor):
                 dims.append(":")
             else:
                 raise NotImplementedError(
-                    "unsupported gen_dims index '{0}'".format(str(index)))
+                    "unsupported gen_indices index '{0}'".format(str(index)))
         return dims
 
     def gen_use(self, symbol, symbol_table):
@@ -427,6 +457,7 @@ class FortranWriter(PSyIRVisitor):
             shape containing a mixture of DEFERRED and other extents.
 
         '''
+        # pylint: disable=too-many-branches
         # Whether we're dealing with a Symbol or a member of a derived type
         is_symbol = isinstance(symbol, (DataSymbol, RoutineSymbol))
         # Whether we're dealing with an array declaration and, if so, the
@@ -470,7 +501,7 @@ class FortranWriter(PSyIRVisitor):
                     "A Fortran declaration of an allocatable array must have"
                     " the extent of every dimension as 'DEFERRED' but "
                     "symbol '{0}' has shape: {1}.".format(
-                        symbol.name, self._gen_dims(array_shape)))
+                        symbol.name, self.gen_indices(array_shape)))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
         if ArrayType.Extent.ATTRIBUTE in array_shape:
@@ -484,9 +515,9 @@ class FortranWriter(PSyIRVisitor):
                         "An assumed-size Fortran array must only have its "
                         "last dimension unspecified (as 'ATTRIBUTE') but "
                         "symbol '{0}' has shape: {1}."
-                        "".format(symbol.name, self._gen_dims(array_shape)))
+                        "".format(symbol.name, self.gen_indices(array_shape)))
         if array_shape:
-            dims = self._gen_dims(array_shape)
+            dims = self.gen_indices(array_shape)
             result += ", dimension({0})".format(",".join(dims))
         if is_symbol:
             # A member of a derived type cannot have the 'intent' or
@@ -658,6 +689,7 @@ class FortranWriter(PSyIRVisitor):
             wildcard imports.
 
         '''
+        # pylint: disable=too-many-branches
         declarations = ""
         # Keep a record of whether we've already checked for any wildcard
         # imports to save doing so repeatedly
@@ -794,7 +826,7 @@ class FortranWriter(PSyIRVisitor):
 
         # All children must be Routine as modules within
         # modules are not supported.
-        if not all([isinstance(child, Routine) for child in node.children]):
+        if not all(isinstance(child, Routine) for child in node.children):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
                 "to be a sub-class of Routine.")
@@ -966,9 +998,10 @@ class FortranWriter(PSyIRVisitor):
                             # associative due to rounding errors.
                             return "({0} {1} {2})".format(lhs, fort_oper, rhs)
             return "{0} {1} {2}".format(lhs, fort_oper, rhs)
-        except KeyError:
-            raise VisitorError("Unexpected binary op '{0}'."
-                               "".format(node.operator))
+        except KeyError as error:
+            raise six.raise_from(VisitorError("Unexpected binary op '{0}'."
+                                              "".format(node.operator)),
+                                 error)
 
     def naryoperation_node(self, node):
         '''This method is called when an NaryOperation instance is found in
@@ -989,117 +1022,10 @@ class FortranWriter(PSyIRVisitor):
         try:
             fort_oper = get_fortran_operator(node.operator)
             return "{0}({1})".format(fort_oper, ", ".join(arg_list))
-        except KeyError:
-            raise VisitorError("Unexpected N-ary op '{0}'".
-                               format(node.operator))
-
-    def structurereference_node(self, node):
-        '''
-        Creates the Fortran for an access to a member of a structure type.
-
-        :param node: a StructureReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        :raises VisitorError: if this node does not have an instance of Member\
-                              as its only child.
-
-        '''
-        if len(node.children) != 1:
-            raise VisitorError(
-                "A StructureReference must have a single child but the "
-                "reference to symbol '{0}' has {1}.".format(
-                    node.name, len(node.children)))
-        if not isinstance(node.children[0], Member):
-            raise VisitorError(
-                "A StructureReference must have a single child which is a "
-                "sub-class of Member but the reference to symbol '{0}' has a "
-                "child of type '{1}'".format(node.name,
-                                             type(node.children[0]).__name__))
-        result = node.symbol.name + "%" + self._visit(node.children[0])
-        return result
-
-    def arrayofstructuresreference_node(self, node):
-        '''
-        Creates the Fortran for a reference to one or more elements of an
-        array of derived types.
-
-        :param node: an ArrayOfStructuresReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresReference`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        :raises VisitorError: if the supplied node does not have the correct \
-                              number and type of children.
-        '''
-        if len(node.children) < 2:
-            raise VisitorError(
-                "An ArrayOfStructuresReference must have at least two children"
-                " but found {0}".format(len(node.children)))
-
-        if not isinstance(node.children[0], Member):
-            raise VisitorError(
-                "An ArrayOfStructuresReference must have a Member as its "
-                "first child but found '{0}'".format(
-                    type(node.children[0]).__name__))
-
-        # Generate the array reference. We need to skip over the first child
-        # (as that refers to the member of the derived type being accessed).
-        args = self._gen_dims(node.children[1:])
-
-        result = (node.symbol.name + "({0})".format(",".join(args)) +
-                  "%" + self._visit(node.children[0]))
-        return result
-
-    def member_node(self, node):
-        '''
-        Creates the Fortran for an access to a member of a derived type.
-
-        :param node: a Member PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Member`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        '''
-        result = node.name
-        if not node.children:
-            return result
-
-        if isinstance(node.children[0], Member):
-            if len(node.children) > 1:
-                args = self._gen_dims(node.children[1:])
-                result += "({0})".format(",".join(args))
-            result += "%" + self._visit(node.children[0])
-        else:
-            args = self._gen_dims(node.children)
-            result += "({0})".format(",".join(args))
-
-        return result
-
-    def arrayreference_node(self, node):
-        '''This method is called when an ArrayReference instance is found
-        in the PSyIR tree.
-
-        :param node: an ArrayNode PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayNode`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        :raises VisitorError: if the node does not have any children.
-
-        '''
-        if not node.children:
-            raise VisitorError(
-                "Incomplete ArrayReference node (for symbol '{0}') found: "
-                "must have one or more children.".format(node.name))
-        args = self._gen_dims(node.children)
-        result = "{0}({1})".format(node.name, ",".join(args))
-        return result
+        except KeyError as error:
+            raise six.raise_from(VisitorError("Unexpected N-ary op '{0}'".
+                                              format(node.operator)),
+                                 error)
 
     def range_node(self, node):
         '''This method is called when a Range instance is found in the PSyIR
@@ -1296,9 +1222,9 @@ class FortranWriter(PSyIRVisitor):
                     return "({0}{1})".format(fort_oper, content)
             return "{0}{1}".format(fort_oper, content)
 
-        except KeyError:
-            raise VisitorError("Unexpected unary op '{0}'.".format(
-                node.operator))
+        except KeyError as error:
+            raise six.raise_from(VisitorError("Unexpected unary op '{0}'."
+                                              .format(node.operator)), error)
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in

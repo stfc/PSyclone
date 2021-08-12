@@ -90,6 +90,8 @@ end module testkern_eval
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 def test_eval_mdata():

@@ -98,8 +98,8 @@ def test_gen_intent_error(monkeypatch):
     assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo.value)
 
 
-def test_gen_dims(fortran_writer):
-    '''Check the _gen_dims function produces the expected dimension
+def test_gen_indices(fortran_writer):
+    '''Check the gen_indices function produces the expected dimension
     strings.
 
     '''
@@ -114,20 +114,20 @@ def test_gen_dims(fortran_writer):
     array_type = ArrayType(
         INTEGER_TYPE, [Reference(arg), 2, (0, 4), literal, arg_plus_1,
                        (2, arg_plus_1.copy()), ArrayType.Extent.ATTRIBUTE])
-    assert (fortran_writer._gen_dims(array_type.shape) ==
+    assert (fortran_writer.gen_indices(array_type.shape) ==
             ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4", ":"])
 
 
-def test_gen_dims_error(monkeypatch, fortran_writer):
-    '''Check the _gen_dims method raises an exception if a symbol shape
+def test_gen_indices_error(monkeypatch, fortran_writer):
+    '''Check the _gen_indices method raises an exception if a symbol shape
     entry is not supported.
 
     '''
     array_type = ArrayType(INTEGER_TYPE, [10])
     monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = fortran_writer._gen_dims(array_type.shape)
-    assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
+        _ = fortran_writer.gen_indices(array_type.shape)
+    assert "unsupported gen_indices index 'invalid'" in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
@@ -1459,46 +1459,6 @@ def test_fw_reference(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_arrayreference(fortran_reader, fortran_writer, tmpdir):
-    '''Check the FortranWriter class array method correctly prints
-    out the Fortran representation of an array reference.
-
-    '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp(a, n)\n"
-        "  integer, intent(in) :: n\n"
-        "  real, intent(out) :: a(n,n,n)\n"
-        "    a(2,n,3) = 0.0\n"
-        "end subroutine tmp\n"
-        "end module test")
-    schedule = fortran_reader.psyir_from_source(code)
-
-    # Generate Fortran from the PSyIR schedule
-    result = fortran_writer(schedule)
-    assert "a(2,n,3) = 0.0" in result
-    assert Compile(tmpdir).string_compiles(result)
-
-
-def test_fw_arrayreference_incomplete(fortran_writer):
-    '''
-    Test that the correct error is raised if an incomplete ArrayReference
-    is encountered.
-    '''
-    array_type = ArrayType(REAL_TYPE, [10])
-    symbol = DataSymbol("b", array_type)
-    # create() must be supplied with a shape
-    array = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
-    # Remove its children
-    array._children = []
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.arrayreference_node(array)
-    assert ("Incomplete ArrayReference node (for symbol 'b') found: must "
-            "have one or more children" in str(err.value))
-
-
 def test_fw_range(fortran_writer):
     '''Check the FortranWriter class range_node and arrayreference_node methods
     produce the expected code when an array section is specified.
@@ -1608,99 +1568,6 @@ def test_fw_range_structureref(fortran_writer):
         array_symbol, [one.copy(), Range.create(start, stop)], ["flag"])
     result = fortran_writer(aref)
     assert result == "my_grids(1,:)%flag"
-
-
-def test_fw_structureref(fortran_writer):
-    ''' Test the FortranWriter support for StructureReference. '''
-    region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    region_type_sym = DataTypeSymbol("grid_type", region_type)
-    region_array_type = ArrayType(region_type_sym, [2, 2])
-    grid_type = StructureType.create([
-        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("area", region_type_sym, Symbol.Visibility.PUBLIC),
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
-    grid_var = DataSymbol("grid", grid_type_sym)
-    grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
-    assert fortran_writer.structurereference_node(grid_ref) == "grid%area%nx"
-    level_ref = StructureReference.create(
-        grid_var, [('levels', [Literal("1", INTEGER_TYPE),
-                               Literal("2", INTEGER_TYPE)]), 'ny'])
-    assert fortran_writer(level_ref) == "grid%levels(1,2)%ny"
-    # Make the number of children invalid
-    level_ref._children = []
-    with pytest.raises(VisitorError) as err:
-        fortran_writer(level_ref)
-    assert ("StructureReference must have a single child but the reference "
-            "to symbol 'grid' has 0" in str(err.value))
-    # Single child but not of the right type
-    level_ref._children = [Literal("1", INTEGER_TYPE)]
-    with pytest.raises(VisitorError) as err:
-        fortran_writer._visit(level_ref)
-    assert ("StructureReference must have a single child which is a sub-"
-            "class of Member but the reference to symbol 'grid' has a child "
-            "of type 'Literal'" in str(err.value))
-
-
-def test_fw_arrayofstructuresref(fortran_writer):
-    ''' Test the FortranWriter support for ArrayOfStructuresReference. '''
-    grid_type = StructureType.create([
-        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
-    grid_array_type = ArrayType(grid_type_sym, [10])
-    grid_var = DataSymbol("grid", grid_array_type)
-    grid_ref = ArrayOfStructuresReference.create(grid_var,
-                                                 [Literal("3", INTEGER_TYPE)],
-                                                 ["dx"])
-    assert (fortran_writer.arrayofstructuresreference_node(grid_ref) ==
-            "grid(3)%dx")
-    # Break the node to trigger checks
-    # Make the first node something other than a member
-    grid_ref._children = [grid_ref._children[1], grid_ref._children[1]]
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.arrayofstructuresreference_node(grid_ref)
-    assert ("An ArrayOfStructuresReference must have a Member as its first "
-            "child but found 'Literal'" in str(err.value))
-    # Remove a child
-    grid_ref._children = [grid_ref._children[0]]
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.arrayofstructuresreference_node(grid_ref)
-    assert ("An ArrayOfStructuresReference must have at least two children "
-            "but found 1" in str(err.value))
-
-
-def test_fw_arrayofstructuresmember(fortran_writer):
-    ''' Test the FortranWriter support for ArrayOfStructuresMember. '''
-    region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    region_type_sym = DataTypeSymbol("grid_type", region_type)
-    region_array_type = ArrayType(region_type_sym, [2, 2])
-    # The grid type contains an array of region-type structures
-    grid_type = StructureType.create([
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
-    grid_var = DataSymbol("grid", grid_type_sym)
-    # Reference to an element of an array that is a structure
-    level_ref = StructureReference.create(grid_var,
-                                          [("levels",
-                                            [Literal("1", INTEGER_TYPE),
-                                             Literal("1", INTEGER_TYPE)])])
-    assert (fortran_writer.structurereference_node(level_ref) ==
-            "grid%levels(1,1)")
-    # Reference to a member of a structure that is an element of an array
-    grid_ref = StructureReference.create(grid_var,
-                                         [("levels",
-                                           [Literal("1", INTEGER_TYPE),
-                                            Literal("1", INTEGER_TYPE)]),
-                                          "nx"])
-    assert (fortran_writer.structurereference_node(grid_ref) ==
-            "grid%levels(1,1)%nx")
-    # Reference to an *array* of structures
-    grid_ref = StructureReference.create(grid_var, ["levels"])
-    assert fortran_writer.structurereference_node(grid_ref) == "grid%levels"
 
 
 # literal is already checked within previous tests
