@@ -541,6 +541,14 @@ class GOLoop(Loop):
         if len(self.children) > 2:
             self.children[1].replace_with(self.upper_bound())
 
+    @property
+    def bounds_lookup(self):
+        '''
+        :returns: the GOcean loop bounds lookup table.
+        :rtype: dict
+        '''
+        return self._bounds_lookup
+
     # -------------------------------------------------------------------------
     def _halo_read_access(self, arg):
         '''Determines whether the supplied argument has (or might have) its
@@ -596,14 +604,6 @@ class GOLoop(Loop):
         '''
         exchange = GOHaloExchange(halo_field, parent=self.parent)
         self.parent.children.insert(self.position, exchange)
-
-    @property
-    def bounds_lookup(self):
-        '''
-        :returns: the GOcean loop bounds lookup table.
-        :rtype: dict
-        '''
-        return self._bounds_lookup
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -894,11 +894,12 @@ class GOLoop(Loop):
             bound = self.bounds_lookup[self.index_offset][self.field_space][
                 self.iteration_space][self.loop_type][side].format(
                     start='2', stop=stop_expr)
-        except KeyError:
-            raise GenerationError(
-                "Cannot generate custom loop bound for '{0}' '{1}' '{2}' "
+        except KeyError as err:
+            six.raise_from(GenerationError(
+                "Cannot generate custom loop bound for the: '{0}', '{1}' and"
+                " '{2}' combination."
                 "".format(self.index_offset, self.field_space,
-                          self.iteration_space))
+                          self.iteration_space)), err)
 
         return bound
 

@@ -46,7 +46,7 @@ from fparser.two.parser import ParserFactory
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
-    Node, Literal
+    Node, Literal, Loop
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
 
@@ -89,19 +89,85 @@ def test_goloop_no_children():
         in str(err.value)
 
 
+def test_goloop_create(monkeypatch):
+    ''' Test that the GOLoop create method populates the relevant attributes
+    and creates the loop children. '''
+
+    # Monkeypatch the called GOLoops methods as this will be tested separately
+    monkeypatch.setattr(GOLoop, "lower_bound",
+                        lambda x: Literal("10", INTEGER_TYPE))
+    monkeypatch.setattr(GOLoop, "upper_bound",
+                        lambda x: Literal("20", INTEGER_TYPE))
+
+    # Call the create method
+    gosched = GOInvokeSchedule('name', [])
+    goloop = GOLoop.create(parent=gosched,
+                           loop_type="inner",
+                           field_name="cv_fld",
+                           iteration_space="go_internal_pts",
+                           field_space="go_cv")
+
+    # Check the properties
+    assert isinstance(goloop, GOLoop)
+    assert goloop.loop_type == "inner"
+    assert goloop.field_name == "cv_fld"
+    assert goloop.iteration_space == "go_internal_pts"
+    assert goloop.field_space == "go_cv"
+
+    # Check that the created children correspond to the expected values
+    assert len(goloop.children) == 4
+    assert isinstance(goloop.children[0], Literal)
+    assert isinstance(goloop.children[1], Literal)
+    assert isinstance(goloop.children[2], Literal)
+    assert isinstance(goloop.children[3], Schedule)
+    assert goloop.children[0].value == '10'
+    assert goloop.children[1].value == '20'
+    assert goloop.children[2].value == '1'
+
+
+def test_goloop_properties_getters_and_setters():
+    ''' Test that the GOLoop getters and setters, retrieve and set the
+    expected attributes. '''
+    gosched = GOInvokeSchedule('name', [])
+    goloop = GOLoop(loop_type="inner", parent=gosched)
+
+    # Set and get iteration_space
+    goloop.iteration_space = "it_space"
+    assert goloop.iteration_space == "it_space"
+
+    # Set and get iteration_space
+    goloop.field_space = "cv_fld"
+    assert goloop.field_space == "cv_fld"
+
+    # Get bounds map
+    assert goloop.bounds_lookup == GOLoop._bounds_lookup
+
+
 def test_goloop_bounds_invalid_iteration_space():
     ''' Check that the _upper/lower_bound() methods raise the expected error
     if the iteration space is not recognised. '''
     gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
+
     # Set the iteration space to something invalid
-    gojloop._iteration_space = "broken"
+    gojloop.iteration_space = "broken"
     with pytest.raises(GenerationError) as err:
         gojloop.upper_bound()
-    assert "Cannot generate custom loop bound for loop GOLoop" in str(err.value)
+    assert ("Cannot generate custom loop bound for loop GOLoop[id:'', "
+            "variable:'j', loop_type:'outer']\nEnd GOLoop. Couldn't fine "
+            "any suitable field." in str(err.value))
+
+    # Create an complete invoke now
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           API, idx=0)
+    schedule = invoke.schedule
+    gojloop = schedule.children[0]
+    # Set the iteration space to something invalid
     with pytest.raises(GenerationError) as err:
-        gojloop.lower_bound()
-    assert "Cannot generate custom loop bound for loop GOLoop" in str(err.value)
+        # The setter already calls the upper/lower_bound methods
+        gojloop.iteration_space = "broken"
+    assert ("Cannot generate custom loop bound for the: 'go_offset_ne', "
+            "'go_cv' and 'broken' combination." in str(err.value))
 
 
 def test_goloop_grid_property_psyir_expression():
@@ -128,6 +194,24 @@ def test_goloop_grid_property_psyir_expression():
     assert isinstance(gref, StructureReference)
     assert gref.parent is None
     assert gref.symbol.name == "cv_fld"
+
+
+def test_goloop_lower_to_language_level(monkeypatch):
+    ''' Tests that the GOLoop lower_to_language_level method lowers the type
+    of the node to a generic Loop. '''
+    schedule = GOInvokeSchedule('name', [])
+    goloop = GOLoop(loop_type="inner", parent=schedule)
+    schedule.addchild(goloop)
+
+    # Monkeypatch the _validate_loop method as this will be tested below
+    monkeypatch.setattr(GOLoop, "_validate_loop",
+                        lambda x: True)
+
+    # Lower to language level and check the resulting Loop is as expected
+    goloop.lower_to_language_level()
+    new_loop = schedule.children[0]
+    # pylint: disable=unidiomatic-typecheck
+    assert type(new_loop) == Loop
 
 
 def test_goloop_validate_loop():
