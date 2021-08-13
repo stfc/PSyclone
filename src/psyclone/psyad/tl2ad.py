@@ -386,10 +386,10 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                         else:
                             raise NotImplementedError(
                                 "Found argument '{0}' to kernel '{1}' which "
-                                "has an array bound specified by a {2}. Only "
-                                "Literals or References are supported.".format(
-                                    arg.name, tl_kernel.name,
-                                    type(bound).__name__))
+                                "has an array bound specified by a '{2}' node."
+                                " Only Literals or References are supported.".
+                                format(arg.name, tl_kernel.name,
+                                       type(bound).__name__))
                     new_shape.append(ArrayType.ArrayBounds(new_bounds[0],
                                                            new_bounds[1]))
                 else:

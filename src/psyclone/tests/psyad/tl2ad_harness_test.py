@@ -465,12 +465,22 @@ def test_generate_harness_kernel_arg_invalid_shape(fortran_reader):
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
     ad_psyir = generate_adjoint(tl_psyir)
-    # Get hold of the kernel argument and break its shape definition
+    # Get hold of the kernel argument
     kernel = tl_psyir.walk(Routine)[0]
     fld_arg = kernel.symbol_table.argument_list[0]
+    # Break one of the bounds in the Range inside the argument shape by making
+    # it into a Return node.
+    fld_arg.datatype._shape[0] = ArrayType.ArrayBounds(
+        lower=Return(), upper=fld_arg.datatype._shape[0].upper)
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint_test(tl_psyir, ad_psyir)
+    assert ("Found argument 'field1' to kernel 'kernel' which has an array "
+            "bound specified by a 'Return' node. Only Literals or References "
+            "are supported" in str(err.value))
+    # Break the argument shape.
     fld_arg.datatype._shape = [1] + fld_arg.datatype._shape[1:]
     with pytest.raises(InternalError) as err:
         generate_adjoint_test(tl_psyir, ad_psyir)
     assert ("Argument 'field1' to kernel 'kernel' contains a 'int' in its "
-            "shape definition but expected an ArrayType.Extent, a Reference "
-            "or a Literal" in str(err.value))
+            "shape definition but expected an ArrayType.Extent or "
+            "ArrayType.ArrayBound" in str(err.value))
