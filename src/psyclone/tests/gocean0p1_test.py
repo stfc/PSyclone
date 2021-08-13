@@ -54,6 +54,8 @@ API = "gocean0.1"
 def setup():
     '''Make sure that all tests here use gocean0.1 as API.'''
     Config.get().api = "gocean0.1"
+    yield()
+    Config._instance = None
 
 
 def test_loop_bounds_gen_multiple_loops():

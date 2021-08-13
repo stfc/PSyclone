@@ -447,40 +447,70 @@ Indices
 The `AccessInfo` class stores the original PSyIR node that contains the
 access, but it also stores the indices used in a simplified form, which
 makes it easier to analyse dependencies without having
-to analyse a PSyIR tree for details. Using the `component_indices` property of
-an `AccessInfo` object returns a list containing the indices used for
-each component. For example, an access like `a(i)%b(j,k)%c(l)` would
-return the list `[ [i], [j,k], [l] ]`. In case of non-array accesses,
-the corresponding index list will be empty, e.g. `a%b(j)%c` will
-have the component indices `[ [], [j], [] ]`, and a scalar `a` will just
-return `[ [] ]`.
+to analyse a PSyIR tree for details. The indices are stored in the
+ComponentIndices object that each access has, which can be accessed
+using the `component_indices` property of an `AccessInfo` object.
 
-Each entry in this list of lists is still a PSyIR node for each index
-expression used. To find out details about an index expression, you can
-either analyse the tree, or use the variable access functionality again.
-Below is an example that shows how this is done to determine if an array expression
-contains a reference to a given variable `index_variable`. The variable
-`access_info` is an instance of `AccessInfo` and contains the information
-about one reference. The outer loop is over the indices used for each component,
-i.e. in case of `a(i)%b(j,k)%c(l)` it would loop over the three
-members of the list `[ [i], [j,k], [l] ]`. The inner loop then
-tests each index used, e.g. it would be `[i]` for the first index group,
-then `[j, k]` etc. Then the function `reference_accesses` is used to
-analyse the index expression.
+.. autoclass:: psyclone.core.access_info.ComponentIndices
+    :members:
+    :special-members: __getitem__, __len__
+
+
+This object internally stores the indices as a list of indices for each
+component. For example, an access like `a(i)%b(j,k)%c(l)` would
+be stored as the list `[ [i], [j,k], [l] ]`. In case of non-array accesses,
+the corresponding index list will be empty, e.g. `a%b(j)%c` will
+be stored as `[ [], [j], [] ]`, and a scalar `a` will just
+return `[ [] ]`. Each member of this list of lists is the PSyIR node
+describing the array expression used.
+
+The component indices provides an array-like access to
+this data structure, you can use `len(component_indices)` to get the
+number of components for which array indices are stored.
+The information can be accessed using array subscription syntax, e.g.:
+`component_index[0]` will return the list of array indices used in the
+first component. You can also use a 2-tuple to select a component
+and a dimension at the same time, e.g. `component_indices[(0,1)]`, which
+will return the index used in the second dimension of the first component.
+
+`ComponentIndices` provides an easy way
+to iterate over all indices using its `iterate()` method, which returns all
+valid 2-tuples of component index and dimension index. For example:
 
 .. code-block:: python
 
-  for index_group in access_info.component_indices:
-      for index_expression in index_group:
-        # Create an access info object to collect the accesses
-        # in the index expression
-          accesses = VariablesAccessInfo()
-          index_expression.reference_accesses(accesses)
-          # Then test if the index variable is used. Note that
-          # the key of `access` is a signature
-          if Signature(index_variable) in accesses:
-              # The index variable is used as an index somewhere
-              return True
+  for indx in access_info.component_indices:
+      # indx is a 2-tuple of (component_index, dimension_index)
+      psyir_index = access_info.component_indices[indx]
+      ...
+  # Using enumerate:
+  for count, indx in enumerate(component_indices.iterate()):
+      # fortran writer convers a PSyIR node to Fortran:
+      print("Index-id", count, fortran_writer(indx))
+
+To find out details about an index expression, you can either analyse
+the tree (e.g. using `walk`), or use the variable access functionality again.
+Below is an example that shows how this is done to determine if an array
+expression contains a reference to a given variable `index_variable`. The
+variable `access_info` is an instance of `AccessInfo` and contains the
+information about one reference.The function `reference_accesses` is used
+to analyse the index expression.
+
+.. code-block:: python
+
+  for indx in access_info.component_indices:
+      index_expression = component_indices[indx]
+
+      # Create an access info object to collect the accesses
+      # in the index expression
+      accesses = VariablesAccessInfo(index_expression)
+      
+      # Then test if the index variable is used. Note that
+      # the key of `access` is a signature
+      if Signature(index_variable) in accesses:
+          # The index variable is used as an index
+          # at the specified location.
+          return indx
 
 
 Access Location

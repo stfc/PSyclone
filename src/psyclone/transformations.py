@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, and S. Siso STFC Daresbury Lab
+#         A. B. G. Chalk STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -62,7 +63,7 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective
+    ACCKernelsDirective, OMPTaskloopDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -312,12 +313,178 @@ class ParallelLoopTrans(LoopTrans):
         return schedule, keep
 
 
+class OMPTaskloopTrans(ParallelLoopTrans):
+
+    '''
+    Adds an OpenMP taskloop directive to a loop. Only one of grainsize or
+    num_tasks must be specified.
+
+    TODO: #1364 Taskloops do not yet support reduction clauses.
+
+    :param grainsize: the grainsize to use in for this transformation.
+    :type grainsize: int or None
+    :param num_tasks: the num_tasks to use for this transformation.
+    :type num_tasks: int or None
+
+    For example:
+
+    >>> from pysclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> from psyclone.transformations import OMPTaskloopTrans
+    >>> singletrans = OMPSingleTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>> tasklooptrans = OMPTaskloopTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Apply the OpenMP Taskloop transformation to *every* loop
+    >>> # in the schedule.
+    >>> # This ignores loop dependencies. These must be manually handled
+    >>> # either through end of regions.
+    >>> # TODO: #1368 These can also be handled through the taskwait
+    >>> # directive
+    >>> for child in schedule.children:
+    >>>     tasklooptrans.apply(child)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # SINGLE region
+    >>> singletrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> schedule.view()
+
+    '''
+    def __init__(self, grainsize=None, num_tasks=None):
+        self._grainsize = None
+        self._num_tasks = None
+        self.omp_grainsize = grainsize
+        self.omp_num_tasks = num_tasks
+
+        super(OMPTaskloopTrans, self).__init__()
+
+    def __str__(self):
+        return "Adds an 'OpenMP TASKLOOP' directive to a loop"
+
+    @property
+    def omp_grainsize(self):
+        '''
+        Returns the grainsize that will be specified by
+        this transformation. By default the grainsize
+        clause is not applied, so grainsize is None.
+
+        :returns: The grainsize specified by this transformation.
+        :rtype: int or None
+        '''
+        return self._grainsize
+
+    @omp_grainsize.setter
+    def omp_grainsize(self, value):
+        '''
+        Sets the grainsize that will be specified by
+        this transformation. Checks the grainsize is
+        a positive integer value or None.
+
+        :param value: integer value to use in the grainsize clause.
+        :type value: int or None
+
+        :raises TransformationError: if value is not an int and is not None.
+        :raises TransformationError: if value is negative.
+        :raises TransformationError: if grainsize and num_tasks are \
+                                     both specified.
+        '''
+        if (not isinstance(value, int)) and (value is not None):
+            raise TransformationError("grainsize must be an integer or None, "
+                                      "got {0}".format(type(value).__name__))
+
+        if (value is not None) and (value <= 0):
+            raise TransformationError("grainsize must be a positive "
+                                      "integer, got {0}".format(value))
+
+        if value is not None and self.omp_num_tasks is not None:
+            raise TransformationError(
+                "The grainsize and num_tasks clauses would both "
+                "be specified for this Taskloop transformation")
+        self._grainsize = value
+
+    @property
+    def omp_num_tasks(self):
+        '''
+        Returns the num_tasks that will be specified
+        by this transformation. By default the num_tasks
+        clause is not applied so num_tasks is None.
+
+        :returns: The grainsize specified by this transformation.
+        :rtype: int or None
+        '''
+        return self._num_tasks
+
+    @omp_num_tasks.setter
+    def omp_num_tasks(self, value):
+        '''
+        Sets the num_tasks that will be specified by
+        this transformation. Checks that num_tasks is
+        a positive integer value or None.
+
+        :param value: integer value to use in the num_tasks clause.
+        :type value: int or None
+
+        :raises TransformationError: if value is not an int and is not None.
+        :raises TransformationError: if value is negative.
+        :raises TransformationError: if grainsize and num_tasks are \
+                                     both specified.
+
+        '''
+        if (not isinstance(value, int)) and (value is not None):
+            raise TransformationError("num_tasks must be an integer or None,"
+                                      " got {0}".format(type(value).__name__))
+
+        if (value is not None) and (value <= 0):
+            raise TransformationError("num_tasks must be a positive "
+                                      "integer, got {0}".format(value))
+
+        if value is not None and self.omp_grainsize is not None:
+            raise TransformationError(
+                "The grainsize and num_tasks clauses would both "
+                "be specified for this Taskloop transformation")
+        self._num_tasks = value
+
+    def _directive(self, children, collapse=None):
+        '''
+        Creates the type of directive needed for this sub-class of
+        transformation.
+
+        :param children: list of Nodes that will be the children of \
+                         the created directive.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param int collapse: currently un-used but required to keep \
+                             interface the same as in base class.
+        :returns: the new node representing the directive in the AST.
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
+
+        :raises NotImplementedError: if a collapse argument is supplied
+        '''
+        # TODO 1370: OpenMP loop functions don't support collapse
+        if collapse:
+            raise NotImplementedError(
+                "The COLLAPSE clause is not yet supported for "
+                "'!$omp taskloop' directives.")
+        _directive = OMPTaskloopDirective(children=children,
+                                          grainsize=self.omp_grainsize,
+                                          num_tasks=self.omp_num_tasks)
+        return _directive
+
+
 class OMPLoopTrans(ParallelLoopTrans):
 
     '''
-    Adds an orphaned OpenMP directive to a loop. i.e. the directive
-    must be inside the scope of some other OMP Parallel
-    REGION. This condition is tested at code-generation time. The
+    Adds an OpenMP directive to a loop. The
     optional 'reprod' argument in the apply method decides whether
     standard OpenMP reduction support is to be used (which is not
     reproducible) or whether a manual reproducible reproduction is
@@ -421,8 +588,9 @@ class OMPLoopTrans(ParallelLoopTrans):
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST
         :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective`
-        :raises NotImplementedError: if a collapse argument is supplied
+        :raises NotImplementedError: if a collapse argument is supplied.
         '''
+        # TODO 1370: OpenMP loop functions don't support collapse
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for '!$omp do' "
@@ -1251,6 +1419,220 @@ class ParallelRegionTrans(RegionTrans):
         node_parent.addchild(directive, index=node_position)
 
         return schedule, keep
+
+
+class OMPSingleTrans(ParallelRegionTrans):
+    '''
+    Create an OpenMP SINGLE region by inserting directives. The most
+    likely use case for this transformation is to wrap around task-based
+    transformations. The parent region for this should usually also be
+    a OMPParallelTrans.
+
+    :param bool nowait: whether to apply a nowait clause to this \
+                       transformation. The default value is False
+
+    For example:
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> singletrans = OMPSingleTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # SINGLE region
+    >>> singletrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> schedule.view()
+
+    '''
+    # The types of node that this transformation cannot enclose
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
+                           psyGen.HaloExchange, nodes.OMPSerialDirective,
+                           nodes.OMPParallelDirective)
+
+    def __init__(self, nowait=False):
+        super(OMPSingleTrans, self).__init__()
+        # Set the type of directive that the base class will use
+        self._pdirective = self._directive
+        # Store whether this single directive has a barrier or not
+        self._omp_nowait = nowait
+
+    def __str__(self):
+        return "Insert an OpenMP Single region"
+
+    @property
+    def omp_nowait(self):
+        ''' :returns: whether or not this Single region uses a nowait \
+                      clause to remove the end barrier.
+            :rtype: bool
+        '''
+        return self._omp_nowait
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+        '''
+        return "OMPSingleTrans"
+
+    @omp_nowait.setter
+    def omp_nowait(self, value):
+        ''' Sets the nowait property that will be specified by
+            this transformation. Checks that the value supplied in
+            :py:obj:`value` is a bool
+
+            :param bool value: Whether this Single clause should have a \
+                               nowait applied.
+
+            :raises TypeError: if the value parameter is not a bool.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError("Expected nowait to be a bool "
+                            "but got a {0}".format(type(value).__name__))
+        self._omp_nowait = value
+
+    def _directive(self, children):
+        '''
+        Creates the type of directive needed for this sub-class of
+        transformation.
+
+        :param children: list of Nodes that will be the children of \
+                         the created directive.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: The directive created for the OpenMP Single Directive
+        :rtype: :py:class:`psyclone.psyGen.OMPSingleDirective`
+
+        '''
+        _directive = nodes.OMPSingleDirective(children=children,
+                                              nowait=self.omp_nowait)
+        return _directive
+
+    def apply(self, node_list, options=None):
+        '''Apply the OMPSingleTrans transformation to the specified node in a
+        Schedule.
+
+        At code-generation time this node must be within (i.e. a child of)
+        an OpenMP PARALLEL region. Code generation happens when
+        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
+        tree is given to a backend.
+
+        If the keyword "nowait" is specified in the options, it will cause a
+        nowait clause to be added if it is set to True, otherwise no clause
+        will be added.
+
+        :param node_list: the supplied node or node list to which we will \
+                          apply the OMPSingleTrans transformation
+        :type node_list: (a list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a list with options for transformations \
+                        and validation.
+        :type options: a dict of string:values or None
+        :param bool options["nowait"]:
+                indicating whether or not to use a nowait clause on this \
+                single region.
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`,
+                 :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        if not options:
+            options = {}
+        if options.get("nowait") is not None:
+            self.omp_nowait = options.get("nowait")
+
+        return super(OMPSingleTrans, self).apply(node_list, options)
+
+
+class OMPMasterTrans(ParallelRegionTrans):
+    '''
+    Create an OpenMP MASTER region by inserting directives. The most
+    likely use case for this transformation is to wrap around task-based
+    transformations. The parent region for this should usually also be
+    a OMPParallelTrans. For example:
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPMasterTrans
+    >>> mastertrans = OMPMasterTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # MASTER region
+    >>> mastertrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> schedule.view()
+
+    '''
+    # The types of node that this transformation cannot enclose
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
+                           psyGen.HaloExchange, nodes.OMPSerialDirective,
+                           nodes.OMPParallelDirective)
+
+    def __init__(self):
+        super(OMPMasterTrans, self).__init__()
+        # Set the type of directive that the base class will use
+        self._pdirective = nodes.OMPMasterDirective
+
+    def __str__(self):
+        return "Insert an OpenMP Master region"
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+        return "OMPMasterTrans"
+
+    def apply(self, node_list, options=None):
+        '''Apply the OMPMasterTrans transformation to the specified node in a
+        Schedule.
+
+        At code-generation time this node must be within (i.e. a child of)
+        an OpenMP PARALLEL region. Code generation happens when
+        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
+        tree is given to a backend.
+
+        :param node_list: the supplied node or node list to which we will \
+                          apply the OMPSingleTrans transformation
+        :type node_list: (a list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a list with options for transformations \
+                        and validation.
+        :type options: a dict of string:values or None
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`,
+                 :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        if not options:
+            options = {}
+
+        return super(OMPMasterTrans, self).apply(node_list, options)
 
 
 class OMPParallelTrans(ParallelRegionTrans):
@@ -2785,7 +3167,7 @@ class ACCKernelsTrans(RegionTrans):
         Kernels region.
 
         :param node: a node or list of nodes in the PSyIR to enclose.
-        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :type node: (a list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["default_present"]: whether or not the kernels \
@@ -3147,6 +3529,8 @@ __all__ = ["KernelTrans",
            "KernelModuleInlineTrans",
            "Dynamo0p3ColourTrans",
            "ParallelRegionTrans",
+           "OMPSingleTrans",
+           "OMPMasterTrans",
            "OMPParallelTrans",
            "ACCParallelTrans",
            "GOConstLoopBoundsTrans",
