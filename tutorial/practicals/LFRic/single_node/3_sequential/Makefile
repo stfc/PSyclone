@@ -34,7 +34,7 @@
 # Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
 
-include ../../../common.mk
+include ../../../../common.mk
 
 transform:
 	# commented out until issue #1015 is addressed
