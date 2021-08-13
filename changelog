@@ -147,6 +147,9 @@
 
 	50) PR #1344 for #1309. Fix bug in PSyIR backend name comparison.
 
+        51) PR #1372 for #1371. Bring tutorial notebooks up-to-date and add
+        them to the CI.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
