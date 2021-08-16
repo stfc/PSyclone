@@ -157,10 +157,8 @@ class GOceanExtractTrans(ExtractTrans):
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        # Just call the base function, this function is here only to
-        # document all options.
-        # pylint: disable=useless-super-delegation
-
+        if options is None:
+            options = {}
         if options.get("create_driver", False):
             dep = DependencyTools()
             input_list, output_list = dep.get_in_out_parameters(nodes)
@@ -169,6 +167,4 @@ class GOceanExtractTrans(ExtractTrans):
 
         result = super(GOceanExtractTrans, self).apply(nodes, options)
 
-        if options is None:
-            options = {}
         return result
