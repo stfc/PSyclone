@@ -51,7 +51,7 @@ from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
-from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes.directive import Directive, ChildlessDirective
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.routine import Routine
 
@@ -110,6 +110,34 @@ class OMPDirective(Directive):
                         if arg.name not in result:
                             result.append(arg.name)
         return result
+
+class OMPChildlessDirective(ChildlessDirective):
+    '''
+    Base class for all OpenMP-related childless directives
+
+    '''
+    _PREFIX = "OMP"
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in a dag for this node
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_childless_directive_" + str(position)
+
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[OMPChildless]"
 
 
 class OMPTaskwaitDirective(OMPDirective):

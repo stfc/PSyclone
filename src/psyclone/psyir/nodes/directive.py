@@ -246,5 +246,56 @@ class Directive(Statement):
             self.ast_end = fp_parent.content[ast_start_index+1]
 
 
+class ChildlessDirective(Statement):
+    '''
+    Base class for all ChildlessDirective statements. This class is
+    designed for directives which do not have code associated with
+    them, e.g. OpenMP's taskwait.
+
+    All classes that generate ChildlessDirective statements
+    (e.g. OpenMP, OpenACC, compiler-specific) inherit from this class.
+
+    :param ast: None.
+    :type ast: NoneType
+    :param children: None.
+    :type children: NoneType
+    :param parent: PSyIR node that is the parent of this Directive or None.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+
+    '''
+    # The prefix to use when constructing this directive in Fortran
+    # (e.g. "OMP"). Must be set by sub-class.
+    _PREFIX = ""
+    # Textual description of the node.
+    _children_valid_format = None
+    _text_name = "ChildlessDirective"
+    _colour = "green"
+
+    def __init__(self, ast=None, children=None, parent=None):
+        super(ChildlessDirective, self).__init__(ast, children=children, parent=parent)
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # Children are not allowed for ChildlessDirective
+        return False
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "childless_directive_" + str(position)
+
 # For automatic API documentation generation
-__all__ = ["Directive"]
+__all__ = ["Directive", "ChildlessDirective"]

@@ -45,7 +45,7 @@ import abc
 import six
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes.directive import Directive, ChildlessDirective
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -54,6 +54,42 @@ from psyclone.core import AccessType, VariablesAccessInfo
 
 class ACCDirective(Directive):
     ''' Base class for all OpenACC directive statements. '''
+    _PREFIX = "ACC"
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node.
+
+        :returns: Name of corresponding node in DAG
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "ACC_directive_" + str(position)
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks for any global constraints. This can only
+        be done at code-generation time.
+
+        :raises GenerationError: if this ACCDirective encloses any form of \
+            PSyData node since calls to PSyData routines within OpenACC \
+            regions are not supported.
+
+        '''
+        super(ACCDirective, self).validate_global_constraints()
+
+        data_nodes = self.walk(PSyDataNode)
+        if data_nodes:
+            raise GenerationError(
+                "Cannot include calls to PSyData routines within OpenACC "
+                "regions but found {0} within a region enclosed "
+                "by an '{1}'".format(
+                    [type(node).__name__ for node in data_nodes],
+                    type(self).__name__))
+
+
+class ACCChildlessDirective(ChildlessDirective):
+    ''' Base class for all childless OpenACC directive statements. '''
     _PREFIX = "ACC"
 
     @property
