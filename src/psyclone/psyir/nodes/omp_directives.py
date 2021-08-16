@@ -140,7 +140,7 @@ class OMPChildlessDirective(ChildlessDirective):
         return self.coloured_name(colour) + "[OMPChildless]"
 
 
-class OMPTaskwaitDirective(OMPDirective):
+class OMPTaskwaitDirective(OMPChildlessDirective):
     '''
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
 
