@@ -499,10 +499,6 @@ def test_generate_schedule_dummy_subroutine(parser):
     schedule = processor.generate_schedule("dummy_code", ast)
     assert isinstance(schedule, KernelSchedule)
 
-    # Test argument intent is inferred when not available in the declaration
-    assert schedule.symbol_table.lookup('f3').interface.access is \
-        ArgumentInterface.Access.READWRITE
-
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule
     del ast.content[0].content[2].content[1].content[2]
@@ -1182,8 +1178,18 @@ def test_process_declarations_intent():
     with pytest.raises(InternalError) as err:
         processor.process_declarations(
             fake_parent, [fparser2spec], arg_list, {})
+    del arg_list[-1]
     assert "Could not process " in str(err.value)
     assert "Unexpected intent attribute " in str(err.value)
+
+    # Test that argument intent is left as UNKNOWN when not available in the
+    # declaration
+    reader = FortranStringReader("integer :: arg6")
+    arg_list.append(Fortran2003.Name("arg6"))
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg6").interface.access is \
+        ArgumentInterface.Access.UNKNOWN
 
 
 @pytest.mark.usefixtures("f2008_parser")
