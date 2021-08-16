@@ -75,12 +75,9 @@ class GOceanExtractNode(ExtractNode):
 
     '''
     def __init__(self, ast=None, children=None, parent=None, options=None):
+        # This function is only provided to document the options.
         super(GOceanExtractNode, self).__init__(ast=ast, children=children,
                                                 parent=parent, options=options)
-        if options:
-            self._create_driver = options.get("create_driver", False)
-        else:
-            self._create_driver = False
 
     @property
     def dag_name(self):
