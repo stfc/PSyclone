@@ -116,16 +116,25 @@ class OMPTaskwaitDirective(OMPDirective):
     '''
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
 
-    :param parent: The Node in the AST that has this directive as a child.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
-    def __init__(self, parent=None):
+    _children_valid_format = None
 
-        # Call the init method of the base class once we've stored
-        # the nowait requirement
-        super(OMPTaskwaitDirective, self).__init__(children=None,
-                                                   parent=parent)
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+         Decides whether a given child and position are valid for this node.
+         The Taskwait directive is not allowed children, so returns False.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        return False
 
     @property
     def dag_name(self):
@@ -184,8 +193,7 @@ class OMPTaskwaitDirective(OMPDirective):
         self.validate_global_constraints()
 
         # Generate the code for this Directive
-        parent.add(DirectiveGen(parent, "omp", "begin", "taskwait",
-                                ""))
+        parent.add(DirectiveGen(parent, "omp", "begin", "taskwait", ""))
         # No children or end code for this node
 
     def begin_string(self):

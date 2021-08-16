@@ -523,7 +523,7 @@ def test_omptaskwait_gencode():
 
     schedule.addchild(taskwait, 1)
     taskloop.apply(schedule.children[0])
-    master.apply([schedule.children[0], schedule.children[1]])
+    master.apply(schedule.children[0:2])
     parallel.apply(schedule.children[0])
     goceantrans = GOceanExtractTrans()
     goceantrans.apply(schedule.children[0])
