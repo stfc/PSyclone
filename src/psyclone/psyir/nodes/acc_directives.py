@@ -100,7 +100,7 @@ class ACCChildlessDirective(ChildlessDirective):
         :rtype: str
         '''
         _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_directive_" + str(position)
+        return "ACC_childless_directive_" + str(position)
 
     def validate_global_constraints(self):
         '''
