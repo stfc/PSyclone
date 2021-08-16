@@ -42,7 +42,8 @@ import os
 import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Directive, Literal, Schedule
+from psyclone.psyir.nodes import Directive, Literal, Schedule, \
+                                 ChildlessDirective
 from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.transformations import DynamoOMPParallelLoopTrans
@@ -116,3 +117,15 @@ def test_directive_children_validation():
         directive.addchild(schedule)
     assert ("Item 'Schedule' can't be child 1 of 'Directive'. The valid format"
             " is: 'Schedule'." in str(excinfo.value))
+
+
+def test_childlessdirective_children_validation():
+    '''Test that children cannot be added to ChildlessDirective.'''
+    cdir = ChildlessDirective()
+    schedule = Schedule()
+   
+   # test adding child
+    with pytest.raises(GenerationError) as excinfo:
+        cdir.addchild(schedule)
+    assert("Item 'Schedule' can't be child 0 of 'ChildlessDirective'. The valid"
+           " format is: 'None'." in str(excinfo.value))

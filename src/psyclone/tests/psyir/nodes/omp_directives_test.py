@@ -48,7 +48,7 @@ from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, Schedule, OMPDirective, \
     OMPParallelDoDirective, Directive, colored, OMPParallelDirective, \
     OMPSingleDirective, OMPMasterDirective, OMPTaskloopDirective, \
-    OMPTaskwaitDirective
+    OMPTaskwaitDirective, OMPChildlessDirective
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
@@ -483,7 +483,8 @@ def test_omptaskwait_no_children():
 
 
 def test_omptaskwait_dag_name():
-    '''Test the omp_taskwait dag_name method'''
+    '''Test the OMPTaskwait, OMPChildlessDirective and ChildlessDirective
+    dag_name methods'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).\
@@ -492,6 +493,10 @@ def test_omptaskwait_dag_name():
     taskwait = OMPTaskwaitDirective()
     schedule.addchild(taskwait, 0)
     assert taskwait.dag_name == "OMP_taskwait_1"
+    omp_cdirective = super(OMPTaskwaitDirective, taskwait)
+    assert omp_cdirective.dag_name == "OMP_childless_directive_1"
+    cdirective = super(OMPChildlessDirective, taskwait)
+    assert cdirective.dag_name == "childless_directive_1"
 
 
 def test_omptaskwait_strings():
@@ -504,7 +509,8 @@ def test_omptaskwait_strings():
 
 
 def test_omptaskwait_node_str():
-    '''Test the omp_taskwait node_str method'''
+    '''Test the OMPTaskwaitDirective and OMPChildlessDirective node_str 
+    methods'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).\
@@ -515,6 +521,9 @@ def test_omptaskwait_node_str():
     directive = colored("ChildlessDirective", Directive._colour)
     expected_output = directive + "[OMP taskwait]"
     assert taskwait.node_str() == expected_output
+    omp_cdirective = super(OMPTaskwaitDirective, taskwait)
+    expected_output = directive + "[OMPChildless]"
+    assert omp_cdirective.node_str() == expected_output
 
 
 def test_omptaskwait_gencode():

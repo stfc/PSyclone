@@ -73,14 +73,14 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.file_container import FileContainer
-from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes.directive import Directive, ChildlessDirective
 from psyclone.psyir.nodes.acc_directives import ACCDirective, \
     ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
-    ACCKernelsDirective, ACCDataDirective
+    ACCKernelsDirective, ACCDataDirective, ACCChildlessDirective
 from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
     OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
-    OMPTaskwaitDirective
+    OMPTaskwaitDirective, OMPChildlessDirective
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -125,13 +125,16 @@ __all__ = [
         'ReadOnlyVerifyNode',
         # Directive Nodes
         'Directive',
+        'ChildlessDirective',
         'ACCDirective',
+        'ACCChildlessDirective',
         'ACCDataDirective',
         'ACCEnterDataDirective',
         'ACCParallelDirective',
         'ACCLoopDirective',
         'ACCKernelsDirective',
         'OMPDirective',
+        'OMPChildlessDirective',
         'OMPParallelDirective',
         'OMPSerialDirective',
         'OMPSingleDirective',

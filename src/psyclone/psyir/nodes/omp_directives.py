@@ -144,21 +144,8 @@ class OMPTaskwaitDirective(OMPChildlessDirective):
     '''
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
 
-    :param list children: None. See #1374 for details.
-    :param parent: The Node in the AST that has this directive as a child.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    :raises GenerationError: if this OMPTaskwait is provided children. \
-                             See #1374 for details.
     '''
-    def __init__(self, children=None, parent=None):
-        if children is not None:
-            raise GenerationError(
-                "OMPTaskwaitDirective was provided children. This"
-                " directive does not support children. See #1374"
-                " for more information.")
-        super(OMPTaskwaitDirective, self).__init__(children=children,
-                                                   parent=parent)
+    _children_valid_format = None
 
     @property
     def dag_name(self):
