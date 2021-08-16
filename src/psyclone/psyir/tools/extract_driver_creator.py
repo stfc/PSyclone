@@ -516,7 +516,10 @@ class ExtractDriverCreator:
         program_symbol_table.add(psy_data_type)
 
         writer = FortranWriter()
-        schedule_copy = nodes[0].parent.copy()
+        if isinstance(nodes, list):
+            schedule_copy = nodes[0].parent.copy()
+        else:
+            schedule_copy = nodes.parent.copy()
         schedule_copy.lower_to_language_level()
         ExtractDriverCreator.import_modules(program, schedule_copy)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
