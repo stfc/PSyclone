@@ -65,10 +65,7 @@ class ExtractDriverCreator:
     :type real_type: :py:class:`psyclone.psyir.symbol.ScalarType`
 
     '''
-    def __init__(self, prefix,
-                 integer_type=INTEGER_TYPE,
-                 real_type=REAL8_TYPE):
-        self._prefix = prefix
+    def __init__(self, integer_type=INTEGER_TYPE, real_type=REAL8_TYPE):
         # Set the integer and real types to use. If required, the constructor
         # could take a parameter to change these.
         # For convenience, also add the names used in the gocean config file:
@@ -483,6 +480,9 @@ class ExtractDriverCreator:
 
         '''
         # pylint: disable=too-many-locals
+        if options is None:
+            options = {}
+
         if options.get("region_name", False):
             module_name, region_name = options["region_name"]
         else:
@@ -505,10 +505,10 @@ class ExtractDriverCreator:
         file_container.addchild(program)
 
         # Import the PSyDataType:
-        if self._prefix:
-            prefix = self._prefix+"_"
-        else:
-            prefix = ""
+        prefix = options.get("prefix", "")
+        if prefix:
+            prefix = prefix + "_"
+
         psy_data_mod = ContainerSymbol(prefix+"psy_data_mod")
         program_symbol_table.add(psy_data_mod)
         psy_data_type = DataTypeSymbol(prefix+"PsyDataType", DeferredType(),

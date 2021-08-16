@@ -951,4 +951,4 @@ def test_change_prefix(tmpdir, monkeypatch):
     driver_name = tmpdir.join("driver-main-update.f90")
     with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
-    assert 'CALL NEW_psy_data%OpenRead("main", "update")' in driver_code
+    assert "call NEW_psy_data%OpenRead('main', 'update')" in driver_code
