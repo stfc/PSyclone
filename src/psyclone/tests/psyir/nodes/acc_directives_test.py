@@ -80,7 +80,7 @@ def test_acc_dir_node_str():
     accdt.apply(schedule)
     out = schedule[0].node_str()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC enter data]")
+        colored("ChildlessDirective", colour)+"[ACC enter data]")
 
     # Parallel region around outermost loop
     accpt.apply(schedule[1])

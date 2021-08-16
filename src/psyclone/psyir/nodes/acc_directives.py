@@ -112,7 +112,7 @@ class ACCChildlessDirective(ChildlessDirective):
             regions are not supported.
 
         '''
-        super(ACCDirective, self).validate_global_constraints()
+        super(ACCChildlessDirective, self).validate_global_constraints()
 
         data_nodes = self.walk(PSyDataNode)
         if data_nodes:
@@ -125,7 +125,7 @@ class ACCChildlessDirective(ChildlessDirective):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ACCEnterDataDirective(ACCDirective):
+class ACCEnterDataDirective(ACCChildlessDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
