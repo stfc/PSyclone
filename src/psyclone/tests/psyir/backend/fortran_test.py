@@ -1141,10 +1141,33 @@ def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir):
     assert(
         "  contains\n"
         "  function tmp(b) result(val)\n"
-        "    real, intent(inout) :: b\n"
+        "    real :: b\n"
         "    real :: val\n\n"
         "    val = a + b\n\n"
         "  end function tmp\n" in result)
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_routine_function_no_result(fortran_reader, fortran_writer, tmpdir):
+    ''' Check that no `result(xxx)` clause is added to the output function
+    definition if the name of the return symbol matches the name of the
+    function but has different capitalisation.
+
+    '''
+    code = ("module test\n"
+            "implicit none\n"
+            "real :: a\n"
+            "contains\n"
+            "function tmp(b)\n"
+            "  real, intent(in) :: b\n"
+            "  real :: TMP\n"
+            "  tmp = a + b\n"
+            "end function tmp\n"
+            "end module test")
+    container = fortran_reader.psyir_from_source(code)
+    # Generate Fortran from PSyIR
+    result = fortran_writer(container)
+    assert "  function tmp(b)\n" in result
     assert Compile(tmpdir).string_compiles(result)
 
 

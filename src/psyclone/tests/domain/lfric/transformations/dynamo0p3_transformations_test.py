@@ -6341,20 +6341,6 @@ def test_acclooptrans():
 # End OpenACC section
 
 
-def test_no_ocl():
-    ''' Check that attempting to apply an OpenCL transformation to a Dynamo
-    InvokeSchedule raises the expected error. '''
-    from psyclone.transformations import OCLTrans
-    _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
-                           name="invoke_0_testkern_type", dist_mem=False)
-    sched = invoke.schedule
-    trans = OCLTrans()
-    with pytest.raises(TransformationError) as err:
-        _ = trans.apply(sched)
-    assert ("OpenCL generation is currently only supported for the GOcean "
-            "API but got an InvokeSchedule of type:" in str(err.value))
-
-
 def test_async_hex_wrong_node():
     '''Test that we raise the expected exception if an asynchronous halo
     exchange transformation is applied to a node that is not a halo

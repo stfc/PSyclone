@@ -36,10 +36,9 @@
 ''' Module providing a transformation script that converts the Schedule of
     the first Invoke to use OpenCL. '''
 
-from psyclone.transformations import OCLTrans
 from psyclone.psyir.transformations import \
     FoldConditionalReturnExpressionsTrans
-from psyclone.domain.gocean.transformations import \
+from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
     GOMoveIterationBoundariesInsideKernelTrans
 
 
@@ -54,7 +53,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    ocl_trans = OCLTrans()
+    ocl_trans = GOOpenCLTrans()
     fold_trans = FoldConditionalReturnExpressionsTrans()
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
 

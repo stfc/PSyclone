@@ -908,7 +908,7 @@ class FortranWriter(LanguageWriter):
             if node.return_symbol:
                 # This Routine has a return value and is therefore a Function
                 routine_type = "function"
-                if node.return_symbol.name != node.name:
+                if node.return_symbol.name.lower() != node.name.lower():
                     suffix = " result({0})".format(node.return_symbol.name)
             else:
                 routine_type = "subroutine"

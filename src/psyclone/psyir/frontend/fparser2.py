@@ -2049,9 +2049,13 @@ class Fparser2Reader(object):
                     # We didn't previously know that this Symbol was an
                     # argument (as it had no 'intent' qualifier). Mark
                     # that it is an argument by specifying its interface.
-                    # A Fortran argument has intent(inout) by default
+                    # Athough a Fortran argument has intent(inout) by default,
+                    # specifying this for an argument that is actually read
+                    # only (and is declared as such in the caller) causes
+                    # gfortran to complain. We therefore specify that the
+                    # access is unknown at this stage.
                     symbol.interface = ArgumentInterface(
-                        ArgumentInterface.Access.READWRITE)
+                        ArgumentInterface.Access.UNKNOWN)
                 arg_symbols.append(symbol)
             # Now that we've updated the Symbols themselves, set the
             # argument list
