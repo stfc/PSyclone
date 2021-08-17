@@ -125,24 +125,28 @@ class CreateNemoKernelTrans(Transformation):
                 "Error in NemoKernelTrans transformation. The supplied "
                 "Schedule must be within a Loop.")
 
+        # A kernel cannot contain loops, calls, other kernels or unrecognised
+        # code (including IO operations). We must also check for array
+        # assignments. Since this walk can be very expensive if a routine
+        # contains a lot of code, we do it just once and get it to stop early
+        # if it encounters one of the forbidden node types. In that case the
+        # last node in the returned list will be of a forbidden type.
+        nodes = node.walk((Assignment, CodeBlock, Loop, Call, NemoKern),
+                          stop_type=(CodeBlock, Loop, Call, NemoKern))
+        if nodes and isinstance(nodes[-1], (CodeBlock, Loop, Call, NemoKern)):
+            raise TransformationError(
+                "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
+                " contain a node of type: {0}".format(
+                    type(nodes[-1]).__name__))
+
         # Check for array assignments
-        nodes = [assign for assign in node.walk(Assignment)
-                 if assign.is_array_range]
-        if nodes:
+        assigns = [assign for assign in nodes if
+                   (isinstance(assign, Assignment) and assign.is_array_range)]
+        if assigns:
             fwriter = FortranWriter()
             raise TransformationError(
                 "A NEMO Kernel cannot contain array assignments but found: "
-                "{0}".format([fwriter(node).rstrip("\n") for node in nodes]))
-
-        # A kernel cannot contain loops, calls, other kernels or unrecognised
-        # code (including IO operations. So if there is any node in the result
-        # of the walk, this node cannot be represented as a NEMO kernel.
-        nodes = node.walk((CodeBlock, Loop, Call, NemoKern))
-        if nodes:
-            raise TransformationError(
-                "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
-                " contain nodes of type: {0}".format(
-                    [type(node).__name__ for node in nodes]))
+                "{0}".format([fwriter(node).rstrip("\n") for node in assigns]))
 
     def apply(self, sched, options=None):
         '''

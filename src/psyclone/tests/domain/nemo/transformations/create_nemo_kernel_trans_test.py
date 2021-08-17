@@ -95,7 +95,7 @@ def test_kern_trans_validation(fortran_reader):
     assert loop.walk(CodeBlock)
     with pytest.raises(TransformationError) as err:
         trans.validate(loop.loop_body)
-    assert ("A NEMO Kernel cannot contain nodes of type: ['CodeBlock']" in
+    assert ("A NEMO Kernel cannot contain a node of type: CodeBlock" in
             str(err.value))
 
 
@@ -117,7 +117,7 @@ def test_no_explicit_loop_in_kernel(fortran_reader):
     # 'loop.loop_body' is not a valid kernel because it itself contains a loop
     with pytest.raises(TransformationError) as err:
         trans.apply(loop.loop_body)
-    assert "Kernel cannot contain nodes of type: ['Loop']" in str(err.value)
+    assert "Kernel cannot contain a node of type: Loop" in str(err.value)
 
 
 def test_no_implicit_loop_in_kernel(fortran_reader):
@@ -164,5 +164,5 @@ def test_no_kernel_in_kernel(fortran_reader):
     trans.apply(loop.loop_body)
     with pytest.raises(TransformationError) as err:
         trans.apply(loop.loop_body)
-    assert ("A NEMO Kernel cannot contain nodes of type: ['NemoKern']" in
+    assert ("A NEMO Kernel cannot contain a node of type: NemoKern" in
             str(err.value))
