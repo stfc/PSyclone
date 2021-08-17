@@ -472,6 +472,16 @@ def test_omp_master_nested_validate_global_constraints(monkeypatch):
             "region") in str(excinfo.value)
 
 
+def test_omptaskwait_no_children():
+    '''Test that the ompTaskwaitDirective does not allow children'''
+    loop = OMPDoDirective()
+    with pytest.raises(GenerationError) as excinfo:
+        OMPTaskwaitDirective(loop)
+    assert("OMPTaskwaitDirective was provided children. This"
+           " directive does not support children. See #1374"
+           " for more information.") in str(excinfo.value)
+
+
 def test_omptaskwait_dag_name():
     '''Test the omp_taskwait dag_name method'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
