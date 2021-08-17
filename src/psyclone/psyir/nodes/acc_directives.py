@@ -859,4 +859,5 @@ class ACCDataDirective(ACCDirective):
 
 # For automatic API documentation generation
 __all__ = ["ACCDirective", "ACCEnterDataDirective", "ACCParallelDirective",
-           "ACCLoopDirective", "ACCKernelsDirective", "ACCDataDirective"]
+           "ACCLoopDirective", "ACCKernelsDirective", "ACCDataDirective",
+           "ACCChildlessDirective"]

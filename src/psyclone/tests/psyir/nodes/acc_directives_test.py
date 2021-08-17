@@ -116,13 +116,13 @@ def test_acc_dag_names():
     assert schedule[0].dag_name == "ACC_data_1"
     # Parallel region
     accpt.apply(schedule[1])
-    assert schedule[1].dag_name == "ACC_parallel_3"
+    assert schedule[1].dag_name == "ACC_parallel_2"
     # Loop directive
     acclt.apply(schedule[1].dir_body[0])
-    assert schedule[1].dir_body[0].dag_name == "ACC_loop_5"
+    assert schedule[1].dir_body[0].dag_name == "ACC_loop_4"
     # Base class
     name = super(ACCEnterDataDirective, schedule[0]).dag_name
-    assert name == "ACC_directive_1"
+    assert name == "ACC_childless_directive_1"
 
 # Class ACCKernelsDirective start
 
