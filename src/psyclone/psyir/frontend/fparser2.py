@@ -1988,6 +1988,19 @@ class Fparser2Reader(object):
                         node.children[2].items = (child,)
                         symbol_name = str(child.children[0])
                         vis = visibility_map.get(symbol_name, decln_vis)
+
+                        # Check whether the symbol we're about to add
+                        # corresponds to the routine we're currently inside. If
+                        # it does then we remove the RoutineSymbol in order to
+                        # free the exact name for the DataSymbol.
+                        try:
+                            routine_sym = parent.symbol_table.lookup_with_tag(
+                                "own_routine_symbol")
+                            if routine_sym.name == symbol_name:
+                                parent.symbol_table.remove(routine_sym)
+                        except KeyError:
+                            pass
+
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed
                         # successfully and thus be in the symbol table.
