@@ -205,12 +205,12 @@ def test_nemo_acc_parallel(parser):
     result = fort_writer(nemo_sched)
 
     correct = '''!$acc parallel default(present)
-do i = 1, 20, 2
-  a = 2 * i + d(i)
-  c(i) = a
-  b(i) = b(i) + a + c(i)
-enddo
-!$acc end parallel'''
+  do i = 1, 20, 2
+    a = 2 * i + d(i)
+    c(i) = a
+    b(i) = b(i) + a + c(i)
+  enddo
+  !$acc end parallel'''
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
