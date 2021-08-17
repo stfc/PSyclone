@@ -202,32 +202,6 @@ def test_acckernelsdirective_gencode(default_present):
         "      END DO\n"
         "      !$acc end kernels\n" in code)
 
-
-# (1/1) Method update
-@pytest.mark.parametrize("default_present", [False, True])
-def test_acckernelsdirective_update(parser, default_present):
-    '''Check that the update method in the ACCKernelsDirective class
-    generates the expected code. Use the nemo API.
-
-    '''
-    reader = FortranStringReader("program implicit_loop\n"
-                                 "real(kind=wp) :: sto_tmp(5,5)\n"
-                                 "sto_tmp(:,:) = 0.0_wp\n"
-                                 "end program implicit_loop\n")
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernels_trans = ACCKernelsTrans()
-    kernels_trans.apply(schedule.children[0:1],
-                        {"default_present": default_present})
-    gen_code = str(psy.gen)
-    string = ""
-    if default_present:
-        string = " DEFAULT(PRESENT)"
-    assert ("  !$ACC KERNELS{0}\n"
-            "  sto_tmp(:, :) = 0.0_wp\n"
-            "  !$ACC END KERNELS\n".format(string) in gen_code)
-
 # Class ACCKernelsDirective end
 
 # Class ACCEnterDataDirective start
