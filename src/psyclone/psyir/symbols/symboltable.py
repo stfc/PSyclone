@@ -425,7 +425,7 @@ class SymbolTable(object):
             root_name = Config.get().psyir_root_name
         candidate_name = root_name
         idx = 1
-        while candidate_name in symbols:
+        while self._normalize(candidate_name) in symbols:
             candidate_name = "{0}_{1}".format(root_name, idx)
             idx += 1
         return candidate_name
@@ -1071,13 +1071,13 @@ class SymbolTable(object):
                 "The name argument of rename_symbol() must be a str, but"
                 " found: '{0}'.".format(type(symbol).__name__))
 
-        if name in self._symbols:
+        if self._normalize(name) in self._symbols:
             raise KeyError(
                 "The name argument of rename_symbol() must not already exist "
                 "in this symbol_table instance, but '{0}' does.".format(name))
 
         # Delete current dictionary entry
-        del self._symbols[symbol.name]
+        del self._symbols[self._normalize(symbol.name)]
 
         # Rename symbol using protected access as the Symbol class should not
         # expose a name attribute setter.

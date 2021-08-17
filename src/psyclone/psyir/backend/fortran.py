@@ -923,14 +923,19 @@ class FortranWriter(LanguageWriter):
         # point we have to unify all declarations and resolve possible name
         # clashes that appear when merging the scopes.
         whole_routine_scope = SymbolTable(node)
+
         for schedule in node.walk(Schedule):
-            for symbol in schedule.symbol_table.symbols:
+            for symbol in schedule.symbol_table.symbols[:]:
                 try:
                     whole_routine_scope.add(symbol)
                 except KeyError:
-                    schedule.symbol_table.rename_symbol(
-                        symbol,
-                        whole_routine_scope.next_available_name(symbol.name))
+                    new_name = whole_routine_scope.next_available_name(
+                        symbol.name)
+                    # Ensure that the new name isn't already in the current
+                    # symbol table.
+                    new_name = schedule.symbol_table.next_available_name(
+                        new_name)
+                    schedule.symbol_table.rename_symbol(symbol, new_name)
                     whole_routine_scope.add(symbol)
 
         # Generate module imports
