@@ -46,20 +46,33 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
-from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyGen import Loop
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyir.transformations import PSyDataTrans, TransformationError
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
                                       ACCLoopTrans, GOConstLoopBoundsTrans,
                                       GOceanOMPLoopTrans,
                                       GOceanOMPParallelLoopTrans,
                                       OMPParallelTrans)
-from psyclone.tests.utilities import get_invoke
 
 # API names
 GOCEAN_API = "gocean1.0"
 
 
+@pytest.fixture(scope="function", autouse=True)
+def clear_region_name_cache():
+    '''All PSyData nodes keep a list of used region names as class variables
+    to avoid name clashes. This needs to be cleared, otherwise the indices
+    used when creating unique region identifier will change depending on the
+    order in which tests are run.
+    '''
+    PSyDataTrans._used_kernel_names = {}
+    yield()
+    PSyDataTrans._used_kernel_names = {}
+
+
+# ============================================================================
 def ordered_lines_in_text(lines, text):
     '''Verifies that the specified lines occur in text in the
     specified same order, though not necessarily consecutive.
