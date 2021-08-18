@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford,  S. Siso, and A. B. G. Chalk,  STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran and c module'''
@@ -45,7 +45,8 @@ from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelTrans, OMPLoopTrans
+from psyclone.transformations import OMPParallelTrans, OMPLoopTrans, \
+                                     OMPTaskloopTrans
 
 
 # ----------------------------------------------------------------------------
@@ -241,6 +242,42 @@ a = b
     cvisitor = CWriter(check_global_constraints=False)
     result = cvisitor(invoke.schedule[0])
     correct = '''#pragma omp do schedule(static)
+{
+  a = b;
+}'''
+    assert correct in result
+
+
+# ----------------------------------------------------------------------------
+def test_gocean_omp_taskloop():
+    '''Test that an OMP Taskloop directive in a 'classical' API (gocean here)
+    is created correctly.'''
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
+                           idx=0, dist_mem=False)
+    omp = OMPTaskloopTrans()
+    _, _ = omp.apply(invoke.schedule[0])
+
+    # Now remove the GOKern (since it's not yet supported in the
+    # visitor pattern) and replace it with a simple assignment.
+    # While this is invalid usage of OMP (omp must have a loop,
+    # not an assignment inside), it is necessary because GOLoops
+    # are not supported yet, and it is sufficient to test that the
+    # visitor pattern creates correct OMP DO directives.
+    # TODO #440 fixes this.
+    replace_child_with_assignment(invoke.schedule[0].dir_body)
+    # Disable validation checks to avoid having to add a parallel region
+    fvisitor = FortranWriter(check_global_constraints=False)
+    # GOInvokeSchedule is not yet supported, so start with
+    # the OMP node:
+    result = fvisitor(invoke.schedule[0])
+    correct = '''!$omp taskloop
+a = b
+!$omp end taskloop'''
+    assert correct in result
+
+    cvisitor = CWriter(check_global_constraints=False)
+    result = cvisitor(invoke.schedule[0])
+    correct = '''#pragma omp taskloop
 {
   a = b;
 }'''
