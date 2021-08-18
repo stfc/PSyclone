@@ -157,12 +157,22 @@ class GOceanExtractTrans(ExtractTrans):
 
         '''
         if options is None:
-            options = {}
-        if options.get("create_driver", False):
+            my_options = {}
+        else:
+            # We will add a default prefix, so create a copy to avoid
+            # changing the user's options:
+            my_options = options.copy()
+
+        if my_options.get("create_driver", False):
             dep = DependencyTools()
+            nodes = self.get_node_list(nodes)
+            region_name = self.get_unique_region_name(nodes, my_options)
+            my_options["region_name"] = region_name
+            my_options["prefix"] = my_options.get("prefix", "extract")
+
             input_list, output_list = dep.get_in_out_parameters(nodes)
             self._driver_creator.create(nodes, input_list, output_list,
-                                        options)
+                                        my_options)
 
         result = super(GOceanExtractTrans, self).apply(nodes, options)
 
