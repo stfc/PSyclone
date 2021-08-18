@@ -437,26 +437,28 @@ class FortranWriter(LanguageWriter):
             use_stmts += "{0}use {1}\n".format(self._nindent, symbol.name)
         return use_stmts
 
-    def gen_vardecl(self, symbol):
+    def gen_vardecl(self, symbol, include_visibility=False):
         '''Create and return the Fortran variable declaration for this Symbol
-        or derived-type member. If the Symbol is of DeferredType then it is
-        assumed to be brought into scope from a Container and an empty string
-        is returned.
+        or derived-type member.
 
         :param symbol: the symbol or member instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol` or \
-                      :py:class:`psyclone.psyir.nodes.MemberReference`
+            :py:class:`psyclone.psyir.nodes.MemberReference`
+        :param bool include_visibility: whether to include the visibility of \
+            the symbol in the generated declaration (default False).
 
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbols is of UnknownFortranType and \
+        :raises VisitorError: if the symbol is of UnknownFortranType and \
             is not local.
         :raises VisitorError: if the symbol is of known type but does not \
             specify a variable declaration (it is not a local declaration or \
             an argument declaration).
         :raises VisitorError: if the symbol or member is an array with a \
             shape containing a mixture of DEFERRED and other extents.
+        :raises VisitorError: if visibility is to be included but is not \
+            either PUBLIC or PRIVATE.
 
         '''
         # pylint: disable=too-many-branches
@@ -530,8 +532,18 @@ class FortranWriter(LanguageWriter):
                 result += ", intent({0})".format(intent)
             if symbol.is_constant:
                 result += ", parameter"
-        if symbol.visibility == Symbol.Visibility.PRIVATE:
-            result += ", private"
+
+        if include_visibility:
+            if symbol.visibility == Symbol.Visibility.PRIVATE:
+                result += ", private"
+            elif symbol.visibility == Symbol.Visibility.PUBLIC:
+                result += ", public"
+            else:
+                raise VisitorError(
+                    "A Symbol must be either public or private but symbol "
+                    "'{0}' has visibility '{1}'".format(symbol.name,
+                                                        symbol.visibility))
+
         result += " :: {0}".format(symbol.name)
         if is_symbol and symbol.is_constant:
             result += " = {0}".format(self._visit(symbol.constant_value))
@@ -574,7 +586,7 @@ class FortranWriter(LanguageWriter):
 
         self._depth += 1
         for member in symbol.datatype.components.values():
-            result += self.gen_vardecl(member)
+            result += self.gen_vardecl(member, include_visibility=True)
         self._depth -= 1
 
         result += "{0}end type {1}\n".format(self._nindent, symbol.name)
@@ -723,7 +735,8 @@ class FortranWriter(LanguageWriter):
             # RoutineSymbols of UnknownFortranType. These must therefore be
             # declared.
             if isinstance(sym.datatype, UnknownType):
-                declarations += self.gen_vardecl(sym)
+                declarations += self.gen_vardecl(
+                    sym, include_visibility=(not args_allowed))
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)
@@ -756,13 +769,15 @@ class FortranWriter(LanguageWriter):
                 "".format([symbol.name for symbol in
                            symbol_table.argument_datasymbols]))
         for symbol in symbol_table.argument_datasymbols:
-            declarations += self.gen_vardecl(symbol)
+            declarations += self.gen_vardecl(
+                symbol, include_visibility=(not args_allowed))
 
         # 2: Local constants.
         local_constants = [sym for sym in symbol_table.local_datasymbols if
                            sym.is_constant]
         for symbol in local_constants:
-            declarations += self.gen_vardecl(symbol)
+            declarations += self.gen_vardecl(
+                symbol, include_visibility=(not args_allowed))
 
         # 3: Derived-type declarations. These must come before any declarations
         #    of symbols of these types.
@@ -773,7 +788,8 @@ class FortranWriter(LanguageWriter):
         local_vars = [sym for sym in symbol_table.local_datasymbols if not
                       sym.is_constant]
         for symbol in local_vars:
-            declarations += self.gen_vardecl(symbol)
+            declarations += self.gen_vardecl(
+                symbol, include_visibility=(not args_allowed))
 
         return declarations
 

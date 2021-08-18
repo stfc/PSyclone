@@ -384,10 +384,10 @@ def test_gen_typedecl(fortran_writer):
     tsymbol = DataTypeSymbol("my_type", dtype)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type :: my_type\n"
-            "  integer :: flag\n"
+            "  integer, public :: flag\n"
             "  integer, private :: secret\n"
-            "  real, dimension(3,5) :: matrix\n"
-            "  real, allocatable, dimension(:) :: data\n"
+            "  real, dimension(3,5), public :: matrix\n"
+            "  real, allocatable, dimension(:), public :: data\n"
             "  type(grid_type), private :: grid\n"
             "end type my_type\n")
     private_tsymbol = DataTypeSymbol("my_type", dtype,
@@ -651,7 +651,7 @@ def test_gen_decls(fortran_writer):
     result = fortran_writer.gen_decls(symbol_table)
     assert (result == "integer :: arg\n"
                       "type :: field\n"
-                      "  integer :: flag\n"
+                      "  integer, public :: flag\n"
                       "end type field\n"
                       "integer :: local\n"
                       "type(grid_type) :: grid\n")
@@ -931,8 +931,8 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
         "module test\n"
         "  use iso_c_binding, only : c_int\n"
         "  implicit none\n"
-        "  real :: c\n"
-        "  real :: d\n"
+        "  real, public :: c\n"
+        "  real, public :: d\n"
         "  public\n\n"
         "  public :: tmp\n\n"
         "  contains\n"
