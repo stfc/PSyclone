@@ -37,7 +37,7 @@
 Schedule of each Invoke to use OpenCL. '''
 
 from psyclone.psyGen import TransInfo
-from psyclone.domain.gocean.transformations import \
+from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
     GOMoveIterationBoundariesInsideKernelTrans
 
 
@@ -58,7 +58,7 @@ def trans(psy):
     tinfo = TransInfo()
     globaltrans = tinfo.get_trans_name('KernelGlobalsToArguments')
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
-    cltrans = tinfo.get_trans_name('OCLTrans')
+    cltrans = GOOpenCLTrans()
 
     for invoke in psy.invokes.invoke_list:
         print("Converting to OpenCL invoke: " + invoke.name)
