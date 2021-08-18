@@ -262,7 +262,7 @@ def test_gocean_omp_taskloop():
     # While this is invalid usage of OMP (omp must have a loop,
     # not an assignment inside), it is necessary because GOLoops
     # are not supported yet, and it is sufficient to test that the
-    # visitor pattern creates correct OMP DO directives.
+    # visitor pattern creates correct OMP TASKLOOP directives.
     # TODO #440 fixes this.
     replace_child_with_assignment(invoke.schedule[0].dir_body)
     # Disable validation checks to avoid having to add a parallel region
