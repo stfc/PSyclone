@@ -47,6 +47,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelTrans, OMPLoopTrans, \
                                      OMPTaskloopTrans
+from psyclone.psyir.nodes import OMPTaskwaitDirective
 
 
 # ----------------------------------------------------------------------------
@@ -250,11 +251,12 @@ a = b
 
 # ----------------------------------------------------------------------------
 def test_gocean_omp_taskloop():
-    '''Test that an OMP Taskloop directive in a 'classical' API (gocean here)
-    is created correctly.'''
+    '''Test that an OMP Taskloop and OMP Taskwait directives in a 'classical'
+    API (gocean here) is created correctly.'''
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     omp = OMPTaskloopTrans()
+    wait_dir = OMPTaskwaitDirective()
     _, _ = omp.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
@@ -265,14 +267,18 @@ def test_gocean_omp_taskloop():
     # visitor pattern creates correct OMP TASKLOOP directives.
     # TODO #440 fixes this.
     replace_child_with_assignment(invoke.schedule[0].dir_body)
+    invoke.schedule.addchild(wait_dir)
     # Disable validation checks to avoid having to add a parallel region
     fvisitor = FortranWriter(check_global_constraints=False)
     # GOInvokeSchedule is not yet supported, so start with
-    # the OMP node:
+    # the two OMP nodes:
     result = fvisitor(invoke.schedule[0])
     correct = '''!$omp taskloop
 a = b
 !$omp end taskloop'''
+    assert correct in result
+    result = fvisitor(invoke.schedule[1])
+    correct = '''!$omp taskwait'''
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
@@ -281,4 +287,7 @@ a = b
 {
   a = b;
 }'''
+    assert correct in result
+    result = cvisitor(invoke.schedule[1])
+    correct = '''#pragma omp taskwait'''
     assert correct in result
