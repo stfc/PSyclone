@@ -81,15 +81,19 @@ class ScopingNode(Node):
 
         # Update of children references to point to the equivalent symbols in
         # the new symbol table attached to self.
-        # Unfortunately Loop nodes currently store the associated loop variable
-        # in a `_variable` property rather than as a child so we must handle
-        # those separately.
+        # TODO #1377 Unfortunately Loop nodes currently store the associated
+        # loop variable in a `_variable` property rather than as a child so we
+        # must handle those separately. Also, in the LFRic API a Loop does not
+        # initially have the `_variable` property set which means that calling
+        # the `variable` getter causes an error (because it checks the
+        # internal-consistency of the Loop node). We therefore have to check
+        # the value of the 'private' `_variable` for now.
         from psyclone.psyir.nodes.loop import Loop
         for node in self.walk((Reference, Loop)):
             if isinstance(node, Reference):
                 if node.symbol in other.symbol_table.symbols:
                     node.symbol = self.symbol_table.lookup(node.symbol.name)
-            if isinstance(node, Loop):
+            if isinstance(node, Loop) and node._variable:
                 if node.variable in other.symbol_table.symbols:
                     node.variable = self.symbol_table.lookup(
                         node.variable.name)
