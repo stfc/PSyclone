@@ -736,7 +736,7 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
                 Fortran2003.Function_Subprogram: DeferredType()}
     for routine in routines:
-        name = str(routine.children[0].children[1])
+        name = str(routine.children[0].children[1]).lower()
         vis = visibility_map.get(name, symbol_table.default_visibility)
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
@@ -1351,12 +1351,12 @@ class Fparser2Reader(object):
                 else:
                     default_visibility = Symbol.Visibility.PRIVATE
             else:
+                symbol_names = [child.string.lower() for child in
+                                stmt.children[1].children]
                 if public_stmt:
-                    explicit_public.update(
-                        [child.string for child in stmt.children[1].children])
+                    explicit_public.update(symbol_names)
                 else:
-                    explicit_private.update(
-                        [child.string for child in stmt.children[1].children])
+                    explicit_private.update(symbol_names)
         # Sanity check the lists of symbols (because fparser2 does not
         # currently do much validation)
         invalid_symbols = explicit_public.intersection(explicit_private)
