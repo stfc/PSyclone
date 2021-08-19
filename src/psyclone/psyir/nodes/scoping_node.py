@@ -80,10 +80,19 @@ class ScopingNode(Node):
         self._symbol_table._node = self  # Associate to self
 
         # Update of children references to point to the equivalent symbols in
-        # the new symbol table attached to self
-        for ref in self.walk(Reference):
-            if ref.symbol in other.symbol_table.symbols:
-                ref.symbol = self.symbol_table.lookup(ref.symbol.name)
+        # the new symbol table attached to self.
+        # Unfortunately Loop nodes currently store the associated loop variable
+        # in a `_variable` property rather than as a child so we must handle
+        # those separately.
+        from psyclone.psyir.nodes.loop import Loop
+        for node in self.walk((Reference, Loop)):
+            if isinstance(node, Reference):
+                if node.symbol in other.symbol_table.symbols:
+                    node.symbol = self.symbol_table.lookup(node.symbol.name)
+            if isinstance(node, Loop):
+                if node.variable in other.symbol_table.symbols:
+                    node.variable = self.symbol_table.lookup(
+                        node.variable.name)
 
     @property
     def symbol_table(self):
