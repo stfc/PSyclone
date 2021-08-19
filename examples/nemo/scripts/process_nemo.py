@@ -52,31 +52,42 @@ from __future__ import print_function
 import os
 import sys
 
-# Whether or not we attempt to add profiling to *every* file (i.e. including
-# those listed under EXCLUDED_FILES below).
-PROFILE_ALL = True
+# Files that we will only add profiling to
+PROFILE_ONLY = ["bdyini.f90",
+                "diaobs.f90",
+                "diawri.f90",  # Unused & has Return in profile region
+                "dommsk.f90",
+                "fldread.f90",
+                "icbclv.f90", "icbdyn.f90", "icblbc.f90", "icbrst.f90",
+                "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
+                "icb_oce.f90", "icbstp.f90", "icbtrj.f90",
+                "ice.f90",  # lines are too long
+                "icedyn_adv_pra.f90",  # lines are too long
+                "iceforcing.f90",
+                "iceistate.f90",
+                "icethd_ent.f90", "icethd_zdf.f90",
+                "icethd_dh.f90", "iom.f90",
+                "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
+                "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
+                "stopar.f90",
+                "tide_mod.f90"]
 
-# Files that we won't attempt to process with PSyclone
-EXCLUDED_FILES = ["bdyini.f90",
-                  "diaobs.f90",
-                  "diawri.f90",  # Unused & has Return in profile region
-                  "dommsk.f90",
-                  "fldread.f90",
-                  "icbclv.f90", "icbdyn.f90", "icblbc.f90", "icbrst.f90",
-                  "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
-                  "icb_oce.f90", "icbstp.f90", "icbtrj.f90",
-                  "ice.f90",  # lines are too long
-                  "icedyn_adv_pra.f90",  # lines are too long
-                  "iceforcing.f90",
-                  "iceistate.f90",
-                  "icethd_ent.f90", "icethd_zdf.f90",
-                  "icethd_dh.f90", "iom.f90",
-                  "mppini.f90",  # MPI code
-                  "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
-                  "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
-                  "obs_utils.f90",
-                  "storng.f90", "stopar.f90",
-                  "tide_mod.f90", "timing.f90"]
+# Files that we won't touch at all
+EXCLUDED_FILES = [
+    # Only defines parameters and we get the order wrong (#1347)
+    "par_kind.f90",
+    # Kind parameters messed up
+    "obs_fbm.f90",
+    # Re-defines idim intrinsic
+    "obs_utils.f90",
+    # Array accessed inside WHERE does not use array notation
+    "diurnal_bulk.f90",
+    # mpif.h include is lost
+    "mppini.f90", "mpp_map.f90", "obs_mpp.f90", "icblbc.f90",
+    "timing.f90",
+    # Fns defined within fn are lost
+    "storng.f90"]
+
 
 if __name__ == "__main__":
     import argparse
@@ -116,14 +127,15 @@ if __name__ == "__main__":
             out_file = file_name
 
         args = [PSYCLONE_CMD, "--limit", "output", "-api", "nemo"]
-        if file_name in EXCLUDED_FILES:
-            if PROFILE_ALL:
-                print("Instrumenting {0} for profiling...".format(file_name))
-                extra_args = ["-p", "invokes",
-                              "-oalg", "/dev/null",
-                              "-opsy", out_file, ffile]
-            else:
-                continue
+        if file_name in PROFILE_ONLY:
+            print("Instrumenting {0} for profiling...".format(file_name))
+            extra_args = ["-p", "invokes",
+                          "-oalg", "/dev/null",
+                          "-opsy", out_file, ffile]
+            continue
+        elif file_name in EXCLUDED_FILES:
+            print("Skipping {0} entirely.".format(ffile))
+            continue
         else:
             print("Processing {0}...".format(file_name))
             extra_args = []
