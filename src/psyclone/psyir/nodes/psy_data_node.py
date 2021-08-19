@@ -457,7 +457,7 @@ class PSyDataNode(Statement):
         var_decl = TypeDeclGen(parent,
                                datatype=self.type_name,
                                entity_decls=[self._var_name],
-                               save=True, target=True)
+                               save=True, target=True, private=True)
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
