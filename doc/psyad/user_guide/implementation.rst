@@ -129,12 +129,13 @@ following adjoint assignments:
     \hat{B} = \hat{B} + y\hat{A} \\
     \hat{A} = x\hat{A}
 
-Notice that if that expression :math:`x` is \math:`0` then the tangent-linear code
-writes to :math:`\hat{A}`, rather than updating it i.e.:
+Notice that if the expression :math:`x` is :math:`0` then the
+tangent-linear code writes to :math:`\hat{A}`, rather than updating it
+i.e.:
 
 .. math::
 
-    A = 0A + yB + yC
+    A = 0.A + yB + yC
 
 which is:
 
@@ -150,12 +151,12 @@ and its adjoint will set :math:`\hat{A}` to zero:
     \hat{B} = \hat{B} + y\hat{A} \\
     \hat{A} = 0
 
-Lastly, notice that if :math:`x=y=z=0` then the original
+Finally, notice that if :math:`x=y=z=0` then the original
 tangent-linear code sets :math:`A` to zero:
 
 .. math::
 
-    A = 0A + 0B + 0C
+    A = 0.A + 0.B + 0.C
 
 which is:
 
@@ -163,7 +164,7 @@ which is:
 
     A = 0
 
-and its adjoint sets :math:`A` to zero
+and its adjoint sets :math:`\hat{A}` to zero
 
 .. math::
 
@@ -194,8 +195,9 @@ If each of the terms on the right-hand-side (RHS) of the statement are taken in 
    variable on the LHS of the assigment.
 
 In case 1, the adjoint is simply the active variable on the RHS being
-updated with the product of its multiplier in the TL expression with
-the left-hand active variable. For example, take the case:
+updated with the product of its multiplier in the tangent-linear
+expression with the left-hand active variable. For example, take the
+case:
 
 .. math::
 

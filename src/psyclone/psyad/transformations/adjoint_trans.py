@@ -59,7 +59,8 @@ class AdjointTransformation(Transformation):
     class. Also supports an optional writer argument.
 
     :param active_variables: a list of names of the active variables.
-    :type active_variables: list of str
+    :type active_variables: list of \
+        :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param writer: the writer to use when outputting error \
         information. Defaults to FortranWriter.
     :type writer: subclass of \
