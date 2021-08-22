@@ -40,10 +40,12 @@ gen() method to generate Fortran.
 
 '''
 
-from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Reference, BinaryOperation, Literal, \
-    ArrayReference, UnaryOperation
+import six
+
 from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.nodes import ArrayReference, BinaryOperation, Literal, \
+    Reference, UnaryOperation
 from psyclone.psyir.symbols import ScalarType
 
 # Mapping from PSyIR data types to SIR types.
@@ -115,9 +117,8 @@ class SIRWriter(PSyIRVisitor):
     implemented, otherwise the visitor continues, printing out a \
     representation of the unsupported node. This is an optional \
     argument which defaults to False.
-    :param indent_string: specifies what to use for indentation. This \
+    :param str indent_string: specifies what to use for indentation. This \
     is an optional argument that defaults to two spaces.
-    :type indent_string: str or NoneType
     :param int initial_indent_depth: Specifies how much indentation to \
     start with. This is an optional argument that defaults to 0.
 
@@ -341,10 +342,11 @@ class SIRWriter(PSyIRVisitor):
         lhs = self._visit(node.children[0])
         try:
             oper = binary_operators[node.operator]
-        except KeyError:
-            raise VisitorError(
+        except KeyError as err:
+            six.raise_from(VisitorError(
                 "Method binaryoperation_node in class SIRWriter, unsupported "
-                "operator '{0}' found.".format(str(node.operator)))
+                "operator '{0}' found.".format(str(node.operator))),
+                err)
         rhs = self._visit(node.children[1])
         self._depth -= 1
         result = "{0}make_binary_operator(\n{1}".format(self._nindent, lhs)
@@ -417,10 +419,11 @@ class SIRWriter(PSyIRVisitor):
         result = node.value
         try:
             datatype = TYPE_MAP_TO_SIR[node.datatype.intrinsic]
-        except KeyError:
-            raise VisitorError(
+        except KeyError as err:
+            six.raise_from(VisitorError(
                 "PSyIR type '{0}' has no representation in the SIR backend."
-                "".format(str(node.datatype)))
+                "".format(str(node.datatype))),
+                err)
 
         return ("{0}make_literal_access_expr(\"{1}\", {2})"
                 "".format(self._nindent, result, datatype))
@@ -445,10 +448,11 @@ class SIRWriter(PSyIRVisitor):
             UnaryOperation.Operator.MINUS: '-'}
         try:
             oper = unary_operators[node.operator]
-        except KeyError:
-            raise VisitorError(
+        except KeyError as err:
+            six.raise_from(VisitorError(
                 "Method unaryoperation_node in class SIRWriter, unsupported "
-                "operator '{0}' found.".format(str(node.operator)))
+                "operator '{0}' found.".format(str(node.operator))),
+                err)
         # Currently only '-<literal>' is supported in the SIR mapping.
         if not (len(node.children) == 1 and
                 isinstance(node.children[0], Literal)):

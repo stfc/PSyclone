@@ -46,7 +46,9 @@ import pytest
 from psyclone.psyir.nodes.node import (ChildrenList, Node,
                                        _graphviz_digraph_class)
 from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
-    Assignment, Return, Loop, Literal, Statement, node, KernelSchedule
+    Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
+    BinaryOperation
+
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     INTEGER_TYPE, REAL_TYPE, SymbolTable
 from psyclone.psyGen import PSyFactory, Kern
@@ -1086,3 +1088,59 @@ def test_node_constructor_with_parent():
     assert node.has_constructor_parent is False
     wrong_parent.addchild(node.detach())
     assert node.parent is wrong_parent
+
+
+def test_following_preceding():
+    '''Test that the preceding and following() methods in the Node class
+    behave as expected.
+
+    '''
+    # 1: There is no Routine ancestor node.
+    a_ref = Reference(DataSymbol("a", REAL_TYPE))
+    b_ref = Reference(DataSymbol("b", REAL_TYPE))
+    c_ref = Reference(DataSymbol("c", REAL_TYPE))
+    d_ref = Reference(DataSymbol("d", REAL_TYPE))
+    multiply1 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, c_ref, d_ref)
+    multiply2 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, b_ref, multiply1)
+    assign1 = Assignment.create(a_ref, multiply2)
+
+    # 1a: First node.
+    assert assign1.following() == [
+        a_ref, multiply2, b_ref, multiply1, c_ref, d_ref]
+    assert not assign1.preceding()
+
+    # 1b: Last node.
+    assert not d_ref.following()
+    assert d_ref.preceding() == [
+        assign1, a_ref, multiply2, b_ref, multiply1, c_ref]
+    assert d_ref.preceding(reverse=True) == [
+        c_ref, multiply1, b_ref, multiply2, a_ref, assign1]
+
+    # 1c: Middle node.
+    assert multiply1.following() == [c_ref, d_ref]
+    assert multiply1.preceding() == [assign1, a_ref, multiply2, b_ref]
+
+    # 2: Routine is an ancestor node, but is not a root
+    # node.
+    routine1 = Routine.create("routine1", SymbolTable(), [assign1])
+    e_ref = Reference(DataSymbol("e", REAL_TYPE))
+    zero = Literal("0.0", REAL_TYPE)
+    assign2 = Assignment.create(e_ref, zero)
+    routine2 = Routine.create("routine2", SymbolTable(), [assign2])
+    container = Container.create(
+        "container", SymbolTable(), [routine1, routine2])
+
+    # 2a: Middle node. Additional container and routine2 nodes are not
+    # returned by default ('routine' argument defaults to True).
+    assert multiply1.following() == [c_ref, d_ref]
+    assert (multiply1.preceding() ==
+            [routine1, assign1, a_ref, multiply2, b_ref])
+
+    # 2b: Middle node. 'routine' argument is set to False. Additional
+    # container and routine2 nodes are returned.
+    assert (multiply1.following(routine=False) ==
+            [c_ref, d_ref, routine2, assign2, e_ref, zero])
+    assert (multiply1.preceding(routine=False) ==
+            [container, routine1, assign1, a_ref, multiply2, b_ref])

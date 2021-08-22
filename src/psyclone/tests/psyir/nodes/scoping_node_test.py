@@ -156,6 +156,7 @@ def test_scoping_node_copy_hierarchy():
 module module
   implicit none
   integer, dimension(5) :: b_global
+  public
 
   contains
   subroutine routine(a)
