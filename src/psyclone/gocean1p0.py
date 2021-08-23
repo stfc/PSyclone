@@ -3243,7 +3243,9 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
     def _read_from_device_routine(self, f2pygen_module=None, psyir=None):
         ''' Return the symbol of the routine that reads data from the OpenACC
-        device, if it doesn't exist create the Routine and the Symbol.
+        device, if it doesn't exist create the Routine and the Symbol, and if
+        either f2pygen_module or psyir are supplied then a suitable node
+        representing the routine is inserted.
 
         :param f2pygen_module: optional f2pygen module where to insert the \
                                generated read_from_device routine.
