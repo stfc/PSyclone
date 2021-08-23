@@ -112,6 +112,111 @@ class OMPDirective(Directive):
         return result
 
 
+class OMPTaskwaitDirective(OMPDirective):
+    '''
+    Class representing an OpenMP TASKWAIT directive in the PSyIR.
+
+    :param list children: None. See #1374 for details.
+    :param parent: The Node in the AST that has this directive as a child.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+    :raises GenerationError: if this OMPTaskwait is provided children. \
+                             See #1374 for details.
+    '''
+    def __init__(self, children=None, parent=None):
+        if children is not None:
+            raise GenerationError(
+                "OMPTaskwaitDirective was provided children. This"
+                " directive does not support children. See #1374"
+                " for more information.")
+        super(OMPTaskwaitDirective, self).__init__(children=children,
+                                                   parent=parent)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_taskwait_" + str(position)
+
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes. \
+                            Default value is True.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+
+        '''
+        return self.coloured_name(colour) + "[OMP taskwait]"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPTaskwait is not enclosed \
+                            within some OpenMP parallel region.
+
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As a Parallel Child
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPTaskwaitDirective must be inside an OMP parallel region "
+                "but could not find an ancestor OMPParallelDirective node")
+
+        super(OMPTaskwaitDirective, self).validate_global_constraints()
+
+    def gen_code(self, parent):
+        '''Generate the fortran OMP Taskwait Directive and any associated
+        code
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "omp", "begin", "taskwait", ""))
+        # No children or end code for this node
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp taskwait". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp taskwait"
+
+    def end_string(self):
+        '''This directive has no closing statement.
+        The visitor is responsible for adding (or avoiding) the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return ""
+
+
 @six.add_metaclass(abc.ABCMeta)
 class OMPSerialDirective(OMPDirective):
     '''
@@ -977,4 +1082,5 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 # For automatic API documentation generation
 __all__ = ["OMPDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
-           "OMPSerialDirective", "OMPTaskloopDirective"]
+           "OMPSerialDirective", "OMPTaskloopDirective",
+           "OMPTaskwaitDirective"]

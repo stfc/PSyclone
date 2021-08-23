@@ -36,7 +36,7 @@
 # Makefile for the PSyclone NEMO OpenMP tutorial.
 # Modified J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+include ../../../common.mk
 
 # We use the PSyData simple_timing implementation since it has no
 # dependencies.
