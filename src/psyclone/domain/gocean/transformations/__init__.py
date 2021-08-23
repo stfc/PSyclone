@@ -39,6 +39,8 @@
 
 from psyclone.domain.gocean.transformations.gocean_extract_trans \
     import GOceanExtractTrans
+from psyclone.domain.gocean.transformations.gocean_opencl_trans \
+    import GOOpenCLTrans
 from psyclone.domain.gocean.transformations. \
     gocean_move_iteration_boundaries_inside_kernel_trans import \
     GOMoveIterationBoundariesInsideKernelTrans
@@ -54,4 +56,6 @@ from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
 __all__ = ['GOceanExtractTrans',
            'GOMoveIterationBoundariesInsideKernelTrans',
            'GOceanLoopFuseTrans',
-           'GOConstLoopBoundsTrans']
+           'GOOpenCLTrans',
+           'GOConstLoopBoundsTrans',
+           'GOceanLoopFuseTrans']

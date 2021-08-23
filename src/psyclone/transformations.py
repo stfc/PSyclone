@@ -2243,124 +2243,6 @@ class GOLoopSwapTrans(LoopTrans):
         return schedule, keep
 
 
-class OCLTrans(Transformation):
-    '''
-    Switches on/off the generation of an OpenCL PSy layer for a given
-    InvokeSchedule. Additionally, it will generate OpenCL kernels for
-    each of the kernels referenced by the Invoke. For example:
-
-    >>> invoke = ...
-    >>> schedule = invoke.schedule
-    >>>
-    >>> ocl_trans = OCLTrans()
-    >>> ocl_trans.apply(schedule)
-
-    '''
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation.
-        :rtype: str
-        '''
-        return "OCLTrans"
-
-    def apply(self, sched, options=None):
-        '''
-        Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
-        causes PSyclone to generate an OpenCL version of the corresponding
-        PSy-layer routine. The generated code makes use of the FortCL
-        library (https://github.com/stfc/FortCL) in order to manage the
-        OpenCL device directly from Fortran.
-
-        :param sched: the InvokeSchedule to transform.
-        :type sched: :py:class:`psyclone.psyGen.GOInvokeSchedule`
-        :param options: set of option to tune the OpenCL generation.
-        :type options: dictionary of string:values or None
-        :param bool options["opencl"]: whether or not to enable OpenCL \
-                                       generation.
-
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-        '''
-        if not options:
-            options = {}
-        opencl = options.get("opencl", True)
-
-        if opencl:
-            self.validate(sched, options)
-
-        # Create a memento of the schedule and the proposed transformation
-        keep = Memento(sched, self, [sched, opencl])
-        # All we have to do here is set the flag in the Schedule. When this
-        # flag is True PSyclone produces OpenCL at code-generation time.
-        sched.opencl = opencl
-
-        try:
-            # Store the provided OpenCL options in the InvokeSchedule.
-            sched.set_opencl_options(options)
-
-        # The raised exceptions are converted to 'TransformationError's.
-        except (TypeError, AttributeError) as error:
-            raise TransformationError(str(error))
-
-        return sched, keep
-
-    def validate(self, sched, options=None):
-        '''
-        Checks that the supplied InvokeSchedule is valid and that an OpenCL
-        version of it can be generated.
-
-        :param sched: the Schedule to check.
-        :type sched: :py:class:`psyclone.psyGen.InvokeSchedule`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if the InvokeSchedule is not for the \
-                                     GOcean1.0 API.
-        :raises NotImplementedError: if any of the kernels have arguments \
-                                     passed by value.
-        '''
-        from psyclone.psyGen import args_filter
-        from psyclone.gocean1p0 import GOInvokeSchedule
-
-        if isinstance(sched, InvokeSchedule):
-            if not isinstance(sched, GOInvokeSchedule):
-                raise TransformationError(
-                    "OpenCL generation is currently only supported for the "
-                    "GOcean API but got an InvokeSchedule of type: '{0}'".
-                    format(type(sched)))
-        else:
-            raise TransformationError(
-                "Error in OCLTrans: the supplied node must be a (sub-class "
-                "of) InvokeSchedule but got {0}".format(type(sched)))
-
-        # Now we need to check the arguments of all the kernels
-        args = args_filter(sched.args, arg_types=["scalar"], is_literal=True)
-        for arg in args:
-            if arg.is_literal:
-                raise NotImplementedError(
-                    "Cannot generate OpenCL for Invokes that contain "
-                    "kernels with arguments passed by value")
-
-        # Check that we can construct the PSyIR and SymbolTable of each of
-        # the kernels in this Schedule. Also check that none of them access
-        # any form of global data (that is not a routine argument).
-        for kern in sched.kernels():
-            KernelTrans.validate(kern, options)
-            ksched = kern.get_kernel_schedule()
-            global_variables = ksched.symbol_table.global_symbols
-            if global_variables:
-                raise TransformationError(
-                    "The Symbol Table for kernel '{0}' contains the following "
-                    "symbols with 'global' scope: {1}. An OpenCL kernel cannot"
-                    " call other kernels and all of the data it accesses must "
-                    "be passed by argument. Use the KernelGlobalsToArguments "
-                    "transformation to convert such symbols to kernel "
-                    "arguments first.".
-                    format(kern.name, [sym.name for sym in global_variables]))
-
-
 class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
     '''Splits a synchronous halo exchange into a halo exchange start and
     halo exchange end. For example:
@@ -3447,7 +3329,6 @@ __all__ = ["KernelTrans",
            "MoveTrans",
            "Dynamo0p3RedundantComputationTrans",
            "GOLoopSwapTrans",
-           "OCLTrans",
            "Dynamo0p3AsyncHaloExchangeTrans",
            "Dynamo0p3KernelConstTrans",
            "ACCEnterDataTrans",
