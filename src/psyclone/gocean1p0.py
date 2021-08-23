@@ -476,6 +476,9 @@ class GOLoop(Loop):
     def create(parent, loop_type, field_name="", field_space="",
                iteration_space="", index_offset=""):
         '''
+        Create a new instance of a GOLoop with the expected children to
+        represent the bounds given by the loop properties.
+
         :param parent: parent node of this GOLoop.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str loop_type: loop type - must be 'inner' or 'outer'.
@@ -788,6 +791,52 @@ class GOLoop(Loop):
             {'outer': {'start': data[3], 'stop': data[4]},
              'inner': {'start': data[5], 'stop': data[6]}}
 
+    def get_custom_bound_string(self, side):
+        '''
+        Get the string that represents a customized custom bound for this
+        GOLoop (provided by the add_bounds() method). It can provide the
+        'start' or 'stop' side of the bounds.
+
+        :param str side: 'start' or 'stop' side of the bound.
+
+        :returns: the string that represents the loop bound.
+        :rtype: str
+        '''
+        api_config = Config.get().api_conf("gocean1.0")
+        # Get a field argument from the argument list
+        field = None
+        invoke = self.ancestor(InvokeSchedule)
+        if invoke:
+            for arg in invoke.symbol_table.argument_list:
+                if isinstance(arg.datatype, DataTypeSymbol):
+                    if arg.datatype.name == "r2d_field":
+                        field = arg
+                        break
+
+        if field is None:
+            raise GenerationError(
+                "Cannot generate custom loop bound for loop {0}. Couldn't"
+                " fine any suitable field.".format(str(self)))
+
+        if self.loop_type == "inner":
+            prop_access = api_config.grid_properties["go_grid_xstop"]
+        else:
+            prop_access = api_config.grid_properties["go_grid_ystop"]
+
+        stop_expr = prop_access.fortran.format(field.name)
+        try:
+            bound = self.bounds_lookup[self.index_offset][self.field_space][
+                self.iteration_space][self.loop_type][side].format(
+                    start='2', stop=stop_expr)
+        except KeyError as err:
+            six.raise_from(GenerationError(
+                "Cannot generate custom loop bound for the: '{0}', '{1}' and"
+                " '{2}' combination."
+                "".format(self.index_offset, self.field_space,
+                          self.iteration_space)), err)
+
+        return bound
+
     # -------------------------------------------------------------------------
     def _grid_property_psyir_expression(self, grid_property):
         '''
@@ -868,40 +917,6 @@ class GOLoop(Loop):
         # defined in the config file:
         return self._grid_property_psyir_expression(
             props["go_grid_{0}_{1}_stop".format(key, self._loop_type)].fortran)
-
-    def get_custom_bound_string(self, side):
-        api_config = Config.get().api_conf("gocean1.0")
-        # Get a field argument from the argument list
-        field = None
-        for arg in self.ancestor(InvokeSchedule).symbol_table.argument_list:
-            if isinstance(arg.datatype, DataTypeSymbol):
-                if arg.datatype.name == "r2d_field":
-                    field = arg
-                    break
-
-        if field is None:
-            raise GenerationError(
-                "Cannot generate custom loop bound for loop {0}. Couldn't"
-                " fine any suitable field.".format(str(self)))
-
-        if self.loop_type == "inner":
-            prop_access = api_config.grid_properties["go_grid_xstop"]
-        else:
-            prop_access = api_config.grid_properties["go_grid_ystop"]
-
-        stop_expr = prop_access.fortran.format(field.name)
-        try:
-            bound = self.bounds_lookup[self.index_offset][self.field_space][
-                self.iteration_space][self.loop_type][side].format(
-                    start='2', stop=stop_expr)
-        except KeyError as err:
-            six.raise_from(GenerationError(
-                "Cannot generate custom loop bound for the: '{0}', '{1}' and"
-                " '{2}' combination."
-                "".format(self.index_offset, self.field_space,
-                          self.iteration_space)), err)
-
-        return bound
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -1032,7 +1047,14 @@ class GOKernCallFactory():
     @staticmethod
     def create(call, parent=None):
         ''' Create a new instance of a call to a GO kernel. Includes the
-        looping structure as well as the call to the kernel itself. '''
+        looping structure as well as the call to the kernel itself.
+
+        :param parent: node where the kernel call structure will be inserted.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: new PSyIR tree representing the kernel call loop.
+        :rtype: :py:class:`psyclone.gocean1p0.GOLoop`
+        '''
         # Add temporary parent as it needs to find the InvokeSchedule
         gocall = GOKern(call, parent=parent)
 
@@ -1070,10 +1092,14 @@ class GOKern(CodedKern):
     code for the Kernel instance. Specialises the gen_code method to
     create the appropriate GOcean specific kernel call.
 
+    :param call: information on the way in which this kernel is called \
+                 from the Algorithm layer.
+    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param parent: optional node where the kernel call will be inserted.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
     '''
     def __init__(self, call, parent=None):
-        ''' Create an empty GOKern object. The object is given state via
-        the load method '''
         super(GOKern, self).__init__(GOKernelArguments, call, parent,
                                      check=False)
         # Pull out the grid index-offset that this kernel expects and
