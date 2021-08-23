@@ -267,7 +267,8 @@ class ExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def create_read_in_code(program, psy_data, input_list, output_list):
+    def create_read_in_code(program, psy_data, input_list, output_list,
+                            postfix):
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
         - variable that is read-only, it will declare the symbol and add code
@@ -295,6 +296,9 @@ class ExtractDriverCreator:
         :param output_list: list of all signatures that are output \
             variables to the instrumended region.
         :type output_list: list of :py:class:`psyclone.core.Signature`
+        :param str postfix: a postfix that is added to a variable to \
+            create the corresponding variable that stores the output \
+            value from the kernel data file.
 
         :returns: a list with all output parameters, i.e. variables that \
             need to be verified after executing the kernel. Each entry is \
@@ -344,7 +348,7 @@ class ExtractDriverCreator:
             # ------------------------------------------------
             # Declare a 'post' variable of the same type and
             # read in its value.
-            post_name = sig_str+"_post"
+            post_name = sig_str+postfix
             post_sym = symbol_table.new_symbol(post_name,
                                                symbol_type=DataSymbol,
                                                datatype=sym.datatype)
@@ -467,7 +471,9 @@ class ExtractDriverCreator:
             program.addchild(if_block)
 
     # -------------------------------------------------------------------------
-    def create(self, nodes, input_list, output_list, options):
+    def create(self, nodes, input_list, output_list, postfix,
+               options):
+        # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
         output information, and calls the kernel with the parameters from
@@ -477,7 +483,12 @@ class ExtractDriverCreator:
         :type input_list: list of :py:class:`psyclone.core.Signature`
         :param output_list: list of variables that are output parameters.
         :type output_list: list or :py:class:`psyclone.core.Signature`
-
+        :param str postfix: a postfix that is appended to an output variable \
+            to create the corresponding variable that stores the output \
+            value from the kernel data file. The caller must guarantee that \
+            no name clashes are created when adding the postfix to a variable \
+            and that the postfix is consistent between extract code and \
+            driver code (see 'ExtractTrans.determine_postfix()').
         '''
         # pylint: disable=too-many-locals
         if options is None:
@@ -538,7 +549,8 @@ class ExtractDriverCreator:
 
         output_symbols = \
             ExtractDriverCreator.create_read_in_code(program, psy_data,
-                                                     input_list, output_list)
+                                                     input_list, output_list,
+                                                     postfix)
 
         all_children = schedule_copy.pop_all_children()
         for child in all_children:

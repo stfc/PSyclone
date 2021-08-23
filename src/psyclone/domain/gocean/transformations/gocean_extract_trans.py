@@ -163,17 +163,27 @@ class GOceanExtractTrans(ExtractTrans):
             # changing the user's options:
             my_options = options.copy()
 
+        dep = DependencyTools()
+        nodes = self.get_node_list(nodes)
+        region_name = self.get_unique_region_name(nodes, my_options)
+        my_options["region_name"] = region_name
+        my_options["prefix"] = my_options.get("prefix", "extract")
+        input_list, output_list = dep.get_in_out_parameters(nodes)
+        # Determine a unique postfix to be used for output variables
+        # that avoid any name clashes
+        postfix = ExtractTrans.determine_postfix(input_list,
+                                                 output_list,
+                                                 postfix="_post")
+        my_options["post_var_postfix"] = postfix
+
         if my_options.get("create_driver", False):
-            dep = DependencyTools()
-            nodes = self.get_node_list(nodes)
-            region_name = self.get_unique_region_name(nodes, my_options)
-            my_options["region_name"] = region_name
-            my_options["prefix"] = my_options.get("prefix", "extract")
+            # We need to create the driver before inserting the ExtractNode
+            # (since some of the visitors used in driver creation do not
+            # handle an ExtractNode in the tree)
+            self._driver_creator.create(nodes,
+                                        input_list, output_list,
+                                        postfix, my_options)
 
-            input_list, output_list = dep.get_in_out_parameters(nodes)
-            self._driver_creator.create(nodes, input_list, output_list,
-                                        my_options)
-
-        result = super(GOceanExtractTrans, self).apply(nodes, options)
+        result = super(GOceanExtractTrans, self).apply(nodes, my_options)
 
         return result

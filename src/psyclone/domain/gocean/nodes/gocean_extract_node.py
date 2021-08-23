@@ -89,31 +89,6 @@ class GOceanExtractNode(ExtractNode):
         '''
         return "gocean_extract_" + str(self.position)
 
-    # -------------------------------------------------------------------------
-    def update_vars_and_postname(self):
-        '''
-        This function prevents any name clashes that can occur when adding
-        the postfix to output variable names. For example, if there is an
-        output variable 'a' and an input variable 'a_post', then the output
-        file would contain two identical keys 'a_post'. In order to avoid
-        this, the suffix 'post' is changed (to post0, post1, ...) until any
-        name clashes are avoided. This works for structured and non-structured
-        types.
-        '''
-        suffix = ""
-        # The signatures in the input/output list need to be converted
-        # back to strings to easily append the suffix.
-        input_string = [str(input_var) for input_var in self._input_list]
-        while any(str(out_sig)+self._post_name+str(suffix) in input_string
-                  for out_sig in self._output_list):
-            if suffix == "":
-                suffix = 0
-            else:
-                suffix += 1
-        self._post_name = self._post_name+str(suffix)
-
-        super(GOceanExtractNode, self).update_vars_and_postname()
-
 
 # -------------------------------------------------------------------------
 # For AutoAPI documentation generation

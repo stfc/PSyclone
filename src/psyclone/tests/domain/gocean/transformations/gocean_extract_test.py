@@ -715,19 +715,14 @@ def test_rename_suffix_if_name_clash(tmpdir):
   real*8, allocatable, dimension(:,:) :: out_fld
   real*8, allocatable, dimension(:,:) :: in_out_fld
   real*8, allocatable, dimension(:,:) :: out_fld_post
-  real*8, allocatable, dimension(:,:) :: in_out_fld_post
-  real*8, allocatable, dimension(:,:) :: out_fld_post_1
+  real*8, allocatable, dimension(:,:) :: in_out_fld_post0
+  real*8, allocatable, dimension(:,:) :: out_fld_post0
   call extract_psy_data%ReadVariable('in_out_fld', in_out_fld)
-  call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
-  call extract_psy_data%ReadVariable('out_fld_post', out_fld_post_1)
-  ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
+  call extract_psy_data%ReadVariable('in_out_fld_post0', in_out_fld_post0)
+  call extract_psy_data%ReadVariable('out_fld_post0', out_fld_post0)
+  ALLOCATE(out_fld(SIZE(out_fld_post0, 1), SIZE(out_fld_post0, 2)))
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)"""
 
-    # TODO #1288: the name clash is handled in the variable (out_fld_post_1),
-    # but not in the name in the netcdf file!!! Driver vs extraction
-    # inconsistency!!
-    # CALL extract_psy_data%ReadVariable("out_fld_post", out_fld_post)
-    # CALL extract_psy_data%ReadVariable("in_out_fld_post0", in_out_fld_post0)
     ordered_lines_in_text(expected.split("\n"), driver_code)
 
     # Now test that more than one variable clash is handled. The third

@@ -49,6 +49,8 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
+
+from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
@@ -73,6 +75,10 @@ class ExtractNode(PSyDataNode):
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "extract", which means the module name used will be \
         ``extract_psy_data_mode``, and the data type ``extract_PSyDataType``.
+    :param str options["post_var_postfix"]: a postfix to be used when \
+        creating names to store values of output variable. A variable 'a' \
+        would store its value as 'a', and its output values as 'a_post' with \
+        the default post_Var_postfix of '_post'.
 
     '''
     # Textual description of the node.
@@ -90,8 +96,18 @@ class ExtractNode(PSyDataNode):
         # modified to make sure the names can be distinguished between pre-
         # and post-variables (i.e. here input and output). A variable
         # "myvar" will be stored as "myvar" with its input value, and
-        # "myvar_post" with its output value.
-        self._post_name = "_post"
+        # "myvar_post" with its output value. It is the responsibility
+        # of the transformation that inserts this node to make sure this
+        # value is consistent with the value used when creating the driver
+        # (otherwise the driver will not be able to read in the dumped
+        # valued), and also to handle any potential name clashes (e.g. a
+        # variable 'a' exists, which creates 'a_out' for the output variable,
+        # which would clash with a variable 'a_out' used in the program unit).
+
+        if options:
+            self._post_name = options.get("post_var_postfix", "_post")
+        else:
+            self._post_name = "_post"
 
         # Store the list of input- and output-variables, so that a driver
         # generator can get the list of variables that are written.
@@ -155,10 +171,12 @@ class ExtractNode(PSyDataNode):
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
-        '''
 
-        # Determine the variables to write:
+        '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to write:
         dep = DependencyTools()
         self._input_list, self._output_list = dep.get_in_out_parameters(self)
 
@@ -171,7 +189,6 @@ class ExtractNode(PSyDataNode):
                    'post_var_list': self._output_list,
                    'post_var_postfix': self._post_name}
 
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
         parent.add(CommentGen(parent, ""))
