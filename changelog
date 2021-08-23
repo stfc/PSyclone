@@ -142,6 +142,19 @@
 
 	48) PR #1369 for #1367. GOcean supports REAL literals in kernel arguments.
 
+	49) PR #1362 for #1361. Fix bug in PSyIRGen when PSyIR node corresponds
+	to more than one fparser2 node.
+
+	50) PR #1344 for #1309. Fix bug in PSyIR backend name comparison.
+
+        51) PR #1372 for #1371. Bring tutorial notebooks up-to-date and add
+        them to the CI.
+
+	52) PR #1341 towards #1134. Move OpenCL transformation to GOcean
+	transformations folder and rename.
+
+	53) PR #1368 towards #1338. Adds OMPTaskWaitDirective node.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
