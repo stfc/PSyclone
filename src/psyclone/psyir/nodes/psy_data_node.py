@@ -42,14 +42,11 @@ or profiling. '''
 
 from __future__ import absolute_import, print_function
 from collections import namedtuple
-from fparser.common.sourceinfo import FortranFormat
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.utils import walk
-from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
@@ -454,10 +451,13 @@ class PSyDataNode(Statement):
         use = UseGen(parent, self.fortran_module, only=True,
                      funcnames=[sym.name for sym in self.imported_symbols])
         parent.add(use)
+        # We only set the visibility of this symbol if we are *not* within
+        # a Routine.
+        set_private = self.ancestor(Routine) is None
         var_decl = TypeDeclGen(parent,
                                datatype=self.type_name,
                                entity_decls=[self._var_name],
-                               save=True, target=True, private=True)
+                               save=True, target=True, private=set_private)
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,

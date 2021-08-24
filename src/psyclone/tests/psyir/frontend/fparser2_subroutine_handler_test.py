@@ -160,7 +160,7 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
         "module a\n"
         "  implicit none\n"
         "  public\n\n"
-        "  public :: my_fUnc\n\n"
+        "  public :: my_func\n\n"
         "  contains\n"
         "  function my_fUnc()\n"
         "    {0} :: my_fUnc\n"

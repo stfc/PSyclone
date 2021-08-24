@@ -305,6 +305,68 @@ def precedence(fortran_operator):
     raise KeyError()
 
 
+def add_accessibility_to_unknown_declaration(symbol):
+    '''
+    Utility that manipulates the unknown Fortran declaration for the supplied
+    Symbol so as to ensure that it has the correct accessibility specifier.
+    (This is required because we capture an 'unknown' Fortran declaration as
+    is and this may or may not include accessibility information.)
+
+    :param symbol: the symbol for which the declaration is required.
+    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+    :returns: Fortran declaration of the supplied symbol with accessibility \
+        information included (public/private).
+    :rtype: str
+
+    :raises TypeError: if the supplied argument is not a Symbol of \
+        UnknownFortranType.
+    :raises NotImplementedError: if the original declaration does not use \
+        '::' to separate the entity name from its type.
+    :raises InternalError: if the declaration stored for the supplied symbol \
+        contains accessibility information which does not match the \
+        visibility of the supplied symbol.
+
+    '''
+    if not isinstance(symbol, Symbol):
+        raise TypeError("Expected a Symbol but got '{0}'".format(
+            type(symbol).__name__))
+
+    if not isinstance(symbol.datatype, UnknownFortranType):
+        raise TypeError("Expected a Symbol of UnknownFortranType but symbol "
+                        "'{0}' has type '{1}'".format(symbol.name,
+                                                      symbol.datatype))
+
+    first_line = symbol.datatype.declaration.split("\n")[0]
+    if "::" not in first_line:
+        raise NotImplementedError(
+            "Cannot add accessibility information to an UnknownFortranType "
+            "that does not have '::' in its original declaration: '{0}'".
+            format(symbol.datatype.declaration))
+
+    parts = symbol.datatype.declaration.split("::")
+    first_part = parts[0].lower()
+    if symbol.visibility == Symbol.Visibility.PUBLIC:
+        if "public" not in first_part:
+            if "private" in first_part:
+                raise InternalError(
+                    "Symbol '{0}' of UnknownFortranType has public visibility "
+                    "but its associated declaration specifies that it is "
+                    "private: '{1}'".format(symbol.name,
+                                            symbol.datatype.declaration))
+            first_part = first_part.rstrip() + ", public "
+    else:
+        if "private" not in first_part:
+            if "public" in first_part:
+                raise InternalError(
+                    "Symbol '{0}' of UnknownFortranType has private "
+                    "visibility but its associated declaration specifies that "
+                    "it is public: '{1}'".format(symbol.name,
+                                                 symbol.datatype.declaration))
+            first_part = first_part.rstrip() + ", private "
+    return "::".join([first_part]+parts[1:])
+
+
 class FortranWriter(LanguageWriter):
     # pylint: disable=too-many-public-methods
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
@@ -488,8 +550,12 @@ class FortranWriter(LanguageWriter):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                return "{0}{1}\n".format(self._nindent,
-                                         symbol.datatype.declaration)
+                if include_visibility and not isinstance(symbol,
+                                                         RoutineSymbol):
+                    decln = add_accessibility_to_unknown_declaration(symbol)
+                else:
+                    decln = symbol.datatype.declaration
+                return "{0}{1}\n".format(self._nindent, decln)
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
                 "{0} '{1}' is of '{2}' type. This is not supported by the "
@@ -550,7 +616,7 @@ class FortranWriter(LanguageWriter):
         result += "\n"
         return result
 
-    def gen_typedecl(self, symbol):
+    def gen_typedecl(self, symbol, include_visibility=True):
         '''
         Creates a derived-type declaration for the supplied DataTypeSymbol.
 
@@ -572,20 +638,31 @@ class FortranWriter(LanguageWriter):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                return "{0}{1}\n".format(self._nindent,
-                                         symbol.datatype.declaration)
+                # This is a declaration of unknown type. We have to ensure
+                # that its visibility is correctly specified though.
+                if include_visibility:
+                    decln = add_accessibility_to_unknown_declaration(symbol)
+                else:
+                    decln = symbol.datatype.declaration
+                return "{0}{1}\n".format(self._nindent, decln)
+
             raise VisitorError(
                 "Fortran backend cannot generate code for symbol '{0}' of "
                 "type '{1}'".format(symbol.name,
                                     type(symbol.datatype).__name__))
 
         result = "{0}type".format(self._nindent)
-        if symbol.visibility == Symbol.Visibility.PRIVATE:
-            result += ", private"
+        if include_visibility:
+            if symbol.visibility == Symbol.Visibility.PRIVATE:
+                result += ", private"
+            else:
+                result += ", public"
         result += " :: {0}\n".format(symbol.name)
 
         self._depth += 1
         for member in symbol.datatype.components.values():
+            # We always want to specify the visibility of components within
+            # a derived type.
             result += self.gen_vardecl(member, include_visibility=True)
         self._depth -= 1
 
@@ -782,7 +859,8 @@ class FortranWriter(LanguageWriter):
         # 3: Derived-type declarations. These must come before any declarations
         #    of symbols of these types.
         for symbol in symbol_table.local_datatypesymbols:
-            declarations += self.gen_typedecl(symbol)
+            declarations += self.gen_typedecl(
+                symbol, include_visibility=(not args_allowed))
 
         # 4: Local variable declarations.
         local_vars = [sym for sym in symbol_table.local_datasymbols if not

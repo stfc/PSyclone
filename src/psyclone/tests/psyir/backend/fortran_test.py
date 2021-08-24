@@ -360,9 +360,46 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
 def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     ''' Check that gen_typedecl() works for a symbol of UnknownFortranType. '''
     tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
-        "type my_type\nend type my_type"))
+        "type :: my_type\nend type my_type"))
     assert (fortran_writer.gen_typedecl(tsymbol) ==
-            "type my_type\nend type my_type\n")
+            "type, public :: my_type\nend type my_type\n")
+    tsymbol.visibility = Symbol.Visibility.PRIVATE
+    assert (fortran_writer.gen_typedecl(tsymbol) ==
+            "type, private :: my_type\nend type my_type\n")
+
+
+def test_gen_typedecl_unknown_fortran_type_missing_colons(fortran_writer):
+    ''' Check that gen_typedecl() raises a NotImplementedError if the original
+    declaration is missing a '::'. '''
+    tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
+        "type my_type\nend type my_type"))
+    with pytest.raises(NotImplementedError) as err:
+        fortran_writer.gen_typedecl(tsymbol)
+    assert ("Cannot add accessibility information to an UnknownFortranType "
+            "that does not have '::' in its original declaration: 'type "
+            "my_type" in str(err.value))
+
+
+def test_gen_typedecl_unknown_fortran_type_wrong_vis(fortran_writer):
+    ''' Check that gen_typedecl() raises the expected error when the
+    visibility of a symbol of UnknownFortranType does not match what is stored
+    in its declaration text. '''
+    tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
+        "type, prIVate :: my_type\nend type my_type"),
+                             visibility=Symbol.Visibility.PUBLIC)
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_typedecl(tsymbol)
+    assert ("Symbol 'my_type' of UnknownFortranType has public visibility but "
+            "its associated declaration specifies that it is private: 'type, "
+            "prIVate ::" in str(err.value))
+    tsymbol2 = DataTypeSymbol("my_type", UnknownFortranType(
+        "type, pUBlic :: my_type\nend type my_type"),
+                              visibility=Symbol.Visibility.PRIVATE)
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_typedecl(tsymbol2)
+    assert ("Symbol 'my_type' of UnknownFortranType has private visibility "
+            "but its associated declaration specifies that it is public: "
+            "'type, pUBlic ::" in str(err.value))
 
 
 def test_gen_typedecl(fortran_writer):
@@ -383,7 +420,7 @@ def test_gen_typedecl(fortran_writer):
         ("grid", tsymbol, Symbol.Visibility.PRIVATE)])
     tsymbol = DataTypeSymbol("my_type", dtype)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
-            "type :: my_type\n"
+            "type, public :: my_type\n"
             "  integer, public :: flag\n"
             "  integer, private :: secret\n"
             "  real, dimension(3,5), public :: matrix\n"
