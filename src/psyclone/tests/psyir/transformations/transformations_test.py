@@ -32,34 +32,44 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''
 API-agnostic tests for various transformation classes.
 '''
 
 from __future__ import absolute_import, print_function
+import os
 import pytest
-from psyclone.psyir.nodes import Literal, Loop, Node, Reference, Schedule, \
-    Statement, CodeBlock
+
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
+    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
-from psyclone.transformations import ACCParallelTrans, OMPParallelLoopTrans, \
-    OMPParallelTrans
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
+    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
+
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, os.pardir, "test_files",
+                                "gocean1p0")
 
 
 def test_accloop():
     ''' Generic tests for the ACCLoopTrans transformation class '''
-    from psyclone.transformations import ACCLoopTrans
-    from psyclone.psyGen import ACCLoopDirective
     trans = ACCLoopTrans()
     assert trans.name == "ACCLoopTrans"
     assert str(trans) == "Adds an 'OpenACC loop' directive to a loop"
 
-    pnode = Node()
     cnode = Statement()
-    tdir = trans._directive(pnode, [cnode])
+    tdir = trans._directive([cnode])
     assert isinstance(tdir, ACCLoopDirective)
 
 
@@ -71,7 +81,6 @@ def test_accparallel():
 
 def test_accenterdata():
     ''' Generic tests for the ACCEnterDataTrans class '''
-    from psyclone.transformations import ACCEnterDataTrans
     acct = ACCEnterDataTrans()
     assert acct.name == "ACCEnterDataTrans"
     assert str(acct) == "Adds an OpenACC 'enter data' directive"
@@ -81,8 +90,6 @@ def test_accenterdata_internalerr(monkeypatch):
     ''' Check that the ACCEnterDataTrans.apply() method raises an internal
     error if the validate method fails to throw out an invalid type of
     Schedule. '''
-    from psyclone.transformations import ACCEnterDataTrans
-    from psyclone.errors import InternalError
     acct = ACCEnterDataTrans()
     monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
@@ -94,21 +101,71 @@ def test_accenterdata_internalerr(monkeypatch):
 def test_omploop_no_collapse():
     ''' Check that the OMPLoopTrans.directive() method rejects the
     collapse argument '''
-    from psyclone.transformations import OMPLoopTrans
     trans = OMPLoopTrans()
-    pnode = Node()
     cnode = Node()
     with pytest.raises(NotImplementedError) as err:
-        _ = trans._directive(pnode, cnode, collapse=2)
+        _ = trans._directive(cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err.value))
+
+
+def test_omptaskloop_no_collapse():
+    ''' Check that the OMPTaskloopTrans.directive() method rejects
+    the collapse argument '''
+    trans = OMPTaskloopTrans()
+    cnode = Node()
+    with pytest.raises(NotImplementedError) as err:
+        trans._directive(cnode, collapse=True)
+    assert ("The COLLAPSE clause is not yet supported for "
+            "'!$omp taskloop' directives" in str(err.value))
+
+
+def test_omptaskloop_getters_and_setters():
+    ''' Check that the OMPTaskloopTrans getters and setters
+    correctly throw TransformationErrors on illegal values '''
+    trans = OMPTaskloopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.omp_num_tasks = "String"
+    assert "num_tasks must be an integer or None, got str" in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.omp_num_tasks = -1
+    assert "num_tasks must be a positive integer, got -1" in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.omp_grainsize = "String"
+    assert "grainsize must be an integer or None, got str" in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.omp_grainsize = -1
+    assert "grainsize must be a positive integer, got -1" in str(err.value)
+    trans.omp_num_tasks = 32
+    assert trans.omp_num_tasks == 32
+    with pytest.raises(TransformationError) as err:
+        trans.omp_grainsize = 32
+    assert("The grainsize and num_tasks clauses would both "
+           "be specified for this Taskloop transformation"
+           in str(err.value))
+    trans.omp_num_tasks = None
+    assert trans.omp_num_tasks is None
+    trans.omp_grainsize = 32
+    assert trans.omp_grainsize == 32
+    trans.grainsize = None
+    assert trans.grainsize is None
+
+    trans = OMPTaskloopTrans(num_tasks=32)
+    assert trans.omp_num_tasks == 32
+    trans = OMPTaskloopTrans(grainsize=32)
+    assert trans.omp_grainsize == 32
+
+    with pytest.raises(TransformationError) as err:
+        trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
+    assert("The grainsize and num_tasks clauses would both "
+           "be specified for this Taskloop transformation"
+           in str(err.value))
 
 
 def test_ifblock_children_region():
     ''' Check that we reject attempts to transform the conditional part of
     an If statement or to include both the if- and else-clauses in a region
     (without their parent). '''
-    from psyclone.psyir.nodes import IfBlock
     acct = ACCParallelTrans()
     # Construct a valid IfBlock
     condition = Reference(DataSymbol('condition', BOOLEAN_TYPE))
@@ -127,77 +184,6 @@ def test_ifblock_children_region():
             "Either target a single Schedule or " in str(err.value))
 
 
-def test_fusetrans_error_incomplete():
-    ''' Check that we reject attempts to fuse loops which are incomplete. '''
-    from psyclone.psyir.nodes import Return
-    from psyclone.transformations import LoopFuseTrans
-    sch = Schedule()
-    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE), parent=sch)
-    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE), parent=sch)
-    sch.addchild(loop1)
-    sch.addchild(loop2)
-
-    fuse = LoopFuseTrans()
-
-    # Check first loop
-    with pytest.raises(TransformationError) as err:
-        fuse.validate(loop1, loop2)
-    assert ("Error in LoopFuseTrans transformation. The target loop must have "
-            "four children but found: []" in str(err.value))
-
-    loop1.addchild(Literal("start", INTEGER_TYPE, parent=loop1))
-    loop1.addchild(Literal("stop", INTEGER_TYPE, parent=loop1))
-    loop1.addchild(Literal("step", INTEGER_TYPE, parent=loop1))
-    loop1.addchild(Schedule(parent=loop1))
-    loop1.loop_body.addchild(Return(parent=loop1.loop_body))
-
-    # Check second loop
-    with pytest.raises(TransformationError) as err:
-        fuse.validate(loop1, loop2)
-    assert ("Error in LoopFuseTrans transformation. The target loop must have "
-            "four children but found: []" in str(err.value))
-
-    loop2.addchild(Literal("start", INTEGER_TYPE, parent=loop2))
-    loop2.addchild(Literal("stop", INTEGER_TYPE, parent=loop2))
-    loop2.addchild(Literal("step", INTEGER_TYPE, parent=loop2))
-    loop2.addchild(Schedule(parent=loop2))
-    loop2.loop_body.addchild(Return(parent=loop2.loop_body))
-
-    # Validation should now pass
-    fuse.validate(loop1, loop2)
-
-
-def test_fusetrans_error_not_same_parent():
-    ''' Check that we reject attempts to fuse loops which don't share the
-    same parent '''
-    from psyclone.transformations import LoopFuseTrans
-
-    sch1 = Schedule()
-    sch2 = Schedule()
-    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE), parent=sch1)
-    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE), parent=sch2)
-    sch1.addchild(loop1)
-    sch2.addchild(loop2)
-
-    loop1.addchild(Literal("1", INTEGER_TYPE, parent=loop1))  # start
-    loop1.addchild(Literal("10", INTEGER_TYPE, parent=loop1))  # stop
-    loop1.addchild(Literal("1", INTEGER_TYPE, parent=loop1))  # step
-    loop1.addchild(Schedule(parent=loop1))  # loop body
-
-    loop2.addchild(Literal("1", INTEGER_TYPE, parent=loop2))  # start
-    loop2.addchild(Literal("10", INTEGER_TYPE, parent=loop2))  # stop
-    loop2.addchild(Literal("1", INTEGER_TYPE, parent=loop2))  # step
-    loop2.addchild(Schedule(parent=loop2))  # loop body
-
-    fuse = LoopFuseTrans()
-
-    # Try to fuse loops with different parents
-    with pytest.raises(TransformationError) as err:
-        fuse.validate(loop1, loop2)
-    assert ("Error in LoopFuseTrans transformation. Loops do not have the "
-            "same parent" in str(err.value))
-
-
 def test_regiontrans_wrong_children():
     ''' Check that the validate method raises the expected error if
         passed the wrong children of a Node. (e.g. those representing the
@@ -205,11 +191,11 @@ def test_regiontrans_wrong_children():
     # RegionTrans is abstract so use a concrete sub-class
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
-    parent = Loop(parent=None)
-    parent.addchild(Literal("1", INTEGER_TYPE, parent))
-    parent.addchild(Literal("10", INTEGER_TYPE, parent))
-    parent.addchild(Literal("1", INTEGER_TYPE, parent))
-    parent.addchild(Schedule(parent=parent))
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("10", INTEGER_TYPE))
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Schedule())
     with pytest.raises(TransformationError) as err:
         RegionTrans.validate(rtrans, parent.children)
     assert ("Cannot apply a transformation to multiple nodes when one or more "
@@ -251,6 +237,77 @@ def test_parallellooptrans_refuse_codeblock():
     assert ("Nodes of type 'CodeBlock' cannot be enclosed "
             "by a OMPParallelLoopTrans transformation" in str(err.value))
 
+
+# Tests for OMPSingleTrans
+def test_ompsingle():
+    ''' Generic tests for the OMPSingleTrans transformation class '''
+    trans = OMPSingleTrans()
+    assert trans.name == "OMPSingleTrans"
+    assert str(trans) == "Insert an OpenMP Single region"
+
+    assert trans.omp_nowait is False
+    trans.omp_nowait = True
+    assert trans.omp_nowait is True
+
+
+def test_ompsingle_invalid_nowait():
+    ''' Tests to check OMPSingle rejects invalid attempts
+        to pass nowait argument '''
+    trans = OMPSingleTrans()
+    with pytest.raises(TypeError) as err:
+        trans.omp_nowait = "string"
+    assert ("Expected nowait to be a bool but got a str"
+            in str(err.value))
+
+
+def test_ompsingle_nested():
+    ''' Tests to check OMPSingle rejects being applied to another OMPSingle '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    single = OMPSingleTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    single.apply(schedule[0])
+    with pytest.raises(TransformationError) as err:
+        single.apply(schedule[0])
+    assert("Transformation Error: Nodes of type 'OMPSingleDirective' cannot" +
+           " be enclosed by a OMPSingleTrans transformation"
+           in str(err.value))
+
+
+# Tests for OMPMasterTrans
+def test_ompmaster():
+    ''' Generic tests for the OMPMasterTrans transformation class '''
+    trans = OMPMasterTrans()
+    assert trans.name == "OMPMasterTrans"
+    assert str(trans) == "Insert an OpenMP Master region"
+
+
+def test_ompmaster_nested():
+    '''Tests to check OMPMasterTrans rejects being applied to another
+    OMPMasterTrans'''
+
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    master = OMPMasterTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # Successful transformation test
+    node = schedule[0]
+    master.apply(node)
+    assert isinstance(schedule[0], OMPMasterDirective)
+    assert schedule[0].dir_body[0] is node
+    with pytest.raises(TransformationError) as err:
+        master.apply(schedule[0])
+    assert("Transformation Error: Nodes of type 'OMPMasterDirective' cannot" +
+           " be enclosed by a OMPMasterTrans transformation"
+           in str(err.value))
+
+
 # Tests for ProfileTrans
 
 
@@ -268,7 +325,6 @@ def test_profile_trans_name(options):
     set to None.
 
     '''
-    from psyclone.tests.utilities import get_invoke
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()

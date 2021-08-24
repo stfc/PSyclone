@@ -57,8 +57,8 @@ def test_reference_bad_init():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = Reference("hello")
-    assert ("In Reference initialisation expecting a symbol but found 'str'."
-            in str(excinfo.value))
+    assert ("The Reference symbol setter expects a PSyIR Symbol object but "
+            "found 'str'." in str(excinfo.value))
 
 
 def test_reference_node_str():
@@ -66,7 +66,7 @@ def test_reference_node_str():
     kschedule = KernelSchedule("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
-    assignment = Assignment(parent=kschedule)
+    assignment = Assignment()
     ref = Reference(symbol, assignment)
     coloredtext = colored("Reference", Reference._colour)
     assert coloredtext+"[name:'rname']" in ref.node_str()
@@ -78,7 +78,7 @@ def test_reference_can_be_printed():
     kschedule = KernelSchedule("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
-    assignment = Assignment(parent=kschedule)
+    assignment = Assignment()
     ref = Reference(symbol, assignment)
     assert "Reference[name:'rname']" in str(ref)
 
@@ -138,10 +138,28 @@ def test_reference_accesses_bounds(operator_type):
     # test when first or second argument to LBOUND or UBOUND is an
     # array reference
     operator = BinaryOperation.create(operator_type, array_ref1, array_ref2)
-    array_access.children[0] = Range.create(operator, one, one)
+    array_access.children[0] = Range.create(operator, one.copy(), one.copy())
     var_access_info = VariablesAccessInfo()
     array_ref1.reference_accesses(var_access_info)
     assert str(var_access_info) == ""
     var_access_info = VariablesAccessInfo()
     array_ref2.reference_accesses(var_access_info)
     assert str(var_access_info) == "test: READ"
+
+
+def test_reference_can_be_copied():
+    ''' Test that a reference can be copied. '''
+
+    array_symbol = DataSymbol("symbol", ArrayType(REAL_TYPE, [10]))
+    scalar_symbol = DataSymbol("other", REAL_TYPE)
+
+    ref = Reference(array_symbol)
+
+    ref1 = ref.copy()
+    assert isinstance(ref1, Reference)
+    assert ref1 is not ref
+    assert ref1.symbol is array_symbol
+
+    # Modifying the new reference does not affect the original
+    ref1._symbol = scalar_symbol
+    assert ref.symbol is array_symbol

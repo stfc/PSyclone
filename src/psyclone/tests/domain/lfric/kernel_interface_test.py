@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''Test that the expected kernel arguments, based on the kernel
 metadata, are created and declared within a symbol table using
@@ -50,7 +51,7 @@ from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
 from psyclone.errors import InternalError
-from psyclone.core.access_info import VariableAccessInfo, AccessType
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, os.pardir, "test_files", "dynamo0p3")
@@ -69,7 +70,7 @@ def test_init():
     assert kernel_interface._arglist == []
 
 
-@pytest.mark.parametrize("var_accesses", [None, VariableAccessInfo("test")])
+@pytest.mark.parametrize("var_accesses", [None, VariablesAccessInfo()])
 def test_generate(var_accesses):
     '''Test that the KernelInterface class generate method creates the
     expected symbols and adds them to the symbol table and its
@@ -109,14 +110,14 @@ def test_generate(var_accesses):
     assert dofmap_w0_symbol.fs == "w0"
     # Check array dimensions
     assert len(f1_field_symbol.shape) == 1
-    assert isinstance(f1_field_symbol.shape[0], Reference)
-    assert f1_field_symbol.shape[0].symbol is undf_w0_symbol
+    assert isinstance(f1_field_symbol.shape[0].upper, Reference)
+    assert f1_field_symbol.shape[0].upper.symbol is undf_w0_symbol
     assert len(f2_field_symbol.shape) == 1
-    assert isinstance(f2_field_symbol.shape[0], Reference)
-    assert f2_field_symbol.shape[0].symbol is undf_w0_symbol
+    assert isinstance(f2_field_symbol.shape[0].upper, Reference)
+    assert f2_field_symbol.shape[0].upper.symbol is undf_w0_symbol
     assert len(dofmap_w0_symbol.shape) == 1
-    assert isinstance(dofmap_w0_symbol.shape[0], Reference)
-    assert dofmap_w0_symbol.shape[0].symbol is ndf_w0_symbol
+    assert isinstance(dofmap_w0_symbol.shape[0].upper, Reference)
+    assert dofmap_w0_symbol.shape[0].upper.symbol is ndf_w0_symbol
     # Check argument list
     arg_list = kernel_interface._symbol_table.argument_datasymbols
     assert len(arg_list) == 6
@@ -129,20 +130,18 @@ def test_generate(var_accesses):
     if var_accesses:
         # Check that the names of variables and their intent has been
         # captured by the data dependence analysis
-        accesses = var_accesses.all_accesses
-        assert len(accesses) == 6
-        assert accesses[0].access_type == "nlayers"
-        assert accesses[0].location == AccessType.READ
-        assert accesses[1].access_type == "undf_w0"
-        assert accesses[1].location == AccessType.READ
-        assert accesses[2].access_type == "f1"
-        assert accesses[2].location == AccessType.READWRITE
-        assert accesses[3].access_type == "f2"
-        assert accesses[3].location == AccessType.READ
-        assert accesses[4].access_type == "ndf_w0"
-        assert accesses[4].location == AccessType.READ
-        assert accesses[5].access_type == "dofmap_w0"
-        assert accesses[5].location == AccessType.READ
+        assert len(var_accesses.all_signatures) == 6
+
+        # Test all read-only variables
+        for var in ["nlayers", "undf_w0", "f2", "ndf_w0", "dofmap_w0"]:
+            accesses = var_accesses[Signature(var)]
+            assert len(accesses.all_accesses) == 1
+            assert accesses[0].access_type == AccessType.READ
+
+        # Test the read-write variable
+        accesses = var_accesses[Signature("f1")]
+        assert len(accesses.all_accesses) == 1
+        assert accesses[0].access_type == AccessType.READWRITE
 
 
 def test_cell_position():
@@ -234,8 +233,8 @@ def test_field_vector(monkeypatch):
         assert kernel_interface._arglist[idx-3] is symbol
         assert symbol.fs == vector_arg.function_space.orig_name
         assert len(symbol.shape) == 1
-        assert isinstance(symbol.shape[0], Reference)
-        assert symbol.shape[0].symbol is undf_symbol
+        assert isinstance(symbol.shape[0].upper, Reference)
+        assert symbol.shape[0].upper.symbol is undf_symbol
 
     # Force an exception by setting the intrinsic type to an unsupported value
     monkeypatch.setattr(vector_arg, "_intrinsic_type", "unsupported")
@@ -281,8 +280,8 @@ def test_field(monkeypatch):
     assert kernel_interface._arglist[-1] is symbol
     assert symbol.fs == field_arg.function_space.orig_name
     assert len(symbol.shape) == 1
-    assert isinstance(symbol.shape[0], Reference)
-    assert symbol.shape[0].symbol is undf_symbol
+    assert isinstance(symbol.shape[0].upper, Reference)
+    assert symbol.shape[0].upper.symbol is undf_symbol
 
     # Force an exception by setting the intrinsic type to an unsupported value
     monkeypatch.setattr(field_arg, "_intrinsic_type", "unsupported")
@@ -380,12 +379,12 @@ def test_operator():
     assert symbol.fs_from == operator_arg.function_space_from.orig_name
     assert symbol.fs_to == operator_arg.function_space_to.orig_name
     assert len(symbol.shape) == 3
-    assert isinstance(symbol.shape[0], Reference)
-    assert symbol.shape[0].symbol is fs_from_symbol
-    assert isinstance(symbol.shape[1], Reference)
-    assert symbol.shape[1].symbol is fs_to_symbol
-    assert isinstance(symbol.shape[2], Reference)
-    assert symbol.shape[2].symbol is ncells_symbol
+    assert isinstance(symbol.shape[0].upper, Reference)
+    assert symbol.shape[0].upper.symbol is fs_from_symbol
+    assert isinstance(symbol.shape[1].upper, Reference)
+    assert symbol.shape[1].upper.symbol is fs_to_symbol
+    assert isinstance(symbol.shape[2].upper, Reference)
+    assert symbol.shape[2].upper.symbol is ncells_symbol
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
@@ -493,8 +492,8 @@ def test_fs_compulsory_field():
     assert kernel_interface._arglist[-1] is symbol
     assert symbol.fs == fs_name
     assert len(symbol.shape) == 1
-    assert isinstance(symbol.shape[0], Reference)
-    assert symbol.shape[0].symbol is ndf_symbol
+    assert isinstance(symbol.shape[0].upper, Reference)
+    assert symbol.shape[0].upper.symbol is ndf_symbol
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
@@ -568,14 +567,14 @@ def test_basis_xyoz():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-1] is basis_symbol
     assert len(basis_symbol.shape) == 4
-    assert isinstance(basis_symbol.shape[0], Literal)
-    assert basis_symbol.shape[0].value == "3"
-    assert isinstance(basis_symbol.shape[1], Reference)
-    assert basis_symbol.shape[1].symbol is ndf_symbol
-    assert isinstance(basis_symbol.shape[2], Reference)
-    assert basis_symbol.shape[2].symbol is nqph_symbol
-    assert isinstance(basis_symbol.shape[3], Reference)
-    assert basis_symbol.shape[3].symbol is nqpv_symbol
+    assert isinstance(basis_symbol.shape[0].upper, Literal)
+    assert basis_symbol.shape[0].upper.value == "3"
+    assert isinstance(basis_symbol.shape[1].upper, Reference)
+    assert basis_symbol.shape[1].upper.symbol is ndf_symbol
+    assert isinstance(basis_symbol.shape[2].upper, Reference)
+    assert basis_symbol.shape[2].upper.symbol is nqph_symbol
+    assert isinstance(basis_symbol.shape[3].upper, Reference)
+    assert basis_symbol.shape[3].upper.symbol is nqpv_symbol
 
 
 def test_basis_face():
@@ -628,14 +627,14 @@ def test_basis_face():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-1] is basis_symbol
     assert len(basis_symbol.shape) == 4
-    assert isinstance(basis_symbol.shape[0], Literal)
-    assert basis_symbol.shape[0].value == "3"
-    assert isinstance(basis_symbol.shape[1], Reference)
-    assert basis_symbol.shape[1].symbol is ndf_symbol
-    assert isinstance(basis_symbol.shape[2], Reference)
-    assert basis_symbol.shape[2].symbol is nqp_symbol
-    assert isinstance(basis_symbol.shape[3], Reference)
-    assert basis_symbol.shape[3].symbol is nfaces_symbol
+    assert isinstance(basis_symbol.shape[0].upper, Literal)
+    assert basis_symbol.shape[0].upper.value == "3"
+    assert isinstance(basis_symbol.shape[1].upper, Reference)
+    assert basis_symbol.shape[1].upper.symbol is ndf_symbol
+    assert isinstance(basis_symbol.shape[2].upper, Reference)
+    assert basis_symbol.shape[2].upper.symbol is nqp_symbol
+    assert isinstance(basis_symbol.shape[3].upper, Reference)
+    assert basis_symbol.shape[3].upper.symbol is nfaces_symbol
 
 
 def test_basis_edge():
@@ -687,14 +686,14 @@ def test_basis_edge():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-1] is basis_symbol
     assert len(basis_symbol.shape) == 4
-    assert isinstance(basis_symbol.shape[0], Literal)
-    assert basis_symbol.shape[0].value == "3"
-    assert isinstance(basis_symbol.shape[1], Reference)
-    assert basis_symbol.shape[1].symbol is ndf_symbol
-    assert isinstance(basis_symbol.shape[2], Reference)
-    assert basis_symbol.shape[2].symbol is nqp_symbol
-    assert isinstance(basis_symbol.shape[3], Reference)
-    assert basis_symbol.shape[3].symbol is nedges_symbol
+    assert isinstance(basis_symbol.shape[0].upper, Literal)
+    assert basis_symbol.shape[0].upper.value == "3"
+    assert isinstance(basis_symbol.shape[1].upper, Reference)
+    assert basis_symbol.shape[1].upper.symbol is ndf_symbol
+    assert isinstance(basis_symbol.shape[2].upper, Reference)
+    assert basis_symbol.shape[2].upper.symbol is nqp_symbol
+    assert isinstance(basis_symbol.shape[3].upper, Reference)
+    assert basis_symbol.shape[3].upper.symbol is nedges_symbol
 
 
 def test_diff_basis():
@@ -751,14 +750,14 @@ def test_diff_basis():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-1] is diff_basis_symbol
     assert len(diff_basis_symbol.shape) == 4
-    assert isinstance(diff_basis_symbol.shape[0], Literal)
-    assert diff_basis_symbol.shape[0].value == "1"
-    assert isinstance(diff_basis_symbol.shape[1], Reference)
-    assert diff_basis_symbol.shape[1].symbol is ndf_symbol
-    assert isinstance(diff_basis_symbol.shape[2], Reference)
-    assert diff_basis_symbol.shape[2].symbol is nqph_symbol
-    assert isinstance(diff_basis_symbol.shape[3], Reference)
-    assert diff_basis_symbol.shape[3].symbol is nqpv_symbol
+    assert isinstance(diff_basis_symbol.shape[0].upper, Literal)
+    assert diff_basis_symbol.shape[0].upper.value == "1"
+    assert isinstance(diff_basis_symbol.shape[1].upper, Reference)
+    assert diff_basis_symbol.shape[1].upper.symbol is ndf_symbol
+    assert isinstance(diff_basis_symbol.shape[2].upper, Reference)
+    assert diff_basis_symbol.shape[2].upper.symbol is nqph_symbol
+    assert isinstance(diff_basis_symbol.shape[3].upper, Reference)
+    assert diff_basis_symbol.shape[3].upper.symbol is nqpv_symbol
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
@@ -849,8 +848,8 @@ def test_quad_rule_xyoz():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-2] is weightsh_symbol
     assert len(weightsh_symbol.shape) == 1
-    assert isinstance(weightsh_symbol.shape[0], Reference)
-    assert weightsh_symbol.shape[0].symbol is nqph_symbol
+    assert isinstance(weightsh_symbol.shape[0].upper, Reference)
+    assert weightsh_symbol.shape[0].upper.symbol is nqph_symbol
     # weights_z declared and added to argument list
     weightsz_symbol = kernel_interface._symbol_table.lookup("weights_z")
     assert isinstance(
@@ -860,8 +859,8 @@ def test_quad_rule_xyoz():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-1] is weightsz_symbol
     assert len(weightsz_symbol.shape) == 1
-    assert isinstance(weightsz_symbol.shape[0], Reference)
-    assert weightsz_symbol.shape[0].symbol is nqpv_symbol
+    assert isinstance(weightsz_symbol.shape[0].upper, Reference)
+    assert weightsz_symbol.shape[0].upper.symbol is nqpv_symbol
 
 
 def test_quad_rule_face():
@@ -902,8 +901,8 @@ def test_quad_rule_face():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-1] is weights_symbol
     assert len(weights_symbol.shape) == 1
-    assert isinstance(weights_symbol.shape[0], Reference)
-    assert weights_symbol.shape[0].symbol is nqp_symbol
+    assert isinstance(weights_symbol.shape[0].upper, Reference)
+    assert weights_symbol.shape[0].upper.symbol is nqp_symbol
 
 
 def test_quad_rule_edge():
@@ -944,8 +943,8 @@ def test_quad_rule_edge():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-1] is weights_symbol
     assert len(weights_symbol.shape) == 1
-    assert isinstance(weights_symbol.shape[0], Reference)
-    assert weights_symbol.shape[0].symbol is nqp_symbol
+    assert isinstance(weights_symbol.shape[0].upper, Reference)
+    assert weights_symbol.shape[0].upper.symbol is nqp_symbol
 
 
 def test_quad_rule_error(monkeypatch):

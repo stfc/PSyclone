@@ -62,14 +62,17 @@ DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
-VALID_PSY_DATA_PREFIXES = profile extract
+VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
 [dynamo0.3]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
+supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
 RUN_TIME_CHECKS = false
+NUM_ANY_SPACE = 10
+NUM_ANY_DISCONTINUOUS_SPACE = 10
 '''
 
 
@@ -125,6 +128,28 @@ def int_entry(request):
     :rtype: str
     '''
     return request.param
+
+
+def config(config_file, content):
+    ''' A utility function that creates and populates a temporary
+    PSyclone configuration file for testing purposes.
+
+    :param config_file: local path to the temporary configuration file.
+    :type config: :py:class:`py._path.local.LocalPath`
+    :param str content: the entry for the temporary configuration file.
+
+    :returns: a test Config instance.
+    :rtype: :py:class:`psyclone.configuration.Config`
+
+    '''
+    # Create and populate a temporary config file
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+    # Create and populate a test Config object
+    config_obj = Config()
+    config_obj.load(config_file=str(config_file))
+    return config_obj
 
 
 def test_get_repo_config_file():
@@ -231,7 +256,7 @@ def test_search_env(monkeypatch, tmpdir):
         os.mkdir(cfg_dir)
         with open(os.path.join(cfg_dir, "psyclone.cfg"), "w") as cfile:
             cfile.write(TEST_CONFIG)
-        # Point PSYCLONE_CONFIG to a non-existant file - we should revert
+        # Point PSYCLONE_CONFIG to a non-existent file - we should revert
         # to the normal search path in this case
         cfg_file = os.path.join(cwd, "not_a_dir", "psyclone.cfg")
         monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
@@ -301,152 +326,138 @@ def test_dm():
 
 def test_api_not_in_list(tmpdir):
     ''' Check that we raise an error if the default API is not in
-    the list of supported APIs '''
+    the list of supported APIs.
+
+    '''
+    config_file = tmpdir.join("config")
     content = re.sub(r"^API = .*$",
                      "API = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=str(config_file))
 
-        assert ("The API (invalid) is not in the list of "
-                "supported APIs" in str(err.value))
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("The API (invalid) is not in the list of "
+            "supported APIs" in str(err.value))
 
 
 def test_default_stubapi_invalid(tmpdir):
     ''' Check that we raise an error if the default stub API is not in
-    the list of supported stub APIs '''
+    the list of supported stub APIs.
+
+    '''
+    config_file = tmpdir.join("config")
     content = re.sub(r"^DEFAULTSTUBAPI = .*$",
                      "DEFAULTSTUBAPI = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    config_name = tmpdir.join("config")
-    with config_name.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=str(config_name))
 
-        assert ("The default stub API (invalid) is not in the list of "
-                "supported stub APIs" in str(err.value))
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("The default stub API (invalid) is not in the list of "
+            "supported stub APIs" in str(err.value))
 
 
 def test_default_stubapi_missing(tmpdir):
     ''' Check that we raise an error if the default stub API is missing,
-    in which case it defaults to the default_api'''
+    in which case it defaults to the default_api.
+
+    '''
+    config_file = tmpdir.join("config")
     content = re.sub(r"^DEFAULTSTUBAPI = .*$",
                      "",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        config.load(config_file=str(config_file))
 
-        assert config.default_stub_api == config.default_api
+    test_config = config(config_file, content)
+
+    assert test_config.default_stub_api == test_config.default_api
 
 
 def test_not_bool(bool_entry, tmpdir):
     ''' Check that we catch cases where we expect a boolean in the config
-    file but don't get one. '''
+    file but don't get one.
+
+    '''
+    config_file = tmpdir.join("config")
     content = re.sub(r"^{0} = .*$".format(bool_entry),
                      "{0} = wrong".format(bool_entry),
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
 
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=str(config_file))
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
 
-        assert "configuration error (file=" in str(err.value)
-        assert ": error while parsing {0}".format(bool_entry) in str(err.value)
-        assert "Not a boolean: wrong" in str(err.value)
+    assert "configuration error (file=" in str(err.value)
+    assert ": Error while parsing {0}".format(bool_entry) in str(err.value)
+    assert "Not a boolean: wrong" in str(err.value)
 
 
 def test_not_int(int_entry, tmpdir):
     ''' Check that we catch cases where we expect an integer in the config
-    file but don't get one. '''
+    file but don't get one.
+
+    '''
+    config_file = tmpdir.join("config")
     content = re.sub(r"^{0} = .*$".format(int_entry),
                      "{0} = wrong".format(int_entry),
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
 
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=str(config_file))
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
 
-        assert "configuration error (file=" in str(err.value)
-        assert (": error while parsing {0}: invalid literal".format(int_entry)
-                in str(err.value))
+    assert "configuration error (file=" in str(err.value)
+    assert (": error while parsing {0}: invalid literal".format(int_entry)
+            in str(err.value))
 
 
 def test_broken_fmt(tmpdir):
     ''' Check the error if the formatting of the configuration file is
-    wrong. '''
+    wrong.
+
+    '''
+    config_file = tmpdir.join("config")
+
     # Create a 'config' file without any section headers
     content = "COMPUTE_ANNEXED_DOFS = false\n"
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
 
-        with pytest.raises(ConfigurationError) as err:
-            config = Config()
-            config.load(config_file=str(config_file))
-        assert ("ConfigParser failed to read the configuration file. Is it "
-                "formatted correctly? (Error was: File contains no section "
-                "headers" in str(err.value))
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+    assert ("ConfigParser failed to read the configuration file. Is it "
+            "formatted correctly? (Error was: File contains no section "
+            "headers" in str(err.value))
 
     # Test for general parsing error (here broken key-value mapping)
     content = re.sub(r"^DEFAULTSTUBAPI = .*$",
                      "DEFAULT",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
 
-        with pytest.raises(ConfigurationError) as err:
-            config = Config()
-            config.load(config_file=str(config_file))
-        assert "Error was: Source contains parsing errors" in str(err.value)
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+    assert "Error was: Source contains parsing errors" in str(err.value)
 
 
 def test_default_missing(tmpdir):
     ''' Check that we produce a suitable error if the [DEFAULT] section
-    of the configuration file is missing '''
+    of the configuration file is missing.
+
+    '''
+    config_file = tmpdir.join("config")
     content = '''\
 [dynamo0.3]
 COMPUTE_ANNEXED_DOFS = false
 '''
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
 
-        with pytest.raises(ConfigurationError) as err:
-            config = Config()
-            config.load(config_file=str(config_file))
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
 
-        assert "configuration error (file=" in str(err.value)
-        assert "Configuration file has no [DEFAULT] section" in str(err.value)
+    assert "configuration error (file=" in str(err.value)
+    assert "Configuration file has no [DEFAULT] section" in str(err.value)
 
 
 def test_wrong_api():
@@ -468,46 +479,41 @@ def test_wrong_api():
 
 def test_api_unimplemented(tmpdir, monkeypatch):
     ''' Check that we raise the correct error if we supply a config file
-        containing a section for an API for which we've not implemented
-        API-specific configuration. '''
+    containing a section for an API for which we've not implemented
+    API-specific configuration.
+
+    '''
     # Since all APIs need a API-specific section, for this error we
     # need to temporarily add a new supported API, that will not
     # be in the config file:
-
+    config_file = tmpdir.join("config")
     monkeypatch.setattr(Config, "_supported_api_list",
                         Config._supported_api_list + ["UNIMPLEMENTED"])
     content = re.sub(r"^\[dynamo0.3\]$",
                      "[UNIMPLEMENTED]",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        with pytest.raises(NotImplementedError) as err:
-            config.load(str(config_file))
-        assert ("file contains a UNIMPLEMENTED section but no Config "
-                "sub-class has been implemented for this API"
-                in str(err.value))
+
+    with pytest.raises(NotImplementedError) as err:
+        config(config_file, content)
+    assert ("file contains a UNIMPLEMENTED section but no Config "
+            "sub-class has been implemented for this API" in str(err.value))
 
 
 def test_default_api(tmpdir):
     '''If a config file has no default-api specified, but contains only
     a single (non-default) section, this section should be used as the
     default api.
+
     '''
+    config_file = tmpdir.join("config")
     content = re.sub(r"^API.*$",
                      "",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        config.load(str(config_file))
-        assert config.api == "dynamo0.3"
+
+    default_config = config(config_file, content)
+    assert default_config.api == "dynamo0.3"
 
 
 def test_root_name_init():
@@ -530,15 +536,12 @@ def test_root_name_load(tmpdir, content, result):
     config file when PSYIR_ROOT_NAME is and isn't provided.
 
     '''
-    config = Config()
     config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
 
-    config.load(str(config_file))
-    assert config._psyir_root_name == result
-    assert config.psyir_root_name == result
+    test_config = config(config_file, content)
+
+    assert test_config._psyir_root_name == result
+    assert test_config.psyir_root_name == result
 
 
 def test_kernel_naming_setter():
@@ -572,38 +575,37 @@ def test_incl_path_errors(tmpdir):
 
 def test_mappings():
     '''Test the definition of a mapping in the config file.'''
-    mapping = APISpecificConfig.create_dict_from_string("k1:v1, k2:v2")
+    mapping = APISpecificConfig.create_dict_from_list(["k1:v1", "k2:v2"])
     assert mapping == {"k1": "v1", "k2": "v2"}
 
-    mapping = APISpecificConfig.create_dict_from_string("")
+    mapping = APISpecificConfig.create_dict_from_list([])
     assert mapping == {}
 
     # The function only uses the first ":" :
     mapping = \
-        APISpecificConfig.create_dict_from_string("k1:v1, k2:v2:something")
-    assert mapping == {"k1": "v1", "k2": "v2:something"}
+        APISpecificConfig.create_dict_from_list(
+            ["k1 : v1", "k2 : v2 :something"])
+    assert mapping == {"k1": "v1", "k2": "v2 :something"}
 
     # Tests errors: check that '=' instead of ":" is detected as invalid:
     with pytest.raises(ConfigurationError) as err:
-        mapping = APISpecificConfig.create_dict_from_string("k1:v1, k2=v2")
+        mapping = APISpecificConfig.create_dict_from_list(["k1:v1", "k2=v2"])
     assert "Invalid format for mapping: k2=v2" in str(err.value)
 
 
 def test_invalid_access_mapping(tmpdir):
     '''Test that providing an invalid access type (i.e. not
     'read', 'write', ...) raises an exception.
+
     '''
     # Test for an invalid key
-    content = re.sub(r"gh_read: read", "gh_read: invalid", _CONFIG_CONTENT)
     config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        with pytest.raises(ConfigurationError) as cerr:
-            config.load(str(config_file))
-        assert "Unknown access type 'invalid' found for key 'gh_read'" \
-            in str(cerr.value)
+    content = re.sub(r"gh_read: read", "gh_read: invalid", _CONFIG_CONTENT)
+
+    with pytest.raises(ConfigurationError) as cerr:
+        config(config_file, content)
+    assert "Unknown access type 'invalid' found for key 'gh_read'" \
+        in str(cerr.value)
 
     # Test that all values of the mapping are access types:
     api_config = Config.get().api_conf("dynamo0.3")
@@ -612,88 +614,77 @@ def test_invalid_access_mapping(tmpdir):
 
 
 def test_default_access_mapping(tmpdir):
-    '''Test that the default access mapping is correctly converted
-    to AccessTypes.'''
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(_CONFIG_CONTENT)
-        new_cfg.close()
-        config = Config()
-        config.load(str(config_file))
+    ''' Test that the default access mapping is correctly converted
+    to AccessTypes.
 
-        api_config = config.api_conf("dynamo0.3")
-        for access_mode in api_config.get_access_mapping().values():
-            assert isinstance(access_mode, AccessType)
+    '''
+    config_file = tmpdir.join("config")
+
+    test_config = config(config_file, _CONFIG_CONTENT)
+
+    api_config = test_config.api_conf("dynamo0.3")
+    for access_mode in api_config.get_access_mapping().values():
+        assert isinstance(access_mode, AccessType)
 
 
 def test_access_mapping_order(tmpdir):
     ''' Test that the order of the access mappings in the config file
-    does not affect the correct access type-mode conversion. '''
+    does not affect the correct access type-mode conversion.
+
+    '''
+    config_file = tmpdir.join("config")
     content = re.sub(r"gh_write: write, gh_readwrite: readwrite",
                      "gh_readwrite: readwrite, gh_write: write",
                      _CONFIG_CONTENT)
     content = re.sub(r"gh_inc: inc, gh_sum: sum",
                      "gh_sum: sum, gh_inc: inc", content)
-    config_file = tmpdir.join("config")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        config.load(str(config_file))
 
-        api_config = Config.get().api_conf("dynamo0.3")
-        for access_mode in api_config.get_access_mapping().values():
-            assert isinstance(access_mode, AccessType)
+    api_config = config(config_file, content).get().api_conf("dynamo0.3")
+
+    for access_mode in api_config.get_access_mapping().values():
+        assert isinstance(access_mode, AccessType)
 
 
 def test_psy_data_prefix(tmpdir):
-    ''' Check the handling of PSyData class prefixes.'''
+    ''' Check the handling of PSyData class prefixes. '''
     config_file = tmpdir.join("config.correct")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(_CONFIG_CONTENT)
-        new_cfg.close()
-        config = Config()
-        config.load(config_file=str(config_file))
 
-        assert "profile" in config.valid_psy_data_prefixes
-        assert "extract" in config.valid_psy_data_prefixes
-        assert len(config.valid_psy_data_prefixes) == 2
+    test_config = config(config_file, _CONFIG_CONTENT)
+
+    assert "profile" in test_config.valid_psy_data_prefixes
+    assert "extract" in test_config.valid_psy_data_prefixes
+    assert len(test_config.valid_psy_data_prefixes) == 2
 
     # Now handle a config file without psy data prefixes:
     # This should not raise an exception, but define an empty list
+    config_file = tmpdir.join("config.no_psydata")
     content = re.sub(r"VALID_PSY_DATA_PREFIXES", "NO-PSY-DATA",
                      _CONFIG_CONTENT)
-    config_file = tmpdir.join("config.no_psydata")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        config.load(str(config_file))
-        assert not config.valid_psy_data_prefixes
+
+    test_config = config(config_file, content)
+
+    assert not test_config.valid_psy_data_prefixes
 
 
 def test_invalid_prefix(tmpdir):
     '''Tests invalid PSyData prefixes (i.e. ones that would result
     in invalid Fortran names when used).
-    '''
 
+    '''
     for prefix in ["1", "&AB", "?", "_ab", "ab'", "cd\"", "ef?"]:
+        config_file = tmpdir.join("config.invalid_psydata")
         content = re.sub(r"^VALID_PSY_DATA_PREFIXES.*$",
                          "VALID_PSY_DATA_PREFIXES="+prefix,
                          _CONFIG_CONTENT, flags=re.MULTILINE)
-        config_file = tmpdir.join("config.invalid_psydata")
-        with config_file.open(mode="w") as new_cfg:
-            new_cfg.write(content)
-            new_cfg.close()
-            config = Config()
-            with pytest.raises(ConfigurationError) as err:
-                config.load(config_file=str(config_file))
-            # When there is a '"' in the invalid prefix, the "'" in the
-            # error message is escaped with a '\'. So in order to test the
-            # invalid 'cd"' prefix, we need to have two tests in the assert:
-            assert "Invalid PsyData-prefix '{0}' in config file" \
-                   .format(prefix) in str(err.value)  \
-                or "Invalid PsyData-prefix \\'{0}\\' in config file" \
-                   .format(prefix) in str(err.value)
-            assert "The prefix must be valid for use as the start of a " \
-                   "Fortran variable name." in str(err.value)
+
+        with pytest.raises(ConfigurationError) as err:
+            config(config_file, content)
+        # When there is a '"' in the invalid prefix, the "'" in the
+        # error message is escaped with a '\'. So in order to test the
+        # invalid 'cd"' prefix, we need to have two tests in the assert:
+        assert "Invalid PsyData-prefix '{0}' in config file" \
+               .format(prefix) in str(err.value)  \
+            or "Invalid PsyData-prefix \\'{0}\\' in config file" \
+               .format(prefix) in str(err.value)
+        assert "The prefix must be valid for use as the start of a " \
+               "Fortran variable name." in str(err.value)

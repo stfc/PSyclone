@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
-from psyclone.core.access_info import AccessType
+from psyclone.core import AccessType, Signature
 from psyclone.psyir.symbols import Symbol
 
 
@@ -54,8 +54,6 @@ class Reference(DataNode):
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
-    :raises TypeError: if the symbol argument is not of type Symbol.
-
     '''
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
@@ -63,11 +61,8 @@ class Reference(DataNode):
     _colour = "yellow"
 
     def __init__(self, symbol, parent=None):
-        if not isinstance(symbol, Symbol):
-            raise TypeError("In Reference initialisation expecting a symbol "
-                            "but found '{0}'.".format(type(symbol).__name__))
         super(Reference, self).__init__(parent=parent)
-        self._symbol = symbol
+        self.symbol = symbol
 
     @property
     def symbol(self):
@@ -78,6 +73,21 @@ class Reference(DataNode):
 
         '''
         return self._symbol
+
+    @symbol.setter
+    def symbol(self, symbol):
+        '''
+        :param symbol: the new symbol being referenced.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises TypeError: if the symbol argument is not of type Symbol.
+
+        '''
+        if not isinstance(symbol, Symbol):
+            raise TypeError(
+                "The Reference symbol setter expects a PSyIR Symbol object "
+                "but found '{0}'.".format(type(symbol).__name__))
+        self._symbol = symbol
 
     @property
     def name(self):
@@ -114,9 +124,20 @@ class Reference(DataNode):
             return False
         return self.name == other.name
 
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this reference, and \
+            an empty list of lists as 'indices' since this reference does \
+            not represent an array access.
+        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
+            list of indices)
+        '''
+        return (Signature(self.name), [[]])
+
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.
-        it sets this variable to be read.
+        it sets this variable to be read. It relies on
+        `get_signature_and_indices` and will correctly handle
+        array expressions.
 
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
@@ -133,7 +154,11 @@ class Reference(DataNode):
             # array elements, they determine the array
             # bounds. Therefore there is no data dependence.
             return
-        var_accesses.add_access(self.name, AccessType.READ, self)
+        sig, all_indices = self.get_signature_and_indices()
+        for indices in all_indices:
+            for index in indices:
+                index.reference_accesses(var_accesses)
+        var_accesses.add_access(sig, AccessType.READ, self, all_indices)
 
 
 # For AutoAPI documentation generation

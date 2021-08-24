@@ -76,7 +76,7 @@ def example_psyir_binary(create_expression):
         content of the first argument of the MIN operator.
 
     :returns: PSyIR MIN operator instance.
-    :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
+    :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
     '''
     symbol_table = SymbolTable()
@@ -103,7 +103,7 @@ def example_psyir_nary():
     intrinsic operator and returns the operator.
 
     :returns: PSyIR MIN operator instance.
-    :rtype: :py:class:`psyclone.psyGen.NaryOperation`
+    :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
 
     '''
     symbol_table = SymbolTable()
@@ -142,8 +142,9 @@ def test_correct_binary(func, output, tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir_binary(func)
+    root = operation.root
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -152,8 +153,8 @@ def test_correct_binary(func, output, tmpdir):
         "  psyir_tmp = MIN({0}, arg_1)\n\n"
         "end subroutine min_example\n".format(output)) in result
     trans = Min2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -180,16 +181,17 @@ def test_correct_expr(tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir_binary(lambda arg: arg)
+    root = operation.root
     assignment = operation.parent
+    operation.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  op1, Literal("2.0", REAL_TYPE))
-    op2.parent = assignment
-    assignment.children[1] = op2
+    assignment.addchild(op2)
 
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -199,7 +201,7 @@ def test_correct_expr(tmpdir):
         "end subroutine min_example\n") in result
     trans = Min2CodeTrans()
     trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -226,17 +228,18 @@ def test_correct_2min(tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir_binary(lambda arg: arg)
+    root = operation.root
     assignment = operation.parent
+    operation.detach()
     min_op = BinaryOperation.create(BinaryOperation.Operator.MIN,
                                     Literal("1.0", REAL_TYPE),
                                     Literal("2.0", REAL_TYPE))
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  min_op, operation)
-    op1.parent = assignment
-    assignment.children[1] = op1
+    assignment.addchild(op1)
 
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -245,9 +248,9 @@ def test_correct_2min(tmpdir):
         "  psyir_tmp = MIN(1.0, 2.0) + MIN(arg, arg_1)\n\n"
         "end subroutine min_example\n") in result
     trans = Min2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    trans.apply(min_op, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    trans.apply(min_op, root.symbol_table)
+    result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -281,8 +284,9 @@ def test_correct_nary(tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir_nary()
+    root = operation.root
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1, arg_2)\n"
         "  real, intent(inout) :: arg\n"
@@ -293,7 +297,7 @@ def test_correct_nary(tmpdir):
         "end subroutine min_example\n") in result
     trans = Min2CodeTrans()
     trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1, arg_2)\n"
         "  real, intent(inout) :: arg\n"

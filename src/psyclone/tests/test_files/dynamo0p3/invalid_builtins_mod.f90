@@ -63,7 +63,7 @@ module lfric_builtins_mod
   end type aX_plus_Y
 
   !> An invalid built-in that updates two arguments where one is a scalar
-  !! reduction (gh_sum) and the other is a field with gh_readwrite access
+  !! reduction ('gh_sum') and the other is a field with 'gh_readwrite' access
   type, public, extends(kernel_type) :: inc_aX_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -91,8 +91,8 @@ module lfric_builtins_mod
      procedure, nopass :: aX_plus_bY_code
   end type aX_plus_bY
 
-  !> An invalid built-in that writes to two field arguments
-  !! but with different access types - one is gh_write, one is gh_readwrite.
+  !> An invalid built-in that writes to two field arguments but with
+  !! different access types - one is 'gh_write', one is 'gh_readwrite'
   type, public, extends(kernel_type) :: inc_aX_plus_bY
      private
      type(arg_type) :: meta_args(4) = (/                              &
@@ -119,6 +119,7 @@ module lfric_builtins_mod
   end type setval_X
 
   !> Invalid built-in that claims to take an operator as an argument
+  !! (invalid argument type)
   type, public, extends(kernel_type) :: a_times_X
      private
      type(arg_type) :: meta_args(3) = (/                                      &
@@ -130,6 +131,19 @@ module lfric_builtins_mod
    contains
      procedure, nopass :: a_times_X_code
   end type a_times_X
+
+  !> Invalid built-in that takes a 'logical' scalar as an argument
+  !! (invalid data type)
+  type, public, extends(kernel_type) :: inc_a_divideby_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_LOGICAL, GH_READ                  ), &
+          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_SPACE_1)  &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_a_divideby_X_code
+  end type inc_a_divideby_X
 
   !> Invalid built-in that has arguments on different spaces
   type, public, extends(kernel_type) :: inc_X_divideby_Y
@@ -143,8 +157,19 @@ module lfric_builtins_mod
      procedure, nopass :: inc_X_divideby_Y_code
   end type inc_X_divideby_Y
 
-  ! TODO in #1107: Add a check that mixing will only be allowed for the
-  ! built-ins that convert 'real'- to 'integer'-valued fields and vice-versa.
+  !> Invalid built-in that has field arguments of different primitive
+  !> types and is not a data-type conversion built-in
+  type, public, extends(kernel_type) :: X_minus_Y
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1),     &
+          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_1)      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: X_minus_Y_code
+  end type X_minus_Y
 
 contains
 
@@ -166,7 +191,13 @@ contains
   subroutine a_times_X_code()
   end subroutine a_times_X_code
 
+  subroutine inc_a_divideby_X_code()
+  end subroutine inc_a_divideby_X_code
+
   subroutine inc_X_divideby_Y_code()
   end subroutine inc_X_divideby_Y_code
+
+  subroutine X_minus_Y_code()
+  end subroutine X_minus_Y_code
 
 end module lfric_builtins_mod

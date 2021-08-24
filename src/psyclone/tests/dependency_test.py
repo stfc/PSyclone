@@ -44,12 +44,14 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
-from psyclone.core.access_info import VariablesAccessInfo
-from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import KernCallAccArgList
-from psyclone.psyGen import PSyFactory
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.domain.lfric import KernCallAccArgList, KernStubArgList
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import CodedKern, PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
+from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
 
 # Constants
 API = "nemo"
@@ -80,17 +82,17 @@ def test_assignment(parser):
     assert isinstance(scalar_assignment, Assignment)
     var_accesses = VariablesAccessInfo(scalar_assignment)
     # Test some test functions explicitly:
-    assert var_accesses.is_written("a")
-    assert not var_accesses.is_read("a")
-    assert not var_accesses.is_written("b")
-    assert var_accesses.is_read("b")
+    assert var_accesses.is_written(Signature("a"))
+    assert not var_accesses.is_read(Signature("a"))
+    assert not var_accesses.is_written(Signature("b"))
+    assert var_accesses.is_read(Signature("b"))
 
     # Array element assignment: c(i,j) = d(i,j+1)+e+f(x,y)
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
     var_accesses = VariablesAccessInfo(array_assignment)
-    assert str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "\
-                                "i: READ, j: READ, x: READ, y: READ"
+    assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "
+                                 "i: READ, j: READ, x: READ, y: READ")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
@@ -138,11 +140,10 @@ def test_double_variable_lhs(parser):
     indirect_addressing = schedule[0]
     assert isinstance(indirect_addressing, Assignment)
     var_accesses = VariablesAccessInfo()
-    from psyclone.parse.utils import ParseError
-    with pytest.raises(ParseError) as err:
+    with pytest.raises(NotImplementedError) as err:
         indirect_addressing.reference_accesses(var_accesses)
-    assert "The variable 'g' appears more than once on the left-hand side "\
-           "of an assignment." in str(err.value)
+    assert ("The variable 'g' appears more than once on the left-hand side "
+            "of an assignment." in str(err.value))
 
 
 def test_if_statement(parser):
@@ -164,10 +165,10 @@ def test_if_statement(parser):
     if_stmt = schedule.children[0]
     assert isinstance(if_stmt, IfBlock)
     var_accesses = VariablesAccessInfo(if_stmt)
-    assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
-                                "q: READ+WRITE, r: READ"
+    assert (str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "
+                                 "q: READ+WRITE, r: READ")
     # Test that the two accesses to 'q' indeed show up as
-    q_accesses = var_accesses["q"].all_accesses
+    q_accesses = var_accesses[Signature("q")].all_accesses
     assert len(q_accesses) == 2
     assert q_accesses[0].access_type == AccessType.READ
     assert q_accesses[1].access_type == AccessType.WRITE
@@ -210,8 +211,8 @@ def test_do_loop(parser):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "\
-                                "s: WRITE, t: READ"
+    assert (str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "
+                                 "s: WRITE, t: READ")
 
 
 def test_nemo_array_range(parser):
@@ -241,7 +242,7 @@ def test_nemo_array_range(parser):
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
     TODO #440: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after genCode is called will
+    strings, which are even not defined. Only after gen_code() is called will
     they be defined.
     '''
 
@@ -250,9 +251,9 @@ def test_goloop():
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "\
-                                "j: READ+WRITE, " "ssh_fld: READ+WRITE, "\
-                                "tmask: READ"
+    assert (str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "
+                                 "j: READ+WRITE, " "ssh_fld: READ+WRITE, "
+                                 "tmask: READ")
     # TODO #440: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
     # The empty value is caused by not having start, stop, end of the loop
     # defined at this stage.
@@ -275,9 +276,48 @@ def test_goloop_partially():
     assert not do_loop.args[3].is_scalar
 
     var_accesses = VariablesAccessInfo(do_loop)
-    assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
-           "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "\
-           "ssh_fld%grid%tmask: READ" in str(var_accesses)
+    assert ("a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "
+            "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
+            "ssh_fld%grid%tmask: READ" in str(var_accesses))
+
+
+def test_goloop_field_accesses():
+    ''' Check that for a GOcean kernel appropriate field accesses (based
+    on the meta data) are added to the dependency analysis.
+
+    '''
+    _, invoke = get_invoke("large_stencil.f90",
+                           "gocean1.0", name="invoke_large_stencil",
+                           dist_mem=False)
+    do_loop = invoke.schedule.children[0]
+
+    assert isinstance(do_loop, Loop)
+    var_accesses = VariablesAccessInfo(invoke.schedule)
+
+    # cu_fld has a pointwise write access in the first loop:
+    cu_fld = var_accesses[Signature("cu_fld")]
+    assert len(cu_fld.all_accesses) == 1
+    assert cu_fld.all_accesses[0].access_type == AccessType.WRITE
+    assert (cu_fld.all_accesses[0].component_indices.indices_lists
+            == [["i", "j"]])
+
+    # The stencil is defined to be GO_STENCIL(123,110,100)) for
+    # p_fld. Make sure that these 9 accesses are indeed reported:
+    p_fld = var_accesses[Signature("p_fld")]
+    all_indices = [access.component_indices.indices_lists
+                   for access in p_fld.all_accesses]
+
+    for test_index in [["i-1", "j+1"],
+                       ["i", "j+1"], ["i", "j+2"],
+                       ["i+1", "j+1"], ["i+2", "j+2"], ["i+3", "j+3"],
+                       ["i-1", "j"],
+                       ["i", "j"],
+                       ["i-1", "j-1"]]:
+        assert [test_index] in all_indices
+
+    # Since we have 9 different indices found (above), the following
+    # test guarantees that we don't get any invalid accesses reported.
+    assert len(p_fld.all_accesses) == 9
 
 
 def test_dynamo():
@@ -288,7 +328,6 @@ def test_dynamo():
     from the kernel metadata, not the actual kernel usage.
 
     '''
-    from psyclone.parse.algorithm import parse
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -298,10 +337,10 @@ def test_dynamo():
     schedule = invoke.schedule
 
     var_accesses = VariablesAccessInfo(schedule)
-    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "\
-        "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "\
-        "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "\
-        "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ"
+    assert (str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "
+            "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "
+            "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
+            "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
 
 
 def test_location(parser):
@@ -334,57 +373,51 @@ def test_location(parser):
 
     var_accesses = VariablesAccessInfo(schedule)
     # Test accesses for a:
-    a_accesses = var_accesses["a"].all_accesses
+    a_accesses = var_accesses[Signature("a")].all_accesses
     assert a_accesses[0].location == 0
     assert a_accesses[1].location == 1
     assert a_accesses[2].location == 6
     assert a_accesses[3].location == 12
 
     # b should have the same locations as a:
-    b_accesses = var_accesses["b"].all_accesses
+    b_accesses = var_accesses[Signature("b")].all_accesses
     assert len(a_accesses) == len(b_accesses)
     for (index, access) in enumerate(a_accesses):
         assert b_accesses[index].location == access.location
 
-    q_accesses = var_accesses["q"].all_accesses
+    q_accesses = var_accesses[Signature("q")].all_accesses
     assert q_accesses[0].location == 2
     assert q_accesses[1].location == 4
 
     # Test jj for the loop statement. Note that 'jj' has one read and
     # one write access for the DO statement
-    jj_accesses = var_accesses["jj"].all_accesses
+    jj_accesses = var_accesses[Signature("jj")].all_accesses
     assert jj_accesses[0].location == 7
     assert jj_accesses[1].location == 7
     assert jj_accesses[2].location == 9
     assert jj_accesses[3].location == 9
 
-    ji_accesses = var_accesses["ji"].all_accesses
+    ji_accesses = var_accesses[Signature("ji")].all_accesses
     assert ji_accesses[0].location == 8
     assert ji_accesses[1].location == 8
     assert ji_accesses[2].location == 9
     assert ji_accesses[3].location == 9
 
     # Verify that x=x+1 shows the READ access before the write access
-    x_accesses = var_accesses["x"].all_accesses    # x=x+1
+    x_accesses = var_accesses[Signature("x")].all_accesses    # x=x+1
     assert x_accesses[0].access_type == AccessType.READ
     assert x_accesses[1].access_type == AccessType.WRITE
     assert x_accesses[0].location == x_accesses[1].location
 
 
-@pytest.mark.xfail(reason="#1028 dependency analysis for structures needs "
-                   "to be implemented")
 def test_user_defined_variables(parser):
-    ''' Test reading and writing to user defined variables. This is
-    not supported atm because the dependence analysis for these PSyIR
-    nodes has not yet been implemented (#1028).
-
-    Also TODO #1028: is this a duplicate of test_derived_type in
-    tests/psyir/dependency_tools_test.py?
+    ''' Test reading and writing to user defined variables.
     '''
     reader = FortranStringReader('''program test_prog
                                        use some_mod, only: my_type
                                        type(my_type) :: a, e
-                                       a%b%c(ji, jj) = d
+                                       integer :: ji, jj, d
+                                       a%b(ji)%c(ji, jj) = d
                                        e%f = d
                                     end program test_prog''')
     prog = parser(reader)
@@ -392,8 +425,8 @@ def test_user_defined_variables(parser):
     loops = psy.invokes.get("test_prog").schedule
 
     var_accesses = VariablesAccessInfo(loops)
-    assert var_accesses["a % b % c"].is_written
-    assert var_accesses["e % f"].is_written
+    assert var_accesses[Signature(("a", "b", "c"))].is_written
+    assert var_accesses[Signature(("e", "f"))].is_written
 
 
 def test_math_equal(parser):
@@ -617,8 +650,6 @@ def test_lfric_stub_args():
     stencils.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_stencil_multi_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -655,8 +686,6 @@ def test_lfric_stub_args2():
     and mesh properties.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_mesh_prop_face_qr_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -676,8 +705,6 @@ def test_lfric_stub_args3():
     '''Check variable usage detection for cell position, operator
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3",
                   "testkern_any_discontinuous_space_op_1_mod.f90")
     metadata = DynKernMetadata(ast)
@@ -698,8 +725,6 @@ def test_lfric_stub_boundary_dofs():
     '''Check variable usage detection for boundary dofs.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "enforce_bc_kernel_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -714,8 +739,6 @@ def test_lfric_stub_field_vector():
     '''Check variable usage detection field vectors.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_stencil_vector_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -737,8 +760,6 @@ def test_lfric_stub_basis():
     '''Check variable usage detection of basis, diff-basis.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_qr_eval_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -760,8 +781,6 @@ def test_lfric_stub_cma_operators():
     mesh_ncell2d, cma_operator
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "columnwise_op_mul_2scalars_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -786,8 +805,6 @@ def test_lfric_stub_banded_dofmap():
     '''Check variable usage detection for banded dofmaps.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "columnwise_op_asm_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -803,8 +820,6 @@ def test_lfric_stub_banded_dofmap():
 def test_lfric_stub_indirection_dofmap():
     '''Check variable usage detection in indirection dofmap.
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "columnwise_op_app_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -822,8 +837,6 @@ def test_lfric_stub_boundary_dofmap():
     for operators.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "enforce_operator_bc_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -840,8 +853,6 @@ def test_lfric_acc():
     '''
     # Use the OpenACC transforms to enclose the kernels
     # with OpenACC directives.
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
-    from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
@@ -875,8 +886,6 @@ def test_lfric_acc_operator():
     '''
     # Use the OpenACC transforms to enclose the kernels
     # with OpenACC directives.
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
-    from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("20.0_cma_assembly.f90", "dynamo0.3",
@@ -901,8 +910,6 @@ def test_lfric_stencil():
 
     '''
     # Use the OpenACC transforms to create the required kernels
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
-    from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("14.4_halo_vector.f90", "dynamo0.3",

@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab.
+..             A. B. G. Chalk, STFC Daresbury Lab.
 ..             I. Kavcic, Met Office.
 
 .. _transformations:
@@ -211,7 +212,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.LoopFuseTrans
+.. autoclass:: psyclone.psyir.transformations.LoopFuseTrans
     :members: apply
     :noindex:
 
@@ -245,7 +246,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OCLTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
 
@@ -253,6 +254,12 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
     :members: apply, omp_schedule
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.OMPTaskloopTrans
+    :members: apply, omp_grainsize, omp_num_tasks
     :noindex:
 
 ####
@@ -265,7 +272,7 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPParallelTrans
     :inherited-members:
-    :exclude-members: name, psyGen
+    :exclude-members: name
     :noindex:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
@@ -275,7 +282,41 @@ can be found in the API-specific sections).
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
           performed outside the parallel region. The
-	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          for this.
+
+####
+
+.. autoclass:: psyclone.transformations.OMPSingleTrans
+    :inherited-members:
+    :exclude-members: name
+    :noindex:
+
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP single regions.  Attempting to
+          create a single region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the single region. The
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          for this.
+
+####
+
+.. autoclass:: psyclone.transformations.OMPMasterTrans
+    :inherited-members:
+    :exclude-members: name
+    :noindex:
+
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP master regions.  Attempting to
+          create a master region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the single region. The
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
 ####
@@ -298,8 +339,8 @@ can be found in the API-specific sections).
 
 .. warning:: This transformation assumes that the SIGN Operator acts
              on PSyIR Real scalar data and does not check whether or not
-	     this is the case. Once issue #658 is on master then this
-	     limitation can be fixed.
+             this is the case. Once issue #658 is on master then this
+             limitation can be fixed.
 
 Kernels
 -------
@@ -408,7 +449,7 @@ forbid the ``bc_ssh_code`` kernel from accessing the ``forbidden_var``
 variable that is available to it from the enclosing module scope.
 
 .. note:: these rules *only* apply to kernels that are the target of
-	  PSyclone kernel transformations.
+      PSyclone kernel transformations.
 
 Available Kernel Transformations
 ++++++++++++++++++++++++++++++++
@@ -554,7 +595,7 @@ PSyclone also provides the same functionality via a function (which is
 what the **psyclone** script calls internally).
 
 .. autofunction:: psyclone.generator.generate
-		  :noindex:
+          :noindex:
 
 A valid script file must contain a **trans** function which accepts a **PSy**
 object as an argument and returns a **PSy** object, i.e.:
@@ -570,13 +611,13 @@ below does the same thing as the example in the
 ::
 
     def trans(psy):
-	from psyclone.transformations import OMPParallelLoopTrans
+        from psyclone.transformations import OMPParallelLoopTrans
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
         schedule = invoke.schedule
         ol = OMPParallelLoopTrans()
         new_schedule, _ = ol.apply(schedule.children[0])
         invoke.schedule = new_schedule
-	return psy
+        return psy
 
 Of course the script may apply as many transformations as is required
 for a particular schedule and may apply transformations to all the
@@ -592,12 +633,17 @@ examples/check_examples script).
 OpenMP
 ------
 
-OpenMP is added to a code by using transformations. The three
-transformations currently supported allow the addition of an
-**OpenMP Parallel** directive, an **OpenMP Do** directive and an
-**OpenMP Parallel Do** directive, respectively, to a code.
+OpenMP is added to a code by using transformations. The OpenMP
+transformations currently supported allow the addition of:
 
-The generic versions of these three transformations (i.e. ones that
+* an **OpenMP Parallel** directive
+* an **OpenMP Do** directive
+* an **OpenMP Single** directive
+* an **OpenMP Master** directive
+* an **OpenMP Taskloop** directive; and
+* an **OpenMP Parallel Do** directive.
+
+The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
@@ -656,7 +702,7 @@ transformation.
 OpenCL
 ------
 
-OpenCL is added to a code by using the ``OCLTrans`` transformation (see the
+OpenCL is added to a code by using the ``GOOpenCLTrans`` transformation (see the
 :ref:`sec_transformations_available` Section above).
 Currently this transformation is only supported for the GOcean1.0 API and
 is applied to the whole InvokeSchedule of an Invoke.
@@ -676,7 +722,7 @@ provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
     `<modulename>_<kernelname>_index.cl`
 
 
-The ``OCLTrans`` transformation accepts an `options` argument with a
+The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
 map of optional parameters to tune the OpenCL host code in the PSy layer.
 These options will be attached to the transformed InvokeSchedule.
 The current available options are:
@@ -707,19 +753,23 @@ The current available options are:
 |              | in a work-group execution (kernel instances |         |
 |              | executed at the same time).                 |         |
 +--------------+---------------------------------------------+---------+
-| queue_number | The identifier of the OpenCL Command Queue  | 1       |
-|              | to which the kernel should be submitted.    |         |
+| queue_number | The identifier of the OpenCL command_queue  | 1       |
+|              | to which the kernel should be submitted. If |         |
+|              | the kernel has a dependency on another      |         |
+|              | kernel submitted to a different             |         |
+|              | command_queue a barrier will be added to    |         |
+|              | guarantee the execution order.              |         |
 +--------------+---------------------------------------------+---------+
 
 
-Below is an example of a PSyclone script that uses an ``OCLTrans`` with
+Below is an example of a PSyclone script that uses a ``GOOpenCLTrans`` with
 multiple InvokeSchedule and kernel-specific optimization options.
 
 
 .. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
     :language: python
     :linenos:
-    :lines: 51-65
+    :lines: 39-79
 
 
 OpenCL delays the decision of which and where kernels will execute until

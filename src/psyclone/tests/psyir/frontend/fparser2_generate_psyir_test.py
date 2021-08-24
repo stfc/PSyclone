@@ -43,7 +43,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Container, Routine, CodeBlock
+from psyclone.psyir.nodes import Container, Routine, FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -58,11 +58,12 @@ MODULE_IN = (
     "end module\n")
 MODULE_OUT = (
     "module a\n"
-    "  implicit none\n\n"
+    "  implicit none\n"
+    "  public\n\n"
     "  public :: sub1, sub2\n\n"
     "  contains\n"
     "  subroutine sub1(a)\n"
-    "    real, intent(inout) :: a\n\n\n"
+    "    real :: a\n\n\n"
     "  end subroutine sub1\n"
     "  subroutine sub2()\n\n\n"
     "  end subroutine sub2\n\n"
@@ -91,19 +92,22 @@ FUNCTION_IN = (
     "integer function tmp(a)\n"
     "real :: a\n"
     "a=0.0\n"
+    "tmp = a\n"
     "end function tmp")
 FUNCTION_OUT = (
-    "INTEGER FUNCTION tmp(a)\n"
-    "  REAL :: a\n"
+    "function tmp(a)\n"
+    "  real :: a\n"
+    "  integer :: tmp\n\n"
     "  a = 0.0\n"
-    "END FUNCTION tmp")
+    "  tmp = a\n\n"
+    "end function tmp\n")
 
 
 @pytest.mark.parametrize("code,expected,node_class",
                          [(MODULE_IN, MODULE_OUT, Container),
                           (SUB_IN, SUB_OUT, Routine),
                           (PROGRAM_IN, PROGRAM_OUT, Routine),
-                          (FUNCTION_IN, FUNCTION_OUT, CodeBlock)])
+                          (FUNCTION_IN, FUNCTION_OUT, Routine)])
 def test_generate_psyir(parser, code, expected, node_class):
     '''Test that generate_psyir generates PSyIR from an fparser2 parse
     tree.
@@ -114,7 +118,8 @@ def test_generate_psyir(parser, code, expected, node_class):
     parse_tree = parser(reader)
     psyir = processor.generate_psyir(parse_tree)
     # Check the expected PSyIR nodes are being created
-    assert isinstance(psyir, node_class)
+    assert isinstance(psyir, FileContainer)
+    assert isinstance(psyir.children[0], node_class)
     writer = FortranWriter()
     result = writer(psyir)
     assert result == expected

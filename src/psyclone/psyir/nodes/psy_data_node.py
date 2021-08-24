@@ -35,17 +35,26 @@
 # Modified: A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
-''' This module implementes a PSyData node, i.e.a node that at code
+''' This module implements a PSyData node, i.e. a node that at code
 creation time will create callbacks according to the PSyData API.
 This is the base class for nodes that e.g. create kernel extraction
-or profiling.'''
+or profiling. '''
 
 from __future__ import absolute_import, print_function
+from collections import namedtuple
+from fparser.common.sourceinfo import FortranFormat
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.utils import walk
+from fparser.two import Fortran2003
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import Symbol, SymbolTable
+from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
+                                    ContainerSymbol, DeferredType,
+                                    UnknownFortranType, GlobalInterface)
 
 
 # =============================================================================
@@ -64,17 +73,16 @@ class PSyDataNode(Statement):
     (prefix_PSyDataType).
 
     :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
+        this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: a list of child nodes for this node. These will be made \
-                     children of the child Schedule of this PSyDataNode.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node` \
-                    or derived classes
-    :param parent: the parent of this node in the PSyIR.
+    :param children: the PSyIR nodes that are children of this node. These \
+        will be made children of the child Schedule of this PSyDataNode.
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param str options[prefix"]: a prefix to use for the PSyData module name \
+    :param str options["prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType \
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "", which means the module name used will just be \
@@ -85,97 +93,68 @@ class PSyDataNode(Statement):
         uniquely identify a region unless aggregate information is required \
         (and is supported by the runtime library).
 
+    :raises InternalError: if a prefix is specified that is not listed in the \
+        configuration file.
+
     '''
-    # PSyData interface Fortran module
-    fortran_module = "psy_data_mod"
-    # The symbols we import from the PSyData Fortran module
-    symbols = ["PSyDataType"]
-    # Textual description of the node.
+    #: Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "PSyData"
     _colour = "green"
+    #: The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = ""
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
 
+        super(PSyDataNode, self).__init__(ast=ast, children=children,
+                                          parent=parent)
         if not options:
             options = {}
 
-        # This string stores a prefix to be used with all external PSyData
+        # _prefix stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
         # method 'add_psydata_class_prefix'.
-        self._class_string = options.get("prefix", "")
-        if self._class_string:
-            self._class_string = self._class_string + "_"
+        prefix = options.get("prefix", self._default_prefix)
+        # Check that the prefix is one of those listed as being supported
+        # in the configuration file. If it *is* listed then it is assumed
+        # that a matching PSyData wrapper library is available at compile time.
+        # See the User Guide for more information:
+        # https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psy-data
+        if prefix and prefix not in Config.get().valid_psy_data_prefixes:
+            raise InternalError(
+                "Invalid 'prefix' parameter: found '{0}', expected one of {1} "
+                "as defined in {2}".format(
+                    prefix, Config.get().valid_psy_data_prefixes,
+                    Config.get().filename))
+        if not prefix:
+            self._prefix = ""
+        else:
+            self._prefix = prefix + "_"
+
+        # Create the list of symbol names that will be imported from
+        # the PSyData Fortran module. We use a namedtuple to improve
+        # readability. Currently there is only one imported symbol (the
+        # name of the PSyData derived type) but we keep a list for future
+        # extensibility.
+        _PSyDataSymbol = namedtuple("_PSyDataSymbol", "name symbol_type")
+        self.imported_symbols = [_PSyDataSymbol(self.type_name,
+                                                DataTypeSymbol)]
 
         # Root of the name to use for variables associated with
         # PSyData regions
         self._psy_data_symbol_with_prefix = \
             self.add_psydata_class_prefix("psy_data")
 
-        # The use statement that will be inserted. Any use of a module
-        # of the same name that doesn't match this will result in a
-        # NotImplementedError at code-generation time.
-        self.use_stmt = "use {0}, only: "\
-            .format(self.add_psydata_class_prefix("psy_data_mod")) + \
-            ", ".join(self.add_psydata_class_prefix(symbol) for symbol in
-                      PSyDataNode.symbols)
+        # The name of the PSyData variable that is used for this PSyDataNode
+        self._var_name = ""
 
-        if children:
-            # We need to store the position of the original children,
-            # i.e. before they are added to a schedule
-            node_position = children[0].position
-
-        # A PSyData node always contains a Schedule
-        sched = self._insert_schedule(children)
-        super(PSyDataNode, self).__init__(ast=ast, children=[sched],
-                                          parent=parent)
-
-        # Get or create a symbol table so we can avoid name clashes
-        # when creating variables
-        if parent and hasattr(self.root, 'symbol_table'):
-            symtab = self.root.symbol_table
-        else:
-            # FIXME: This may not be a good solution
-            symtab = SymbolTable()
-
-        # Store the name of the PSyData variable that is used for this
-        # PSyDataNode. This allows the variable name to be shown in str
-        # (and also, calling create_name in gen() would result in the name
-        # being changed every time gen() is called).
-        self._var_name = symtab.new_symbol(
-            self._psy_data_symbol_with_prefix).name
-
-        if children and parent:
-            # Correct the parent's list of children. Use a slice of the list
-            # of nodes so that we're looping over a local copy of the list.
-            # Otherwise things get confused when we remove children from
-            # the list.
-            for child in children[:]:
-                # Remove child from the parent's list of children
-                parent.children.remove(child)
-
-            # Add this node as a child of the parent
-            # of the nodes being enclosed and at the original location
-            # of the first of these nodes
-            parent.addchild(self, index=node_position)
-        elif parent:
-            parent.addchild(self)
-
-        # Name of the region. In general at constructor time we might
-        # not have a parent subroutine or any child nodes, so
-        # the name is left empty, unless explicitly provided by the
-        # user. If names are not provided here then the region and
-        # module names are set the first time gen() is called (and
-        # then remain unchanged).
-        self._module_name = None
-        self._region_name = None
         # The region identifier caches the computed module- and region-name
         # as a tuple of strings. This is required so that a derived class can
-        # query the actual name of region (e.g. during generation of a driver
+        # query the actual name of a region (e.g. during generation of a driver
         # for an extract node). If the user does not define a name, i.e.
         # module_name and region_name are empty, a unique name will be
-        # computed in gen_code(). If this name would then be stored in
-        # module_name and region_name, and gen() is called again, the
+        # computed in gen_code() or lower_to_language_level(). If this name was
+        # stored in module_name and region_name, and gen() is called again, the
         # names would not be computed again, since the code detects already
         # defined module and region names. This can then result in duplicated
         # region names: The test 'test_region' in profile_test triggers this.
@@ -189,6 +168,9 @@ class PSyDataNode(Statement):
         # are unique when gen_code is called more than once, we
         # cannot store a computed name in module_name and region_name.
         self._region_identifier = ("", "")
+        # Name of the region.
+        self._module_name = None
+        self._region_name = None
 
         name = options.get("region_name", None)
 
@@ -204,7 +186,106 @@ class PSyDataNode(Statement):
             # Valid PSyData names have been provided by the user.
             self._module_name = name[0]
             self._region_name = name[1]
-            self.set_region_identifier(self._module_name, self._region_name)
+            self.set_region_identifier(self._module_name,
+                                       self._region_name)
+
+        # TODO #435. This can be removed when update() is removed.
+        self.use_stmt = ""
+
+    @classmethod
+    def create(cls, children, symbol_table, ast=None, options=None):
+        '''
+        Creates a new (sub-class of a) PSyData node with the supplied
+        'children' nodes as its children. The symbols used by the PSyData API
+        are added to the supplied symbol table. This is a class method so that
+        it acts as a factory for the various sub-classes of PSyDataNode.
+
+        :param children: the PSyIR nodes that will become children of the \
+            new PSyData node.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param symbol_table: the associated SymbolTable to which symbols \
+            must be added.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :parent ast: reference to fparser2 parse tree for the routine being \
+            instrumented with PSyData calls.
+        :type ast: :py:class:`fparser.two.Fortran2003.Base`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param str options[prefix"]: a prefix to use for the PSyData module \
+            name (``prefix_psy_data_mod``) and the PSyDataType \
+            (``prefix_PSyDataType``) - a "_" will be added automatically. \
+            It defaults to "", which means the module name used will just be \
+            ``psy_data_mod``, and the data type ``PSyDataType``.
+        :param (str,str) options["region_name"]: an optional name to use for \
+            this PSyDataNode, provided as a 2-tuple containing a module name \
+            followed by a local name. The pair of strings should uniquely \
+             identify a region unless aggregate information is required \
+            (and is supported by the runtime library).
+
+        :raises TypeError: if the supplied children or symbol table are not \
+            of the correct type.
+
+        '''
+        if not isinstance(children, list):
+            raise TypeError("Error in PSyDataNode.create(). The 'children' "
+                            "argument must be a list (of PSyIR nodes) but got "
+                            "'{0}'".format(type(children).__name__))
+        if children and not all(isinstance(child, Node) for child in children):
+            raise TypeError(
+                "Error in PSyDataNode.create(). The 'children' argument must "
+                "be a list of PSyIR nodes but it contains: {0}".format(
+                    [type(child).__name__ for child in children]))
+        if not isinstance(symbol_table, SymbolTable):
+            raise TypeError(
+                "Error in PSyDataNode.create(). The 'symbol_table' argument "
+                "must be an instance of psyir.symbols.SymbolTable but got "
+                "'{0}'.".format(type(symbol_table).__name__))
+
+        data_node = cls(ast=ast, options=options)
+
+        # Ensure that we have a container symbol for the API access
+        try:
+            csym = symbol_table.lookup_with_tag(data_node.fortran_module)
+        except KeyError:
+            # The tag doesn't exist which means that we haven't already added
+            # this Container as part of a PSyData transformation.
+            csym = ContainerSymbol(data_node.fortran_module)
+            symbol_table.add(csym, tag=data_node.fortran_module)
+
+        # A PSyData node always contains a Schedule
+        # TODO 435 we can probably get rid of _insert_schedule() once we
+        # do away with the ast argument?
+        # pylint: disable=protected-access
+        sched = data_node._insert_schedule(children=children, ast=ast)
+        data_node.addchild(sched)
+
+        # The use statement that will be inserted by the update() method. Any
+        # use of a module of the same name that doesn't match this will result
+        # in a NotImplementedError at code-generation time.
+        # TODO #435 remove this when removing the update() method
+        data_node.use_stmt = "use {0}, only: ".format(
+            data_node.fortran_module) + ", ".join(symbol.name for symbol in
+                                                  data_node.imported_symbols)
+        # Add the symbols that will be imported from the module. Use the
+        # PSyData names as tags to ensure we don't attempt to add them more
+        # than once if multiple transformations are applied.
+        for sym in data_node.imported_symbols:
+            symbol_table.symbol_from_tag(sym.name, symbol_type=sym.symbol_type,
+                                         interface=GlobalInterface(csym),
+                                         datatype=DeferredType())
+
+        # Store the name of the PSyData variable that is used for this
+        # PSyDataNode. This allows the variable name to be shown in str
+        # (and also, calling create_name in gen() would result in the name
+        # being changed every time gen() is called).
+        data_node._var_name = symbol_table.next_available_name(
+            data_node._psy_data_symbol_with_prefix)
+        psydata_type = UnknownFortranType(
+            "type({0}), save, target :: {1}".format(data_node.type_name,
+                                                    data_node._var_name))
+        symbol_table.new_symbol(data_node._var_name, symbol_type=DataSymbol,
+                                datatype=psydata_type)
+        return data_node
 
     @staticmethod
     def _validate_child(position, child):
@@ -221,17 +302,18 @@ class PSyDataNode(Statement):
 
     # -------------------------------------------------------------------------
     def add_psydata_class_prefix(self, symbol):
-        '''Returns a string with the class-string as prefix, e.g. if the
-        class string is "profile", then the symbol "PSyDataType" will
-        become "profilePSyDataType". Typically the class_string will
+        '''Returns a string prefixed with the class-specific prefix, e.g. if
+        the prefix string is "profile", then the symbol "PSyDataType" will
+        become "profilePSyDataType". Typically the _prefix will
         contain a trailing "_".
 
-        :param str symbol: the symbol name to prefix with the class string.
+        :param str symbol: the symbol name to add the prefix to.
 
         :returns: the symbol name with the class string as prefix.
         :rtype: str
+
         '''
-        return self._class_string + symbol
+        return self._prefix + symbol
 
     # -------------------------------------------------------------------------
     @property
@@ -263,6 +345,25 @@ class PSyDataNode(Statement):
             ["{0}End[var={1}]".format(self._text_name, self._var_name)]
 
         return "\n".join(return_list)
+
+    # -------------------------------------------------------------------------
+    @property
+    def type_name(self):
+        '''
+        :returns: the name of the Fortran derived type associated with this \
+                  PSyData object.
+        :rtype: str
+        '''
+        return self.add_psydata_class_prefix("PSyDataType")
+
+    # -------------------------------------------------------------------------
+    @property
+    def fortran_module(self):
+        '''
+        :returns: name of the PSyData interface Fortran module.
+        :rtype: str
+        '''
+        return self.add_psydata_class_prefix("psy_data_mod")
 
     # -------------------------------------------------------------------------
     @property
@@ -320,21 +421,24 @@ class PSyDataNode(Statement):
             be added to each variable name in the post_var_list.
 
         '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import Kern, InvokeSchedule
         # TODO: #415 Support different classes of PSyData calls.
+        invoke = self.ancestor(InvokeSchedule).invoke
         module_name = self._module_name
         if module_name is None:
             # The user has not supplied a module (location) name so
             # return the psy-layer module name as this will be unique
             # for each PSyclone algorithm file.
-            module_name = self.root.invoke.invokes.psy.name
+            module_name = invoke.invokes.psy.name
 
         region_name = self._region_name
         if region_name is None:
             # The user has not supplied a region name (to identify
             # this particular invoke region). Use the invoke name as a
             # starting point.
-            region_name = self.root.invoke.name
-            from psyclone.psyGen import Kern
+            region_name = invoke.name
             kerns = self.walk(Kern)
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
@@ -356,15 +460,11 @@ class PSyDataNode(Statement):
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
-        symbols = [self.add_psydata_class_prefix(symbol)
-                   for symbol in PSyDataNode.symbols]
-        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
-        use = UseGen(parent, fortran_module, only=True,
-                     funcnames=symbols)
+        use = UseGen(parent, self.fortran_module, only=True,
+                     funcnames=[sym.name for sym in self.imported_symbols])
         parent.add(use)
         var_decl = TypeDeclGen(parent,
-                               datatype=self.add_psydata_class_prefix
-                               ("PSyDataType"),
+                               datatype=self.type_name,
                                entity_decls=[self._var_name],
                                save=True, target=True)
         parent.add(var_decl)
@@ -423,19 +523,6 @@ class PSyDataNode(Statement):
         self._add_call("PostEnd", parent)
 
     # -------------------------------------------------------------------------
-    def gen_c_code(self, indent=0):
-        '''
-        Generates a string representation of this Node using C language
-        (currently not supported).
-
-        :param int indent: Depth of indent for the output string.
-        :raises NotImplementedError: Not yet supported for PSyData nodes.
-        '''
-        raise NotImplementedError("Generation of C code is not supported "
-                                  "for PSyDataNode.")
-
-    # -------------------------------------------------------------------------
-
     def update(self):
         # pylint: disable=too-many-branches, too-many-statements
         # pylint: disable=too-many-locals
@@ -457,10 +544,8 @@ class PSyDataNode(Statement):
                              corresponding to the end of the PSyData region.
 
         '''
-        from fparser.common.sourceinfo import FortranFormat
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.utils import walk
-        from fparser.two import Fortran2003
+        # Avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import object_index, InvokeSchedule
         from psyclone.psyir.nodes import ProfileNode
 
@@ -512,10 +597,9 @@ class PSyDataNode(Statement):
         # aborting.
         # Get the existing use statements
         found = False
-        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
         for node in node_list[:]:
             if isinstance(node, Fortran2003.Use_Stmt) and \
-               fortran_module == str(node.items[2]).lower():
+               self.fortran_module == str(node.items[2]).lower():
                 # Check that the use statement matches the one we would
                 # insert (i.e. the code doesn't already contain a module
                 # with the same name as that used by the PSyData API)
@@ -523,7 +607,7 @@ class PSyDataNode(Statement):
                     raise NotImplementedError(
                         "Cannot add PSyData calls to '{0}' because it "
                         "already 'uses' a module named '{1}'".format(
-                            routine_name, fortran_module))
+                            routine_name, self.fortran_module))
                 found = True
                 # To make our check on name clashes below easier, remove
                 # the Name nodes associated with this use from our
@@ -538,7 +622,7 @@ class PSyDataNode(Statement):
             reader = FortranStringReader(
                 "use {0}, only: {1}"
                 .format(self.add_psydata_class_prefix("psy_data_mod"),
-                        self.add_psydata_class_prefix("PSyDataType")))
+                        self.type_name))
             # Tell the reader that the source is free format
             reader.set_format(FortranFormat(True, False))
             use = Fortran2003.Use_Stmt(reader)
@@ -553,14 +637,14 @@ class PSyDataNode(Statement):
                 if isinstance(node, Fortran2003.Name):
                     text = str(node).lower()
                     # Check for the symbols we import from the PSyData module
-                    for symbol in self.symbols:
-                        if text == symbol.lower():
+                    for symbol in self.imported_symbols:
+                        if text == symbol.name.lower():
                             raise NotImplementedError(
                                 "Cannot add PSyData calls to '{0}' because it "
                                 "already contains a symbol that clashes with "
                                 "one of those ('{1}') that must be imported "
                                 "from the PSyclone PSyData module.".
-                                format(routine_name, symbol))
+                                format(routine_name, symbol.name))
                     # Check for the name of the PSyData module itself
                     if text == self.fortran_module:
                         raise NotImplementedError(
@@ -568,7 +652,7 @@ class PSyDataNode(Statement):
                             "already contains a symbol that clashes with the "
                             "name of the PSyclone PSyData module "
                             "('{1}')". format(routine_name,
-                                              fortran_module))
+                                              self.fortran_module))
                     # Check for the names of PSyData variables
                     if text.startswith(self._psy_data_symbol_with_prefix):
                         raise NotImplementedError(
@@ -602,8 +686,7 @@ class PSyDataNode(Statement):
 
         # Create a variable for this PSyData region
         reader = FortranStringReader(
-            "type({0}), target, save :: {1}"
-            .format(self.add_psydata_class_prefix("PSyDataType"), var_name))
+            "type({0}), target, save :: {1}".format(self.type_name, var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         decln = Fortran2003.Type_Declaration_Stmt(reader)
@@ -652,3 +735,7 @@ class PSyDataNode(Statement):
         self.ast = pscall
         self.ast_end = pecall
         self.set_region_identifier(routine_name, region_name)
+
+
+# For AutoAPI documentation generation
+__all__ = ['PSyDataNode']

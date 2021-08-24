@@ -34,11 +34,13 @@
 # Author S. Siso, STFC Daresbury Lab
 # Modified: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''
 
 from psyclone.psyir.nodes.node import colored, Node
+from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
 from psyclone.psyir.nodes.assignment import Assignment
@@ -70,6 +72,16 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.file_container import FileContainer
+from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes.acc_directives import ACCDirective, \
+    ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
+    ACCKernelsDirective, ACCDataDirective
+from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
+    OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
+    OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
+    OMPTaskwaitDirective
+
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
@@ -85,20 +97,15 @@ __all__ = [
         'CodeBlock',
         'Container',
         'DataNode',
-        'ExtractNode',
+        'FileContainer',
         'IfBlock',
-        'KernelSchedule',
         'Literal',
         'Loop',
         'Member',
-        'NanTestNode',
         'NaryOperation',
         'Node',
         'Operation',
-        'ProfileNode',
-        'PSyDataNode',
         'Range',
-        'ReadOnlyVerifyNode',
         'Reference',
         'Return',
         'Routine',
@@ -106,4 +113,31 @@ __all__ = [
         'Statement',
         'StructureMember',
         'StructureReference',
-        'UnaryOperation']
+        'UnaryOperation',
+        'ScopingNode',
+        # PSyclone-specific nodes
+        'KernelSchedule',
+        # PSyData Nodes
+        'PSyDataNode',
+        'ExtractNode',
+        'ProfileNode',
+        'NanTestNode',
+        'ReadOnlyVerifyNode',
+        # Directive Nodes
+        'Directive',
+        'ACCDirective',
+        'ACCDataDirective',
+        'ACCEnterDataDirective',
+        'ACCParallelDirective',
+        'ACCLoopDirective',
+        'ACCKernelsDirective',
+        'OMPDirective',
+        'OMPParallelDirective',
+        'OMPSerialDirective',
+        'OMPSingleDirective',
+        'OMPMasterDirective',
+        'OMPTaskloopDirective',
+        'OMPDoDirective',
+        'OMPParallelDoDirective',
+        'OMPTaskwaitDirective'
+        ]

@@ -268,11 +268,9 @@ class ArrayRange2LoopTrans(Transformation):
         position = node.position
         # Issue #806: If Loop bounds were a Range we would just
         # need to provide the range node which would be simpler.
-        loop = Loop.create(loop_variable, lhs_range.children[0],
-                           lhs_range.children[1], lhs_range.children[2],
-                           [node])
-        parent.children[position] = loop
-        loop.parent = parent
+        start, stop, step = lhs_range.pop_all_children()
+        loop = Loop.create(loop_variable, start, stop, step, [node.detach()])
+        parent.children.insert(position, loop)
 
     def __str__(self):
         return ("Convert a PSyIR assignment to an array Range into a "

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 # Modified I. Kavcic Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module tests the DynKern class within dynamo0p3 using
 pytest. A the moment the tests here do not fully cover DynKern as
@@ -51,9 +52,9 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.errors import InternalError, GenerationError
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
-    INTEGER_TYPE
+    INTEGER_TYPE, ArrayType
 from psyclone.psyir.nodes import KernelSchedule, Reference
 from psyclone.domain.lfric.psyir import LfricRealScalarDataSymbol, \
     RealFieldDataDataSymbol, LfricIntegerScalarDataSymbol, \
@@ -105,9 +106,10 @@ def test_scalar_kernel_load_meta_err():
     scalar_arg._data_type = "gh_triple"
     with pytest.raises(InternalError) as err:
         kernel.load_meta(metadata)
+    const = LFRicConstants()
     assert ("Expected one of {0} data types for "
             "a scalar argument but found 'gh_triple'.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
+            format(const.VALID_SCALAR_DATA_TYPES) in
             str(err.value))
 
 
@@ -281,6 +283,16 @@ def test_validate_kernel_code_arg(monkeypatch):
             "dimension(s) according to the LFRic API, but found 1."
             in str(info.value))
 
+    # Lower array bound of 2 rather than 1
+    monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
+                        [ArrayType.ArrayBounds(2, Reference(undf))])
+    with pytest.raises(GenerationError) as info:
+        kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
+                                         lfric_real_field_symbol3)
+    assert ("All array arguments to LFRic kernels must have lower bounds of 1 "
+            "for all dimensions. However, array 'field' has a lower bound of "
+            "'2' for dimension 0" in str(info.value))
+
     lfric_real_field_symbol4 = RealFieldDataDataSymbol(
         "field", dims=[Reference(int_scalar_symbol)], fs="w0",
         interface=read_access)
@@ -297,7 +309,7 @@ def test_validate_kernel_code_arg(monkeypatch):
     # scalar in order to force the required exception. We do this by
     # changing the ScalarType as it is used when determining whether
     # the symbol is a scalar.
-    monkeypatch.setattr(psyclone.psyir.symbols, "ScalarType", str)
+    monkeypatch.setattr(psyclone.psyir.symbols.datatypes, "ScalarType", str)
     with pytest.raises(InternalError) as info:
         kernel._validate_kernel_code_arg(
             lfric_real_scalar_symbol, lfric_real_scalar_symbol)

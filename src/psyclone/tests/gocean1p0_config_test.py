@@ -41,6 +41,7 @@ from __future__ import absolute_import
 import os
 import pytest
 
+from psyclone.tests.utilities import get_invoke
 from psyclone.configuration import Config, ConfigurationError, GOceanConfig
 from psyclone.generator import main
 from psyclone.gocean1p0 import GOLoop
@@ -350,8 +351,6 @@ def test_properties():
 def test_valid_config_files():
     ''' Test if valid config files lead to the expected new loop boundaries
     '''
-    from psyclone.tests.utilities import get_invoke
-
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
@@ -363,23 +362,26 @@ def test_valid_config_files():
     invoke.schedule._const_loop_bounds = True
 
     gen = str(psy.gen)
-    new_loop1 = '''      DO j=1,2
-        DO i=3,4
+    new_loop1 = '''\
+      DO j = 1, 2, 1
+        DO i = 3, 4, 1
           CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
     assert new_loop1 in gen
 
-    new_loop2 = '''      DO j=2,jstop
-        DO i=1,istop+1
+    new_loop2 = '''\
+      DO j = 2, jstop, 1
+        DO i = 1, istop+1, 1
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
     assert new_loop2 in gen
 
     # The third kernel tests {start} and {stop}
-    new_loop3 = '''      DO j=2-2,1
-        DO i=istop,istop+1
+    new_loop3 = '''\
+      DO j = 2-2, 1, 1
+        DO i = istop, istop+1, 1
           CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''

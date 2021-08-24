@@ -4,7 +4,7 @@
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Contains tests for transformations on the Dynamo 0.1 API '''
 
@@ -22,6 +22,8 @@ TEST_API = "dynamo0.1"
 def setup():
     '''Make sure that all tests here use dynamo0.1 as API.'''
     Config.get().api = "dynamo0.1"
+    yield()
+    Config._instance = None
 
 
 def test_openmp_region():
@@ -31,7 +33,7 @@ def test_openmp_region():
                              name="invoke_0_testkern_type")
     schedule = invoke.schedule
     rtrans = OMPParallelTrans()
-    invoke.schedule, _ = rtrans.apply(schedule.children[0])
+    rtrans.apply(schedule.children[0])
     gen = str(psy.gen)
 
     # Check that our list of private variables is correct

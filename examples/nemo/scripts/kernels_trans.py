@@ -62,11 +62,11 @@ from __future__ import print_function
 import logging
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
-from psyclone.psyGen import TransInfo, ACCDirective, ACCLoopDirective
+from psyclone.psyGen import TransInfo
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, NaryOperation, Loop, \
-    Literal, Return, Call
+    Literal, Return, Call, ACCDirective, ACCLoopDirective
 from psyclone.psyir.symbols import ScalarType
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.errors import InternalError
@@ -77,7 +77,6 @@ PGI_VERSION = 1940  # i.e. 19.4
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
-ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
 PROFILE_TRANS = ProfileTrans()
 
@@ -194,7 +193,7 @@ def log_msg(name, msg, node):
     :param str name: the name of the routine.
     :param str msg: the message to log.
     :param node: the PSyIR node that prevented the transformation.
-    :type node: :py:class:`psyclone.psyGen.Node`
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Create a str representation of the position of the problematic node
@@ -216,7 +215,7 @@ def valid_acc_kernel(node):
     enclosed within an OpenACC KERNELS directive.
 
     :param node: the node in the PSyIRe to check.
-    :type node: :py:class:`psyclone.psyGen.Node`
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: True if the sub-tree can be enclosed in a KERNELS region.
     :rtype: bool
@@ -481,7 +480,7 @@ def add_kernels(children):
 
     :param children: list of sibling Nodes in PSyIR that are candidates for \
                      inclusion in an ACC KERNELS region.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: True if any KERNELS regions are successfully added.
     :rtype: bool
@@ -527,7 +526,7 @@ def add_profiling(children):
 
     :param children: sibling nodes in the PSyIR to which to attempt to add \
                      profiling regions.
-    :type childre: list of :py:class:`psyclone.psyGen.Node`
+    :type childre: list of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     if not children:
@@ -564,7 +563,7 @@ def add_profile_region(nodes):
     Attempt to put the supplied list of nodes within a profiling region.
 
     :param nodes: list of sibling PSyIR nodes to enclose.
-    :type nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     if nodes and _AUTO_PROFILE:
@@ -605,7 +604,7 @@ def try_kernels_trans(nodes):
     reported but execution continues.
 
     :param nodes: list of Nodes to enclose within a Kernels region.
-    :type nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: True if the transformation was successful, False otherwise.
     :rtype: bool

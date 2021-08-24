@@ -34,6 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
@@ -45,13 +46,15 @@ import os
 import pytest
 
 from psyclone.parse.algorithm import parse
-from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError
 from psyclone.configuration import Config
-from psyclone.domain.lfric import lfric_builtins
-from psyclone.domain.lfric.lfric_builtins import (
-    VALID_BUILTIN_ARG_TYPES, LFRicBuiltInCallFactory, LFRicBuiltIn)
+from psyclone.errors import GenerationError
+from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes import Loop, Reference, UnaryOperation, Literal, \
+    StructureReference
+from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
+from psyclone.psyGen import PSyFactory
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -69,9 +72,20 @@ API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 # ------------- Tests for built-ins methods and arguments ------------------- #
+
+
+def test_lfric_builtin_abstract_methods():
+    ''' Check that the LFRicBuiltIn class is abstract and that the __str__
+    method is abstract. '''
+    with pytest.raises(TypeError) as err:
+        lfric_builtins.LFRicBuiltIn()
+    assert "abstract class LFRicBuiltIn" in str(err.value)
+    assert "__str__" in str(err.value)
 
 
 def test_lfricbuiltin_missing_defs(monkeypatch):
@@ -223,40 +237,65 @@ def test_builtin_no_field_args():
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
-def test_builtin_operator_arg():
+def test_builtin_invalid_argument_type(monkeypatch):
     ''' Check that we raise appropriate error if we encounter a built-in
     that takes something other than a field or scalar argument. '''
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Change the builtin-definitions file to point to one that has
-    # various invalid definitions
     # Define the built-in name and test file
     test_builtin_name = "a_times_X"
     test_builtin_file = "15.4.1_" + test_builtin_name + "_builtin.f90"
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     test_builtin_file),
-        api=API)
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    # Change the built-in-definitions file to point to one that has
+    # various invalid definitions
+    monkeypatch.setattr(
+        lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"))
+    _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
+    # Restore the actual built-in-definitions file name
+    monkeypatch.undo()
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
+        _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    const = LFRicConstants()
     assert ("In the LFRic API an argument to a built-in kernel must be one "
             "of {0} but kernel '{1}' has an argument of type 'gh_operator'.".
-            format(VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
+            format(const.VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
+            in str(excinfo.value))
+
+
+def test_builtin_invalid_data_type(monkeypatch):
+    ''' Check that we raise appropriate error if we encounter a
+    built-in that takes something other than an argument of a 'real'
+    or an 'integer' data type.
+
+    '''
+    # Define the built-in name and test file
+    test_builtin_name = "inc_a_divideby_X"
+    test_builtin_file = "15.5.4_" + test_builtin_name + "_builtin.f90"
+    # Change the built-in-definitions file to point to one that has
+    # various invalid definitions
+    monkeypatch.setattr(
+        lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"))
+    _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
+    # Restore the actual built-in-definitions file name
+    monkeypatch.undo()
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    const = LFRicConstants()
+    assert ("In the LFRic API an argument to a built-in kernel must have "
+            "one of {0} as a data type but kernel '{1}' has an argument of "
+            "data type 'gh_logical'.".
+            format(const.VALID_BUILTIN_DATA_TYPES, test_builtin_name.lower())
             in str(excinfo.value))
 
 
 def test_builtin_args_not_same_space():
     ''' Check that we raise the correct error if we encounter a built-in
     that has arguments on different function spaces. '''
-    # Save the name of the actual builtin-definitions file
+    # Save the name of the actual built-in-definitions file
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "inc_X_divideby_Y"
     test_builtin_file = "15.5.2_" + test_builtin_name + "_builtin.f90"
-    # Change the builtin-definitions file to point to one that has
+    # Change the built-in-definitions file to point to one that has
     # various invalid definitions
     lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
@@ -271,6 +310,37 @@ def test_builtin_args_not_same_space():
     assert ("All field arguments to a built-in in the LFRic API must "
             "be on the same space. However, found spaces ['any_space_1', "
             "'any_space_2'] for arguments to '{0}'".
+            format(test_builtin_name.lower()) in str(excinfo.value))
+
+
+def test_builtin_fld_args_different_data_type(monkeypatch):
+    ''' Check that we raise the correct error if we encounter a built-in
+    that has has different data type of its field arguments and is not one
+    of the data type conversion built-ins ("int_X" and "real_X").
+
+    '''
+    # Define the built-in name and test file
+    test_builtin_name = "X_minus_Y"
+    test_builtin_file = "15.2.1_" + test_builtin_name + "_builtin.f90"
+    # Change the built-in-definitions file to point to one that has
+    # various invalid definitions
+    monkeypatch.setattr(
+        lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"))
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     test_builtin_file),
+        api=API)
+    # Restore the actual built-in-definitions file name
+    monkeypatch.undo()
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory(API,
+                       distributed_memory=False).create(invoke_info)
+    assert ("In the LFRic API only the data type conversion built-ins "
+            "['int_X', 'real_X'] are allowed to have field "
+            "arguments of different data types. However, found "
+            "different data types ['gh_integer', 'gh_real'] for "
+            "field arguments to '{0}'.".
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
@@ -308,36 +378,6 @@ def test_invalid_builtin_kernel():
             "recognised built-in" in str(excinfo.value))
 
 
-def test_lfricbuiltin_str(dist_mem):
-    ''' Check that we raise an error if we attempt to call the __str__
-    method on the parent LFRicBuiltIn class. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.12.3_single_pointwise_builtin.f90"),
-        api=API)
-    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    with pytest.raises(NotImplementedError) as excinfo:
-        LFRicBuiltIn.__str__(kern)
-    assert "LFRicBuiltIn.__str__ must be overridden" in str(excinfo.value)
-
-
-def test_lfricbuiltin_gen_code(dist_mem):
-    ''' Check that we raise an error if we attempt to call the gen_code()
-    method on the parent LFRicBuiltIn class. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.12.3_single_pointwise_builtin.f90"),
-        api=API)
-    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    with pytest.raises(NotImplementedError) as excinfo:
-        LFRicBuiltIn.gen_code(kern, None)
-    assert "LFRicBuiltIn.gen_code must be overridden" in str(excinfo.value)
-
-
 def test_lfricbuiltin_cma(dist_mem):
     ''' Check that an LFRicBuiltIn returns None for CMA type (because
     built-ins don't work with CMA operators). '''
@@ -359,14 +399,77 @@ def test_lfricbuiltfactory_str():
     assert "Factory for a call to an LFRic built-in." in str(factory)
 
 
+def test_get_indexed_field_argument_refs():
+    ''' Test the LFRicBuiltIn.get_indexed_field_argument_references() method.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.8_a_plus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    kern = loop.loop_body[0]
+    refs = kern.get_indexed_field_argument_references()
+    # Kernel has two field arguments
+    assert len(refs) == 2
+    for ref in refs:
+        assert isinstance(ref, StructureReference)
+        assert isinstance(ref.symbol.datatype, DataTypeSymbol)
+        assert ref.symbol.datatype.name == "field_proxy_type"
+        assert ref.member.name == "data"
+        assert len(ref.member.indices) == 1
+        assert isinstance(ref.member.indices[0], Reference)
+        assert ref.member.indices[0].symbol.name == "df"
+
+
+def test_get_scalar_argument_references():
+    ''' Test the LFRicBuiltIn.get_scalar_argument_references() method.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.6.2_inc_X_powint_n_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched[0].loop_body[0]
+    refs = kern.get_scalar_argument_references()
+    assert len(refs) == 1
+    assert isinstance(refs[0], Reference)
+    assert refs[0].symbol.name == "i_scalar"
+    kern = sched[1].loop_body[0]
+    refs = kern.get_scalar_argument_references()
+    assert len(refs) == 1
+    assert isinstance(refs[0], UnaryOperation)
+    assert refs[0].operator == UnaryOperation.Operator.MINUS
+    assert isinstance(refs[0].children[0], Literal)
+    assert refs[0].children[0].value == "2"
+
+
+def test_get_dof_loop_index_symbol():
+    ''' Test the LFRicBuiltIn.get_dof_loop_index_symbol() method. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.8_a_plus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    kern = loop.loop_body[0]
+    sym = kern.get_dof_loop_index_symbol()
+    assert sym.name == "df"
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+
+
 # ------------- Adding (scaled) real fields --------------------------------- #
 
 
-def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicXPlusYKern returns the expected
-    string and 2) we generate correct code for the built-in Z = X + Y
-    where X and Y are real-valued fields. Also check that we generate correct
-    bounds when Config.api_conf(API)._compute_annexed_dofs is False and True.
+def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that:
+    1) the str method of LFRicXPlusYKern returns the expected
+       string;
+    2) we generate correct code for the built-in Z = X + Y
+       where X and Y are real-valued fields;
+    3) that we generate correct bounds when
+       Config.api_conf(API)._compute_annexed_dofs is False and True;
+    4) that the lower_to_language_level() method works as expected.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -380,6 +483,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Add real-valued fields"
+
     # Test code generation
     code = str(psy.gen)
 
@@ -410,6 +514,15 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower-to-language method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f3, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      !\n"
@@ -431,11 +544,12 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     X = X + Y where X and Y are real-valued fields. Test with and without
     annexed dofs being computed as this affects the generated code.
+    Also test the lower_to_language_level() method for this builtin.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -465,6 +579,15 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lowering to language-level PSyIR
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output = (
             "      ! Call kernels and communication routines\n"
@@ -481,6 +604,112 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
+
+
+def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicAPlusXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = a + X where 'a' is a real scalar and X and Y
+    are real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
+    Also test the lower_to_language_level() method.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.8_a_plus_X_builtin.f90"),
+                           api=API)
+
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: a_plus_X (real-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "        f2_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIncAPlusXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a + X where 'a' is a real scalar and X is a
+    real-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.9_inc_a_plus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: inc_a_plus_X (real-valued field)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
 
 
 def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
@@ -837,6 +1066,60 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
+def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicAXPlusAYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*(X + Y) where 'a' is a real scalar and Z, X and
+    Y are real-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.10_aX_plus_aY_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: aX_plus_aY (real-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f3\n"
+            "        f3_proxy%data(df) = a * (f1_proxy%data(df) + "
+            "f2_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+            "        f3_proxy%data(df) = a * (f1_proxy%data(df) + "
+            "f2_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f3_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
 # ------------- Subtracting (scaled) real fields ---------------------------- #
 
 
@@ -1167,6 +1450,77 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
+def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicAXMinusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*X - b*Y where 'a' and 'b' are real scalars and Z, X
+    and Y are real-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.6_aX_minus_bY_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: aX_minus_bY (real-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "    SUBROUTINE invoke_0(f3, a, f1, b, f2)\n"
+            "      REAL(KIND=r_def), intent(in) :: a, b\n"
+            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      INTEGER df\n"
+            "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
+            "      !\n"
+            "      ! Initialise field and/or operator proxies\n"
+            "      !\n"
+            "      f3_proxy = f3%get_proxy()\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      f2_proxy = f2%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
+            "      !\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f3\n"
+            "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
+            "b*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+            "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
+            "b*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f3_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
 # ------------- Multiplying (scaled) real fields ---------------------------- #
 
 
@@ -1338,7 +1692,7 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
+            "        f1_proxy%data(df) = a * f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1350,7 +1704,7 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
+            "        f1_proxy%data(df) = a * f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1478,7 +1832,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
     else:
@@ -1486,7 +1840,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1498,7 +1852,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-# ------------- Dividing (scaled) real fields ------------------------------- #
+# ------------- Dividing real fields ---------------------------------------- #
 
 
 def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1618,6 +1972,118 @@ def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
+# ------------- Inverse scaling of real fields ------------------------------ #
+
+
+def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicADividebyXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = a/X where 'a' is a real scalar and X and Y are
+    real-valued fields. Test with and without annexed dofs being computed
+    as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.5.3_a_divideby_X_builtin.f90"),
+        api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert (str(kern) == "Built-in: Inverse scaling of a real-valued "
+            "field (Y = a/X)")
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      f2_proxy = f2%get_proxy()\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of DoFs for aspc1_f2\n"
+            "      !\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+            "      END DO")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "        f2_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIncADividebyXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a/X where 'a' is a real scalar and X is a real-valued
+    field. Test with and without annexed dofs being computed as this
+    affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.5.4_inc_a_divideby_X_builtin.f90"),
+        api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert (str(kern) == "Built-in: Inverse scaling of a real-valued "
+            "field (X = a/X)")
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n")
+    else:
+        output = (
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()")
+        if not annexed:
+            output = output.replace("dof_annexed", "dof_owned")
+        assert output in code
+
+
 # ------------- Raising a real field to a scalar ---------------------------- #
 
 
@@ -1653,7 +2119,7 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n")
     else:
@@ -1661,7 +2127,7 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1671,6 +2137,8 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
+        assert ("f1_proxy%data(df) = f1_proxy%data(df) ** 1.0e-3_r_def\n"
+                in code)
 
 
 def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1693,6 +2161,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == ("Built-in: Raise a real-valued field to an "
                          "integer power")
+
     # Test code generation
     code = str(psy.gen)
 
@@ -1706,7 +2175,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n")
     else:
@@ -1714,7 +2183,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1724,6 +2193,10 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
+
+        assert "f1_proxy%data(df) = f1_proxy%data(df) ** (-2_i_def)\n" in code
+        assert ("f1_proxy%data(df) = f1_proxy%data(df) ** my_var_a_scalar\n"
+                in code)
 
 
 # ------------- Setting real field elements to a real value ----------------- #
@@ -1907,7 +2380,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output_seq in code
@@ -1922,7 +2395,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -1976,7 +2449,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output_seq in code
@@ -1991,7 +2464,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f1_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -2044,7 +2517,7 @@ def test_sum_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
     else:
@@ -2058,7 +2531,7 @@ def test_sum_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
@@ -2066,7 +2539,144 @@ def test_sum_X(tmpdir, dist_mem):
         assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
 
 
-# ------------- Xfail builtins ---------------------------------------------- #
+# ------------- Sign of real field elements --------------------------------- #
+
+
+def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicSignXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = sign(a, X) where 'a' is a real scalar and Y and X
+    are real-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.1_sign_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: Sign of a real-valued field"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+# ------------- Converting real to integer field elements ------------------- #
+
+
+def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = int(X, i_def) where Y is an integer-valued field, X is
+    the real-valued field being converted and the correct kind, 'i_def',
+    is read from the PSyclone configuration file. Test with and without
+    annexed dofs being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.3_int_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == ("Built-in: Convert a real-valued to an "
+                         "integer-valued field")
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # First check that the correct field types and constants are used
+    output = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    USE integer_field_mod, ONLY: integer_field_type, "
+        "integer_field_proxy_type\n")
+    assert output in code
+
+    if not dist_mem:
+        output = (
+            "    SUBROUTINE invoke_0(f2, f1)\n"
+            "      TYPE(field_type), intent(in) :: f1\n"
+            "      TYPE(integer_field_type), intent(in) :: f2\n"
+            "      INTEGER df\n"
+            "      TYPE(integer_field_proxy_type) f2_proxy\n"
+            "      TYPE(field_proxy_type) f1_proxy\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Initialise field and/or operator proxies\n"
+            "      !\n"
+            "      f2_proxy = f2%get_proxy()\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of DoFs for aspc1_f2\n"
+            "      !\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = int(f1_proxy%data(df), i_def)\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "        f2_proxy%data(df) = int(f1_proxy%data(df), i_def)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+# ------------- Xfail built-ins --------------------------------------------- #
 
 
 @pytest.mark.xfail(
@@ -2106,11 +2716,11 @@ def test_X_times_Y_deduce_space(dist_mem):
     assert output in code
 
 
-# ------------- Builtins that pass scalars by value ------------------------- #
+# ------------- Built-ins that pass scalars by value ------------------------ #
 
 
 def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Tests that we generate correct code for a serial builtin setval_c
+    ''' Tests that we generate correct code for a serial built-in setval_c
     operation with a scalar passed by value. Test with and without annexed
     dofs being computed as this affects the generated code.
 
@@ -2171,7 +2781,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that we generate correct code for the builtin operation
+    ''' Test that we generate correct code for the built-in operation
     Z = a*X + Y when a scalar is passed by value. Also test with and
     without annexed dofs being computed as this affects the generated
     code.
@@ -2236,7 +2846,7 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that we generate correct code for the builtin operation
+    ''' Test that we generate correct code for the built-in operation
     Z = a*X + b*Y when scalars 'a' and 'b' are passed by value. Test
     with and without annexed dofs being computed as this affects the
     generated code.
@@ -2300,7 +2910,70 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Builtins with multiple calls or mixed with kernels ---------- #
+def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code for the built-in operation
+    Y = sign(a, X) when a scalar is passed by value. Also test with and
+    without annexed dofs being computed as this affects the generated
+    code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.2_sign_X_builtin_set_by_value.f90"),
+        api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "    SUBROUTINE invoke_0(f2, f1)\n"
+            "      TYPE(field_type), intent(in) :: f2, f1\n"
+            "      INTEGER df\n"
+            "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Initialise field and/or operator proxies\n"
+            "      !\n"
+            "      f2_proxy = f2%get_proxy()\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of DoFs for aspc1_f2\n"
+            "      !\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = sign(- 2.0_r_def, "
+            "f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "        f2_proxy%data(df) = sign(- 2.0_r_def, "
+            "f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+# ------------- Built-ins with multiple calls or mixed with kernels --------- #
 
 
 def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
@@ -2397,7 +3070,7 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Tests that we generate correct code for a builtin set operation
+    ''' Tests that we generate correct code for a built-in set operation
     when the invoke also contains a normal kernel. Test with and
     without annexed dofs being computed as this affects the generated
     code.
@@ -2505,11 +3178,11 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Builtins with reductions ------------------------------------ #
+# ------------- Built-ins with reductions ----------------------------------- #
 
 
 def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that multiple builtins, including one with reductions, produce
+    ''' Test that multiple built-ins, including one with reductions, produce
     correct code. Also test with and without annexed dofs being
     computed as this affects the generated code.
 
@@ -2543,12 +3216,12 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = b * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2557,7 +3230,7 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = asum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2588,13 +3261,13 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = b * f1_proxy%data(df)\n"
             "      END DO\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = asum * f1_proxy%data(df)\n"
             "      END DO\n") in code
 
 
@@ -2622,9 +3295,9 @@ def test_scalar_int_builtin_error(monkeypatch):
 
 def mesh_code_present(field_str, code):
     '''This test checks for the existance of mesh code. This exists for
-    all builtins with dm = True (although it is not actually required!) so
+    all built-ins with dm = True (although it is not actually required!) so
     each test can call this function. Mesh code is generated from the first
-    field in a builtin arguments list, here denoted with field_str.'''
+    field in a built-in arguments list, here denoted with field_str.'''
     assert "      USE mesh_mod, ONLY: mesh_type" in code
     assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
     output_dm_1 = (

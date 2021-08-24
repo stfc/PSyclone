@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2020, Science and Technology Facilities Council.
+   Copyright (c) 2020-2021, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,13 @@
    -----------------------------------------------------------------------------
    Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
+.. The following section imports those Python modules that are needed in
+   subsequent doctest snippets.
+.. testsetup::
+
+        from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType, \
+	    REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
+	from psyclone.psyir.nodes import Reference
 
 PSyIR Types, Symbols and Data dependencies
 ##########################################
@@ -40,14 +47,17 @@ PSyIR Types, Symbols and Data dependencies
 DataTypes
 =========
 
-PSyIR DataTypes currently support Scalar, Array and Structure types
-via the ``ScalarType``, ``ArrayType`` and ``StructureType`` classes,
-respectively.  The ``StructureType`` simply contains an
-``OrderedDict`` of namedtuples, each of which holds the name, type and
-visibility of a component of the type. These types are designed to be
-composable: one might have an ``ArrayType`` with elements that are of
-a ``StructureType`` or a ``StructureType`` that has components that
-are also of (some other) ``StructureType``.
+PSyIR DataTypes currently support Scalar, Array, Structure and empty
+types via the ``ScalarType``, ``ArrayType``, ``StructureType`` and
+``NoType`` classes, respectively.  The ``StructureType`` simply
+contains an ``OrderedDict`` of namedtuples, each of which holds the
+name, type and visibility of a component of the type. These types are
+designed to be composable: one might have an ``ArrayType`` with
+elements that are of a ``StructureType`` or a ``StructureType`` that
+has components that are also of (some other) ``StructureType``.
+``NoType`` is the equivalent of C's ``void`` and is currently only
+used with ``RoutineSymbols`` when the corresponding routine has no
+return type (such as Fortran subroutines).
 
 There are two other types that are used in situations where the full
 type information is not currently available: ``UnknownType`` means
@@ -60,9 +70,11 @@ is limited to ``UnknownFortranType``.
 
 It was decided to include datatype intrinsic as an attribute of ScalarType
 rather than subclassing. So, for example, a 4-byte real scalar is
-defined like this::
+defined like this:
 
-   scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
+.. doctest::
+
+    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
 
 and has the following pre-defined shortcut
 
@@ -70,9 +82,7 @@ and has the following pre-defined shortcut
 
    scalar_type = REAL4_TYPE
 
-If we were to subclass, it would have looked something like this:
-
-::
+If we were to subclass, it would have looked something like this::
 
    scalar_type = RealType(4)
 
@@ -388,9 +398,23 @@ variable accesses (READ, WRITE etc.), which is based on the PSyIR information.
 The only exception to this is if a kernel is called, in which case the
 metadata for the kernel declaration will be used to determine the variable
 accesses for the call statement. The information about all variable usage
-of a node can be gathered by creating an object of type
-`psyclone.core.access_info.VariablesAccessInfo`, and then calling
-the function `reference_accesses()` for the node:
+of a PSyIR node or a list of nodes can be gathered by creating an object of
+type `psyclone.core.access_info.VariablesAccessInfo`.
+This class uses a `Signature` object to keep track of the variables used.
+A signature can be thought of as a tuple that consists of the variable name
+and structure members used in an access - called components. For example,
+an access like
+`a(1)%b(k)%c(i,j)` would be stored with a signature `(a, b, c)`, giving
+three components `a`, `b`, and `c`.
+A simple variable such as `a` is stored as a one-element tuple `(a, )`, having
+a single component.
+
+.. autoclass:: psyclone.core.access_info.Signature
+    :members:
+    :special-members: __hash__, __eq__, __lt__
+
+To collect access information in a `VariablesAccessInfo` object, the
+function `reference_accesses()` for the code region must be called:
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
 
@@ -408,15 +432,86 @@ keep track of which access information is stored in a `VariablesAccessInfo`
 instance.
 
 For each variable used an instance of
-`psyclone.core.access_info.VariableAccessInfo` is created, which collects
-all accesses for that variable using `psyclone.config.access_info.AccessInfo`
+`psyclone.core.access_info.SingleVariableAccessInfo` is created, which collects
+all accesses for that variable using `psyclone.core.access_info.AccessInfo`
 instances:
 
-.. autoclass:: psyclone.core.access_info.VariableAccessInfo
+.. autoclass:: psyclone.core.access_info.SingleVariableAccessInfo
     :members:
 
 .. autoclass:: psyclone.core.access_info.AccessInfo
     :members:
+
+Indices
+-------
+The `AccessInfo` class stores the original PSyIR node that contains the
+access, but it also stores the indices used in a simplified form, which
+makes it easier to analyse dependencies without having
+to analyse a PSyIR tree for details. The indices are stored in the
+ComponentIndices object that each access has, which can be accessed
+using the `component_indices` property of an `AccessInfo` object.
+
+.. autoclass:: psyclone.core.access_info.ComponentIndices
+    :members:
+    :special-members: __getitem__, __len__
+
+
+This object internally stores the indices as a list of indices for each
+component. For example, an access like `a(i)%b(j,k)%c(l)` would
+be stored as the list `[ [i], [j,k], [l] ]`. In case of non-array accesses,
+the corresponding index list will be empty, e.g. `a%b(j)%c` will
+be stored as `[ [], [j], [] ]`, and a scalar `a` will just
+return `[ [] ]`. Each member of this list of lists is the PSyIR node
+describing the array expression used.
+
+The component indices provides an array-like access to
+this data structure, you can use `len(component_indices)` to get the
+number of components for which array indices are stored.
+The information can be accessed using array subscription syntax, e.g.:
+`component_index[0]` will return the list of array indices used in the
+first component. You can also use a 2-tuple to select a component
+and a dimension at the same time, e.g. `component_indices[(0,1)]`, which
+will return the index used in the second dimension of the first component.
+
+`ComponentIndices` provides an easy way
+to iterate over all indices using its `iterate()` method, which returns all
+valid 2-tuples of component index and dimension index. For example:
+
+.. code-block:: python
+
+  for indx in access_info.component_indices:
+      # indx is a 2-tuple of (component_index, dimension_index)
+      psyir_index = access_info.component_indices[indx]
+      ...
+  # Using enumerate:
+  for count, indx in enumerate(component_indices.iterate()):
+      # fortran writer convers a PSyIR node to Fortran:
+      print("Index-id", count, fortran_writer(indx))
+
+To find out details about an index expression, you can either analyse
+the tree (e.g. using `walk`), or use the variable access functionality again.
+Below is an example that shows how this is done to determine if an array
+expression contains a reference to a given variable `index_variable`. The
+variable `access_info` is an instance of `AccessInfo` and contains the
+information about one reference.The function `reference_accesses` is used
+to analyse the index expression.
+
+.. code-block:: python
+
+  for indx in access_info.component_indices:
+      index_expression = component_indices[indx]
+
+      # Create an access info object to collect the accesses
+      # in the index expression
+      accesses = VariablesAccessInfo(index_expression)
+      
+      # Then test if the index variable is used. Note that
+      # the key of `access` is a signature
+      if Signature(index_variable) in accesses:
+          # The index variable is used as an index
+          # at the specified location.
+          return indx
+
 
 Access Location
 ---------------
@@ -468,28 +563,30 @@ Access Examples
 ---------------
 
 Below we show a simple example of how to use this API. This is from the
-`psyclone.psyGen.OMPParallelDirective` (so `self` is an instance of this
+`psyclone.psyir.nodes.OMPParallelDirective` (so `self` is an instance of this
 node), and this code is used to determine a list of all the scalar
 variables that must be declared as thread-private::
 
   var_accesses = VariablesAccessInfo()
   self.reference_accesses(var_accesses)
-  for var_name in var_accesses.all_vars:
-      accesses = var_accesses[var_name].all_accesses
-      # Ignore variables that are arrays, we only look at scalar ones.
-      # If we do have a symbol table, use the shape of the variable
-      # to determine if the variable is scalar or not
-      if symbol_table:
-          if len(symbol_table.lookup(var_name).shape) > 0:
-              continue
+  for signature in var_accesses.all_signatures:
+      var_name = str(signature)
+      access_info = var_accesses[signature]
+      symbol = symbol_table.lookup(var_name)
 
-      # If there is no symbol table, check instead if the first access of
-      # the variable has indices, and assume it is an array if it has:
-      elif accesses[0].indices is not None:
+      # Ignore variables that are arrays, we only look at scalar ones.
+      # The `is_used_as_array` function will take information from
+      # the access information as well as from the symbol table
+      # into account.
+      is_array = symbol.is_used_as_array(access_info=acess_info)
+
+      if is_array:
+          # It's not a scalar variable, so it will not be private
           continue
 
-      # If a variable is only accessed once, it is either a coding error
-      # or a shared variable - anyway it is not private
+      # If a scalar variable is only accessed once, it is either a coding
+      # error or a shared variable - anyway it is not private
+      accesses = var_accesses[signature].all_accesses
       if len(accesses) == 1:
           continue
 
@@ -497,7 +594,6 @@ variables that must be declared as thread-private::
       # assume the variable should be private:
       if accesses[0].access_type == AccessType.WRITE:
           result.add(var_name.lower())
-
 
 The next, hypothetical example shows how the `VariablesAccessInfo` class
 can be used iteratively. Assume that you have a function that determines
@@ -525,7 +621,7 @@ until we find accesses that would prevent parallelisation::
 .. note:: There is a certain overlap in the dependency analysis code
           and the variable access API. More work on unifying those two
           approaches will be undertaken in the future. Also, when calling
-          `reference_accesses()` for a Dynamo or GOcean kernel, the 
+          `reference_accesses()` for a Dynamo or GOcean kernel, the
           variable access mode for parameters is taken
           from the kernel metadata, not from the actual kernel source 
           code.

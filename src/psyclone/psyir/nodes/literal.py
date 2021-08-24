@@ -64,6 +64,8 @@ class Literal(DataNode):
     :raises ValueError: if the datatype is not one of \
                         self.VALID_DATA_TYPES.
     :raises TypeError: if the supplied value is not a string.
+    :raises ValueError: if the supplied value is an empty string and the \
+                        Literal is not a CHARACTER.
     :raises ValueError: if the Literal is a BOOLEAN and the value is not \
                         'true' or 'false'.
 
@@ -72,7 +74,7 @@ class Literal(DataNode):
     _children_valid_format = "<LeafNode>"
     _text_name = "Literal"
     _colour = "yellow"
-    _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?(e[+-]?[0-9]+)?$'
+    _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?$'
 
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
@@ -89,8 +91,8 @@ class Literal(DataNode):
                 "Literals must be supplied with a value encoded as a string "
                 "but found '{0}'".format(type(value).__name__))
 
-        if not value:
-            raise ValueError("A literal value can not be empty.")
+        if not value and datatype.intrinsic != ScalarType.Intrinsic.CHARACTER:
+            raise ValueError("A non-character literal value cannot be empty.")
 
         if (isinstance(datatype, ScalarType) and
                 datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN and
@@ -100,7 +102,7 @@ class Literal(DataNode):
                 "'false' but found '{0}'.".format(value))
 
         if (datatype.intrinsic == ScalarType.Intrinsic.REAL and not
-                re.search(Literal._real_value, value)):
+                re.match(Literal._real_value, value)):
             raise ValueError(
                 "A scalar real literal value must conform to the "
                 "supported format ('{0}') but found '{1}'."

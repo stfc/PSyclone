@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
-    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE
+    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import colored
 
@@ -59,17 +59,21 @@ def test_literal_init():
     assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert literal.datatype.precision == ScalarType.Precision.DOUBLE
     assert len(literal.datatype.shape) == 2
-    assert isinstance(literal.datatype.shape[0], Literal)
-    assert literal.datatype.shape[0].value == '10'
-    assert (literal.datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(literal.datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(literal.datatype.shape[0].lower, Literal)
+    assert isinstance(literal.datatype.shape[0].upper, Literal)
+    assert literal.datatype.shape[0].lower.value == '1'
+    assert literal.datatype.shape[0].upper.value == '10'
+    assert (literal.datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (literal.datatype.shape[0].datatype.precision ==
+    assert (literal.datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(literal.datatype.shape[1], Literal)
-    assert literal.datatype.shape[1].value == '10'
-    assert (literal.datatype.shape[1].datatype.intrinsic ==
+    assert isinstance(literal.datatype.shape[1].upper, Literal)
+    assert literal.datatype.shape[1].lower.value == '1'
+    assert literal.datatype.shape[1].upper.value == '10'
+    assert (literal.datatype.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (literal.datatype.shape[1].datatype.precision ==
+    assert (literal.datatype.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
 
     literal = Literal("true", BOOLEAN_TYPE)
@@ -126,18 +130,20 @@ def test_literal_init_invalid_2(value):
     with pytest.raises(ValueError) as err:
         Literal(value, REAL_DOUBLE_TYPE)
     assert ("A scalar real literal value must conform to the supported "
-            "format ('^[+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?$') but "
+            "format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
             "found '{0}'.".format(value) in str(err.value))
 
 
-def test_literal_init_invalid_3():
+def test_literal_init_empty_value():
     '''Test the initialisation of a Literal object with an empty value
-    argument raises the expected exception.
+    argument raises the expected exception unless it is of CHARACTER_TYPE.
 
     '''
     with pytest.raises(ValueError) as err:
         Literal("", REAL_DOUBLE_TYPE)
-    assert "A literal value can not be empty." in str(err.value)
+    assert "A non-character literal value cannot be empty." in str(err.value)
+    lit = Literal("", CHARACTER_TYPE)
+    assert lit.value == ""
 
 
 @pytest.mark.parametrize("value",
@@ -170,8 +176,7 @@ def test_literal_node_str():
     literal = Literal("1", array_type)
     coloredtext = colored("Literal", Literal._colour)
     assert (coloredtext+"[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
-            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>]"
+            "shape=[10, 10]>]"
             in literal.node_str())
 
 
@@ -180,9 +185,7 @@ def test_literal_can_be_printed():
     initialised fully)'''
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
-    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
-            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>]"
+    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, shape=[10, 10]>]"
             in str(literal))
 
 
@@ -196,3 +199,20 @@ def test_literal_children_validation():
         literal.addchild(Literal("2", INTEGER_SINGLE_TYPE))
     assert ("Item 'Literal' can't be child 0 of 'Literal'. Literal is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_literal_can_be_copied():
+    ''' Test that a Literal node can be copied. '''
+
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
+
+    literal1 = literal.copy()
+    assert isinstance(literal1, Literal)
+    assert literal1 is not literal
+    assert literal1.value == "1"
+    assert literal1.datatype is INTEGER_SINGLE_TYPE
+
+    # Modifying the new literal does not affect the original
+    literal1._value = "2"
+    assert literal1.value == "2"
+    assert literal.value == "1"

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for Column-Matrix-Assembly operators in
 the Dynamo 0.3 API using pytest. '''
@@ -42,15 +43,18 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
+
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
+from psyclone.dynamo0p3 import DynDofmaps, DynKernMetadata
+from psyclone.errors import GenerationError, InternalError
+from psyclone.f2pygen import ModuleGen
+from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError, InternalError
-from psyclone.gen_kernel_stub import generate
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -87,6 +91,8 @@ end module testkern_cma
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 def test_cma_mdata_assembly():
@@ -134,13 +140,14 @@ def test_cma_mdata_invalid_data_type():
         "arg_type(gh_columnwise_operator, gh_real, gh_write,   &\n",
         "arg_type(gh_columnwise_operator, gh_unreal, gh_write,   &\n", 1)
     ast = fpapi.parse(code, ignore_comments=False)
+    const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
-            "entry should be a valid data type (one of "
-            "['gh_real', 'gh_integer']), but found 'gh_unreal' in "
-            "'arg_type(gh_columnwise_operator, gh_unreal, gh_write, "
-            "any_space_1, any_space_2)'." in str(excinfo.value))
+            "entry should be a valid data type (one of {0}), but found "
+            "'gh_unreal' in 'arg_type(gh_columnwise_operator, gh_unreal, "
+            "gh_write, any_space_1, any_space_2)'.".
+            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
 
 
 def test_cma_mdata_init_wrong_argument_type():
@@ -170,10 +177,11 @@ def test_cma_mdata_init_wrong_data_type():
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
-    assert ("In the LFRic API the permitted data types for operator arguments "
+    const = LFRicConstants()
+    assert ("In the LFRic API the allowed data types for operator arguments "
             "are one of {0}, but found 'gh_integer' in 'arg_type(gh_columnwise"
             "_operator, gh_integer, gh_write, any_space_1, any_space_2)'.".
-            format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
+            format(const.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 
 
@@ -202,8 +210,9 @@ def test_cma_mdata_multi_writes():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Replace the field arg with another CMA operator that is written to
     for access in OP_WRITE_ACCESSES:
-        cmaopstring = "arg_type(gh_columnwise_operator," + access + \
-                      ",any_space_1,any_space_2)"
+        cmaopstring = (
+            "arg_type(gh_columnwise_operator, gh_real, " + access +
+            ",any_space_1,any_space_2)")
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_field, gh_real, gh_read, any_space_1)",
             cmaopstring, 1)
@@ -255,8 +264,9 @@ def test_cma_mdata_writes_lma_op():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Add an additional LMA operator that has write or readwrite access
     for access in OP_WRITE_ACCESSES:
-        opstring = "             arg_type(gh_operator," + access + \
-                   ", any_space_1, any_space_2), &"
+        opstring = (
+            "             arg_type(gh_operator, gh_real, " + access +
+            ", any_space_1, any_space_2), &")
         code = CMA_ASSEMBLE.split("\n")
         code.insert(6, opstring)
         code = "\n".join(code).replace("meta_args(4)", "meta_args(5)", 1)
@@ -338,6 +348,80 @@ def test_cma_mdata_asm_fld_stencil_error():
     assert ("Kernel 'testkern_cma_type' takes a CMA operator but has an "
             "argument with a stencil access ('x1d'). This is forbidden."
             in str(excinfo.value))
+
+
+def test_invoke_uniq_declns_valid_access_cma_op():
+    ''' Tests that all valid access modes for user-defined CMA operator
+    arguments (AccessType.READ, AccessType.WRITE, AccessType.READWRITE)
+    are accepted by Invoke.unique_declarations(). Also tests the
+    correctness of names of arguments and their proxies.
+
+    '''
+    # Test READ
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.5_multi_cma_invoke.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    cma_ops_read_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_columnwise_operator"], access=AccessType.READ))
+    cma_ops_read = [arg.declaration_name for arg in cma_ops_read_args]
+    cma_ops_proxy_read = [arg.proxy_declaration_name for arg in
+                          cma_ops_read_args]
+    assert cma_ops_read == ["cma_op1", "cma_opb"]
+    assert cma_ops_proxy_read == ["cma_op1_proxy", "cma_opb_proxy"]
+
+    # Test READWRITE
+    cma_ops_readwritten_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_columnwise_operator"], access=AccessType.READWRITE))
+    cma_ops_readwritten = [arg.declaration_name for arg in
+                           cma_ops_readwritten_args]
+    cma_ops_proxy_readwritten = [arg.proxy_declaration_name for arg in
+                                 cma_ops_readwritten_args]
+    assert cma_ops_readwritten == ["cma_opc"]
+    assert cma_ops_proxy_readwritten == ["cma_opc_proxy"]
+
+    # Test WRITE
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.0_cma_assembly.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    cma_ops_written_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_columnwise_operator"], access=AccessType.WRITE))
+    cma_ops_written = [arg.declaration_name for arg in cma_ops_written_args]
+    cma_ops_proxy_written = [arg.proxy_declaration_name for arg
+                             in cma_ops_written_args]
+    assert cma_ops_written == ["cma_op1"]
+    assert cma_ops_proxy_written == ["cma_op1_proxy"]
+
+
+def test_cma_operator_arg_lfricconst_properties(monkeypatch):
+    ''' Tests that properties of supported CMA operator arguments
+    ('real'-valued 'columnwise_operator_type') defined in LFRicConstants
+    are correctly set up in the DynKernelArgument class.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.5_multi_cma_invoke.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.kernels()[0]
+    cma_op_arg = kernel.arguments.args[2]
+
+    assert cma_op_arg.module_name == "operator_mod"
+    assert cma_op_arg.data_type == "columnwise_operator_type"
+    assert cma_op_arg.proxy_data_type == "columnwise_operator_proxy_type"
+    assert cma_op_arg.intrinsic_type == "real"
+    assert cma_op_arg.precision == "r_def"
+
+    # Monkeypatch to check with an invalid argument type of an
+    # operator argument. The LFRicConstants class needs to be
+    # initialised before the monkeypatch.
+    _ = LFRicConstants()
+    monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
+                        ["calico"])
+    monkeypatch.setattr(cma_op_arg, "_argument_type", "calico")
+    with pytest.raises(InternalError) as err:
+        cma_op_arg._init_data_type_properties()
+    assert ("Expected 'gh_operator' or 'gh_columnwise_operator' "
+            "argument type but found 'calico'." in str(err.value))
 
 
 CMA_APPLY = '''
@@ -701,9 +785,11 @@ def test_cma_mdata_stencil_invalid():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+
+    const = LFRicConstants()
     assert ("each 'meta_arg' entry must have 5 arguments if its first "
             "argument is an operator (one of {0})".
-            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES)
+            format(const.VALID_OPERATOR_NAMES)
             in str(excinfo.value))
 
 
@@ -1243,8 +1329,6 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
 def test_dyndofmap_stubdecln_err():
     ''' Check that DynDofmaps._stub_declarations raises the expected errors
     if the stored CMA information is invalid. '''
-    from psyclone.dynamo0p3 import DynDofmaps
-    from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "20.5_multi_cma_invoke.f90"),
                            api=TEST_API)

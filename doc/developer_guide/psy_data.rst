@@ -82,7 +82,7 @@ can be extended by the user to support additional classes::
 
     [DEFAULT]
     ...
-    VALID_PSY_DATA_PREFIXES = profile extract
+    VALID_PSY_DATA_PREFIXES = profile, extract
 
 The class prefixes supported at the moment are:
 

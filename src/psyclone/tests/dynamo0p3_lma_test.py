@@ -40,17 +40,22 @@ using pytest. '''
 
 # imports
 from __future__ import absolute_import, print_function
+
+import copy
 import os
 import pytest
+
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
+from psyclone.dynamo0p3 import (DynFuncDescriptor03, DynKernMetadata,
+                                DynKern, FunctionSpace)
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError, InternalError
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -91,6 +96,8 @@ end module testkern_qr
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 def test_get_op_wrong_name():
@@ -109,12 +116,13 @@ def test_ad_op_type_invalid_data_type():
         "arg_type(gh_operator, gh_clear,    gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
+    const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of ['gh_real', 'gh_integer']), but "
-            "found 'gh_clear' in 'arg_type(gh_operator, gh_clear, gh_read, "
-            "w2)'." in str(excinfo.value))
+            "be a valid data type (one of {0}), but found 'gh_clear' in "
+            "'arg_type(gh_operator, gh_clear, gh_read, w2)'.".
+            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
 
 
 def test_ad_op_type_too_few_args():
@@ -127,10 +135,10 @@ def test_ad_op_type_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    const = LFRicConstants()
     assert ("'meta_arg' entry must have 5 arguments if its first "
             "argument is an operator (one of {0})".
-            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES) in
-            str(excinfo.value))
+            format(const.VALID_OPERATOR_NAMES) in str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -216,10 +224,11 @@ def test_ad_op_type_init_wrong_data_type():
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             op_arg, metadata.iterates_over)._init_operator(op_arg)
-    assert ("In the LFRic API the permitted data types for operator "
+    const = LFRicConstants()
+    assert ("In the LFRic API the allowed data types for operator "
             "arguments are one of {0}, but found 'gh_integer' in "
             "'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'.".
-            format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
+            format(const.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 
 
@@ -298,7 +307,6 @@ def test_fs_descriptor_wrong_type():
     assert ("'meta_funcs' metadata must consist of an array of structure "
             "constructors, all of type 'func_type'" in str(excinfo.value))
     # Check that the DynFuncDescriptor03 rejects it too
-    from psyclone.dynamo0p3 import DynFuncDescriptor03
 
     class FakeCls(object):
         ''' Class that just has a name property (which is not "func_type") '''
@@ -380,6 +388,81 @@ def test_fsdesc_fs_not_in_argdesc():
         _ = DynKernMetadata(ast, name=name)
     assert 'function spaces specified in meta_funcs must exist in ' + \
         'meta_args' in str(excinfo.value)
+
+
+def test_invoke_uniq_declns_valid_access_op():
+    ''' Tests that all valid access modes for user-defined LMA operator
+    arguments (AccessType.READ, AccessType.WRITE, AccessType.READWRITE)
+    are accepted by Invoke.unique_declarations(). Also tests the
+    correctness of names of arguments and their proxies.
+
+    '''
+    # Test READ
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5.2_multikernel_invokes.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    ops_read_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.READ))
+    ops_read = [arg.declaration_name for arg in ops_read_args]
+    ops_proxy_read = [arg.proxy_declaration_name for arg in ops_read_args]
+    assert ops_read == ["op", "op3", "op4", "op5"]
+    assert ops_proxy_read == ["op_proxy", "op3_proxy",
+                              "op4_proxy", "op5_proxy"]
+
+    # Test READWRITE
+    ops_readwritten_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.READWRITE))
+    ops_readwritten = [arg.declaration_name for arg in ops_readwritten_args]
+    ops_proxy_readwritten = [arg.proxy_declaration_name for arg in
+                             ops_readwritten_args]
+    assert ops_readwritten == ["op", "op2"]
+    assert ops_proxy_readwritten == ["op_proxy", "op2_proxy"]
+
+    # Test WRITE
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    ops_written_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.WRITE))
+    ops_written = [arg.declaration_name for arg in ops_written_args]
+    ops_proxy_written = [arg.proxy_declaration_name for arg
+                         in ops_written_args]
+    assert ops_written == ["op4"]
+    assert ops_proxy_written == ["op4_proxy"]
+
+
+def test_operator_arg_lfricconst_properties(monkeypatch):
+    ''' Tests that properties of supported LMA operator arguments
+    ('real'-valued 'operator_type') defined in LFRicConstants are
+    correctly set up in the DynKernelArgument class.
+
+    '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+
+    op_arg = kernel.arguments.args[3]
+    assert op_arg.module_name == "operator_mod"
+    assert op_arg.data_type == "operator_type"
+    assert op_arg.proxy_data_type == "operator_proxy_type"
+    assert op_arg.intrinsic_type == "real"
+    assert op_arg.precision == "r_def"
+
+    # Monkeypatch to check with an invalid argument type of an
+    # operator argument. The LFRicConstants class needs to be
+    # initialised before the monkeypatch.
+    _ = LFRicConstants()
+    monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
+                        ["tuxedo"])
+    monkeypatch.setattr(op_arg, "_argument_type", "tuxedo")
+    with pytest.raises(InternalError) as err:
+        op_arg._init_data_type_properties()
+    assert ("Expected 'gh_operator' or 'gh_columnwise_operator' "
+            "argument type but found 'tuxedo'." in str(err.value))
 
 
 def test_operator(tmpdir):
@@ -759,7 +842,6 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
 def test_operator_bc_kernel_multi_args_err(dist_mem):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if it has more than one argument '''
-    import copy
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)

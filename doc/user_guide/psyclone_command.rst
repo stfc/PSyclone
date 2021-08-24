@@ -1,3 +1,39 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2017-2021, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
+
 .. _psyclone_command:
 
 The psyclone command
@@ -5,7 +41,7 @@ The psyclone command
 
 The simplest way to run PSyclone is to use the ``psyclone`` command. If
 you installed PSyclone using ``pip`` then this command should be available
-on your PATH (see :ref:`getting_going_env` for more
+on your PATH (see :ref:`getting-going-env` for more
 details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
 directory. The command takes an algorithm file as input and outputs
 modified algorithm code and generated PSy code. This section walks
@@ -24,14 +60,14 @@ The optional ``-h`` argument gives a description of the options provided
 by the command:
 
 .. parsed-literal::
-		
+
   > psyclone -h
 
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
-		  [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-		  [--profile {invokes,kernels}] [--config CONFIG] [-v]
-		  filename
+                  [-dm] [-nodm] [--kernel-renaming {multiple,single}]
+                  [--profile {invokes,kernels}] [--config CONFIG] [-v]
+                  filename
 
   Run the PSyclone code generator on a particular file
 
@@ -45,12 +81,13 @@ by the command:
     -okern OKERN          directory in which to put transformed kernels
     -api API              choose a particular api from ['dynamo0.1',
                           'dynamo0.3', 'gocean0.1', 'gocean1.0', 'nemo'],
-			  default 'dynamo0.3'.
+                          default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
-                          path to root of directory structure containing kernel
-                          source code
+                          path to a root directory structure containing kernel
+                          source code. Multiple roots can be specified by using
+                          multiple -d arguments.
     -I INCLUDE, --include INCLUDE
                           path to Fortran INCLUDE files (nemo API only)
     -l {off,all,output}, --limit {off,all,output}
@@ -62,7 +99,7 @@ by the command:
     -nodm, --no_dist_mem  do not generate distributed memory code
     --kernel-renaming {single,multiple}
                           Naming scheme to use when re-naming transformed
-			  kernels.
+                          kernels.
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
     --config CONFIG       Config file with PSyclone specific options.
@@ -200,11 +237,10 @@ specified directory:
     > psyclone -d tests/test_files/dynamo0p3 -api dynamo0.3 use.f90 
     [code output]
 
-.. note::
-    The ``-d`` option is limited to a single directory. Therefore a
-    current limitation in PSyclone is that all kernel files
-    required by an algorithm file must exist within a directory
-    hierarchy where their file names are unique.
+.. note:: The ``-d`` option can be repeated to add as many search
+    directories as is required, with the constraint that there must be
+    only one instance of the specified file within (or below) the
+    specified directories.
 
 Transformation script
 ---------------------

@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
-    SymbolError, RoutineSymbol
+    SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol
 from psyclone.errors import InternalError
 
 
@@ -83,6 +83,7 @@ def test_instance():
     assert sym_table._argument_list == []
     assert sym_table._tags == {}
     assert sym_table._node is None
+    assert sym_table._default_visibility is Symbol.Visibility.PUBLIC
 
     with pytest.raises(TypeError) as info:
         _ = SymbolTable(node="hello")
@@ -96,6 +97,27 @@ def test_instance():
     assert sym_table._argument_list == []
     assert sym_table._tags == {}
     assert sym_table._node is schedule
+    assert sym_table._default_visibility is Symbol.Visibility.PUBLIC
+
+    sym_table = SymbolTable(default_visibility=Symbol.Visibility.PUBLIC)
+    assert sym_table._default_visibility == Symbol.Visibility.PUBLIC
+
+    with pytest.raises(TypeError) as info:
+        SymbolTable(default_visibility=1)
+    assert ("Default visibility must be an instance of psyir.symbols.Symbol."
+            "Visibility but got 'int'" in str(info.value))
+
+
+def test_default_vis_symbol_table():
+    ''' Test the setter and getter for the default_visibility property. '''
+    sym_table = SymbolTable()
+    assert sym_table.default_visibility is Symbol.Visibility.PUBLIC
+    sym_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert sym_table.default_visibility == Symbol.Visibility.PRIVATE
+    with pytest.raises(TypeError) as info:
+        sym_table.default_visibility = 1
+    assert ("Default visibility must be an instance of psyir.symbols.Symbol."
+            "Visibility but got 'int'" in str(info.value))
 
 
 def test_parent_symbol_table():
@@ -116,7 +138,8 @@ def test_parent_symbol_table():
     # Provide a wrong scope_limit parameter
     with pytest.raises(TypeError) as err:
         _ = inner_symbol_table.parent_symbol_table(scope_limit=2)
-    assert "The scope_limit argument '2', is not of type `Node`." in str(err)
+    assert ("The scope_limit argument '2', is not of type `Node`." in
+            str(err.value))
 
 
 def test_next_available_name_1():
@@ -238,17 +261,19 @@ def test_add_1():
             ScalarType.Precision.UNDEFINED)
     var1_datatype = var1_symbol.datatype
     assert len(var1_datatype.shape) == 2
-    assert isinstance(var1_datatype.shape[0], Literal)
-    assert var1_datatype.shape[0].value == "5"
-    assert (var1_datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(var1_datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(var1_datatype.shape[0].upper, Literal)
+    assert var1_datatype.shape[0].upper.value == "5"
+    assert (var1_datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (var1_datatype.shape[0].datatype.precision ==
+    assert (var1_datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(var1_datatype.shape[1], Literal)
-    assert var1_datatype.shape[1].value == "1"
-    assert (var1_datatype.shape[1].datatype.intrinsic ==
+    assert isinstance(var1_datatype.shape[1], ArrayType.ArrayBounds)
+    assert isinstance(var1_datatype.shape[1].upper, Literal)
+    assert var1_datatype.shape[1].upper.value == "1"
+    assert (var1_datatype.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (var1_datatype.shape[1].datatype.precision ==
+    assert (var1_datatype.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     assert var1_symbol.interface.container_symbol == my_mod
 
@@ -490,8 +515,9 @@ def test_swap_symbol():
     assert ("Cannot swap symbols that have different names, got: 'var1' and "
             "'var2'" in str(err.value))
     # Finally, check that the method correctly adds the new symbol to the
-    # table and removes the old one.
-    symbol3 = DataSymbol("var1", REAL_TYPE)
+    # table and removes the old one (even if the case of the name of the
+    # new symbol differs from the original).
+    symbol3 = DataSymbol("Var1", REAL_TYPE)
     sym_table.swap(symbol1, symbol3)
     assert sym_table.lookup("var1") is symbol3
     assert symbol1 not in sym_table._symbols
@@ -536,7 +562,9 @@ def test_swap_symbol_properties():
         sym_table.swap_symbol_properties(symbol1, symbol4)
     assert "Symbol 'var2' is not in the symbol table." in str(excinfo.value)
 
-    # Raise exception if both symbols have the same name
+    # Raise exception if both symbols have the same name. The only way this
+    # can currently occur is if they are the same symbol (as the normalised
+    # symbol name is used as the key in the symbol table).
     with pytest.raises(ValueError) as excinfo:
         sym_table.swap_symbol_properties(symbol1, symbol1)
     assert("The symbols should have different names, but found 'var1' for "
@@ -554,8 +582,8 @@ def test_swap_symbol_properties():
     assert symbol1.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol1.datatype.precision == ScalarType.Precision.UNDEFINED
     assert len(symbol1.datatype.shape) == 2
-    assert symbol1.datatype.shape[0].symbol == symbol2
-    assert symbol1.datatype.shape[1].symbol == symbol3
+    assert symbol1.datatype.shape[0].upper.symbol == symbol2
+    assert symbol1.datatype.shape[1].upper.symbol == symbol3
     assert symbol1.is_argument
     assert symbol1.constant_value is None
     assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
@@ -573,8 +601,8 @@ def test_swap_symbol_properties():
 
     # Check symbol references are unaffected
     sym_table.swap_symbol_properties(symbol2, symbol3)
-    assert symbol1.shape[0].name == "dim1"
-    assert symbol1.shape[1].name == "dim2"
+    assert symbol1.shape[0].upper.name == "dim1"
+    assert symbol1.shape[1].upper.name == "dim2"
 
     # Check argument positions are updated. The original positions
     # were [dim1, dim2, var2]. They should now be [dim2, dim1, var1]
@@ -754,6 +782,22 @@ def test_lookup_with_tag_3():
             container_symbol_table.lookup_with_tag("symbol1_tag", **arg)
             assert ("Could not find the tag 'symbol1_tag' in the Symbol Table."
                     in str(info.value))
+
+
+def test_has_wildcard_imports():
+    ''' Test the has_wildcard_imports() method. '''
+    sched_table, container_table = create_hierarchy()
+    # We have no wildcard imports initially
+    assert sched_table.has_wildcard_imports() is False
+    assert container_table.has_wildcard_imports() is False
+    csym = ContainerSymbol("some_mod")
+    container_table.add(csym)
+    # Adding a container symbol without a wildcard import has no effect
+    assert container_table.has_wildcard_imports() is False
+    # Now give it a wildcard import
+    csym.wildcard_import = True
+    assert container_table.has_wildcard_imports() is True
+    assert sched_table.has_wildcard_imports() is True
 
 
 def test_view(capsys):
@@ -964,6 +1008,42 @@ def test_local_datasymbols():
     assert sym_table.lookup("var4") not in sym_table.local_datasymbols
 
 
+def test_argument_datasymbols():
+    ''' Test that the argument_datasymbols property returns a list of the
+    correct symbols. '''
+    sym_table = SymbolTable()
+    assert sym_table.argument_datasymbols == []
+    var1 = DataSymbol("var1", REAL_TYPE, interface=ArgumentInterface())
+    sym_table.add(var1)
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    var2 = DataSymbol("var2", array_type, interface=ArgumentInterface())
+    sym_table.add(var2)
+    sym_table.add(DataSymbol("var3", REAL_TYPE))
+    sym_table.specify_argument_list([var1, var2])
+    assert sym_table.argument_datasymbols == [var1, var2]
+
+
+def test_local_datatypesymbols():
+    ''' Test that the local_datatypesymbols property returns a list of the
+    correct symbols. '''
+    sym_table = SymbolTable()
+    assert sym_table.local_datatypesymbols == []
+    region_type = StructureType.create([
+        ("startx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    region_sym = DataTypeSymbol("region_type", region_type)
+    sym_table.add(region_sym)
+    # Add another DataTypeSymbol but have it imported from a Container (so it
+    # is not local).
+    csym = ContainerSymbol("my_mod")
+    sym_table.add(csym)
+    var1 = DataTypeSymbol("other_type", DeferredType(),
+                          interface=GlobalInterface(csym))
+    sym_table.add(var1)
+    var2 = DataSymbol("arg_var", region_type, interface=ArgumentInterface())
+    sym_table.specify_argument_list([var2])
+    assert sym_table.local_datatypesymbols == [region_sym]
+
+
 def test_global_symbols():
     '''Test that the global_symbols property returns those Symbols with
     'global' scope (i.e. that represent data/code that exists outside
@@ -990,7 +1070,7 @@ def test_global_symbols():
     assert len(gsymbols) == 1
     assert sym_table.lookup("gvar2") not in gsymbols
     # Add another global symbol
-    sym_table.add(RoutineSymbol("my_sub",
+    sym_table.add(RoutineSymbol("my_sub", INTEGER_TYPE,
                                 interface=GlobalInterface(
                                     ContainerSymbol("my_mod"))))
     assert sym_table.lookup("my_sub") in sym_table.global_symbols
@@ -1139,7 +1219,8 @@ def test_shallow_copy():
 
     # Create an initial SymbolTable
     dummy = Schedule()
-    symtab = SymbolTable(node=dummy)
+    symtab = SymbolTable(node=dummy,
+                         default_visibility=Symbol.Visibility.PRIVATE)
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
@@ -1155,6 +1236,7 @@ def test_shallow_copy():
     assert symtab2.lookup_with_tag("tag1") == sym2
     assert symtab2._node == dummy
     assert sym1 in symtab2.argument_list
+    assert symtab2.default_visibility == Symbol.Visibility.PRIVATE
 
     # Add new symbols in both symbols tables and check they are not added
     # to the other symbol table
@@ -1164,6 +1246,66 @@ def test_shallow_copy():
     assert "st2" in symtab2
     assert "st2" not in symtab
     assert "st1" not in symtab2
+
+
+def test_deep_copy():
+    ''' Tests the SymbolTable deep copy generates a new SymbolTable with
+    new identical copies of the symbols in the original symbol table'''
+
+    # Create an initial SymbolTable
+    dummy = Schedule()
+    symtab = SymbolTable(node=dummy,
+                         default_visibility=Symbol.Visibility.PRIVATE)
+    mod = ContainerSymbol("my_mod")
+    sym1 = DataSymbol("symbol1", INTEGER_TYPE,
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
+    sym2 = Symbol("symbol2", interface=GlobalInterface(mod))
+    symtab.add(mod)
+    symtab.add(sym1)
+    symtab.add(sym2, tag="tag1")
+    symtab.specify_argument_list([sym1])
+
+    # Create a copy and check the contents are the same
+    symtab2 = symtab.deep_copy()
+    assert "symbol1" in symtab2
+    assert isinstance(symtab2.lookup("symbol1"), DataSymbol)
+    assert symtab2.lookup("symbol1").datatype is INTEGER_TYPE
+    assert "symbol2" in symtab2
+    assert symtab2.lookup_with_tag("tag1") is symtab2.lookup("symbol2")
+    assert symtab2.lookup("symbol1") in symtab2.argument_list
+    assert symtab2._node == dummy
+    assert symtab2.default_visibility == Symbol.Visibility.PRIVATE
+
+    # But the symbols are not the same objects as the original ones
+    assert symtab2.lookup("symbol1") is not sym1
+    assert symtab2.lookup_with_tag("tag1") is not sym2
+    assert sym1 not in symtab2.argument_list
+    assert symtab2.lookup("symbol1") not in symtab.argument_list
+
+    # Check that the internal links between GlobalInterfaces and
+    # ContainerSymbols have been updated
+    assert symtab2.lookup("symbol2").interface.container_symbol is \
+        symtab2.lookup("my_mod")
+
+    # Add new symbols and rename symbols in both symbol tables and check
+    # they are not added/renamed in the other symbol table
+    symtab.add(Symbol("st1"))
+    symtab.rename_symbol(symtab.lookup("symbol1"), "a")
+    symtab2.add(Symbol("st2"))
+    symtab2.rename_symbol(symtab2.lookup("symbol2"), "b")
+    assert "st1" in symtab
+    assert "st2" in symtab2
+    assert "st2" not in symtab
+    assert "st1" not in symtab2
+    assert "a" in symtab
+    assert "a" not in symtab2
+    assert "b" in symtab2
+    assert "b" not in symtab
+    assert "symbol1" in symtab2
+    assert "symbol2" in symtab
+    assert "symbol1" not in symtab
+    assert "symbol2" not in symtab2
 
 
 def test_get_symbols():
@@ -1301,6 +1443,7 @@ def test_new_symbol():
     assert sym2.visibility is Symbol.Visibility.PUBLIC
     assert isinstance(sym1.interface, LocalInterface)
     assert isinstance(sym2.interface, LocalInterface)
+    assert isinstance(sym1.datatype, NoType)
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is None
 
@@ -1308,6 +1451,7 @@ def test_new_symbol():
     # keyword parameters
     sym1 = symtab.new_symbol("routine",
                              symbol_type=RoutineSymbol,
+                             datatype=DeferredType(),
                              visibility=Symbol.Visibility.PRIVATE)
     sym2 = symtab.new_symbol("data", symbol_type=DataSymbol,
                              datatype=INTEGER_TYPE,
@@ -1321,6 +1465,7 @@ def test_new_symbol():
     assert symtab.lookup("data_1") is sym2
     assert sym1.visibility is Symbol.Visibility.PRIVATE
     assert sym2.visibility is Symbol.Visibility.PRIVATE
+    assert isinstance(sym1.datatype, DeferredType)
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is not None
 
@@ -1329,7 +1474,7 @@ def test_new_symbol():
         sym1 = symtab.new_symbol("wrong", symbol_type=str,
                                  visibility=Symbol.Visibility.PRIVATE)
     assert ("The symbol_type parameter should be a type class of Symbol or"
-            " one of its sub-classes but found" in str(err))
+            " one of its sub-classes but found" in str(err.value))
 
 
 def test_symbol_from_tag():
@@ -1381,7 +1526,7 @@ def test_symbol_from_tag():
     with pytest.raises(SymbolError) as err:
         symtab.symbol_from_tag("tag3", symbol_type=RoutineSymbol)
     assert ("Expected symbol with tag 'tag3' to be of type 'RoutineSymbol' "
-            "but found type 'DataSymbol'." in str(err))
+            "but found type 'DataSymbol'." in str(err.value))
 
     # TODO #1057: It should also fail the symbol is found but the properties
     # are different than the requested ones.
@@ -1411,12 +1556,12 @@ def test_rename_symbol():
     assert symbol.name == "symbol1"
     assert symbol is schedule_symbol_table.lookup("symbol1")
     assert sched[0].rhs.symbol.name == "symbol1"
-    assert array.datatype.shape[0].symbol.name == "symbol1"
+    assert array.datatype.shape[0].upper.symbol.name == "symbol1"
     schedule_symbol_table.rename_symbol(symbol, "other")
     assert symbol.name == "other"
     assert symbol is schedule_symbol_table.lookup("other")
     assert sched[0].rhs.symbol.name == "other"
-    assert array.datatype.shape[0].symbol.name == "other"
+    assert array.datatype.shape[0].upper.symbol.name == "other"
 
     # The previous name should fail the lookup now
     with pytest.raises(KeyError) as err:

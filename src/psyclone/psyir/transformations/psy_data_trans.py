@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 '''Contains the PSyData transformation.
 '''
@@ -41,9 +41,9 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.configuration import Config
 from psyclone.nemo import NemoInvoke
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
-from psyclone.psyGen import InvokeSchedule, OMPDoDirective, ACCDirective, \
-    ACCLoopDirective
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
+    OMPDoDirective, ACCDirective, ACCLoopDirective
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -69,12 +69,12 @@ class PSyDataTrans(RegionTrans):
     >>> schedule.view()
     >>>
     >>> # Enclose all children within a single PSyData region
-    >>> newschedule, _ = data_trans.apply(schedule.children)
-    >>> newschedule.view()
+    >>> data_trans.apply(schedule.children)
+    >>> schedule.view()
     >>> # Or to use a class-prefix string and different region name:
-    >>> newschedule, _ = data_trans.apply(schedule.children,
-    >>>                                   {"prefix": "my_prefix",
-    >>>                                    "region_name": ("module","region")})
+    >>> data_trans.apply(schedule.children,
+    >>>                  {"prefix": "my_prefix",
+    >>>                   "region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).
@@ -175,6 +175,27 @@ class PSyDataTrans(RegionTrans):
                         .format(prefix, Config.get().valid_psy_data_prefixes,
                                 Config.get().filename))
 
+        # We have to create an instance of the node that will be inserted in
+        # order to find out what module name it will use.
+        pdata_node = self._node_class(options=options)
+        table = node_list[0].scope.symbol_table
+        for name in ([sym.name for sym in pdata_node.imported_symbols] +
+                     [pdata_node.fortran_module]):
+            try:
+                _ = table.lookup_with_tag(name)
+            except KeyError:
+                # The tag doesn't exist which means that we haven't already
+                # added this symbol as part of a PSyData transformation. Check
+                # for any clashes with existing symbols.
+                try:
+                    _ = table.lookup(name)
+                    raise TransformationError(
+                        "Cannot add PSyData calls because there is already a "
+                        "symbol named '{0}' which clashes with one of those "
+                        "used by the PSyclone PSyData API. ".format(name))
+                except KeyError:
+                    pass
+
         super(PSyDataTrans, self).validate(node_list, options)
 
         # The checks below are only for the NEMO API and can be removed
@@ -232,23 +253,34 @@ class PSyDataTrans(RegionTrans):
         # Perform validation checks
         self.validate(node_list, options)
 
-        # create a memento of the schedule and the proposed
-        # transformation
-        schedule = node_list[0].root
-        keep = Memento(schedule, self)
+        # Get useful references
+        parent = node_list[0].parent
+        position = node_list[0].position
+        root = node_list[0].root
+
+        # We always use the outermost symbol table so that any name clashes
+        # due to multiple applications of this transformation are handled
+        # automatically.
+        table = parent.root.symbol_table
+
+        # Create a memento of the tree root and the proposed transformation
+        keep = Memento(root, self)
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
-        # GOceanExtractNode. The base constructor of the extraction node
-        # will insert the node into the PSyIR between the
-        # nodes to be extracted and their parent. The nodes to
-        # be extracted will become children of the extraction node.
-        # We also pass the user-specified options to the constructor,
-        # so that the behaviour of the code extraction can be controlled.
-        # An example use case of this is the 'create_driver' flag, where
-        # the calling program can control if a stand-alone driver program
-        # should be created or not.
-        self._node_class(parent=node_list[0].parent, children=node_list[:],
-                         options=options)
+        # GOceanExtractNode. We pass the user-specified options to the
+        # create() method.  An example use case for this is the
+        # 'create_driver' flag, where the calling program can control if
+        # a stand-alone driver program should be created or not (when
+        # performing kernel extraction).
+        for node in node_list:
+            node.detach()
+        psy_data_node = self._node_class.create(
+            node_list, symbol_table=table, options=options)
+        parent.addchild(psy_data_node, position)
 
-        return schedule, keep
+        return root, keep
+
+
+# For AutoAPI documentation generation
+__all__ = ['PSyDataTrans']

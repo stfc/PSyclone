@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: A. R. Porter, STFC Daresbury Laboratory
+#           S. Siso, STFC Daresbury Laboratory
 
 '''Module providing a transformation from a PSyIR ABS operator to
 PSyIR code. This could be useful if the ABS operator is not supported
@@ -104,7 +105,7 @@ class Abs2CodeTrans(Operator2CodeTrans):
         this is not the case.
 
         :param node: an ABS UnaryOperation node.
-        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.UnaryOperation`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -134,9 +135,8 @@ class Abs2CodeTrans(Operator2CodeTrans):
 
         # tmp_var=X
         lhs = Reference(symbol_tmp_var)
-        rhs = node.children[0]
+        rhs = node.children[0].detach()
         new_assignment = Assignment.create(lhs, rhs)
-        new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # if condition: tmp_var>0.0
@@ -160,5 +160,4 @@ class Abs2CodeTrans(Operator2CodeTrans):
 
         # if [if_condition] then [then_body] else [else_body]
         if_stmt = IfBlock.create(if_condition, then_body, else_body)
-        if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)

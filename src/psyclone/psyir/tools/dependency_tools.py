@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,8 @@
 
 from __future__ import absolute_import, print_function
 
-from psyclone.core.access_info import VariablesAccessInfo
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -54,19 +54,26 @@ class DependencyTools(object):
     useful for the user to see.
 
     :param loop_types_to_parallelise: A list of loop types that will be \
-                considered for parallelisation. An example loop type might be\
-                'lat', indicating that only loops over latitudes should be\
-                parallelised. The actually supported list of loop types is\
-                specified in the PSyclone config file. This can be used to\
-                exclude for example 1-dimensional loops.
+        considered for parallelisation. An example loop type might be\
+        'lat', indicating that only loops over latitudes should be\
+        parallelised. The actually supported list of loop types is\
+        specified in the PSyclone config file. This can be used to\
+        exclude for example 1-dimensional loops.
     :type loop_types_to_parallelise: list of str
+    :param language_writer: a backend visitor to convert PSyIR expressions \
+        to a representation in the selected language. This is used for \
+        creating error and warning messages.
+    :type language_writer: None (default is Fortran), or an instance \
+        of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
     '''
-
-    def __init__(self, loop_types_to_parallelise=None):
+    def __init__(self, loop_types_to_parallelise=None,
+                 language_writer=FortranWriter()):
         if loop_types_to_parallelise:
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
             self._loop_types_to_parallelise = []
+
+        self._language_writer = language_writer
         self._clear_messages()
 
     # -------------------------------------------------------------------------
@@ -110,6 +117,125 @@ class DependencyTools(object):
         return self._messages
 
     # -------------------------------------------------------------------------
+    def array_accesses_consistent(self, loop_variable, var_infos,
+                                  all_indices=None):
+        '''Check whether all accesses to an array, whose accesses are
+        specified in the `var_infos` parameter, have consistent usage of
+        the loop variable. This can be used e.g. to verify whether two loops
+        may be fused by providing the access information of each loop in
+        the `var_infos` parameter as a list. For example, `a(i,j)` and
+        `a(j,i)` would be inconsistent. It does not test for index values
+        (e.g. `a(i,j)` and `a(i+3,j)`).
+
+        If the optional argument `all_indices` is given, it will store the
+        list of all accesses that use the loop variable. This is an additional
+        convenient result that can simplify further tests.
+
+        :param loop_variable: symbol of the variable associated with the \
+            loops being fused.
+        :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param var_infos: access information for an array. Can be either a \
+            single object, or a list of access objects.
+        :type var_infos: a list or a single instance of \
+            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
+        :param all_indices: optional list argument which will store all \
+            indices that use the specified loop variable.
+        :type all_indices: None or a list to which all PSyIR expressions \
+            of indices that use the loop variable are added.
+
+        :returns: True if all array accesses are consistent.
+        :rtype: bool
+
+        :raises InternalError: if more than one one SingleVariableAccessInfo
+            object is given and the information is for different variables.
+        '''
+
+        # pylint: disable=too-many-locals
+        consistent = True
+
+        if not isinstance(var_infos, list):
+            all_accesses = var_infos.all_accesses
+            signature = var_infos.signature
+        else:
+            # Verify that all var_info objects are indeed for
+            # the same variable.
+            signature = var_infos[0].signature
+            different = [vi.signature for vi in var_infos
+                         if vi.signature != signature]
+            if different:
+                diff_string = [str(sig) for sig in different]
+                raise InternalError("Inconsistent signature provided in "
+                                    "'array_accesses_consistent'. Expected "
+                                    "all accesses to be for '{0}', but also "
+                                    "got '{1}'."
+                                    .format(signature, ",".join(diff_string)))
+            all_accesses = []
+            for var_info in var_infos:
+                all_accesses = all_accesses + var_info.all_accesses
+
+        # The variable 'first_index' will store the index of the component
+        # and the dimension used when accessing it (i.e. it is a 2-tuple),
+        # which is what `ComponentIndices.iterate` returns.
+        # For example, `a(i)%b(j,k)` would have `(1, 0)` as the `first_index`
+        # when checking for the loop variable `j`. This 2-tuple can be
+        # used to get the corresponding PSyIR node from the component_indices
+        # object. In 'first_component_indices' it will also store the
+        # ComponentIndices of the first access. This is used for more
+        # informative error messages if required.
+        first_index = None
+        first_component_indices = None
+
+        # Test all access to the array. Consider the following code (enclosed
+        # in nested j, i loops), when analysing the 'j' loop:
+        #       a(i,j) = a(i,j) + 1    ! (1)
+        #       b(i,j) = sin(a(i,j))   ! (2)
+        #       c(i,j) = b(j,i)        ! (3)
+        # When testing the accesses to 'a', three access will be reported,
+        # a read and a write access in (1), and another read access in (2).
+        # These accesses are consistent, they all have 'j' as the second
+        # dimension. When testing 'b' on the other hand, there will be
+        # two accesses (write in (2) and read in (3)), but the accesses are
+        # not consistent - 'j' is used in dimension 2 when writing, and
+        # in dimension 1 when reading.
+
+        # Loop over all the accesses to the array:
+        for access in all_accesses:
+            component_indices = access.component_indices
+            # Now verify that the index variable is always used
+            # at the same place:
+            for indx in component_indices.iterate():
+                index_expression = component_indices[indx]
+                accesses = VariablesAccessInfo(index_expression)
+
+                # If the loop variable is not used at all, no need to
+                # check indices
+                if Signature(loop_variable.name) not in accesses:
+                    continue
+                # Store the first access information:
+                if not first_index:
+                    first_index = indx
+                    first_component_indices = component_indices
+                elif first_index != indx:
+                    # If a previously identified index location does not match
+                    # the current index location (e.g. a(i,j), and a(j,i) ),
+                    # then add an error message:
+                    consistent = False
+                    self._add_error(
+                        "Variable '{0}' is written to and the loop variable "
+                        "'{1}' is used in different index locations: "
+                        "{2} and {3}."
+                        .format(signature.var_name,
+                                loop_variable.name,
+                                signature.to_language(first_component_indices),
+                                signature.to_language(component_indices)))
+                if all_indices is not None:
+                    # If requested, collect all indices that are actually
+                    # used as a convenience additional result for the user
+                    all_indices.append(index_expression)
+
+        return consistent
+
+    # -------------------------------------------------------------------------
     def _is_loop_suitable_for_parallel(self, loop, only_nested_loops=True):
         '''Simple first test to see if a loop should even be considered to
         be parallelised. The default implementation tests whether the loop
@@ -140,21 +266,27 @@ class DependencyTools(object):
         return True
 
     # -------------------------------------------------------------------------
-    def is_array_parallelisable(self, loop_variable, var_info):
+    def array_access_parallelisable(self, loop_variable, var_info):
         '''Tries to determine if the access pattern for a variable
-        given in var_info allows parallelisation along the variable
-        loop_variable. Additional messages might be provided to the
-        user using the message API.
+        given in `var_info` allows parallelisation along the variable
+        `loop_variable`. The following messages might be provided
+        to the user using the message API:
 
-        :param str loop_variable: name of the variable that is parallelised.
+        * if the array access does not depend on the loop variable, a
+          warning is added (e.g. for the variable `a` in `a(1,2) = b(i,j)`).
+        * if the array variable is accessed inconsistently, e.g.
+          `a(i,j) = a(j,i) + 1`.
+
+        :param loop_variable: symbol of the variable that is parallelised.
+        :type loop_variable: :py:class:`psyclone.psyir.symbol.DataSymbol`
         :param var_info: access information for this variable.
         :type var_info: \
-            :py:class:`psyclone.core.access_info.VariableAccessInfo`
+            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
 
         :return: whether the variable can be used in parallel.
         :rtype: bool
         '''
-
+        # pylint: disable=too-many-locals
         # If a variable is read-only, it can be parallelised
         if var_info.is_read_only():
             return True
@@ -165,44 +297,22 @@ class DependencyTools(object):
         # a(i,j) and a(j+2, i-1) in one loop:
         # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
         # be accessed. Since the variable is written somewhere (read-only
-        # was tested above), the variable can not be used in parallel.
+        # was tested above), the variable cannot be used in parallel.
         # Additionally, collect all indices that are actually used, since
         # they are needed in a test further down.
-        found_dimension_index = -1
+
+        # Detect if this variable adds a new message, and if so, abort early
         all_indices = []
-
-        # Loop over all the accesses of this variable
-        for access in var_info.all_accesses:
-            list_of_indices = access.indices
-            # Now determine all dimensions that depend
-            # on the parallel variable:
-            for dimension_index, index_expression in \
-                    enumerate(list_of_indices):
-                accesses = VariablesAccessInfo()
-
-                index_expression.reference_accesses(accesses)
-                if loop_variable not in accesses:
-                    continue
-
-                # if a previously identified index location does not match
-                # the current index location (e.g. a(i,j), and a(j,i) ), then
-                # the loop can not be parallelised
-                if found_dimension_index > -1 and \
-                        found_dimension_index != dimension_index:
-                    self._add_warning("Variable '{0}' is using loop "
-                                      "variable {1} in index {2} and {3}."
-                                      .format(var_info.var_name,
-                                              loop_variable,
-                                              found_dimension_index,
-                                              dimension_index))
-                    return False
-                found_dimension_index = dimension_index
-                all_indices.append(index_expression)
+        consistent = self.array_accesses_consistent(loop_variable, var_info,
+                                                    all_indices)
+        if not consistent:
+            return False
 
         if not all_indices:
             # An array is used that is not actually dependent on the parallel
-            # loop variable. This means the variable can not always be safely
-            # parallelised. Example 1:
+            # loop variable, but is written to (which was checked earlier
+            # in this function). This means the variable can not always be
+            # safely parallelised. Example 1:
             # do j=1, n
             #    a(1) = b(j)+1
             #    c(j) = a(1) * 2
@@ -220,7 +330,7 @@ class DependencyTools(object):
                               "does not depend on the loop "
                               "variable '{1}'."
                               .format(var_info.var_name,
-                                      loop_variable))
+                                      loop_variable.name))
             return False
 
         # Now we have confirmed that all parallel accesses to the variable
@@ -233,13 +343,12 @@ class DependencyTools(object):
         first_index = all_indices[0]
         for index in all_indices[1:]:
             if not first_index.math_equal(index):
-                visitor = FortranWriter()
-                self._add_warning("Variable {0} is written and is accessed "
-                                  "using indices {1} and {2} and can "
+                self._add_warning("Variable '{0}' is written and is accessed "
+                                  "using indices '{1}' and '{2}' and can "
                                   "therefore not be parallelised."
                                   .format(var_info.var_name,
-                                          visitor(first_index),
-                                          visitor(index)))
+                                          self._language_writer(first_index),
+                                          self._language_writer(index)))
                 return False
         return True
 
@@ -287,17 +396,19 @@ class DependencyTools(object):
     def can_loop_be_parallelised(self, loop, loop_variable=None,
                                  only_nested_loops=True,
                                  test_all_variables=False,
-                                 variables_to_ignore=None,
+                                 signatures_to_ignore=None,
                                  var_accesses=None):
         # pylint: disable=too-many-arguments, too-many-branches
+        # pylint: disable=too-many-locals
         '''This function analyses a loop in the PsyIR to see if
         it can be safely parallelised over the specified variable.
 
         :param loop: the loop node to be analysed.
         :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param str loop_variable: Optional name of the variable that is\
-                                  parallelised. If not specified, the loop\
-                                  variable of the loop is used.
+        :param loop_variable: Optional symbol of the variable that is \
+            parallelised. If not specified, the loop variable of the loop \
+            is used.
+        :type loop_variable: :py:class:`psyclone.psyir.symbol.DataSymbol`
         :param bool only_nested_loops: if True, a loop must have an inner\
                                        loop in order to be considered\
                                        parallelisable (default: True).
@@ -306,11 +417,11 @@ class DependencyTools(object):
                                         otherwise it will stop after the first\
                                         variable is found that can not be\
                                         parallelised.
-        :param variables_to_ignore: list of variables for which to skip the\
-                                    checks on how they are accessed.
-        :type variables_to_ignore: list of str
+        :param signatures_to_ignore: list of signatures for which to skip \
+                                     the access checks.
+        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
         :param var_accesses: optional argument containing the variable access\
-                           pattern of the loop (default: None).
+                             pattern of the loop (default: None).
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
@@ -327,7 +438,7 @@ class DependencyTools(object):
                             "instance of class Loop but got '{0}'".
                             format(type(loop).__name__))
         if not loop_variable:
-            loop_variable = loop.variable.name
+            loop_variable = loop.variable
 
         # Check if the loop type should be parallelised, e.g. to avoid
         # parallelising inner loops which might not have enough work. This
@@ -340,40 +451,37 @@ class DependencyTools(object):
         if not var_accesses:
             var_accesses = VariablesAccessInfo()
             loop.reference_accesses(var_accesses)
-        if not variables_to_ignore:
-            variables_to_ignore = []
+        if not signatures_to_ignore:
+            signatures_to_ignore = []
 
         # Collect all variables used as loop variable:
         loop_vars = [loop.variable.name for loop in loop.walk(Loop)]
 
         result = True
         # Now check all variables used in the loop
-        for var_name in var_accesses.all_vars:
+        for signature in var_accesses.all_signatures:
+            # This string contains derived type information, e.g.
+            # "a%b"
+            var_string = str(signature)
             # Ignore all loop variables - they look like reductions because of
             # the write-read access in the loop:
-            if var_name in loop_vars:
+            if var_string in loop_vars:
                 continue
-            if var_name in variables_to_ignore:
+            if signature in signatures_to_ignore:
                 continue
 
-            var_info = var_accesses[var_name]
+            # This returns the first component of the signature,
+            # i.e. in case of "a%b" it will only return "a"
+            var_name = signature.var_name
+            var_info = var_accesses[signature]
             symbol_table = loop.scope.symbol_table
-            if var_name not in symbol_table:
-                # TODO #845: Once we have symbol tables, any variable should
-                # be in a symbol table, so we have to raise an exception here.
-                # We need to fall-back to the old-style test, since we do not
-                # have information in a symbol table. So check if the access
-                # information stored an index:
-                is_array = var_info[0].indices is not None
-            else:
-                # Find the symbol for this variable
-                symbol = symbol_table.lookup(var_name)
-                is_array = symbol.is_array
-
+            symbol = symbol_table.lookup(var_name)
+            # TODO #1270 - the is_array_access function might be moved
+            is_array = symbol.is_array_access(access_info=var_info)
             if is_array:
                 # Handle arrays
-                par_able = self.is_array_parallelisable(loop_variable,
-                                                        var_info)
+                par_able = self.array_access_parallelisable(loop_variable,
+                                                            var_info)
             else:
                 # Handle scalar variable
                 par_able = self.is_scalar_parallelisable(var_info)
@@ -400,8 +508,8 @@ class DependencyTools(object):
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
 
-        :returns: a list of all variable names that are read.
-        :rtype: list of str
+        :returns: a list of all variable signatures that are read.
+        :rtype: list of :py:class:`psyclone.core.Signature`
 
         '''
         # Collect the information about all variables used:
@@ -409,15 +517,15 @@ class DependencyTools(object):
             variables_info = VariablesAccessInfo(node_list)
 
         input_list = []
-        for var_name in variables_info.all_vars:
+        for signature in variables_info.all_signatures:
             # Take the first access (index 0) of this variable. Note that
             # loop variables have a WRITE before a READ access, so they
             # will be ignored
-            first_access = variables_info[var_name][0]
+            first_access = variables_info[signature][0]
             # If the first access is a write, the variable is not an input
             # parameter and does not need to be saved.
             if first_access.access_type != AccessType.WRITE:
-                input_list.append(var_name)
+                input_list.append(signature)
 
         return input_list
 
@@ -434,16 +542,16 @@ class DependencyTools(object):
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
 
-        :returns: a list of all variable names that are written.
-        :rtype: list of str
+        :returns: a list of all variable signatures that are written.
+        :rtype: list of :py:class:`psyclone.core.Signature`
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list)
 
-        return [var_name for var_name in variables_info.all_vars
-                if variables_info.is_written(var_name)]
+        return [signature for signature in variables_info.all_signatures
+                if variables_info.is_written(signature)]
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list):
@@ -457,7 +565,7 @@ class DependencyTools(object):
 
         :returns: a 2-tuple of two lists, the first one containing \
             the input parameters, the second the output paramters.
-        :rtype: 2-tuple of list of str
+        :rtype: 2-tuple of list of :py:class:`psyclone.core.Signature`
 
         '''
         variables_info = VariablesAccessInfo(node_list)

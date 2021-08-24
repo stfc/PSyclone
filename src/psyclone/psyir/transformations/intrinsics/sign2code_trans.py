@@ -112,7 +112,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
         this is not the case.
 
         :param node: a SIGN BinaryOperation node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param symbol_table: the symbol table.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
@@ -142,12 +142,13 @@ class Sign2CodeTrans(Operator2CodeTrans):
         oper_parent.children[node.position] = Reference(res_var_symbol,
                                                         parent=oper_parent)
 
+        # Extract the operand nodes
+        op1, op2 = node.pop_all_children()
+
         # res_var=ABS(A)
         lhs = Reference(res_var_symbol)
-        rhs = UnaryOperation.create(UnaryOperation.Operator.ABS,
-                                    node.children[0])
+        rhs = UnaryOperation.create(UnaryOperation.Operator.ABS, op1)
         new_assignment = Assignment.create(lhs, rhs)
-        new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # Replace the ABS intrinsic with inline code.
@@ -156,8 +157,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
 
         # tmp_var=B
         lhs = Reference(tmp_var_symbol)
-        new_assignment = Assignment.create(lhs, node.children[1])
-        new_assignment.parent = assignment.parent
+        new_assignment = Assignment.create(lhs, op2)
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # if_condition: tmp_var<0.0
@@ -176,5 +176,4 @@ class Sign2CodeTrans(Operator2CodeTrans):
 
         # if [if_condition] then [then_body]
         if_stmt = IfBlock.create(if_condition, then_body)
-        if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)

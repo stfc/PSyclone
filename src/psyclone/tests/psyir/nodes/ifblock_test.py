@@ -121,9 +121,9 @@ def test_ifblock_properties():
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 1." in str(err.value))
 
-    sch = Schedule(parent=ifblock)
+    sch = Schedule()
     ifblock.addchild(sch)
-    ret = Return(parent=sch)
+    ret = Return()
     sch.addchild(ret)
 
     # Now we can retrieve the condition and the if_body, but else is empty
@@ -131,9 +131,9 @@ def test_ifblock_properties():
     assert ifblock.if_body[0] is ret
     assert not ifblock.else_body
 
-    sch2 = Schedule(parent=ifblock)
+    sch2 = Schedule()
     ifblock.addchild(sch2)
-    ret2 = Return(parent=sch2)
+    ret2 = Return()
     sch2.addchild(ret2)
 
     # Now we can retrieve else_body
@@ -165,6 +165,13 @@ def test_ifblock_create():
                       "end if\n")
 
     # With an else clause.
+    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_body = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)),
+               Assignment.create(
+                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                   Literal("1.0", REAL_SINGLE_TYPE))]
     else_body = [Assignment.create(Reference(DataSymbol("tmp",
                                                         REAL_SINGLE_TYPE)),
                                    Literal("1.0", REAL_SINGLE_TYPE)),
@@ -225,6 +232,14 @@ def test_ifblock_create_invalid():
             "list.") in str(excinfo.value)
 
     # One of more of else_body not a Node.
+    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_body = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)),
+               Assignment.create(
+                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                   Literal("1.0", REAL_SINGLE_TYPE))]
+
     else_body_err = [Assignment.create(Reference(DataSymbol("tmp",
                                                             REAL_SINGLE_TYPE)),
                                        Literal("1.0", REAL_SINGLE_TYPE)),

@@ -38,52 +38,42 @@ the class Fparser2Reader. This handler deals with the translation of
 the fparser2 Program construct to PSyIR.'''
 
 from __future__ import absolute_import
-import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def test_program_handler(parser):
-    '''Test that program_handler passes valid Fortran on to other handlers
-    correctly.
+    '''Test that program handler works with multiple program units of
+    different types.
 
     '''
     code = (
         "module a\n"
-        "end module\n")
+        "end module\n"
+        "program b\n"
+        "end program b\n"
+        "subroutine c\n"
+        "end subroutine")
     expected = (
         "module a\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
-        "end module a\n")
+        "end module a\n"
+        "program b\n\n\n"
+        "end program b\n"
+        "subroutine c()\n\n\n"
+        "end subroutine c\n")
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
     psyir = processor._program_handler(parse_tree, None)
     # Check PSyIR nodes are being created
-    assert isinstance(psyir, Container)
+    assert isinstance(psyir, FileContainer)
     assert psyir.parent is None
     writer = FortranWriter()
     result = writer(psyir)
     assert result == expected
-
-
-def test_program_handler_error(parser):
-    '''Test that the expected exception is raised when more than one
-    module/subroutine/program/function etc. is found in the fparser2
-    tree.
-
-    '''
-    code = "module a\nend module\nmodule b\nend module b\n"
-    processor = Fparser2Reader()
-    reader = FortranStringReader(code)
-    parse_tree = parser(reader)
-    with pytest.raises(GenerationError) as info:
-        processor._program_handler(parse_tree, None)
-    assert ("The PSyIR is currently limited to a single top level "
-            "module/subroutine/program/function, but 2 were found."
-            in str(info.value))

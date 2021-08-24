@@ -41,11 +41,11 @@
 from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import inspect
-from copy import copy
+import copy
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
-    ContainerSymbol, TypeSymbol, RoutineSymbol, SymbolError
+    ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError
 from psyclone.errors import InternalError
 
 
@@ -55,17 +55,23 @@ class SymbolTable(object):
     symbols and look up existing symbols. Nested scopes are supported
     and, by default, the add and lookup methods take any ancestor
     symbol tables into consideration (ones attached to nodes that are
-    ancestors of the node that this symbol table is attached to).
+    ancestors of the node that this symbol table is attached to). If the
+    default visibility is not specified then it defaults to
+    Symbol.Visbility.PUBLIC.
 
     :param node: reference to the Schedule or Container to which this \
         symbol table belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
         :py:class:`psyclone.psyir.nodes.Container` or NoneType
+    :param default_visibility: optional default visibility value for this \
+        symbol table, if not provided it defaults to PUBLIC visibility.
+    :type default_visibillity: \
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
     '''
-    def __init__(self, node=None):
+    def __init__(self, node=None, default_visibility=Symbol.Visibility.PUBLIC):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
         # produce code with declarations in the same order.
@@ -83,6 +89,35 @@ class SymbolTable(object):
                 "Schedule or a Container but found '{0}'."
                 "".format(type(node).__name__))
         self._node = node
+        # The default visibility of symbols in this symbol table. The
+        # setter does validation of the supplied quantity.
+        self._default_visibility = None
+        self.default_visibility = default_visibility
+
+    @property
+    def default_visibility(self):
+        '''
+        :returns: the default visibility of symbols in this table.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        '''
+        return self._default_visibility
+
+    @default_visibility.setter
+    def default_visibility(self, vis):
+        '''
+        Sets the default visibility of symbols in this table.
+
+        :param vis: the default visibility.
+        :type vis: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :raises TypeError: if the supplied value is of the wrong type.
+
+        '''
+        if not isinstance(vis, Symbol.Visibility):
+            raise TypeError(
+                "Default visibility must be an instance of psyir.symbols."
+                "Symbol.Visibility but got '{0}'".format(type(vis).__name__))
+        self._default_visibility = vis
 
     @property
     def node(self):
@@ -189,20 +224,61 @@ class SymbolTable(object):
         return all_tags
 
     def shallow_copy(self):
-        '''Create a copy of the symbol table where the top-level containers
-        are new (symbols added to the new symbol table will not be added in
-        the original but the existing objects are still the same).
+        '''Create a copy of the symbol table with new instances of the
+        top-level data structures but keeping the same existing symbol
+        objects. Symbols added to the new symbol table will not be added
+        in the original but the existing objects are still the same.
 
-        :returns: a copy of this symbol table.
+        :returns: a shallow copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         # pylint: disable=protected-access
         new_st = SymbolTable()
-        new_st._symbols = copy(self._symbols)
-        new_st._argument_list = copy(self._argument_list)
-        new_st._tags = copy(self._tags)
+        new_st._symbols = copy.copy(self._symbols)
+        new_st._argument_list = copy.copy(self._argument_list)
+        new_st._tags = copy.copy(self._tags)
         new_st._node = self.node
+        new_st._default_visibility = self.default_visibility
+        return new_st
+
+    def deep_copy(self):
+        '''Create a copy of the symbol table with new instances of the
+        top-level data structures and also new instances of the symbols
+        contained in these data structures. Modifying a symbol attribute
+        will not affect the equivalent named symbol in the original symbol
+        table.
+
+        :returns: a deep copy of this symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # pylint: disable=protected-access
+        new_st = SymbolTable(self.node)
+
+        # Make a copy of each symbol in the symbol table
+        for symbol in self.symbols:
+            new_st.add(symbol.copy())
+
+        # Prepare the new argument list
+        new_arguments = []
+        for name in [arg.name for arg in self.argument_list]:
+            new_arguments.append(new_st.lookup(name))
+        new_st.specify_argument_list(new_arguments)
+
+        # Prepare the new tag dict
+        for tag, symbol in self._tags.items():
+            new_st._tags[tag] = new_st.lookup(symbol.name)
+
+        # Fix the container links for imported symbols
+        for symbol in new_st.global_symbols:
+            name = symbol.interface.container_symbol.name
+            new_container = new_st.lookup(name)
+            symbol.interface = GlobalInterface(new_container)
+
+        # Set the default visibility
+        new_st._default_visibility = self.default_visibility
+
         return new_st
 
     @staticmethod
@@ -595,7 +671,7 @@ class SymbolTable(object):
 
         :raises TypeError: if either old/new_symbol are not Symbols.
         :raises SymbolError: if `old_symbol` and `new_symbol` don't have \
-                             the same name.
+                             the same name (after normalising).
         '''
         if not isinstance(old_symbol, Symbol):
             raise TypeError("Symbol to remove must be of type Symbol but "
@@ -603,7 +679,10 @@ class SymbolTable(object):
         if not isinstance(new_symbol, Symbol):
             raise TypeError("Symbol to add must be of type Symbol but "
                             "got '{0}'".format(type(new_symbol).__name__))
-        if old_symbol.name != new_symbol.name:
+        # The symbol table is not case sensitive so we must normalise the
+        # symbol names before comparing them.
+        if (self._normalize(old_symbol.name) !=
+                self._normalize(new_symbol.name)):
             raise SymbolError(
                 "Cannot swap symbols that have different names, got: '{0}' "
                 "and '{1}'".format(old_symbol.name, new_symbol.name))
@@ -860,13 +939,13 @@ class SymbolTable(object):
                                                           ContainerSymbol)]
 
     @property
-    def local_typesymbols(self):
+    def local_datatypesymbols(self):
         '''
-        :returns: the local TypeSymbols present in the Symbol Table.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :returns: the local DataTypeSymbols present in the Symbol Table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
         return [sym for sym in self.symbols if
-                (isinstance(sym, TypeSymbol) and sym.is_local)]
+                (isinstance(sym, DataTypeSymbol) and sym.is_local)]
 
     @property
     def iteration_indices(self):
@@ -1007,6 +1086,23 @@ class SymbolTable(object):
 
         # Re-insert modified symbol
         self.add(symbol)
+
+    def has_wildcard_imports(self):
+        '''
+        Searches this symbol table and then up through any parent symbol
+        tables for a ContainerSymbol that has a wildcard import.
+
+        :returns: True if a wildcard import is found, False otherwise.
+        :rtype: bool
+
+        '''
+        current_table = self
+        while current_table:
+            for sym in current_table.containersymbols:
+                if sym.wildcard_import:
+                    return True
+            current_table = current_table.parent_symbol_table()
+        return False
 
     def view(self):
         '''

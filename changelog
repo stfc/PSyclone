@@ -1,3 +1,162 @@
+
+	1) PR #1183 for #1075. Improves (tightens) the checking performed
+	by the LoopFusion transformation.
+
+	2) PR #1197 for #1189. Changes the dependence analysis to use a
+	Signature rather than just the symbol name (in preparation for
+	supporting derived types/structures).
+
+	3) PR #1216 for #1188. Adds a FortranReader PSyIR frontend.
+
+	4) PR #1217 towards #1210. Adds raising transformations for NEMO.
+
+	5) PR #1222 for #1171. Adds a new class to encapsulate all constants
+	related to the LFRic API.
+
+	6) PR #1233 for #1231. Adds psyadd driver script that will process an
+	LFRic tangent-linear kernel and produce its adjoint.
+
+	7) PR #1124 for #1185. Refactor PSyDataNode class and sub-classes.
+
+	8) PR #1229 for #1170. Adds a Container parent node above all
+	InvokeSchedule nodes.
+
+	9) PR #1225 towards #1223. Moves remaining GOcean constants into
+	new GOceanConstants class.
+
+	10) PR #1241 for #1240. Adds support for functions in the PSyIR and
+	Fortran frontend and backend.
+
+	11) PR #1257 for #1248. Adds support for logical, read-only, scalar
+	arguments to LFRic user-supplied kernels.
+
+	12) PR #1234 for #1230. Adds FileContainer node.
+
+	13) PR #1264 towards #1258. Adds mappings for the LFRic infrastructure
+	types to their Fortran modules to the LFRic Constants class.
+
+	14) PR #1236 for #1028. Extends the core variable-access analysis
+	functionality to support structures (derived types).
+
+	15) PR #1239 towards #1237. Adds lower_to_language_level() method
+	for some LFRic builtins.
+
+	16) PR #1195 for #1194. Fixes some incorrect str(error) usage in the
+	tests, introduces a PSycloneError base class and adds tests to make
+	sure that it is used. Also adds tests to ensure that future accidental
+	use of str(error) will cause a failure.
+
+	17) #1243 for #1242. Bug fix for OpenCL code generation - ensures
+	synchronisation calls are added where necessary if kernels are running
+	on different command queues.
+
+	18) #1273 for #1272. Fixes missing fparser initialisation when
+	GOcean loop bounds are read from config file.
+
+	19) #1287 towards #1259. Rename TypeSymbol to DataTypeSymbol.
+
+	20) #1265 for #1260. Fixes various bugs to better support PSyIR
+	code generation. Includes function return values and string
+	storage in PSyIR.
+
+	21) #1293 for #1178, #1179, #1285. Update installation instructions
+	to include autoapi and tex-gyre, and added allclean target to
+	reference guide to clean up all automatically created files.
+
+	22) #1278 for #1271. Updates dependency tools to use Signatures.
+
+	23) #1286 for #1274. Updates the Visitors so that they perform
+	any necessary lowering and do so on a *copy* of the PSyIR tree
+	so that there are no side effects.
+
+	24) #1290 for #2183. Adds support for != and other comparison
+	operators to the Signature class.
+
+	25) #1262 for #920. Adds capturing of algorithm-layer datatypes
+	which are then stored in the algorithm.py Arg class.
+
+	26) #1252 for #1251. Fix Ranges inside StructureType accesses.
+
+	27) #1294 towards #1259. Add the TypedSymbol abstract class.
+
+	28) #1311 for #1303. Fortran frontend do not merge CodeBlocks
+	when these are not full statements.
+
+	29) #1212 towards #1010. Updates the gocean1.0 API so that the PSy-layer
+	generation uses the PSyIR Fortran backend. (N.B. the OpenCL generation
+	still uses the f2pygen mechanism for the moment.)
+
+	30) #1316 for #1301 and #1304. The Fortran frontend handles labelled
+	and named constructs.
+
+	31) #1299 for #1249. Some LFRic built-ins use the PSyIR backend, which
+	fixes a unary operator precedence bug.
+
+	32) #1279 for #1250. Adds capability to specify multiple kernel
+	directories.
+
+	33) #1329 for #1308. Fix bug in the Fortran frontend WHERE clause.
+
+	34) PR #1327 towards #1208. Moves the implementations of the various
+	Directive nodes out of psyGen.py and into psyir/nodes.
+
+	35) #1255 for #1253. Improve the parsing of Fortran specification
+	code and includes support for Fortran interface blocks.
+
+	36) #1319 for #1307. Add support for lower bounds in PSyIR ArrayType.
+
+	37) #1261 towards #1277. Gather more information in LFRicConstants
+	so values are not hardcoded in multiple locations. Includes adding
+	precision information derived from LFRic rules which is required
+	for mixed precision support.
+
+	38) PR #1317 for #1315. Fixes bug in dependence analysis caused by
+	introduction of FileContainer root node.
+
+	39) PR #1340 for #1334. Add support for symbols in
+	'psyir_from_expression()' and fix code generation bug for LFRic
+	"power" built-ins with literal constants that have explicit precision.
+
+	40) PR #1323 for #1305. Capture the default visibility of a Fortran
+	module and store it in the symbol table.
+
+	41) PR #1313 for #1268 and #1269. Adds new ComponentIndices class
+	to manage indices for component accesses.
+
+	42) PR #1325 for #1247. Adds PSyIR support for comments (associated with
+	Container, Routine and Statement nodes).
+
+	43) PR #1342 towards #1338. Adds the OMPSingleTrans transformation for
+	creating an OMP SINGLE region.
+
+	44) PR #1352 towards #1338. Adds the OMPMasterTrans transformation for
+	creating an OMP MASTER region.
+
+	45) PR #1360 for #1359. Fix pytest fixtures tear downs.
+
+	46) PR #1353 for #1324. Add support for generating structure accesses in
+	the C backends.
+
+	47) PR #1358 towards #1338. Add the OpenMP Taskloop directive and its
+	corresponding insertion transformation.
+
+	48) PR #1369 for #1367. GOcean supports REAL literals in kernel arguments.
+
+	49) PR #1362 for #1361. Fix bug in PSyIRGen when PSyIR node corresponds
+	to more than one fparser2 node.
+
+	50) PR #1344 for #1309. Fix bug in PSyIR backend name comparison.
+
+        51) PR #1372 for #1371. Bring tutorial notebooks up-to-date and add
+        them to the CI.
+
+	52) PR #1341 towards #1134. Move OpenCL transformation to GOcean
+	transformations folder and rename.
+
+	53) PR #1368 towards #1338. Adds OMPTaskWaitDirective node.
+
+release 2.0.0 28th April 2021
+
 	1) #778 for #713. Use 'make' to execute all examples.
 
 	2) #782 for #780. Refactor FunctionSpace support and move it
@@ -184,7 +343,7 @@
 	the dl_esm_inf netcdf PSyData wrapper library.
 
 	59) #954 for #745. Update PSyclone copy of the LFRic infrastructure
-	to create compilable and runnable LFRIc examples.
+	to create compilable and runnable LFRic examples.
 
 	60) #943 for #923. Adds generation of an in-kernel boundary mask
 	when generating OpenCL kernels for GOcean. (Fixes failures seen
@@ -379,40 +538,140 @@
 
 	122) PR #1128 for #1127. Fix Sphinx-RTD builds of user and developer guides.
 
-        123) PR #1117 for #1003. Change intent for 'GH_WRITE' arguments from
-        'in' to 'inout' (because a kernel does not write to all data points in
-        a field).
+	123) PR #1117 for #1003. Change intent for 'GH_WRITE' arguments from
+	'in' to 'inout' (because a kernel does not write to all data points in
+	a field).
 
 	124) PR #1063 towards #935. Add basic support for specialisation of
 	symbols.
 
-        125) PR #1073 for #1022. Updates the Makefiles for the examples
-        and tutorials to make them consistent. Default target for the tutorials
-        is now 'transform'.
+	125) PR #1073 for #1022. Updates the Makefiles for the examples
+	and tutorials to make them consistent. Default target for the tutorials
+	is now 'transform'.
 
 	126) PR #1095 for #1083. Adds a LoopTrans base class that Loop
 	transformations can subclass and use any common functionality.
 
 	127) PR #1138 for #1137. Add support for Fortran Program in the PSyIR.
 
-        128) PR #1122 for #1112. Restructures the way the colour to use
-        for a given PSyIR node is specified.
+	128) PR #1122 for #1112. Restructures the way the colour to use
+	for a given PSyIR node is specified.
 
-        129) PR #1125 for #1114. Harmonises LFRic built-in and module names to
-        consistently use "LFRic" rather than "Dyn".
+	129) PR #1125 for #1114. Harmonises LFRic built-in and module names to
+	consistently use "LFRic" rather than "Dyn".
 
-        130) PR #1065 for #1061. Re-structures the GOcean PSyData examples.
+	130) PR #1065 for #1061. Re-structures the GOcean PSyData examples.
 
-        131) PR #1141 for #1132. Small fix to ensure depth() returns correct
-        values for a GOcean kernel with 'pointwise' access.
+	131) PR #1141 for #1132. Small fix to ensure depth() returns correct
+	values for a GOcean kernel with 'pointwise' access.
 
-        132) PR #1096 for #1056. Add GOcean transformations to insert
-        boundary masks inside kernels and eliminate return statements.
+	132) PR #1096 for #1056. Add GOcean transformations to insert
+	boundary masks inside kernels and eliminate return statements.
 
 	133) PR #1109 for issue #402. Add NEMO processing scripts to the
 	repository.
 
 	134) PR #1135 for issue #1124. Add a replace_with method to PSyIR node.
+
+	135) PR #1126 for #1098. Add kernel stub generation support for the
+	'2D cross' stencils in the LFRic API.
+
+	136) PR #1145 for #1107. Adds new LFRic builtins (type-conversion,
+	SIGN, plus others).
+
+	137) PR #1133 for #1130. Uses GOcean stencil metadata to correctly
+	populate the field access information (dependency analysis) for a
+	GOcean kernel.
+
+	138) PR #1154 for #1153. Work towards improving usability of
+	loop fusion transformation. Moves transformations into separate
+	files in the appropriate directories.
+
+	139) PR #1155 for #529. Adds PSyIR support for REAL and INT
+	BinaryOperations.
+
+	140) PR #1144 for #1136. Add checks that PSyIR nodes are only children
+	of one parent.
+
+	141) PR #1150 for #1146. Fixed bug in PSyIR, making the name
+	matching in the Node swap method case insensitive.
+
+	142) PR #1166 for #1152. Adds support for the unary sum operator
+	in the PSyIR and the fparser2psyir reader.
+
+	143 PR #1131 for #1116. Make the number of any*space function
+	spaces (and basis supported datatypes) configurable.
+
+	144) PR #1082 for #925. Adds code generation support for
+	operates_on=domain kernels in LFRic.
+
+	145) PR #1162 for #1160. Add Fortran backend support for unresolved
+	interfaces when there is wildcard imports.
+
+	146) PR #1157 for #478. Updates the LoopFusion transformation so
+	that the 'same space' option is now provided with the options
+	dict, in line with the way other transformations work.
+
+	147) PR #1165 for #1164. Update PSyIR Assignment node
+	is_array_range test to work with structures.
+
+	148) PR #1072 for #1067. Re-structures the LFRic runnable examples.
+
+	149) PR #1177 for #1168. Adds lowering method for the ProfileNode node.
+
+	150) PR #1129 towards #753. Adds generic and LFRic Algorithm-Layer
+	PSyIR nodes and transformations.
+
+	151) PR #1191 for 1163. Rationalise config file list processing. This
+	PR breaks backward compatibility of config files.
+
+	152) PR #1169 for #294. Updates the various ChildrenList methods
+	so that the parent property of child nodes is automatically updated.
+
+	153) PR #1196 for #1106. Moves tests related to field and scalar
+	arguments to LFRic kernels into appropriate files.
+
+	154) PR #1186 for #1173. Reshapes mesh maps for LFRic inter-grid kernels.
+
+	155) PR #1205 for #870. Removes support for the old-style 'iterates_over'
+	metadata in LFRic API.
+
+	156) PR #1156 for #874. Removes support for old-style LFRic arg_type
+	descriptor. Primitive type of all kernel arguments must now be
+	specified.
+	
+	157) PR #1182 for #1181. Add OpenACC directives support to the PSyIR
+	Fortran backend.
+
+	158) PR #1167 for #1097. Install PSyData wrapper libraries; support
+	integer fields in PSyData.
+
+	159) PR #1176 for #1174. Check that schedule is not empty when applying
+	profiling.
+
+	160) PR #1201 for #1198. Introduces the ScopingNode abstract base
+	class. Container, Schedule and Routine now subclass this and deep
+	copying is supported.
+
+	161) PR #1211 towards #1210. Add CreateNemoKernTrans transformation.
+
+	162) PR #1219 for #1218. Removes the Node.gen_code() abstract method
+	as this is not used by the new PSyIR nodes that we are adding.
+
+	163) PR #1192 towards #753. Add methods to lower the Algorithm layer PSyIR
+	and create the appropriate symbols to be used by the PSy-layer.
+
+	164) PR #1175 for #1066. Update the GOcean OpenCL read/write
+	interfaces and use so that only halo data moved to/from the host for
+	halo exchanges.
+
+	165) PR #1207 for #1184. Add a validation for the node global constraints
+	that is check once a node is visited by any of the Visitor classes.
+
+	166) PR #1226 towards #1151. Update fparser to 0.0.12 for the
+	PSyclone release 2.0.0.
+
+	167) Issue #1151. Release version 2.0.0 of PSyclone.
 
 release 1.9.0 20th May 2020
 
@@ -614,15 +873,15 @@ release 1.9.0 20th May 2020
 
 release 1.8.1 29th November 2019
 
-        1) #579 for #509. Improves the structuring of the html version
+	1) #579 for #509. Improves the structuring of the html version
 	of the User Guide.
 
-        2) PR #581 for #578. Extends the PSyIR Fortran backend so
+	2) PR #581 for #578. Extends the PSyIR Fortran backend so
 	that variable declarations include kind information. This
 	currently only works if kind-parameters are declared or
 	explicitly imported in the local scope - see #587 and #586.
 
-        3) PR #562 for #473. Fixes the DAG generation to allow for
+	3) PR #562 for #473. Fixes the DAG generation to allow for
 	Loops having Schedules and children (e.g. loop limits) that
 	we want to ignore.
 
@@ -632,17 +891,17 @@ release 1.8.1 29th November 2019
 	5) PR #516 for #497. Adds support for translating the Fortran
 	where construct into the PSyIR.
 
-        6) PR #545 for #544 and #543. Moves the Symbol support into
+	6) PR #545 for #544 and #543. Moves the Symbol support into
 	a separate sub-module and adds support for parameter declarations
 	and the functionality to resolve deferred datatypes.
 
-        7) PR #559 for #483. Introduces new InlinedKernel class and
+	7) PR #559 for #483. Introduces new InlinedKernel class and
 	uses this as the base class for all NEMO kernels.
 
 	8) PR #580 for #542. Adds a Schedule as a child of ExtractNode and
 	ProfileNode.
 
-        9) PR #573 for #438. Fixes all tests to use the value property of
+	9) PR #573 for #438. Fixes all tests to use the value property of
 	exceptions rather than str(err).
 
 	10) PR #416 for #408. Adds support for non-ascii chars in Fortran
@@ -712,7 +971,7 @@ release 1.8.0 8th November 2019
 	extraction functionality (PSyKE). Currently only inserts
 	comments into generated Fortran code.
 
-        19) #327 and PR #328. Fix for erroneous xpassing test.
+	19) #327 and PR #328. Fix for erroneous xpassing test.
 
 	20) #238 and PR #285. Use fparser2 for parsing the
 	Algorithm layer (instead of fparser1).
@@ -720,7 +979,7 @@ release 1.8.0 8th November 2019
 	21) #321 and PR #325. Document kernel coding restrictions required
 	for kernel transformations.
 
-        22) #326 PR #335. Alters the use of pytest fixtures to remove the now
+	22) #326 PR #335. Alters the use of pytest fixtures to remove the now
 	deprecated use of the global pytest.config.
 
 	23) PR #318. Updates the Schedule hierarchy within the PSyIR.
@@ -751,11 +1010,11 @@ release 1.8.0 8th November 2019
 	31) #322 and PR #343. Add gocean1.0 api example which contains
 	kernels with use statements.
 
-        32) #345 and PR #352. Makes the search for kernels within the parse
-        tree case insensitive.
+	32) #345 and PR #352. Makes the search for kernels within the parse
+	tree case insensitive.
 
-        33) #350 and PR #351. Bug fix in the stencil lookup for field
-        vectors in the Dynamo0.3 API.
+	33) #350 and PR #351. Bug fix in the stencil lookup for field
+	vectors in the Dynamo0.3 API.
 
 	34) #336 and PR #338. PSyIR Fortran array parsing support (logical
 	type, a(xx) dimension specifications and array size can be an
@@ -765,19 +1024,19 @@ release 1.8.0 8th November 2019
 	code block rather than recognising them as do-loops and make
 	default(present) optional for ACCKernels transformations.
 
-        36) #362 and PR #367. Adds the basics of a transformation for identifying
+	36) #362 and PR #367. Adds the basics of a transformation for identifying
 	certain LFRic kernel arguments that can be converted to constants.
 	Currently only identifies candidate arguments and prints them to
 	stdout.
 
-        37) PR #347 (working towards #256). Adds support for If and CASE
+	37) PR #347 (working towards #256). Adds support for If and CASE
 	constructs to the PSyIR (superseding and removing the existing, NEMO-
 	specific support for If constructs).
 
 	38) #377 and PR #378. Update fparser submodule to point to latest
 	fparser master (contains bug fix for Python 2 installation).
 
-        39) #329 and PR #371. Removes the global psyGen.MAPPINGS_ACCESSES by
+	39) #329 and PR #371. Removes the global psyGen.MAPPINGS_ACCESSES by
 	moving the functionality into the api-specifc config section of
 	the configuration file.
 
@@ -791,91 +1050,91 @@ release 1.8.0 8th November 2019
 	42) #369 and PR #347. Adds support for constant values (fixed compile-time
 	known values) in the PSyIR Symbol representation.
 
-        43) PR #383. Fixes to various pylint errors.
+	43) PR #383. Fixes to various pylint errors.
 
-        44) PR #384 (working towards #354) Adds support for CASE constructs with
-        a DEFAULT clause when translating Fortran fparser2 to PSyIR.
+	44) PR #384 (working towards #354) Adds support for CASE constructs with
+	a DEFAULT clause when translating Fortran fparser2 to PSyIR.
 
-        45) PR #366 (working towards #323) Improves the Symbol interface
-        infrastructure with Arguments and FortranGlobals. The Fortran-to-PSyIR
-        front-end parses the 'use module only' statements.
+	45) PR #366 (working towards #323) Improves the Symbol interface
+	infrastructure with Arguments and FortranGlobals. The Fortran-to-PSyIR
+	front-end parses the 'use module only' statements.
 
-        46) PR #370 for #339. Makes the support for operators in the PSyIR
-        more robust by using an enumerator. Adds support for some intrinsics.
+	46) PR #370 for #339. Makes the support for operators in the PSyIR
+	more robust by using an enumerator. Adds support for some intrinsics.
 
-        47) PR #389 for #386. Variable names and associated loop-types
+	47) PR #389 for #386. Variable names and associated loop-types
 	for the NEMO API are now stored in the configuration file.
 
-        48) PR #394 for #392. Fixes a bug in the way the test suite checks
+	48) PR #394 for #392. Fixes a bug in the way the test suite checks
 	for whether the graphviz package is available.
 
-        49) PR #387 for #249. Extends OCLTrans() so that all kernels within a
+	49) PR #387 for #249. Extends OCLTrans() so that all kernels within a
 	transformed Invoke are converted to OpenCL. Also includes a
 	work-around for array accesses incorrectly identified as Statement
 	Functions by fparser2.
 
-        50) PR #403 for #390. Use AutoAPI to generate the PSyclone Reference Guide
-        and build all local documentation using the 'sphinx_rtd_theme'.
+	50) PR #403 for #390. Use AutoAPI to generate the PSyclone Reference Guide
+	and build all local documentation using the 'sphinx_rtd_theme'.
 
-        51) PR #404 for #364. Re-structure class hierarchy for Kernels, with
-        CodedKernels and BuiltIns as specialisations.
+	51) PR #404 for #364. Re-structure class hierarchy for Kernels, with
+	CodedKernels and BuiltIns as specialisations.
 
-        52) PR #297. Adds support for the Dr Hook profiling library.
+	52) PR #297. Adds support for the Dr Hook profiling library.
 
-        53) PR #413 for #411. Adds support for semantic navigation of the
-        PSyIR tree.
+	53) PR #413 for #411. Adds support for semantic navigation of the
+	PSyIR tree.
 
-        54) PR #376 for #368. Introduces PSyIR back-end infrastructure using the
-        Visitor Pattern and creates a PSyIR-to-Fortran back-end.
+	54) PR #376 for #368. Introduces PSyIR back-end infrastructure using the
+	Visitor Pattern and creates a PSyIR-to-Fortran back-end.
 
-        55) PR #428 for #427. Fix to test suite so that empty, transformed
-        kernel files are not created in the CWD.
+	55) PR #428 for #427. Fix to test suite so that empty, transformed
+	kernel files are not created in the CWD.
 
-        56) PR #439 and Issue #438. Instruct pip to install the version of
-        pytest prior to 5.0 (as changes to the structure of the exception
-        object break a lot of our tests).
+	56) PR #439 and Issue #438. Instruct pip to install the version of
+	pytest prior to 5.0 (as changes to the structure of the exception
+	object break a lot of our tests).
 
-        57) PR #420 for #418. Moves the C/OpenCL generation functionality out
-        of the Node class and implements it as PSyIR backends using the
-        Visitor Pattern.
+	57) PR #420 for #418. Moves the C/OpenCL generation functionality out
+	of the Node class and implements it as PSyIR backends using the
+	Visitor Pattern.
 
-        58) PR #434 for #354. Add support for translating ranges in
-        Fortran case statements into PSyIR.
+	58) PR #434 for #354. Add support for translating ranges in
+	Fortran case statements into PSyIR.
 
-        59) PR #421. Alters the generated code for the dynamo 0.3 API so that
-        the mesh object is obtained from proxy. (Consistent with other accesses
-        and works around a bug in the PGI compiler.)
+	59) PR #421. Alters the generated code for the dynamo 0.3 API so that
+	the mesh object is obtained from proxy. (Consistent with other accesses
+	and works around a bug in the PGI compiler.)
 
-        60) PR #452 for #397. Removes unnecessary walk_ast() call from the
-        NemoInvokes constructor.
+	60) PR #452 for #397. Removes unnecessary walk_ast() call from the
+	NemoInvokes constructor.
 
-        61) PR #424 for #399. Adds dependence-analysis functionality to
-        the PSyIR (for reasoning about existing code such as in kernels or
-        the NEMO API).
+	61) PR #424 for #399. Adds dependence-analysis functionality to
+	the PSyIR (for reasoning about existing code such as in kernels or
+	the NEMO API).
 
-        62) PR #464 for #443. Adds a coding-style guide to the Developers'
-        Guide.
+	62) PR #464 for #443. Adds a coding-style guide to the Developers'
+	Guide.
 
-        63) PR #453 for #449. Adds support for NVIDIA's nvtx profiling
-        API to the PSyclone profiling interface.
+	63) PR #453 for #449. Adds support for NVIDIA's nvtx profiling
+	API to the PSyclone profiling interface.
 
-        64) PR #454 for #410. Simplifies the Node.walk() method.
+	64) PR #454 for #410. Simplifies the Node.walk() method.
 
-        65) PR #400 towards #385. Adds support for Fortran Do loops in
-        the PSyIR - loop bounds are now captured.
+	65) PR #400 towards #385. Adds support for Fortran Do loops in
+	the PSyIR - loop bounds are now captured.
 
-        66) PR #469 for #465. Removes duplicate lma tests.
+	66) PR #469 for #465. Removes duplicate lma tests.
 
-        67) PR #479 from kinow:fix-gungho-link. Fixes broken GungHo link
-        in documentation.
+	67) PR #479 from kinow:fix-gungho-link. Fixes broken GungHo link
+	in documentation.
 
-        68) PR #441 for #373. Adds support for writing transformed LFRic
-        kernels to file.
+	68) PR #441 for #373. Adds support for writing transformed LFRic
+	kernels to file.
 
-        69) PR #445 for #442. First step towards supporting OpenACC for
-        the LFRic (Dynamo0.3 API) PSy layer.
+	69) PR #445 for #442. First step towards supporting OpenACC for
+	the LFRic (Dynamo0.3 API) PSy layer.
 
-        70) PR #466. Adds basic SIR backend to the PSyIR.
+	70) PR #466. Adds basic SIR backend to the PSyIR.
 
 	71) PR #407 for #315. Use the PSyIR SymbolTable to check for
 	global symbols (module variables) in kernels. Use this support to
@@ -973,8 +1232,8 @@ release 1.8.0 8th November 2019
 	101) PR #574 towards #567. Fixes bug in profiling that causes
 	crash if first kernel in an invoke is a built-in.
 
-        102) PR #576 for #530. Includes the repository examples in the
-        distribution and updates the documentation accordingly.
+	102) PR #576 for #530. Includes the repository examples in the
+	distribution and updates the documentation accordingly.
 
 release 1.7.0 20th December 2018
 
@@ -982,10 +1241,10 @@ release 1.7.0 20th December 2018
 	attribute and initialisation in f2pygen (required for the OpenACC
 	transformation)
 
-        2) #137 Add support for Python 3. Travis now runs the test suite
+	2) #137 Add support for Python 3. Travis now runs the test suite
 	for both Python 2 and Python 3.
 
-        3) #159 and PR #165. Adds a configuration option for the Dynamo
+	3) #159 and PR #165. Adds a configuration option for the Dynamo
 	0.3 API to turn on (redundant) computation over annexed dofs in
 	order to reduce the number of halo exchanges required.
 
@@ -1007,21 +1266,21 @@ release 1.7.0 20th December 2018
 	9) #164 and PR #184. Updates documentation to refer to psyclone
 	script instead of generator.py.
 
-        10) PR #187. Add example transformation scripts for the Dynamo
-        0.3 API.
+	10) PR #187. Add example transformation scripts for the Dynamo
+	0.3 API.
 
 	11) PR #180. Makes the specification of loop limits in the GOcean
 	API more flexible. This will enable us to support single-iteration
 	loops.
 
-        12) #188 and PR #189. Bug fix to ensure that the name of profiling
-        regions remains the same when gen() is called multiple times.
+	12) #188 and PR #189. Bug fix to ensure that the name of profiling
+	regions remains the same when gen() is called multiple times.
 
-        13) #176 and PR #200. Introduce new RegionTrans base class and
+	13) #176 and PR #200. Introduce new RegionTrans base class and
 	add _validate method to ensure that the list of nodes to
 	be transformed (with OpenMP or OpenACC) is correct.
 
-        14) #197. Tidying of the test suite to use the new, get_invoke()
+	14) #197. Tidying of the test suite to use the new, get_invoke()
 	utility everywhere.
 
 	15) #212 and PR #213. Adds fparser as a submodule of psyclone to
@@ -1046,27 +1305,27 @@ release 1.7.0 20th December 2018
 	20) #228 and PR #232. Fix for examples and travis now checks
 	examples at the same time as coverage and code style.
 
-        21) #219 and PR #225. Refactor dependence analysis and fix bug
-        that meant that unnecessary halo exchanges of vector components
-        were not being removed (following a redundant computation
-        transformation).
+	21) #219 and PR #225. Refactor dependence analysis and fix bug
+	that meant that unnecessary halo exchanges of vector components
+	were not being removed (following a redundant computation
+	transformation).
 
 	22) #27 and PR #209. Created initial NEMO api. Needs lots of work
 	but it provides a starting point.
 
-        23) #214 and PR #221. Adds a transformation to convert a
-        synchronous halo exchange into an asynchronous halo exchange.
+	23) #214 and PR #221. Adds a transformation to convert a
+	synchronous halo exchange into an asynchronous halo exchange.
 
 	24) #235 and PR #243. Removes dependency on Habakkuk in NEMO API.
 
 	25) #134 and PR #236. Adds support for adding OpenMP to intergrid
 	kernels.
 
-        26) #198 and PR #223. Updates PSyclone to use the latest
-        version of dl_esm_inf which has "GO_" prefixed to all public
-        quantities. Adds dl_esm_inf as a git submodule.
+	26) #198 and PR #223. Updates PSyclone to use the latest
+	version of dl_esm_inf which has "GO_" prefixed to all public
+	quantities. Adds dl_esm_inf as a git submodule.
 
-        27) #158 and PR #253. Fix to remove unnecessary halo exchanges
+	27) #158 and PR #253. Fix to remove unnecessary halo exchanges
 	related to GH_INC updates to kernel arguments.
 
 	28) #317 and PR #330. Fix to allow module use statements to be
@@ -1082,19 +1341,19 @@ release 1.6.1 6th December 2018
 
 release 1.6.0 18th May 2018
 
-        1) #91 and PR #111 Remove unnecessary __init__.py files.
+	1) #91 and PR #111 Remove unnecessary __init__.py files.
 
-        2) PR #107 Fix errors in Fortran test files revealed by update
+	2) PR #107 Fix errors in Fortran test files revealed by update
 	to fparser 0.0.6. Update to catch new AnalyzeError raised by
-        fparser.
+	fparser.
 
-        3) #90 and PR #102 Add support for integer, read-only, scalar
-        arguments to built-in kernels. Add new inc_X_powint_n Built-in
-        that raises a field to an integer power.
+	3) #90 and PR #102 Add support for integer, read-only, scalar
+	arguments to built-in kernels. Add new inc_X_powint_n Built-in
+	that raises a field to an integer power.
 
-        4) #67 Bug fix - printing Invoke object caused crash.
+	4) #67 Bug fix - printing Invoke object caused crash.
 
-        5) #112 and PR #113 - add travis support for codecov coverage tool
+	5) #112 and PR #113 - add travis support for codecov coverage tool
 
 	6) #118 and PR #122 - add .pylintrc file in tests directory
 	to disable some warnings that we don't care about (for testing
@@ -1106,18 +1365,18 @@ release 1.6.0 18th May 2018
 	8) #105 and PR #115 - add support for coloured loops when
 	performing redundant computation.
 
-        9) #84 and PR #128 - make w2v and wtheta discontinuous function
-        spaces
+	9) #84 and PR #128 - make w2v and wtheta discontinuous function
+	spaces
 
 	10) PR #93 - add support for a swap-loop transform for the GOcean
 	API.
 
-        11) PR #152 - add pylintrc so that pylint's line-length limit
-        matches that of pep8.
+	11) PR #152 - add pylintrc so that pylint's line-length limit
+	matches that of pep8.
 
 	12) PR #143 - bug fix for DAG generation in the GOcean API.
 
-        13) PR #153 - added -v option to the psyclone script to show the
+	13) PR #153 - added -v option to the psyclone script to show the
 	version
 
 	14) PR #136 - add support for intergrid kernels (required for
@@ -1144,29 +1403,29 @@ release 1.5.1 3rd December 2017
 	3) #76 and PR #89 Add support for the new LFRic quadrature
 	api. Currently only gh_quadrature_xyoz is supported.
 
-        4) #99 and PR #100 Make the author list for the user manual
-        strictly alphabetical.
+	4) #99 and PR #100 Make the author list for the user manual
+	strictly alphabetical.
 
-        5) #50 and PR #78 Implement a redundant-computation transformation.
-        This enables a user to request that a kernel (or kernels) is
-        computed out into the halo region and any affected halo swaps
-        be updated (and/or removed) as required.
+	5) #50 and PR #78 Implement a redundant-computation transformation.
+	This enables a user to request that a kernel (or kernels) is
+	computed out into the halo region and any affected halo swaps
+	be updated (and/or removed) as required.
 
-        6) #103 and PR #104. Bug fix to ensure that a halo swap is not
-        inserted if read annexed dofs are already clean due to a previous
+	6) #103 and PR #104. Bug fix to ensure that a halo swap is not
+	inserted if read annexed dofs are already clean due to a previous
 	write to the L1 halo.
 
 release 1.5.0 3rd October 2017
 
-        1) #20 and PR #28 Add dependence analysis (and a Move
-        transformation) to PSyclone. This will subsequently allow for
-        the safe implementation of more complex schedule transformations
-        and optimisations.
+	1) #20 and PR #28 Add dependence analysis (and a Move
+	transformation) to PSyclone. This will subsequently allow for
+	the safe implementation of more complex schedule transformations
+	and optimisations.
 
 	2) #16 and PR #29 Update and add new PSyclone-generated builtins
 	to support the functionality required by the current LFRic code.
 
-        3) #43 and PR #44 Update of Met Office-specific install script to
+	3) #43 and PR #44 Update of Met Office-specific install script to
 	symlink the generator.py file rather than copy it.
 
 	4) #40 and PR #47 Update example lfric/eg3 to use builtins and to
@@ -1229,8 +1488,8 @@ release 1.4.1
 
 release 1.4.0
 
-        1) #2 Add support for kernel meta-data changes required to support
-        Column-wise operators (Column Matrix Assembly).
+	1) #2 Add support for kernel meta-data changes required to support
+	Column-wise operators (Column Matrix Assembly).
 
 	2) #6 Implement support for Column Matrix Assembly (CMA) in
 	PSyclone.
@@ -1242,10 +1501,10 @@ release 1.4.0
 release 1.3.3
 
 	1) Project moved to github: https://github.com/stfc/PSyclone.
-        Hereon, ticket numbers now refer to github issues instead of
-        SRS tickets.
+	Hereon, ticket numbers now refer to github issues instead of
+	SRS tickets.
 
-        2) #8 Remove the f2py source code from the PSyclone distribution
+	2) #8 Remove the f2py source code from the PSyclone distribution
 	and use the fparser package (https://github.com/stfc/fparser)
 	instead.
 
@@ -1277,28 +1536,28 @@ release 1.3.1
 
 release 1.3.0
 
-        1) #686 Stencil extents (depth of the stencil) are now changed to
+	1) #686 Stencil extents (depth of the stencil) are now changed to
 	stencil sizes (number of elements in the stencil) in the PSy-layer
 	as the algorithm expects to provide the former and the kernel
 	expects to receive the latter.
 
-        2) #706 Avoid potential name clashes with stencil extent and
+	2) #706 Avoid potential name clashes with stencil extent and
 	direction arguments (as well as nlayers).
 
 	3) #673 Fixed an xfailing built-in test
 
-        4) #721 Bug fix - generate correct variable declarations and
-        module use statements without modifying original arguments. Invokes
-        requiring multiple enforce-bc kernel calls are now handled correctly.
+	4) #721 Bug fix - generate correct variable declarations and
+	module use statements without modifying original arguments. Invokes
+	requiring multiple enforce-bc kernel calls are now handled correctly.
 
-        5) #727 Addition of install script (contributions/install) to
+	5) #727 Addition of install script (contributions/install) to
 	support Met Office modules environment.
 
-        6) #423 Add support for distributed-memory for built-ins.
-        Global sums are now generated for calls to inner_product and
-        sum_field built-in kernels.
+	6) #423 Add support for distributed-memory for built-ins.
+	Global sums are now generated for calls to inner_product and
+	sum_field built-in kernels.
 
-        7) #489 Support the dereferencing of an object/derived type in the
+	7) #489 Support the dereferencing of an object/derived type in the
 	argument list of a kernel call within an invoke in the algorithm
 	layer e.g. call invoke(kern(a%b))
 
@@ -1306,11 +1565,11 @@ release 1.3.0
 	analyser. This is the first step towards supporting named invokes
 	in PSyclone.
 
-        9) #628 dofmap lookups are now outside loops in the
+	9) #628 dofmap lookups are now outside loops in the
 	PSy-layer. This makes no functional difference but should give a
 	performance benefit.
 
-        10) #304 Added support for named invokes in PSyclone.
+	10) #304 Added support for named invokes in PSyclone.
 
 	11) #580 Implemented tests for the agreed dynamo0.3 builtin
 	rules. For example, all fields must be on the same function space
@@ -1318,10 +1577,10 @@ release 1.3.0
 
 	12) #761 Added support for parsing evaluator metadata.
 
-        13) #484 Add support for the use of OpenMP (including reductions)
-        with builtins.
+	13) #484 Add support for the use of OpenMP (including reductions)
+	with builtins.
 
-        14) #819 Re-structuring of DynKern._create_arg_list. Replaced with
+	14) #819 Re-structuring of DynKern._create_arg_list. Replaced with
 	new ArgList base class which is then sub-classed to KernCallArgList
 	and KernStubArgList.
 
@@ -1330,30 +1589,30 @@ release 1.3.0
 
 release 1.2.4
 
-        1) #658 Adds support for the use of real and integer literals with
+	1) #658 Adds support for the use of real and integer literals with
 	kind specified in kernel calls from the algorithm layer. For
 	example 0.0_rdef. This will be particularly useful for built-ins.
 
-        2) #475 Fixes any remaining string assert comparison errors in
+	2) #475 Fixes any remaining string assert comparison errors in
 	tests. Updates algen_test.py to be pep8, pyflakes and pylint
 	compliant.
 
 	3) #468 Add support for kernels that perform stencil operations.
 	Stencil depth is specified at the algorithm layer.
 
-        4) #672 Fix error in boundary layer code generation for
+	4) #672 Fix error in boundary layer code generation for
 	matrix_vector_kernel. The function space check is now always
 	correct (hopefully).
 
-        5) #680 Bug fix: the kernel stub generator was not adding the stencil
+	5) #680 Bug fix: the kernel stub generator was not adding the stencil
 	dofmap required by a field with stencil access.
 
 release 1.2.3
 
-        1) #111 Adds support for dynamo0.3 built-in operations running
+	1) #111 Adds support for dynamo0.3 built-in operations running
 	sequentially.
 
-        2) #640 Update PSyclone to call enforce_bc_kernel after every
+	2) #640 Update PSyclone to call enforce_bc_kernel after every
 	call to matrix_vector_kernel if the space is W1 or W2. (Previously
 	PSyclone looked for matrix_vector_mm_kernel and only W2.)
 
@@ -1369,11 +1628,11 @@ release 1.2.3
 
 release 1.2.2
 
-        1) #575 Add parser support for stencil meta-data.
+	1) #575 Add parser support for stencil meta-data.
 
-        2) #587 Changed scalar metadata names to gh_real and gh_integer
+	2) #587 Changed scalar metadata names to gh_real and gh_integer
 
-        3) #501 Updates to parser and documentation to support writing to
+	3) #501 Updates to parser and documentation to support writing to
 	scalar arguments (reductions). Note that this is currently only
 	supported for serial code. Implementation of this functionality
 	for OpenMP and MPI will be done under #484 and #423, respectively.
@@ -1384,12 +1643,12 @@ release 1.2.2
 	the algorithm layer appropriately, rather than being forced to use
 	inout in all cases.
 
-        5) #604 If PSyclone encounters an Algorithm file that contains no
+	5) #604 If PSyclone encounters an Algorithm file that contains no
 	invoke calls then it now issues a warning and outputs that file
 	unchanged (previously it did not output a file at all). No PSy
 	file is created in this case.
 
-        6) #618 fix for #235. Data with intent out should have fields
+	6) #618 fix for #235. Data with intent out should have fields
 	declared as inout as internal subroutines within the field are
 	dereferenced so are required as intent in.
 
@@ -1401,23 +1660,23 @@ release 1.2.2
 
 release 1.2.1
 
-        1) Added a PSyclone logo
+	1) Added a PSyclone logo
 
-        2) #360 Internal code structure changes to make the Node class
+	2) #360 Internal code structure changes to make the Node class
 	calls() method more intuitive and consistent with other methods. A
 	side effect is that the OpenMP private list should no longer
 	contain any variables names that are not required (as this change
 	fixes that bug).
 
-        3) #546 Bug fix for colouring when a kernel is passed an operator.
-        PSyclone was not generating the correct cell look-up when
-        colouring a loop containing a kernel call with an operator. i.e.
-        the PSy layer passed 'cell' to the kernel rather than
-        'cmap(colour, cell)'.
+	3) #546 Bug fix for colouring when a kernel is passed an operator.
+	PSyclone was not generating the correct cell look-up when
+	colouring a loop containing a kernel call with an operator. i.e.
+	the PSy layer passed 'cell' to the kernel rather than
+	'cmap(colour, cell)'.
 
-        4) #542 generate correct OpenMP private list. This was actually
-        fixed by the changes made under #360 (change 2 above) so this
-        ticket only adds a test for this functionality.
+	4) #542 generate correct OpenMP private list. This was actually
+	fixed by the changes made under #360 (change 2 above) so this
+	ticket only adds a test for this functionality.
 
 release 1.2.0
 
@@ -1443,7 +1702,7 @@ release 1.2.0
 	8) #521 Fix bugs in the logic for adding halo exchange calls before
 	loops.
 
-        9) #532 Fix in the logic for adding halo exchange calls before
+	9) #532 Fix in the logic for adding halo exchange calls before
 	loops which recognises that operators do not have halos.
 
 	10) #467 Support transformations in Distributed Memory. Enable the use
@@ -1489,27 +1748,27 @@ release 1.1.0
 	information to generate more efficient code. This option can be
 	switched on or off using a transformation.
 
-        10) Support the module in-lining of kernel subroutines. i.e.
-        kernel subroutines can be moved into the same module that contains
-        the invoke from which they are called. This functionality is
-        implemented as a new transformation, 'KernelModuleInlineTrans'.
-        psyGen.py has also been made fully pep8 compliant.
+	10) Support the module in-lining of kernel subroutines. i.e.
+	kernel subroutines can be moved into the same module that contains
+	the invoke from which they are called. This functionality is
+	implemented as a new transformation, 'KernelModuleInlineTrans'.
+	psyGen.py has also been made fully pep8 compliant.
 
-        11) #347 Add an option to limit the length of lines of fortran
-        code that PSyclone generates to 132 chars. This is the length
-        mandated by the Fortran free-format standard and is rigorously
-        enforced by some compilers (e.g. PGI). As a part of this change
-        PSyclone now checks the length of all lines of source code in
+	11) #347 Add an option to limit the length of lines of fortran
+	code that PSyclone generates to 132 chars. This is the length
+	mandated by the Fortran free-format standard and is rigorously
+	enforced by some compilers (e.g. PGI). As a part of this change
+	PSyclone now checks the length of all lines of source code in
 	the Algorithm and Kernel files that it parses.
 
-        12) #395 Add support for new function spaces: Wtheta, W2H and W2V.
+	12) #395 Add support for new function spaces: Wtheta, W2H and W2V.
 
 	13) #396 and #397 Make all tests work with Python 2.6. Previously
 	two of the tests only worked in Python 2.7 and a third caused
 	resource issues when using deepcopy.
 
-        14) #355 Support operators where the "to" and "from" function
-        spaces are different.
+	14) #355 Support operators where the "to" and "from" function
+	spaces are different.
 
 release 1.0.2
 

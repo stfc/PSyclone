@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 Transformations
 ###############
@@ -78,6 +78,39 @@ The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
 `Routine` class with the `is_program` and `return_type` properties set to
 `False` and `None`, respectively.
+
+Raising Transformations
+=======================
+
+Whenever the PSyIR is created from existing source code using one of
+the frontends, the result is language-level PSyIR. That is, it
+contains only nodes that can be mapped directly into a language such
+as C or Fortran by one of the PSyIR backends. In order to utilise
+domain-specific knowledge, this language level PSyIR must be 'raised'
+to a domain-specific PSyIR. The resulting PSyIR will then contain
+nodes representing higher-level concepts such as kernels or halo
+exchanges. This raising is performed by means of the transformations
+listed in the sub-sections below.
+
+Raising Transformations for the NEMO API
+----------------------------------------
+
+The top-level raising transformation creates NEMO PSy layer PSyIR:
+
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoPSyTrans
+
+This transformation is itself implemented using three separate transformations:
+
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoKernelTrans
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoLoopTrans
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoInvokeScheduleTrans
+
+Raising Transformations for the LFRic API
+-----------------------------------------
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicInvokeCallTrans
 
 OpenACC
 =======
@@ -126,14 +159,14 @@ OpenCL
 
 PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API and its associated kernels.
-Such code may then be executed
-on devices such as GPUs and FPGAs (Field-Programmable Gate
-Arrays). Since OpenCL code is very different to that which PSyclone
+Such code may then be executed on devices such as GPUs and FPGAs
+(Field-Programmable Gate Arrays).
+Since OpenCL code is very different to that which PSyclone
 normally generates, its creation is handled by ``gen_ocl`` methods
 instead of the normal ``gen_code``. Which of these to use is
-determined by the value of the ``InvokeSchedule.opencl`` flag.  In turn,
-this is set at a user level by the ``transformations.OCLTrans``
-transformation.
+determined by the value of the ``InvokeSchedule.opencl`` flag.
+In turn, this is set at a user level by the
+``psyclone.domain.gocean.transformations.GOOpenCLTrans`` transformation.
 
 The PSyKAl model of calling kernels for pre-determined iteration
 spaces is a natural fit to OpenCL's concept of an

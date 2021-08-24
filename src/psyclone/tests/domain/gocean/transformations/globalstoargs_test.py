@@ -40,7 +40,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InvokeSchedule
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     CHARACTER_TYPE, Symbol
 from psyclone.transformations import KernelGlobalsToArguments, \
@@ -309,12 +309,12 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
     # The following assert checks that globals from the same module are
     # imported, since the kernels are marked as modified, new suffixes are
     # given in order to differentiate each of them.
-    assert "SUBROUTINE invoke_0(oldu_fld, cu_fld)\n" \
-           "      USE kernel_with_use_1_mod, ONLY: kernel_with_use_1_code\n" \
-           "      USE kernel_with_use2_0_mod, ONLY:" \
-           " kernel_with_use2_0_code\n" \
-           "      USE kernel_with_use_0_mod, ONLY:" \
-           " kernel_with_use_0_code\n" in generated_code
+    assert ("USE kernel_with_use_1_mod, ONLY: kernel_with_use_1_code\n"
+            in generated_code)
+    assert ("USE kernel_with_use2_0_mod, ONLY: kernel_with_use2_0_code\n"
+            in generated_code)
+    assert ("USE kernel_with_use_0_mod, ONLY: kernel_with_use_0_code\n"
+            in generated_code)
 
     # Check the kernel calls have the global passed as last argument
     assert "CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, " \
@@ -326,7 +326,7 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_globalstoarguments_noglobals():
+def test_globalstoarguments_noglobals(fortran_writer):
     ''' Check the KernelGlobalsToArguments transformation can be applied to
     a kernel that does not contain any global without any effect '''
 
@@ -337,10 +337,13 @@ def test_globalstoarguments_noglobals():
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
+
+    before_code = fortran_writer(psy.container)
     trans = KernelGlobalsToArguments()
-    before_code = str(psy.gen)
     trans.apply(kernel)
-    after_code = str(psy.gen)
+    after_code = fortran_writer(psy.container)
+
+    # Check that both are the same
     assert before_code == after_code
     # TODO #11: When support for logging is added, we could warn the user that
     # no globals were found.
@@ -368,7 +371,8 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     monkeypatch.setattr(Symbol, "resolve_deferred", create_real)
 
     # Add 'rdt' into the symbol table
-    kernel.root.symbol_table.add(DataSymbol("rdt", REAL_TYPE))
+    kernel.ancestor(InvokeSchedule).symbol_table.add(
+        DataSymbol("rdt", REAL_TYPE))
 
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:

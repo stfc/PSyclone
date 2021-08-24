@@ -38,13 +38,17 @@
 
 ''' This module contains the Assignment node implementation.'''
 
-import re
+import six
+
+from psyclone.core import VariablesAccessInfo
+from psyclone.errors import InternalError
+from psyclone.f2pygen import PSyIRGen
+from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.errors import InternalError
-from psyclone.f2pygen import PSyIRGen
+from psyclone.psyir.nodes.operation import Operation, REDUCTION_OPERATORS
 
 
 class Assignment(Statement):
@@ -119,8 +123,6 @@ class Assignment(Statement):
         '''
         new_assignment = Assignment()
         new_assignment.children = [lhs, rhs]
-        lhs.parent = new_assignment
-        rhs.parent = new_assignment
         return new_assignment
 
     def __str__(self):
@@ -144,37 +146,20 @@ class Assignment(Statement):
         # is only one access to the variable!
         accesses_left = VariablesAccessInfo()
         self.lhs.reference_accesses(accesses_left)
-
         # Now change the (one) access to the assigned variable to be WRITE:
-        if isinstance(self.lhs, StructureReference):
-            # TODO #1028: Assignment to user defined type, not supported yet.
-            # Here an absolute hack to get at least some information out
-            # from the AST - though indices are just strings, which will
-            # likely cause problems later as well.
-            name = str(self.lhs.ast)
-            # A regular expression that tries to find the last parenthesis
-            # pair in the name ("a(i,j)" --> "(i,j)")
-            ind = re.search(r"\([^\(]+\)$", name)
-            if ind:
-                # Remove the index part of the name
-                name = name.replace(ind.group(0), "")
-                # The index must be added as a list
-                accesses_left.add_access(name, AccessType.WRITE, self,
-                                         [ind.group(0)])
-            else:
-                accesses_left.add_access(name, AccessType.WRITE, self)
-        else:
-            var_info = accesses_left[self.lhs.name]
-            try:
-                var_info.change_read_to_write()
-            except InternalError:
-                # An internal error typically indicates that the same variable
-                # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-                # supported in PSyclone.
-                from psyclone.parse.utils import ParseError
-                raise ParseError("The variable '{0}' appears more than once "
-                                 "on the left-hand side of an assignment."
-                                 .format(self.lhs.name))
+        sig, _ = self.lhs.get_signature_and_indices()
+        var_info = accesses_left[sig]
+        try:
+            var_info.change_read_to_write()
+        except InternalError as err:
+            # An internal error typically indicates that the same variable
+            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+            # supported in PSyclone.
+            six.raise_from(
+                NotImplementedError("The variable '{0}' appears more than "
+                                    "once on the left-hand side of an "
+                                    "assignment."
+                                    .format(self.lhs.name)), err)
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the
@@ -188,16 +173,37 @@ class Assignment(Statement):
     @property
     def is_array_range(self):
         '''
-        returns: True if the lhs of the assignment is an array with at \
-            least one of its dimensions being a range and False \
-            otherwise.
+        returns: True if the lhs of the assignment is an array access with at \
+            least one of its dimensions being a range and False otherwise.
         rtype: bool
 
         '''
-        from psyclone.psyir.nodes import ArrayReference, Range
-        if not isinstance(self.lhs, ArrayReference):
-            return False
-        return any(dim for dim in self.lhs.children if isinstance(dim, Range))
+        # It's not sufficient simply to check for a Range node as that may be
+        # part of an argument to an Operator or function that performs a
+        # reduction and thus returns a scalar result, e.g. a(SUM(b(:))) = 1.0
+        # TODO #658 this check for reductions needs extending to also support
+        # user-implemented functions.
+        if isinstance(self.lhs, (ArrayReference, StructureReference)):
+            ranges = self.lhs.walk(Range)
+            for array_range in ranges:
+                opn = array_range.ancestor(Operation)
+                while opn:
+                    if opn.operator in REDUCTION_OPERATORS:
+                        # The current array range is in an argument to a
+                        # reduction operation so we assume that the result
+                        # is a scalar.
+                        # TODO 658 this could still be a reduction into an
+                        # array (e.g. SUM(a(:,:), 1)) but we need to be able
+                        # to interrogate the type of a PSyIR expression in
+                        # order to be sure. e.g. SUM(a(:,:), mask(:,:)) will
+                        # return a scalar.
+                        break
+                    opn = opn.ancestor(Operation)
+                else:
+                    # We didn't find a reduction operation so there is an
+                    # array range on the LHS
+                    return True
+        return False
 
     def gen_code(self, parent):
         '''F2pygen code generation of an Assignment.
