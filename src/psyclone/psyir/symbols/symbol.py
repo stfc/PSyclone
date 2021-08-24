@@ -79,10 +79,9 @@ class UnresolvedInterface(SymbolInterface):
         return "Unresolved"
 
 
-class GlobalInterface(SymbolInterface):
-    '''Describes the interface to a Symbol that is supplied externally to
-    this container, and therefore it is defined in an external PSyIR
-    container.
+class ImportInterface(SymbolInterface):
+    '''Describes the interface to a Symbol that is imported from an external
+    PSyIR container.
 
     :param container_symbol: symbol representing the external container \
         from which the symbol is imported.
@@ -97,11 +96,11 @@ class GlobalInterface(SymbolInterface):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols import ContainerSymbol
 
-        super(GlobalInterface, self).__init__()
+        super(ImportInterface, self).__init__()
 
         if not isinstance(container_symbol, ContainerSymbol):
             raise TypeError(
-                "Global container_symbol parameter must be of type"
+                "Import container_symbol parameter must be of type"
                 " ContainerSymbol, but found '{0}'."
                 "".format(type(container_symbol).__name__))
 
@@ -116,7 +115,7 @@ class GlobalInterface(SymbolInterface):
         return self._container_symbol
 
     def __str__(self):
-        return "Global(container='{0}')".format(self.container_symbol.name)
+        return "Import(container='{0}')".format(self.container_symbol.name)
 
 
 class ArgumentInterface(SymbolInterface):
@@ -312,7 +311,7 @@ class Symbol(object):
         :raises NotImplementedError: if the this symbol does not have an \
                                      external (global) interface.
         '''
-        if not self.is_global:
+        if not self.is_import:
             raise NotImplementedError(
                 "Error trying to resolve symbol '{0}' properties, the lazy"
                 " evaluation of '{1}' interfaces is not supported."
@@ -349,7 +348,7 @@ class Symbol(object):
         :rtype: subclass of :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        if self.is_global:
+        if self.is_import:
             extern_symbol = self.get_external_symbol()
             # Create a new symbol object of the same class as the one
             # we've just looked up but with the interface and visibility
@@ -428,13 +427,13 @@ class Symbol(object):
         return isinstance(self._interface, LocalInterface)
 
     @property
-    def is_global(self):
+    def is_import(self):
         '''
-        :returns: whether the Symbol has a Global interface.
+        :returns: whether the Symbol has a Import interface.
         :rtype: bool
 
         '''
-        return isinstance(self._interface, GlobalInterface)
+        return isinstance(self._interface, ImportInterface)
 
     @property
     def is_argument(self):

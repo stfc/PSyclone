@@ -3002,7 +3002,7 @@ class ACCRoutineTrans(KernelTrans):
                 "The Symbol Table for kernel '{0}' contains the following "
                 "symbol(s) with global scope: {1}. If these symbols represent"
                 " data then they must first be converted to kernel arguments "
-                "using the KernelGlobalsToArguments transformation. If the "
+                "using the KernelImportsToArguments transformation. If the "
                 "symbols represent external routines then PSyclone cannot "
                 "currently transform this kernel for execution on an OpenACC "
                 "device (issue #342).".
@@ -3234,7 +3234,7 @@ class ACCDataTrans(RegionTrans):
                 "already contains an 'enter data' directive.")
 
 
-class KernelGlobalsToArguments(Transformation):
+class KernelImportsToArguments(Transformation):
     '''
     Transformation that removes any accesses of global data from the supplied
     kernel and places them in the caller. The values/references are then passed
@@ -3246,7 +3246,7 @@ class KernelGlobalsToArguments(Transformation):
         :returns: the name of this transformation.
         :rtype: str
         '''
-        return "KernelGlobalsToArguments"
+        return "KernelImportsToArguments"
 
     def __str__(self):
         return ("Convert the global variables used inside the kernel "
@@ -3425,4 +3425,4 @@ __all__ = ["KernelTrans",
            "ACCRoutineTrans",
            "ACCKernelsTrans",
            "ACCDataTrans",
-           "KernelGlobalsToArguments"]
+           "KernelImportsToArguments"]

@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     Call, Routine, Member, FileContainer, Directive
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
     UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
     SymbolTable, NoType, INTEGER_TYPE
@@ -1570,12 +1570,12 @@ class Fparser2Reader(object):
                         # the type of this symbol we create a generic Symbol.
                         parent.symbol_table.add(
                             Symbol(sym_name, visibility=default_visibility,
-                                   interface=GlobalInterface(container)))
+                                   interface=ImportInterface(container)))
                     else:
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
                             sym_name)
-                        if not existing_symbol.is_global:
+                        if not existing_symbol.is_import:
                             raise SymbolError(
                                 "Symbol '{0}' is imported from module '{1}' "
                                 "but is already present in the symbol table as"

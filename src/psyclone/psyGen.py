@@ -52,7 +52,7 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
+    Symbol, ContainerSymbol, ImportInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
@@ -1883,7 +1883,7 @@ class CodedKern(Kern):
                 except KeyError:
                     csymbol = ContainerSymbol(self._module_name)
                     symtab.add(csymbol)
-                rsymbol.interface = GlobalInterface(csymbol)
+                rsymbol.interface = ImportInterface(csymbol)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node

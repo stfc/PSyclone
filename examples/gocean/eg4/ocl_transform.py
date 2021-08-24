@@ -37,7 +37,7 @@
     the first Invoke to use OpenCL. In order to do this, those kernels that
     access global data are transformed so as to pass that data by argument. '''
 
-from psyclone.transformations import KernelGlobalsToArguments
+from psyclone.transformations import KernelImportsToArguments
 from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
     GOMoveIterationBoundariesInsideKernelTrans
 
@@ -59,7 +59,7 @@ def trans(psy):
     sched = invoke.schedule
 
     # Convert any kernel accesses to global data into arguments
-    ktrans = KernelGlobalsToArguments()
+    ktrans = KernelImportsToArguments()
     for kern in sched.kernels():
         ktrans.apply(kern)
 

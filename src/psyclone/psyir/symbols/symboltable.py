@@ -44,7 +44,7 @@ import inspect
 import copy
 import six
 from psyclone.configuration import Config
-from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
+from psyclone.psyir.symbols import Symbol, DataSymbol, ImportInterface, \
     ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError
 from psyclone.errors import InternalError
 
@@ -274,7 +274,7 @@ class SymbolTable(object):
         for symbol in new_st.global_symbols:
             name = symbol.interface.container_symbol.name
             new_container = new_st.lookup(name)
-            symbol.interface = GlobalInterface(new_container)
+            symbol.interface = ImportInterface(new_container)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
@@ -910,7 +910,7 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        return [sym for sym in self.symbols if sym.is_global]
+        return [sym for sym in self.symbols if sym.is_import]
 
     @property
     def precision_datasymbols(self):
@@ -992,10 +992,10 @@ class SymbolTable(object):
                 " method should be a DataSymbol, but found '{0}'."
                 "".format(type(globalvar).__name__))
 
-        if not globalvar.is_global:
+        if not globalvar.is_import:
             raise TypeError(
                 "The globalvar argument of SymbolTable.copy_external_"
-                "global method should have a GlobalInterface interface, "
+                "global method should have a ImportInterface interface, "
                 "but found '{0}'.".format(type(globalvar.interface).__name__))
 
         external_container_name = globalvar.interface.container_symbol.name
@@ -1010,13 +1010,13 @@ class SymbolTable(object):
         if globalvar.name not in self:
             new_symbol = globalvar.copy()
             # Update the interface of this new symbol
-            new_symbol.interface = GlobalInterface(container_ref)
+            new_symbol.interface = ImportInterface(container_ref)
             self.add(new_symbol, tag)
         else:
             # If it already exists it must refer to the same Container and have
             # the same tag.
             local_instance = self.lookup(globalvar.name)
-            if not (local_instance.is_global and
+            if not (local_instance.is_import and
                     local_instance.interface.container_symbol.name ==
                     external_container_name):
                 raise KeyError(

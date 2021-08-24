@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
-    GlobalInterface, ScalarType, LocalInterface, ArgumentInterface, \
+    ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
     ArrayType
 from psyclone.psyir.nodes import Reference, Literal
 
@@ -58,7 +58,7 @@ def test_constants_mod(module, symbol_list):
     assert isinstance(module, ContainerSymbol)
     for symbol in symbol_list:
         assert isinstance(symbol, DataSymbol)
-        assert isinstance(symbol.interface, GlobalInterface)
+        assert isinstance(symbol.interface, ImportInterface)
         assert symbol.interface.container_symbol is module
 
 
