@@ -1024,12 +1024,12 @@ class InvokeSchedule(Routine):
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
         module_map = {}
-        for globalvar in self.symbol_table.global_symbols:
-            module_name = globalvar.interface.container_symbol.name
+        for imported_var in self.symbol_table.import_symbols:
+            module_name = imported_var.interface.container_symbol.name
             if module_name in module_map:
-                module_map[module_name].append(globalvar.name)
+                module_map[module_name].append(imported_var.name)
             else:
-                module_map[module_name] = [globalvar.name]
+                module_map[module_name] = [imported_var.name]
 
         # Then we can produce the UseGen statements without repeating modules
         for module_name, var_list in module_map.items():

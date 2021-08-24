@@ -153,7 +153,7 @@ class GOOpenCLTrans(Transformation):
         for kern in sched.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
-            global_variables = ksched.symbol_table.global_symbols
+            global_variables = ksched.symbol_table.import_symbols
             if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "

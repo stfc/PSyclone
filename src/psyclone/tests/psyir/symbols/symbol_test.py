@@ -164,17 +164,17 @@ def test_unresolvedinterface():
     assert str(interface) == "Unresolved"
 
 
-def test_globalinterface():
-    '''Test that we can create a global interface successfully, that is
+def test_importinterface():
+    '''Test that we can create an Import Interface successfully, that is
     raises the expected exception if the container_symbol attribute is
     of the wrong type, that the container symbol property and str
     method work as expected.
 
     '''
     container_symbol = ContainerSymbol("my_mod")
-    global_interface = ImportInterface(container_symbol)
-    assert global_interface.container_symbol is container_symbol
-    assert str(global_interface) == "Import(container='my_mod')"
+    import_interface = ImportInterface(container_symbol)
+    assert import_interface.container_symbol is container_symbol
+    assert str(import_interface) == "Import(container='my_mod')"
 
     with pytest.raises(TypeError) as info:
         _ = ImportInterface("hello")

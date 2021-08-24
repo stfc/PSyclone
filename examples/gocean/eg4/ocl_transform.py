@@ -35,7 +35,8 @@
 
 ''' Module providing a transformation script that converts the Schedule of
     the first Invoke to use OpenCL. In order to do this, those kernels that
-    access global data are transformed so as to pass that data by argument. '''
+    access imported data are transformed so as to pass that data by argument.
+'''
 
 from psyclone.transformations import KernelImportsToArguments
 from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
@@ -58,7 +59,7 @@ def trans(psy):
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
 
-    # Convert any kernel accesses to global data into arguments
+    # Convert any kernel accesses to imported data into arguments
     ktrans = KernelImportsToArguments()
     for kern in sched.kernels():
         ktrans.apply(kern)

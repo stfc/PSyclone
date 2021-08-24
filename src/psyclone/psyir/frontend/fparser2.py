@@ -1556,7 +1556,7 @@ class Fparser2Reader(object):
             # Create a generic Symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
                 if not new_container and not container.wildcard_import \
-                   and not parent.symbol_table.imported_symbols(container):
+                   and not parent.symbol_table.symbols_imported_from(container):
                     # TODO #11 Log the fact that this explicit symbol import
                     # will replace a previous import with an empty only-list.
                     pass
@@ -1587,7 +1587,7 @@ class Fparser2Reader(object):
             elif not decl.items[3]:
                 # We have a USE statement without an ONLY clause.
                 if (not new_container) and (not container.wildcard_import) \
-                   and (not parent.symbol_table.imported_symbols(container)):
+                   and (not parent.symbol_table.symbols_imported_from(container)):
                     # TODO #11 Log the fact that this explicit symbol import
                     # will replace a previous import that had an empty
                     # only-list.
@@ -1601,7 +1601,7 @@ class Fparser2Reader(object):
                 # wildcard import) imply 'only:'.
                 if not new_container and \
                        (container.wildcard_import or
-                        parent.symbol_table.imported_symbols(container)):
+                        parent.symbol_table.symbols_imported_from(container)):
                     # TODO #11 Log the fact that this import with an empty
                     # only-list is ignored because of existing 'use's of
                     # the module.

@@ -54,7 +54,7 @@ BASEPATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))), "test_files")
 
 
-def test_globalstoargumentstrans_wrongapi():
+def test_kernelimportstoargumentstrans_wrongapi():
     ''' Check the KernelImportsToArguments with an API other than GOcean1p0'''
 
     trans = KernelImportsToArguments()
@@ -73,7 +73,7 @@ def test_globalstoargumentstrans_wrongapi():
 
 @pytest.mark.xfail(reason="#649 symbols declared in outer, module scope but "
                    "accessed inside kernel are not identified.")
-def test_globalstoargumentstrans_no_outer_module_import():
+def test_kernelimportsstoargumentstrans_no_outer_module_import():
     ''' Check that we reject kernels that access data that is declared in the
     enclosing module. '''
     trans = KernelImportsToArguments()
@@ -90,7 +90,7 @@ def test_globalstoargumentstrans_no_outer_module_import():
             str(err.value))
 
 
-def test_globalstoargumentstrans_no_wildcard_import():
+def test_kernelimportstoargumentstrans_no_wildcard_import():
     ''' Check that the transformation rejects kernels with wildcard
     imports. '''
     trans = KernelImportsToArguments()
@@ -112,13 +112,13 @@ def test_globalstoargumentstrans_no_wildcard_import():
 @pytest.mark.usefixtures("kernel_outputdir")
 def test_kernelimportstoargumentstrans(monkeypatch):
     ''' Check the KernelImportsToArguments transformation with a single kernel
-    invoke and a global variable.'''
+    invoke and an imported variable.'''
     from psyclone.psyGen import Argument
     from psyclone.psyir.backend.fortran import FortranWriter
 
     trans = KernelImportsToArguments()
     assert trans.name == "KernelImportsToArguments"
-    assert str(trans) == "Convert the global variables used inside the " \
+    assert str(trans) == "Convert the imported variables used inside the " \
         "kernel into arguments and modify the InvokeSchedule to pass them" \
         " in the kernel call."
 
@@ -190,7 +190,7 @@ def test_kernelimportstoargumentstrans(monkeypatch):
 
 @pytest.mark.usefixtures("kernel_outputdir")
 def test_kernelimportstoargumentstrans_constant(monkeypatch):
-    ''' Check the KernelImportsToArguments transformation when the global is
+    ''' Check the KernelImportsToArguments transformation when the import is
     also a constant value, in this case the argument should be read-only.'''
     from psyclone.psyir.backend.fortran import FortranWriter
     from psyclone.psyir.nodes import Literal
@@ -228,7 +228,7 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
 
 
 def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
-    ''' Check the KernelImportsToArguments transformation when the global is
+    ''' Check the KernelImportsToArguments transformation when the import is
     a type not supported by the GOcean infrastructure raises an Error'''
 
     trans = KernelImportsToArguments()
@@ -252,14 +252,14 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
     # Test transforming a single kernel
     with pytest.raises(TypeError) as err:
         trans.apply(kernel)
-    assert ("The global variable 'rdt' could not be promoted to an argument "
+    assert ("The imported variable 'rdt' could not be promoted to an argument "
             "because the GOcean infrastructure does not have any scalar type "
             "equivalent to the PSyIR Scalar<CHARACTER, UNDEFINED> type."
             in str(err.value))
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_globalstoarguments_multiple_kernels(monkeypatch):
+def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
     ''' Check the KernelImportsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
@@ -307,7 +307,7 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
 
     generated_code = str(psy.gen)
 
-    # The following assert checks that globals from the same module are
+    # The following assert checks that imports from the same module are
     # imported, since the kernels are marked as modified, new suffixes are
     # given in order to differentiate each of them.
     assert ("USE kernel_with_use_1_mod, ONLY: kernel_with_use_1_code\n"
@@ -317,7 +317,7 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
     assert ("USE kernel_with_use_0_mod, ONLY: kernel_with_use_0_code\n"
             in generated_code)
 
-    # Check the kernel calls have the global passed as last argument
+    # Check the kernel calls have the imported symbol passed as last argument
     assert "CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
     assert "CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, " \
@@ -327,9 +327,9 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_globalstoarguments_noglobals(fortran_writer):
+def test_kernelimportstoarguments_noimports(fortran_writer):
     ''' Check the KernelImportsToArguments transformation can be applied to
-    a kernel that does not contain any global without any effect '''
+    a kernel that does not contain any import without any effect '''
 
     # Parse a file to get an initialised GOKernelsArguments object
     _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
@@ -347,7 +347,7 @@ def test_globalstoarguments_noglobals(fortran_writer):
     # Check that both are the same
     assert before_code == after_code
     # TODO #11: When support for logging is added, we could warn the user that
-    # no globals were found.
+    # no imports were found.
 
 
 def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
@@ -379,5 +379,5 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
     with pytest.raises(KeyError) as err:
         trans.apply(kernel)
     assert ("Couldn't copy 'rdt: <Scalar<REAL, UNDEFINED>, "
-            "Global(container='model_mod')>' into the SymbolTable. The name "
+            "Import(container='model_mod')>' into the SymbolTable. The name "
             "'rdt' is already used by another symbol." in str(err.value))

@@ -2996,17 +2996,17 @@ class ACCRoutineTrans(KernelTrans):
         # Check that the kernel does not access any data or routines via a
         # module 'use' statement
         sched = kern.get_kernel_schedule()
-        global_variables = sched.symbol_table.global_symbols
-        if global_variables:
+        imported_variables = sched.symbol_table.import_symbols
+        if imported_variables:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
-                "symbol(s) with global scope: {1}. If these symbols represent"
-                " data then they must first be converted to kernel arguments "
-                "using the KernelImportsToArguments transformation. If the "
-                "symbols represent external routines then PSyclone cannot "
-                "currently transform this kernel for execution on an OpenACC "
-                "device (issue #342).".
-                format(kern.name, [sym.name for sym in global_variables]))
+                "symbol(s) with imported interface: {1}. If these symbols "
+                "represent data then they must first be converted to kernel "
+                "arguments using the KernelImportsToArguments transformation. "
+                "If the symbols represent external routines then PSyclone "
+                "cannot currently transform this kernel for execution on an "
+                "OpenACC device (issue #342).".
+                format(kern.name, [sym.name for sym in imported_variables]))
 
 
 class ACCKernelsTrans(RegionTrans):
@@ -3236,7 +3236,7 @@ class ACCDataTrans(RegionTrans):
 
 class KernelImportsToArguments(Transformation):
     '''
-    Transformation that removes any accesses of global data from the supplied
+    Transformation that removes any accesses of imported data from the supplied
     kernel and places them in the caller. The values/references are then passed
     by argument into the kernel.
     '''
@@ -3249,7 +3249,7 @@ class KernelImportsToArguments(Transformation):
         return "KernelImportsToArguments"
 
     def __str__(self):
-        return ("Convert the global variables used inside the kernel "
+        return ("Convert the imported variables used inside the kernel "
                 "into arguments and modify the InvokeSchedule to pass them"
                 " in the kernel call.")
 
@@ -3306,8 +3306,8 @@ class KernelImportsToArguments(Transformation):
 
     def apply(self, node, options=None):
         '''
-        Convert the global variables used inside the kernel into arguments and
-        modify the InvokeSchedule to pass the same global variables to the
+        Convert the importe variables used inside the kernel into arguments and
+        modify the InvokeSchedule to pass the same imported variables to the
         kernel call.
 
         This apply() method does not return anything, as agreed in #595.
@@ -3327,26 +3327,26 @@ class KernelImportsToArguments(Transformation):
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table
         invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
-        count_global_vars_removed = 0
+        count_imported_vars_removed = 0
 
-        # Transform each global variable into an argument.
+        # Transform each imported variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
-        # if no globals are found in the kernel.
-        for globalvar in kernel.symbol_table.global_symbols[:]:
-            count_global_vars_removed += 1
+        # if no imports are found in the kernel.
+        for imported_var in kernel.symbol_table.import_symbols[:]:
+            count_imported_vars_removed += 1
 
             # Resolve the data type information if it is not available
             # pylint: disable=unidiomatic-typecheck
-            if (type(globalvar) == Symbol or
-                    isinstance(globalvar.datatype, DeferredType)):
-                updated_sym = globalvar.resolve_deferred()
+            if (type(imported_var) == Symbol or
+                    isinstance(imported_var.datatype, DeferredType)):
+                updated_sym = imported_var.resolve_deferred()
                 # If we have a new symbol then we must update the symbol table
-                if updated_sym is not globalvar:
-                    kernel.symbol_table.swap(globalvar, updated_sym)
+                if updated_sym is not imported_var:
+                    kernel.symbol_table.swap(imported_var, updated_sym)
             # pylint: enable=unidiomatic-typecheck
 
-            # Copy the global into the InvokeSchedule SymbolTable
-            invoke_symtab.copy_external_global(
+            # Copy the imported symbol into the InvokeSchedule SymbolTable
+            invoke_symtab.copy_external_import(
                 updated_sym, tag="AlgArgs_" + updated_sym.name)
 
             # Keep a reference to the original container so that we can
@@ -3356,7 +3356,7 @@ class KernelImportsToArguments(Transformation):
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
             if updated_sym.is_constant:
-                # Global constants lose the constant value but are read-only
+                # Imported constants lose the constant value but are read-only
                 # TODO: When #633 and #11 are implemented, warn the user that
                 # they should transform the constants to literal values first.
                 updated_sym.constant_value = None
@@ -3379,21 +3379,21 @@ class KernelImportsToArguments(Transformation):
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(
-                    "The global variable '{0}' could not be promoted to an "
+                    "The imported variable '{0}' could not be promoted to an "
                     "argument because the GOcean infrastructure does not have"
                     " any scalar type equivalent to the PSyIR {1} type.".
                     format(updated_sym.name, updated_sym.datatype))
 
-            # Add the global variable in the call argument list
+            # Add the imported variable in the call argument list
             node.arguments.append(updated_sym.name, go_space)
 
             # Check whether we still need the Container symbol from which
-            # this global was originally accessed
-            if not kernel.symbol_table.imported_symbols(container) and \
+            # this import was originally accessed
+            if not kernel.symbol_table.symbols_imported_from(container) and \
                not container.wildcard_import:
                 kernel.symbol_table.remove(container)
 
-        if count_global_vars_removed > 0:
+        if count_imported_vars_removed > 0:
             node.modified = True
 
 

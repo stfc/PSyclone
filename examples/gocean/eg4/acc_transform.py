@@ -69,7 +69,7 @@ def trans(psy):
     # Add an enter-data directive
     dtrans.apply(schedule)
 
-    # Convert any accesses to global data into kernel arguments, put an
+    # Convert any accesses to imported data into kernel arguments, put an
     # 'acc routine' directive inside, and module-inline each kernel
     for kern in schedule.coded_kernels():
         if kern.name == "kern_use_var_code":

@@ -421,7 +421,7 @@ class FortranWriter(LanguageWriter):
 
         # Construct the list of symbol names for the ONLY clause
         only_list = [dsym.name for dsym in
-                     symbol_table.imported_symbols(symbol)]
+                     symbol_table.symbols_imported_from(symbol)]
 
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
