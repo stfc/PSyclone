@@ -1840,8 +1840,14 @@ class Fparser2Reader(object):
             default_compt_visibility = Symbol.Visibility.PUBLIC
 
         # The visibility of the symbol representing this derived type
-        dtype_symbol_vis = visibility_map.get(
-            name, parent.symbol_table.default_visibility)
+        if name in visibility_map:
+            dtype_symbol_vis = visibility_map[name]
+        else:
+            specs = walk(decl.children[0], Fortran2003.Access_Spec)
+            if specs:
+                dtype_symbol_vis = _process_access_spec(specs[0])
+            else:
+                dtype_symbol_vis = parent.symbol_table.default_visibility
 
         # We have to create the symbol for this type before processing its
         # components as they may refer to it (e.g. for a linked list).
