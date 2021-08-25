@@ -1826,7 +1826,7 @@ class Fparser2Reader(object):
             or is not of DeferredType.
 
         '''
-        name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
+        name = str(walk(decl.children[0], Fortran2003.Type_Name)[0]).lower()
         # Create a new StructureType for this derived type
         dtype = StructureType()
 
