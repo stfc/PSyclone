@@ -120,7 +120,7 @@
 	40) PR #1323 for #1305. Capture the default visibility of a Fortran
 	module and store it in the symbol table.
 
- 	41) PR #1313 for #1268 and #1269. Adds new ComponentIndices class
+	41) PR #1313 for #1268 and #1269. Adds new ComponentIndices class
 	to manage indices for component accesses.
 
 	42) PR #1325 for #1247. Adds PSyIR support for comments (associated with
@@ -128,6 +128,35 @@
 
 	43) PR #1342 towards #1338. Adds the OMPSingleTrans transformation for
 	creating an OMP SINGLE region.
+
+	44) PR #1352 towards #1338. Adds the OMPMasterTrans transformation for
+	creating an OMP MASTER region.
+
+	45) PR #1360 for #1359. Fix pytest fixtures tear downs.
+
+	46) PR #1353 for #1324. Add support for generating structure accesses in
+	the C backends.
+
+	47) PR #1358 towards #1338. Add the OpenMP Taskloop directive and its
+	corresponding insertion transformation.
+
+	48) PR #1369 for #1367. GOcean supports REAL literals in kernel arguments.
+
+	49) PR #1362 for #1361. Fix bug in PSyIRGen when PSyIR node corresponds
+	to more than one fparser2 node.
+
+	50) PR #1344 for #1309. Fix bug in PSyIR backend name comparison.
+
+        51) PR #1372 for #1371. Bring tutorial notebooks up-to-date and add
+        them to the CI.
+
+	52) PR #1341 towards #1134. Move OpenCL transformation to GOcean
+	transformations folder and rename.
+
+	53) PR #1368 towards #1338. Adds OMPTaskWaitDirective node.
+
+	54) PR #1282 for #871. Adds generation of callback routines for
+        GOcean in order to do data movement with OpenACC.
 
 release 2.0.0 28th April 2021
 

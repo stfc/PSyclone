@@ -36,7 +36,7 @@
 
 # Makefile for the PSyclone NEMO OpenACC tutorial.
 
-include ../../common.mk
+include ../../../common.mk
 
 # By default we only generate the transformed code
 .DEFAULT_GOAL := psy_1.f90

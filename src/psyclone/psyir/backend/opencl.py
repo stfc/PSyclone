@@ -54,9 +54,8 @@ class OpenCLWriter(CWriter):
     is raised if a visitor method for a PSyIR node has not been \
     implemented, otherwise the visitor silently continues. This is an \
     optional argument which defaults to False.
-    :param indent_string: specifies what to use for indentation. This \
+    :param str indent_string: specifies what to use for indentation. This \
     is an optional argument that defaults to two spaces.
-    :type indent_string: str or NoneType
     :param int initial_indent_depth: specifies how much indentation to \
     start with. This is an optional argument that defaults to 0.
     :param int kernel_local_size: uses the given local_size when generating \

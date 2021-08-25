@@ -131,7 +131,7 @@ def test_literal_init_invalid_2(value):
     with pytest.raises(ValueError) as err:
         Literal(value, REAL_DOUBLE_TYPE)
     assert ("A scalar real literal value must conform to the supported "
-            "format ('^[+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?$') but "
+            "format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
             "found '{0}'.".format(value) in str(err.value))
 
 
