@@ -146,7 +146,7 @@ class ExtractDriverCreator:
         '''
 
         # A field access (`fld%data`) will get the `%data` removed, since then
-        # there is less of a chance of a name class (`fld` is guaranteed to
+        # this avoids a potential name clash (`fld` is guaranteed to
         # be unique, since it's a variable already, but `fld_data` could clash
         # with a user variable if the user uses `fld` and `fld_data`).
         # Furthermore, the netcdf file declares the variable without `%data`,
@@ -165,7 +165,6 @@ class ExtractDriverCreator:
             symbol = self.get_type(flattened_name, old_reference,
                                    symbol_table, writer)
             symbol_table.add(symbol, tag=fortran_string)
-
         # We need to create a new, flattened Reference and replace the
         # StructureReference with it:
         new_ref = Reference(symbol)
