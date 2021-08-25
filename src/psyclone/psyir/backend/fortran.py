@@ -34,6 +34,7 @@
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab.
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. R. Porter, STFC Daresbury Lab.
+# Modified A. B. G. Chalk, STFC Daresbury Lab.
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel and NemoInvoke schedules as
@@ -1303,13 +1304,13 @@ class FortranWriter(LanguageWriter):
             result += self._visit(child)
         return result
 
-    def directive_node(self, node):
-        '''This method is called when a Directive instance is found in
+    def regiondirective_node(self, node):
+        '''This method is called when a RegionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
         the statements in between as a string (depending on the language).
 
-        :param node: a Directive PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Directive`
+        :param node: a RegionDirective PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.RegionDirective`
 
         :returns: the Fortran code for this node.
         :rtype: str
@@ -1319,6 +1320,25 @@ class FortranWriter(LanguageWriter):
 
         for child in node.dir_body:
             result_list.append(self._visit(child))
+
+        end_string = node.end_string()
+        if end_string:
+            result_list.append("{0}!${1}\n".format(self._nindent, end_string))
+        return "".join(result_list)
+
+    def standalonedirective_node(self, node):
+        '''This method is called when a StandaloneDirective instance is found
+        in the PSyIR tree. It returns the opening and closing directives, and
+        the statements in between as a string (depending on the language).
+
+        :param node: a StandaloneDirective PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.StandloneDirective`
+
+        :returns: the Fortran code for this node.
+        :rtype: str
+
+        '''
+        result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
 
         end_string = node.end_string()
         if end_string:

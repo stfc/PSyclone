@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -80,25 +81,26 @@ def test_acc_dir_node_str():
     accdt.apply(schedule)
     out = schedule[0].node_str()
     assert out.startswith(
-        colored("ChildlessDirective", colour)+"[ACC enter data]")
+        colored("StandaloneDirective", colour)+"[ACC enter data]")
 
     # Parallel region around outermost loop
     accpt.apply(schedule[1])
     out = schedule[1].node_str()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC Parallel]")
+        colored("RegionDirective", colour)+"[ACC Parallel]")
 
     # Loop directive on outermost loop
     acclt.apply(schedule[1].dir_body[0])
     out = schedule[1].dir_body[0].node_str()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC Loop, independent]")
+        colored("RegionDirective", colour)+"[ACC Loop, independent]")
 
     # Loop directive with collapse
     acclt.apply(schedule[1].dir_body[0].dir_body[0], {"collapse": 2})
     out = schedule[1].dir_body[0].dir_body[0].node_str()
     assert out.startswith(
-        colored("Directive", colour) + "[ACC Loop, collapse=2, independent]")
+        colored("RegionDirective", colour) + "[ACC Loop, collapse=2, "
+                                             "independent]")
 
 
 def test_acc_dag_names():
@@ -172,7 +174,7 @@ def test_acckernelsdirective_node_str():
 
     out = sched[0].node_str()
     assert out.startswith(
-        colored("Directive", Directive._colour)+"[ACC Kernels]")
+        colored("RegionDirective", Directive._colour)+"[ACC Kernels]")
     assert colored("Loop", Loop._colour) in sched[0].dir_body[0].node_str()
     assert "CodedKern" in sched[0].dir_body[0].loop_body[0].node_str()
 

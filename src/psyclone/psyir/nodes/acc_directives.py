@@ -45,14 +45,15 @@ import abc
 import six
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes.directive import Directive, ChildlessDirective
+from psyclone.psyir.nodes.directive import StandaloneDirective, \
+    RegionDirective
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.core import AccessType, VariablesAccessInfo
 
 
-class ACCDirective(Directive):
+class ACCDirective(RegionDirective):
     ''' Base class for all OpenACC directive statements. '''
     _PREFIX = "ACC"
 
@@ -88,7 +89,7 @@ class ACCDirective(Directive):
                     type(self).__name__))
 
 
-class ACCChildlessDirective(ChildlessDirective):
+class ACCStandaloneDirective(StandaloneDirective):
     ''' Base class for all childless OpenACC directive statements. '''
     _PREFIX = "ACC"
 
@@ -112,7 +113,7 @@ class ACCChildlessDirective(ChildlessDirective):
             regions are not supported.
 
         '''
-        super(ACCChildlessDirective, self).validate_global_constraints()
+        super(ACCStandaloneDirective, self).validate_global_constraints()
 
         data_nodes = self.walk(PSyDataNode)
         if data_nodes:
@@ -125,7 +126,7 @@ class ACCChildlessDirective(ChildlessDirective):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ACCEnterDataDirective(ACCChildlessDirective):
+class ACCEnterDataDirective(ACCStandaloneDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
@@ -860,4 +861,4 @@ class ACCDataDirective(ACCDirective):
 # For automatic API documentation generation
 __all__ = ["ACCDirective", "ACCEnterDataDirective", "ACCParallelDirective",
            "ACCLoopDirective", "ACCKernelsDirective", "ACCDataDirective",
-           "ACCChildlessDirective"]
+           "ACCStandaloneDirective"]

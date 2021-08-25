@@ -35,6 +35,7 @@
 # Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
 # MOdified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
@@ -3454,7 +3455,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
 
     # Ensure we check for text containing the correct (colour) control codes
     isched = colored("InvokeSchedule", InvokeSchedule._colour)
-    directive = colored("Directive", Directive._colour)
+    directive = colored("RegionDirective", Directive._colour)
     gsum = colored("GlobalSum", GlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)

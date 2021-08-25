@@ -51,7 +51,8 @@ from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
-from psyclone.psyir.nodes.directive import Directive, ChildlessDirective
+from psyclone.psyir.nodes.directive import StandaloneDirective, \
+    RegionDirective
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.routine import Routine
 
@@ -60,7 +61,7 @@ from psyclone.psyir.nodes.routine import Routine
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 
-class OMPDirective(Directive):
+class OMPDirective(RegionDirective):
     '''
     Base class for all OpenMP-related directives
 
@@ -111,12 +112,14 @@ class OMPDirective(Directive):
                             result.append(arg.name)
         return result
 
-class OMPChildlessDirective(ChildlessDirective):
+
+class OMPStandaloneDirective(StandaloneDirective):
     '''
     Base class for all OpenMP-related childless directives
 
     '''
     _PREFIX = "OMP"
+    _children_valid_format = None
 
     @property
     def dag_name(self):
@@ -125,7 +128,7 @@ class OMPChildlessDirective(ChildlessDirective):
         :rtype: str
         '''
         _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_childless_directive_" + str(position)
+        return "OMP_standalone_directive_" + str(position)
 
     def node_str(self, colour=True):
         '''
@@ -140,7 +143,7 @@ class OMPChildlessDirective(ChildlessDirective):
         return self.coloured_name(colour) + "[OMPChildless]"
 
 
-class OMPTaskwaitDirective(OMPChildlessDirective):
+class OMPTaskwaitDirective(OMPStandaloneDirective):
     '''
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
 

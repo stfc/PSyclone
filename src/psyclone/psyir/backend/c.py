@@ -34,6 +34,7 @@
 # Author S. Siso, STFC Daresbury Lab.
 # Modified by: J. Henrichs, Bureau of Meteorology
 #              A. R. Porter and R. W. Ford, STFC Daresbury Lab
+#              A. B. G. Chalk, STFC Daresbury Lab
 
 
 '''C PSyIR backend. Generates C code from PSyIR nodes.
@@ -474,5 +475,23 @@ class CWriter(LanguageWriter):
         for child in node.dir_body:
             result_list.append(self._visit(child))
         self._depth -= 1
+        result_list.append("}\n")
+        return "".join(result_list)
+
+    def ompstandalonedirective_node(self, node):
+        '''This method is called when an OMPStandaloneDirective instance is
+        found in the PSyIR tree. It returns the opening and closing directives,
+        and the statements in between as a string (depending on the language).
+
+        :param node: a StandaloneDirective PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.StandaloneDirective`
+
+        :returns: the C code as a string.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        # Note that {{ is replaced with a single { in the format call
+        result_list = ["#pragma {0}\n{{\n".format(node.begin_string())]
         result_list.append("}\n")
         return "".join(result_list)

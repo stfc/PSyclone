@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the PSyIR Directive node. '''
@@ -42,8 +43,8 @@ import os
 import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Directive, Literal, Schedule, \
-                                 ChildlessDirective
+from psyclone.psyir.nodes import Literal, Schedule, \
+                                 StandaloneDirective, RegionDirective
 from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.transformations import DynamoOMPParallelLoopTrans
@@ -97,35 +98,35 @@ def test_directive_backward_dependence():
     assert omp2.backward_dependence() == omp1
 
 
-def test_directive_children_validation():
-    '''Test that children added to Directive are validated. Directive accepts
-    1 Schedule as child.
+def test_regiondirective_children_validation():
+    '''Test that children added to RegionDirective are validated.
+        RegionDirective accepts 1 Schedule as child.
 
     '''
-    directive = Directive()
+    directive = RegionDirective()
     datanode = Literal("1", INTEGER_TYPE)
     schedule = Schedule()
 
     # First child
     with pytest.raises(GenerationError) as excinfo:
         directive.children[0] = datanode
-    assert ("Item 'Literal' can't be child 0 of 'Directive'. The valid format"
-            " is: 'Schedule'." in str(excinfo.value))
+    assert ("Item 'Literal' can't be child 0 of 'RegionDirective'. The valid "
+            "format is: 'Schedule'." in str(excinfo.value))
 
     # Additional children
     with pytest.raises(GenerationError) as excinfo:
         directive.addchild(schedule)
-    assert ("Item 'Schedule' can't be child 1 of 'Directive'. The valid format"
-            " is: 'Schedule'." in str(excinfo.value))
+    assert ("Item 'Schedule' can't be child 1 of 'RegionDirective'. The valid "
+            "format is: 'Schedule'." in str(excinfo.value))
 
 
 def test_childlessdirective_children_validation():
-    '''Test that children cannot be added to ChildlessDirective.'''
-    cdir = ChildlessDirective()
+    '''Test that children cannot be added to StandaloneDirective.'''
+    cdir = StandaloneDirective()
     schedule = Schedule()
-   
-   # test adding child
+
+    # test adding child
     with pytest.raises(GenerationError) as excinfo:
         cdir.addchild(schedule)
-    assert("Item 'Schedule' can't be child 0 of 'ChildlessDirective'. The valid"
-           " format is: 'None'." in str(excinfo.value))
+    assert("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
+           "valid format is: 'None'." in str(excinfo.value))
