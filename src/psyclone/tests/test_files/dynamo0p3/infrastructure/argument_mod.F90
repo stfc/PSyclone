@@ -41,7 +41,7 @@
 ! -----------------------------------------------------------------------------
 !
 ! Modified I. Kavcic and A. Coughtrie, Met Office
-!          A. R. Porter, STFC Daresbury Laboratory
+!          A. R. Porter and R. W. Ford, STFC Daresbury Laboratory
 
 
 !> @brief Metadata for the kernel arguments required by the PSy layer.
@@ -104,6 +104,7 @@ module argument_mod
   integer, public, parameter :: GH_WRITE     = 65
   integer, public, parameter :: GH_READWRITE = 811
   integer, public, parameter :: GH_INC       = 542
+  integer, public, parameter :: GH_READINC   = 543
   integer, public, parameter :: GH_SUM       = 563
   integer, public, parameter :: GH_MIN       = 718
   integer, public, parameter :: GH_MAX       = 391

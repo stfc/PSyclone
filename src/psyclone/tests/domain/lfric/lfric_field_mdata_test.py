@@ -356,7 +356,8 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
                     format(acc, fspace) in str(excinfo.value))
 
 
-def test_fs_anyspace_dofs_inc_error():
+@pytest.mark.parametrize("access", ["gh_inc", "gh_readinc"])
+def test_fs_anyspace_dofs_inc_error(access):
     ''' Test that an error is raised if a field on 'any_space' with
     'gh_inc' access is specified for a kernel that operates on DoFs. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -368,14 +369,14 @@ def test_fs_anyspace_dofs_inc_error():
     for fspace in const.VALID_ANY_SPACE_NAMES:
         code = dof_code.replace(
             "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
-            "arg_type(gh_field, gh_real, gh_inc, " + fspace + ")", 1)
+            "arg_type(gh_field, gh_real, {0}, {1})".format(access, fspace), 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_field_type")
         assert ("In the LFRic API, allowed field accesses for a kernel "
                 "that operates on DoFs are ['gh_read', 'gh_write', "
-                "'gh_readwrite'], but found 'gh_inc' for '{0}'".
-                format(fspace) in str(excinfo.value))
+                "'gh_readwrite'], but found '{0}' for '{1}'".
+                format(access, fspace) in str(excinfo.value))
 
 
 def test_arg_descriptor_field():

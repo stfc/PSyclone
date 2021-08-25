@@ -90,9 +90,8 @@ class AccessType(Enum):
             if access.name == access_string.upper():
                 return access
         valid = [str(access).lower() for access in AccessType]
-        valid.sort()
         raise ValueError("Unknown access type '{0}'. Valid values are {1}."
-                         .format(access_string, str(valid)))
+                         .format(access_string, valid))
 
     @staticmethod
     def all_write_accesses():

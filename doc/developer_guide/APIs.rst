@@ -443,9 +443,36 @@ computation.
 
 A downside of performing redundant computation in the level-1 halo is
 that any fields being read by the kernel must have their level-1 halo
-clean (up-to-date), which can result in halo exchanges. Note that this
-is not the case for the modified field, it does not need its halo to
-be clean.
+clean (up-to-date), which can result in halo exchanges.
+
+This is also the case for a modified field with ``GH_READINC`` access
+as readinc captures a kernel field with a read (into the level-1 halo)
+followed by an increment. However the level-1 halo does not need to be
+clean for a modified field with ``GH_INC`` access, as an increment
+does not require the halo to be clean.
+
+Whilst the level-1 halo does not need to be clean for a field with a
+`gh_inc` access, the data in the level-1 halo will be read and
+written. The data in the level-1 halo must therefore not cause any
+exceptions, which can be the case with some compilers where the values
+in the halo have not yet been written to (i.e. there will be an access
+to uninitialised data).
+
+To avoid this problem the user guide currently recommends that all
+``setval_c`` and ``setval_x`` builtin calls compute to the level-1
+halo (by using the redundant computation transformation). This will
+guarantee that all modified halo data has been initialised with a
+value. If redundant computation transformations have been added then
+it is the outermost modified halo that will not require a halo
+exchange i.e. a loop iterating to the level-n halo will result in a
+halo exchange to the level n-1 halo being added before the loop, so
+the above builtin calls would need to compute redundantly to the
+appropriate depth. In the future it may be that we should require
+fields with halos to have all of their data set to 0 when they are
+created, add an option to PSyclone, default to computing redundantly
+for the above builtins, or generate code that sets the halo values to
+0 locally before the loop is called.
+
 
 Cell iterators: Discontinuous
 -----------------------------
