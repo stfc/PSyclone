@@ -302,14 +302,14 @@ class Symbol(object):
     # pylint: disable=inconsistent-return-statements
     def get_external_symbol(self):
         '''
-        Looks-up and returns the Symbol referred to by this Symbol's external
-        (global) interface.
+        Looks-up and returns the Symbol referred to by this Symbol's
+        Import Interface.
 
         :raises SymbolError: if the module pointed to by the symbol interface \
                              does not contain the symbol (or the symbol is \
                              not public).
         :raises NotImplementedError: if the this symbol does not have an \
-                                     external (global) interface.
+                                     ImportInterface.
         '''
         if not self.is_import:
             raise NotImplementedError(
@@ -340,7 +340,7 @@ class Symbol(object):
         class and type of the looked-up symbol are the same as this one,
         some specialisations of this method update the differing
         properties in place rather than create a new symbol.
-        If this symbol does not have a 'global' interface then there is no
+        If this symbol does not have a ImportInterface then there is no
         lookup needed and we just return this symbol.
 
         :returns: a symbol object with the class and type determined by \
