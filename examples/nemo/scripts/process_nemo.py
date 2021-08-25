@@ -84,7 +84,8 @@ EXCLUDED_FILES = [
     "diurnal_bulk.f90",
     # mpif.h include is lost
     "mppini.f90", "mpp_map.f90", "obs_mpp.f90", "icblbc.f90",
-    "timing.f90",
+    "timing.f90", "lib_mpp.f90",
+    "nemogcm.f90",
     # Fns defined within fn are lost
     "storng.f90"]
 
