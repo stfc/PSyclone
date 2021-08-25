@@ -348,7 +348,7 @@ def test_add_with_tags_hierachical():
 
 
 def test_symbols_imported_from():
-    ''' Test the import_symbols method. '''
+    ''' Test the Symbol Table symbols_imported_from() method. '''
     sym_table = SymbolTable()
     my_mod = ContainerSymbol("my_mod")
     sym_table.add(my_mod)
@@ -1044,7 +1044,7 @@ def test_local_datatypesymbols():
     assert sym_table.local_datatypesymbols == [region_sym]
 
 
-def test_symbols_imported_from():
+def test_import_symbols():
     '''Test that the import_symbols property returns those Symbols with
     'global' scope (i.e. that represent data/code that exists outside
     the current scoping unit) and are not routine arguments.
@@ -1145,7 +1145,8 @@ def test_copy_external_import():
     assert symtab.lookup("my_mod") != container
     assert symtab.lookup("a").interface.container_symbol != container
 
-    # Copy a second imported_var with a reference to the same external Container
+    # Copy a second imported_var with a reference to the same external
+    # Container
     container2 = ContainerSymbol("my_mod")
     var2 = DataSymbol("b", DeferredType(),
                       interface=ImportInterface(container2))

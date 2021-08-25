@@ -223,14 +223,14 @@ def test_use_same_symbol():
     '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
-    reader = FortranStringReader("use mod2, only: fred\n"
-                                 "use mod3, only: fred\n")
+    reader = FortranStringReader("use mod2, only: a\n"
+                                 "use mod3, only: a\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     csym = fake_parent.symbol_table.lookup("mod2")
-    assert fake_parent.symbol_table.symbols_imported_from(csym)[0].name == "fred"
+    assert fake_parent.symbol_table.symbols_imported_from(csym)[0].name == "a"
     csym = fake_parent.symbol_table.lookup("mod3")
-    # mod3 will have an empty list of symbols as 'fred' is already imported
+    # mod3 will have an empty list of symbols as 'a' is already imported
     # from mod2.
     assert not fake_parent.symbol_table.symbols_imported_from(csym)
 

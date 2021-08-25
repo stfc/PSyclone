@@ -996,7 +996,8 @@ class SymbolTable(object):
             raise TypeError(
                 "The imported_var argument of SymbolTable.copy_external_"
                 "import method should have a ImportInterface interface, "
-                "but found '{0}'.".format(type(imported_var.interface).__name__))
+                "but found '{0}'."
+                "".format(type(imported_var.interface).__name__))
 
         external_container_name = imported_var.interface.container_symbol.name
 

@@ -137,8 +137,7 @@ class PSyDataNode(Statement):
         # name of the PSyData derived type) but we keep a list for future
         # extensibility.
         _PSyDataSymbol = namedtuple("_PSyDataSymbol", "name symbol_type")
-        self.import_symbols = [_PSyDataSymbol(self.type_name,
-                                                DataTypeSymbol)]
+        self.import_symbols = [_PSyDataSymbol(self.type_name, DataTypeSymbol)]
 
         # Root of the name to use for variables associated with
         # PSyData regions

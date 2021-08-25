@@ -1021,8 +1021,8 @@ class InvokeSchedule(Routine):
         self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
         # pylint: enable=protected-access
 
-        # Global symbols promoted from Kernel Globals are in the SymbolTable
-        # First aggregate all globals variables from the same module in a map
+        # Imported symbols promoted from Kernel imports are in the SymbolTable.
+        # First aggregate all imports variables from the same module in a map.
         module_map = {}
         for imported_var in self.symbol_table.import_symbols:
             module_name = imported_var.interface.container_symbol.name
@@ -2775,7 +2775,7 @@ class Argument(object):
                 self._name = new_argument.name
 
                 # Unless the argument already exists with another interface
-                # (e.g. globals) they come from the invoke argument list
+                # (e.g. import) they come from the invoke argument list
                 if (isinstance(new_argument.interface, ArgumentInterface) and
                         new_argument not in previous_arguments):
                     symtab.specify_argument_list(previous_arguments +
