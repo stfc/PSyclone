@@ -53,36 +53,35 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
     constant index accesses to an array into single trip loops: For
     example:
 
-    .. doctest::
-      >>> from psyclone.domain.nemo.transformations import \\
-      ...     NemoAllArrayAccess2LoopTrans
-      >>> from psyclone.psyir.backend.fortran import FortranWriter
-      >>> from psyclone.psyir.frontend.fortran import FortranReader
-      >>> from psyclone.psyir.nodes import Assignment
-      >>> code = ("program example\\n"
-      ...         "  real a(10,10), b(10,10)\\n"
-      ...         "  integer :: n\\n"
-      ...         "  a(1,n-1) = b(1,n-1)\\n"
-      ...         "end program example\\n")
-      >>> psyir = FortranReader().psyir_from_source(code)
-      >>> assignment = psyir.walk(Assignment)[0]
-      >>> NemoAllArrayAccess2LoopTrans().apply(assignment)
-      >>> print(FortranWriter()(psyir))
-      program example
-        real, dimension(10,10) :: a
-        real, dimension(10,10) :: b
-        integer :: n
-        integer :: ji
-        integer :: jj
-      <BLANKLINE>
-        do ji = 1, 1, 1
-          do jj = n - 1, n - 1, 1
-            a(ji,jj) = b(ji,jj)
-          enddo
+    >>> from psyclone.domain.nemo.transformations import \\
+    ...     NemoAllArrayAccess2LoopTrans
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Assignment
+    >>> code = ("program example\\n"
+    ...         "  real a(10,10), b(10,10)\\n"
+    ...         "  integer :: n\\n"
+    ...         "  a(1,n-1) = b(1,n-1)\\n"
+    ...         "end program example\\n")
+    >>> psyir = FortranReader().psyir_from_source(code)
+    >>> assignment = psyir.walk(Assignment)[0]
+    >>> NemoAllArrayAccess2LoopTrans().apply(assignment)
+    >>> print(FortranWriter()(psyir))
+    program example
+      real, dimension(10,10) :: a
+      real, dimension(10,10) :: b
+      integer :: n
+      integer :: ji
+      integer :: jj
+    <BLANKLINE>
+      do ji = 1, 1, 1
+        do jj = n - 1, n - 1, 1
+          a(ji,jj) = b(ji,jj)
         enddo
-      <BLANKLINE>
-      end program example
-      <BLANKLINE>
+      enddo
+    <BLANKLINE>
+    end program example
+    <BLANKLINE>
 
     '''
     def apply(self, node, options=None):
