@@ -286,10 +286,10 @@ class NemoArrayAccess2LoopTrans(Transformation):
             if not array_reference.children[index_pos].math_equal(node):
                 raise TransformationError(
                     "Expected index '{0}' for rhs array '{1}' to be the same "
-                    "as the lhs array '{2}', but they differ."
-                    "".format(
+                    "as that for the lhs array '{2}', but they differ in "
+                    "'{3}'.".format(
                         index_pos, array_reference.symbol.name,
-                        node.parent.name))
+                        node.parent.name, self._writer(assignment)))
 
     def __str__(self):
         return (

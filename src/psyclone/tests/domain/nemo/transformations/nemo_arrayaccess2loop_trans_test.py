@@ -662,8 +662,9 @@ def test_validate_same_index_error(tmpdir):
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None)
     assert(
-        "Expected index '0' for rhs array 'b' to be the same as the lhs "
-        "array 'a', but they differ." in str(info.value))
+        "Expected index '0' for rhs array 'b' to be the same as that for "
+        "the lhs array 'a', but they differ in 'a(n + 1) = b(n)\n'."
+        in str(info.value))
 
 
 def test_validate_indirection(tmpdir):
@@ -694,8 +695,9 @@ def test_validate_indirection(tmpdir):
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None)
     assert(
-        "Expected index '0' for rhs array 'b' to be the same as the lhs "
-        "array 'a', but they differ." in str(info.value))
+        "Expected index '0' for rhs array 'b' to be the same as that for the "
+        "lhs array 'a', but they differ in 'a(lookup(n)) = b(lookup(1))\n'."
+        in str(info.value))
 
 # str() and name() methods
 
