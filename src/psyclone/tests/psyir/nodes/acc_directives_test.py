@@ -48,7 +48,8 @@ from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import colored, Directive, ACCEnterDataDirective, \
-    ACCKernelsDirective, Schedule, Loop
+    ACCKernelsDirective, Schedule, Loop, ACCUpdateDirective
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCLoopTrans, ACCEnterDataTrans, \
     ACCParallelTrans, ACCKernelsTrans
@@ -353,3 +354,39 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,m2_proxy%data,"
         "ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,undf_w3,map_w3,"
         "f3_proxy,f3_proxy%data)\n" in code)
+
+
+# Class ACCUpdateDirective
+
+def test_accupdatedirective_init():
+    ''' Test the constructor of ACCUpdateDirective node'''
+
+    # Check argument validations
+    with pytest.raises(TypeError) as err:
+        _ = ACCUpdateDirective("invalid", "host")
+    assert ("The ACCUpdateDirective symbol argument must be a 'DataSymbol' "
+            "but found 'str'." in str(err.value))
+
+    symbol = DataSymbol("x", REAL_TYPE)
+    with pytest.raises(ValueError) as err:
+        _ = ACCUpdateDirective(symbol, "invalid")
+    assert ("The ACCUpdateDirective direction argument must be a string with "
+            "any of the values in '('host', 'device')' but found 'invalid'."
+            in str(err.value))
+
+    # Successful init
+    directive = ACCUpdateDirective(symbol, "host")
+    assert directive._symbol is symbol
+    assert directive._direction == "host"
+
+
+def test_accupdatedirective_begin_and_end_strings():
+    ''' Test the begin_string and end_string methods of ACCUpdateDirective'''
+
+    symbol = DataSymbol("x", REAL_TYPE)
+    directive1 = ACCUpdateDirective(symbol, "host")
+    directive2 = ACCUpdateDirective(symbol, "device")
+
+    assert directive1.begin_string() == "acc update host(x)"
+    assert directive2.begin_string() == "acc update device(x)"
+    assert directive1.end_string() == ""

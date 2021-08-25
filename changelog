@@ -155,6 +155,9 @@
 
 	53) PR #1368 towards #1338. Adds OMPTaskWaitDirective node.
 
+	54) PR #1282 for #871. Adds generation of callback routines for
+        GOcean in order to do data movement with OpenACC.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
