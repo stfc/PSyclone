@@ -1958,7 +1958,7 @@ class Fparser2Reader(object):
                     # the whole module containing this specification part
                     # being put into a CodeBlock.
                     raise NotImplementedError()
-                name = node.children[0].children[0].string
+                name = node.children[0].children[0].string.lower()
                 vis = visibility_map.get(
                     name, parent.symbol_table.default_visibility)
                 # A named interface block corresponds to a RoutineSymbol.
@@ -1992,7 +1992,7 @@ class Fparser2Reader(object):
                         # declares the current entity. `items` is a tuple and
                         # thus immutable so we create a new one.
                         node.children[2].items = (child,)
-                        symbol_name = str(child.children[0])
+                        symbol_name = str(child.children[0]).lower()
                         vis = visibility_map.get(symbol_name, decln_vis)
 
                         # Check whether the symbol we're about to add
@@ -2002,7 +2002,7 @@ class Fparser2Reader(object):
                         try:
                             routine_sym = parent.symbol_table.lookup_with_tag(
                                 "own_routine_symbol")
-                            if routine_sym.name == symbol_name:
+                            if routine_sym.name.lower() == symbol_name:
                                 parent.symbol_table.remove(routine_sym)
                         except KeyError:
                             pass
