@@ -38,6 +38,8 @@ in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+from __future__ import absolute_import
+
 import six
 
 from psyclone.configuration import Config
@@ -490,8 +492,6 @@ class ExtractDriverCreator:
             driver code (see 'ExtractTrans.determine_postfix()').
         '''
         # pylint: disable=too-many-locals
-        if options is None:
-            options = {}
 
         if options.get("region_name", False):
             module_name, region_name = options["region_name"]

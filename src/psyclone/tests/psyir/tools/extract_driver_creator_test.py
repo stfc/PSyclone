@@ -265,7 +265,7 @@ def test_driver_creation_get_type_errors(monkeypatch):
 
     # Remove the default types to trigger the error of
     # not finding the default type to use:
-    monkeypatch.setattr(edc, "_default_types", {})
+    edc._default_types = {}
     with pytest.raises(TransformationError) as err:
         # The symbol table can be None, that code is not reached.
         edc.get_type("new_name", ref, None)
@@ -285,48 +285,42 @@ def test_driver_creation_get_type_errors(monkeypatch):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation_add_all_kernel_symbols_errors(monkeypatch):
-    '''Test that driver is created correctly for all variable access \
-    modes (input, input-output, output).
+def test_driver_creation_add_all_kernel_symbols_errors():
+    '''Test the error that can be raised in add_all_kernel_symbols.
 
     '''
     _, invoke = get_invoke("driver_test.f90",
                            GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # Create the copy and lower it before the default_types are
+    # changed (which will prevent lowering from working).
+    schedule_copy = schedule.copy()
+    schedule_copy.lower_to_language_level()
 
-    # Get the reference to the 6th argument, which is the gocean
-    # property.
-    ref = schedule.children[0].loop_body.children[0] \
-        .loop_body.children[0].arguments.args[5].psyir_expression()
-    # Make sure we have the right reference:
-    assert isinstance(ref, Reference)
-    assert ref.children[0].children[0].name == "gphiu"
-
+    # First provide a structured type that is not an r2d_field:
     edc = ExtractDriverCreator()
+    ref = schedule_copy.children[0].loop_body.children[0] \
+        .loop_body.children[0].children[2]
+    assert ref.symbol.name == "out_fld"
+    assert ref.symbol.datatype.name == "r2d_field"
+    ref.symbol.datatype._name = "unknown type"
+    symbol_table = SymbolTable()
+    with pytest.raises(TransformationError) as err:
+        edc.add_all_kernel_symbols(schedule_copy, symbol_table)
+    assert "Unknown derived type 'unknown type'" in str(err.value)
+    ref.symbol.datatype._name = "r2d_field"
 
     # Remove the default types to trigger the error of
     # not finding the default type to use:
-    monkeypatch.setattr(edc, "_default_types", {})
+    edc._default_types = {}
+    symbol_table = SymbolTable()
     with pytest.raises(TransformationError) as err:
-        # The symbol table can be None, that code is not reached.
-        edc.get_type("new_name", ref, None)
-    assert "Unknown type 'real' in GOcean API" in str(err.value)
-
-    # Monkey patch the grid property dictionary to remove the
-    # go_grid_lat_u entry:
-    api_config = Config.get().api_conf("gocean1.0")
-    grid_properties = api_config.grid_properties
-    monkeypatch.delitem(grid_properties, "go_grid_lat_u")
-
-    with pytest.raises(TransformationError) as err:
-        # The symbol table can be None, that code is not reached.
-        edc.get_type("new_name", ref, None)
-    assert "Could not find type for reference 'in_fld%grid%gphiu'" \
-        in str(err.value)
+        edc.add_all_kernel_symbols(schedule_copy, symbol_table)
+    assert "Unknown intrinsic data type 'Intrinsic.INTEGER'" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation_same_symbol(tmpdir, monkeypatch):
+def test_driver_creation_same_symbol(tmpdir):
     '''Make sure that if a symbol appears in more than one invoke no duplicated
     symbol is created.
 
@@ -364,15 +358,3 @@ def test_driver_creation_same_symbol(tmpdir, monkeypatch):
     enddo
   enddo"""
     assert correct in driver_code
-
-    edc = ExtractDriverCreator()
-    # Remove the default types to trigger the error of
-    # not finding the default type to use:
-    monkeypatch.setattr(edc, "_default_types", {})
-    symbol_table = SymbolTable()
-    schedule_copy = schedule.copy()
-    schedule_copy.lower_to_language_level()
-
-    with pytest.raises(TransformationError) as err:
-        edc.add_all_kernel_symbols(schedule_copy, symbol_table)
-    assert "Unknown intrinsic data type 'Intrinsic.INTEGER" in str(err.value)
