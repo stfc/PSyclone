@@ -512,7 +512,7 @@ def test_omptaskwait_node_str():
     expected_output = directive + "[OMP taskwait]"
     assert taskwait.node_str() == expected_output
     omp_cdirective = super(OMPTaskwaitDirective, taskwait)
-    expected_output = directive + "[OMPChildless]"
+    expected_output = directive + "[OMPStandalone]"
     assert omp_cdirective.node_str() == expected_output
 
 

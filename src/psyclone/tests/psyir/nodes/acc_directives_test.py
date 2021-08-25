@@ -124,7 +124,7 @@ def test_acc_dag_names():
     assert schedule[1].dir_body[0].dag_name == "ACC_loop_4"
     # Base class
     name = super(ACCEnterDataDirective, schedule[0]).dag_name
-    assert name == "ACC_childless_directive_1"
+    assert name == "ACC_standalone_directive_1"
 
 # Class ACCKernelsDirective start
 

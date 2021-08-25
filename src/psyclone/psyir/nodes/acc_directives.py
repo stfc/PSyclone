@@ -90,7 +90,7 @@ class ACCDirective(RegionDirective):
 
 
 class ACCStandaloneDirective(StandaloneDirective):
-    ''' Base class for all childless OpenACC directive statements. '''
+    ''' Base class for all standalone OpenACC directive statements. '''
     _PREFIX = "ACC"
 
     @property
@@ -101,7 +101,7 @@ class ACCStandaloneDirective(StandaloneDirective):
         :rtype: str
         '''
         _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_childless_directive_" + str(position)
+        return "ACC_standalone_directive_" + str(position)
 
     def validate_global_constraints(self):
         '''

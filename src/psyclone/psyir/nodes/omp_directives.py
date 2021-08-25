@@ -115,7 +115,7 @@ class OMPDirective(RegionDirective):
 
 class OMPStandaloneDirective(StandaloneDirective):
     '''
-    Base class for all OpenMP-related childless directives
+    Base class for all OpenMP-related standalone directives
 
     '''
     _PREFIX = "OMP"
@@ -140,7 +140,7 @@ class OMPStandaloneDirective(StandaloneDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[OMPChildless]"
+        return self.coloured_name(colour) + "[OMPStandalone]"
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):
