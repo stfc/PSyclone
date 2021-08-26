@@ -77,7 +77,8 @@ from psyclone.psyir.nodes.directive import Directive, StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.acc_directives import ACCDirective, \
     ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
-    ACCKernelsDirective, ACCDataDirective, ACCStandaloneDirective
+    ACCKernelsDirective, ACCDataDirective, ACCUpdateDirective, \
+    ACCStandaloneDirective
 from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
     OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
@@ -135,6 +136,7 @@ __all__ = [
         'ACCParallelDirective',
         'ACCLoopDirective',
         'ACCKernelsDirective',
+        'ACCUpdateDirective',
         'OMPDirective',
         'OMPStandaloneDirective',
         'OMPParallelDirective',
