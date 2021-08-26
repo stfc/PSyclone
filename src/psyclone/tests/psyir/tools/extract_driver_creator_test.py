@@ -358,3 +358,29 @@ def test_driver_creation_same_symbol(tmpdir):
     enddo
   enddo"""
     assert correct in driver_code
+
+
+# -----------------------------------------------------------------------------
+def test_driver_creation_import_modules(fortran_reader):
+    '''Tests if global and local interfaces in calls are handled correctly.
+    '''
+
+    code = '''program test_prog
+              use my_module, only : mod_func
+              call mod_func()
+              call ext_func()
+              call mod_func()
+              end program test_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    program = psyir.children[0]   # psyir is a FileContainer, take the program
+    edc = ExtractDriverCreator()
+    # Delete all symbols in the symbol table so we can check if the right
+    # symbols are added:
+    program.scope._symbol_table = SymbolTable()
+    edc.import_modules(program, psyir.children[0])
+    symbol_table = program.scope.symbol_table
+    all_symbols = symbol_table.get_symbols()
+    assert len(all_symbols) == 2
+    assert str(all_symbols["my_module"]) == "my_module: <not linked>"
+    mod_func = all_symbols["mod_func"]
+    assert str(mod_func) == "mod_func : RoutineSymbol <DeferredType>"
