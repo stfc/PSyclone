@@ -49,7 +49,8 @@ from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import colored, Directive, ACCEnterDataDirective, \
-    ACCKernelsDirective, Schedule, Loop, ACCUpdateDirective
+    ACCKernelsDirective, Schedule, Loop, ACCUpdateDirective, \
+    ACCParallelDirective
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCLoopTrans, ACCEnterDataTrans, \
@@ -121,7 +122,7 @@ def test_acc_dag_names():
     accpt.apply(schedule[1])
     assert schedule[1].dag_name == "ACC_parallel_2"
     # Base directive class
-    name = super(ACCParallelDirective, schedule[1])
+    name = super(ACCParallelDirective, schedule[1]).dag_name
     assert name == "ACC_directive_2"
     # Loop directive
     acclt.apply(schedule[1].dir_body[0])
