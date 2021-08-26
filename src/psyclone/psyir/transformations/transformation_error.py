@@ -36,7 +36,7 @@
 '''This module provides the TransformationError class.
 '''
 
-from psyclone.errors import PSycloneError
+from psyclone.errors import PSycloneError, LazyString
 
 
 class TransformationError(PSycloneError):
@@ -45,10 +45,10 @@ class TransformationError(PSycloneError):
 
     def __init__(self, value):
         PSycloneError.__init__(self, value)
-        self.value = "Transformation Error: "+str(value)
+        self.value = LazyString(lambda: "Transformation Error: {0}".format(value))
 
 
-# TODO #1280: This currenetly causes 'more than one target for cross-reference'
+# TODO #1280: This currently causes 'more than one target for cross-reference'
 #             warnings when building the reference guide.
 # For AutoAPI documentation generation
 # __all__ = ["TransformationError"]

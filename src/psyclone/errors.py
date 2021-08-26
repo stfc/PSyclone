@@ -39,6 +39,22 @@
 ''' This module provides various error classes used in PSyclone'''
 
 
+class LazyString:
+    '''Utility that defers any computation associated with computing a
+    string until the string is required. This is particularly useful
+    for exceptions, where the string will typically not need to be
+    computed unless the program is about to stop.
+
+    :param func: a function that computes a string.
+    :type func: xxx
+
+    '''
+    def __init__(self, func):
+        self.func = func
+    def __str__(self):
+        return self.func()
+
+
 class PSycloneError(Exception):
     ''' Provides a PSyclone specific error class as a generic parent class for
     all Pysclone exceptions.
@@ -47,7 +63,7 @@ class PSycloneError(Exception):
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = "Psyclone Error: " + str(value)
+        self.value = LazyString(lambda: "PSyclone Error: {0}".format(value))
 
     def __repr__(self):
         return type(self).__name__ + "()"

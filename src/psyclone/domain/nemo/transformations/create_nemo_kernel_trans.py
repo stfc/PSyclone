@@ -39,6 +39,7 @@ Module providing a transformation from a generic PSyIR Schedule into a
 NEMO Kernel.
 '''
 
+from psyclone.errors import LazyString
 from psyclone.transformations import Transformation, TransformationError
 from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -130,9 +131,12 @@ class CreateNemoKernelTrans(Transformation):
                  if assign.is_array_range]
         if nodes:
             fwriter = FortranWriter()
-            raise TransformationError(
-                "A NEMO Kernel cannot contain array assignments but found: "
-                "{0}".format([fwriter(node).rstrip("\n") for node in nodes]))
+            # Using LazyString to improve performance when using
+            # exceptions to skip invalid regions.
+            raise TransformationError(LazyString(
+                lambda: "A NEMO Kernel cannot contain array assignments "
+                "but found: {0}".format(
+                    [fwriter(node).rstrip("\n") for node in nodes])))
 
         # A kernel cannot contain loops, calls or unrecognised code (including
         # IO operations. So if there is any node in the result of
