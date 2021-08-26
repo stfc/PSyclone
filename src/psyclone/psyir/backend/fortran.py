@@ -1340,9 +1340,6 @@ class FortranWriter(LanguageWriter):
         '''
         result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
 
-        end_string = node.end_string()
-        if end_string:
-            result_list.append("{0}!${1}\n".format(self._nindent, end_string))
         return "".join(result_list)
 
     def call_node(self, node):

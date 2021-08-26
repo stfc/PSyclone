@@ -492,6 +492,5 @@ class CWriter(LanguageWriter):
         '''
         # pylint: disable=no-self-use
         # Note that {{ is replaced with a single { in the format call
-        result_list = ["#pragma {0}\n{{\n".format(node.begin_string())]
-        result_list.append("}\n")
+        result_list = ["#pragma {0}\n".format(node.begin_string())]
         return "".join(result_list)

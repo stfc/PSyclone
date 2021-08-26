@@ -222,18 +222,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         # pylint: disable=no-self-use
         return "omp taskwait"
 
-    def end_string(self):
-        '''This directive has no closing statement.
-        The visitor is responsible for adding (or avoiding) the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the end statement for this directive.
-        :rtype: str
-
-        '''
-        # pylint: disable=no-self-use
-        return ""
-
 
 @six.add_metaclass(abc.ABCMeta)
 class OMPSerialDirective(OMPDirective):

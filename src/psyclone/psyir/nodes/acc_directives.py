@@ -109,21 +109,8 @@ class ACCStandaloneDirective(StandaloneDirective):
         Perform validation checks for any global constraints. This can only
         be done at code-generation time.
 
-        :raises GenerationError: if this ACCDirective encloses any form of \
-            PSyData node since calls to PSyData routines within OpenACC \
-            regions are not supported.
-
         '''
         super(ACCStandaloneDirective, self).validate_global_constraints()
-
-        data_nodes = self.walk(PSyDataNode)
-        if data_nodes:
-            raise GenerationError(
-                "Cannot include calls to PSyData routines within OpenACC "
-                "regions but found {0} within a region enclosed "
-                "by an '{1}'".format(
-                    [type(node).__name__ for node in data_nodes],
-                    type(self).__name__))
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -269,14 +256,6 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
                 "within the region.")
 
         return "acc enter data " + copy_in_str
-
-    def end_string(self):
-        '''
-        :returns: the closing statement for this directive.
-        :rtype: str
-        '''
-        # pylint: disable=no-self-use
-        return ""
 
     @abc.abstractmethod
     def data_on_device(self, parent):
@@ -913,17 +892,6 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         '''
         return "acc update " + self._direction + "(" + self._symbol.name + ")"
-
-    def end_string(self):
-        # pylint: disable=no-self-use
-        '''
-        This statement has no end string, so it returns an empty string.
-
-        :returns: an empty string.
-        :rtype: str
-
-        '''
-        return ""
 
 
 # For automatic API documentation generation

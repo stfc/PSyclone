@@ -383,7 +383,7 @@ def test_accupdatedirective_init():
 
 
 def test_accupdatedirective_begin_and_end_strings():
-    ''' Test the begin_string and end_string methods of ACCUpdateDirective'''
+    ''' Test the begin_string method of ACCUpdateDirective'''
 
     symbol = DataSymbol("x", REAL_TYPE)
     directive1 = ACCUpdateDirective(symbol, "host")
@@ -391,4 +391,3 @@ def test_accupdatedirective_begin_and_end_strings():
 
     assert directive1.begin_string() == "acc update host(x)"
     assert directive2.begin_string() == "acc update device(x)"
-    assert directive1.end_string() == ""

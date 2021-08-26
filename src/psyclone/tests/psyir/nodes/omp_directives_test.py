@@ -490,12 +490,10 @@ def test_omptaskwait_dag_name():
 
 
 def test_omptaskwait_strings():
-    ''' Test the begin_string and end_string methods of
-        the OMPTaskwait directive '''
+    ''' Test the begin_string and method of the OMPTaskwait directive '''
     taskwait = OMPTaskwaitDirective()
 
     assert taskwait.begin_string() == "omp taskwait"
-    assert taskwait.end_string() == ""
 
 
 def test_omptaskwait_node_str():
