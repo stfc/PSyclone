@@ -182,7 +182,9 @@ class GOceanExtractTrans(ExtractTrans):
             # handle an ExtractNode in the tree)
             self._driver_creator.create(nodes,
                                         input_list, output_list,
-                                        postfix, my_options)
+                                        postfix=postfix,
+                                        prefix=my_options["prefix"],
+                                        region_name=region_name)
 
         result = super(GOceanExtractTrans, self).apply(nodes, my_options)
 

@@ -68,7 +68,7 @@ def clear_region_name_cache():
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation(tmpdir):
+def test_driver_creation1(tmpdir):
     '''Test that driver is created correctly for all variable access \
     modes (input, input-output, output).
 
@@ -125,6 +125,85 @@ def test_driver_creation(tmpdir):
   call extract_psy_data%ReadVariable('in_fld%grid%gphiu', in_fld_grid_gphiu)
   do j = 2, jstop, 1
     do i = 2, istop+1, 1
+      call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, ''' \
+      '''in_fld_grid_dx, in_fld_grid_gphiu)
+    enddo
+  enddo
+  if (i == i_post) then
+    PRINT *, "i correct"
+  else
+    PRINT *, "i incorrect. Values are:"
+    PRINT *, i
+    PRINT *, "i values should be:"
+    PRINT *, i_post
+  end if
+  if (ALL(in_out_fld - in_out_fld_post == 0.0)) then
+    PRINT *, "in_out_fld correct"
+  else
+    PRINT *, "in_out_fld incorrect. Values are:"
+    PRINT *, in_out_fld
+    PRINT *, "in_out_fld values should be:"
+    PRINT *, in_out_fld_post
+  end if'''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in driver_code
+
+
+# -----------------------------------------------------------------------------
+def test_driver_creation2(tmpdir):
+    '''Test different ways of specifying the nodes, including code creation
+    without constant loop boundaries.
+
+    '''
+    # Use tmpdir so that the driver is created in tmp
+    tmpdir.chdir()
+
+    etrans = GOceanExtractTrans()
+    psy, invoke = get_invoke("driver_test.f90",
+                             GOCEAN_API, idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    etrans.apply([schedule.children[0]], {'create_driver': True})
+    # We are only interested in the driver, so ignore results.
+    str(psy.gen)
+
+    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
+                         "access_patterns-invoke_0_compute_kernel:compute_"
+                         "kernel_code:r0.f90")
+    assert driver.isfile()
+
+    with driver.open("r") as driver_file:
+        driver_code = driver_file.read()
+
+    # This is an excerpt of the code that should get created.
+    # It is tested line by line since there is other code in between
+    # which is not important, and the order might also change. It also
+    # tests if unique variable names are created in the driver: the user
+    # program contains a local variable 'dx', which clashes with the grid
+    # property dx. The grid property will be renamed to 'dx_1':
+    expected = '''use extract_psy_data_mod, only : extract_PsyDataType
+
+  real*8, allocatable, dimension(:,:) :: out_fld
+  real*8, allocatable, dimension(:,:) :: in_out_fld
+  real*8, allocatable, dimension(:,:) :: in_fld
+  real*8, allocatable, dimension(:,:) :: dx
+  real*8, allocatable, dimension(:,:) :: in_fld_grid_gphiu
+  real*8, allocatable, dimension(:,:) :: out_fld_post
+  real*8 :: in_fld_grid_dx
+  real*8, allocatable, dimension(:,:) :: in_out_fld_post
+  type(extract_PsyDataType) :: extract_psy_data
+  call extract_psy_data%OpenRead('psy_extract_example_with_various_variable_''' \
+  '''access_patterns', 'invoke_0_compute_kernel:compute_kernel_code:r0')
+  call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
+  ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
+  out_fld = 0
+  call extract_psy_data%ReadVariable('in_fld', in_fld)
+  call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
+  call extract_psy_data%ReadVariable('dx', dx)
+  call extract_psy_data%ReadVariable('in_fld%grid%dx', in_fld_grid_dx)
+  call extract_psy_data%ReadVariable('in_fld%grid%gphiu', in_fld_grid_gphiu)
+  do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
+    do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
       call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, ''' \
       '''in_fld_grid_dx, in_fld_grid_gphiu)
     enddo

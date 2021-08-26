@@ -43,16 +43,14 @@ from __future__ import absolute_import
 import six
 
 from psyclone.configuration import Config
-from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, Call, FileContainer, \
     Literal, Reference, Routine, StructureReference
-from psyclone.psyir.transformations import TransformationError
-
 from psyclone.psyir.symbols import ArrayType, CHARACTER_TYPE, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, \
     GlobalInterface, INTEGER_TYPE, REAL8_TYPE, RoutineSymbol, ScalarType
+from psyclone.psyir.transformations import TransformationError
 
 
 class ExtractDriverCreator:
@@ -472,39 +470,40 @@ class ExtractDriverCreator:
             program.addchild(if_block)
 
     # -------------------------------------------------------------------------
-    def create(self, nodes, input_list, output_list, postfix,
-               options):
+    def create(self, nodes, input_list, output_list,
+               prefix, postfix, region_name):
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
-        output information, and calls the kernel with the parameters from
-        the file.
+        output information, and calls the kernels specified in the 'nodes'
+        PSyIR tree with the parameters from the file.
 
+        :param nodes: a list of nodes.
+        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
         :param input_list: list of variables that are input parameters.
         :type input_list: list of :py:class:`psyclone.core.Signature`
         :param output_list: list of variables that are output parameters.
         :type output_list: list or :py:class:`psyclone.core.Signature`
+        :param str prefix: the prefix to use for each PSyData symbol, \
+            e.g. 'extract' as prefix will create symbols `extract_psydata`.
         :param str postfix: a postfix that is appended to an output variable \
             to create the corresponding variable that stores the output \
             value from the kernel data file. The caller must guarantee that \
             no name clashes are created when adding the postfix to a variable \
             and that the postfix is consistent between extract code and \
             driver code (see 'ExtractTrans.determine_postfix()').
+        :param (str,str) region_name: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region.
+
         '''
         # pylint: disable=too-many-locals
 
-        if options.get("region_name", False):
-            module_name, region_name = options["region_name"]
-        else:
-            if isinstance(nodes, list):
-                invoke = nodes[0].ancestor(InvokeSchedule).invoke
-            else:
-                invoke = nodes.ancestor(InvokeSchedule).invoke
-            module_name = invoke.invokes.psy.name
-            region_name = invoke.name
+        module_name, local_name = region_name
 
         # module_name, region_name = self.region_identifier
-        unit_name = "{0}_{1}".format(module_name, region_name)
+        unit_name = "{0}_{1}".format(module_name, local_name)
 
         # First create the file container, which will only store the program:
         file_container = FileContainer(unit_name)
@@ -514,8 +513,6 @@ class ExtractDriverCreator:
         program_symbol_table = program.symbol_table
         file_container.addchild(program)
 
-        # Import the PSyDataType:
-        prefix = options.get("prefix", "")
         if prefix:
             prefix = prefix + "_"
 
@@ -526,10 +523,9 @@ class ExtractDriverCreator:
         program_symbol_table.add(psy_data_type)
 
         writer = FortranWriter()
-        if isinstance(nodes, list):
-            schedule_copy = nodes[0].parent.copy()
-        else:
-            schedule_copy = nodes.parent.copy()
+        # The validation of the extract transform guarantees that all nodes
+        # in the node list have the same parent.
+        schedule_copy = nodes[0].parent.copy()
         schedule_copy.lower_to_language_level()
         ExtractDriverCreator.import_modules(program, schedule_copy)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
@@ -541,7 +537,7 @@ class ExtractDriverCreator:
                                                    datatype=psy_data_type)
 
         module_str = Literal(module_name, CHARACTER_TYPE)
-        region_str = Literal(region_name, CHARACTER_TYPE)
+        region_str = Literal(local_name, CHARACTER_TYPE)
         ExtractDriverCreator.add_call(program,
                                       "{0}%OpenRead".format(psy_data.name),
                                       [module_str, region_str])
@@ -560,5 +556,5 @@ class ExtractDriverCreator:
         code = writer(file_container)
 
         with open("driver-{0}-{1}.f90".
-                  format(module_name, region_name), "w") as out:
+                  format(module_name, local_name), "w") as out:
             out.write(code)
