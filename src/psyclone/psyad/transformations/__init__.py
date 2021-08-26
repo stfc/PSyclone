@@ -36,11 +36,4 @@
 
 from psyclone.psyad.transformations.tangent_linear_error import \
     TangentLinearError
-from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
 from psyclone.psyad.transformations.assignment_trans import AssignmentTrans
-
-
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.
-# 'from psyclone.psyad.transformations import AssignmentTrans'
-__all__ = ["AdjointTransformation", "AssignmentTrans", "TangentLinearError"]

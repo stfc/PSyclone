@@ -66,8 +66,8 @@ class AdjointTransformation(Transformation):
     :type writer: subclass of \
         :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
 
-    :raises TransformationError: if the active_variables or writer \
-        arguments are of the wrong type.
+    :raises TypeError: if the active_variables or writer arguments are \
+        of the wrong type.
 
     '''
     def __init__(self, active_variables, writer=FortranWriter()):
