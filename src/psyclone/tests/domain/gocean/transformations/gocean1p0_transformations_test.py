@@ -1889,8 +1889,8 @@ def test_acc_enter_directive_infrastructure_setup_error():
         _ = psy.gen
     assert ("The GOACCEnterDataDirective can only be generated/lowered inside "
             "a Container in order to insert a sibling subroutine, but "
-            "'Directive[ACC enter data]' is not inside a Container." in
-            str(err.value))
+            "'StandaloneDirective[ACC enter data]' is not inside a Container."
+            in str(err.value))
 
 
 def test_acc_enter_directive_infrastructure_setup_gen_code():
