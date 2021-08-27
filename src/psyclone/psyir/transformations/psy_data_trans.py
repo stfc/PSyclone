@@ -126,8 +126,15 @@ class PSyDataTrans(RegionTrans):
         based on the module and invoke will be created using indices to
         make sure the name is unique.
 
-        :param nodes:
-        :param options:
+        :param nodes: a list of nodes.
+        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param (str,str) options["region_name"]: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region unless aggregate information \
+            is required (and is supported by the runtime library).
 
         '''
         # We don't use a static method here since it might be useful to
@@ -162,11 +169,10 @@ class PSyDataTrans(RegionTrans):
 
         # Add a region index to ensure uniqueness when there are
         # multiple regions in an invoke.
-        key = module_name+"|"+module_name
+        key = module_name + "|" + module_name
         idx = PSyDataTrans._used_kernel_names.get(key, 0)
         PSyDataTrans._used_kernel_names[key] = idx + 1
         region_name += ":r{0}".format(idx)
-
         return (module_name, region_name)
 
     # ------------------------------------------------------------------------
