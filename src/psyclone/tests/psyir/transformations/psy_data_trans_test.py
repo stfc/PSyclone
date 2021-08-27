@@ -294,3 +294,24 @@ def test_psydata_validation_acc(parser):
         pdt.apply(schedule.children[0].children[0])
     assert "A PSyData node cannot be inserted inside an OpenACC region" \
            in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_psydata_mod_use_clash(parser):
+    ''' Check that we abort cleanly if we encounter a 'use' of a module that
+    clashes with the one we would 'use' for the profiling API. '''
+    reader = FortranStringReader("program the_clash\n"
+                                 "  use psy_data_mod, only: "
+                                 "some_var\n"
+                                 "  real :: my_array(20,10)\n"
+                                 "  my_array(:,:) = 0.0\n"
+                                 "end program the_clash\n")
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    pdt = PSyDataTrans()
+
+    with pytest.raises(TransformationError) as err:
+        pdt.apply(schedule.children[0])
+    assert ("Cannot add PSyData calls because there is already a symbol "
+            "named 'psy_data_mod' which clashes" in str(err.value))
