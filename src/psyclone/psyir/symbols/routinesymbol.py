@@ -48,25 +48,15 @@ class RoutineSymbol(TypedSymbol):
     :param str name: name of the routine.
     :param datatype: data type returned by the routine. Defaults to NoType.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or `NoneType`
-    :param visibility: the visibility of the symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-    :param interface: optional object describing the interface to this \
-        symbol (i.e. whether it is local or accessed from some Container) \
-        Defaults to :py:class:`psyclone.psyir.symbols.LocalInterface`.
-    :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
     '''
-    def __init__(self, name, datatype=None,
-                 visibility=Symbol.DEFAULT_VISIBILITY,
-                 interface=None):
+    def __init__(self, name, datatype=None, **kwargs):
         # We override the constructor purely to add a default datatype
         local_datatype = datatype
         if local_datatype is None:
             local_datatype = NoType()
 
-        super(RoutineSymbol, self).__init__(name, local_datatype,
-                                            visibility=visibility,
-                                            interface=interface)
+        super(RoutineSymbol, self).__init__(name, local_datatype, **kwargs)
 
     def __str__(self):
         # This implementation could be moved to TypedSymbol but it is kept

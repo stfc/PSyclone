@@ -52,37 +52,31 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
-    :param visibility: the visibility of the symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-    :param interface: optional object describing the interface to this \
-        symbol (i.e. whether it is passed as a routine argument or \
-        accessed in some other way). Defaults to \
-        :py:class:`psyclone.psyir.symbols.FortranModuleInterface`
-    :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
     '''
-    def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY,
-                 interface=None):
-        super(ContainerSymbol, self).__init__(name, visibility=visibility)
-
-        # TODO #1298: ContainerSymbol currently defaults to
-        # FortranModuleInterface expecting externally defined containers
-        # which can be imported, but this is not always true.
-        if interface is None:
-            # By default it is a FortranModuleInterface
-            self.interface = FortranModuleInterface()
-        elif isinstance(interface, FortranModuleInterface):
-            self.interface = interface
-        else:
-            raise TypeError("A ContainerSymbol interface must be of type '"
-                            "FortranModuleInterface' but found '{0}' for "
-                            "Container '{1}'."
-                            "".format(type(interface).__name__, name))
+    def __init__(self, name, **kwargs):
+        super(ContainerSymbol, self).__init__(name)
 
         self._reference = None
         # Whether or not there is a wildcard import of all public symbols
         # from this container (e.g. an unqualified USE of a module in Fortran).
         self._has_wildcard_import = False
+        self._init_class_fields(**kwargs)
+
+    def _init_class_fields(self, **kwargs):
+        # TODO #1298: ContainerSymbol currently defaults to
+        # FortranModuleInterface expecting externally defined containers
+        # which can be imported, but this is not always true.
+
+        if "interface" not in kwargs or kwargs["interface"] is None:
+            kwargs["interface"] = FortranModuleInterface()
+        elif not isinstance(kwargs["interface"], FortranModuleInterface):
+            raise TypeError("A ContainerSymbol interface must be of type '"
+                            "FortranModuleInterface' but found '{0}' for "
+                            "Container '{1}'."
+                            "".format(type(kwargs["interface"]).__name__,
+                                      self.name))
+        super(ContainerSymbol, self)._init_class_fields(**kwargs)
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the

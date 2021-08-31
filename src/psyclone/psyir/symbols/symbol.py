@@ -234,13 +234,17 @@ class Symbol(object):
         # The following attributes have a setter method (with error checking)
         self._visibility = None
         self._interface = None
-        # If an interface is not provided, use LocalInterface by default
+
+        self._init_class_fields(visibility=visibility, interface=interface)
+
+    def _init_class_fields(self, visibility=None, interface=None):
         if not interface:
-            self._interface = LocalInterface()
+            # If an interface is not provided, use LocalInterface by default
+            self.interface = LocalInterface()
         else:
-            # Use the setter as it checks the variables validity
             self.interface = interface
-        self.visibility = visibility
+        if visibility:
+            self.visibility = visibility
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the
@@ -272,7 +276,7 @@ class Symbol(object):
                             "found '{0}'.".format(type(symbol_in).__name__))
         self._interface = symbol_in.interface
 
-    def specialise(self, subclass):
+    def specialise(self, subclass, *args, **kwargs):
         '''Specialise this symbol so that it becomes an instance of the class
         provided in the subclass argument. This allows this instance
         to become a subclass without any references to it becoming
@@ -299,6 +303,7 @@ class Symbol(object):
                 "but found '{2}'.".format(
                     self.name, type(self).__name__, subclass.__name__))
         self.__class__ = subclass
+        self._init_class_fields()
 
     # pylint: disable=inconsistent-return-statements
     def get_external_symbol(self):

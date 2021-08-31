@@ -39,7 +39,6 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -51,8 +50,6 @@ class DataSymbol(TypedSymbol):
 
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
-    :param visibility: the visibility of this symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Visibility`
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param constant_value: sets a fixed known expression as a permanent \
         value for this DataSymbol. If the value is None then this \
@@ -61,20 +58,18 @@ class DataSymbol(TypedSymbol):
         TYPE_MAP_TO_PYTHON map. By default it is None.
     :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
         :py:class:`psyclone.psyir.nodes.Node`
-    :param interface: object describing the interface to this symbol (i.e. \
-        whether it is passed as a routine argument or accessed in some other \
-        way).
-    :type interface: \
-        :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
     '''
-    def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
-                 constant_value=None, interface=None):
-        super(DataSymbol, self).__init__(name, datatype, visibility, interface)
+    def __init__(self, name, datatype, constant_value=None, **kwargs):
+        super(DataSymbol, self).__init__(name, datatype)
 
         # The following attribute has a setter method (with error checking)
         self._constant_value = None
         self.constant_value = constant_value
+        self._init_class_fields(**kwargs)
+
+    def _init_class_fields(self, **kwargs):
+        super(DataSymbol, self)._init_class_fields(**kwargs)
 
     @property
     def is_constant(self):

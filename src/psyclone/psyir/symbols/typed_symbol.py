@@ -55,23 +55,22 @@ class TypedSymbol(Symbol):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param visibility: the visibility of the symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-    :param interface: optional object describing the interface to this \
-        symbol (i.e. whether it is passed as a routine argument or \
-        accessed in some other way). Defaults to \
-        :py:class:`psyclone.psyir.symbols.LocalInterface`
-    :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
     '''
-    def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
-                 interface=None):
+    def __init__(self, name, datatype, **kwargs):
 
-        super(TypedSymbol, self).__init__(name, visibility=visibility,
-                                          interface=interface)
+        super(TypedSymbol, self).__init__(name)
+
         # The following attribute has a setter method (with error checking)
         self._datatype = None
-        self.datatype = datatype
+        self._init_class_fields(datatype=datatype, **kwargs)
+
+    def _init_class_fields(self, datatype=None, **kwargs):
+        if datatype:
+            self.datatype = datatype
+        else:
+            self._datatype = None
+        super(TypedSymbol, self)._init_class_fields(**kwargs)
 
     @abc.abstractmethod
     def __str__(self):
