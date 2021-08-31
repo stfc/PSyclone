@@ -75,8 +75,8 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> import os
     >>> TEST_API = "gocean1.0"
     >>> _, info = parse(os.path.join("tests", "test_files", "gocean1p0",
-    >>>                              "single_invoke.f90"),
-    >>>                 api=TEST_API)
+    ...                              "single_invoke.f90"),
+    ...                 api=TEST_API)
     >>> psy = PSyFactory(TEST_API).create(info)
     >>> invoke = psy.invokes.get('invoke_0_compute_cu')
     >>> schedule = invoke.schedule
@@ -94,7 +94,11 @@ class GOConstLoopBoundsTrans(Transformation):
 
     @property
     def name(self):
-        ''' Return the name of the Transformation as a string.'''
+        '''
+        :returns: the name of the Transformation as a string.
+        :rtype: str
+
+        '''
         return "GOConstLoopBoundsTrans"
 
     def validate(self, node, options=None):
@@ -104,25 +108,66 @@ class GOConstLoopBoundsTrans(Transformation):
         :param node: the GOInvokeSchedule to transform.
         :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
         :raises TransformationError: if the supplied node is not a \
-                                     GOInvokeSchedule.
+            GOInvokeSchedule.
+        :raises TransformationError: if the supplied schedule has loops with \
+            index offsets
 
         '''
         if not isinstance(node, GOInvokeSchedule):
-            raise TransformationError("Error in GOConstLoopBoundsTrans: "
-                                      "node is not a GOInvokeSchedule")
+            raise TransformationError(
+                "GOConstLoopBoundsTrans can only be applied to "
+                "'GOInvokeSchedule' but found '{0}'."
+                "".format(type(node).__name__))
+
+        for loop in node.walk(GOLoop):
+            if loop.loop_type not in ["inner", "outer"]:
+                raise TransformationError(
+                    "GOConstLoopBoundsTrans can not transform")
+
+            if loop.index_offset not in loop.bounds_lookup:
+                raise TransformationError(
+                    "GOConstLoopBoundsTrans can not transform loop {0} because"
+                    " its index offset is not in the bounds_lookup table, the "
+                    "available index offsets are {1}"
+                    "".format(loop, loop.bounds_lookup.keys()))
+
+            table = loop.bounds_lookup[loop.index_offset]
+            if loop.field_space not in table:
+                raise TransformationError(
+                    "GOConstLoopBoundsTrans can not transform loop {0} because"
+                    " its index offset is not in the bounds_lookup table, the "
+                    "available index offsets are {1}"
+                    "".format(loop, loop.bounds_lookup.keys()))
+
+            table = table[loop.field_space]
+            if loop.iteration_space not in table:
+                raise TransformationError(
+                    "GOConstLoopBoundsTrans can not transform loop {0} because"
+                    " its index offset is not in the bounds_lookup table, the "
+                    "available index offsets are {1}"
+                    "".format(loop, loop.bounds_lookup.keys()))
+
+            table = table[loop.iteration_space]
+            if loop.loop_type not in table:
+                raise TransformationError(
+                    "GOConstLoopBoundsTrans can not transform loop {0} because"
+                    " its index offset is not in the bounds_lookup table, the "
+                    "available index offsets are {1}"
+                    "".format(loop, loop.bounds_lookup.keys()))
+
 
     def apply(self, node, options=None):
         ''' Modify the GOcean kernel loops in a GOInvokeSchedule to use
         common constant loop bound variables.
 
-        :param node: the GOInvokeSchedule of which all loops will get the
+        :param node: the GOInvokeSchedule of which all loops will get the \
             constant loop bounds.
         :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
         :returns: 2-tuple of new schedule and memento of transform.
         :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
@@ -152,7 +197,7 @@ class GOConstLoopBoundsTrans(Transformation):
                     field = arg
                     break
 
-        # Add the assignments of the bounds to its variables at the
+        # Add the assignments of the bounds to their variables at the
         # beginning of the invoke.
         assign1 = Assignment.create(
                     Reference(i_stop),
@@ -169,26 +214,19 @@ class GOConstLoopBoundsTrans(Transformation):
         # Fortran reader needed to parse constructed bound expressions
         fortran_reader = FortranReader()
 
-        const = GOceanConstants()
         # Update all GOLoop bounds with the new variables
         for loop in node.walk(GOLoop):
-            # Look for a child kernel in order to get the index offset.
-            index_offset = loop.index_offset
-
-            if index_offset not in const.SUPPORTED_OFFSETS:
-                raise TransformationError(
-                    "Constant bounds generation not implemented for a grid "
-                    "offset of '{0}'. Supported offsets are {1}"
-                    "".format(index_offset, const.SUPPORTED_OFFSETS))
 
             # Chose the variable depending if it is an inner or outer loop
             if loop.loop_type == "inner":
                 stop = i_stop.name
-            else:
+            elif loop.loop_type == "outer":
                 stop = j_stop.name
+            # other loop_types are checked in the validate method as they
+            # produce an error.
 
             # Get the bounds map
-            bounds = loop.bounds_lookup[index_offset][loop.field_space][
+            bounds = loop.bounds_lookup[loop.index_offset][loop.field_space][
                 loop.iteration_space][loop.loop_type]
 
             # Set the lower bound

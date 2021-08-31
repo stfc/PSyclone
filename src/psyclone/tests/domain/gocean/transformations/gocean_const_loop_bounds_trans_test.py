@@ -68,8 +68,10 @@ def test_const_loop_bounds_not_schedule():
     schedule = invoke.schedule
     cbtrans = GOConstLoopBoundsTrans()
 
-    with pytest.raises(TransformationError):
+    with pytest.raises(TransformationError) as err:
         _, _ = cbtrans.apply(schedule.children[0])
+    assert ("GOConstLoopBoundsTrans can only be applied to 'GOInvokeSchedule' "
+            "but found 'GOLoop'." in str(err.value))
 
 
 def test_const_loop_bounds_trans(tmpdir):
