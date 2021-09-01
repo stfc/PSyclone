@@ -135,8 +135,7 @@ def test_const_loop_bounds_invalid_loop_attributes():
         cbtrans.apply(schedule)
     assert ("GOConstLoopBoundsTrans can not transform a loop with index_offset"
             " 'go_offset_nw' because it is not in the bounds lookup table, the"
-            " available index_offset values are ['go_offset_ne', 'go_offset_sw"
-            "', 'go_offset_any']." in str(err.value))
+            " available index_offset values are [" in str(err.value))
 
     # Fix index_offset and invalidate field_space
     for loop in schedule.walk(GOLoop):
@@ -146,8 +145,7 @@ def test_const_loop_bounds_invalid_loop_attributes():
         cbtrans.apply(schedule)
     assert ("GOConstLoopBoundsTrans can not transform a loop with field_space "
             "'invalid' because it is not in the bounds lookup table, the "
-            "available field_space values are ['go_cu', 'go_cv', 'go_ct', "
-            "'go_cf', 'go_every']" in str(err.value))
+            "available field_space values are [" in str(err.value))
 
     # Fix field_space and invalidate iteration_space
     for loop in schedule.walk(GOLoop):
@@ -157,8 +155,7 @@ def test_const_loop_bounds_invalid_loop_attributes():
         cbtrans.apply(schedule)
     assert ("GOConstLoopBoundsTrans can not transform a loop with iteration_"
             "space 'invalid' because it is not in the bounds lookup table, the"
-            " available iteration_space values are ['go_all_pts', "
-            "'go_internal_pts', 'go_external_pts']." in str(err.value))
+            " available iteration_space values are [" in str(err.value))
 
     # Fix iteration_space and invalidate loop_type
     for loop in schedule.walk(GOLoop):
