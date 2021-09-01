@@ -46,7 +46,7 @@ from fparser.two.parser import ParserFactory
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
-    Node, Literal, Loop
+    Node, Literal
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
 
@@ -194,24 +194,6 @@ def test_goloop_grid_property_psyir_expression():
     assert isinstance(gref, StructureReference)
     assert gref.parent is None
     assert gref.symbol.name == "cv_fld"
-
-
-def test_goloop_lower_to_language_level(monkeypatch):
-    ''' Tests that the GOLoop lower_to_language_level method lowers the type
-    of the node to a generic Loop. '''
-    schedule = GOInvokeSchedule('name', [])
-    goloop = GOLoop(loop_type="inner", parent=schedule)
-    schedule.addchild(goloop)
-
-    # Monkeypatch the _validate_loop method as this will be tested below
-    monkeypatch.setattr(GOLoop, "_validate_loop",
-                        lambda x: True)
-
-    # Lower to language level and check the resulting Loop is as expected
-    goloop.lower_to_language_level()
-    new_loop = schedule.children[0]
-    # pylint: disable=unidiomatic-typecheck
-    assert type(new_loop) == Loop
 
 
 def test_goloop_validate_loop():

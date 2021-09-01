@@ -99,20 +99,8 @@ def test_const_loop_bounds_trans(tmpdir):
     schedule = invoke.schedule
     cbtrans.apply(schedule)
     gen = str(psy.gen)
-    print(gen)
     assert "INTEGER istop" in gen
     assert "INTEGER istop" in gen
-    assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
-    assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j = 2, jstop - 1" in gen
-    assert "DO i = 2, istop" in gen
-
-    # Next, check that applying the constant loop-bounds
-    # transformation again has no effect.
-    cbtrans.apply(schedule)
-    gen = str(psy.gen)
-    assert "INTEGER istop" in gen
-    assert "INTEGER jstop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
     assert "DO j = 2, jstop - 1" in gen

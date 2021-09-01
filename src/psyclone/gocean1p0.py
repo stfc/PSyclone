@@ -69,14 +69,14 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     AccessType, HaloExchange
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment, PSyDataNode, ACCEnterDataDirective, \
-    ACCParallelDirective, ACCKernelsDirective
+from psyclone.psyir.nodes import Loop, Literal, Schedule, KernelSchedule, \
+    StructureReference, BinaryOperation, Reference, Call, Assignment, \
+    PSyDataNode, ACCEnterDataDirective, ACCParallelDirective, \
+    ACCKernelsDirective
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
-    UnknownFortranType, LocalInterface, BOOLEAN_TYPE, REAL_TYPE
+    INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
+    DataTypeSymbol, UnresolvedInterface, UnknownFortranType, BOOLEAN_TYPE, \
+    REAL_TYPE
 
 
 # Specify which OpenCL command queue to use for management operations like
@@ -466,8 +466,10 @@ class GOLoop(Loop):
         :param str field_name: name of the field this loop iterates on.
         :param str field_space: space of the field this loop iterates on.
         :param str iteration_space: iteration space of the loop.
+        :param str index_offset: the grid index offset that this loops \
+            iterates on.
 
-        :returns: a new GOLoop and its children.
+        :returns: a new GOLoop node (with appropriate child nodes).
         :rtype: :py:class:`psyclone.gocean1p0.GOLoop`
         '''
 
@@ -486,7 +488,7 @@ class GOLoop(Loop):
     @property
     def field_space(self):
         '''
-        :returns: the loop's field space.
+        :returns: the loop's field space (e.g. CU, CV...).
         :rtype: str
         '''
         return self._field_space
@@ -500,9 +502,9 @@ class GOLoop(Loop):
         '''
         self._field_space = my_field_space
         if len(self.children) > 1:
-            self.children[0].replace_with(self.lower_bound())
+            self.start_expr.replace_with(self.lower_bound())
         if len(self.children) > 2:
-            self.children[1].replace_with(self.upper_bound())
+            self.stop_expr.replace_with(self.upper_bound())
 
     @property
     def iteration_space(self):
@@ -521,9 +523,9 @@ class GOLoop(Loop):
         '''
         self._iteration_space = it_space
         if len(self.children) > 1:
-            self.children[0].replace_with(self.lower_bound())
+            self.start_expr.replace_with(self.lower_bound())
         if len(self.children) > 2:
-            self.children[1].replace_with(self.upper_bound())
+            self.stop_expr.replace_with(self.upper_bound())
 
     @property
     def bounds_lookup(self):
@@ -851,8 +853,6 @@ class GOLoop(Loop):
         fld_sym = self.scope.symbol_table.lookup(self.field_name)
         return StructureReference.create(fld_sym, members[1:])
 
-    # -------------------------------------------------------------------------
-    # pylint: disable=too-many-branches
     def upper_bound(self):
         ''' Creates the PSyIR of the upper bound of this loop.
 
@@ -899,8 +899,6 @@ class GOLoop(Loop):
         return self._grid_property_psyir_expression(
             props["go_grid_{0}_{1}_stop".format(key, self._loop_type)].fortran)
 
-    # -------------------------------------------------------------------------
-    # pylint: disable=too-many-branches
     def lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
 
@@ -932,27 +930,6 @@ class GOLoop(Loop):
         return self._grid_property_psyir_expression(
             props["go_grid_{0}_{1}_start".format(key,
                                                  self._loop_type)].fortran)
-
-    def lower_to_language_level(self):
-        '''
-        In-place replacement of DSL or high-level concepts into generic
-        PSyIR constructs. A GOLoop needs to make sure the start and stop
-        expressions of the Loop contain the boundaries defined by the API.
-
-        '''
-        # Check that it is a properly formed GOLoop
-        self._validate_loop()
-
-        # Once the bounds are set, lower the loops multiple children
-        for child in self.children:
-            child.lower_to_language_level()
-
-        # Finally, lose the DSL-level abstraction since the lower_bound() and
-        # upper_bound() methods will fail after lowering because they rely on
-        # a GOKern to be found inside the Loop, and this doesn't exist anymore
-        new_loop = Loop(variable=self.variable)
-        new_loop.children = self.pop_all_children()
-        self.replace_with(new_loop)
 
     def _validate_loop(self):
         ''' Validate that the GOLoop has all necessary boundaries information
