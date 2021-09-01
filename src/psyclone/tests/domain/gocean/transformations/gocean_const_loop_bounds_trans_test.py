@@ -40,7 +40,9 @@
 
 from __future__ import absolute_import
 import pytest
+from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.symbols import LocalInterface, DataTypeSymbol
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.tests.utilities import get_invoke
@@ -119,16 +121,87 @@ def test_const_loop_bounds_trans(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_const_loop_bounds_invalid_offset():
+def test_const_loop_bounds_invalid_loop_attributes():
     ''' Test that we raise an appropriate error if we attempt to generate
     code with constant loop bounds for a kernel that expects an
-    unsupported grid-offset '''
+    unsupported loop attribute '''
     _, invoke = get_invoke("test26_const_bounds_invalid_offset.f90",
                            API, idx=0)
     cbtrans = GOConstLoopBoundsTrans()
+
+    # Start with a schedule with invalid index offset
     schedule = invoke.schedule
     with pytest.raises(TransformationError) as err:
         cbtrans.apply(schedule)
-    assert ("Constant bounds generation not implemented for a grid offset of "
-            "'go_offset_nw'. Supported offsets are ['go_offset_ne', "
-            "'go_offset_sw', 'go_offset_any']" in str(err.value))
+    assert ("GOConstLoopBoundsTrans can not transform a loop with index_offset"
+            " 'go_offset_nw' because it is not in the bounds lookup table, the"
+            " available index_offset values are ['go_offset_ne', 'go_offset_sw"
+            "', 'go_offset_any']." in str(err.value))
+
+    # Fix index_offset and invalidate field_space
+    for loop in schedule.walk(GOLoop):
+        loop.index_offset = 'go_offset_ne'
+        loop.field_space = 'invalid'
+    with pytest.raises(TransformationError) as err:
+        cbtrans.apply(schedule)
+    assert ("GOConstLoopBoundsTrans can not transform a loop with field_space "
+            "'invalid' because it is not in the bounds lookup table, the "
+            "available field_space values are ['go_cu', 'go_cv', 'go_ct', "
+            "'go_cf', 'go_every']" in str(err.value))
+
+    # Fix field_space and invalidate iteration_space
+    for loop in schedule.walk(GOLoop):
+        loop.field_space = 'go_cu'
+        loop._iteration_space = 'invalid'  # Bypass setter validation
+    with pytest.raises(TransformationError) as err:
+        cbtrans.apply(schedule)
+    assert ("GOConstLoopBoundsTrans can not transform a loop with iteration_"
+            "space 'invalid' because it is not in the bounds lookup table, the"
+            " available iteration_space values are ['go_all_pts', "
+            "'go_internal_pts', 'go_external_pts']." in str(err.value))
+
+    # Fix iteration_space and invalidate loop_type
+    for loop in schedule.walk(GOLoop):
+        loop.iteration_space = 'go_internal_pts'
+        loop._loop_type = 'invalid'  # Bypass setter validation
+    with pytest.raises(TransformationError) as err:
+        cbtrans.apply(schedule)
+    assert ("GOConstLoopBoundsTrans can not transform a loop with loop_type "
+            "'invalid', only 'inner' or 'outer' loop_type values are expected."
+            in str(err.value))
+
+    # Fix loop_type but delete loop_type entry from bounds lookup table
+    for loop in schedule.walk(GOLoop):
+        loop.loop_type = 'outer'
+    del loop.bounds_lookup[loop.index_offset][loop.field_space][
+            loop.iteration_space]['outer']
+    with pytest.raises(TransformationError) as err:
+        cbtrans.apply(schedule)
+    assert ("GOConstLoopBoundsTrans can not transform a loop with loop_type "
+            "'outer' because it is not in the bounds lookup table, the "
+            "available loop_type values are ['inner']." in str(err.value))
+
+
+def test_const_loop_bounds_without_field_argument():
+    ''' Check that applying the loop bounds transformation to an invoke that
+    doesn't have any field arguments fails with the appropriate error.'''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           API, idx=0)
+    schedule = invoke.schedule
+    cbtrans = GOConstLoopBoundsTrans()
+
+    # Remove all field arguments
+    keep_arguments = []
+    schedule.symbol_table.specify_argument_list([])
+    for arg in schedule.symbol_table.argument_datasymbols:
+        if (isinstance(arg.datatype, DataTypeSymbol) and
+                arg.datatype.name == "r2d_field"):
+            arg.interface = LocalInterface()
+        else:
+            keep_arguments.append(arg)
+    schedule.symbol_table.specify_argument_list(keep_arguments)
+
+    with pytest.raises(TransformationError) as err:
+        cbtrans.apply(schedule)
+    assert ("GOConstLoopBoundsTrans can not transform invoke 'invoke_0' "
+            "because there are no argument fields on it." in str(err.value))

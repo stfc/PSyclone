@@ -125,38 +125,53 @@ class GOConstLoopBoundsTrans(Transformation):
         for loop in node.walk(GOLoop):
             if loop.loop_type not in ["inner", "outer"]:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform")
+                    "GOConstLoopBoundsTrans can not transform a loop with "
+                    "loop_type '{0}', only 'inner' or 'outer' loop_type values"
+                    " are expected.".format(loop.loop_type))
 
             if loop.index_offset not in loop.bounds_lookup:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform loop {0} because"
-                    " its index offset is not in the bounds_lookup table, the "
-                    "available index offsets are {1}"
-                    "".format(loop, loop.bounds_lookup.keys()))
+                    "GOConstLoopBoundsTrans can not transform a loop with "
+                    "index_offset '{0}' because it is not in the bounds lookup"
+                    " table, the available index_offset values are {1}."
+                    "".format(loop.index_offset,
+                              list(loop.bounds_lookup.keys())))
 
             table = loop.bounds_lookup[loop.index_offset]
             if loop.field_space not in table:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform loop {0} because"
-                    " its index offset is not in the bounds_lookup table, the "
-                    "available index offsets are {1}"
-                    "".format(loop, loop.bounds_lookup.keys()))
+                    "GOConstLoopBoundsTrans can not transform a loop with "
+                    "field_space '{0}' because it is not in the bounds lookup"
+                    " table, the available field_space values are {1}."
+                    "".format(loop.field_space, list(table.keys())))
 
             table = table[loop.field_space]
             if loop.iteration_space not in table:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform loop {0} because"
-                    " its index offset is not in the bounds_lookup table, the "
-                    "available index offsets are {1}"
-                    "".format(loop, loop.bounds_lookup.keys()))
+                    "GOConstLoopBoundsTrans can not transform a loop with "
+                    "iteration_space '{0}' because it is not in the bounds "
+                    "lookup table, the available iteration_space values are "
+                    "{1}.".format(loop.iteration_space, list(table.keys())))
 
             table = table[loop.iteration_space]
             if loop.loop_type not in table:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform loop {0} because"
-                    " its index offset is not in the bounds_lookup table, the "
-                    "available index offsets are {1}"
-                    "".format(loop, loop.bounds_lookup.keys()))
+                    "GOConstLoopBoundsTrans can not transform a loop with "
+                    "loop_type '{0}' because it is not in the bounds "
+                    "lookup table, the available loop_type values are "
+                    "{1}.".format(loop.loop_type, list(table.keys())))
+
+        # Make sure the Invoke has at least one field argument
+        found = False
+        for arg in node.symbol_table.argument_list:
+            if isinstance(arg.datatype, DataTypeSymbol):
+                if arg.datatype.name == "r2d_field":
+                    found = True
+                    break
+        if not found:
+            raise TransformationError(
+                "GOConstLoopBoundsTrans can not transform invoke '{0}' because"
+                " there are no argument fields on it.".format(node.name))
 
 
     def apply(self, node, options=None):
@@ -181,21 +196,21 @@ class GOConstLoopBoundsTrans(Transformation):
         j_stop = node.symbol_table.new_symbol(
             "jstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-        # Look-up the loop bounds using the first field object in the
-        # list
-        api_config = Config.get().api_conf("gocean1.0")
-        arg = node.symbol_table.argument_list[0].name
-        xstop = api_config.grid_properties["go_grid_xstop"].fortran \
-            .format(arg)
-        ystop = api_config.grid_properties["go_grid_ystop"].fortran \
-            .format(arg)
-
-        # Get a field argument from the argument list
+        # Get a field argument from the argument list (we checked there
+        # is at least one on the validation method)
         for arg in node.symbol_table.argument_list:
             if isinstance(arg.datatype, DataTypeSymbol):
                 if arg.datatype.name == "r2d_field":
                     field = arg
                     break
+
+        # Look-up the loop bounds using the first field object in the
+        # list
+        api_config = Config.get().api_conf("gocean1.0")
+        xstop = api_config.grid_properties["go_grid_xstop"].fortran \
+            .format(field)
+        ystop = api_config.grid_properties["go_grid_ystop"].fortran \
+            .format(field)
 
         # Add the assignments of the bounds to their variables at the
         # beginning of the invoke.
@@ -222,8 +237,7 @@ class GOConstLoopBoundsTrans(Transformation):
                 stop = i_stop.name
             elif loop.loop_type == "outer":
                 stop = j_stop.name
-            # other loop_types are checked in the validate method as they
-            # produce an error.
+            # the validate method raises and error for any other loop_type
 
             # Get the bounds map
             bounds = loop.bounds_lookup[loop.index_offset][loop.field_space][
