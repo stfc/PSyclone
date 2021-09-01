@@ -309,33 +309,9 @@ class GOInvoke(Invoke):
 
         :param parent: the node in the generated AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+
         '''
-
-        def sort_by_interface(symbol_names):
-            ''' Utility to help differentiate between arguments and local
-            symbols from a given list of symbols names. Other symbols are
-            ignored.
-
-            :param symbol_names: a list of symbols to categorise.
-            :type symbol_names: list of str
-
-            :returns: a tuple of 2 lists with the given symbol_names \
-                      categorised as argument symbols and local symbols.
-            :rtype: 2-tuple of lists of str
-            '''
-            arg_symbols = []
-            local_symbols = []
-            symtab = self.schedule.symbol_table
-            for name in symbol_names:
-                interface = symtab.lookup(name).interface
-                if isinstance(interface, LocalInterface):
-                    local_symbols.append(name)
-                elif isinstance(interface, ArgumentInterface):
-                    arg_symbols.append(name)
-                # Other symbols are ignored
-            return arg_symbols, local_symbols
-
-        # create the subroutine
+        # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names)
         parent.add(invoke_sub)
@@ -355,20 +331,25 @@ class GOInvoke(Invoke):
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
 
-        # Add the subroutine argument declarations for real scalars
-        r_args, _ = sort_by_interface(self.unique_args_rscalars)
+        # Add the subroutine argument declarations for integer and real scalars
+        r_args = []
+        i_args = []
+        for argument in self.schedule.symbol_table.argument_datasymbols:
+            if argument.name in self.unique_args_rscalars:
+                r_args.append(argument.name)
+            if argument.name in self.unique_args_iscalars:
+                i_args.append(argument.name)
+
         if r_args:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
                                        entity_decls=r_args)
             invoke_sub.add(my_decl_rscalars)
 
-        # Add the subroutine declarations for integer scalars
-        int_args, _ = sort_by_interface(self.unique_args_iscalars)
-        if int_args:
+        if i_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
-                                       entity_decls=int_args)
+                                       entity_decls=i_args)
             invoke_sub.add(my_decl_iscalars)
 
         # Add remaining local symbols using the symbol table
