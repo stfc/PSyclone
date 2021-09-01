@@ -143,6 +143,22 @@ def test_goloop_properties_getters_and_setters():
     assert goloop.bounds_lookup == GOLoop._bounds_lookup
 
 
+def test_goloop_get_custom_bound_string_invalid_loop_type():
+    ''' Check that the get_custom_bound_string method raises the expected
+    error if the loop_type has an invalid value. '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           API, idx=0)
+    schedule = invoke.schedule
+    loop = schedule.walk(GOLoop)[0]
+
+    # Set the loop_type to something invalid
+    loop._loop_type = "broken"  # Bypass setter validation
+    with pytest.raises(GenerationError) as err:
+        loop.get_custom_bound_string("start")
+    assert ("Invalid loop type of 'broken'. Expected one of ['inner', 'outer']"
+            in str(err.value))
+
+
 def test_goloop_bounds_invalid_iteration_space():
     ''' Check that the _upper/lower_bound() methods raise the expected error
     if the iteration space is not recognised. '''
@@ -154,7 +170,7 @@ def test_goloop_bounds_invalid_iteration_space():
     with pytest.raises(GenerationError) as err:
         gojloop.upper_bound()
     assert ("Cannot generate custom loop bound for loop GOLoop[id:'', "
-            "variable:'j', loop_type:'outer']\nEnd GOLoop. Couldn't fine "
+            "variable:'j', loop_type:'outer']\nEnd GOLoop. Couldn't find "
             "any suitable field." in str(err.value))
 
     # Create an complete invoke now

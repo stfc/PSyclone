@@ -799,12 +799,16 @@ class GOLoop(Loop):
         if field is None:
             raise GenerationError(
                 "Cannot generate custom loop bound for loop {0}. Couldn't"
-                " fine any suitable field.".format(str(self)))
+                " find any suitable field.".format(str(self)))
 
         if self.loop_type == "inner":
             prop_access = api_config.grid_properties["go_grid_xstop"]
-        else:
+        elif self.loop_type == "outer":
             prop_access = api_config.grid_properties["go_grid_ystop"]
+        else:
+            raise GenerationError(
+                "Invalid loop type of '{0}'. Expected one of {1}".
+                format(self.loop_type, GOceanConstants().VALID_LOOP_TYPES))
 
         stop_expr = prop_access.fortran.format(field.name)
         try:
