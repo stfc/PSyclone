@@ -218,7 +218,7 @@ class RegionDirective(Directive):
                 # statements belonging to this PSyIR node.
                 self.ast_end = directive
                 self.dir_body.ast_end = directive
-        except (IndexError, ValueError):
+        except(IndexError, ValueError) as error:
             six.raise_from(InternalError("Failed to find locations to insert "
                                          "begin/end directives."), error)
 
