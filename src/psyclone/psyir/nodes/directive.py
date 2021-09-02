@@ -38,7 +38,8 @@
 # Modified A. B. G. Chalk, STFC Daresbury Lab.
 # -----------------------------------------------------------------------------
 
-''' This module contains the Directive node implementation.'''
+''' This module contains the Directive, RegionDirective, StandaloneDirective
+    node implementation.'''
 
 from __future__ import absolute_import
 import abc
@@ -59,15 +60,17 @@ class Directive(Statement):
     Abstract base class for all Directive statements.
 
     '''
-    # The prefix to use when constructing this directive in Fortran
-    # (e.g. "OMP"). Must be set by sub-class.
-    _PREFIX = ""
+    # The prefix to use when code-generating this directive
+    # (e.g. "OMP") must be set by a mixin or sub-class, the name of the
+    # variable should be _PREFIX
     _text_name = "Directive"
+    _colour = "green"
 
 
 class RegionDirective(Directive):
     '''
-    Based class for all Region Directive statements.
+    Base class for all Directive nodes that have an associated
+    region of code with them.
 
     All classes that generate RegionDirective statements (e.g. OpenMP,
     OpenACC, compiler-specific) inherit from this class.
@@ -85,7 +88,6 @@ class RegionDirective(Directive):
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "RegionDirective"
-    _colour = "green"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
@@ -155,9 +157,9 @@ class RegionDirective(Directive):
         :raises InternalError: if data_movement=="analyse" and this is an \
                                OpenMP directive.
         '''
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        from psyclone.psyir.nodes.acc_directives import ACCDirective
         from psyclone.psyGen import object_index
+        from psyclone.psyir.nodes.acc_directives import ACCDirective
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         valid_data_movement = ["present", "analyse"]
 
         # Ensure the fparser2 AST is up-to-date for all of our children
@@ -217,8 +219,8 @@ class RegionDirective(Directive):
                 self.ast_end = directive
                 self.dir_body.ast_end = directive
         except (IndexError, ValueError):
-            raise InternalError("Failed to find locations to insert "
-                                "begin/end directives.")
+            six.raise_from(InternalError("Failed to find locations to insert "
+                                         "begin/end directives."), error)
 
         text = "!$" + self._PREFIX + " " + start_text
 
@@ -268,22 +270,10 @@ class StandaloneDirective(Directive):
     All classes that generate StandaloneDirective statements
     (e.g. OpenMP, OpenACC, compiler-specific) inherit from this class.
 
-    :param ast: None.
-    :type ast: NoneType
-    :param children: None.
-    :type children: NoneType
-    :param parent: PSyIR node that is the parent of this Directive or None.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
-
     '''
     # Textual description of the node.
     _children_valid_format = None
     _text_name = "StandaloneDirective"
-    _colour = "green"
-
-    def __init__(self, ast=None, children=None, parent=None):
-        super(StandaloneDirective, self).__init__(ast, children=children,
-                                                  parent=parent)
 
     @staticmethod
     def _validate_child(position, child):

@@ -61,34 +61,21 @@ from psyclone.psyir.nodes.routine import Routine
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 
-class OMPDirective(RegionDirective):
+@six.add_metaclass(abc.ABCMeta)
+class OMPDirective():
     '''
-    Base class for all OpenMP-related directives
+    Base mixin class for all OpenMP-related directives.
 
     '''
     _PREFIX = "OMP"
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in a dag for this node
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_directive_" + str(position)
 
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
+@six.add_metaclass(abc.ABCMeta)
+class OMPRegionDirective(RegionDirective, OMPDirective):
+    '''
+    Base class for all OpenMP region-related directives.
 
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP]"
-
+    '''
     def _get_reductions_list(self, reduction_type):
         '''
         Returns the names of all scalars within this region that require a
@@ -113,34 +100,12 @@ class OMPDirective(RegionDirective):
         return result
 
 
-class OMPStandaloneDirective(StandaloneDirective):
+@six.add_metaclass(abc.ABCMeta)
+class OMPStandaloneDirective(StandaloneDirective, OMPDirective):
     '''
     Base class for all OpenMP-related standalone directives
 
     '''
-    _PREFIX = "OMP"
-    _children_valid_format = None
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in a dag for this node
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_standalone_directive_" + str(position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMPStandalone]"
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):
@@ -148,8 +113,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
 
     '''
-    _children_valid_format = None
-
     @property
     def dag_name(self):
         '''
@@ -224,7 +187,7 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class OMPSerialDirective(OMPDirective):
+class OMPSerialDirective(OMPRegionDirective):
     '''
     Abstract class representing OpenMP serial regions, e.g.
     OpenMP SINGLE or OpenMP Master.
@@ -442,7 +405,7 @@ class OMPMasterDirective(OMPSerialDirective):
         return "omp end master"
 
 
-class OMPParallelDirective(OMPDirective):
+class OMPParallelDirective(OMPRegionDirective):
 
     @property
     def dag_name(self):
@@ -658,8 +621,8 @@ class OMPParallelDirective(OMPDirective):
             OpenMP), it is likely that an absence of directives
             is an error on the part of the user. '''
         # We need to recurse down through all our children and check
-        # whether any of them are an OMPDirective.
-        node_list = self.walk(OMPDirective)
+        # whether any of them are an OMPRegionDirective.
+        node_list = self.walk(OMPRegionDirective)
         if not node_list:
             # TODO raise a warning here so that the user can decide
             # whether or not this is OK.
@@ -681,7 +644,7 @@ class OMPParallelDirective(OMPDirective):
             end_text="end parallel")
 
 
-class OMPTaskloopDirective(OMPDirective):
+class OMPTaskloopDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP TASKLOOP directive in the PSyIR.
 
@@ -816,7 +779,7 @@ class OMPTaskloopDirective(OMPDirective):
         return "omp end taskloop"
 
 
-class OMPDoDirective(OMPDirective):
+class OMPDoDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
@@ -1086,7 +1049,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
 
 # For automatic API documentation generation
-__all__ = ["OMPDirective", "OMPParallelDirective", "OMPSingleDirective",
+__all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
            "OMPSerialDirective", "OMPTaskloopDirective",
-           "OMPTaskwaitDirective"]
+           "OMPTaskwaitDirective", "OMPDirective"]

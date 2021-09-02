@@ -1317,7 +1317,6 @@ class FortranWriter(LanguageWriter):
 
         '''
         result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
-
         for child in node.dir_body:
             result_list.append(self._visit(child))
 

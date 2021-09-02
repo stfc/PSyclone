@@ -457,31 +457,34 @@ class CWriter(LanguageWriter):
                "{0}}}\n".format(self._nindent, variable_name,
                                 start, stop, step, body)
 
-    def ompdirective_node(self, node):
-        '''This method is called when an OMPDirective instance is found in
+    def regiondirective_node(self, node):
+        '''This method is called when an REgionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
-        the statements in between as a string (depending on the language).
+        the statements in between as a string.
 
-        :param node: a Directive PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Directive`
+        :param node: a RegionDirective PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.RegionDirective`
 
         :returns: the C code as a string.
         :rtype: str
 
         '''
         # Note that {{ is replaced with a single { in the format call
-        result_list = ["#pragma {0}\n{{\n".format(node.begin_string())]
+        print(type(node))
+        result_list = ["{0}#pragma {1}\n{{\n".format(self._nindent,
+                                                     node.begin_string())]
         self._depth += 1
         for child in node.dir_body:
             result_list.append(self._visit(child))
         self._depth -= 1
-        result_list.append("}\n")
+        # Note that }} is replaced with a single } in the format call
+        result_list.append("{0}}}\n".format(self._nindent))
         return "".join(result_list)
 
-    def ompstandalonedirective_node(self, node):
-        '''This method is called when an OMPStandaloneDirective instance is
+    def standalonedirective_node(self, node):
+        '''This method is called when an StandaloneDirective instance is
         found in the PSyIR tree. It returns the opening and closing directives,
-        and the statements in between as a string (depending on the language).
+        and the statements in between as a string.
 
         :param node: a StandaloneDirective PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.StandaloneDirective`
@@ -491,6 +494,6 @@ class CWriter(LanguageWriter):
 
         '''
         # pylint: disable=no-self-use
-        # Note that {{ is replaced with a single { in the format call
-        result_list = ["#pragma {0}\n".format(node.begin_string())]
+        result_list = ["{0}#pragma {1}\n".format(self._nindent,
+                                                 node.begin_string())]
         return "".join(result_list)

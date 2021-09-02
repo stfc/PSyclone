@@ -35,6 +35,7 @@
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenACC Directive
@@ -54,31 +55,26 @@ from psyclone.psyir.symbols import DataSymbol
 from psyclone.core import AccessType, VariablesAccessInfo
 
 
-class ACCDirective(RegionDirective):
-    ''' Base class for all OpenACC directive statements. '''
+@six.add_metaclass(abc.ABCMeta)
+class ACCDirective():
+    ''' Base mixin class for all OpenACC directive statements. '''
     _PREFIX = "ACC"
 
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node.
 
-        :returns: Name of corresponding node in DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_directive_" + str(position)
-
+@six.add_metaclass(abc.ABCMeta)
+class ACCRegionDirective(RegionDirective, ACCDirective):
+    ''' Base class for all OpenACC region directive statements. '''
     def validate_global_constraints(self):
         '''
         Perform validation checks for any global constraints. This can only
         be done at code-generation time.
 
-        :raises GenerationError: if this ACCDirective encloses any form of \
-            PSyData node since calls to PSyData routines within OpenACC \
+        :raises GenerationError: if this ACCRegionDirective encloses any form \
+            of PSyData node since calls to PSyData routines within OpenACC \
             regions are not supported.
 
         '''
-        super(ACCDirective, self).validate_global_constraints()
+        super(ACCRegionDirective, self).validate_global_constraints()
 
         data_nodes = self.walk(PSyDataNode)
         if data_nodes:
@@ -90,27 +86,9 @@ class ACCDirective(RegionDirective):
                     type(self).__name__))
 
 
-class ACCStandaloneDirective(StandaloneDirective):
+@six.add_metaclass(abc.ABCMeta)
+class ACCStandaloneDirective(StandaloneDirective, ACCDirective):
     ''' Base class for all standalone OpenACC directive statements. '''
-    _PREFIX = "ACC"
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node.
-
-        :returns: Name of corresponding node in DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_standalone_directive_" + str(position)
-
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks for any global constraints. This can only
-        be done at code-generation time.
-
-        '''
-        super(ACCStandaloneDirective, self).validate_global_constraints()
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -268,7 +246,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         '''
 
 
-class ACCParallelDirective(ACCDirective):
+class ACCParallelDirective(ACCRegionDirective):
     '''
     Class representing the !$ACC PARALLEL directive of OpenACC
     in the PSyIR. By default it includes the 'DEFAULT(PRESENT)' clause which
@@ -438,7 +416,7 @@ class ACCParallelDirective(ACCDirective):
                          data_movement="present")
 
 
-class ACCLoopDirective(ACCDirective):
+class ACCLoopDirective(ACCRegionDirective):
     '''
     Class managing the creation of a '!$acc loop' OpenACC directive.
 
@@ -584,7 +562,7 @@ class ACCLoopDirective(ACCDirective):
         return ""
 
 
-class ACCKernelsDirective(ACCDirective):
+class ACCKernelsDirective(ACCRegionDirective):
     '''
     Class representing the !$ACC KERNELS directive in the PSyIR.
 
@@ -711,7 +689,7 @@ class ACCKernelsDirective(ACCDirective):
                          data_movement=data_movement)
 
 
-class ACCDataDirective(ACCDirective):
+class ACCDataDirective(ACCRegionDirective):
     '''
     Class representing the !$ACC DATA ... !$ACC END DATA directive
     in the PSyIR.
@@ -895,6 +873,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
 
 # For automatic API documentation generation
-__all__ = ["ACCDirective", "ACCEnterDataDirective", "ACCParallelDirective",
-           "ACCLoopDirective", "ACCKernelsDirective", "ACCDataDirective",
-           "ACCUpdateDirective", "ACCStandaloneDirective"]
+__all__ = ["ACCRegionDirective", "ACCEnterDataDirective",
+           "ACCParallelDirective", "ACCLoopDirective", "ACCKernelsDirective",
+           "ACCDataDirective", "ACCUpdateDirective", "ACCStandaloneDirective",
+           "ACCDirective"]

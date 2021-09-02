@@ -123,13 +123,13 @@ def test_acc_dag_names():
     assert schedule[1].dag_name == "ACC_parallel_2"
     # Base directive class
     name = super(ACCParallelDirective, schedule[1]).dag_name
-    assert name == "ACC_directive_2"
+    assert name == "region_directive_2"
     # Loop directive
     acclt.apply(schedule[1].dir_body[0])
     assert schedule[1].dir_body[0].dag_name == "ACC_loop_4"
     # Base standalone directive class
     name = super(ACCEnterDataDirective, schedule[0]).dag_name
-    assert name == "ACC_standalone_directive_1"
+    assert name == "standalone_directive_1"
 
 # Class ACCKernelsDirective start
 
