@@ -62,7 +62,7 @@ class ACCDirective():
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ACCRegionDirective(RegionDirective, ACCDirective):
+class ACCRegionDirective(ACCDirective, RegionDirective):
     ''' Base class for all OpenACC region directive statements. '''
     def validate_global_constraints(self):
         '''
@@ -87,7 +87,7 @@ class ACCRegionDirective(RegionDirective, ACCDirective):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ACCStandaloneDirective(StandaloneDirective, ACCDirective):
+class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
     ''' Base class for all standalone OpenACC directive statements. '''
 
 

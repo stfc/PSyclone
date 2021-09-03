@@ -71,7 +71,7 @@ class OMPDirective():
 
 
 @six.add_metaclass(abc.ABCMeta)
-class OMPRegionDirective(RegionDirective, OMPDirective):
+class OMPRegionDirective(OMPDirective, RegionDirective):
     '''
     Base class for all OpenMP region-related directives.
 
@@ -101,7 +101,7 @@ class OMPRegionDirective(RegionDirective, OMPDirective):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class OMPStandaloneDirective(StandaloneDirective, OMPDirective):
+class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
     '''
     Base class for all OpenMP-related standalone directives
 
