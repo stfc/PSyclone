@@ -1,7 +1,6 @@
-# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +30,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''PSyAD, the PSyclone adjoint generation module.'''
+'''PSyAD transformations package module'''
 
-from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint
-from psyclone.psyad.main import main
+from psyclone.psyad.transformations.tangent_linear_error import \
+    TangentLinearError
+from psyclone.psyad.transformations.assignment_trans import AssignmentTrans

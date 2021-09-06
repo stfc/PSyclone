@@ -1,7 +1,6 @@
-# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +30,21 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+#
+'''Module to test the PSyAD TangentLinearError class.'''
 
-'''PSyAD, the PSyclone adjoint generation module.'''
+import pytest
 
-from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint
-from psyclone.psyad.main import main
+from psyclone.psyad.transformations import TangentLinearError
+
+
+def test_error():
+    '''Test that the TangentLinearError exception behaves in the expected
+    way.
+
+    '''
+    message = "It's all gone a bit Pete Tong."
+    with pytest.raises(TangentLinearError) as info:
+        raise TangentLinearError(message)
+    assert str(info.value) == "TangentLinearError: "+message
