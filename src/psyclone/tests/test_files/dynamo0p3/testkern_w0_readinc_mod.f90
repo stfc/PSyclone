@@ -28,7 +28,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
 
 module testkern_w0_readinc_mod
 
@@ -40,9 +40,9 @@ module testkern_w0_readinc_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_w0_readinc_type
-     type(arg_type), dimension(2) :: meta_args =              &
-          (/ arg_type(gh_field, gh_real, gh_readinc,  w0),    &
-             arg_type(gh_field, gh_real, gh_read, w0)         &
+     type(arg_type), dimension(2) :: meta_args =           &
+          (/ arg_type(gh_field, gh_real, gh_readinc,  w0), &
+             arg_type(gh_field, gh_real, gh_read, w0)      &
            /)
      integer :: operates_on = cell_column
    contains
