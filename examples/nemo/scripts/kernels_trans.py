@@ -96,6 +96,7 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
 # the PGI compiler or because it just isn't worth it)
 ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
               "day_mth",  # Just calendar operations
+              "obs_surf_alloc",
               "oce_alloc",
               "trc_bc_ini",  # Str manipulation and is only an init routine
               "trc_ini_age",  # Triggers "missing branch target block"
@@ -110,11 +111,14 @@ ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
 # We therefore work-around this by keeping a list of known NEMO
 # functions that must be excluded from within KERNELS regions.
 NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
+                      "cp_air",
                       "eos_pt_from_ct",
-                      "ice_var_sshdyn",
+                      "gamma_moist",
+                      "ice_var_sshdyn", "l_vap",
                       "sbc_dcy", "solfrac", "One_on_L",
                       "psi_h", "psi_m", "psi_m_coare",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
+                      "q_sat", "rho_air",
                       "Ri_bulk", "visc_air", "sbc_dcy", "glob_sum",
                       "glob_sum_full", "ptr_sj", "ptr_sjk",
                       "interp1", "interp2", "interp3", "integ_spline"])
@@ -393,10 +397,6 @@ def valid_acc_kernel(node):
             log_msg(routine_name,
                     "Loop contains function call: {0}".format(ref.name), ref)
             return False
-        if isinstance(ref, NemoLoop):
-            if contains_unsupported_sum(ref.ast):
-                log_msg(routine_name, "Loop contains unsupport SUM", ref)
-                return False
     return True
 
 
