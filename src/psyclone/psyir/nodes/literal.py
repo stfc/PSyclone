@@ -147,6 +147,8 @@ class Literal(DataNode):
 
         :return: if the self has the same results as other.
         :type: bool
-        '''
 
+        '''
+        if not isinstance(other, Literal):
+            return False
         return self.value == other.value

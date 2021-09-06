@@ -50,7 +50,7 @@ def test_abstract():
     with pytest.raises(TypeError) as info:
         _ = AdjointTransformation([])
     assert ("Can't instantiate abstract class AdjointTransformation with "
-            "abstract methods apply, name" in str(info.value))
+            "abstract methods apply" in str(info.value))
 
 
 def test_args():

@@ -45,10 +45,14 @@ from psyclone.domain.nemo.transformations.create_nemo_loop_trans \
     import CreateNemoLoopTrans
 from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
     import CreateNemoPSyTrans
-from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
-    import NemoAllArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_arrayaccess2loop_trans \
+    import NemoArrayAccess2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
     import NemoArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_allarrayaccess2loop_trans \
+    import NemoAllArrayAccess2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
+    import NemoAllArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_loop_fuse \
     import NemoLoopFuseTrans
 from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
@@ -65,4 +69,6 @@ __all__ = ['CreateNemoInvokeScheduleTrans',
            'NemoAllArrayRange2LoopTrans',
            'NemoArrayRange2LoopTrans',
            'NemoLoopFuseTrans',
-           'NemoOuterArrayRange2LoopTrans']
+           'NemoOuterArrayRange2LoopTrans',
+           'NemoArrayAccess2LoopTrans',
+           'NemoAllArrayAccess2LoopTrans']
