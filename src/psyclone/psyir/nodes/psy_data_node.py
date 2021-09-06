@@ -50,7 +50,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
-                                    ContainerSymbol, DeferredType,
+                                    ContainerSymbol, DeferredType, Symbol,
                                     UnknownFortranType, GlobalInterface)
 
 
@@ -272,7 +272,8 @@ class PSyDataNode(Statement):
             "type({0}), save, target :: {1}".format(data_node.type_name,
                                                     data_node._var_name))
         symbol_table.new_symbol(data_node._var_name, symbol_type=DataSymbol,
-                                datatype=psydata_type)
+                                datatype=psydata_type,
+                                visibility=Symbol.Visibility.PRIVATE)
         return data_node
 
     @staticmethod
