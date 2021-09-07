@@ -46,7 +46,7 @@ from psyclone.psyGen import Transformation, PSyFactory
 from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.nemo.transformations import NemoOuterArrayRange2LoopTrans
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_invoke, Compile
 
 # Constants
 API = "nemo"
@@ -61,7 +61,7 @@ def test_transform():
     assert isinstance(NemoOuterArrayRange2LoopTrans(), Transformation)
 
 
-def test_transform_apply_mixed_implicit_do():
+def test_transform_apply_mixed_implicit_do(tmpdir):
     '''Check that the PSyIR is transformed as expected for a lat,lon,levs
     loop with some of its indices accessed using array notation and
     some using explicit loops.  The resultant Fortran code is used to
@@ -95,6 +95,7 @@ def test_transform_apply_mixed_implicit_do():
         "    enddo\n"
         "  enddo")
     assert expected in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_apply_calls_validate():

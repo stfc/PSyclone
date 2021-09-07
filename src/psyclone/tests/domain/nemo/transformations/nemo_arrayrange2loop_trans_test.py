@@ -50,7 +50,7 @@ from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
     import get_outer_index
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.nemo import NemoKern, NemoLoop
 from psyclone.psyir.nodes import Schedule
 from psyclone.errors import InternalError
@@ -72,7 +72,7 @@ def test_transform():
     assert isinstance(NemoArrayRange2LoopTrans(), Transformation)
 
 
-def test_apply_bounds():
+def test_apply_bounds(tmpdir):
     '''Check that the apply method uses a) configuration bounds if they
     are provided or b) lbound and ubound intrinsics when no bounds
     information is available. Also check that a NemoKern is added
@@ -109,9 +109,10 @@ def test_apply_bounds():
         "      enddo\n"
         "    enddo\n"
         "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_fixed_bounds():
+def test_apply_fixed_bounds(tmpdir):
     '''Check that the apply method uses bounds information from the range
     node if it is supplied.
 
@@ -134,9 +135,10 @@ def test_apply_fixed_bounds():
         "      enddo\n"
         "    enddo\n"
         "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_reference_literal():
+def test_apply_reference_literal(tmpdir):
     '''Check that the apply method add bounds appropriately when the
     config file specifies a lower bound as a reference and an upper
     bound as a literal.
@@ -171,9 +173,10 @@ def test_apply_reference_literal():
         "      enddo\n"
         "    enddo\n"
         "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_different_dims():
+def test_apply_different_dims(tmpdir):
     '''Check that the apply method adds loop iterators appropriately when
     the range dimensions differ in different arrays.
 
@@ -196,9 +199,10 @@ def test_apply_different_dims():
         "      enddo\n"
         "    enddo\n"
         "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_var_name():
+def test_apply_var_name(tmpdir):
     '''Check that the variable name that is used when no names are
     specified in the config file does not clash with an existing symbol.
 
@@ -218,9 +222,10 @@ def test_apply_var_name():
         "  do idx_1 = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
         "    umask(:,:,:,:,idx_1) = vmask(:,:,:,:,idx_1) + 1.0\n"
         "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_existing_names():
+def test_apply_existing_names(tmpdir):
     '''Check that the apply method uses existing iterators appropriately
     when their symbols are already defined.
 
@@ -249,6 +254,7 @@ def test_apply_existing_names():
         "      enddo\n"
         "    enddo\n"
         "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_apply_different_num_dims():
