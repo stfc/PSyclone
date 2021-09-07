@@ -173,8 +173,6 @@ class NemoPSy(PSy):
             raise InternalError("Found no names in supplied Fortran - should "
                                 "be impossible!")
         self._name = str(names[0]) + "_psy"
-        # TODO #435 remove this reference to the parse tree
-        self._ast = ast
         self._invokes = NemoInvokes(ast, self)
         self._container = None
         if self._invokes.invoke_list:

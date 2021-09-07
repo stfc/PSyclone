@@ -141,8 +141,8 @@ class CreateNemoLoopTrans(Transformation):
         new_loop = NemoLoop.create(loop.variable,
                                    nodes[0], nodes[1], nodes[2],
                                    nodes[3].pop_all_children())
-        # TODO the NemoLoop.create() interface needs extending to accept a
-        # SymbolTable.
+        # TODO #1377 the NemoLoop.create() interface needs extending to accept
+        # a SymbolTable.
         new_loop.loop_body._symbol_table = table
         new_loop.loop_body._symbol_table._node = new_loop.loop_body
         loop.replace_with(new_loop)
