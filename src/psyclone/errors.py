@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,9 +57,10 @@ class LazyString:
 
 class PSycloneError(Exception):
     ''' Provides a PSyclone specific error class as a generic parent class for
-    all Pysclone exceptions.
+    all PSyclone exceptions.
 
     :param str value: the message associated with the error.
+
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
