@@ -142,8 +142,8 @@ class NemoInvokes(Invokes):
         # Transform the language-level PSyIR into NEMO-specific PSyIR
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
-        self._container, _ = CreateNemoPSyTrans().apply(psyir)
-        routines = self._container.walk(Routine)
+        container, _ = CreateNemoPSyTrans().apply(psyir)
+        routines = container.walk(Routine)
 
         # Create an Invoke for each routine we've found
         for subroutine in routines:
@@ -151,11 +151,6 @@ class NemoInvokes(Invokes):
             my_invoke = NemoInvoke(subroutine, subroutine.name, self)
             self.invoke_map[subroutine.name] = my_invoke
             self.invoke_list.append(my_invoke)
-
-    @property
-    def container(self):
-        # TODO move this to base class?
-        return self._container
 
 
 class NemoPSy(PSy):
@@ -178,11 +173,12 @@ class NemoPSy(PSy):
             raise InternalError("Found no names in supplied Fortran - should "
                                 "be impossible!")
         self._name = str(names[0]) + "_psy"
-        # TODO this is now done in the NemoInvokes class
-        self._container = None
         # TODO #435 remove this reference to the parse tree
         self._ast = ast
         self._invokes = NemoInvokes(ast, self)
+        self._container = None
+        if self._invokes.invoke_list:
+            self._container = self._invokes.invoke_list[0].schedule.root
 
     def inline(self, _):
         '''
@@ -206,8 +202,8 @@ class NemoPSy(PSy):
         from psyclone.psyir.backend.fortran import FortranWriter
         fwriter = FortranWriter()
         # Ensure any domain-specific concepts are lowered
-        self._invokes.container.lower_to_language_level()
-        return fwriter(self._invokes.container)
+        self._container.lower_to_language_level()
+        return fwriter(self._container)
 
 
 class NemoInvokeSchedule(InvokeSchedule):

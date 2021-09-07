@@ -2961,7 +2961,7 @@ def test_named_and_wildcard_use_var(f2008_parser):
     # We should have an entry for "a_var" in the Container symbol table
     # due to the access in "test_sub1". The Container is the first child
     # of the FileContainer node.
-    container = psy.invokes.container.children[0]
+    container = psy.container.children[0]
     avar1 = container.symbol_table.lookup("a_var")
     # It must be a generic Symbol since we don't know anything about it
     # pylint: disable=unidiomatic-typecheck
