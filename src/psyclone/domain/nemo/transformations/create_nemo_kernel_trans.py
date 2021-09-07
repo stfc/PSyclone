@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified by S. Siso and R. W. Ford, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Schedule into a
@@ -40,10 +40,10 @@ NEMO Kernel.
 '''
 
 from psyclone.errors import LazyString
-from psyclone.transformations import Transformation, TransformationError
-from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment
+from psyclone.transformations import Transformation, TransformationError
 
 
 class CreateNemoKernelTrans(Transformation):

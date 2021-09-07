@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''This module provides the TransformationError class.
 '''
@@ -45,7 +45,8 @@ class TransformationError(PSycloneError):
 
     def __init__(self, value):
         PSycloneError.__init__(self, value)
-        self.value = LazyString(lambda: "Transformation Error: {0}".format(value))
+        self.value = LazyString(
+            lambda: "Transformation Error: {0}".format(value))
 
 
 # TODO #1280: This currently causes 'more than one target for cross-reference'

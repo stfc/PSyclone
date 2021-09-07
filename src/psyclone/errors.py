@@ -45,14 +45,29 @@ class LazyString:
     for exceptions, where the string will typically not need to be
     computed unless the program is about to stop.
 
-    :param func: a function that computes a string.
-    :type func: xxx
+    :param function func: a function that computes a string.
+
+    :raises TypeError: if the the func argument is not a function.
 
     '''
     def __init__(self, func):
-        self.func = func
+        if not hasattr(func, '__call__'):
+            raise TypeError(
+                "The func argument for the LazyString class should be a "
+                "function, but found '{0}'.".format(type(func).__name__))
+        self._func = func
+
     def __str__(self):
-        return self.func()
+        '''
+        :raises TypeError: if the the function stored in self._func does \
+            not return a string.
+        '''
+        result = self._func()
+        if not isinstance(result, str):
+            raise TypeError(
+                "The function supplied to the LazyString class should return "
+                "a string, but found '{0}'.".format(type(result).__name__))
+        return result
 
 
 class PSycloneError(Exception):
