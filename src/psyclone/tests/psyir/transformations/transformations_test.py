@@ -161,6 +161,10 @@ def test_omptaskloop_getters_and_setters():
            "be specified for this Taskloop transformation"
            in str(err.value))
 
+    with pytest.raises(TypeError) as err:
+        trans = OMPTaskloopTrans(nogroup=32)
+    assert "Expected nogroup to be a bool but got a int" in str(err.value)
+
 
 def test_ifblock_children_region():
     ''' Check that we reject attempts to transform the conditional part of

@@ -25,3 +25,7 @@ disable=print-statement,suppressed-message,duplicate-code,no-self-use,too-many-l
 function-rgx=[a-z_][a-z0-9_]{2,80}$
 
 generated-members=lfric_psyir
+
+[DESIGN]
+# This is set to support language-specific directives
+max-parents=9  

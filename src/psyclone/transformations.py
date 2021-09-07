@@ -325,6 +325,9 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     :type grainsize: int or None
     :param num_tasks: the num_tasks to use for this transformation.
     :type num_tasks: int or None
+    :param nogroup: Whether of not to use a nogroup clause for this
+                    transformation. Default is True.
+    :type nogroup: bool
 
     For example:
 
@@ -361,16 +364,46 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> schedule.view()
 
     '''
-    def __init__(self, grainsize=None, num_tasks=None):
+    def __init__(self, grainsize=None, num_tasks=None, nogroup=True):
         self._grainsize = None
         self._num_tasks = None
         self.omp_grainsize = grainsize
         self.omp_num_tasks = num_tasks
-
+        self.omp_nogroup = nogroup
         super(OMPTaskloopTrans, self).__init__()
 
     def __str__(self):
         return "Adds an 'OpenMP TASKLOOP' directive to a loop"
+
+    @property
+    def omp_nogroup(self):
+        '''
+        Returns whether the nogroup clause should be specified for
+        this transformation. By default the nogroup clause is applied.
+
+        :returns: Whether the nogroup clause should be specified by
+                  this transformation.
+        :rtype: bool
+        '''
+        return self._nogroup
+
+    @omp_nogroup.setter
+    def omp_nogroup(self, nogroup):
+        '''
+        Sets whether the nogroup clause should be specified for this
+        transformation.
+
+        :param nogroup: bool value to set whether the nogroup clause
+                        should be used for this transformation.
+        :type value: bool
+
+        raises TypeError: if the nogroup parameter is not a bool.
+        '''
+        print(type(nogroup))
+        if not isinstance(nogroup, bool):
+            raise TypeError("Expected nogroup to be a bool "
+                            "but got a {0}".format(type(nogroup).__name__))
+        self._nogroup = nogroup
 
     @property
     def omp_grainsize(self):
@@ -477,7 +510,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                 "'!$omp taskloop' directives.")
         _directive = OMPTaskloopDirective(children=children,
                                           grainsize=self.omp_grainsize,
-                                          num_tasks=self.omp_num_tasks)
+                                          num_tasks=self.omp_num_tasks,
+                                          nogroup=self.omp_nogroup)
         return _directive
 
 
