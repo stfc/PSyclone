@@ -355,6 +355,16 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
         fortran_writer.gen_typedecl(tsymbol)
     assert ("cannot generate code for symbol 'my_type' of type "
             "'UnknownType'" in str(err.value))
+    # Symbol with an invalid visibility
+    dtype = StructureType.create([
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE)])
+    tsymbol = DataTypeSymbol("my_type", dtype)
+    tsymbol._visibility = "wrong"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_typedecl(tsymbol, include_visibility=True)
+    assert ("visibility must be one of Symbol.Visibility.PRIVATE/PUBLIC but "
+            "'my_type' has visibility of type 'str'" in str(err.value))
 
 
 def test_gen_typedecl_unknown_fortran_type(fortran_writer):

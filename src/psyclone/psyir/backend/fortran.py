@@ -628,7 +628,9 @@ class FortranWriter(LanguageWriter):
 
         :raises VisitorError: if the supplied symbol is not a DataTypeSymbol.
         :raises VisitorError: if the datatype of the symbol is of UnknownType \
-                              but is not of UnknownFortranType.
+            but is not of UnknownFortranType.
+        :raises InternalError: if include_visibility is True and the \
+            visibility of the symbol is not of the correct type.
 
         '''
         if not isinstance(symbol, DataTypeSymbol):
@@ -652,11 +654,17 @@ class FortranWriter(LanguageWriter):
                                     type(symbol.datatype).__name__))
 
         result = "{0}type".format(self._nindent)
+
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
                 result += ", private"
-            else:
+            elif symbol.visibility == Symbol.Visibility.PUBLIC:
                 result += ", public"
+            else:
+                raise InternalError(
+                    "A Symbol's visibility must be one of Symbol.Visibility."
+                    "PRIVATE/PUBLIC but '{0}' has visibility of type '{1}'".
+                    format(symbol.name, type(symbol.visibility).__name__))
         result += " :: {0}\n".format(symbol.name)
 
         self._depth += 1
