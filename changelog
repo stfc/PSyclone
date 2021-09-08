@@ -170,6 +170,9 @@
 	58) PR #1376 for #1374. Create intermediate RegionDirective and
 	StandaloneDirective PSyIR node classes.
 
+	59) PR #1380 for #1375. Add the LazyString utility to prevent generating
+	costly error messages when these are not used.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
