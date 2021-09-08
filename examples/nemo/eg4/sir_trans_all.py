@@ -119,9 +119,8 @@ def trans(psy):
                     # Apply (2-n arg) MIN transformation
                     min_trans.apply(oper, symbol_table)
 
-        # Remove any loop invariant code inside k-loops to make them
-        # perfectly nested.
-        # TODO: generalise this.
+        # Remove any loop invariant assignments inside k-loops to make
+        # them perfectly nested.
         for loop in schedule.loops():
             # outermost only
             if loop.loop_type == "levels":
