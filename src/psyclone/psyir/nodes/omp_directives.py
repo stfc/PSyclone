@@ -1059,4 +1059,4 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
            "OMPSerialDirective", "OMPTaskloopDirective",
-           "OMPTaskwaitDirective", "OMPDirective"]
+           "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective"]
