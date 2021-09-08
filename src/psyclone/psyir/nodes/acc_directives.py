@@ -45,6 +45,7 @@ import abc
 import six
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import Directive
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
@@ -79,11 +80,11 @@ class ACCDirective(Directive):
         '''
         super(ACCDirective, self).validate_global_constraints()
 
-        data_nodes = self.walk(PSyDataNode)
+        data_nodes = self.walk((PSyDataNode, CodeBlock))
         if data_nodes:
             raise GenerationError(
-                "Cannot include calls to PSyData routines within OpenACC "
-                "regions but found {0} within a region enclosed "
+                "Cannot include CodeBlocks or calls to PSyData routines within"
+                " OpenACC regions but found {0} within a region enclosed "
                 "by an '{1}'".format(
                     [type(node).__name__ for node in data_nodes],
                     type(self).__name__))
@@ -738,7 +739,6 @@ class ACCDataDirective(ACCDirective):
         '''
         Updates the fparser2 AST by inserting nodes for this OpenACC Data
         directive.
-
         '''
         self.validate_global_constraints()
         self._add_region(start_text="DATA", end_text="END DATA",
@@ -758,19 +758,6 @@ class ACCDataDirective(ACCDirective):
         '''
         result = "acc data"
 
-        struct_accesses = self.walk(StructureReference)
-        if struct_accesses:
-            # TODO #1028. Dependence analysis does not yet work for structure
-            # references.
-            # Have to import here to avoid circular dependency
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.backend.fortran import FortranWriter
-            fwriter = FortranWriter()
-            ref_list = [fwriter(ref) for ref in struct_accesses]
-            raise NotImplementedError(
-                "Structure (derived-type) references are not yet supported "
-                "within OpenACC data regions but found: {0}".format(ref_list))
-
         # Identify the inputs and outputs to the region (variables that
         # are read and written).
         var_accesses = VariablesAccessInfo(self)
@@ -778,10 +765,9 @@ class ACCDataDirective(ACCDirective):
         readers = set()
         writers = set()
         for signature in var_accesses.all_signatures:
-            var = str(signature)
-            sym = table.lookup(var)
+            sym = table.lookup(signature.var_name)
             accesses = var_accesses[signature]
-            if not sym.is_array:
+            if not (signature.is_structure or sym.is_array):
                 # We ignore scalars
                 continue
             if accesses.is_read():
@@ -801,16 +787,56 @@ class ACCDataDirective(ACCDirective):
         writers_list = sorted(list(writers - readwrites))
         readwrites_list = sorted(list(readwrites))
         if readers_list:
-            str_readers = [str(sig) for sig in readers_list]
-            result += " copyin({0})".format(",".join(str_readers))
+            result += " copyin({0})".format(
+                ",".join(self._create_access_list(readers_list, var_accesses)))
         if writers_list:
-            str_writers = [str(sig) for sig in writers_list]
-            result += " copyout({0})".format(",".join(str_writers))
+            result += " copyout({0})".format(
+                ",".join(self._create_access_list(writers_list, var_accesses)))
         if readwrites_list:
-            str_readwrites = [str(sig) for sig in readwrites_list]
-            result += " copy({0})".format(",".join(str_readwrites))
+            result += " copy({0})".format(",".join(
+                self._create_access_list(readwrites_list, var_accesses)))
 
         return result
+
+    def _create_access_list(self, signatures, var_accesses):
+        '''
+        Constructs a list of variables for inclusion in a data-access clause.
+
+        :param signatures: the list of Signatures for which to create entries \
+            in the list.
+        :type signatures: list of :py:class:`psyclone.core.Signature`
+        :param var_accesses: object holding details on all variable accesses \
+            in the region to which the data-access clause applies.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        :returns: list of variable accesses.
+        :rtype: list of str
+
+        '''
+        access_list = []
+        for sig in signatures:
+            if sig.is_structure:
+                # We have to do a 'deep copy' of any structure access. This
+                # means that if we have an access `a%b%c(i)` then we need to
+                # copy `a`, `a%b` and then `a%b%c`.
+                # Look up a PSyIR node that corresponds to this access.
+                current = var_accesses[sig].all_accesses[0].node
+                part_list = [current.name]
+                if current.name not in access_list:
+                    access_list.append(current.name)
+                while hasattr(current, "member"):
+                    current = current.member
+                    # Currently this is hardwired to generate Fortran (i.e. we
+                    # use '%' when accessing a component of a structure).
+                    # TODO XXXX
+                    ref_string = "%".join(part_list[:]+[current.name])
+                    if ref_string not in access_list:
+                        access_list.append(ref_string)
+            else:
+                ref_string = str(sig)
+                if ref_string not in access_list:
+                    access_list.append(ref_string)
+        return access_list
 
     def end_string(self):
         '''
