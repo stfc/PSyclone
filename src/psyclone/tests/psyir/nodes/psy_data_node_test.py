@@ -45,7 +45,7 @@ from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
-from psyclone.psyir.symbols import ContainerSymbol, GlobalInterface, \
+from psyclone.psyir.symbols import ContainerSymbol, ImportInterface, \
     SymbolTable
 from psyclone.tests.utilities import get_invoke
 
@@ -212,7 +212,7 @@ def test_psy_data_node_incorrect_container():
     csym = schedule.symbol_table.new_symbol("some_mod",
                                             symbol_type=ContainerSymbol)
     schedule.symbol_table.new_symbol("PSyDataType",
-                                     interface=GlobalInterface(csym))
+                                     interface=ImportInterface(csym))
     data_trans = PSyDataTrans()
     with pytest.raises(TransformationError) as err:
         data_trans.apply(schedule[0].loop_body)

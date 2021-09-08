@@ -421,7 +421,7 @@ class FortranWriter(LanguageWriter):
 
         # Construct the list of symbol names for the ONLY clause
         only_list = [dsym.name for dsym in
-                     symbol_table.imported_symbols(symbol)]
+                     symbol_table.symbols_imported_from(symbol)]
 
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
@@ -680,7 +680,7 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol \
-            which does not have a GlobalInterface or LocalInterface as this \
+            which does not have an ImportInterface or LocalInterface as this \
             is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
             argument declarations exist in symbol_table.
@@ -706,8 +706,8 @@ class FortranWriter(LanguageWriter):
                     wildcard_imports_checked = True
                 if not has_wildcard_import:
                     raise VisitorError(
-                        "Routine symbol '{0}' does not have a GlobalInterface "
-                        "or LocalInterface, is not a Fortran intrinsic and "
+                        "Routine symbol '{0}' does not have an ImportInterface"
+                        " or LocalInterface, is not a Fortran intrinsic and "
                         "there is no wildcard import which could bring it into"
                         " scope. This is not supported by the Fortran "
                         "back-end.".format(sym.name))

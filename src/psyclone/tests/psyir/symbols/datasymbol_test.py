@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
     BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, DataTypeSymbol
@@ -121,8 +121,8 @@ def test_datasymbol_can_be_printed():
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
-                      interface=GlobalInterface(my_mod))
-    assert ("s3: <Scalar<REAL, SINGLE>, Global(container='my_mod')>"
+                      interface=ImportInterface(my_mod))
+    assert ("s3: <Scalar<REAL, SINGLE>, Import(container='my_mod')>"
             in str(sym3))
 
     sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, constant_value=12)
@@ -353,7 +353,7 @@ def test_datasymbol_resolve_deferred(monkeypatch):
     module = ContainerSymbol("dummy_module")
     symbolb = DataSymbol('b', visibility=Symbol.Visibility.PRIVATE,
                          datatype=DeferredType(),
-                         interface=GlobalInterface(module))
+                         interface=ImportInterface(module))
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
     monkeypatch.setattr(symbolb, "get_external_symbol",
@@ -362,7 +362,7 @@ def test_datasymbol_resolve_deferred(monkeypatch):
     assert new_sym is symbolb
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
-    assert isinstance(new_sym.interface, GlobalInterface)
+    assert isinstance(new_sym.interface, ImportInterface)
 
 
 def test_datasymbol_shape():
