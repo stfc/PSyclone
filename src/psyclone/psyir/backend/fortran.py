@@ -519,7 +519,7 @@ class FortranWriter(LanguageWriter):
             an argument declaration).
         :raises VisitorError: if the symbol or member is an array with a \
             shape containing a mixture of DEFERRED and other extents.
-        :raises VisitorError: if visibility is to be included but is not \
+        :raises InternalError: if visibility is to be included but is not \
             either PUBLIC or PRIVATE.
 
         '''
@@ -605,7 +605,7 @@ class FortranWriter(LanguageWriter):
             elif symbol.visibility == Symbol.Visibility.PUBLIC:
                 result += ", public"
             else:
-                raise VisitorError(
+                raise InternalError(
                     "A Symbol must be either public or private but symbol "
                     "'{0}' has visibility '{1}'".format(symbol.name,
                                                         symbol.visibility))
@@ -683,6 +683,8 @@ class FortranWriter(LanguageWriter):
         :returns: text containing the access statement line.
         :rtype: str
 
+        :raises InternalError: if the symbol table has an invalid default \
+                               visibility.
         '''
         # If no default visibility has been set then we use the Fortran
         # default of public.

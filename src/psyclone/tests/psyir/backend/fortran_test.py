@@ -360,12 +360,15 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
 def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     ''' Check that gen_typedecl() works for a symbol of UnknownFortranType. '''
     tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
-        "type :: my_type\nend type my_type"))
+        "type :: my_type\nend type my_type"),
+                             visibility=Symbol.Visibility.PUBLIC)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type, public :: my_type\nend type my_type\n")
     tsymbol.visibility = Symbol.Visibility.PRIVATE
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type, private :: my_type\nend type my_type\n")
+    assert (fortran_writer.gen_typedecl(tsymbol, include_visibility=False) ==
+            "type :: my_type\nend type my_type\n")
 
 
 def test_gen_typedecl_unknown_fortran_type_missing_colons(fortran_writer):
@@ -655,6 +658,44 @@ def test_fw_gen_vardecl(fortran_writer):
     assert ("assumed-size Fortran array must only have its last dimension "
             "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: "
             "['2', ':', ':']." in str(excinfo.value))
+
+
+def test_fw_gen_vardecl_visibility(fortran_writer):
+    ''' Test the include_visibility argument to gen_vardecl(). '''
+    # Simple constant
+    symbol = DataSymbol("dummy3", INTEGER_TYPE,
+                        visibility=Symbol.Visibility.PUBLIC, constant_value=10)
+    # Expect include_visibility to default to False
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == "integer, parameter :: dummy3 = 10\n"
+    result = fortran_writer.gen_vardecl(symbol, include_visibility=False)
+    assert result == "integer, parameter :: dummy3 = 10\n"
+    result = fortran_writer.gen_vardecl(symbol, include_visibility=True)
+    assert result == "integer, parameter, public :: dummy3 = 10\n"
+
+    # Known type but invalid visibility
+    symbol._visibility = "wrong"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_vardecl(symbol, include_visibility=True)
+    assert ("A Symbol must be either public or private but symbol 'dummy3' "
+            "has visibility 'wrong'" in str(err.value))
+
+    # A symbol of unknown Fortran type
+    symbol = DataSymbol("var", UnknownFortranType("type :: var\n"
+                                                  "  integer, private :: id\n"
+                                                  "  integer, public :: flag\n"
+                                                  "end type var"),
+                        visibility=Symbol.Visibility.PRIVATE)
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == ("type :: var\n"
+                      "  integer, private :: id\n"
+                      "  integer, public :: flag\n"
+                      "end type var\n")
+    result = fortran_writer.gen_vardecl(symbol, include_visibility=True)
+    assert result == ("type, private :: var\n"
+                      "  integer, private :: id\n"
+                      "  integer, public :: flag\n"
+                      "end type var\n")
 
 
 def test_gen_decls(fortran_writer):
