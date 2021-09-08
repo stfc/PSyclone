@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,25 +31,23 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford and S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''This module provides the TransformationError class.
-'''
+'''pytest tests for the transformation_errors module.'''
 
-from psyclone.errors import PSycloneError, LazyString
+from __future__ import absolute_import
 
-
-class TransformationError(PSycloneError):
-    ''' Provides a PSyclone-specific error class for errors found during
-        code transformation operations. '''
-
-    def __init__(self, value):
-        PSycloneError.__init__(self, value)
-        self.value = LazyString(
-            lambda: "Transformation Error: {0}".format(value))
+from psyclone.errors import LazyString
+from psyclone.psyir.transformations import TransformationError
 
 
-# TODO #1280: This currently causes 'more than one target for cross-reference'
-#             warnings when building the reference guide.
-# For AutoAPI documentation generation
-# __all__ = ["TransformationError"]
+# TransformationError class
+
+def test_transformationerror():
+    '''Test that the TransformationError class behaves as expected.'''
+    error = TransformationError("hello")
+    assert isinstance(error, TransformationError)
+    assert isinstance(error.value, LazyString)
+    assert repr(error) == "TransformationError()"
+    assert str(error) == "Transformation Error: hello"
