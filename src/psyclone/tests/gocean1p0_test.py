@@ -55,7 +55,7 @@ from psyclone.gocean1p0 import GOKern, GOLoop, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
-    ContainerSymbol, DataSymbol, GlobalInterface, ScalarType, INTEGER_TYPE, \
+    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, INTEGER_TYPE, \
     ArgumentInterface, DataTypeSymbol
 from psyclone.psyir.nodes import Node, StructureReference, Member, \
     StructureMember, Reference, Literal
@@ -395,7 +395,7 @@ def test_scalar_float_arg_from_module():
     my_mod = ContainerSymbol("my_mod")
     symtab = schedule.symbol_table
     symtab.add(my_mod)
-    symtab.lookup("a_scalar").interface = GlobalInterface(my_mod)
+    symtab.lookup("a_scalar").interface = ImportInterface(my_mod)
     symtab.specify_argument_list([schedule.symbol_table.lookup("ssh_fld")])
 
     # Generate the code. 'a_scalar' should now come from a module instead of a

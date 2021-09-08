@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''PSyAD, the PSyclone adjoint generation module.'''
+'''This module provides the TangentLinearError class.
+'''
 
-from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint
-from psyclone.psyad.main import main
+from psyclone.errors import PSycloneError
+
+# Disable Python3-specific way of calling parent as support is still
+# required for Python2.
+# pylint: disable=super-with-arguments
+
+
+class TangentLinearError(PSycloneError):
+    '''Provides a PSyclone-specific error class for code that does not
+    conform to the constraints required to be valid tangent linear
+    code.
+
+    :param str value: the message associated with the error.
+
+    '''
+    def __init__(self, value):
+
+        super(TangentLinearError, self).__init__(value)
+        self.value = "TangentLinearError: "+str(value)
+
+    def __str__(self):
+        return self.value

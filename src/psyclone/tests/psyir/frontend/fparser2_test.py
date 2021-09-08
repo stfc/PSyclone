@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
     REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
-    GlobalInterface, BOOLEAN_TYPE)
+    ImportInterface, BOOLEAN_TYPE)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -1487,7 +1487,7 @@ def test_parse_array_dimensions_attributes():
     reader = FortranStringReader("dimension(var3)")
     fparser2spec = Dimension_Attr_Spec(reader)
     csym = sym_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
-    vsym = sym_table.new_symbol("var3", interface=GlobalInterface(csym))
+    vsym = sym_table.new_symbol("var3", interface=ImportInterface(csym))
     # pylint: disable=unidiomatic-typecheck
     assert type(vsym) == Symbol
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
@@ -1498,7 +1498,7 @@ def test_parse_array_dimensions_attributes():
     assert shape[0][1].symbol is vsym
     assert isinstance(shape[0][1].symbol, DataSymbol)
     assert shape[0][1].symbol.name == "var3"
-    assert isinstance(shape[0][1].symbol.interface, GlobalInterface)
+    assert isinstance(shape[0][1].symbol.interface, ImportInterface)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
