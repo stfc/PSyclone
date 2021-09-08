@@ -161,6 +161,12 @@
 	55) PR #1267 for #1232. Adds a TL to Adjoint transformation for
         assignments.
 
+	56) PR #1263 for #1139. Adds a transformation that converts an
+	array access into a single-trip loop.
+
+	57) PR #1378 for #879. Renames the Symbol interface GlobalInterface
+	to ImportInterface.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
