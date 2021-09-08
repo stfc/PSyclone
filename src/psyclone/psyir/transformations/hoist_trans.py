@@ -86,8 +86,6 @@ class HoistTrans(Transformation):
             loop.
         :raises TransformationError: if the assignment is not a direct \
             child of the the loop.
-        :raises TransformationError: if the assignment is not \
-            independent of the loop.
 
         '''
         # TODO remove the following two lines and use the pre-existing
@@ -120,57 +118,7 @@ class HoistTrans(Transformation):
                     "".format(self._writer(node), self._writer(current)))
             current = current.parent
 
-        # TODO: The dependency check needs to be done properly. Below
-        # is just a simple check that does not cover all cases. Talk
-        # to Joerg about dependence analysis.
-
-        # Dependency checks
-        
-        # 1: All accesses in the assignment should be independent of
-        # the loop iterator.
-        iterator = parent_loop.variable
-        for reference in node.walk(Reference):
-            if reference.symbol is iterator:
-                raise TransformationError(
-                    "The supplied assignment node '{0}' depends on the parent "
-                    "loop iterator '{1}'.".format(self._writer(node), iterator.name))
-
-        # Known limitations for this dependence analysis
-        # 1: Assumes all accesses are dependent (so does not
-        # take into account a(1) and a(2) being different)
-        # 2: Ignores potential side-effects within calls.
-
-        # 2: The modified reference symbol should not be read or
-        # written within the loop before this assigment.
-        lhs_reference = assignment.lhs
-        prev_reference = lhs_reference.previous_reference
-        if prev_reference.abs_position > parent_loop.abs_position:
-            raise TransformationError(
-                "Writer has a previous read or write within the loop")
-
-        # 3: The reference symbols that are read should not be written
-        # within the loop before this assigment.
-        for reference in self.rhs.walk(Reference):
-            prev_reference = reference.previous_reference(access=WRITE)
-            if prev_reference.abs_position > parent_loop.abs_position:
-                raise TransformationError(
-                    "Reader has a previous write within the loop")
-
-        # 4: The writer can't be read and then written in the loop afterwards
-        lhs_reference = assignment.lhs
-        next_reference = lhs_reference.following_reference
-        if next_reference.READ and next_reference.abs_position <= after_parent_loop.abs_position:
-            next_write_reference = lhs_reference.following_reference(access=WRITE)
-            if next_reference.abs_position <= after_parent_loop.abs_position:
-                raise TransformationError(
-                    "Writer has a following read then write within the loop")
-            
-        # 5: The readers can't be written in the loop afterwards
-        for reference in self.rhs.walk(Reference):
-            next_reference = reference.following_reference(access=WRITE)
-            if next_reference.abs_position <= after_parent_loop.abs_position:
-                raise TransformationError(
-                    "Reader has a subsequent write within the loop")
+        # TODO: Dependency checks, see issue #1387.
         
     @property
     def name(self):

@@ -112,6 +112,111 @@ class OMPDirective(Directive):
         return result
 
 
+class OMPTaskwaitDirective(OMPDirective):
+    '''
+    Class representing an OpenMP TASKWAIT directive in the PSyIR.
+
+    :param list children: None. See #1374 for details.
+    :param parent: The Node in the AST that has this directive as a child.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+    :raises GenerationError: if this OMPTaskwait is provided children. \
+                             See #1374 for details.
+    '''
+    def __init__(self, children=None, parent=None):
+        if children is not None:
+            raise GenerationError(
+                "OMPTaskwaitDirective was provided children. This"
+                " directive does not support children. See #1374"
+                " for more information.")
+        super(OMPTaskwaitDirective, self).__init__(children=children,
+                                                   parent=parent)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_taskwait_" + str(position)
+
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes. \
+                            Default value is True.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+
+        '''
+        return self.coloured_name(colour) + "[OMP taskwait]"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPTaskwait is not enclosed \
+                            within some OpenMP parallel region.
+
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As a Parallel Child
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPTaskwaitDirective must be inside an OMP parallel region "
+                "but could not find an ancestor OMPParallelDirective node")
+
+        super(OMPTaskwaitDirective, self).validate_global_constraints()
+
+    def gen_code(self, parent):
+        '''Generate the fortran OMP Taskwait Directive and any associated
+        code
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "omp", "begin", "taskwait", ""))
+        # No children or end code for this node
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp taskwait". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp taskwait"
+
+    def end_string(self):
+        '''This directive has no closing statement.
+        The visitor is responsible for adding (or avoiding) the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return ""
+
+
 @six.add_metaclass(abc.ABCMeta)
 class OMPSerialDirective(OMPDirective):
     '''
@@ -119,6 +224,41 @@ class OMPSerialDirective(OMPDirective):
     OpenMP SINGLE or OpenMP Master.
 
     '''
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPSerial is not enclosed \
+                                 within some OpenMP parallel region.
+        :raises GenerationError: if this OMPSerial is enclosed within \
+                                 any OMPSerialDirective subclass region.
+
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As a Parallel Child
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        # Also check the single region is not enclosed within another OpenMP
+        # single region.
+        # It could in principle be allowed for that parent to be a ParallelDo
+        # directive, however I can't think of a use case that would be done
+        # best in a parallel code by that pattern
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "{} must be inside an OMP parallel region but "
+                "could not find an ancestor OMPParallelDirective node".format(
+                    self._text_name))
+
+        if self.ancestor(OMPSerialDirective):
+            raise GenerationError(
+                    "{} must not be inside another OpenMP "
+                    "serial region".format(self._text_name))
+
+        super(OMPSerialDirective, self).validate_global_constraints()
 
 
 class OMPSingleDirective(OMPSerialDirective):
@@ -132,6 +272,9 @@ class OMPSingleDirective(OMPSerialDirective):
         a nowait clause applied. Default value is False.
 
     '''
+    # Textual description of the node
+    _text_name = "OMPSingleDirective"
+
     def __init__(self, children=None, parent=None, nowait=False):
 
         self._nowait = nowait
@@ -162,40 +305,6 @@ class OMPSingleDirective(OMPSerialDirective):
 
         '''
         return self.coloured_name(colour) + "[OMP single]"
-
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this OMPSingle is not enclosed \
-                            within some OpenMP parallel region.
-        :raises GenerationError: if this OMPSingle is enclosed within \
-                            any OMPSerialDirective subclass region.
-
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As a Parallel Child
-        # directive, we must have an OMPParallelDirective as an ancestor
-        # somewhere back up the tree.
-        # Also check the single region is not enclosed within another OpenMP
-        # single region.
-        # It could in principle be allowed for that parent to be a ParallelDo
-        # directive, however I can't think of a use case that would be done
-        # best in a parallel code by that pattern
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
-            raise GenerationError(
-                "OMPSingleDirective must be inside an OMP parallel region but "
-                "could not find an ancestor OMPParallelDirective node")
-
-        if self.ancestor(OMPSerialDirective):
-            raise GenerationError(
-                    "OMPSingleDirective must not be inside another OpenMP "
-                    "serial region")
-
-        super(OMPSingleDirective, self).validate_global_constraints()
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Single Directive and any associated
@@ -256,6 +365,9 @@ class OMPMasterDirective(OMPSerialDirective):
     Class representing an OpenMP MASTER directive in the PSyclone AST.
 
     '''
+
+    # Textual description of the node
+    _text_name = "OMPMasterDirective"
 
     @property
     def dag_name(self):
@@ -322,40 +434,6 @@ class OMPMasterDirective(OMPSerialDirective):
         '''
         # pylint: disable=no-self-use
         return "omp end master"
-
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this OMPMaster is not enclosed \
-                            within some OpenMP parallel region.
-        :raises GenerationError: if this OMPMaster is enclosed within \
-                            any OMPSerialDirective subclass region.
-
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As a Parallel Child
-        # directive, we must have an OMPParallelDirective as an ancestor
-        # somewhere back up the tree.
-        # Also check the single region is not enclosed within another OpenMP
-        # single region.
-        # It could in principle be allowed for that parent to be a ParallelDo
-        # directive, however I can't think of a use case that would be done
-        # best in a parallel code by that pattern
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
-            raise GenerationError(
-                "OMPMasterDirective must be inside an OMP parallel region but "
-                "could not find an ancestor OMPParallelDirective node")
-
-        if self.ancestor(OMPSerialDirective):
-            raise GenerationError(
-                    "OMPMasterDirective must not be inside another OpenMP "
-                    "serial region")
-
-        super(OMPMasterDirective, self).validate_global_constraints()
 
 
 class OMPParallelDirective(OMPDirective):
@@ -597,6 +675,141 @@ class OMPParallelDirective(OMPDirective):
             end_text="end parallel")
 
 
+class OMPTaskloopDirective(OMPDirective):
+    '''
+    Class representing an OpenMP TASKLOOP directive in the PSyIR.
+
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param grainsize: The grainsize value used to specify the grainsize \
+                      clause on this OpenMP directive. If this is None \
+                      the grainsize clause is not applied. Default \
+                      value is None.
+    :type grainsize: int or None.
+    :param num_tasks: The num_tasks value used to specify the num_tasks \
+                      clause on this OpenMP directive. If this is None \
+                      the num_tasks clause is not applied. Default value \
+                      is None.
+    :type num_tasks: int or None.
+
+    :raises GenerationError: if this OMPTaskloopDirective has both \
+                             a grainsize and num_tasks value \
+                             specified.
+    '''
+    def __init__(self, children=None, parent=None, grainsize=None,
+                 num_tasks=None):
+        self._grainsize = grainsize
+        self._num_tasks = num_tasks
+        if self._grainsize is not None and self._num_tasks is not None:
+            raise GenerationError(
+                "OMPTaskloopDirective must not have both grainsize and "
+                "numtasks clauses specified.")
+        super(OMPTaskloopDirective, self).__init__(children=children,
+                                                   parent=parent)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_taskloop_" + str(position)
+
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return "{0}[OMP taskloop]".format(self.coloured_name(colour))
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPTaskloopDirective is not \
+                                 enclosed within an OpenMP serial region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). A taskloop
+        # directive, we must have an OMPSerialDirective as an
+        # ancestor back up the tree.
+        if not self.ancestor(OMPSerialDirective):
+            raise GenerationError(
+                "OMPTaskloopDirective must be inside an OMP Serial region "
+                "but could not find an ancestor node")
+
+        super(OMPTaskloopDirective, self).validate_global_constraints()
+
+    def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenMP
+        taskloop directive.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if this "!$omp taskloop" is not enclosed \
+                                 within an OMP Parallel region and an OMP \
+                                 Serial region.
+
+        '''
+        self.validate_global_constraints()
+
+        extra_clauses = ""
+        if self._grainsize is not None:
+            extra_clauses = "grainsize({0})".format(self._grainsize)
+        if self._num_tasks is not None:
+            extra_clauses = "num_tasks({0})".format(self._num_tasks)
+
+        parent.add(DirectiveGen(parent, "omp", "begin", "taskloop",
+                                extra_clauses))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+        # make sure the directive occurs straight after the loop body
+        position = parent.previous_loop()
+        parent.add(DirectiveGen(parent, "omp", "end", "taskloop", ""),
+                   position=["after", position])
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp do ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        clauses = ""
+        if self._grainsize is not None:
+            clauses = " grainsize({0})".format(self._grainsize)
+        if self._num_tasks is not None:
+            clauses = " num_tasks({0})".format(self._num_tasks)
+        return "omp taskloop" + clauses
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end do". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end taskloop"
+
+
 class OMPDoDirective(OMPDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
@@ -674,7 +887,7 @@ class OMPDoDirective(OMPDirective):
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As an orphaned loop
+        # can apply transformations to the code). As a loop
         # directive, we must have an OMPParallelDirective as an ancestor
         # somewhere back up the tree.
         if not self.ancestor(OMPParallelDirective,
@@ -704,7 +917,7 @@ class OMPDoDirective(OMPDirective):
         else:
             local_reduction_string = self._reduction_string()
 
-        # As we're an orphaned loop we don't specify the scope
+        # As we're a loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
         options = "schedule({0})".format(self._omp_schedule) + \
@@ -869,4 +1082,5 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 # For automatic API documentation generation
 __all__ = ["OMPDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
-           "OMPSerialDirective"]
+           "OMPSerialDirective", "OMPTaskloopDirective",
+           "OMPTaskwaitDirective"]

@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Fortran code-generation library. This wraps the f2py fortran parser to
     provide routines which can be used to generate fortran code. '''
@@ -139,7 +140,8 @@ class OMPDirective(Directive):
                          'parallel do').
     '''
     def __init__(self, root, line, position, dir_type):
-        self._types = ["parallel do", "parallel", "do", "master", "single"]
+        self._types = ["parallel do", "parallel", "do", "master", "single",
+                       "taskloop", "taskwait"]
         self._positions = ["begin", "end"]
 
         super(OMPDirective, self).__init__(root, line, position, dir_type)
@@ -564,8 +566,17 @@ class PSyIRGen(BaseGen):
         fparser1_parser = FortranParser(reader, ignore_comments=False)
         fparser1_parser.parse()
 
-        # Update the f2pygen AST with the newly parsed fparser1 AST content
-        BaseGen.__init__(self, parent, fparser1_parser.block.content[0])
+        # If the fparser content is larger than 1, add all the nodes but
+        # the last one as siblings of self. This is done because self
+        # can only represent one node.
+        for fparser_node in fparser1_parser.block.content[:-1]:
+            f2pygen_node = BaseGen(parent, fparser_node)
+            f2pygen_node.root.parent = parent.root
+            parent.add(f2pygen_node)
+
+        # Update this f2pygen node to be equivalent to the last of the
+        # fparser nodes that represent the provided content.
+        BaseGen.__init__(self, parent, fparser1_parser.block.content[-1])
         self.root.parent = parent.root
 
 

@@ -34,7 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+include ../../../common.mk
 
 .PHONY: transform
 
