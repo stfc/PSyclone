@@ -191,6 +191,18 @@ The following transformations are specific to the NEMO API.
     :noindex:
     :members: apply, validate
 
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoArrayAccess2LoopTrans
+    :noindex:
+    :members: apply, validate
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoAllArrayAccess2LoopTrans
+    :noindex:
+    :members: apply, validate
+
 .. _limitations:
 
 Limitations
@@ -216,6 +228,6 @@ we list the current, known limitations/issues:
     class already has an _fp2_ast property that points to the whole
     fparser2 AST of the kernel code. This will be rationalised in
     #241;
- 7. The nemo-specific implicit-to-explicit transformations will not
-    modify the code that is output until issue #435 has been
-    addressed.
+ 7. The nemo-specific implicit-to-explicit and array-access-to-loop
+    transformations will not modify the code that is output until
+    issue #435 has been addressed.
