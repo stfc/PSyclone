@@ -39,14 +39,50 @@ is a name that is often used to describe this type of transformation.
 
 '''
 from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import Loop, Assignment, Schedule
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.nodes import Loop, Assignment, Schedule, Reference
 
 
 class HoistTrans(Transformation):
     '''This transformation takes an assignment and moves it outside of
-    its parent loop if it is valid to do so.
+    its parent loop if it is valid to do so. For example:
+
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Assignment
+    >>> from psyclone.psyir.transformations import HoistTrans
+    >>> code = ("program test\\n"
+    ...         "  integer :: i,j,n\\n"
+    ...         "  real :: a(n,n)\\n"
+    ...         "  real value\\n"
+    ...         "  do i=1,n\\n"
+    ...         "    value = 1.0\\n"
+    ...         "    do j=1,n\\n"
+    ...         "      a(i,j) = value\\n"
+    ...         "    end do\\n"
+    ...         "  end do\\n"
+    ...         "end program\\n")
+    >>> psyir = FortranReader().psyir_from_source(code)
+    >>> hoist = HoistTrans()
+    >>> hoist.apply(psyir.walk(Assignment)[0])
+    >>> print(FortranWriter()(psyir))
+    program test
+      integer :: i
+      integer :: j
+      integer :: n
+      real, dimension(n,n) :: a
+      real :: value
+    <BLANKLINE>
+      value = 1.0
+      do i = 1, n, 1
+        do j = 1, n, 1
+          a(i,j) = value
+        enddo
+      enddo
+    <BLANKLINE>
+    end program test
+    <BLANKLINE>
 
     '''
     def apply(self, node, options=None):
@@ -88,12 +124,6 @@ class HoistTrans(Transformation):
             child of the the loop.
 
         '''
-        # TODO remove the following two lines and use the pre-existing
-        # self._writer from the base class when PR #1263 adds this
-        # change to master.
-        from psyclone.psyir.backend.fortran import FortranWriter
-        self._writer = FortranWriter()
-
         # The node should be an assignment
         if not isinstance(node, Assignment):
             raise TransformationError(
@@ -119,7 +149,7 @@ class HoistTrans(Transformation):
             current = current.parent
 
         # TODO: Dependency checks, see issue #1387.
-        
+
     @property
     def name(self):
         '''
