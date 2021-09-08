@@ -69,7 +69,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
     Literal, Node, KernelSchedule, Call, Loop, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    GlobalInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
+    ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
@@ -433,8 +433,8 @@ def test_invokeschedule_gen_code_with_preexisting_globals():
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
     schedule.symbol_table.add(my_mod)
-    global1 = DataSymbol('gvar1', REAL_TYPE, interface=GlobalInterface(my_mod))
-    global2 = DataSymbol('gvar2', REAL_TYPE, interface=GlobalInterface(my_mod))
+    global1 = DataSymbol('gvar1', REAL_TYPE, interface=ImportInterface(my_mod))
+    global2 = DataSymbol('gvar2', REAL_TYPE, interface=ImportInterface(my_mod))
     schedule.symbol_table.add(global1)
     schedule.symbol_table.add(global2)
 
@@ -630,7 +630,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     # in the symbol table
     rsymbol = call.scope.symbol_table.lookup('testkern_code')
     assert isinstance(rsymbol, RoutineSymbol)
-    assert isinstance(rsymbol.interface, GlobalInterface)
+    assert isinstance(rsymbol.interface, ImportInterface)
     csymbol = rsymbol.interface.container_symbol
     assert isinstance(csymbol, ContainerSymbol)
     assert csymbol.name == "testkern_mod"

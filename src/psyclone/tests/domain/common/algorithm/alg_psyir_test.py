@@ -90,7 +90,7 @@ def check_call(call, routine_name, args_info):
     '''
     assert isinstance(call.routine, RoutineSymbol)
     assert call.routine.name == routine_name
-    assert call.routine.is_global
+    assert call.routine.is_import
     assert (call.routine.interface.container_symbol.name ==
             "{0}_mod".format(routine_name))
     args = call.children

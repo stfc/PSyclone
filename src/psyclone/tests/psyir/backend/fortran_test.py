@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
     StructureReference, Schedule, Routine, Return, FileContainer
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
+    ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
     DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType, \
     DataTypeSymbol, StructureType
@@ -534,10 +534,10 @@ def test_fw_gen_use(fortran_writer):
     container_symbol = ContainerSymbol("my_module")
     symbol_table.add(container_symbol)
     symbol = DataSymbol("dummy1", DeferredType(),
-                        interface=GlobalInterface(container_symbol))
+                        interface=ImportInterface(container_symbol))
     symbol_table.add(symbol)
     symbol = RoutineSymbol(
-        "my_sub", interface=GlobalInterface(container_symbol))
+        "my_sub", interface=ImportInterface(container_symbol))
     symbol_table.add(symbol)
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert result == "use my_module, only : dummy1, my_sub\n"
@@ -548,7 +548,7 @@ def test_fw_gen_use(fortran_writer):
                       "use my_module\n")
 
     symbol2 = DataSymbol("dummy2", DeferredType(),
-                         interface=GlobalInterface(container_symbol))
+                         interface=ImportInterface(container_symbol))
     symbol_table.add(symbol2)
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert result == ("use my_module, only : dummy1, dummy2, my_sub\n"
@@ -632,8 +632,18 @@ def test_fw_gen_vardecl(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
-    # An unresolved symbol with a specific type
-    symbol = DataSymbol("dummy1", INTEGER_TYPE,
+    # Use statement
+    symbol = DataSymbol("dummy1", DeferredType(),
+                        interface=ImportInterface(
+                            ContainerSymbol("my_module")))
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fortran_writer.gen_vardecl(symbol)
+    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
+            "an Argument interface but found a 'ImportInterface' interface."
+            in str(excinfo.value))
+
+    # An unresolved symbol
+    symbol = DataSymbol("dummy1", DeferredType(),
                         interface=UnresolvedInterface())
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
@@ -718,7 +728,7 @@ def test_gen_decls(fortran_writer):
     symbol_table = SymbolTable()
     symbol_table.add(ContainerSymbol("my_module"))
     use_statement = DataSymbol("my_use", DeferredType(),
-                               interface=GlobalInterface(
+                               interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
     argument_variable = DataSymbol("arg", INTEGER_TYPE,
@@ -731,7 +741,7 @@ def test_gen_decls(fortran_writer):
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
     grid_type = DataTypeSymbol("grid_type", DeferredType(),
-                               interface=GlobalInterface(
+                               interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(grid_type)
     grid_variable = DataSymbol("grid", grid_type)
@@ -796,7 +806,7 @@ def test_gen_decls_nested_scope(fortran_writer):
 
 def test_gen_decls_routine(fortran_writer):
     '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not a GlobalInterface, unless there's a wildcard
+    of a routine symbol is not an ImportInterface, unless there's a wildcard
     import from a Container.
 
     '''
@@ -820,7 +830,7 @@ def test_gen_decls_routine(fortran_writer):
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbol 'sub2' does not have a GlobalInterface or "
+        "Routine symbol 'sub2' does not have an ImportInterface or "
         "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
         "import which could bring it into scope. This is not supported by the "
         "Fortran back-end." in str(info.value))
@@ -874,7 +884,7 @@ def test_gen_routine_access_stmts(fortran_writer):
     # Check that the interface of the symbol does not matter
     symbol_table.add(
         RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
-                      interface=GlobalInterface(ContainerSymbol("some_mod"))))
+                      interface=ImportInterface(ContainerSymbol("some_mod"))))
     code = fortran_writer.gen_routine_access_stmts(symbol_table)
     assert "public :: my_sub1\nprivate :: my_sub2, used_sub\n" in code
     # Break the visibility of the second symbol
@@ -2075,7 +2085,7 @@ def test_fw_call_node(fortran_writer):
     symbol_use = ContainerSymbol("my_mod")
     symbol_table.add(symbol_use)
     symbol_call = RoutineSymbol(
-        "my_sub", interface=GlobalInterface(symbol_use))
+        "my_sub", interface=ImportInterface(symbol_use))
     symbol_table.add(symbol_call)
     mult_ab = BinaryOperation.create(
         BinaryOperation.Operator.MUL, ref_a.copy(), ref_b.copy())

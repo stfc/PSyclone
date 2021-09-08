@@ -46,7 +46,7 @@ from psyclone.psyir.backend.fortran import \
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import Symbol, DataSymbol, RoutineSymbol, \
-    UnknownType, UnknownFortranType, GlobalInterface, ContainerSymbol, \
+    UnknownType, UnknownFortranType, ImportInterface, ContainerSymbol, \
     SymbolTable, ArgumentInterface, INTEGER_TYPE
 from psyclone.tests.utilities import Compile
 
@@ -132,12 +132,12 @@ def test_fw_unknowntype_nonlocal_routine_symbols_error(fortran_writer):
     csym = ContainerSymbol("other_mod")
     container.symbol_table.add(csym)
     sym = RoutineSymbol("eos", UnknownFortranType("some code"),
-                        interface=GlobalInterface(csym))
+                        interface=ImportInterface(csym))
     container.symbol_table.add(sym)
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_decls(container.symbol_table)
     assert ("RoutineSymbol 'eos' is of UnknownFortranType but has interface "
-            "'Global(container='other_mod')' instead of LocalInterface" in
+            "'Import(container='other_mod')' instead of LocalInterface" in
             str(err.value))
 
 
