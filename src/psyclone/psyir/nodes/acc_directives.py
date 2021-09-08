@@ -828,7 +828,8 @@ class ACCDataDirective(ACCDirective):
                     current = current.member
                     # Currently this is hardwired to generate Fortran (i.e. we
                     # use '%' when accessing a component of a structure).
-                    # TODO XXXX
+                    # TODO #1386 a new StructureReference needs to be created
+                    # for 'current' and then given to an appropriate backend.
                     ref_string = "%".join(part_list[:]+[current.name])
                     if ref_string not in access_list:
                         access_list.append(ref_string)
