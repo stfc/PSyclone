@@ -47,7 +47,7 @@ class LazyString:
 
     :param function func: a function that computes a string.
 
-    :raises TypeError: if the the func argument is not a function.
+    :raises TypeError: if the func argument is not a function.
 
     '''
     def __init__(self, func):
@@ -59,7 +59,7 @@ class LazyString:
 
     def __str__(self):
         '''
-        :raises TypeError: if the the function stored in self._func does \
+        :raises TypeError: if the function stored in self._func does \
             not return a string.
         '''
         result = self._func()
@@ -123,5 +123,5 @@ class InternalError(PSycloneError):
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ["PSycloneError", "GenerationError", "FieldNotFoundError",
-           "InternalError"]
+__all__ = ["LazyString", "PSycloneError", "GenerationError",
+           "FieldNotFoundError", "InternalError"]

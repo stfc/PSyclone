@@ -36,6 +36,7 @@
 
 '''pytest tests for the errors module.'''
 
+from __future__ import absolute_import
 import pytest
 
 from psyclone.errors import LazyString, PSycloneError

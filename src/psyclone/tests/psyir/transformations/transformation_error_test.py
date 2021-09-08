@@ -36,6 +36,8 @@
 
 '''pytest tests for the transformation_errors module.'''
 
+from __future__ import absolute_import
+
 from psyclone.errors import LazyString
 from psyclone.psyir.transformations import TransformationError
 
