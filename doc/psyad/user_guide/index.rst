@@ -59,6 +59,7 @@ PSyAD User Guide
 
     introduction
     psyad_command
+    implementation
 
 .. when generating latex the index and module index are generated
    automatically and the entries below are rendered as plain text.

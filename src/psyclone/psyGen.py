@@ -51,13 +51,14 @@ from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
 from psyclone.parse.algorithm import BuiltInCall
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.visitor import PSyIRVisitor
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
+    Routine, Call, OMPDoDirective
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, ImportInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, Call, OMPDoDirective
-
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -423,7 +424,7 @@ class Invokes(object):
 
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CallGen, UseGen, CharDeclGen, IfThenGen
+            CharDeclGen, IfThenGen
 
         def bool_to_fortran(value):
             '''
@@ -1002,8 +1003,7 @@ class InvokeSchedule(Routine):
                        which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, IfThenGen, \
-            CallGen
+        from psyclone.f2pygen import DeclGen, AssignGen, IfThenGen
 
         # The gen_code methods may generate new Symbol names, however, we want
         # subsequent calls to invoke.gen_code() to produce the exact same code,
@@ -2182,7 +2182,6 @@ class CodedKern(Kern):
             # limit the line length). This test is only required
             # whilst old style (direct fp2) transformations still
             # exist.
-            from psyclone.psyir.backend.fortran import FortranWriter
             fortran_writer = FortranWriter()
             # Start from the root of the schedule as we want to output
             # any module information surrounding the kernel subroutine
@@ -3282,12 +3281,29 @@ class TransInfo(object):
 @six.add_metaclass(abc.ABCMeta)
 class Transformation(object):
     '''Abstract baseclass for a transformation. Uses the abc module so it
-        can not be instantiated. '''
+    can not be instantiated.
 
-    @abc.abstractproperty
+    :param writer: optional argument to set the type of writer to \
+        provide to a transformation for use when constructing error \
+        messages. Defaults to FortranWriter().
+    :type writer: :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
+
+    '''
+    def __init__(self, writer=FortranWriter()):
+        if not isinstance(writer, PSyIRVisitor):
+            raise TypeError(
+                "The writer argument to a transformation should be a "
+                "PSyIRVisitor, but found '{0}'.".format(type(writer).__name__))
+        self._writer = writer
+
+    @property
     def name(self):
-        '''Returns the name of the transformation.'''
-        return
+        '''
+        :returns: the transformation's class name.
+        :rtype: str
+
+        '''
+        return type(self).__name__
 
     @abc.abstractmethod
     def apply(self, node, options=None):
@@ -3356,6 +3372,8 @@ class Transformation(object):
 
 class DummyTransformation(Transformation):
     '''Dummy transformation use elsewhere to keep pyreverse happy.'''
+
+    @property
     def name(self):
         return
 
