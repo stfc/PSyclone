@@ -151,6 +151,7 @@ def test_validate_direct_loop():
             in str(info.value))
 
 
+@pytest.mark.xfail(reason="issue #1378: dependence analysis needs to be added.")
 def test_validate_dependent_variable():
     '''Test the expected exception is raised if the supplied assignment
     depends on the loop iterator.
@@ -169,27 +170,6 @@ def test_validate_dependent_variable():
     assert ("The supplied assignment node 'a(i) = 1.0\n' depends on the "
             "parent loop iterator 'i'." in str(info.value))
 
-# TODO: proper dependence analysis
-# Use arrays but dep an tested for scalars and structures
-# w only ok.
-# do i=1,n
-#   a = 0.0
-# end do
-#
-# w -> w OK
-# do i=1,n
-#   a = 0.0
-#   a = 1.0
-# end do
-#
-# w -> r ok
-# do i=1,n
-#   a(j) = 0.0
-#   b = a(j)
-# end do
-#
-# w -> r nested ok
-# w -> r -> w not ok
 
 # name and str
 
