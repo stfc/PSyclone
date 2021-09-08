@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     BinaryOperation, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, DataTypeSymbol,\
-    GlobalInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
+    ImportInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
     DeferredType, Symbol
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -76,7 +76,7 @@ CONT = ContainerSymbol("kernel_mod")
 SYMBOL_TABLE.add(CONT)
 
 DTYPE_SYMBOL = DataTypeSymbol("other_type", DeferredType(),
-                              interface=GlobalInterface(CONT))
+                              interface=ImportInterface(CONT))
 SYMBOL_TABLE.add(DTYPE_SYMBOL)
 
 # Create the definition of the 'field_type'
