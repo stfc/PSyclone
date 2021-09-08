@@ -39,15 +39,15 @@
 from __future__ import absolute_import, print_function
 import pytest
 
-from psyclone.psyir.nodes import Literal, Loop, Schedule, Return, \
-    Assignment, Reference, IfBlock, ArrayReference
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, \
-    INTEGER_TYPE, BOOLEAN_TYPE, ArrayType
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Literal, Loop, Assignment, Reference, \
+    IfBlock, ArrayReference
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
+    BOOLEAN_TYPE, ArrayType
 from psyclone.psyir.transformations import HoistTrans, TransformationError
 from psyclone.tests.utilities import Compile
 
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 
 # init
 
@@ -59,7 +59,7 @@ def test_init():
 
 # apply
 
-def test_apply():
+def test_apply(tmpdir):
     '''Test the apply method moves the loop invariant assignment out of
     the loop and places it immediately before the loop.
 
@@ -88,10 +88,9 @@ def test_apply():
     writer = FortranWriter()
     output = writer(psyir)
     assert output == expected_code
+    assert Compile(tmpdir).string_compiles(output)
 
 
-# TODO: place outside of any directives
-    
 def test_apply_validate():
 
     '''Test the apply method calls the validate method.'''
@@ -140,7 +139,7 @@ def test_validate_direct_loop():
     condition = Literal("true", BOOLEAN_TYPE)
     if_condition = IfBlock.create(condition, [assignment])
     one = Literal("1", INTEGER_TYPE)
-    loop = Loop.create(
+    _ = Loop.create(
         DataSymbol("i", INTEGER_TYPE), one, one.copy(), one.copy(),
         [if_condition])
     hoist_trans = HoistTrans()
@@ -151,7 +150,8 @@ def test_validate_direct_loop():
             in str(info.value))
 
 
-@pytest.mark.xfail(reason="issue #1378: dependence analysis needs to be added.")
+@pytest.mark.xfail(
+    reason="issue #1378: dependence analysis needs to be added.")
 def test_validate_dependent_variable():
     '''Test the expected exception is raised if the supplied assignment
     depends on the loop iterator.
@@ -159,10 +159,11 @@ def test_validate_dependent_variable():
     '''
     array_symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
     loop_iterator = DataSymbol("i", INTEGER_TYPE)
-    array_reference = ArrayReference.create(array_symbol, [Reference(loop_iterator)])
+    array_reference = ArrayReference.create(
+        array_symbol, [Reference(loop_iterator)])
     assignment = Assignment.create(array_reference, Literal("1.0", REAL_TYPE))
     one = Literal("1", INTEGER_TYPE)
-    loop = Loop.create(
+    _ = Loop.create(
         loop_iterator, one, one.copy(), one.copy(), [assignment])
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
@@ -181,4 +182,3 @@ def test_name_str():
     hoist_trans = HoistTrans()
     assert hoist_trans.name == "HoistTrans"
     assert str(hoist_trans) == "Hoist an assignment outside of its parent loop"
-    
