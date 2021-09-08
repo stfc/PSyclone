@@ -1024,7 +1024,7 @@ class InvokeSchedule(Routine):
         # Imported symbols promoted from Kernel imports are in the SymbolTable.
         # First aggregate all variables imported from the same module in a map.
         module_map = {}
-        for imported_var in self.symbol_table.import_symbols:
+        for imported_var in self.symbol_table.imported_symbols:
             module_name = imported_var.interface.container_symbol.name
             if module_name in module_map:
                 module_map[module_name].append(imported_var.name)

@@ -137,7 +137,8 @@ class PSyDataNode(Statement):
         # name of the PSyData derived type) but we keep a list for future
         # extensibility.
         _PSyDataSymbol = namedtuple("_PSyDataSymbol", "name symbol_type")
-        self.import_symbols = [_PSyDataSymbol(self.type_name, DataTypeSymbol)]
+        self.imported_symbols = [_PSyDataSymbol(self.type_name,
+                                                DataTypeSymbol)]
 
         # Root of the name to use for variables associated with
         # PSyData regions
@@ -264,11 +265,11 @@ class PSyDataNode(Statement):
         # TODO #435 remove this when removing the update() method
         data_node.use_stmt = "use {0}, only: ".format(
             data_node.fortran_module) + ", ".join(symbol.name for symbol in
-                                                  data_node.import_symbols)
+                                                  data_node.imported_symbols)
         # Add the symbols that will be imported from the module. Use the
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
-        for sym in data_node.import_symbols:
+        for sym in data_node.imported_symbols:
             symbol_table.symbol_from_tag(sym.name, symbol_type=sym.symbol_type,
                                          interface=ImportInterface(csym),
                                          datatype=DeferredType())
@@ -460,7 +461,7 @@ class PSyDataNode(Statement):
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
         use = UseGen(parent, self.fortran_module, only=True,
-                     funcnames=[sym.name for sym in self.import_symbols])
+                     funcnames=[sym.name for sym in self.imported_symbols])
         parent.add(use)
         var_decl = TypeDeclGen(parent,
                                datatype=self.type_name,
@@ -636,7 +637,7 @@ class PSyDataNode(Statement):
                 if isinstance(node, Fortran2003.Name):
                     text = str(node).lower()
                     # Check for the symbols we import from the PSyData module
-                    for symbol in self.import_symbols:
+                    for symbol in self.imported_symbols:
                         if text == symbol.name.lower():
                             raise NotImplementedError(
                                 "Cannot add PSyData calls to '{0}' because it "

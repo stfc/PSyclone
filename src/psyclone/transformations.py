@@ -2996,7 +2996,7 @@ class ACCRoutineTrans(KernelTrans):
         # Check that the kernel does not access any data or routines via a
         # module 'use' statement
         sched = kern.get_kernel_schedule()
-        imported_variables = sched.symbol_table.import_symbols
+        imported_variables = sched.symbol_table.imported_symbols
         if imported_variables:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
@@ -3332,7 +3332,7 @@ class KernelImportsToArguments(Transformation):
         # Transform each imported variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
         # if no imports are found in the kernel.
-        for imported_var in kernel.symbol_table.import_symbols[:]:
+        for imported_var in kernel.symbol_table.imported_symbols[:]:
             count_imported_vars_removed += 1
 
             # Resolve the data type information if it is not available

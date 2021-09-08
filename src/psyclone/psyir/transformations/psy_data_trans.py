@@ -179,7 +179,7 @@ class PSyDataTrans(RegionTrans):
         # order to find out what module name it will use.
         pdata_node = self._node_class(options=options)
         table = node_list[0].scope.symbol_table
-        for name in ([sym.name for sym in pdata_node.import_symbols] +
+        for name in ([sym.name for sym in pdata_node.imported_symbols] +
                      [pdata_node.fortran_module]):
             try:
                 _ = table.lookup_with_tag(name)

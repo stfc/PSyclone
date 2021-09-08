@@ -271,7 +271,7 @@ class SymbolTable(object):
             new_st._tags[tag] = new_st.lookup(symbol.name)
 
         # Fix the container links for imported symbols
-        for symbol in new_st.import_symbols:
+        for symbol in new_st.imported_symbols:
             name = symbol.interface.container_symbol.name
             new_container = new_st.lookup(name)
             symbol.interface = ImportInterface(new_container)
@@ -656,7 +656,7 @@ class SymbolTable(object):
             raise KeyError("The '{0}' entry in this SymbolTable is not the "
                            "supplied ContainerSymbol.".format(csymbol.name))
 
-        return [symbol for symbol in self.import_symbols if
+        return [symbol for symbol in self.imported_symbols if
                 symbol.interface.container_symbol is csymbol]
 
     def swap(self, old_symbol, new_symbol):
@@ -903,7 +903,7 @@ class SymbolTable(object):
         return [sym for sym in self.datasymbols if sym.is_argument]
 
     @property
-    def import_symbols(self):
+    def imported_symbols(self):
         '''
         :returns: list of symbols that have an imported interface (are \
             associated with data that exists outside the current scope).

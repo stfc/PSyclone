@@ -364,9 +364,9 @@ def test_symbols_imported_from():
     var3 = DataSymbol("var3", INTEGER_TYPE,
                       interface=ImportInterface(my_mod))
     sym_table.add(var3)
-    import_symbols = sym_table.symbols_imported_from(my_mod)
-    assert var3 in import_symbols
-    assert var2 in import_symbols
+    imported_symbols = sym_table.symbols_imported_from(my_mod)
+    assert var3 in imported_symbols
+    assert var2 in imported_symbols
     # Passing something that is not a ContainerSymbol is an error
     with pytest.raises(TypeError) as err:
         sym_table.symbols_imported_from(var2)
@@ -1044,37 +1044,37 @@ def test_local_datatypesymbols():
     assert sym_table.local_datatypesymbols == [region_sym]
 
 
-def test_import_symbols():
-    '''Test that the import_symbols property returns those Symbols with
+def test_imported_symbols():
+    '''Test that the imported_symbols property returns those Symbols with
     'global' scope (i.e. that represent data/code that exists outside
     the current scoping unit) and are not routine arguments.
 
     '''
     sym_table = SymbolTable()
-    assert sym_table.import_symbols == []
+    assert sym_table.imported_symbols == []
     # Add some local symbols
     sym_table.add(DataSymbol("var1", REAL_TYPE))
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
     sym_table.add(DataSymbol("var2", array_type))
-    assert sym_table.import_symbols == []
+    assert sym_table.imported_symbols == []
     # Add a global symbol
     sym_table.add(DataSymbol("gvar1", REAL_TYPE,
                              interface=ImportInterface(
                                  ContainerSymbol("my_mod"))))
-    assert sym_table.lookup("gvar1") in sym_table.import_symbols
+    assert sym_table.lookup("gvar1") in sym_table.imported_symbols
     sym_table.add(
         DataSymbol("gvar2", REAL_TYPE,
                    interface=ArgumentInterface(
                        ArgumentInterface.Access.READWRITE)))
-    gsymbols = sym_table.import_symbols
+    gsymbols = sym_table.imported_symbols
     assert len(gsymbols) == 1
     assert sym_table.lookup("gvar2") not in gsymbols
     # Add another global symbol
     sym_table.add(RoutineSymbol("my_sub", INTEGER_TYPE,
                                 interface=ImportInterface(
                                     ContainerSymbol("my_mod"))))
-    assert sym_table.lookup("my_sub") in sym_table.import_symbols
-    assert len(sym_table.import_symbols) == 2
+    assert sym_table.lookup("my_sub") in sym_table.imported_symbols
+    assert len(sym_table.imported_symbols) == 2
 
 
 def test_abstract_properties():
