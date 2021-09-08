@@ -458,7 +458,7 @@ class CWriter(LanguageWriter):
                                 start, stop, step, body)
 
     def regiondirective_node(self, node):
-        '''This method is called when an REgionDirective instance is found in
+        '''This method is called when an RegionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
         the statements in between as a string.
 
@@ -470,7 +470,6 @@ class CWriter(LanguageWriter):
 
         '''
         # Note that {{ is replaced with a single { in the format call
-        print(type(node))
         result_list = ["{0}#pragma {1}\n{{\n".format(self._nindent,
                                                      node.begin_string())]
         self._depth += 1

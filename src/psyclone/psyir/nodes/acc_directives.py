@@ -57,7 +57,17 @@ from psyclone.core import AccessType, VariablesAccessInfo
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCDirective():
-    ''' Base mixin class for all OpenACC directive statements. '''
+    '''
+    Base mixin class for all OpenACC directive statements.
+
+    This class is useful to provide a unique common ancestor to all the
+    OpenACC directives, for instance when traversing the tree with
+    `node.walk(ACCDirective)`
+
+    Note that classes inheriting from it must place the ACCDirective in
+    front of the other Directive node sub-class, so that the Python
+    MRO gives preference to this class's attributes.
+    '''
     _PREFIX = "ACC"
 
 

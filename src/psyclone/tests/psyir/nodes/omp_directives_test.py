@@ -501,7 +501,7 @@ def test_omptaskwait_node_str():
     schedule = psy.invokes.invoke_list[0].schedule
     taskwait = OMPTaskwaitDirective()
     schedule.addchild(taskwait, 0)
-    directive = colored("StandaloneDirective", Directive._colour)
+    directive = colored("Directive", Directive._colour)
     expected_output = directive + "[OMP taskwait]"
     assert taskwait.node_str() == expected_output
     omp_cdirective = super(OMPTaskwaitDirective, taskwait)

@@ -3455,7 +3455,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
 
     # Ensure we check for text containing the correct (colour) control codes
     isched = colored("InvokeSchedule", InvokeSchedule._colour)
-    directive = colored("RegionDirective", Directive._colour)
+    directive = colored("Directive", Directive._colour)
     gsum = colored("GlobalSum", GlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)

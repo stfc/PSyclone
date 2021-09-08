@@ -66,6 +66,13 @@ class OMPDirective():
     '''
     Base mixin class for all OpenMP-related directives.
 
+    This class is useful to provide a unique common ancestor to all the
+    OpenMP directives, for instance when traversing the tree with
+    `node.walk(OMPDirective)`
+
+    Note that classes inheriting from it must place the OMPDirective in
+    front of the other Directive node sub-class, so that the Python
+    MRO gives preference to this class's attributes.
     '''
     _PREFIX = "OMP"
 

@@ -87,7 +87,6 @@ class RegionDirective(Directive):
     '''
     # Textual description of the node.
     _children_valid_format = "Schedule"
-    _text_name = "RegionDirective"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
@@ -157,6 +156,7 @@ class RegionDirective(Directive):
         :raises InternalError: if data_movement=="analyse" and this is an \
                                OpenMP directive.
         '''
+        # pylint:disable=import-outside-toplevel
         from psyclone.psyGen import object_index
         from psyclone.psyir.nodes.acc_directives import ACCDirective
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -273,7 +273,6 @@ class StandaloneDirective(Directive):
     '''
     # Textual description of the node.
     _children_valid_format = None
-    _text_name = "StandaloneDirective"
 
     @staticmethod
     def _validate_child(position, child):

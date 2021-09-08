@@ -1307,7 +1307,7 @@ class FortranWriter(LanguageWriter):
     def regiondirective_node(self, node):
         '''This method is called when a RegionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
-        the statements in between as a string (depending on the language).
+        the statements in between as a string.
 
         :param node: a RegionDirective PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.RegionDirective`
@@ -1327,8 +1327,7 @@ class FortranWriter(LanguageWriter):
 
     def standalonedirective_node(self, node):
         '''This method is called when a StandaloneDirective instance is found
-        in the PSyIR tree. It returns the opening and closing directives, and
-        the statements in between as a string (depending on the language).
+        in the PSyIR tree. It returns the directive as a string.
 
         :param node: a StandaloneDirective PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.StandloneDirective`

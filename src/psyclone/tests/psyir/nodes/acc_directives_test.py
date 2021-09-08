@@ -83,26 +83,26 @@ def test_acc_dir_node_str():
     accdt.apply(schedule)
     out = schedule[0].node_str()
     assert out.startswith(
-        colored("StandaloneDirective", colour)+"[ACC enter data]")
+        colored("Directive", colour)+"[ACC enter data]")
 
     # Parallel region around outermost loop
     accpt.apply(schedule[1])
     out = schedule[1].node_str()
     assert out.startswith(
-        colored("RegionDirective", colour)+"[ACC Parallel]")
+        colored("Directive", colour)+"[ACC Parallel]")
 
     # Loop directive on outermost loop
     acclt.apply(schedule[1].dir_body[0])
     out = schedule[1].dir_body[0].node_str()
     assert out.startswith(
-        colored("RegionDirective", colour)+"[ACC Loop, independent]")
+        colored("Directive", colour)+"[ACC Loop, independent]")
 
     # Loop directive with collapse
     acclt.apply(schedule[1].dir_body[0].dir_body[0], {"collapse": 2})
     out = schedule[1].dir_body[0].dir_body[0].node_str()
     assert out.startswith(
-        colored("RegionDirective", colour) + "[ACC Loop, collapse=2, "
-                                             "independent]")
+        colored("Directive", colour) + "[ACC Loop, collapse=2, "
+                                       "independent]")
 
 
 def test_acc_dag_names():
@@ -179,7 +179,7 @@ def test_acckernelsdirective_node_str():
 
     out = sched[0].node_str()
     assert out.startswith(
-        colored("RegionDirective", Directive._colour)+"[ACC Kernels]")
+        colored("Directive", Directive._colour)+"[ACC Kernels]")
     assert colored("Loop", Loop._colour) in sched[0].dir_body[0].node_str()
     assert "CodedKern" in sched[0].dir_body[0].loop_body[0].node_str()
 
@@ -386,7 +386,7 @@ def test_accupdatedirective_init():
     assert directive._direction == "host"
 
 
-def test_accupdatedirective_begin_and_end_strings():
+def test_accupdatedirective_begin_string():
     ''' Test the begin_string method of ACCUpdateDirective'''
 
     symbol = DataSymbol("x", REAL_TYPE)
