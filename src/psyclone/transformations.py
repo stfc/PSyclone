@@ -326,7 +326,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     :param num_tasks: the num_tasks to use for this transformation.
     :type num_tasks: int or None
     :param nogroup: Whether of not to use a nogroup clause for this
-                    transformation. Default is True.
+                    transformation. Default is False.
     :type nogroup: bool
 
     For example:
@@ -364,7 +364,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> schedule.view()
 
     '''
-    def __init__(self, grainsize=None, num_tasks=None, nogroup=True):
+    def __init__(self, grainsize=None, num_tasks=None, nogroup=False):
         self._grainsize = None
         self._num_tasks = None
         self.omp_grainsize = grainsize
@@ -399,7 +399,6 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
         raises TypeError: if the nogroup parameter is not a bool.
         '''
-        print(type(nogroup))
         if not isinstance(nogroup, bool):
             raise TypeError("Expected nogroup to be a bool "
                             "but got a {0}".format(type(nogroup).__name__))
@@ -513,6 +512,49 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                                           num_tasks=self.omp_num_tasks,
                                           nogroup=self.omp_nogroup)
         return _directive
+
+    def apply(self, node, options=None):
+        '''Apply the OMPTaskloopTrans transformation to the specified node in
+        a Schedule. This node must be a Loop since this transformation
+        corresponds to wrapping the generated code with directives like so:
+
+        .. code-block:: fortran
+
+          !$OMP TASKLOOP
+          do ...
+             ...
+          end do
+          !$OMP END TASKLOOP
+
+        At code-generation time (when
+        :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
+        within (i.e. a child of) an OpenMP SERIAL region.
+
+        If the keyword "nogroup" is specified in the options, it will cause a
+        nogroup clause be generated if it is set to True.
+
+        :param node: the supplied node to which we will apply the \
+                     OMPLoopTrans transformation
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations\
+                        and validation.
+        :type options: dictionary of string:values or None
+        :param bool options["nogroup"]:
+                indicating whether a nogroup clause should be applied to
+                this taskloop.
+
+        :returns: (:py:class:`psyclone.psyir.nodes.Schedule`, \
+        :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        if not options:
+            options = {}
+        current_nogroup = self.omp_nogroup
+        self.omp_nogroup = options.get("nogroup", current_nogroup)
+
+        rval = super(OMPTaskloopTrans, self).apply(node, options)
+        self.omp_nogroup = current_nogroup
+        return rval
 
 
 class OMPLoopTrans(ParallelLoopTrans):
