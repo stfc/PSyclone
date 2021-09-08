@@ -67,6 +67,7 @@ end subroutine tmp
 end module test'''
 
 DOUBLE_LOOP = ("program do_loop\n"
+               "use kind_params, only: wp\n"
                "integer :: ji, jj\n"
                "integer, parameter :: jpi=16, jpj=16\n"
                "real(kind=wp) :: sto_tmp(jpi, jpj)\n"
@@ -90,27 +91,27 @@ def test_acc_data_region(parser):
     dtrans.apply(sched)
     fvisitor = FortranWriter()
     result = fvisitor(sched)
-    assert ("!$acc data copyin(d) copyout(c) copy(b)\n"
-            "do i = 1, 20, 2\n" in result)
-    assert ("enddo\n"
-            "!$acc end data\n" in result)
+    assert ("  !$acc data copyin(d) copyout(c) copy(b)\n"
+            "  do i = 1, 20, 2\n" in result)
+    assert ("  enddo\n"
+            "  !$acc end data\n" in result)
     assigns = sched.walk(Assignment)
     # Remove the read from array 'd'
     assigns[0].detach()
     result = fvisitor(sched)
-    assert ("!$acc data copyout(c) copy(b)\n"
-            "do i = 1, 20, 2\n" in result)
+    assert ("  !$acc data copyout(c) copy(b)\n"
+            "  do i = 1, 20, 2\n" in result)
     # Remove the readwrite of array 'b'
     assigns[2].detach()
     result = fvisitor(sched)
-    assert ("!$acc data copyout(c)\n"
-            "do i = 1, 20, 2\n" in result)
+    assert ("  !$acc data copyout(c)\n"
+            "  do i = 1, 20, 2\n" in result)
 
 
 # ----------------------------------------------------------------------------
-def test_acc_data_region_no_struct(parser):
+def test_acc_data_region_contains_struct(parser, fortran_writer):
     '''
-    Test that we refuse to generate code if a data region includes references
+    Test that we generate correct code if a data region includes references
     to structures.
     '''
     reader = FortranStringReader('''
@@ -125,6 +126,7 @@ subroutine tmp()
   do i = 1, 20, 2
     b(i) = b(i) + i + grid%flag
     grid%data(i) = i
+    grid%weights(i) = 1.0
   enddo
 end subroutine tmp
 end module test''')
@@ -133,14 +135,16 @@ end module test''')
     sched = psy.invokes.invoke_list[0].schedule
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
-    fvisitor = FortranWriter()
-    with pytest.raises(NotImplementedError) as err:
-        _ = fvisitor(sched)
-    # Allow for the vagaries of py2 output versus py3
-    err_msg = str(err.value).replace("u'", "'")
-    assert ("Structure (derived-type) references are not yet supported within "
-            "OpenACC data regions but found: ['grid%flag', 'grid%data(i)']" in
-            err_msg)
+    gen = fortran_writer(sched)
+    assert ("  !$acc data copyin(grid,grid%flag) "
+            "copyout(grid,grid%data,grid%weights) "
+            "copy(b)\n"
+            "  do i = 1, 20, 2\n"
+            "    b(i) = b(i) + i + grid%flag\n"
+            "    grid%data(i) = i\n"
+            "    grid%weights(i) = 1.0\n"
+            "  enddo\n"
+            "  !$acc end data\n" in gen)
 
 
 # ----------------------------------------------------------------------------
@@ -164,13 +168,13 @@ def test_nemo_acc_kernels(default_present, expected, parser):
 
     fvisitor = FortranWriter()
     result = fvisitor(nemo_sched)
-    correct = '''!$acc kernels{0}
-do i = 1, 20, 2
-  a = 2 * i + d(i)
-  c(i) = a
-  b(i) = b(i) + a + c(i)
-enddo
-!$acc end kernels'''.format(expected)
+    correct = '''  !$acc kernels{0}
+  do i = 1, 20, 2
+    a = 2 * i + d(i)
+    c(i) = a
+    b(i) = b(i) + a + c(i)
+  enddo
+  !$acc end kernels'''.format(expected)
     assert correct in result
 
     cvisitor = CWriter()
@@ -201,12 +205,12 @@ def test_nemo_acc_parallel(parser):
     result = fort_writer(nemo_sched)
 
     correct = '''!$acc parallel default(present)
-do i = 1, 20, 2
-  a = 2 * i + d(i)
-  c(i) = a
-  b(i) = b(i) + a + c(i)
-enddo
-!$acc end parallel'''
+  do i = 1, 20, 2
+    a = 2 * i + d(i)
+    c(i) = a
+    b(i) = b(i) + a + c(i)
+  enddo
+  !$acc end parallel'''
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
@@ -228,34 +232,34 @@ def test_acc_loop(parser):
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     _ = acc_trans.apply(loops[0], {"sequential": True})
-    fortran_writer = FortranWriter()
-    result = fortran_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop seq\n"
-            "do jj = 1, jpj, 1\n" in result)
+    fort_writer = FortranWriter()
+    result = fort_writer(schedule)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop seq\n"
+            "  do jj = 1, jpj, 1\n" in result)
     loop_dir = loops[0].ancestor(Directive)
     # Rather than keep apply the transformation with different options,
     # change the internal state of the Directive directly.
     loop_dir._sequential = False
-    result = fortran_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop independent\n"
-            "do jj = 1, jpj, 1\n" in result)
+    result = fort_writer(schedule)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop independent\n"
+            "  do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = 2
-    result = fortran_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop independent collapse(2)\n"
-            "do jj = 1, jpj, 1\n" in result)
+    result = fort_writer(schedule)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop independent collapse(2)\n"
+            "  do jj = 1, jpj, 1\n" in result)
     loop_dir._independent = False
-    result = fortran_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop collapse(2)\n"
-            "do jj = 1, jpj, 1\n" in result)
+    result = fort_writer(schedule)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop collapse(2)\n"
+            "  do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = None
-    result = fortran_writer(schedule)
-    assert ("!$acc kernels\n"
-            "!$acc loop\n"
-            "do jj = 1, jpj, 1\n" in result)
+    result = fort_writer(schedule)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop\n"
+            "  do jj = 1, jpj, 1\n" in result)
 
 
 # ----------------------------------------------------------------------------
