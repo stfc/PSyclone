@@ -57,7 +57,8 @@ from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
     Min2CodeTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
+    NemoAllArrayAccess2LoopTrans
 
 
 def trans(psy):
@@ -75,7 +76,8 @@ def trans(psy):
     abs_trans = Abs2CodeTrans()
     sign_trans = Sign2CodeTrans()
     min_trans = Min2CodeTrans()
-    nemo_loop_trans = NemoAllArrayRange2LoopTrans()
+    array_range_trans = NemoAllArrayRange2LoopTrans()
+    array_access_trans = NemoAllArrayAccess2LoopTrans()
 
     sir_writer = SIRWriter()
     fortran_writer = FortranWriter()
@@ -85,8 +87,15 @@ def trans(psy):
     # the invokes represent all of the original code.
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
+
+        # Transform any single index accesses in array assignments
+        # (e.g. a(1)) into 1-trip loops.
         for assignment in schedule.walk(Assignment):
-            nemo_loop_trans.apply(assignment)
+            array_access_trans.apply(assignment)
+
+        # Transform any array assignments (Fortran ':' notation) into loops.
+        for assignment in schedule.walk(Assignment):
+            array_range_trans.apply(assignment)
 
         for kernel in schedule.walk(NemoKern):
 

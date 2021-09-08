@@ -43,8 +43,16 @@ output files.
 
 
 from __future__ import absolute_import, print_function
+
 from psyclone.configuration import Config, GOceanConfig
+from psyclone.core import Signature
+from psyclone.f2pygen import AllocateGen, AssignGen, CallGen,\
+    CommentGen, DeclGen, ModuleGen, SubroutineGen, UseGen, \
+    TypeDeclGen
+from psyclone.gocean1p0 import GOSymbolTable
+from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyir.symbols import Symbol
 
 
 class GOceanExtractNode(ExtractNode):
@@ -96,16 +104,19 @@ class GOceanExtractNode(ExtractNode):
     def update_vars_and_postname(self):
         '''
         This function prevents any name clashes that can occur when adding
-        the postfix to output variable names (e.g. if there is an output
-        variable 'a', and an input variable 'a_post'. Writing the output value
-        of 'a' would create the key 'a_post', same as the input variable).
-        We change the postfix to make sure we have unique keys (by adding a
-        number to the end, e.g. "post0", then "post1", ...).
-
+        the postfix to output variable names. For example, if there is an
+        output variable 'a' and an input variable 'a_post', then the output
+        file would contain two identical keys 'a_post'. In order to avoid
+        this, the suffix 'post' is changed (to post0, post1, ...) until any
+        name clashes are avoided. This works for structured and non-structured
+        types.
         '''
         suffix = ""
-        while any(out_var+self._post_name+str(suffix) in self._input_list
-                  for out_var in self._output_list):
+        # The signatures in the input/output list need to be converted
+        # back to strings to easily append the suffix.
+        input_string = [str(input_var) for input_var in self._input_list]
+        while any(str(out_sig)+self._post_name+str(suffix) in input_string
+                  for out_sig in self._output_list):
             if suffix == "":
                 suffix = 0
             else:
@@ -151,14 +162,8 @@ class GOceanExtractNode(ExtractNode):
         :type output_list: list or str
         '''
 
-        from psyclone.f2pygen import AllocateGen, AssignGen, CallGen,\
-            CommentGen, DeclGen, ModuleGen, SubroutineGen, UseGen, \
-            TypeDeclGen
-        from psyclone.gocean1p0 import GOSymbolTable
-        from psyclone.psyir.symbols import Symbol
-
-        all_vars = list(set(input_list).union(set(output_list)))
-        all_vars.sort()
+        all_sigs = list(set(input_list).union(set(output_list)))
+        all_sigs.sort()
 
         module_name, region_name = self.region_identifier
         module = ModuleGen(name=module_name)
@@ -203,23 +208,22 @@ class GOceanExtractNode(ExtractNode):
         # name (e.g. dx_0).
 
         rename_variable = {}
-        for var_name in all_vars:
+        for signature in all_sigs:
             # TODO #644: we need to identify arrays!!
+
             # Support GOcean properties, which are accessed via a
             # derived type (e.g. 'fld%grid%dx'). In this stand-alone
             # driver we don't have the derived type, instead we create
             # variable based on the field in the derived type ('dx'
             # in the example above), and pass this variable to the
             # instrumented code.
-            last_percent = var_name.rfind("%")
-            if last_percent > -1:
-                # Strip off the derived type, and only leave the last
-                # field, which is used as the local variable name.
-                local_name = var_name[last_percent+1:]
-            else:
-                # No derived type, so we can just use the
-                # variable name directly in the driver
-                local_name = var_name
+            var_name = str(signature)
+
+            # In case of a derived type, this will only leave the last
+            # component, which is used as the local variable name. For
+            # non-derived type this is just the name of the variable anyway.
+            local_name = signature[-1]
+
             unique_local_name = sym_table.new_symbol(local_name).name
             rename_variable[local_name] = unique_local_name
             local_name = unique_local_name
@@ -231,8 +235,8 @@ class GOceanExtractNode(ExtractNode):
             decl = DeclGen(prog, "real", [local_name], kind="8",
                            dimension=":,:", allocatable=True)
             prog.add(decl)
-            is_input = var_name in input_list
-            is_output = var_name in output_list
+            is_input = signature in input_list
+            is_output = signature in output_list
 
             if is_input and not is_output:
                 # We only need the pre-variable, and we can read
@@ -316,11 +320,11 @@ class GOceanExtractNode(ExtractNode):
         #    If a property is not used, it doesn't matter if we modify
         #    its definition, so we just change all properties.
         for name, prop in all_props.items():
-            last_percent = prop.fortran.rfind("%")
-            if last_percent > -1:
+            new_sig = Signature(prop.fortran.split("%"))
+            if new_sig.is_structure:
                 # Get the last field name, which will be the
                 # local variable name
-                local_name = prop.fortran[last_percent+1:]
+                local_name = new_sig[-1]
                 unique_name = rename_variable.get(local_name, local_name)
                 all_props[name] = GOceanConfig.make_property(
                     unique_name, prop.type, prop.intrinsic_type)
@@ -336,7 +340,6 @@ class GOceanExtractNode(ExtractNode):
         # Each kernel caches the argument code, so we also
         # need to clear this cached data to make sure the new
         # value for "go_grid_data" is actually used.
-        from psyclone.psyGen import CodedKern
         for kernel in self.psy_data_body.walk(CodedKern):
             kernel.clear_cached_data()
 

@@ -35,12 +35,13 @@
 # Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
-'''Performs pytest tests on the psyclond.psyir.backend.visitor module'''
+'''Performs pytest tests on the psyclone.psyir.backend.visitor module'''
 
 from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Node, Reference, ArrayReference, Return
+from psyclone.psyir.nodes import Node, Reference, ArrayReference, Return, \
+    Statement, Schedule
 from psyclone.psyir.symbols import DataSymbol, ArrayType, REAL_TYPE
 from psyclone.errors import GenerationError
 
@@ -138,10 +139,70 @@ def test_psyirvisitor_visit_arg_error():
 
     '''
     visitor = PSyIRVisitor(indent_string=" ", initial_indent_depth=4)
-    with pytest.raises(VisitorError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         visitor("hello")
+    assert ("The PSyIR visitor functor method only accepts a PSyIR Node "
+            "as argument, but found 'str'." in str(excinfo.value))
+    with pytest.raises(VisitorError) as excinfo:
+        visitor._visit("hello")
     assert ("Visitor Error: Expected argument to be of type 'Node' but found "
             "'str'." in str(excinfo.value))
+
+
+def test_psyirvisitor_lower_dsl_concepts():
+    ''' Test that DSL concepts are lowered by the visitors but the node is not
+    modified after the visitor has finished. '''
+
+    class MyDSLNode(Statement):
+        ''' DSL Concept that lowers to a return statement '''
+        _text_name = "MyDSLNode"
+
+        def lower_to_language_level(self):
+            ''' MyDSLNode lowers to a return statement and adds a symbol
+            if it is inside an scoping region. '''
+            # This will break if this Node does not have a parent with
+            # a scope. This is intentional to cause an error during the
+            # lowering step.
+            self.scope.symbol_table.add(DataSymbol("val", REAL_TYPE))
+            self.replace_with(Return())
+
+    class MyVisitor(PSyIRVisitor):
+        ''' Simple Visitor for Schedules and Return statements '''
+        def return_node(self, _):
+            ''' Return node visitor '''
+            return "return"
+
+        def schedule_node(self, node):
+            ''' Schedule node visitor '''
+            return "schedule(" + self._visit(node.children[0]) + ")"
+
+    # Create a custom visitor and dsl-level node
+    visitor = MyVisitor(indent_string=" ", initial_indent_depth=4)
+    schedule = Schedule()
+    my_dsl_node = MyDSLNode()
+    schedule.addchild(my_dsl_node)
+
+    # Visit DSL Node in a tree (the tree should not be modified)
+    assert visitor(schedule) == "schedule(return)"
+    assert isinstance(schedule.children[0], MyDSLNode)
+    assert schedule.children[0] is my_dsl_node
+    assert len(schedule.symbol_table.symbols) == 0
+
+    # Visit DSL Node directly (the tree is also not modified)
+    assert visitor(my_dsl_node) == "return"
+    assert isinstance(my_dsl_node, MyDSLNode)
+    assert isinstance(schedule.children[0], MyDSLNode)
+    assert len(my_dsl_node.scope.symbol_table.symbols) == 0
+
+    # Visit DSL node without a parent, which is an invalid state to
+    # lower this node
+    my_dsl_node.detach()
+    with pytest.raises(VisitorError) as excinfo:
+        visitor(my_dsl_node)
+    assert (
+        "Failed to lower 'MyDSLNode[]'. Note that some nodes need to be "
+        "lowered from an ancestor in order to properly apply their in-tree "
+        "modifications." in str(excinfo.value))
 
 
 def test_psyirvisitor_visit_no_method1():
@@ -255,6 +316,53 @@ def test_psyirvisitor_visit_skip_nodes():
     assert result == "testnode2\n"
 
 
+def test_psyir_comments_no_prefix():
+    ''' Test the visitor behaviour for PSyIR with comments '''
+
+    class TestVisitorNoPrefix(PSyIRVisitor):
+        ''' Subclass of PSyIRVisitor with a statement visitor '''
+        def statement_node(self, _):
+            ''' Statement node visitor. '''
+            return "statement\n"
+
+    class TestVisitorPrefix(TestVisitorNoPrefix):
+        ''' Same as above but with a _COMMENT_PREFIX '''
+        _COMMENT_PREFIX = ":) "
+
+    statement = Return()
+    statement.preceding_comment = "C1"
+    statement.inline_comment = "C2"
+    visitor_no_prefix = TestVisitorNoPrefix()
+    visitor_prefix = TestVisitorPrefix()
+    # If the backend doesn't have a prefix, comments are ignored
+    assert visitor_no_prefix(statement) == "statement\n"
+    # Otherwise comments are inserted
+    assert visitor_prefix(statement) == ":) C1\nstatement  :) C2\n"
+
+
+def test_psyir_inline_comments_error():
+    ''' Test that a Visitor don't allow inline comments if the produced
+    output doesn't terminate with a line break '''
+
+    class TestVisitor(PSyIRVisitor):
+        ''' Subclass of PSyIRVisitor used to check that inline statements
+        with non-terminated constructs would fail '''
+        _COMMENT_PREFIX = ":) "
+
+        def statement_node(self, _):
+            ''' Statement node visitor. '''
+            return "statement"
+
+    statement = Return()
+    statement.inline_comment = "An inline comment"
+    test_visitor = TestVisitor()
+    with pytest.raises(VisitorError) as err:
+        _ = test_visitor(statement)
+    assert ("An inline_comment can only be added to a construct that finishes "
+            "with a '\\n', indicating that the line has ended, but node "
+            "'Return[]' results in 'statement'." in str(err.value))
+
+
 def test_psyirvisitor_validation():
     ''' Check that validation of the tree is performed and can be
     switched off. '''
@@ -318,8 +426,7 @@ def test_psyirvisitor_visit_return_node():
     with pytest.raises(VisitorError) as excinfo:
         _ = test_visitor(return_node)
     assert ("Visitor Error: Unsupported node 'Return' found: method names "
-            "attempted were ['return_node', 'statement_node', 'node_node']."
-            in str(excinfo.value))
+            "attempted were ['return_node', " in str(excinfo.value))
 
 
 def test_reference():

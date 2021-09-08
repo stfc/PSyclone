@@ -46,12 +46,13 @@ import os
 import pytest
 
 from psyclone.parse.algorithm import parse
-from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Loop
-from psyclone.psyir.symbols import ScalarType, DataTypeSymbol, DataSymbol
-from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError
 from psyclone.configuration import Config
+from psyclone.errors import GenerationError
+from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes import Loop, Reference, UnaryOperation, Literal, \
+    StructureReference
+from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
+from psyclone.psyGen import PSyFactory
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
 
@@ -71,19 +72,20 @@ API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
 def test_lfric_builtin_abstract_methods():
-    ''' Check that the LFRicBuiltIn class is abstract and that the __str__ and
-    gen_code() methods are abstract. '''
+    ''' Check that the LFRicBuiltIn class is abstract and that the __str__
+    method is abstract. '''
     with pytest.raises(TypeError) as err:
         lfric_builtins.LFRicBuiltIn()
     assert "abstract class LFRicBuiltIn" in str(err.value)
     assert "__str__" in str(err.value)
-    assert "gen_code" in str(err.value)
 
 
 def test_lfricbuiltin_missing_defs(monkeypatch):
@@ -397,8 +399,8 @@ def test_lfricbuiltfactory_str():
     assert "Factory for a call to an LFRic built-in." in str(factory)
 
 
-def test_get_argument_symbols(monkeypatch):
-    ''' Test the LFRicBuiltIn.get_argument_symbols() method.
+def test_get_indexed_field_argument_refs():
+    ''' Test the LFRicBuiltIn.get_indexed_field_argument_references() method.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -407,38 +409,40 @@ def test_get_argument_symbols(monkeypatch):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     loop = psy.invokes.invoke_list[0].schedule[0]
     kern = loop.loop_body[0]
-    symbols = kern.get_argument_symbols()
-    for sym in symbols:
-        assert isinstance(sym, DataSymbol)
-        if sym.name == "a":
-            # We should have a symbol of ScalarType for the scalar
-            assert isinstance(sym.datatype, ScalarType)
-            assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-        else:
-            assert isinstance(sym.datatype, DataTypeSymbol)
-            assert sym.datatype.name == "field_proxy_type"
-    # Repeat but force the symbols for the scalar and field-proxy args to be
-    # created
-    del loop.parent.symbol_table._symbols["a"]
-    del kern.parent.symbol_table._symbols["f2_proxy"]
-    symbols = kern.get_argument_symbols()
-    for sym in symbols:
-        if sym.name == "a":
-            # We should have a symbol of ScalarType for the scalar
-            assert isinstance(sym.datatype, ScalarType)
-            assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-        else:
-            assert isinstance(sym.datatype, DataTypeSymbol)
-            assert sym.datatype.name == "field_proxy_type"
+    refs = kern.get_indexed_field_argument_references()
+    # Kernel has two field arguments
+    assert len(refs) == 2
+    for ref in refs:
+        assert isinstance(ref, StructureReference)
+        assert isinstance(ref.symbol.datatype, DataTypeSymbol)
+        assert ref.symbol.datatype.name == "field_proxy_type"
+        assert ref.member.name == "data"
+        assert len(ref.member.indices) == 1
+        assert isinstance(ref.member.indices[0], Reference)
+        assert ref.member.indices[0].symbol.name == "df"
 
-    # Monkeypatch the scalar argument so that it appears to be an operator.
-    monkeypatch.setattr(kern._arguments.args[1], "_argument_type",
-                        LFRicConstants().VALID_OPERATOR_NAMES[0])
-    with pytest.raises(NotImplementedError) as err:
-        kern.get_argument_symbols()
-    assert ("Unsupported Builtin argument type: 'a' is of type "
-            "'{0}'".format(LFRicConstants().VALID_OPERATOR_NAMES[0]) in
-            str(err.value))
+
+def test_get_scalar_argument_references():
+    ''' Test the LFRicBuiltIn.get_scalar_argument_references() method.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.6.2_inc_X_powint_n_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched[0].loop_body[0]
+    refs = kern.get_scalar_argument_references()
+    assert len(refs) == 1
+    assert isinstance(refs[0], Reference)
+    assert refs[0].symbol.name == "i_scalar"
+    kern = sched[1].loop_body[0]
+    refs = kern.get_scalar_argument_references()
+    assert len(refs) == 1
+    assert isinstance(refs[0], UnaryOperation)
+    assert refs[0].operator == UnaryOperation.Operator.MINUS
+    assert isinstance(refs[0].children[0], Literal)
+    assert refs[0].children[0].value == "2"
 
 
 def test_get_dof_loop_index_symbol():
@@ -2115,7 +2119,7 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n")
     else:
@@ -2123,7 +2127,7 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2133,6 +2137,8 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
+        assert ("f1_proxy%data(df) = f1_proxy%data(df) ** 1.0e-3_r_def\n"
+                in code)
 
 
 def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
@@ -2155,6 +2161,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == ("Built-in: Raise a real-valued field to an "
                          "integer power")
+
     # Test code generation
     code = str(psy.gen)
 
@@ -2168,7 +2175,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n")
     else:
@@ -2176,7 +2183,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2186,6 +2193,10 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
+
+        assert "f1_proxy%data(df) = f1_proxy%data(df) ** (-2_i_def)\n" in code
+        assert ("f1_proxy%data(df) = f1_proxy%data(df) ** my_var_a_scalar\n"
+                in code)
 
 
 # ------------- Setting real field elements to a real value ----------------- #

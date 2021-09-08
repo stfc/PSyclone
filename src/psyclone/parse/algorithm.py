@@ -39,8 +39,9 @@ PSyclone-conformant Algorithm code.
 '''
 
 from __future__ import absolute_import
-
 from collections import OrderedDict
+import six
+
 from fparser.two import pattern_tools
 from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
@@ -50,44 +51,51 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Section_Subscript_List, Name, Real_Literal_Constant, \
     Int_Literal_Constant, Function_Reference, Level_2_Unary_Expr, \
     Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List, \
-    Proc_Component_Ref
+    Proc_Component_Ref, Kind_Selector, Type_Declaration_Stmt, \
+    Declaration_Type_Spec, Entity_Decl, Intrinsic_Type_Spec, \
+    Data_Component_Def_Stmt, Component_Decl
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
+from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
+    KernelTypeFactory
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
-from psyclone.errors import InternalError
+
+# pylint: disable=too-many-statements
+# pylint: disable=too-many-branches
 
 # Section 1: parse the algorithm file
 
 
 # pylint: disable=too-many-arguments
-def parse(alg_filename, api="", invoke_name="invoke", kernel_path="",
+def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
           line_length=False):
     '''Takes a PSyclone conformant algorithm file as input and outputs a
     parse tree of the code contained therein and an object containing
     information about the 'invoke' calls in the algorithm file and any
     associated kernels within the invoke calls.
 
-    :param str alg_filename: The file containing the algorithm \
-    specification.
-    :param str api: The PSyclone API to use when parsing the code.
-    :param str invoke_name: The expected name of the invocation calls \
-                            in the algorithm code.
-    :param str kernel_path: The path to search for kernel source files \
-                            (if different from the location of the \
-                            algorithm source).
-    :param bool line_length: A logical flag specifying whether we care \
-                             about line lengths being longer than 132 \
-                             characters. If so, the input (algorithm \
-                             and kernel) code is checked to make sure \
-                             that it conforms and an error raised if \
-                             not. The default is False.
+    :param str alg_filename: the file containing the algorithm \
+        specification.
+    :param str api: the PSyclone API to use when parsing the \
+        code. Defaults to empty string.
+    :param str invoke_name: the expected name of the invocation calls \
+        in the algorithm code. Defaults to "invoke".
+    :param kernel_paths: the paths to search for kernel source files \
+        (if different from the location of the algorithm source). \
+        Defaults to None.
+    :type kernel_paths: list of str or NoneType
+    :param bool line_length: a logical flag specifying whether we care \
+        about line lengths being longer than 132 characters. If so, \
+        the input (algorithm and kernel) code is checked to make sure \
+        that it conforms and an error raised if not. The default is \
+        False.
 
     :returns: 2-tuple consisting of the fparser2 parse tree of the \
-              Algorithm file and an object holding details of the \
-              invokes found.
-
+        Algorithm file and an object holding details of the invokes \
+        found.
     :rtype: (:py:class:`fparser.two.Fortran2003.Program`, \
              :py:class:`psyclone.parse.FileInfo`)
 
@@ -97,10 +105,11 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_path="",
     >>> ast, info = parse("alg.f90")
 
     '''
-
+    if kernel_paths is None:
+        kernel_paths = []
     # Parsing is encapsulated in the Parser class. We keep this
     # function for compatibility.
-    my_parser = Parser(api, invoke_name, kernel_path, line_length)
+    my_parser = Parser(api, invoke_name, kernel_paths, line_length)
     return my_parser.parse(alg_filename)
 
 
@@ -110,19 +119,18 @@ class Parser(object):
     file and extraction of relevant information for any 'invoke' calls
     contained within the code.
 
-    :param str api: The PSyclone API to use when parsing the code.
-    :param str invoke_name: The expected name of the invocation calls in the
-                            algorithm code.
-    :param str kernel_path: The path to search for kernel source files (if
-                            different from the location of the algorithm
-                            source).
-    :param bool line_length: A logical flag specifying whether we
-                             care about line lengths being longer
-                             than 132 characters. If so, the input
-                             (algorithm and kernel) code is checked
-                             to make sure that it conforms and an
-                             error raised if not. The default is
-                             False.
+    :param str api: the PSyclone API to use when parsing the code.
+    :param str invoke_name: the expected name of the invocation calls in the \
+        algorithm code.
+    :param kernel_paths: the paths to search for kernel source files \
+        (if different from the location of the algorithm source). \
+        Defaults to None.
+    :type kernel_paths: list of str or NoneType
+    :param bool line_length: a logical flag specifying whether we care \
+        about line lengths being longer than 132 characters. If so, \
+        the input (algorithm and kernel) code is checked to make sure \
+        that it conforms and an error raised if not. The default is \
+        False.
 
     For example:
 
@@ -132,11 +140,14 @@ class Parser(object):
 
     '''
 
-    def __init__(self, api="", invoke_name="invoke", kernel_path="",
+    def __init__(self, api="", invoke_name="invoke", kernel_paths=None,
                  line_length=False):
 
         self._invoke_name = invoke_name
-        self._kernel_path = kernel_path
+        if kernel_paths is None:
+            self._kernel_paths = []
+        else:
+            self._kernel_paths = kernel_paths
         self._line_length = line_length
 
         _config = Config.get()
@@ -147,6 +158,10 @@ class Parser(object):
         self._api = api
 
         self._arg_name_to_module_name = {}
+        # Dict holding a 2-tuple consisting of type and precision
+        # information for each variable declared in the algorithm
+        # file, indexed by variable name.
+        self._arg_type_defns = {}
         self._unique_invoke_labels = []
 
         # Use the get_builtin_defs helper function to access
@@ -160,26 +175,29 @@ class Parser(object):
 
     def parse(self, alg_filename):
         '''Takes a PSyclone conformant algorithm file as input and outputs a
-        parse tree of the code contained therein and an object containing
-        information about the 'invoke' calls in the algorithm file and any
-        associated kernels within the invoke calls.
+        parse tree of the code contained therein and an object
+        containing information about the 'invoke' calls in the
+        algorithm file and any associated kernels within the invoke
+        calls. If the NEMO API is being used then the parsed code is
+        returned without any additional information about the code.
 
         :param str alg_filename: The file containing the algorithm code.
+
         :returns: 2-tuple consisting of the fparser2 parse tree of the \
-        algorithm code and an object holding details of the algorithm \
-        code and the invokes found within it.
+            algorithm code and an object holding details of the \
+            algorithm code and the invokes found within it, unless it \
+            is the NEMO API, where the first entry of the tuple is \
+            None and the second is the fparser2 parse tree of the \
+            code.
         :rtype: (:py:class:`fparser.two.Fortran2003.Program`, \
-                 :py:class:`psyclone.parse.FileInfo`)
-        :raises ParseError: if a program, module, subroutine or \
-        function is not found in the input file.
+            :py:class:`psyclone.parse.FileInfo`) or (NoneType, \
+            :py:class:`fparser.two.Fortran2003.Program`)
 
         '''
         self._alg_filename = alg_filename
-
         if self._line_length:
             # Make sure the code conforms to the line length limit.
             check_line_length(alg_filename)
-
         alg_parse_tree = parse_fp2(alg_filename)
 
         if self._api == "nemo":
@@ -187,6 +205,32 @@ class Parser(object):
             # fparser2 AST with None for the Algorithm AST.
             return None, alg_parse_tree
 
+        return alg_parse_tree, self.invoke_info(alg_parse_tree)
+
+    def invoke_info(self, alg_parse_tree):
+        '''Takes an fparser2 representation of a PSyclone-conformant algorithm
+        code as input and returns an object containing information
+        about the 'invoke' calls in the algorithm file and any
+        associated kernels within the invoke calls. Also captures the
+        type and precision of every variable declaration within the
+        parse tree.
+
+        :param alg_parse_tree: the fparser2 representation of the \
+            algorithm code.
+        :type: :py:class:`fparser.two.Fortran2003.Program`
+
+        :returns: an object holding details of the algorithm \
+            code and the invokes found within it.
+        :rtype: :py:class:`psyclone.parse.FileInfo`
+
+        :raises ParseError: if a program, module, subroutine or \
+            function is not found in the fparser2 tree.
+        :raises InternalError: if the fparser2 tree representing the \
+            type declaration statements is not in the expected form.
+        :raises NotImplementedError: if the algorithm code contains \
+            two different datatypes with the same name.
+
+        '''
         # Find the first program, module, subroutine or function in the
         # parse tree. The assumption here is that the first is the one
         # that is required. See issue #307.
@@ -201,14 +245,70 @@ class Parser(object):
             # Nothing relevant found.
             raise ParseError(
                 "algorithm.py:parser:parse: Program, module, function or "
-                "subroutine not found in parse tree for file "
-                "'{0}'".format(alg_filename))
+                "subroutine not found in fparser2 parse tree.")
 
         self._unique_invoke_labels = []
         self._arg_name_to_module_name = OrderedDict()
+        # Dict holding a 2-tuple consisting of type and precision
+        # information for each variable declared in the algorithm
+        # file, indexed by variable name.
+        self._arg_type_defns = dict()
         invoke_calls = []
 
-        for statement in walk(alg_parse_tree.content):
+        # Find all invoke calls and capture information about
+        # them. Also find information about use statements and find
+        # all declarations within the supplied parse
+        # tree. Declarations will include the definitions of any
+        # components of derived types that are defined within the
+        # code.
+        for statement in walk(alg_parse_tree.content,
+                              types=(Type_Declaration_Stmt,
+                                     Data_Component_Def_Stmt,
+                                     Use_Stmt, Call_Stmt)):
+            if isinstance(statement,
+                          (Type_Declaration_Stmt, Data_Component_Def_Stmt)):
+                # Capture datatype information for the variable
+                spec = statement.children[0]
+                if isinstance(spec, Declaration_Type_Spec):
+                    # This is a type declaration
+                    my_type = spec.children[1].string.lower()
+                    my_precision = None
+                elif isinstance(spec, Intrinsic_Type_Spec):
+                    # This is an intrinsic declaration
+                    my_type = spec.children[0].lower()
+                    my_precision = None
+                    if isinstance(spec.children[1], Kind_Selector):
+                        my_precision = \
+                            spec.children[1].children[1].string.lower()
+                else:
+                    raise InternalError(
+                        "Expected first child of Type_Declaration_Stmt or "
+                        "Data_Component_Def_Stmt to be Declaration_Type_Spec "
+                        "or Intrinsic_Type_Spec but found '{0}'"
+                        "".format(type(spec).__name__))
+                for decl in walk(statement.children[2], (
+                        Entity_Decl, Component_Decl)):
+                    # Determine the variables names. Note that if a
+                    # variable declaration is a component of a derived
+                    # type, its name is stored 'as is'. This means
+                    # that e.g. real :: a will clash with a
+                    # derived-type definition if the latter has a
+                    # component named 'a' and their datatypes differ.
+                    my_var_name = decl.children[0].string.lower()
+                    if my_var_name in self._arg_type_defns and (
+                            self._arg_type_defns[my_var_name][0] != my_type or
+                            self._arg_type_defns[my_var_name][1] !=
+                            my_precision):
+                        raise NotImplementedError(
+                            "The same symbol '{0}' is used for different "
+                            "datatypes, '{1}, {2}' and '{3}, {4}'. This is "
+                            "not currently supported.".format(
+                                my_var_name,
+                                self._arg_type_defns[my_var_name][0],
+                                self._arg_type_defns[my_var_name][1],
+                                my_type, my_precision))
+                    # Store the variable name and information about its type
+                    self._arg_type_defns[my_var_name] = (my_type, my_precision)
 
             if isinstance(statement, Use_Stmt):
                 # found a Fortran use statement
@@ -222,7 +322,7 @@ class Parser(object):
                     invoke_call = self.create_invoke_call(statement)
                     invoke_calls.append(invoke_call)
 
-        return alg_parse_tree, FileInfo(container_name, invoke_calls)
+        return FileInfo(container_name, invoke_calls)
 
     def create_invoke_call(self, statement):
         '''Takes the part of a parse tree containing an invoke call and
@@ -291,8 +391,8 @@ class Parser(object):
             :py:class:`psyclone.parse.algorithm.BuiltInCall`
 
         '''
-        kernel_name, args = get_kernel(argument, self._alg_filename)
-
+        kernel_name, args = get_kernel(argument, self._alg_filename,
+                                       self._arg_type_defns)
         if kernel_name.lower() in self._builtin_name_map.keys():
             # This is a builtin kernel
             kernel_call = self.create_builtin_kernel_call(
@@ -331,7 +431,6 @@ class Parser(object):
                        self._arg_name_to_module_name[kernel_name.lower()],
                        self._alg_filename))
 
-        from psyclone.parse.kernel import BuiltInKernelTypeFactory
         return BuiltInCall(BuiltInKernelTypeFactory(api=self._api).create(
             self._builtin_name_map.keys(), self._builtin_defs_file,
             name=kernel_name.lower()), args)
@@ -357,20 +456,18 @@ class Parser(object):
         '''
         try:
             module_name = self._arg_name_to_module_name[kernel_name.lower()]
-        except KeyError:
-            raise ParseError(
-                "kernel call '{0}' must either be named "
-                "in a use "
-                "statement (found {1}) or be a recognised built-in "
-                "(one of '{2}' for this API)".
-                format(kernel_name,
-                       list(self._arg_name_to_module_name.values()),
-                       list(self._builtin_name_map.keys())))
+        except KeyError as info:
+            message = (
+                "kernel call '{0}' must either be named in a use statement "
+                "(found {1}) or be a recognised built-in (one of '{2}' for "
+                "this API)".format(
+                    kernel_name.lower(),
+                    list(self._arg_name_to_module_name.values()),
+                    list(self._builtin_name_map.keys())))
+            six.raise_from(ParseError(message), info)
 
-        from psyclone.parse.kernel import get_kernel_ast
         modast = get_kernel_ast(module_name, self._alg_filename,
-                                self._kernel_path, self._line_length)
-        from psyclone.parse.kernel import KernelTypeFactory
+                                self._kernel_paths, self._line_length)
         return KernelCall(module_name,
                           KernelTypeFactory(api=self._api).create(
                               modast, name=kernel_name), args)
@@ -528,7 +625,7 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     return invoke_label
 
 
-def get_kernel(parse_tree, alg_filename):
+def get_kernel(parse_tree, alg_filename, arg_type_defns):
     '''Takes the parse tree of an invoke kernel argument and returns the
     name of the kernel and a list of Arg instances which capture the
     relevant information about the arguments associated with the
@@ -540,6 +637,11 @@ def get_kernel(parse_tree, alg_filename):
         :py:class:`fparser.two.Fortran2003.Structure_Constructor`
     :param str alg_filename: The file containing the algorithm code.
 
+    :param arg_type_defns: dictionary holding a 2-tuple consisting of \
+        type and precision information for each variable declared in \
+        the algorithm layer, indexed by variable name.
+    :type arg_type_defns: dict[str] = (str, str or NoneType)
+
     :returns: a 2-tuple with the name of the kernel being called and a \
         list of 'Arg' instances containing the required information for \
         the arguments being passed from the algorithm layer. The list \
@@ -547,6 +649,13 @@ def get_kernel(parse_tree, alg_filename):
     :rtype: (str, list of :py:class:`psyclone.parse.algorithm.Arg`)
 
     :raises InternalError: if the parse tree is of the wrong type.
+    :raises InternalError: if Part_Ref or Structure_Constructor do not \
+        have two children.
+    :raises InternalError: if Proc_Component_Ref has a child with an \
+        unexpected type.
+    :raises InternalError: if Data_Ref has a child with an unexpected \
+        type.
+    :raises NotImplementedError: if an expression contains a variable.
     :raises InternalError: if an unsupported argument format is found.
 
     '''
@@ -583,14 +692,19 @@ def get_kernel(parse_tree, alg_filename):
             # A simple variable e.g. arg
             full_text = str(argument).lower()
             var_name = full_text
-            arguments.append(Arg('variable', full_text, var_name))
+            datatype = arg_type_defns.get(var_name)
+            arguments.append(Arg('variable', full_text, varname=var_name,
+                                 datatype=datatype))
         elif isinstance(argument, Part_Ref):
             # An indexed variable e.g. arg(n)
             full_text = argument.tostr().lower()
             var_name = str(argument.items[0]).lower()
-            arguments.append(Arg('indexed_variable', full_text, var_name))
+            datatype = arg_type_defns.get(var_name)
+            arguments.append(Arg('indexed_variable', full_text,
+                                 varname=var_name, datatype=datatype))
         elif isinstance(argument, Function_Reference):
-            # A function reference e.g. func()
+            # A function reference e.g. func(). The datatype of this
+            # function is not determined so datatype in Arg is None.
             full_text = argument.tostr().lower()
             designator = argument.items[0]
             lhs = designator.items[0]
@@ -598,14 +712,39 @@ def get_kernel(parse_tree, alg_filename):
             rhs = str(designator.items[2])
             var_name = "{0}_{1}".format(lhs, rhs)
             var_name = var_name.lower()
-            arguments.append(Arg('indexed_variable', full_text, var_name))
+            arguments.append(Arg('indexed_variable', full_text,
+                                 varname=var_name))
         elif isinstance(argument, (Data_Ref, Proc_Component_Ref)):
-            # A structure dereference e.g. base%arg, base%arg(n) It is
-            # a Proc_Component_Ref if the structure constructor uses
-            # self e.g. self%arg
+            # A structure access e.g. a % b or self % c
+            if isinstance(argument, Proc_Component_Ref):
+                if isinstance(argument.children[2], Name):
+                    arg = argument.children[2].string.lower()
+                else:
+                    # It does not appear to be possible to get to here
+                    # as an array (e.g. self%a(10)) is not treated as
+                    # being a Proc_Component_Ref by fparser2 and
+                    # Data_Ref otherwise always has a Name on the rhs
+                    # (3rd argument).
+                    raise InternalError(
+                        "The third argument to to a Proc_Component_Ref is "
+                        "expected to be a Name, but found '{0}'."
+                        "".format(type(argument.children[2]).__name__))
+            elif isinstance(argument, Data_Ref):
+                rhs_node = argument.children[-1]
+                if isinstance(rhs_node, Part_Ref):
+                    rhs_node = rhs_node.children[0]
+                if not isinstance(rhs_node, Name):
+                    raise InternalError(
+                        "The last child of a Data_Ref is expected to be "
+                        "a Name or a Part_Ref whose first child is a "
+                        "Name, but found '{0}'."
+                        "".format(type(rhs_node).__name__))
+                arg = rhs_node.string.lower()
+            datatype = arg_type_defns.get(arg)
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
-            arguments.append(Arg('variable', full_text, var_name))
+            arguments.append(Arg('variable', full_text,
+                                 varname=var_name, datatype=datatype))
         elif isinstance(argument, (Level_2_Unary_Expr, Add_Operand,
                                    Parenthesis)):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
@@ -654,7 +793,12 @@ def create_var_name(arg_parse_tree):
     if isinstance(tree, Part_Ref):
         return str(tree.items[0])
     if isinstance(tree, Proc_Component_Ref):
-        return "{0}_{1}".format(tree.items[0], tree.items[2])
+        # Proc_Component_Ref is of the form 'variable %
+        # proc-name'. Its RHS (proc-name) is always a Name but its
+        # LHS (variable) could be more complex, so call the function
+        # again for the LHS.
+        return "{0}_{1}".format(
+            create_var_name(tree.items[0]), tree.items[2])
     if isinstance(tree, Data_Ref):
         component_names = []
         for item in tree.items:
@@ -910,6 +1054,10 @@ class Arg(object):
     form is not literal otherwise it is set to None. This is optional \
     and defaults to None.
     :value varname: str or NoneType
+    :param datatype: a tuple containing information about the datatype \
+        and precision of the argument, or None if no information is \
+        available. Defaults to None.
+    :type datatype: (str, str or NoneType) or NoneType
 
     :raises InternalError: if the form argument is not one one of the \
     supported types as specified in the local form_options list.
@@ -917,7 +1065,7 @@ class Arg(object):
     '''
     form_options = ["literal", "variable", "indexed_variable"]
 
-    def __init__(self, form, text, varname=None):
+    def __init__(self, form, text, varname=None, datatype=None):
         self._form = form
         self._text = text
         self._varname = varname
@@ -926,6 +1074,9 @@ class Arg(object):
                 "algorithm.py:Alg:__init__: Unknown arg type provided. "
                 "Expected one of {0} but found "
                 "'{1}'.".format(str(Arg.form_options), form))
+        # A tuple containing information about the datatype and
+        # precision of this argument, or None if there is none.
+        self._datatype = datatype
 
     def __str__(self):
         return "Arg(form='{0}',text='{1}',varname='{2}')". \

@@ -38,8 +38,12 @@
 from __future__ import absolute_import
 import pytest
 
-from psyclone.core import Signature
+from psyclone.core import ComponentIndices, Signature
 from psyclone.errors import InternalError
+from psyclone.psyir.backend.c import CWriter
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 
 
 def test_signature():
@@ -52,7 +56,17 @@ def test_signature():
     assert repr(Signature("a")) == "Signature(a)"
     assert repr(Signature(("a",))) == "Signature(a)"
     assert repr(Signature(("a", "b", "c"))) == "Signature(a%b%c)"
+    assert repr(Signature(["a", "b", "c"])) == "Signature(a%b%c)"
     assert Signature("a") != "a"
+    sig = Signature(("a", "b", "c"))
+    assert sig.is_structure
+    assert sig[0] == "a"
+    assert sig[2] == "c"
+    assert sig[-1] == "c"
+    assert sig[0:2] == ("a", "b")
+    assert len(sig) == 3
+    assert Signature(["a", "b", "c"]).is_structure
+    assert not Signature(("a")).is_structure
 
 
 def test_signature_errors():
@@ -118,3 +132,102 @@ def test_signature_sort():
     sig_list.sort()
     assert str(sig_list) == "[Signature(a), Signature(a%b), Signature(a%c), " \
                             "Signature(b), Signature(b%a), Signature(c)]"
+
+
+def test_signature_comparison():
+    ''' Test that two Signatures can be compared for equality and not
+    equality.
+    '''
+    # pylint: disable=unneeded-not
+    assert Signature(("a", "b")) == Signature(("a", "b"))
+    assert not Signature(("a", "b")) == Signature(("a", "c"))
+
+    assert Signature(("a", "b")) != Signature(("a", "c"))
+    assert not Signature(("a", "b")) != Signature(("a", "b"))
+    assert Signature(("a", "c")) >= Signature(("a", "b"))
+    assert not Signature(("a", "b")) >= Signature(("a", "c"))
+    assert Signature(("a", "c")) > Signature(("a", "b"))
+    assert not Signature(("a", "b")) > Signature(("a", "c"))
+    assert Signature(("a", "b")) <= Signature(("a", "c"))
+    assert not Signature(("a", "c")) <= Signature(("a", "b"))
+    assert Signature(("a", "b")) < Signature(("a", "c"))
+    assert not Signature(("a", "c")) < Signature(("a", "b"))
+
+    # Comparison with other types should work for == and !=:
+    assert not Signature(("a", "b")) == 2
+    assert Signature(("a", "b")) != 2
+    # pylint: enable=unneeded-not
+
+    # Error cases: comparison of signature with other type.
+    with pytest.raises(TypeError) as err:
+        _ = Signature(("a", "b")) < 1
+    assert "'<' not supported between instances of 'Signature' and 'int'" \
+        in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        _ = Signature(("a", "b")) <= "a"
+    assert "'<=' not supported between instances of 'Signature' and 'str'" \
+        in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        _ = Signature(("a", "b")) > [1]
+    assert "'>' not supported between instances of 'Signature' and 'list'" \
+        in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        _ = Signature(("a", "b")) >= (1, 2)
+    assert "'>=' not supported between instances of 'Signature' and 'tuple'" \
+        in str(err.value)
+
+
+def test_to_language_fortran():
+    '''Test that conversion of a Signature with a ComponentIndices argument
+    gives the expected results.
+    '''
+    sig = Signature("a")
+    comp = ComponentIndices()
+    assert sig.to_language(comp) == "a"
+
+    comp = ComponentIndices(["i"])
+    assert sig.to_language(comp) == "a(i)"
+
+    ref = Reference(DataSymbol("j", INTEGER_SINGLE_TYPE))
+    comp = ComponentIndices([ref])
+    assert sig.to_language(comp) == "a(j)"
+
+    # Test error condition if number of components in signature does not
+    # match the number of indices in ComponentIndices
+    comp = ComponentIndices([[1], [2]])
+    with pytest.raises(InternalError) as err:
+        sig.to_language(comp)
+    assert ("Signature 'a' has 1 components, but component_indices [[1], [2]] "
+            "has 2." in str(err.value))
+
+    sig = Signature(("a", "b", "c"))
+    comp = ComponentIndices([[1], [], ["i", "j"]])
+    assert sig.to_language(comp) == "a(1)%b%c(i,j)"
+    comp = ComponentIndices([[1, 2], [], []])
+    assert sig.to_language(comp) == "a(1,2)%b%c"
+    comp = ComponentIndices([[], [], []])
+    assert sig.to_language(comp) == "a%b%c"
+
+
+def test_output_languages():
+    '''Tests that error messages can be created in different languages.
+    '''
+
+    sig = Signature(("a"))
+    comp = ComponentIndices([["i", "j"]])
+    f_writer = FortranWriter()
+    c_writer = CWriter()
+    # Check that it defaults to Fortran
+    assert sig.to_language(comp) == "a(i,j)"
+    assert sig.to_language(comp, f_writer) == "a(i,j)"
+    assert sig.to_language(comp, c_writer) == "a[i + j * aLEN1]"
+
+    sig = Signature(("a", "b", "c"))
+    comp = ComponentIndices([[1], [], ["i", "j"]])
+    # Check that it defaults to Fortran
+    assert sig.to_language(comp) == "a(1)%b%c(i,j)"
+    assert sig.to_language(comp, f_writer) == "a(1)%b%c(i,j)"
+    assert sig.to_language(comp, c_writer) == "a[1].b.c[i + j * cLEN1]"

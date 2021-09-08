@@ -42,7 +42,8 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
-    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE
+    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE, \
+    REAL_TYPE, INTEGER_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import colored
 
@@ -59,17 +60,21 @@ def test_literal_init():
     assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert literal.datatype.precision == ScalarType.Precision.DOUBLE
     assert len(literal.datatype.shape) == 2
-    assert isinstance(literal.datatype.shape[0], Literal)
-    assert literal.datatype.shape[0].value == '10'
-    assert (literal.datatype.shape[0].datatype.intrinsic ==
+    assert isinstance(literal.datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(literal.datatype.shape[0].lower, Literal)
+    assert isinstance(literal.datatype.shape[0].upper, Literal)
+    assert literal.datatype.shape[0].lower.value == '1'
+    assert literal.datatype.shape[0].upper.value == '10'
+    assert (literal.datatype.shape[0].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (literal.datatype.shape[0].datatype.precision ==
+    assert (literal.datatype.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(literal.datatype.shape[1], Literal)
-    assert literal.datatype.shape[1].value == '10'
-    assert (literal.datatype.shape[1].datatype.intrinsic ==
+    assert isinstance(literal.datatype.shape[1].upper, Literal)
+    assert literal.datatype.shape[1].lower.value == '1'
+    assert literal.datatype.shape[1].upper.value == '10'
+    assert (literal.datatype.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
-    assert (literal.datatype.shape[1].datatype.precision ==
+    assert (literal.datatype.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
 
     literal = Literal("true", BOOLEAN_TYPE)
@@ -126,7 +131,7 @@ def test_literal_init_invalid_2(value):
     with pytest.raises(ValueError) as err:
         Literal(value, REAL_DOUBLE_TYPE)
     assert ("A scalar real literal value must conform to the supported "
-            "format ('^[+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?$') but "
+            "format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
             "found '{0}'.".format(value) in str(err.value))
 
 
@@ -172,8 +177,7 @@ def test_literal_node_str():
     literal = Literal("1", array_type)
     coloredtext = colored("Literal", Literal._colour)
     assert (coloredtext+"[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
-            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>]"
+            "shape=[10, 10]>]"
             in literal.node_str())
 
 
@@ -182,9 +186,7 @@ def test_literal_can_be_printed():
     initialised fully)'''
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
-    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
-            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>]"
+    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, shape=[10, 10]>]"
             in str(literal))
 
 
@@ -215,3 +217,32 @@ def test_literal_can_be_copied():
     literal1._value = "2"
     assert literal1.value == "2"
     assert literal.value == "1"
+
+
+def test_literal_math_equal():
+    '''Test that the math_equal() function behaves as expected.'''
+
+    one = Literal("1.0", REAL_TYPE)
+    two = Literal("2.0", REAL_TYPE)
+    assert one.math_equal(one)
+    assert not one.math_equal(None)
+    assert not one.math_equal(two)
+
+
+@pytest.mark.xfail(message="issue #1321. math_equal() for literal is not "
+                   "robust")
+def test_literal_math_equal_reps():
+    '''test that the math_equal() function works with different
+    representations and datatypes.
+
+    '''
+    one = Literal("1.0", REAL_TYPE)
+    another_one = Literal("1.00", REAL_TYPE)
+    yet_another_one = Literal("1", REAL_TYPE)
+    one_with_precision = Literal("1.0", REAL_DOUBLE_TYPE)
+    one_different_type = Literal("1", INTEGER_TYPE)
+
+    assert one.math_equal(another_one)
+    assert one.math_equal(yet_another_one)
+    assert not one.math_equal(one_with_precision)
+    assert not yet_another_one.math_equal(one_different_type)

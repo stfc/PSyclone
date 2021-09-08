@@ -419,8 +419,9 @@ def test_apply_codeblocks(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    assert len(subroutine[0].children) == 1
-    assert isinstance(subroutine[0].children[0], CodeBlock)
+    assert len(subroutine[0].children) == 3
+    for child in subroutine[0].children:
+        assert isinstance(child, CodeBlock)
 
     invoke_trans = InvokeCallTrans()
     invoke_trans.apply(subroutine[0], 3)
@@ -450,10 +451,11 @@ def test_apply_mixed(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    assert len(subroutine[0].children) == 3
+    assert len(subroutine[0].children) == 4
     assert isinstance(subroutine[0].children[0], CodeBlock)
-    assert isinstance(subroutine[0].children[1], ArrayReference)
-    assert isinstance(subroutine[0].children[2], CodeBlock)
+    assert isinstance(subroutine[0].children[1], CodeBlock)
+    assert isinstance(subroutine[0].children[2], ArrayReference)
+    assert isinstance(subroutine[0].children[3], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
     invoke_trans.apply(subroutine[0], 4)
