@@ -995,7 +995,7 @@ class SymbolTable(object):
         if not imported_var.is_import:
             raise TypeError(
                 "The imported_var argument of SymbolTable.copy_external_"
-                "import method should have a ImportInterface interface, "
+                "import method should have an ImportInterface interface, "
                 "but found '{0}'."
                 "".format(type(imported_var.interface).__name__))
 

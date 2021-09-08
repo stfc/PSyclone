@@ -1128,11 +1128,11 @@ def test_copy_external_import():
     with pytest.raises(TypeError) as error:
         symtab.copy_external_import(DataSymbol("var1", REAL_TYPE))
     assert "The imported_var argument of SymbolTable.copy_external_import " \
-        "method should have a ImportInterface interface, but found " \
+        "method should have an ImportInterface interface, but found " \
         "'LocalInterface'." \
         in str(error.value)
 
-    # Copy a imported_var
+    # Copy an imported_var
     container = ContainerSymbol("my_mod")
     var = DataSymbol("a", DeferredType(),
                      interface=ImportInterface(container))

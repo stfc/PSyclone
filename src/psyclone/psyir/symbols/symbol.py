@@ -100,7 +100,7 @@ class ImportInterface(SymbolInterface):
 
         if not isinstance(container_symbol, ContainerSymbol):
             raise TypeError(
-                "Import container_symbol parameter must be of type"
+                "ImportInterface container_symbol parameter must be of type"
                 " ContainerSymbol, but found '{0}'."
                 "".format(type(container_symbol).__name__))
 
@@ -308,7 +308,7 @@ class Symbol(object):
         :raises SymbolError: if the module pointed to by the symbol interface \
                              does not contain the symbol (or the symbol is \
                              not public).
-        :raises NotImplementedError: if the this symbol does not have an \
+        :raises NotImplementedError: if this symbol does not have an \
                                      ImportInterface.
         '''
         if not self.is_import:
@@ -340,7 +340,7 @@ class Symbol(object):
         class and type of the looked-up symbol are the same as this one,
         some specialisations of this method update the differing
         properties in place rather than create a new symbol.
-        If this symbol does not have a ImportInterface then there is no
+        If this symbol does not have an ImportInterface then there is no
         lookup needed and we just return this symbol.
 
         :returns: a symbol object with the class and type determined by \
@@ -429,7 +429,7 @@ class Symbol(object):
     @property
     def is_import(self):
         '''
-        :returns: whether the Symbol has a Import interface.
+        :returns: whether the Symbol has an ImportInterface.
         :rtype: bool
 
         '''

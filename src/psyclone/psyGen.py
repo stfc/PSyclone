@@ -1022,7 +1022,7 @@ class InvokeSchedule(Routine):
         # pylint: enable=protected-access
 
         # Imported symbols promoted from Kernel imports are in the SymbolTable.
-        # First aggregate all imports variables from the same module in a map.
+        # First aggregate all variables imported from the same module in a map.
         module_map = {}
         for imported_var in self.symbol_table.import_symbols:
             module_name = imported_var.interface.container_symbol.name

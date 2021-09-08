@@ -178,7 +178,7 @@ def test_importinterface():
 
     with pytest.raises(TypeError) as info:
         _ = ImportInterface("hello")
-    assert ("Import container_symbol parameter must be of type "
+    assert ("ImportInterface container_symbol parameter must be of type "
             "ContainerSymbol, but found 'str'." in str(info.value))
 
 

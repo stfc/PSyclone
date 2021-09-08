@@ -719,7 +719,7 @@ def test_gen_decls_nested_scope(fortran_writer):
 
 def test_gen_decls_routine(fortran_writer):
     '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not a ImportInterface, unless there's a wildcard
+    of a routine symbol is not an ImportInterface, unless there's a wildcard
     import from a Container.
 
     '''
@@ -743,7 +743,7 @@ def test_gen_decls_routine(fortran_writer):
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbol 'sub2' does not have a ImportInterface or "
+        "Routine symbol 'sub2' does not have an ImportInterface or "
         "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
         "import which could bring it into scope. This is not supported by the "
         "Fortran back-end." in str(info.value))

@@ -3306,9 +3306,9 @@ class KernelImportsToArguments(Transformation):
 
     def apply(self, node, options=None):
         '''
-        Convert the importe variables used inside the kernel into arguments and
-        modify the InvokeSchedule to pass the same imported variables to the
-        kernel call.
+        Convert the imported variables used inside the kernel into arguments
+        and modify the InvokeSchedule to pass the same imported variables to
+        the kernel call.
 
         This apply() method does not return anything, as agreed in #595.
         However, this change has yet to be applied to the other Transformation
