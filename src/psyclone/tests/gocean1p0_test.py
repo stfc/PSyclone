@@ -1268,10 +1268,9 @@ def test05p1_kernel_invalid_iterates_over():
               api="gocean1.0")
 
 
-#@pytest.mark.xfail(reason="Invalid iterates over can not generate loops")
-def test05p1_kernel_add_iteration_spaces():
-    '''Check that adding a new iteration space works
-    '''
+def test05p1_kernel_add_iteration_spaces(tmpdir):
+    ''' Check that adding a new iteration space works and the
+    GOConstLoopBoundsTrans can also use it. '''
 
     # Add new iteration space 'dofs'
     GOLoop.add_bounds("go_offset_sw:go_cu:dofs:1:2:3:{stop}")
@@ -1318,9 +1317,7 @@ def test05p1_kernel_add_iteration_spaces():
         "Schedule:\n"
         "kern call: compute_cu_code\n")
     assert expected_sched in str(schedule)
-
-    # Note that this output can not be test compiled, since dl_esm_inf
-    # has no symbol defined for the new iteration space.
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test06_kernel_invalid_access():

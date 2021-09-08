@@ -319,7 +319,7 @@ def test_omp_region_no_slice(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_no_slice_no_const_bounds(tmpdir):
+def test_omp_region_no_slice_const_bounds(tmpdir):
     ''' Test that we generate the correct code when we apply an OpenMP
     PARALLEL region transformation to a list of nodes when the InvokeSchedule
     has been transformed to use loop-bound look-ups '''

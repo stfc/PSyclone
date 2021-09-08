@@ -62,9 +62,9 @@ def test_const_loop_bounds_name_and_str():
 
 
 def test_const_loop_bounds_not_schedule():
-    ''' Check that we raise an error if we attempt to apply the
-    constant loop-bounds transformation to something somethingthat is
-    not an InvokeSchedule '''
+    ''' Check that we raise an error if we attempt to apply the constant
+    loop-bounds transformation to something that is not an InvokeSchedule.
+    '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule

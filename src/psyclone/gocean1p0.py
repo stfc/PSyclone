@@ -411,6 +411,8 @@ class GOLoop(Loop):
 
         Loop.__init__(self, parent=parent,
                       valid_loop_types=const.VALID_LOOP_TYPES)
+
+        # The following attributes are validated in the respective setters
         self.loop_type = loop_type
         self.field_name = field_name
         self.field_space = field_space
@@ -817,10 +819,13 @@ class GOLoop(Loop):
                     start='2', stop=stop_expr)
         except KeyError as err:
             six.raise_from(GenerationError(
-                "Cannot generate custom loop bound for the: '{0}', '{1}' and"
-                " '{2}' combination."
+                "Cannot generate custom loop bound for a loop with an index-"
+                "offset of '{0}', a field-space of '{1}', an iteration-space "
+                "of '{2}' and a loop-type of '{3}', for the side '{4}' because"
+                " this keys combination do not exist in the "
+                "GOLoop.bounds_lookup table."
                 "".format(self.index_offset, self.field_space,
-                          self.iteration_space)), err)
+                          self.iteration_space, self.loop_type, side)), err)
 
         return bound
 

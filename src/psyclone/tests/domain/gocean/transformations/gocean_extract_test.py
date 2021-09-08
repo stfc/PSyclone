@@ -286,7 +286,6 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
     etrans.apply(schedule.children[3])
 
     code = str(psy.gen)
-    print(code)
     output = """      ! ExtractStart
       !
       CALL extract_psy_data%PreStart("psy_single_invoke_three_kernels", """ \

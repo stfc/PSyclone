@@ -182,8 +182,11 @@ def test_goloop_bounds_invalid_iteration_space():
     with pytest.raises(GenerationError) as err:
         # The setter already calls the upper/lower_bound methods
         gojloop.iteration_space = "broken"
-    assert ("Cannot generate custom loop bound for the: 'go_offset_ne', "
-            "'go_cv' and 'broken' combination." in str(err.value))
+    assert ("Cannot generate custom loop bound for a loop with an index-offset"
+            " of 'go_offset_ne', a field-space of 'go_cv', an iteration-space "
+            "of 'broken' and a loop-type of 'outer', for the side 'start' "
+            "because this keys combination do not exist in the "
+            "GOLoop.bounds_lookup table." in str(err.value))
 
 
 def test_goloop_grid_property_psyir_expression():
@@ -244,7 +247,7 @@ def test_goloop_validate_loop():
     class GOKernMock(GOKern):
         ''' Mock class of GOKern for this test'''
         def __init__(self):
-            ''' Overrided constructor to initialize it just as a
+            ''' Overridden constructor to initialize it just as a
             PSyIR node'''
             # pylint: disable=super-init-not-called, non-parent-init-called
             Node.__init__(self)  # Ignore hierarchy constructors
