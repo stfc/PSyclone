@@ -61,8 +61,7 @@ class ProfileNode(PSyDataNode):
         ''' Returns a string representation of the subtree starting at
         this node. '''
         result = "ProfileStart[var={0}]\n".format(self._var_name)
-        for child in self.profile_body.children:
-            result += str(child)+"\n"
+        result += str(self.profile_body)+"\n"
         return result+"ProfileEnd"
 
     # -------------------------------------------------------------------------

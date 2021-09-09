@@ -135,9 +135,21 @@ def test_goloop_properties_getters_and_setters():
     goloop.iteration_space = "it_space"
     assert goloop.iteration_space == "it_space"
 
+    # Provide an incorrect iteration_space
+    with pytest.raises(TypeError) as err:
+        goloop.iteration_space = 3
+    assert ("Iteration space must be a 'str' but found 'int' instead."
+            in str(err.value))
+
     # Set and get iteration_space
     goloop.field_space = "cv_fld"
     assert goloop.field_space == "cv_fld"
+
+    # Provide an incorrect iteration_space
+    with pytest.raises(TypeError) as err:
+        goloop.field_space = 3
+    assert ("Field space must be a 'str' but found 'int' instead."
+            in str(err.value))
 
     # Get bounds map
     assert goloop.bounds_lookup == GOLoop._bounds_lookup
