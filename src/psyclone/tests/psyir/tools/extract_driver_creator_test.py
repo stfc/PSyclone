@@ -46,8 +46,8 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
-from psyclone.psyir.nodes import Reference
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.nodes import Reference, Routine
+from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.tools import ExtractDriverCreator
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
@@ -378,6 +378,29 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
         edc.create_flattened_symbol("new_name", ref, SymbolTable())
     assert "Unknown gocean property type 'invalid-type' in expression " \
            "'in_fld%grid%gphiu." in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_errors_add_call():
+    '''Test that it is detected if a call added that is not a
+    RoutineSymbol.
+
+    '''
+    program = Routine("test", is_program=True)
+    program_symbol_table = program.symbol_table
+
+    # Add 'psy_data_mod' as a container symbol:
+    psy_data_mod = ContainerSymbol("psy_data_mod")
+    program_symbol_table.add(psy_data_mod)
+
+    edc = ExtractDriverCreator()
+
+    # Then try to add a call to 'psy_data_mod':
+    with pytest.raises(TransformationError) as err:
+        edc.add_call(program, "psy_data_mod", [])
+    assert "Error when adding call: Routine 'psy_data_mod' is already a " \
+           "symbol of type 'ContainerSymbol', not a 'RoutineSymbol'." \
+           in str(err.value)
 
 
 # -----------------------------------------------------------------------------

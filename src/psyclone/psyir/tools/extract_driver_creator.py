@@ -300,6 +300,11 @@ class ExtractDriverCreator:
         '''
         if name in program.symbol_table:
             routine_symbol = program.symbol_table.lookup(name)
+            if not isinstance(routine_symbol, RoutineSymbol):
+                raise TransformationError(
+                    "Error when adding call: Routine '{0}' is already "
+                    "a symbol of type '{1}', not a 'RoutineSymbol'."
+                    .format(name, type(routine_symbol).__name__))
         else:
             routine_symbol = RoutineSymbol(name)
             program.symbol_table.add(routine_symbol)
