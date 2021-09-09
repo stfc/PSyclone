@@ -100,6 +100,8 @@ class ExtractDriverCreator:
         :raises TransformationError: if there is no default type defined for \
             the type of the GOCean grid property (defaults are defined in \
             the constructor of this class).
+        :raises TransformationError: if the gocean grid property type is \
+            neither 'array' nor 'scalar'.
 
         :returns: the new symbol created.
         :rtype: :py:class:`psyclone.psyir.symbol.DataSymbol`
@@ -139,6 +141,11 @@ class ExtractDriverCreator:
             array = ArrayType(base_type, [ArrayType.Extent.DEFERRED,
                                           ArrayType.Extent.DEFERRED])
             new_symbol = DataSymbol(flattened_name, array)
+        else:
+            raise TransformationError("Unknown gocean property type '{0}' in "
+                                      "expression '{1}."
+                                      .format(gocean_property.type,
+                                              fortran_expression))
 
         return new_symbol
 

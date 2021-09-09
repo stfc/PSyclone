@@ -40,6 +40,8 @@ previously dumped kernel input- and output-data.
 
 from __future__ import absolute_import
 
+from collections import namedtuple
+
 import pytest
 
 from psyclone.configuration import Config
@@ -362,6 +364,20 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
         edc.create_flattened_symbol("new_name", ref, None)
     assert "Could not find type for reference 'in_fld%grid%gphiu'" \
         in str(err.value)
+
+    grid_properties = api_config.grid_properties
+
+    # We have to create an invalid property from scratch, since the
+    # GOceanConfig implementation only allows valid types.
+    Property = namedtuple("Property", "fortran type intrinsic_type")
+    prop = Property("{0}%grid%gphiu", "invalid-type", "real")
+    monkeypatch.setitem(grid_properties, "go_grid_lat_u", prop)
+    # We need a new instance, since the instance above was modified
+    edc = ExtractDriverCreator()
+    with pytest.raises(TransformationError) as err:
+        edc.create_flattened_symbol("new_name", ref, SymbolTable())
+    assert "Unknown gocean property type 'invalid-type' in expression " \
+           "'in_fld%grid%gphiu." in str(err.value)
 
 
 # -----------------------------------------------------------------------------
