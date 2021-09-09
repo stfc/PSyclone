@@ -194,8 +194,7 @@ class ExtractDriverCreator:
         try:
             symbol = symbol_table.lookup_with_tag(fortran_string)
         except KeyError:
-            flattened_name = \
-                ExtractDriverCreator.flatten_string(fortran_string)
+            flattened_name = self.flatten_string(fortran_string)
             # Symbol not in table, create a new symbol
             symbol = self.create_flattened_symbol(flattened_name,
                                                   old_reference, symbol_table,
@@ -419,8 +418,7 @@ class ExtractDriverCreator:
                     fortran_reader = FortranReader()
                     container = fortran_reader.psyir_from_source(code)\
                         .children[0]
-                    alloc = container.children[0].children[0]
-                    alloc.parent.children.remove(alloc)
+                    alloc = container.children[0].children[0].detach()
                     program.addchild(alloc)
                 set_zero = Assignment.create(Reference(sym),
                                              Literal("0", INTEGER_TYPE))
@@ -510,10 +508,7 @@ class ExtractDriverCreator:
             container = fortran_reader.psyir_from_source(code)\
                 .children[0]
             if_block = container.children[0].children[0]
-            # Remove from the parent, otherwise it can't be added:
-            if_block.parent.children.remove(if_block)
-
-            program.addchild(if_block)
+            program.addchild(if_block.detach())
 
     # -------------------------------------------------------------------------
     def create(self, nodes, input_list, output_list,
