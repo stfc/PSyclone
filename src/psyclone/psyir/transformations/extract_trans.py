@@ -76,10 +76,6 @@ class ExtractTrans(PSyDataTrans):
     excluded_node_types = (CodeBlock, ExtractNode,
                            HaloExchange, GlobalSum)
 
-    def __init__(self, node_class=ExtractNode):
-        # This function is only here to document its interface and default.
-        super(ExtractTrans, self).__init__(node_class=node_class)
-
     # -------------------------------------------------------------------------
     @staticmethod
     def determine_postfix(input_list, output_list, postfix="_post"):

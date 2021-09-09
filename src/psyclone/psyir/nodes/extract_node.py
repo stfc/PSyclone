@@ -78,7 +78,7 @@ class ExtractNode(PSyDataNode):
     :param str options["post_var_postfix"]: a postfix to be used when \
         creating names to store values of output variable. A variable 'a' \
         would store its value as 'a', and its output values as 'a_post' with \
-        the default post_Var_postfix of '_post'.
+        the default post_var_postfix of '_post'.
 
     '''
     # Textual description of the node.

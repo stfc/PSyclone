@@ -324,8 +324,8 @@ def test_rename_suffix_if_name_clash(tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation_get_type_errors(monkeypatch):
-    '''Test that get_type raises the appropriate errors.
+def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
+    '''Test that create_flattened_symbol raises the appropriate errors.
 
     '''
     _, invoke = get_invoke("driver_test.f90",
@@ -347,8 +347,9 @@ def test_driver_creation_get_type_errors(monkeypatch):
     edc._default_types = {}
     with pytest.raises(TransformationError) as err:
         # The symbol table can be None, that code is not reached.
-        edc.get_type("new_name", ref, None)
-    assert "Unknown type 'real' in GOcean API" in str(err.value)
+        edc.create_flattened_symbol("new_name", ref, None)
+    assert "Unknown type 'real' in the reference 'in_fld%grid%gphiu' in the " \
+           "GOcean API" in str(err.value)
 
     # Monkey patch the grid property dictionary to remove the
     # go_grid_lat_u entry, triggering an earlier error:
@@ -358,7 +359,7 @@ def test_driver_creation_get_type_errors(monkeypatch):
 
     with pytest.raises(TransformationError) as err:
         # The symbol table can be None, that code is not reached.
-        edc.get_type("new_name", ref, None)
+        edc.create_flattened_symbol("new_name", ref, None)
     assert "Could not find type for reference 'in_fld%grid%gphiu'" \
         in str(err.value)
 
@@ -386,7 +387,8 @@ def test_driver_creation_add_all_kernel_symbols_errors():
     symbol_table = SymbolTable()
     with pytest.raises(TransformationError) as err:
         edc.add_all_kernel_symbols(schedule_copy, symbol_table)
-    assert "Unknown derived type 'unknown type'" in str(err.value)
+    assert "Error when constructing driver for 'invoke_0_compute_kernel': " \
+           "Unknown derived type 'unknown type'" in str(err.value)
     ref.symbol.datatype._name = "r2d_field"
 
     # Remove the default types to trigger the error of
@@ -395,7 +397,8 @@ def test_driver_creation_add_all_kernel_symbols_errors():
     symbol_table = SymbolTable()
     with pytest.raises(TransformationError) as err:
         edc.add_all_kernel_symbols(schedule_copy, symbol_table)
-    assert "Unknown intrinsic data type 'Intrinsic.INTEGER'" in str(err.value)
+    assert "Error when constructing driver for 'invoke_0_compute_kernel': " \
+           "Unknown intrinsic data type 'Intrinsic.INTEGER'" in str(err.value)
 
 
 # -----------------------------------------------------------------------------

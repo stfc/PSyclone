@@ -119,7 +119,7 @@ alg.o:	psy.o
 
 psy.o:	$(KERNELS)
 
-# The driver will implicitly created when creating the psy.f90 file.
+# The driver will be created when creating the psy.f90 file.
 # This dependency is required, otherwise a 'make compile' in a clean
 # directory will fail.
 $(DRIVER_INIT).f90: psy.f90

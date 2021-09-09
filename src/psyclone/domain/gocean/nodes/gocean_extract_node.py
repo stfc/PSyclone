@@ -74,10 +74,6 @@ class GOceanExtractNode(ExtractNode):
         not overwritten in the options dictionary.
 
     '''
-    def __init__(self, ast=None, children=None, parent=None, options=None):
-        # This function is only provided to document the options.
-        super(GOceanExtractNode, self).__init__(ast=ast, children=children,
-                                                parent=parent, options=options)
 
     @property
     def dag_name(self):
