@@ -504,7 +504,15 @@ class GOLoop(Loop):
         if these exist, to match the given field_space.
 
         :param str my_field_space: new field_space value.
+
+        :raises TypeError: if the provided field_space is not a string.
+
         '''
+        if not isinstance(my_field_space, six.string_types):
+            raise TypeError(
+                "Field space must be a 'str' but found '{0}' instead.".
+                format(type(my_field_space).__name__))
+
         self._field_space = my_field_space
         if len(self.children) > 1:
             self.start_expr.replace_with(self.lower_bound())
@@ -514,7 +522,8 @@ class GOLoop(Loop):
     @property
     def iteration_space(self):
         '''
-        :returns: the loop's iteration space.
+        :returns: the loop's iteration space (e.g. 'go_internal_pts', \
+                  'go_all_pts', ...).
         :rtype: str
         '''
         return self._iteration_space
@@ -525,7 +534,15 @@ class GOLoop(Loop):
         if these exist, to match the given iteration_space.
 
         :param str it_space: new iteration_space value.
+
+        :raises TypeError: if the provided it_space is not a string.
+
         '''
+        if not isinstance(it_space, six.string_types):
+            raise TypeError(
+                "Iteration space must be a 'str' but found '{0}' instead.".
+                format(type(it_space).__name__))
+
         self._iteration_space = it_space
         if len(self.children) > 1:
             self.start_expr.replace_with(self.lower_bound())
@@ -535,7 +552,11 @@ class GOLoop(Loop):
     @property
     def bounds_lookup(self):
         '''
-        :returns: the GOcean loop bounds lookup table.
+        :returns: the GOcean loop bounds lookup table. This is a \
+                  5-dimensional dictionary with index-offset, field-space, \
+                  iteration-space, loop-type, and boundary-side lookup keys \
+                  which provides information about how to construct the \
+                  loop boundaries for a kernel with such parameters.
         :rtype: dict
         '''
         return self._bounds_lookup
@@ -789,6 +810,13 @@ class GOLoop(Loop):
 
         :returns: the string that represents the loop bound.
         :rtype: str
+
+        :raises GenerationError: if this node can not find a field in \
+            the Invoke to be the base of the infrastructure call.
+        :raises GenerationError: if no expression is known to obtain the \
+            boundaries for a loop of this characteristics, because they \
+            are not in the GOcean lookup table or the loop type is not \
+            `inner` or `outer`.
         '''
         api_config = Config.get().api_conf("gocean1.0")
         # Get a field argument from the argument list
@@ -874,7 +902,6 @@ class GOLoop(Loop):
         '''
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-
             # We look-up the upper bounds by enquiring about the SIZE of
             # the array itself
             stop = BinaryOperation(BinaryOperation.Operator.SIZE)
@@ -890,26 +917,23 @@ class GOLoop(Loop):
                 stop.addchild(Literal("2", INTEGER_TYPE, parent=stop))
             return stop
 
-        # Loop bounds are pulled from the field object which
-        # is more straightforward for us but provides the
-        # Fortran compiler with less information.
-
+        # Loop bounds are pulled from a infrastructure call from a field
+        # object. For 'go_internal_pts' and 'go_all_points' we use the
+        # 'internal' and 'whole' structures respectively. For other
+        # iteration_spaces we look if a custom expression is defined in the
+        # lookup table.
+        props = Config.get().api_conf("gocean1.0").grid_properties
         if self.iteration_space.lower() == "go_internal_pts":
-            key = "internal"
-        elif self.iteration_space.lower() == "go_all_pts":
-            key = "whole"
-        else:
-            bound_str = self.get_custom_bound_string("stop")
-            return FortranReader().psyir_from_expression(
-                        bound_str, self.scope.symbol_table)
-
-        api_config = Config.get().api_conf("gocean1.0")
-        props = api_config.grid_properties
-        # key is 'internal' or 'whole', and _loop_type is either
-        # 'inner' or 'outer'. The four possible combinations are
-        # defined in the config file:
-        return self._grid_property_psyir_expression(
-            props["go_grid_{0}_{1}_stop".format(key, self._loop_type)].fortran)
+            return self._grid_property_psyir_expression(
+                props["go_grid_{0}_{1}_stop".format(
+                    "internal", self._loop_type)].fortran)
+        if self.iteration_space.lower() == "go_all_pts":
+            return self._grid_property_psyir_expression(
+                props["go_grid_{0}_{1}_stop".format(
+                    "whole", self._loop_type)].fortran)
+        bound_str = self.get_custom_bound_string("stop")
+        return FortranReader().psyir_from_expression(
+                    bound_str, self.scope.symbol_table)
 
     def lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
@@ -922,26 +946,23 @@ class GOLoop(Loop):
             # Bounds are independent of the grid-offset convention in use
             return Literal("1", INTEGER_TYPE)
 
-        # Loop bounds are pulled from the field object which is more
-        # straightforward for us but provides the Fortran compiler
-        # with less information.
+        # Loop bounds are pulled from a infrastructure call from a field
+        # object. For 'go_internal_pts' and 'go_all_points' we use the
+        # 'internal' and 'whole' structures respectively. For other
+        # iteration_spaces we look if a custom expression is defined in the
+        # lookup table.
+        props = Config.get().api_conf("gocean1.0").grid_properties
         if self.iteration_space.lower() == "go_internal_pts":
-            key = "internal"
-        elif self.iteration_space.lower() == "go_all_pts":
-            key = "whole"
-        else:
-            bound_str = self.get_custom_bound_string("start")
-            return FortranReader().psyir_from_expression(
-                        bound_str, self.scope.symbol_table)
-
-        api_config = Config.get().api_conf("gocean1.0")
-        props = api_config.grid_properties
-        # key is 'internal' or 'whole', and _loop_type is either
-        # 'inner' or 'outer'. The four possible combinations are
-        # defined in the config file:
-        return self._grid_property_psyir_expression(
-            props["go_grid_{0}_{1}_start".format(key,
-                                                 self._loop_type)].fortran)
+            return self._grid_property_psyir_expression(
+                props["go_grid_{0}_{1}_start".format(
+                    "internal", self._loop_type)].fortran)
+        if self.iteration_space.lower() == "go_all_pts":
+            return self._grid_property_psyir_expression(
+                props["go_grid_{0}_{1}_start".format(
+                    "whole", self._loop_type)].fortran)
+        bound_str = self.get_custom_bound_string("start")
+        return FortranReader().psyir_from_expression(
+                    bound_str, self.scope.symbol_table)
 
     def _validate_loop(self):
         ''' Validate that the GOLoop has all necessary boundaries information
@@ -1024,8 +1045,13 @@ class GOKernCallFactory():
 
         :returns: new PSyIR tree representing the kernel call loop.
         :rtype: :py:class:`psyclone.gocean1p0.GOLoop`
+
         '''
-        # Add temporary parent as it needs to find the InvokeSchedule
+        # Add temporary parent as the GOKern constructor needs to find its
+        # way to the top-level InvokeSchedule but we still don't have the
+        # PSyIR loops to place it in the appropriate place. We can't create
+        # the loops first because those depend on information provided by
+        # this kernel.
         gocall = GOKern(call, parent=parent)
 
         # Determine Loop information from the enclosed Kernel

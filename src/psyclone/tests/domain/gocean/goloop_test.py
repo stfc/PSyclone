@@ -227,18 +227,16 @@ def test_goloop_validate_loop():
     goloop.addchild(Literal("1", INTEGER_TYPE))
     goloop.addchild(Literal("1", INTEGER_TYPE))
     goloop.addchild(Schedule())
-    schedule.addchild(goloop)
-    goloop.detach()
 
     # Test that an ancestor must be GOInvokeSchedule
+    goloop._parent = None  # Remove parent pointer set in the constructor
     with pytest.raises(GenerationError) as err:
         goloop._validate_loop()
     assert ("Cannot find a GOInvokeSchedule ancestor for this GOLoop."
             in str(err.value))
 
     # Test that a child must be a GOKern
-    schedule = GOInvokeSchedule('name', [])
-    schedule.addchild(goloop.detach())
+    schedule.addchild(goloop)
     with pytest.raises(GenerationError) as err:
         goloop._validate_loop()
     assert ("Cannot find the GOcean Kernel enclosed by this loop"
