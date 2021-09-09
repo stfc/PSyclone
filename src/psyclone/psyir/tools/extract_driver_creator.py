@@ -412,18 +412,15 @@ class ExtractDriverCreator:
                     # use the second allocate statement to create code
                     # that's independent of the number of dimensions.
                     code = '''
-                        module test
-                        contains
                         subroutine tmp()
                           integer, allocatable, dimension(:,:) :: b
                           allocate({0}(size({1},1), size({1},2)))
                           !allocate({0}, mold={1})
-                        end subroutine tmp
-                        end module test'''.format(sig_str, post_name)
+                        end subroutine tmp'''.format(sig_str, post_name)
                     fortran_reader = FortranReader()
                     container = fortran_reader.psyir_from_source(code)\
                         .children[0]
-                    alloc = container.children[0].children[0].detach()
+                    alloc = container.children[0].detach()
                     program.addchild(alloc)
                 set_zero = Assignment.create(Reference(sym),
                                              Literal("0", INTEGER_TYPE))
@@ -493,8 +490,6 @@ class ExtractDriverCreator:
             # Fortran code to create a code block which stores the output
             # statements.
             code = '''
-                module test
-                contains
                 subroutine tmp()
                   integer :: {0}, {1}
                   if ({2}) then
@@ -505,13 +500,11 @@ class ExtractDriverCreator:
                      print *,"{0} values should be:"
                      print *,{1}
                   endif
-                end subroutine tmp
-                end module test'''.format(sym_computed.name,
+                end subroutine tmp'''.format(sym_computed.name,
                                           sym_read.name, cond)
 
             fortran_reader = FortranReader()
-            container = fortran_reader.psyir_from_source(code)\
-                .children[0]
+            container = fortran_reader.psyir_from_source(code)
             if_block = container.children[0].children[0]
             program.addchild(if_block.detach())
 
