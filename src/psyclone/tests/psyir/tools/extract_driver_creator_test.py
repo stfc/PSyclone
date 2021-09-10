@@ -534,7 +534,7 @@ def test_driver_node_verification(tmpdir):
         edc.create(nodes=[schedule.children[1],
                           schedule.children[2],
                           schedule.children[0]],
-                   input_list=[], output_list=[], prefix="pre",
+                   input_list=[], output_list=[], prefix="extract",
                    postfix="post", region_name=("file", "region"))
     assert "Children are not consecutive children of one parent" \
         in str(err.value)
@@ -545,7 +545,7 @@ def test_driver_node_verification(tmpdir):
     with pytest.raises(TransformationError) as err:
         edc.create(nodes=[invokes[3].schedule.children[1],
                           invokes[2].schedule.children[0]],
-                   input_list=[], output_list=[], prefix="pre",
+                   input_list=[], output_list=[], prefix="extract",
                    postfix="post", region_name=("file", "region"))
     assert "supplied nodes are not children of the same parent." \
         in str(err.value)
