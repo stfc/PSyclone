@@ -110,11 +110,10 @@ class ExtractTrans(PSyDataTrans):
         # Create the a set of all input and output variables (to avoid
         # checking input+output variables more than once)
         all_vars = set(input_list) | set(output_list)
-        all_vars = set(input_list)
         # The signatures in the input/output list need to be converted
         # back to strings to easily append the suffix.
-        input_string = [str(input_var) for input_var in all_vars]
-        while any(str(out_sig)+postfix+str(suffix) in input_string
+        all_vars_string = [str(input_var) for input_var in all_vars]
+        while any(str(out_sig)+postfix+str(suffix) in all_vars_string
                   for out_sig in output_list):
             if suffix == "":
                 suffix = 0

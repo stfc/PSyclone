@@ -43,6 +43,7 @@ from __future__ import absolute_import
 
 import pytest
 
+from psyclone.core import Signature
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import ExtractNode, Node
@@ -65,6 +66,56 @@ def test_extract_trans():
                           "a node of type ExtractNode at its root."
 
 
+# --------------------------------------------------------------------------- #
+def test_determine_postfix():
+    '''Test that a unique postfix is determined.
+    '''
+
+    # Test if there is no clash that the specified postfix is returned as is:
+    postfix = ExtractTrans.determine_postfix([], [])
+    assert postfix == "_post"
+    postfix = ExtractTrans.determine_postfix([], [], postfix="_new_postfix")
+    assert postfix == "_new_postfix"
+
+    # Clash between input variable and a created output variable:
+    postfix = ExtractTrans.determine_postfix([Signature("var_post")],
+                                             [Signature("var")])
+    assert postfix == "_post0"
+
+    # Two lashes between input variable and a created output variable:
+    postfix = ExtractTrans.determine_postfix([Signature("var_post"),
+                                              Signature("var_post0")],
+                                             [Signature("var")])
+    assert postfix == "_post1"
+
+    # Two lashes between different input variables and created output
+    # variables: 'var1' prevents the '_post' to be used, 'var2'
+    # prevents "_post0" to be used, 'var3' prevents "_post1":
+    postfix = ExtractTrans.determine_postfix([Signature("var1_post"),
+                                              Signature("var2_post0"),
+                                              Signature("var3_post1")],
+                                             [Signature("var1"),
+                                              Signature("var2"),
+                                              Signature("var3")])
+    assert postfix == "_post2"
+
+    # Handle clash between output variables: the first variable will
+    # create "var_post", the second "var_post_post". So at this stage
+    # there is no actual clash (only if 'var_post' is an input- and
+    # output-variable would we have a clash). Still, in order to avoid
+    # issue with future uses, we avoid this as well:
+    postfix = ExtractTrans.determine_postfix([],
+                                             [Signature("var"),
+                                              Signature("var_post")])
+    assert postfix == "_post0"
+    postfix = ExtractTrans.determine_postfix([],
+                                             [Signature("var"),
+                                              Signature("var_post"),
+                                              Signature("var_post0")])
+    assert postfix == "_post1"
+
+
+# --------------------------------------------------------------------------- #
 def test_malformed_extract_node(monkeypatch):
     ''' Check that we raise the expected error if an ExtractNode does not have
     a single Schedule node as its child. '''
