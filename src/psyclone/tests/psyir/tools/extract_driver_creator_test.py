@@ -41,16 +41,19 @@ previously dumped kernel input- and output-data.
 from __future__ import absolute_import
 
 from collections import namedtuple
+import os
 
 import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.tools import ExtractDriverCreator
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import GOConstLoopBoundsTrans
 
 # API names
@@ -505,3 +508,44 @@ def test_driver_creation_import_modules(fortran_reader):
     assert str(all_symbols["my_module"]) == "my_module: <not linked>"
     mod_func = all_symbols["mod_func"]
     assert str(mod_func) == "mod_func : RoutineSymbol <DeferredType>"
+
+
+# -----------------------------------------------------------------------------
+def test_driver_node_verification(tmpdir):
+    '''Test that driver verifies the node list it receives and only
+    accept the valid parameters.
+
+    '''
+    # Use tmpdir so that the driver is created in tmp
+    tmpdir.chdir()
+
+    api = "gocean1.0"
+    _, info = parse(os.path.join(get_base_path(api), "driver_test.f90"),
+                    api=api)
+    psy = PSyFactory(api, distributed_memory=False).create(info)
+    invokes = psy.invokes.invoke_list
+
+    edc = ExtractDriverCreator()
+
+    # Provide the nodes in the wrong order.
+    # Invoke #3 has all in all three invokes:
+    schedule = invokes[3].schedule
+    with pytest.raises(TransformationError) as err:
+        edc.create(nodes=[schedule.children[1],
+                          schedule.children[2],
+                          schedule.children[0]],
+                   input_list=[], output_list=[], prefix="pre",
+                   postfix="post", region_name=("file", "region"))
+    assert "Children are not consecutive children of one parent" \
+        in str(err.value)
+    assert "has position 0, but previous child had position 2." \
+        in str(err.value)
+
+    # Provide nodes from different invokes:
+    with pytest.raises(TransformationError) as err:
+        edc.create(nodes=[invokes[3].schedule.children[1],
+                          invokes[2].schedule.children[0]],
+                   input_list=[], output_list=[], prefix="pre",
+                   postfix="post", region_name=("file", "region"))
+    assert "supplied nodes are not children of the same parent." \
+        in str(err.value)

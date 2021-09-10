@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import Assignment, Call, FileContainer, \
 from psyclone.psyir.symbols import ArrayType, CHARACTER_TYPE, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, \
     GlobalInterface, INTEGER_TYPE, REAL8_TYPE, RoutineSymbol, ScalarType
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class ExtractDriverCreator:
@@ -501,7 +501,7 @@ class ExtractDriverCreator:
                      print *,{1}
                   endif
                 end subroutine tmp'''.format(sym_computed.name,
-                                          sym_read.name, cond)
+                                             sym_read.name, cond)
 
             fortran_reader = FortranReader()
             container = fortran_reader.psyir_from_source(code)
@@ -538,6 +538,12 @@ class ExtractDriverCreator:
 
         '''
         # pylint: disable=too-many-locals
+
+        # Since this is a 'public' method of an entirely separate class,
+        # we check that the list of nodes is what it expects. This is done
+        # by invoking the validate function of the basic extract function.
+        extract_trans = ExtractTrans()
+        extract_trans.validate(nodes)
 
         module_name, local_name = region_name
         unit_name = "{0}_{1}".format(module_name, local_name)
