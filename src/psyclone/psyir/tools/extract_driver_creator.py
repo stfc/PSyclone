@@ -543,7 +543,8 @@ class ExtractDriverCreator:
         # we check that the list of nodes is what it expects. This is done
         # by invoking the validate function of the basic extract function.
         extract_trans = ExtractTrans()
-        extract_trans.validate(nodes)
+        # We need to provide the prefix to the validation function:
+        extract_trans.validate(nodes, options={"prefix": prefix})
 
         module_name, local_name = region_name
         unit_name = "{0}_{1}".format(module_name, local_name)
