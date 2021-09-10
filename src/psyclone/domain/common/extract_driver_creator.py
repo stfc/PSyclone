@@ -50,8 +50,11 @@ from psyclone.psyir.nodes import Assignment, Call, FileContainer, \
     Literal, Reference, Routine, StructureReference
 from psyclone.psyir.symbols import ArrayType, CHARACTER_TYPE, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, \
-    GlobalInterface, INTEGER_TYPE, REAL8_TYPE, RoutineSymbol, ScalarType
+    ImportInterface, INTEGER_TYPE, REAL8_TYPE, RoutineSymbol, ScalarType
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
+
+# TODO 1392: once we support LFRic, make this into a proper base class
+# and put the domain-specific implementations into the domain/* directories.
 
 
 class ExtractDriverCreator:
@@ -433,7 +436,7 @@ class ExtractDriverCreator:
     def import_modules(program, sched):
         '''This function adds all the import statements required for the
         actual kernel calls. It finds all calls in the PSyIR tree and
-        checks for calls with a GlobalInterface. Any such call will
+        checks for calls with a ImportInterface. Any such call will
         get a ContainerSymbol added for the module, and a RoutineSymbol
         with a global interface pointing to this module.
 
@@ -448,7 +451,7 @@ class ExtractDriverCreator:
         symbol_table = program.scope.symbol_table
         for call in sched.walk(Call):
             routine = call.routine
-            if not isinstance(routine.interface, GlobalInterface):
+            if not isinstance(routine.interface, ImportInterface):
                 continue
             if routine.name in symbol_table:
                 # Symbol has already been added - ignore
@@ -459,7 +462,7 @@ class ExtractDriverCreator:
             module = ContainerSymbol(routine.interface.container_symbol.name)
             symbol_table.add(module)
             new_routine_sym = RoutineSymbol(routine.name, DeferredType(),
-                                            interface=GlobalInterface(module))
+                                            interface=ImportInterface(module))
             symbol_table.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
@@ -563,7 +566,7 @@ class ExtractDriverCreator:
         psy_data_mod = ContainerSymbol(prefix+"psy_data_mod")
         program_symbol_table.add(psy_data_mod)
         psy_data_type = DataTypeSymbol(prefix+"PsyDataType", DeferredType(),
-                                       interface=GlobalInterface(psy_data_mod))
+                                       interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
 
         writer = FortranWriter()

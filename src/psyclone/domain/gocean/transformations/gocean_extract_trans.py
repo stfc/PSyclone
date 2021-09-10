@@ -41,7 +41,8 @@
 from psyclone.domain.gocean.nodes import GOceanExtractNode
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.symbols import REAL8_TYPE, INTEGER_TYPE
-from psyclone.psyir.tools import DependencyTools, ExtractDriverCreator
+from psyclone.psyir.tools import DependencyTools
+from psyclone.domain.common import ExtractDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 

@@ -46,12 +46,12 @@ import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.domain.common import ExtractDriverCreator
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
-from psyclone.psyir.tools import ExtractDriverCreator
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import GOConstLoopBoundsTrans
