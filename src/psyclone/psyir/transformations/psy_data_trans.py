@@ -169,7 +169,7 @@ class PSyDataTrans(RegionTrans):
 
         # Add a region index to ensure uniqueness when there are
         # multiple regions in an invoke.
-        key = module_name + "|" + module_name
+        key = module_name + "|" + region_name
         idx = PSyDataTrans._used_kernel_names.get(key, 0)
         PSyDataTrans._used_kernel_names[key] = idx + 1
         region_name += ":r{0}".format(idx)

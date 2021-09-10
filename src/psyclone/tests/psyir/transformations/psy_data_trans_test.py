@@ -84,12 +84,16 @@ def test_psy_data_get_unique_region_name():
     region_name = data_trans.get_unique_region_name(schedule, {})
     assert region_name == ('psy_single_invoke_different_iterates_over',
                            'invoke_0:r0')
+    # Test that when the same region name is used, we get a new name
+    region_name = data_trans.get_unique_region_name(schedule, {})
+    assert region_name == ('psy_single_invoke_different_iterates_over',
+                           'invoke_0:r1')
 
-    # Test default with a single kernel (note that the transformation caches
-    # kernel names, so thi)
+    # While this has the same module name, the region name
+    # is different, so it should get region index 0:
     region_name = data_trans.get_unique_region_name([schedule.children[0]], {})
     assert region_name == ('psy_single_invoke_different_iterates_over',
-                           'invoke_0:compute_cv_code:r1')
+                           'invoke_0:compute_cv_code:r0')
 
     # Check that incorrect region names are handled:
     with pytest.raises(InternalError) as err:
