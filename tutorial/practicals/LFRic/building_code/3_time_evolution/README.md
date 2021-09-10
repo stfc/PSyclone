@@ -67,11 +67,11 @@ no modifications are:
   outputs results calling an I/O routine from the
   `write_diagnostics_mod.f90` module;
 
-* [`write_diagnostics_mod.f90`](write_diagnostics_mod.f90) calls a diagnostic
-  output routine to write the "model state" consisting of the coordinate and
-  perturbation fields to a file;
+* [`write_diagnostics_mod.f90`](../gungho_lib/write_diagnostics_mod.f90)
+  calls a diagnostic output routine to write the "model state" consisting of
+  the coordinate and perturbation fields to a file;
 
-* [`gungho_lib`](gungho_lib), LFRic infrastructure and science code support
+* [`gungho_lib`](../gungho_lib), LFRic infrastructure and science code support
   for assigning coordinate fields, [reading namelists](#appendix) and
   outputting results (not present in the [pared-down infrastructure](
   ../README.md#lfric-code-support).
@@ -235,8 +235,8 @@ in the configuration file [`configuration.nml`](configuration.nml):
 
 The parameters are read and processed by the [generated](#appendix)
 [`perturbation_bell_config_mod.f90`](
-gungho_lib/perturbation_bell_config_mod.f90) configuration module in
-the [`gungho_lib`](gungho_lib) directory and are accessed by the kernel
+../gungho_lib/perturbation_bell_config_mod.f90) configuration module in
+the [`gungho_lib`](../gungho_lib) directory and are accessed by the kernel
 through the relevant `use` statement:
 
 ```fortran
@@ -430,7 +430,7 @@ the same if plotted at the same model levels.
 The [`time_evolution_driver.f90`](time_evolution_driver.f90) follows the
 order of setting up LFRic object stack outlined in
 [this full NetCDF LFRic example](
-../../../../../examples/lfric/full_example_netcdf/README.md):
+../../../../../examples/lfric/eg17/full_example_netcdf/README.md):
 **global 2D mesh** read from NetCDF file -> **partition** ->
 **local 3D mesh** -> **function space** -> **field**.
 
