@@ -142,14 +142,20 @@ def test_goloop_properties_getters_and_setters():
             in str(err.value))
 
     # Set and get iteration_space
-    goloop.field_space = "cv_fld"
-    assert goloop.field_space == "cv_fld"
+    goloop.field_space = "go_cv"
+    assert goloop.field_space == "go_cv"
 
     # Provide an incorrect iteration_space
     with pytest.raises(TypeError) as err:
         goloop.field_space = 3
     assert ("Field space must be a 'str' but found 'int' instead."
             in str(err.value))
+
+    with pytest.raises(ValueError) as err:
+        goloop.field_space = "invalid"
+    assert ("Invalid string 'invalid' provided for a GOcean field_space. The "
+            "valid values are ['go_cu', 'go_cv', 'go_ct', 'go_cf', 'go_every'"
+            ", '']" in str(err.value))
 
     # Get bounds map
     assert goloop.bounds_lookup == GOLoop._bounds_lookup
@@ -197,7 +203,7 @@ def test_goloop_bounds_invalid_iteration_space():
     assert ("Cannot generate custom loop bound for a loop with an index-offset"
             " of 'go_offset_ne', a field-space of 'go_cv', an iteration-space "
             "of 'broken' and a loop-type of 'outer', for the side 'start' "
-            "because this keys combination do not exist in the "
+            "because this keys combination does not exist in the "
             "GOLoop.bounds_lookup table." in str(err.value))
 
 

@@ -471,8 +471,8 @@ class GOLoop(Loop):
         :param str field_name: name of the field this loop iterates on.
         :param str field_space: space of the field this loop iterates on.
         :param str iteration_space: iteration space of the loop.
-        :param str index_offset: the grid index offset that this loops \
-            iterates on.
+        :param str index_offset: the grid index offset used by the kernel(s) \
+            within this loop.
 
         :returns: a new GOLoop node (with appropriate child nodes).
         :rtype: :py:class:`psyclone.gocean1p0.GOLoop`
@@ -506,12 +506,21 @@ class GOLoop(Loop):
         :param str my_field_space: new field_space value.
 
         :raises TypeError: if the provided field_space is not a string.
+        :raises ValueError: if the provided field_space is not a valid GOcean \
+                            field_space.
 
         '''
+        # TODO 1393: This could call the super setter if the validations are
+        # generic
         if not isinstance(my_field_space, six.string_types):
             raise TypeError(
                 "Field space must be a 'str' but found '{0}' instead.".
                 format(type(my_field_space).__name__))
+        valid_fs = GOceanConstants().VALID_FIELD_GRID_TYPES + ['']
+        if my_field_space not in valid_fs:
+            raise ValueError(
+                "Invalid string '{0}' provided for a GOcean field_space. The "
+                "valid values are {1}".format(my_field_space, valid_fs))
 
         self._field_space = my_field_space
         if len(self.children) > 1:
@@ -542,6 +551,9 @@ class GOLoop(Loop):
             raise TypeError(
                 "Iteration space must be a 'str' but found '{0}' instead.".
                 format(type(it_space).__name__))
+
+        # TODO 1393: We could validate also the value, but at the moment there
+        # are some ambiguities to resolve.
 
         self._iteration_space = it_space
         if len(self.children) > 1:
@@ -853,7 +865,7 @@ class GOLoop(Loop):
                 "Cannot generate custom loop bound for a loop with an index-"
                 "offset of '{0}', a field-space of '{1}', an iteration-space "
                 "of '{2}' and a loop-type of '{3}', for the side '{4}' because"
-                " this keys combination do not exist in the "
+                " this keys combination does not exist in the "
                 "GOLoop.bounds_lookup table."
                 "".format(self.index_offset, self.field_space,
                           self.iteration_space, self.loop_type, side)), err)

@@ -37,14 +37,14 @@
 
 '''This module contains the GOConstLoopBoundsTrans.'''
 
-from psyclone.psyir.transformations import TransformationError
-from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop, GOKern
+from psyclone.errors import InternalError
+from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, DataTypeSymbol
+from psyclone.psyir.transformations import TransformationError
 from psyclone.configuration import Config
-from psyclone.domain.gocean import GOceanConstants
 
 
 class GOConstLoopBoundsTrans(Transformation):
@@ -113,7 +113,12 @@ class GOConstLoopBoundsTrans(Transformation):
         :raises TransformationError: if the supplied node is not a \
             GOInvokeSchedule.
         :raises TransformationError: if the supplied schedule has loops with \
-            index offsets
+            a loop with loop_type different than 'inner' or 'outer'.
+        :raises TransformationError: if the supplied schedule has loops with \
+            attributes for index_offsets, field_space, iteration_space and \
+            loop_type that don't appear in the GOLoop.bounds_lookup table.
+        :raises TransformationError: if the supplied schedule doesn't have a \
+            field argument.
 
         '''
         if not isinstance(node, GOInvokeSchedule):
@@ -162,17 +167,14 @@ class GOConstLoopBoundsTrans(Transformation):
                     "{1}.".format(loop.loop_type, list(table.keys())))
 
         # Make sure the Invoke has at least one field argument
-        found = False
         for arg in node.symbol_table.argument_list:
             if isinstance(arg.datatype, DataTypeSymbol):
                 if arg.datatype.name == "r2d_field":
-                    found = True
                     break
-        if not found:
+        else:
             raise TransformationError(
                 "GOConstLoopBoundsTrans can not transform invoke '{0}' because"
-                " there are no argument fields on it.".format(node.name))
-
+                " it does not have any field arguments.".format(node.name))
 
     def apply(self, node, options=None):
         ''' Modify the GOcean kernel loops in a GOInvokeSchedule to use
@@ -237,7 +239,10 @@ class GOConstLoopBoundsTrans(Transformation):
                 stop = i_stop.name
             elif loop.loop_type == "outer":
                 stop = j_stop.name
-            # the validate method raises and error for any other loop_type
+            else:
+                raise InternalError(
+                    "Found a loop with loop_type '{0}' but the only expected "
+                    "values are 'inner' or 'outer'.".format(loop.loop_type))
 
             # Get the bounds map
             bounds = loop.bounds_lookup[loop.index_offset][loop.field_space][

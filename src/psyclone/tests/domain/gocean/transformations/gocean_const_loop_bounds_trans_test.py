@@ -40,6 +40,7 @@
 
 from __future__ import absolute_import
 import pytest
+from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import LocalInterface, DataTypeSymbol
@@ -100,7 +101,7 @@ def test_const_loop_bounds_trans(tmpdir):
     cbtrans.apply(schedule)
     gen = str(psy.gen)
     assert "INTEGER istop" in gen
-    assert "INTEGER istop" in gen
+    assert "INTEGER jstop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
     assert "DO j = 2, jstop - 1" in gen
@@ -109,7 +110,7 @@ def test_const_loop_bounds_trans(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_const_loop_bounds_invalid_loop_attributes():
+def test_const_loop_bounds_invalid_loop_attributes(monkeypatch):
     ''' Test that we raise an appropriate error if we attempt to generate
     code with constant loop bounds for a kernel that expects an
     unsupported loop attribute '''
@@ -128,7 +129,7 @@ def test_const_loop_bounds_invalid_loop_attributes():
     # Fix index_offset and invalidate field_space
     for loop in schedule.walk(GOLoop):
         loop.index_offset = 'go_offset_ne'
-        loop.field_space = 'invalid'
+        loop._field_space = 'invalid'  # Bypass setter validation
     with pytest.raises(TransformationError) as err:
         cbtrans.apply(schedule)
     assert ("GOConstLoopBoundsTrans can not transform a loop with field_space "
@@ -166,6 +167,18 @@ def test_const_loop_bounds_invalid_loop_attributes():
             "'outer' because it is not in the bounds lookup table, the "
             "available loop_type values are ['inner']." in str(err.value))
 
+    # Trigger the apply InternalError by skipping the validate
+    def empty_validation(node, options=None):
+        # pylint: disable=unused-argument
+        pass
+    monkeypatch.setattr(cbtrans, "validate", empty_validation)
+    for loop in schedule.walk(GOLoop):
+        loop._loop_type = 'invalid'  # Bypass setter validation
+    with pytest.raises(InternalError) as err:
+        cbtrans.apply(schedule)
+    assert ("Found a loop with loop_type 'invalid' but the only expected "
+            "values are 'inner' or 'outer'." in str(err.value))
+
 
 def test_const_loop_bounds_without_field_argument():
     ''' Check that applying the loop bounds transformation to an invoke that
@@ -189,4 +202,4 @@ def test_const_loop_bounds_without_field_argument():
     with pytest.raises(TransformationError) as err:
         cbtrans.apply(schedule)
     assert ("GOConstLoopBoundsTrans can not transform invoke 'invoke_0' "
-            "because there are no argument fields on it." in str(err.value))
+            "because it does not have any field arguments." in str(err.value))
