@@ -51,7 +51,7 @@ import pytest
 
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
-                                   DataSymbol, GlobalInterface, \
+                                   DataSymbol, ImportInterface, \
                                    INTEGER_SINGLE_TYPE, LocalInterface, \
                                    RoutineSymbol, Symbol, SymbolError, \
                                    SymbolTable, UnresolvedInterface, NoType
@@ -97,31 +97,31 @@ def test_symbol_initialisation():
 def test_symbol_interface_setter():
     '''Test that the Symbol interface setter behaves as expected,
     including raising an exception if the input is of the wrong
-    type. Also use this to test the is_local, is_global and
+    type. Also use this to test the is_local, is_import and
     is_argument and is_unresolved properties.
 
     '''
     symbol = Symbol('sym1')
     assert symbol.is_local
-    assert not symbol.is_global
+    assert not symbol.is_import
     assert not symbol.is_argument
     assert not symbol.is_unresolved
 
-    symbol.interface = GlobalInterface(ContainerSymbol("my_mod"))
+    symbol.interface = ImportInterface(ContainerSymbol("my_mod"))
     assert not symbol.is_local
-    assert symbol.is_global
+    assert symbol.is_import
     assert not symbol.is_argument
     assert not symbol.is_unresolved
 
     symbol.interface = ArgumentInterface()
     assert not symbol.is_local
-    assert not symbol.is_global
+    assert not symbol.is_import
     assert symbol.is_argument
     assert not symbol.is_unresolved
 
     symbol.interface = UnresolvedInterface()
     assert not symbol.is_local
-    assert not symbol.is_global
+    assert not symbol.is_import
     assert not symbol.is_argument
     assert symbol.is_unresolved
 
@@ -164,21 +164,21 @@ def test_unresolvedinterface():
     assert str(interface) == "Unresolved"
 
 
-def test_globalinterface():
-    '''Test that we can create a global interface successfully, that is
+def test_importinterface():
+    '''Test that we can create an Import Interface successfully, that is
     raises the expected exception if the container_symbol attribute is
     of the wrong type, that the container symbol property and str
     method work as expected.
 
     '''
     container_symbol = ContainerSymbol("my_mod")
-    global_interface = GlobalInterface(container_symbol)
-    assert global_interface.container_symbol is container_symbol
-    assert str(global_interface) == "Global(container='my_mod')"
+    import_interface = ImportInterface(container_symbol)
+    assert import_interface.container_symbol is container_symbol
+    assert str(import_interface) == "Import(container='my_mod')"
 
     with pytest.raises(TypeError) as info:
-        _ = GlobalInterface("hello")
-    assert ("Global container_symbol parameter must be of type "
+        _ = ImportInterface("hello")
+    assert ("ImportInterface container_symbol parameter must be of type "
             "ContainerSymbol, but found 'str'." in str(info.value))
 
 
@@ -260,7 +260,7 @@ def test_symbol_copy():
     '''
     csym = ContainerSymbol("some_mod")
     asym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
-                  interface=GlobalInterface(csym))
+                  interface=ImportInterface(csym))
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
@@ -272,7 +272,7 @@ def test_symbol_copy_properties():
     ''' Test the copy_properties() method. '''
     csym = ContainerSymbol("some_mod")
     sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
-                 interface=GlobalInterface(csym))
+                 interface=ImportInterface(csym))
     new_sym = Symbol("b")
     new_sym.copy_properties(sym)
     # Name and visibility should be unchanged
@@ -345,7 +345,7 @@ def test_get_external_symbol(monkeypatch):
     ctable = SymbolTable()
     ctable.add(other_container)
     # Create a Symbol that is imported from the "some_mod" Container
-    bsym = Symbol("b", interface=GlobalInterface(other_container))
+    bsym = Symbol("b", interface=ImportInterface(other_container))
     ctable.add(bsym)
     _ = Container.create("test", ctable, [KernelSchedule("dummy")])
     # Monkeypatch the container's FortranModuleInterface so that it always
@@ -388,7 +388,7 @@ def test_symbol_resolve_deferred(monkeypatch):
     # Now test for a symbol that is imported from another Container
     other_container = ContainerSymbol("some_mod")
     bsym = Symbol("b", visibility=Symbol.Visibility.PRIVATE,
-                  interface=GlobalInterface(other_container))
+                  interface=ImportInterface(other_container))
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
     monkeypatch.setattr(bsym, "get_external_symbol",
@@ -399,7 +399,7 @@ def test_symbol_resolve_deferred(monkeypatch):
     assert new_sym is not bsym
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
-    assert new_sym.is_global
+    assert new_sym.is_import
 
 
 def test_symbol_array_handling(fortran_reader):

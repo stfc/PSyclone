@@ -44,7 +44,7 @@ import inspect
 import copy
 import six
 from psyclone.configuration import Config
-from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
+from psyclone.psyir.symbols import Symbol, DataSymbol, ImportInterface, \
     ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError
 from psyclone.errors import InternalError
 
@@ -55,17 +55,23 @@ class SymbolTable(object):
     symbols and look up existing symbols. Nested scopes are supported
     and, by default, the add and lookup methods take any ancestor
     symbol tables into consideration (ones attached to nodes that are
-    ancestors of the node that this symbol table is attached to).
+    ancestors of the node that this symbol table is attached to). If the
+    default visibility is not specified then it defaults to
+    Symbol.Visbility.PUBLIC.
 
     :param node: reference to the Schedule or Container to which this \
         symbol table belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
         :py:class:`psyclone.psyir.nodes.Container` or NoneType
+    :param default_visibility: optional default visibility value for this \
+        symbol table, if not provided it defaults to PUBLIC visibility.
+    :type default_visibillity: \
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
     '''
-    def __init__(self, node=None):
+    def __init__(self, node=None, default_visibility=Symbol.Visibility.PUBLIC):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
         # produce code with declarations in the same order.
@@ -83,6 +89,35 @@ class SymbolTable(object):
                 "Schedule or a Container but found '{0}'."
                 "".format(type(node).__name__))
         self._node = node
+        # The default visibility of symbols in this symbol table. The
+        # setter does validation of the supplied quantity.
+        self._default_visibility = None
+        self.default_visibility = default_visibility
+
+    @property
+    def default_visibility(self):
+        '''
+        :returns: the default visibility of symbols in this table.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        '''
+        return self._default_visibility
+
+    @default_visibility.setter
+    def default_visibility(self, vis):
+        '''
+        Sets the default visibility of symbols in this table.
+
+        :param vis: the default visibility.
+        :type vis: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :raises TypeError: if the supplied value is of the wrong type.
+
+        '''
+        if not isinstance(vis, Symbol.Visibility):
+            raise TypeError(
+                "Default visibility must be an instance of psyir.symbols."
+                "Symbol.Visibility but got '{0}'".format(type(vis).__name__))
+        self._default_visibility = vis
 
     @property
     def node(self):
@@ -204,6 +239,7 @@ class SymbolTable(object):
         new_st._argument_list = copy.copy(self._argument_list)
         new_st._tags = copy.copy(self._tags)
         new_st._node = self.node
+        new_st._default_visibility = self.default_visibility
         return new_st
 
     def deep_copy(self):
@@ -235,10 +271,13 @@ class SymbolTable(object):
             new_st._tags[tag] = new_st.lookup(symbol.name)
 
         # Fix the container links for imported symbols
-        for symbol in new_st.global_symbols:
+        for symbol in new_st.imported_symbols:
             name = symbol.interface.container_symbol.name
             new_container = new_st.lookup(name)
-            symbol.interface = GlobalInterface(new_container)
+            symbol.interface = ImportInterface(new_container)
+
+        # Set the default visibility
+        new_st._default_visibility = self.default_visibility
 
         return new_st
 
@@ -590,7 +629,7 @@ class SymbolTable(object):
         '''
         return self._normalize(key.lower()) in self._symbols
 
-    def imported_symbols(self, csymbol):
+    def symbols_imported_from(self, csymbol):
         '''
         Examines the contents of this symbol table to see which DataSymbols
         (if any) are imported from the supplied ContainerSymbol (which must
@@ -609,7 +648,7 @@ class SymbolTable(object):
         '''
         if not isinstance(csymbol, ContainerSymbol):
             raise TypeError(
-                "imported_symbols() expects a ContainerSymbol but got an "
+                "symbols_imported_from() expects a ContainerSymbol but got an "
                 "object of type '{0}'".format(type(csymbol).__name__))
         # self.lookup(name) will raise a KeyError if there is no symbol with
         # that name in the table.
@@ -617,7 +656,7 @@ class SymbolTable(object):
             raise KeyError("The '{0}' entry in this SymbolTable is not the "
                            "supplied ContainerSymbol.".format(csymbol.name))
 
-        return [symbol for symbol in self.global_symbols if
+        return [symbol for symbol in self.imported_symbols if
                 symbol.interface.container_symbol is csymbol]
 
     def swap(self, old_symbol, new_symbol):
@@ -708,12 +747,12 @@ class SymbolTable(object):
         # We can only remove a ContainerSymbol if no DataSymbols are
         # being imported from it
         if (isinstance(symbol, ContainerSymbol) and
-                self.imported_symbols(symbol)):
+                self.symbols_imported_from(symbol)):
             raise ValueError(
                 "Cannot remove ContainerSymbol '{0}' because symbols "
                 "{1} are imported from it - remove them first.".format(
                     symbol.name,
-                    [sym.name for sym in self.imported_symbols(symbol)]))
+                    [sym.name for sym in self.symbols_imported_from(symbol)]))
 
         # If the symbol had a tag, it should be disassociated
         for tag, tagged_symbol in list(self._tags.items()):
@@ -864,14 +903,14 @@ class SymbolTable(object):
         return [sym for sym in self.datasymbols if sym.is_argument]
 
     @property
-    def global_symbols(self):
+    def imported_symbols(self):
         '''
-        :returns: list of symbols that have 'global' interface (are \
+        :returns: list of symbols that have an imported interface (are \
             associated with data that exists outside the current scope).
         :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        return [sym for sym in self.symbols if sym.is_global]
+        return [sym for sym in self.symbols if sym.is_import]
 
     @property
     def precision_datasymbols(self):
@@ -932,34 +971,35 @@ class SymbolTable(object):
             "Abstract property. Which symbols are data arguments is"
             " API-specific.")
 
-    def copy_external_global(self, globalvar, tag=None):
+    def copy_external_import(self, imported_var, tag=None):
         '''
-        Copy the given global variable (and its referenced ContainerSymbol if
+        Copy the given imported variable (and its referenced ContainerSymbol if
         needed) into the SymbolTable.
 
-        :param globalvar: the variable to be copied in.
-        :type globalvar: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param imported_var: the variable to be copied in.
+        :type imported_var: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param str tag: a tag identifier for the new copy, by default no tag \
             is given.
 
-        :raises TypeError: if the given variable is not a global variable.
+        :raises TypeError: if the given variable is not an imported variable.
         :raises KeyError: if the given variable name already exists in the \
             symbol table.
 
         '''
-        if not isinstance(globalvar, DataSymbol):
+        if not isinstance(imported_var, DataSymbol):
             raise TypeError(
-                "The globalvar argument of SymbolTable.copy_external_global"
+                "The imported_var argument of SymbolTable.copy_external_import"
                 " method should be a DataSymbol, but found '{0}'."
-                "".format(type(globalvar).__name__))
+                "".format(type(imported_var).__name__))
 
-        if not globalvar.is_global:
+        if not imported_var.is_import:
             raise TypeError(
-                "The globalvar argument of SymbolTable.copy_external_"
-                "global method should have a GlobalInterface interface, "
-                "but found '{0}'.".format(type(globalvar.interface).__name__))
+                "The imported_var argument of SymbolTable.copy_external_"
+                "import method should have an ImportInterface interface, "
+                "but found '{0}'."
+                "".format(type(imported_var.interface).__name__))
 
-        external_container_name = globalvar.interface.container_symbol.name
+        external_container_name = imported_var.interface.container_symbol.name
 
         # If the Container is not yet in the SymbolTable we need to
         # create one and add it.
@@ -968,22 +1008,22 @@ class SymbolTable(object):
         container_ref = self.lookup(external_container_name)
 
         # Copy the variable into the SymbolTable with the appropriate interface
-        if globalvar.name not in self:
-            new_symbol = globalvar.copy()
+        if imported_var.name not in self:
+            new_symbol = imported_var.copy()
             # Update the interface of this new symbol
-            new_symbol.interface = GlobalInterface(container_ref)
+            new_symbol.interface = ImportInterface(container_ref)
             self.add(new_symbol, tag)
         else:
             # If it already exists it must refer to the same Container and have
             # the same tag.
-            local_instance = self.lookup(globalvar.name)
-            if not (local_instance.is_global and
+            local_instance = self.lookup(imported_var.name)
+            if not (local_instance.is_import and
                     local_instance.interface.container_symbol.name ==
                     external_container_name):
                 raise KeyError(
                     "Couldn't copy '{0}' into the SymbolTable. The"
                     " name '{1}' is already used by another symbol."
-                    "".format(globalvar, globalvar.name))
+                    "".format(imported_var, imported_var.name))
             if tag:
                 # If the symbol already exists and a tag is provided
                 try:
@@ -991,14 +1031,14 @@ class SymbolTable(object):
                 except KeyError:
                     # If the tag was not used, it will now be attached
                     # to the symbol.
-                    self._tags[tag] = self.lookup(globalvar.name)
+                    self._tags[tag] = self.lookup(imported_var.name)
 
                 # The tag should not refer to a different symbol
-                if self.lookup(globalvar.name) != self.lookup_with_tag(tag):
+                if self.lookup(imported_var.name) != self.lookup_with_tag(tag):
                     raise KeyError(
                         "Couldn't copy '{0}' into the SymbolTable. The"
                         " tag '{1}' is already used by another symbol."
-                        "".format(globalvar, tag))
+                        "".format(imported_var, tag))
 
     def rename_symbol(self, symbol, name):
         '''

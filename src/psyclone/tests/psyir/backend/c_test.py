@@ -41,13 +41,13 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
-    Reference, Return, ArrayReference, Literal, UnaryOperation, \
-    BinaryOperation, Schedule
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ArrayType, REAL_TYPE, INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.nodes import ArrayReference, Assignment, BinaryOperation, \
+    CodeBlock, IfBlock, Literal, Node, Reference, Return, Schedule, \
+    UnaryOperation
+from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
+    BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_TYPE, REAL_TYPE
 
 
 def test_cw_gen_declaration():
@@ -116,7 +116,6 @@ def test_cw_exception():
     unsupported PSyIR node is found.
 
     '''
-    # pylint: disable=abstract-method
     # Define a Node which will be unsupported by the visitor
     class Unsupported(Node):
         '''A PSyIR node that will not be supported by the C visitor.'''
@@ -174,8 +173,8 @@ def test_cw_array():
     # An array without any children (dimensions) should produce an error.
     with pytest.raises(VisitorError) as excinfo:
         result = cwriter(assignment)
-    assert "Arrays must have at least 1 dimension but found node: '" \
-        in str(excinfo.value)
+    assert "Incomplete ArrayReference node (for symbol 'a') found: " \
+           "must have one or more children." in str(excinfo.value)
 
     # Dimensions can be references, literals or operations
     arr.addchild(Reference(DataSymbol('b', INTEGER_TYPE)))
@@ -185,9 +184,10 @@ def test_cw_array():
     arr.addchild(uop)
 
     result = cwriter(assignment)
-    # Results is reversed and flatten (row-major 1D)
+    # Results is reversed and flatten (row-major 1D), so
+    # a[b, 1, -2] becomes a[(-2) * aLEN2 * aLEN1 + 1 * aLEN1 + b]
     # dimensions are called <name>LEN<dimension> by convention
-    assert result == "a[(-2) * aLEN2 * aLEN1 + 1 * aLEN1 + b] = 0.0;\n"
+    assert result == "a[b + 1 * aLEN1 + (-2) * aLEN1 * aLEN2] = 0.0;\n"
 
 
 def test_cw_ifblock():
@@ -195,7 +195,6 @@ def test_cw_ifblock():
     C representation.
 
     '''
-    from psyclone.psyir.nodes import IfBlock
 
     # Try with just an IfBlock node
     ifblock = IfBlock()
@@ -212,10 +211,16 @@ def test_cw_ifblock():
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 1." in str(err.value))
 
-    # Fill the if_body and else_body
-    ifblock.addchild(Schedule(parent=ifblock))
+    # Fill the if_body
     ifblock.addchild(Schedule(parent=ifblock))
     ifblock.if_body.addchild(Return(parent=ifblock.if_body))
+    if_only = cwriter(ifblock)
+    assert if_only == (
+        "if (a) {\n"
+        "  return;\n"
+        "}\n")
+    # Fill the else_body
+    ifblock.addchild(Schedule(parent=ifblock))
 
     condition = Reference(DataSymbol('b', REAL_TYPE))
     then_content = [Return()]
@@ -298,8 +303,8 @@ def test_cw_unaryoperator():
 
     # Test that an unsupported operator raises an error
     class Unsupported(object):
-        # pylint: disable=missing-docstring
-        pass
+        ''' Mock Unsupported object '''
+
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
         _ = cwriter(unary_operation)
@@ -382,13 +387,13 @@ def test_cw_loop(fortran_reader):
     container = fortran_reader.psyir_from_source(code).children[0]
     module = container.children[0]
 
-    cvisitor = CWriter()
-    result = cvisitor(module[0])
+    cwriter = CWriter()
+    result = cwriter(module[0])
     correct = '''for(i=1; i<=20; i+=2)
 {
   a = (2 * i);
 }'''
-    result = cvisitor(module[0])
+    result = cwriter(module[0])
     assert correct in result
 
 
@@ -406,3 +411,87 @@ def test_cw_size():
         cwriter(assignment)
     assert ("C backend does not support the 'Operator.SIZE' operator"
             in str(excinfo.value))
+
+
+def test_cw_structureref(fortran_reader):
+    ''' Test the CWriter support for StructureReference. '''
+    code = '''
+        module test
+        contains
+        subroutine tmp()
+          type :: my_type
+            integer                   :: b
+            integer, dimension(10,10) :: c
+            integer, dimension(10)    :: d
+          end type my_type
+          type(my_type) :: a, b(5)
+          integer :: i
+          a%b = a%c(1,2) + b(3)%d(i)%e(i+1) + a%f%g(3)
+        end subroutine tmp
+        end module test'''
+    container = fortran_reader.psyir_from_source(code).children[0]
+    module = container.children[0]
+
+    cwriter = CWriter()
+    result = cwriter(module[0])
+    correct = "a.b = ((a.c[1 + 2 * cLEN1] + b[3].d[i].e[(i + 1)]) + a.f.g[3])"
+    assert correct in result
+
+    module[0].children[0]._children = []
+    with pytest.raises(VisitorError) as err:
+        _ = cwriter(module[0])
+    assert "A StructureReference must have a single child but the " \
+           "reference to symbol 'a' has 0." in str(err.value)
+
+    ref = module[0].children[0]
+    ref._children = [Literal("1", INTEGER_TYPE)]
+    with pytest.raises(VisitorError) as err:
+        # We can't call cwriter(), it will complain about having a Literal
+        # node which is invalid. So call _visit()
+        _ = cwriter._visit(ref)
+    assert "A StructureReference must have a single child which is a " \
+           "sub-class of Member but the reference to symbol 'a' has a " \
+           "child of type " in str(err.value)
+
+
+def test_cw_arraystructureref(fortran_reader):
+    ''' Test the CWriter support for ArrayStructureReference. '''
+    code = '''
+        module test
+        contains
+        subroutine tmp()
+          type :: my_type
+            integer                   :: b
+            integer, dimension(10,10) :: c
+            integer, dimension(10)    :: d
+          end type my_type
+          type(my_type) :: a, b(5)
+          integer :: i
+          b(5)%d(1) = 1
+        end subroutine tmp
+        end module test'''
+    container = fortran_reader.psyir_from_source(code).children[0]
+    module = container.children[0]
+
+    cwriter = CWriter()
+    result = cwriter(module[0])
+    correct = "b[5].d[1] = 1"
+    assert correct in result
+
+    array_ref = module[0].children[0]
+    array_ref._children = []
+    with pytest.raises(VisitorError) as err:
+        # We can't call cwriter(), it will complain about having a Literal
+        # node which is invalid. So call _visit()
+        _ = cwriter._visit(array_ref)
+    assert "An ArrayOfStructuresReference must have at least two children " \
+           "but found 0" in str(err.value)
+
+    array_ref._children = [Literal("1", INTEGER_TYPE),
+                           Literal("1", INTEGER_TYPE)]
+    with pytest.raises(VisitorError) as err:
+        # We can't call cwriter(), it will complain about having a Literal
+        # node which is invalid. So call _visit()
+        _ = cwriter._visit(array_ref)
+    assert "An ArrayOfStructuresReference must have a Member as its first " \
+           "child but found 'Literal'" in str(err.value)

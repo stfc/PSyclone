@@ -33,7 +33,7 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 
-include ../../../common.mk
+include ../../../../common.mk
 
 transform:
 	$(PSYCLONE) -oalg /dev/null -opsy /dev/null -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90

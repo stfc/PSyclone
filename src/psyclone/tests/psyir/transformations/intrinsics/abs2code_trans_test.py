@@ -69,7 +69,7 @@ def example_psyir(create_expression):
         content of the ABS operator.
 
     :returns: PSyIR ABS operator instance.
-    :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+    :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
     '''
     symbol_table = SymbolTable()

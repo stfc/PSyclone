@@ -43,8 +43,10 @@ back ends.
 
 import inspect
 import six
-from psyclone.psyir.nodes import Node
+
 from psyclone.errors import PSycloneError
+from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
 
 class VisitorError(PSycloneError):
@@ -68,17 +70,18 @@ class PSyIRVisitor(object):
         is raised if a visitor method for a PSyIR node has not been \
         implemented, otherwise the visitor silently continues. This is an \
         optional argument which defaults to False.
-    :param indent_string: Specifies what to use for indentation. This \
+    :param str indent_string: Specifies what to use for indentation. This \
         is an optional argument that defaults to two spaces.
-    :type indent_string: str or NoneType
     :param int initial_indent_depth: Specifies how much indentation to \
         start with. This is an optional argument that defaults to 0.
     :param bool check_global_constraints: whether or not to validate all \
-        global constraints when walking the tree.
+        global constraints when walking the tree. Defaults to True.
 
     :raises TypeError: if any of the supplied parameters are of the wrong type.
 
     '''
+    _COMMENT_PREFIX = None
+
     def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0, check_global_constraints=True):
 
@@ -86,7 +89,7 @@ class PSyIRVisitor(object):
             raise TypeError(
                 "skip_nodes should be a boolean but found '{0}'."
                 "".format(type(skip_nodes).__name__))
-        if indent_string is not None and not isinstance(indent_string, str):
+        if not isinstance(indent_string, str):
             raise TypeError(
                 "indent_string should be a str but found '{0}'."
                 "".format(type(indent_string).__name__))
@@ -210,6 +213,7 @@ class PSyIRVisitor(object):
             raises an AttributeError.
 
         '''
+        # pylint: disable=too-many-branches
         if not isinstance(node, Node):
             raise VisitorError(
                 "Expected argument to be of type 'Node' but found '{0}'."
@@ -230,8 +234,32 @@ class PSyIRVisitor(object):
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
             try:
+                result = ""
+
+                # Add preceding comment if available
+                if isinstance(node, CommentableMixin):
+                    if node.preceding_comment and self._COMMENT_PREFIX:
+                        result += (self._nindent + self._COMMENT_PREFIX +
+                                   node.preceding_comment + "\n")
+
                 # pylint: disable=eval-used
-                return eval("self.{0}(node)".format(method_name))
+                result += eval("self.{0}(node)".format(method_name))
+
+                # Add inline comment if available
+                if isinstance(node, CommentableMixin):
+                    if node.inline_comment and self._COMMENT_PREFIX:
+                        if result[-1] != "\n":
+                            raise VisitorError(
+                                "An inline_comment can only be added to a "
+                                "construct that finishes with a '\\n', "
+                                "indicating that the line has ended, but"
+                                " node '{0}' results in '{1}'."
+                                "".format(node, result))
+                        # Add the comment before the last line break
+                        result = (result[:-1] + "  " + self._COMMENT_PREFIX +
+                                  node.inline_comment + "\n")
+
+                return result
 
             except AttributeError as excinfo:
                 if "attribute '{0}'".format(method_name) in str(excinfo):

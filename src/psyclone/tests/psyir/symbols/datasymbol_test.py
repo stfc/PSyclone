@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
     BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, DataTypeSymbol
@@ -117,13 +117,12 @@ def test_datasymbol_can_be_printed():
                            [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
     assert ("s2: <Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', "
-            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>], "
-            "Reference[name:'s1']]>, Local>" in str(sym2))
+            "2, Reference[name:'s1']]>, Local>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
-                      interface=GlobalInterface(my_mod))
-    assert ("s3: <Scalar<REAL, SINGLE>, Global(container='my_mod')>"
+                      interface=ImportInterface(my_mod))
+    assert ("s3: <Scalar<REAL, SINGLE>, Import(container='my_mod')>"
             in str(sym3))
 
     sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, constant_value=12)
@@ -276,27 +275,41 @@ def test_datasymbol_copy():
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
     assert len(symbol.shape) == 2
-    assert isinstance(symbol.shape[0], Literal)
-    assert symbol.shape[0].value == "1"
-    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
-    assert isinstance(symbol.shape[1], Literal)
-    assert symbol.shape[1].value == "2"
-    assert symbol.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(symbol.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(symbol.shape[0].lower, Literal)
+    assert isinstance(symbol.shape[0].upper, Literal)
+    assert symbol.shape[0].lower.value == "1"
+    assert symbol.shape[0].upper.value == "1"
+    assert (symbol.shape[0].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[0].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(symbol.shape[1], ArrayType.ArrayBounds)
+    assert isinstance(symbol.shape[1].lower, Literal)
+    assert isinstance(symbol.shape[1].upper, Literal)
+    assert symbol.shape[1].lower.value == "1"
+    assert symbol.shape[1].upper.value == "2"
+    assert (symbol.shape[1].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[1].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     assert not symbol.constant_value
 
     # Now check constant_value
     new_symbol.constant_value = 3
 
-    assert isinstance(symbol.shape[0], Literal)
-    assert symbol.shape[0].value == "1"
-    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
-    assert isinstance(symbol.shape[1], Literal)
-    assert symbol.shape[1].value == "2"
-    assert symbol.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(symbol.shape[0].upper, Literal)
+    assert symbol.shape[0].upper.value == "1"
+    assert (symbol.shape[0].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[0].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(symbol.shape[1].upper, Literal)
+    assert symbol.shape[1].upper.value == "2"
+    assert (symbol.shape[1].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (symbol.shape[1].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     assert not symbol.constant_value
 
 
@@ -340,7 +353,7 @@ def test_datasymbol_resolve_deferred(monkeypatch):
     module = ContainerSymbol("dummy_module")
     symbolb = DataSymbol('b', visibility=Symbol.Visibility.PRIVATE,
                          datatype=DeferredType(),
-                         interface=GlobalInterface(module))
+                         interface=ImportInterface(module))
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
     monkeypatch.setattr(symbolb, "get_external_symbol",
@@ -349,7 +362,7 @@ def test_datasymbol_resolve_deferred(monkeypatch):
     assert new_sym is symbolb
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
-    assert isinstance(new_sym.interface, GlobalInterface)
+    assert isinstance(new_sym.interface, ImportInterface)
 
 
 def test_datasymbol_shape():

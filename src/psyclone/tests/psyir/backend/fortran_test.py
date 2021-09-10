@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
     StructureReference, Schedule, Routine, Return, FileContainer
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
+    ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
     DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType, \
     DataTypeSymbol, StructureType
@@ -98,8 +98,8 @@ def test_gen_intent_error(monkeypatch):
     assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo.value)
 
 
-def test_gen_dims(fortran_writer):
-    '''Check the _gen_dims function produces the expected dimension
+def test_gen_indices(fortran_writer):
+    '''Check the gen_indices function produces the expected dimension
     strings.
 
     '''
@@ -111,23 +111,23 @@ def test_gen_dims(fortran_writer):
     one = Literal("1", scalar_type)
     arg_plus_1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(arg), one)
-    array_type = ArrayType(INTEGER_TYPE,
-                           [Reference(arg), 2, literal, arg_plus_1,
-                            ArrayType.Extent.ATTRIBUTE])
-    assert fortran_writer._gen_dims(array_type.shape) == ["arg", "2", "4",
-                                                          "arg + 1_4", ":"]
+    array_type = ArrayType(
+        INTEGER_TYPE, [Reference(arg), 2, (0, 4), literal, arg_plus_1,
+                       (2, arg_plus_1.copy()), ArrayType.Extent.ATTRIBUTE])
+    assert (fortran_writer.gen_indices(array_type.shape) ==
+            ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4", ":"])
 
 
-def test_gen_dims_error(monkeypatch, fortran_writer):
-    '''Check the _gen_dims method raises an exception if a symbol shape
+def test_gen_indices_error(monkeypatch, fortran_writer):
+    '''Check the _gen_indices method raises an exception if a symbol shape
     entry is not supported.
 
     '''
     array_type = ArrayType(INTEGER_TYPE, [10])
     monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = fortran_writer._gen_dims(array_type.shape)
-    assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
+        _ = fortran_writer.gen_indices(array_type.shape)
+    assert "unsupported gen_indices index 'invalid'" in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
@@ -362,7 +362,7 @@ def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
         "type my_type\nend type my_type"))
     assert (fortran_writer.gen_typedecl(tsymbol) ==
-            "type my_type\nend type my_type")
+            "type my_type\nend type my_type\n")
 
 
 def test_gen_typedecl(fortran_writer):
@@ -484,10 +484,10 @@ def test_fw_gen_use(fortran_writer):
     container_symbol = ContainerSymbol("my_module")
     symbol_table.add(container_symbol)
     symbol = DataSymbol("dummy1", DeferredType(),
-                        interface=GlobalInterface(container_symbol))
+                        interface=ImportInterface(container_symbol))
     symbol_table.add(symbol)
     symbol = RoutineSymbol(
-        "my_sub", interface=GlobalInterface(container_symbol))
+        "my_sub", interface=ImportInterface(container_symbol))
     symbol_table.add(symbol)
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert result == "use my_module, only : dummy1, my_sub\n"
@@ -498,7 +498,7 @@ def test_fw_gen_use(fortran_writer):
                       "use my_module\n")
 
     symbol2 = DataSymbol("dummy2", DeferredType(),
-                         interface=GlobalInterface(container_symbol))
+                         interface=ImportInterface(container_symbol))
     symbol_table.add(symbol2)
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert result == ("use my_module, only : dummy1, dummy2, my_sub\n"
@@ -584,12 +584,12 @@ def test_fw_gen_vardecl(fortran_writer):
 
     # Use statement
     symbol = DataSymbol("dummy1", DeferredType(),
-                        interface=GlobalInterface(
+                        interface=ImportInterface(
                             ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
     assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
-            "an Argument interface but found a 'GlobalInterface' interface."
+            "an Argument interface but found a 'ImportInterface' interface."
             in str(excinfo.value))
 
     # An unresolved symbol
@@ -640,7 +640,7 @@ def test_gen_decls(fortran_writer):
     symbol_table = SymbolTable()
     symbol_table.add(ContainerSymbol("my_module"))
     use_statement = DataSymbol("my_use", DeferredType(),
-                               interface=GlobalInterface(
+                               interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
     argument_variable = DataSymbol("arg", INTEGER_TYPE,
@@ -653,7 +653,7 @@ def test_gen_decls(fortran_writer):
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
     grid_type = DataTypeSymbol("grid_type", DeferredType(),
-                               interface=GlobalInterface(
+                               interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(grid_type)
     grid_variable = DataSymbol("grid", grid_type)
@@ -719,7 +719,7 @@ def test_gen_decls_nested_scope(fortran_writer):
 
 def test_gen_decls_routine(fortran_writer):
     '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not a GlobalInterface, unless there's a wildcard
+    of a routine symbol is not an ImportInterface, unless there's a wildcard
     import from a Container.
 
     '''
@@ -743,7 +743,7 @@ def test_gen_decls_routine(fortran_writer):
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbol 'sub2' does not have a GlobalInterface or "
+        "Routine symbol 'sub2' does not have an ImportInterface or "
         "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
         "import which could bring it into scope. This is not supported by the "
         "Fortran back-end." in str(info.value))
@@ -753,6 +753,32 @@ def test_gen_decls_routine(fortran_writer):
     symbol_table.add(csym)
     result = fortran_writer.gen_decls(symbol_table)
     assert result == ""
+
+
+def test_gen_access_stmt(fortran_writer):
+    '''
+    Tests for the gen_access_stmt method of FortranWriter.
+    '''
+    symbol_table = SymbolTable()
+    # If no default visibility is specified then the Fortran default
+    # is 'public'
+    symbol_table._default_visibility = None
+    assert fortran_writer.gen_access_stmt(symbol_table) == "public\n"
+    symbol_table.default_visibility = Symbol.Visibility.PUBLIC
+    # Test indentation works as expected
+    fortran_writer._depth += 1
+    assert fortran_writer.gen_access_stmt(symbol_table) == "  public\n"
+    symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert fortran_writer.gen_access_stmt(symbol_table) == "  private\n"
+    fortran_writer._depth -= 1
+    assert fortran_writer.gen_access_stmt(symbol_table) == "private\n"
+    # Invalid type (str instead of Symbol.Visibility)
+    symbol_table._default_visibility = "public"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_access_stmt(symbol_table)
+    assert ("Unrecognised visibility ('public') found when attempting to "
+            "generate access statement. Should be either 'Symbol.Visibility."
+            "PUBLIC' or 'Symbol.Visibility.PRIVATE'" in str(err.value))
 
 
 def test_gen_routine_access_stmts(fortran_writer):
@@ -771,7 +797,7 @@ def test_gen_routine_access_stmts(fortran_writer):
     # Check that the interface of the symbol does not matter
     symbol_table.add(
         RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
-                      interface=GlobalInterface(ContainerSymbol("some_mod"))))
+                      interface=ImportInterface(ContainerSymbol("some_mod"))))
     code = fortran_writer.gen_routine_access_stmts(symbol_table)
     assert "public :: my_sub1\nprivate :: my_sub2, used_sub\n" in code
     # Break the visibility of the second symbol
@@ -780,6 +806,12 @@ def test_gen_routine_access_stmts(fortran_writer):
         fortran_writer.gen_routine_access_stmts(symbol_table)
     assert ("Unrecognised visibility ('broken') found for symbol 'my_sub2'"
             in str(err.value))
+    symbol_table.remove(sub2)
+    # Check that we don't generate an accessibility statement for a
+    # RoutineSymbol tagged with 'own_routine_symbol'
+    symbol_table.add(RoutineSymbol("my_routine"), tag='own_routine_symbol')
+    code = fortran_writer.gen_routine_access_stmts(symbol_table)
+    assert "my_routine" not in code
 
 
 def test_fw_exception(fortran_writer):
@@ -820,7 +852,8 @@ def test_fw_filecontainer_2(fortran_writer):
     result = fortran_writer(file_container)
     expected = (
         "module mod_name\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module mod_name\n"
         "subroutine sub_name()\n\n\n"
@@ -871,7 +904,8 @@ def test_fw_container_1(fortran_writer, monkeypatch):
     result = fortran_writer(container)
     assert (
         "module test\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module test\n" in result)
 
@@ -909,7 +943,8 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
         "  use iso_c_binding, only : c_int\n"
         "  implicit none\n"
         "  real :: c\n"
-        "  real :: d\n\n"
+        "  real :: d\n"
+        "  public\n\n"
         "  public :: tmp\n\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"
@@ -962,15 +997,27 @@ def test_fw_container_4(fortran_writer):
     container.symbol_table.lookup("mod2").wildcard_import = True
     container.symbol_table.add(ContainerSymbol("mod3"))
     container.symbol_table.lookup("mod3").wildcard_import = True
-    result = fortran_writer(container)
+    # Default symbol visibility is public
     assert (
         "module test\n"
         "  use mod1\n"
         "  use mod2\n"
         "  use mod3\n"
-        "  implicit none\n\n"
+        "  implicit none\n"
+        "  public\n\n"
         "  contains\n\n"
-        "end module test\n" in result)
+        "end module test\n" in fortran_writer(container))
+    # Change the default visibility to private
+    container.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    assert (
+        "module test\n"
+        "  use mod1\n"
+        "  use mod2\n"
+        "  use mod3\n"
+        "  implicit none\n"
+        "  private\n\n"
+        "  contains\n\n"
+        "end module test\n" in fortran_writer(container))
 
 
 def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
@@ -1104,10 +1151,33 @@ def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir):
     assert(
         "  contains\n"
         "  function tmp(b) result(val)\n"
-        "    real, intent(inout) :: b\n"
+        "    real :: b\n"
         "    real :: val\n\n"
         "    val = a + b\n\n"
         "  end function tmp\n" in result)
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_routine_function_no_result(fortran_reader, fortran_writer, tmpdir):
+    ''' Check that no `result(xxx)` clause is added to the output function
+    definition if the name of the return symbol matches the name of the
+    function but has different capitalisation.
+
+    '''
+    code = ("module test\n"
+            "implicit none\n"
+            "real :: a\n"
+            "contains\n"
+            "function tmp(b)\n"
+            "  real, intent(in) :: b\n"
+            "  real :: TMP\n"
+            "  tmp = a + b\n"
+            "end function tmp\n"
+            "end module test")
+    container = fortran_reader.psyir_from_source(code)
+    # Generate Fortran from PSyIR
+    result = fortran_writer(container)
+    assert "  function tmp(b)\n" in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -1377,8 +1447,6 @@ def test_fw_reference(fortran_reader, fortran_writer, tmpdir):
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
 
-    # The asserts need to be split as the declaration order can change
-    # between different versions of Python.
     assert (
         "  subroutine tmp(a, n)\n"
         "    integer, intent(in) :: n\n"
@@ -1389,46 +1457,6 @@ def test_fw_reference(fortran_reader, fortran_writer, tmpdir):
         "\n"
         "  end subroutine tmp\n") in result
     assert Compile(tmpdir).string_compiles(result)
-
-
-def test_fw_arrayreference(fortran_reader, fortran_writer, tmpdir):
-    '''Check the FortranWriter class array method correctly prints
-    out the Fortran representation of an array reference.
-
-    '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp(a, n)\n"
-        "  integer, intent(in) :: n\n"
-        "  real, intent(out) :: a(n,n,n)\n"
-        "    a(2,n,3) = 0.0\n"
-        "end subroutine tmp\n"
-        "end module test")
-    schedule = fortran_reader.psyir_from_source(code)
-
-    # Generate Fortran from the PSyIR schedule
-    result = fortran_writer(schedule)
-    assert "a(2,n,3) = 0.0" in result
-    assert Compile(tmpdir).string_compiles(result)
-
-
-def test_fw_arrayreference_incomplete(fortran_writer):
-    '''
-    Test that the correct error is raised if an incomplete ArrayReference
-    is encountered.
-    '''
-    array_type = ArrayType(REAL_TYPE, [10])
-    symbol = DataSymbol("b", array_type)
-    # create() must be supplied with a shape
-    array = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
-    # Remove its children
-    array._children = []
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.arrayreference_node(array)
-    assert ("Incomplete ArrayReference node (for symbol 'b') found: must "
-            "have one or more children" in str(err.value))
 
 
 def test_fw_range(fortran_writer):
@@ -1540,99 +1568,6 @@ def test_fw_range_structureref(fortran_writer):
         array_symbol, [one.copy(), Range.create(start, stop)], ["flag"])
     result = fortran_writer(aref)
     assert result == "my_grids(1,:)%flag"
-
-
-def test_fw_structureref(fortran_writer):
-    ''' Test the FortranWriter support for StructureReference. '''
-    region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    region_type_sym = DataTypeSymbol("grid_type", region_type)
-    region_array_type = ArrayType(region_type_sym, [2, 2])
-    grid_type = StructureType.create([
-        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("area", region_type_sym, Symbol.Visibility.PUBLIC),
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
-    grid_var = DataSymbol("grid", grid_type_sym)
-    grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
-    assert fortran_writer.structurereference_node(grid_ref) == "grid%area%nx"
-    level_ref = StructureReference.create(
-        grid_var, [('levels', [Literal("1", INTEGER_TYPE),
-                               Literal("2", INTEGER_TYPE)]), 'ny'])
-    assert fortran_writer(level_ref) == "grid%levels(1,2)%ny"
-    # Make the number of children invalid
-    level_ref._children = []
-    with pytest.raises(VisitorError) as err:
-        fortran_writer(level_ref)
-    assert ("StructureReference must have a single child but the reference "
-            "to symbol 'grid' has 0" in str(err.value))
-    # Single child but not of the right type
-    level_ref._children = [Literal("1", INTEGER_TYPE)]
-    with pytest.raises(VisitorError) as err:
-        fortran_writer._visit(level_ref)
-    assert ("StructureReference must have a single child which is a sub-"
-            "class of Member but the reference to symbol 'grid' has a child "
-            "of type 'Literal'" in str(err.value))
-
-
-def test_fw_arrayofstructuresref(fortran_writer):
-    ''' Test the FortranWriter support for ArrayOfStructuresReference. '''
-    grid_type = StructureType.create([
-        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
-    grid_array_type = ArrayType(grid_type_sym, [10])
-    grid_var = DataSymbol("grid", grid_array_type)
-    grid_ref = ArrayOfStructuresReference.create(grid_var,
-                                                 [Literal("3", INTEGER_TYPE)],
-                                                 ["dx"])
-    assert (fortran_writer.arrayofstructuresreference_node(grid_ref) ==
-            "grid(3)%dx")
-    # Break the node to trigger checks
-    # Make the first node something other than a member
-    grid_ref._children = [grid_ref._children[1], grid_ref._children[1]]
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.arrayofstructuresreference_node(grid_ref)
-    assert ("An ArrayOfStructuresReference must have a Member as its first "
-            "child but found 'Literal'" in str(err.value))
-    # Remove a child
-    grid_ref._children = [grid_ref._children[0]]
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.arrayofstructuresreference_node(grid_ref)
-    assert ("An ArrayOfStructuresReference must have at least two children "
-            "but found 1" in str(err.value))
-
-
-def test_fw_arrayofstructuresmember(fortran_writer):
-    ''' Test the FortranWriter support for ArrayOfStructuresMember. '''
-    region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    region_type_sym = DataTypeSymbol("grid_type", region_type)
-    region_array_type = ArrayType(region_type_sym, [2, 2])
-    # The grid type contains an array of region-type structures
-    grid_type = StructureType.create([
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
-    grid_type_sym = DataTypeSymbol("grid_type", grid_type)
-    grid_var = DataSymbol("grid", grid_type_sym)
-    # Reference to an element of an array that is a structure
-    level_ref = StructureReference.create(grid_var,
-                                          [("levels",
-                                            [Literal("1", INTEGER_TYPE),
-                                             Literal("1", INTEGER_TYPE)])])
-    assert (fortran_writer.structurereference_node(level_ref) ==
-            "grid%levels(1,1)")
-    # Reference to a member of a structure that is an element of an array
-    grid_ref = StructureReference.create(grid_var,
-                                         [("levels",
-                                           [Literal("1", INTEGER_TYPE),
-                                            Literal("1", INTEGER_TYPE)]),
-                                          "nx"])
-    assert (fortran_writer.structurereference_node(grid_ref) ==
-            "grid%levels(1,1)%nx")
-    # Reference to an *array* of structures
-    grid_ref = StructureReference.create(grid_var, ["levels"])
-    assert fortran_writer.structurereference_node(grid_ref) == "grid%levels"
 
 
 # literal is already checked within previous tests
@@ -2056,7 +1991,7 @@ def test_fw_call_node(fortran_writer):
     symbol_use = ContainerSymbol("my_mod")
     symbol_table.add(symbol_use)
     symbol_call = RoutineSymbol(
-        "my_sub", interface=GlobalInterface(symbol_use))
+        "my_sub", interface=ImportInterface(symbol_use))
     symbol_table.add(symbol_call)
     mult_ab = BinaryOperation.create(
         BinaryOperation.Operator.MUL, ref_a.copy(), ref_b.copy())
@@ -2089,22 +2024,55 @@ def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
     assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
 
 
-def test_fw_unknown_decln_error(monkeypatch, fortran_writer):
-    ''' Check that the FortranWriter raises the expected error if it
-    encounters an UnknownType that is not an UnknownFortranType. '''
-    # We can't create an UnknownType() object directly as it is abstract.
-    # Therefore we create a symbol of UnknownFortranType and then
-    # monkeypatch it.
-    sym = DataSymbol("b", UnknownFortranType("int b;"))
-    monkeypatch.setattr(sym.datatype, "__class__", UnknownType)
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.gen_vardecl(sym)
-    assert ("cannot handle the declaration of a symbol of 'UnknownType'" in
-            str(err.value))
+def test_fw_comments(fortran_writer):
+    ''' Test the generation of Fortran from PSyIR with comments. '''
 
+    container = Container("my_container")
+    routine = Routine("my_routine")
+    container.addchild(routine)
+    statement1 = Return()
+    statement2 = Return()
+    statement3 = Return()
+    routine.children = [statement1, statement2, statement3]
 
-def test_fw_unknown_decln(fortran_writer):
-    ''' Check that the FortranWriter recreates a declaration that is of
-    UnknownFortranType. '''
-    sym = DataSymbol("b", UnknownFortranType("integer, value :: b"))
-    assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)
+    # If the comments are empty, they don't appear at all
+    expected = (
+        "module my_container\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  subroutine my_routine()\n\n"
+        "    return\n"
+        "    return\n"
+        "    return\n\n"
+        "  end subroutine my_routine\n\n"
+        "end module my_container\n")
+    assert expected == fortran_writer(container)
+
+    # Add comments
+    container.preceding_comment = "My container preceding comment"
+    container.inline_comment = "My container inline comment"
+    routine.preceding_comment = "My routine preceding comment"
+    routine.inline_comment = "My routine inline comment"
+    statement1.preceding_comment = "My statement with a preceding comment"
+    statement2.preceding_comment = "My statement with a preceding comment ..."
+    statement2.inline_comment = "... and an inline comment"
+    statement3.inline_comment = "Statement with only an inline comment"
+
+    # Now they are placed in the appropriate position
+    expected = (
+        "! My container preceding comment\n"
+        "module my_container\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  ! My routine preceding comment\n"
+        "  subroutine my_routine()\n\n"
+        "    ! My statement with a preceding comment\n"
+        "    return\n"
+        "    ! My statement with a preceding comment ...\n"
+        "    return  ! ... and an inline comment\n"
+        "    return  ! Statement with only an inline comment\n\n"
+        "  end subroutine my_routine  ! My routine inline comment\n\n"
+        "end module my_container  ! My container inline comment\n")
+    assert expected == fortran_writer(container)

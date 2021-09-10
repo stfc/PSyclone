@@ -39,8 +39,8 @@
 from __future__ import absolute_import
 import pytest
 
-from psyclone.core import AccessInfo, Signature, SingleVariableAccessInfo, \
-    VariablesAccessInfo
+from psyclone.core import AccessInfo, ComponentIndices, Signature, \
+    SingleVariableAccessInfo, VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node
@@ -53,7 +53,7 @@ def test_access_info():
     access_info = AccessInfo(AccessType.READ, location, Node())
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
-    assert access_info.component_indices == [[]]
+    assert access_info.component_indices.indices_lists == [[]]
     assert not access_info.is_array()
     assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
@@ -64,20 +64,22 @@ def test_access_info():
     assert "Trying to change variable to 'WRITE' which does not have "\
         "'READ' access." in str(err.value)
 
-    access_info.component_indices = [["i"]]
-    assert access_info.component_indices == [["i"]]
+    # Test setter and getter:
+    component_indices = ComponentIndices([["i"]])
+    access_info.component_indices = component_indices
+    assert access_info.component_indices == component_indices
     assert access_info.is_array()
 
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node())
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.component_indices == [[]]
+    assert access_info.component_indices.indices_lists == [[]]
 
     access_info = AccessInfo(AccessType.UNKNOWN, location, Node(),
                              [["i", "j"]])
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
-    assert access_info.component_indices == [["i", "j"]]
+    assert access_info.component_indices.indices_lists == [["i", "j"]]
 
 
 # -----------------------------------------------------------------------------
@@ -88,14 +90,21 @@ def test_access_info_exceptions():
     with pytest.raises(InternalError) as err:
         _ = AccessInfo(AccessType.READ, location, Node(),
                        component_indices=123)
-    assert "component_indices in add_access must be a list of lists or " \
-           "None, got '123'" in str(err.value)
+    assert "Index object in ComponentIndices constructor must be None, " \
+           "a list or list of lists, got '123'" in str(err.value)
 
     with pytest.raises(InternalError) as err:
         _ = AccessInfo(AccessType.READ, location, Node(),
                        component_indices=[[], 123])
-    assert "component_indices in add_access must be a list of lists or None, "\
-        "got '[[], 123]'" in str(err.value)
+    assert "ComponentIndices: Invalid list parameter '[[], 123]'" \
+        in str(err.value)
+
+    location = 1
+    access_info = AccessInfo(AccessType.READ, location, Node())
+    with pytest.raises(InternalError) as err:
+        access_info.component_indices = 123
+    assert "The component_indices object in the setter of AccessInfo must " \
+           "be an instance of ComponentIndices, got '123'" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
@@ -104,14 +113,16 @@ def test_variable_access_info():
     list of VariableInfo instances for one variable
     '''
 
-    vai = SingleVariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo(Signature("var_name"))
     assert vai.var_name == "var_name"
     assert str(vai) == "var_name:"
     assert vai.is_written() is False
     assert vai.is_read() is False
     assert vai.all_accesses == []
+    assert vai.signature == Signature("var_name")
 
-    vai.add_access_with_location(AccessType.READ, 2, Node())
+    vai.add_access_with_location(AccessType.READ, 2, Node(),
+                                 component_indices=None)
     assert str(vai) == "var_name:READ(2)"
     assert vai.is_read()
     assert vai.is_read_only()
@@ -133,14 +144,16 @@ def test_variable_access_info():
 
     # Add a READ access - now we should not be able to
     # change read to write anymore:
-    vai.add_access_with_location(AccessType.READ, 1, Node())
+    vai.add_access_with_location(AccessType.READ, 1, Node(),
+                                 component_indices=None)
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
     assert "Variable 'var_name' had 2 accesses listed, "\
            "not one in change_read_to_write." in str(err.value)
 
     # And make sure the variable is not read_only if a write is added
-    vai.add_access_with_location(AccessType.WRITE, 3, Node())
+    vai.add_access_with_location(AccessType.WRITE, 3, Node(),
+                                 component_indices=None)
     assert vai.is_read_only() is False
 
 
@@ -150,9 +163,10 @@ def test_variable_access_info_is_array():
 
     '''
 
-    vai = SingleVariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo(Signature("var_name"))
     # Add non array-like access:
-    vai.add_access_with_location(AccessType.READ, 1, Node())
+    vai.add_access_with_location(AccessType.READ, 1, Node,
+                                 component_indices=None)
     assert not vai.is_array()
     # Add array access:
     vai.add_access_with_location(AccessType.READ, 1, Node(), [[Node()]])
@@ -167,24 +181,28 @@ def test_variable_access_info_read_write():
     used in subroutine calls (depending on kernel metadata)
     '''
 
-    vai = SingleVariableAccessInfo("var_name")
+    vai = SingleVariableAccessInfo(Signature("var_name"))
     assert vai.has_read_write() is False
 
     # Add a READ and WRITE access at the same location, and make sure it
     # is not reported as READWRITE access
     node = Node()
-    vai.add_access_with_location(AccessType.READ, 2, node)
+    vai.add_access_with_location(AccessType.READ, 2, node,
+                                 component_indices=None)
     assert vai[0].node == node
     assert vai[0].location == 2
-    vai.add_access_with_location(AccessType.WRITE, 2, Node())
+    vai.add_access_with_location(AccessType.WRITE, 2, Node(),
+                                 component_indices=None)
     assert vai.has_read_write() is False
 
-    vai.add_access_with_location(AccessType.READWRITE, 2, Node())
+    vai.add_access_with_location(AccessType.READWRITE, 2, Node(),
+                                 component_indices=None)
     assert vai.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
-    vai = SingleVariableAccessInfo("var_name")
-    vai.add_access_with_location(AccessType.READWRITE, 2, Node())
+    vai = SingleVariableAccessInfo(Signature("var_name"))
+    vai.add_access_with_location(AccessType.READWRITE, 2, Node(),
+                                 component_indices=None)
     assert vai.has_read_write()
     assert vai.is_read()
     assert vai.is_written()
@@ -231,7 +249,14 @@ def test_variables_access_info():
     assert str(var_accesses) == "new_var: READ, read: READ, " \
                                 "read_written: READ+WRITE, written: READ+WRITE"
 
-    with pytest.raises(KeyError):
+
+# -----------------------------------------------------------------------------
+def test_variables_access_info_errors():
+    '''Tests if errors are handled correctly. '''
+    var_accesses = VariablesAccessInfo()
+    node = Node()
+    var_accesses.add_access(Signature("read"), AccessType.READ, node)
+    with pytest.raises(KeyError) as err:
         _ = var_accesses[Signature("does_not_exist")]
     with pytest.raises(KeyError):
         var_accesses.is_read(Signature("does_not_exist"))
@@ -247,6 +272,44 @@ def test_variables_access_info():
 
     assert "Got 'no-signature' of type 'str' but expected it to be of type " \
            "psyclone.core.Signature." in str(err.value)
+
+    # Check for consistency between signature and component indices:
+    with pytest.raises(InternalError) as err:
+        var_accesses.add_access(Signature(("a", "b")), AccessType.READ, node,
+                                ComponentIndices([]))
+    assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
+           "requires 2 elements." in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_component_indices_auto_extension():
+    '''To make it more convenient for the user certain combinations of
+    signature and component_indices in the add_location call will
+    automatically add empty indices to the component_indices. For example.
+    adding "ssh_fld%grid%tmask" with indices ["i", "j"] will automatically
+    create component_indices like [[], [], ["i", "j"]].
+    '''
+    var_accesses = VariablesAccessInfo()
+    node = Node()
+    sig = Signature(("a", "b", "c"))
+    # This should auto-extent the component indices,
+    # since they are specified as a simple list:
+    var_accesses.add_access(sig, AccessType.READ, node, ["i", "j"])
+    assert (var_accesses[sig][0].component_indices.indices_lists ==
+            [[], [], ["i", "j"]])
+
+    # This must trigger an exception, since a list of lists is used, which
+    # should not get any values added:
+    with pytest.raises(InternalError) as err:
+        var_accesses.add_access(sig, AccessType.READ, node, [["i", "j"]])
+    assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
+            "which requires 3 elements." in str(err.value))
+
+    component_indices = ComponentIndices(["i", "j"])
+    with pytest.raises(InternalError) as err:
+        var_accesses.add_access(sig, AccessType.READ, node, component_indices)
+    assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
+            "which requires 3 elements." in str(err.value))
 
 
 # -----------------------------------------------------------------------------

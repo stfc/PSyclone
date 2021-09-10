@@ -50,35 +50,38 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine, Member, FileContainer
+    Call, Routine, Member, FileContainer, Directive
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
     UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
     SymbolTable, NoType, INTEGER_TYPE
 
-# The list of Fortran instrinsic functions that we know about (and can
-# therefore distinguish from array accesses). These are taken from
-# fparser.
+#: The list of Fortran instrinsic functions that we know about (and can
+#: therefore distinguish from array accesses). These are taken from
+#: fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
-# Mapping from Fortran data types to PSyIR types
+#: Mapping from Fortran data types to PSyIR types
 TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Intrinsic.INTEGER,
                          "character": ScalarType.Intrinsic.CHARACTER,
                          "logical": ScalarType.Intrinsic.BOOLEAN,
                          "real": ScalarType.Intrinsic.REAL,
                          "double precision": ScalarType.Intrinsic.REAL}
 
-# Mapping from fparser2 Fortran Literal types to PSyIR types
+#: Mapping from Fortran access specifiers to PSyIR visibilities
+VISIBILITY_MAP_FROM_FORTRAN = {"public": Symbol.Visibility.PUBLIC,
+                               "private": Symbol.Visibility.PRIVATE}
+
+#: Mapping from fparser2 Fortran Literal types to PSyIR types
 CONSTANT_TYPE_MAP = {
     Fortran2003.Real_Literal_Constant: ScalarType.Intrinsic.REAL,
     Fortran2003.Logical_Literal_Constant: ScalarType.Intrinsic.BOOLEAN,
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
     Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
-# Mapping from Fortran intent to PSyIR access type
+#: Mapping from Fortran intent to PSyIR access type
 INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "out": ArgumentInterface.Access.WRITE,
                   "inout": ArgumentInterface.Access.READWRITE}
@@ -710,8 +713,7 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         return _kind_symbol_from_name(precision_name, symbol_table)
 
 
-def _process_routine_symbols(module_ast, symbol_table,
-                             default_visibility, visibility_map):
+def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     '''
     Examines the supplied fparser2 parse tree for a module and creates
     RoutineSymbols for every routine (function or subroutine) that it
@@ -721,10 +723,6 @@ def _process_routine_symbols(module_ast, symbol_table,
     :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
     :param symbol_table: the SymbolTable to which to add the symbols.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-    :param default_visibility: the default visibility that applies to all \
-            symbols without an explicit visibility specification.
-    :type default_visibility: \
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
     :param visibility_map: dict of symbol names with explicit visibilities.
     :type visibility_map: dict with symbol names as keys and visibilities as \
                           values
@@ -739,12 +737,32 @@ def _process_routine_symbols(module_ast, symbol_table,
                 Fortran2003.Function_Subprogram: DeferredType()}
     for routine in routines:
         name = str(routine.children[0].children[1])
-        vis = visibility_map.get(name, default_visibility)
+        vis = visibility_map.get(name, symbol_table.default_visibility)
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
         rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
                                 interface=LocalInterface())
         symbol_table.add(rsymbol)
+
+
+def _process_access_spec(attr):
+    '''
+    Converts from an fparser2 Access_Spec node to a PSyIR visibility.
+
+    :param attr: the fparser2 AST node to process.
+    :type attr: :py:class:`fparser.two.Fortran2003.Access_Spec`
+
+    :return: the PSyIR visibility corresponding to the access spec.
+    :rtype: :py:class:`psyclone.psyir.Symbol.Visibility`
+
+    :raises InternalError: if an invalid access specification is found.
+
+    '''
+    try:
+        return VISIBILITY_MAP_FROM_FORTRAN[attr.string.lower()]
+    except KeyError as err:
+        six.raise_from(InternalError("Unexpected Access Spec attribute '{0}'.".
+                                     format(str(attr))), err)
 
 
 def _create_struct_reference(parent, base_ref, base_symbol, members,
@@ -1134,20 +1152,20 @@ class Fparser2Reader(object):
         # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
         # determine the default accessibility of symbols as well as identifying
         # those that are explicitly declared as public or private.
-        (default_visibility, visibility_map) = self._parse_access_statements(
+        (default_visibility, visibility_map) = self.process_access_statements(
             module)
+        new_container.symbol_table.default_visibility = default_visibility
 
         # Create symbols for all routines defined within this module
         _process_routine_symbols(module_ast, new_container.symbol_table,
-                                 default_visibility, visibility_map)
+                                 visibility_map)
 
         # Parse the declarations if it has any
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
                 try:
                     self.process_declarations(new_container, child.children,
-                                              [], default_visibility,
-                                              visibility_map)
+                                              [], visibility_map)
                 except SymbolError as err:
                     six.raise_from(SymbolError(
                         "Error when generating Container for module '{0}': "
@@ -1255,12 +1273,14 @@ class Fparser2Reader(object):
     @staticmethod
     def _parse_dimensions(dimensions, symbol_table):
         '''
-        Parse the fparser dimension attribute into a shape list with
-        the extent of each dimension. If any of the symbols encountered are
-        instances of the generic Symbol class, they are specialised (in
-        place) and become instances of DataSymbol with DeferredType.
+        Parse the fparser dimension attribute into a shape list. Each entry of
+        this list is either None (if the extent is unknown) or a 2-tuple
+        containing the lower and upper bound of that dimension. If any of the
+        symbols encountered are instances of the generic Symbol class, they are
+        specialised (in place) and become instances of DataSymbol with
+        DeferredType.
 
-        :param dimensions: fparser dimension attribute
+        :param dimensions: fparser dimension attribute.
         :type dimensions: \
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
         :param symbol_table: symbol table of the declaration context.
@@ -1269,15 +1289,77 @@ class Fparser2Reader(object):
         :returns: shape of the attribute in column-major order (leftmost \
             index is contiguous in memory). Each entry represents an array \
             dimension. If it is 'None' the extent of that dimension is \
-            unknown, otherwise it holds an integer with the extent. If it is \
-            an empty list then the symbol represents a scalar.
-        :rtype: list
+            unknown, otherwise it holds a 2-tuple with the upper and lower \
+            bounds of the dimension. If it is an empty list then the symbol \
+            represents a scalar.
+        :rtype: list of NoneType or 2-tuples of \
+                :py:class:`psyclone.psyir.nodes.DataNode`
 
         :raises NotImplementedError: if anything other than scalar, integer \
             literals or symbols are encounted in the dimensions list.
-        '''
-        shape = []
 
+        '''
+        def _process_bound(bound_expr):
+            '''Process the supplied fparser2 parse tree for the upper/lower
+            bound of a dimension in an array declaration.
+
+            :param bound_expr: fparser2 parse tree for lower/upper bound.
+            :type bound_expr: :py:class:`fparser.two.utils.Base`
+
+            :returns: PSyIR for the bound.
+            :rtype: :py:class:`psyclone.psyir.nodes.DataNode`
+
+            :raises NotImplementedError: if an unsupported form of array \
+                                         bound is found.
+            '''
+            if isinstance(bound_expr, Fortran2003.Int_Literal_Constant):
+                return Literal(bound_expr.items[0], INTEGER_TYPE)
+
+            if isinstance(bound_expr, Fortran2003.Name):
+                # Fortran does not regulate the order in which variables
+                # may be declared so it's possible for the shape
+                # specification of an array to reference variables that
+                # come later in the list of declarations. The reference
+                # may also be to a symbol present in a parent symbol table
+                # (e.g. if the variable is declared in an outer, module
+                # scope).
+                dim_name = bound_expr.string.lower()
+                try:
+                    sym = symbol_table.lookup(dim_name)
+                    # pylint: disable=unidiomatic-typecheck
+                    if type(sym) == Symbol:
+                        # An entry for this symbol exists but it's only a
+                        # generic Symbol and we now know it must be a
+                        # DataSymbol.
+                        # TODO use the API developed in #1113 - currently the
+                        # specialise method does not set any additional
+                        # attributes possessed by the sub-class.
+                        sym.specialise(DataSymbol)
+                        sym.__init__(sym.name, DeferredType(),
+                                     interface=sym.interface)
+                    elif isinstance(sym.datatype, (UnknownType,
+                                                   DeferredType)):
+                        # Allow symbols of Unknown/DeferredType.
+                        pass
+                    elif not (isinstance(sym.datatype, ScalarType) and
+                              sym.datatype.intrinsic ==
+                              ScalarType.Intrinsic.INTEGER):
+                        # It's not of Unknown/DeferredType and it's not an
+                        # integer scalar.
+                        raise NotImplementedError()
+                except KeyError:
+                    # We haven't seen this symbol before so create a new
+                    # one with a deferred interface (since we don't
+                    # currently know where it is declared).
+                    sym = DataSymbol(dim_name, default_integer_type(),
+                                     interface=UnresolvedInterface())
+                    symbol_table.add(sym)
+                return Reference(sym)
+
+            raise NotImplementedError()
+
+        one = Literal("1", INTEGER_TYPE)
+        shape = []
         # Traverse shape specs in Depth-first-search order
         for dim in walk(dimensions, (Fortran2003.Assumed_Shape_Spec,
                                      Fortran2003.Explicit_Shape_Spec,
@@ -1287,54 +1369,19 @@ class Fparser2Reader(object):
                 shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
-                def _unsupported_type_error(dimensions):
-                    raise NotImplementedError(
+                try:
+                    upper = _process_bound(dim.items[1])
+                    if dim.items[0]:
+                        lower = _process_bound(dim.items[0])
+                        shape.append((lower, upper))
+                    else:
+                        # Lower bound defaults to 1 in Fortran
+                        shape.append((one.copy(), upper))
+                except NotImplementedError as err:
+                    six.raise_from(NotImplementedError(
                         "Could not process {0}. Only scalar integer literals"
-                        " or symbols are supported for explicit shape array "
-                        "declarations.".format(dimensions))
-                if isinstance(dim.items[1],
-                              Fortran2003.Int_Literal_Constant):
-                    shape.append(int(dim.items[1].items[0]))
-                elif isinstance(dim.items[1], Fortran2003.Name):
-                    # Fortran does not regulate the order in which variables
-                    # may be declared so it's possible for the shape
-                    # specification of an array to reference variables that
-                    # come later in the list of declarations. The reference
-                    # may also be to a symbol present in a parent symbol table
-                    # (e.g. if the variable is declared in an outer, module
-                    # scope).
-                    dim_name = dim.items[1].string.lower()
-                    try:
-                        sym = symbol_table.lookup(dim_name)
-                        # pylint: disable=unidiomatic-typecheck
-                        if type(sym) == Symbol:
-                            # An entry for this symbol exists but it's only a
-                            # generic Symbol and we now know it must be a
-                            # DataSymbol.
-                            # TODO use the API developed in #1113.
-                            sym.__class__ = DataSymbol
-                            sym.__init__(sym.name, DeferredType(),
-                                         interface=sym.interface)
-                        elif isinstance(sym.datatype, (UnknownType,
-                                                       DeferredType)):
-                            # Allow symbols of Unknown/DeferredType.
-                            pass
-                        elif not (isinstance(sym.datatype, ScalarType) and
-                                  sym.datatype.intrinsic ==
-                                  ScalarType.Intrinsic.INTEGER):
-                            # It's not of Unknown/DeferredType and it's not an
-                            # integer scalar.
-                            _unsupported_type_error(dimensions)
-                    except KeyError:
-                        # We haven't seen this symbol before so create a new
-                        # one with a deferred interface (since we don't
-                        # currently know where it is declared).
-                        sym = DataSymbol(dim_name, default_integer_type(),
-                                         interface=UnresolvedInterface())
-                        symbol_table.add(sym)
-                    shape.append(Reference(sym))
-                else:
-                    _unsupported_type_error(dimensions)
+                        " or symbols are supported for explicit-shape array "
+                        "declarations.".format(dimensions)), err)
 
             elif isinstance(dim, Fortran2003.Assumed_Size_Spec):
                 raise NotImplementedError(
@@ -1349,7 +1396,7 @@ class Fparser2Reader(object):
         return shape
 
     @staticmethod
-    def _parse_access_statements(nodes):
+    def process_access_statements(nodes):
         '''
         Search the supplied list of fparser2 nodes (which must represent a
         complete Specification Part) for any accessibility
@@ -1462,13 +1509,15 @@ class Fparser2Reader(object):
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
         :raises GenerationError: if the parse tree for a use statement has an \
-                                 unrecognised structure.
+            unrecognised structure.
         :raises SymbolError: if a symbol imported via a use statement is \
-                             already present in the symbol table.
+            already present in the symbol table.
         :raises NotImplementedError: if the form of use statement is not \
-                                     supported.
+            supported.
 
         '''
+        default_visibility = parent.symbol_table.default_visibility
+
         for decl in walk(nodes, Fortran2003.Use_Stmt):
 
             # Check that the parse tree is what we expect
@@ -1491,7 +1540,8 @@ class Fparser2Reader(object):
             # purposes in the code below.
             if mod_name not in parent.symbol_table:
                 new_container = True
-                container = ContainerSymbol(mod_name)
+                container = ContainerSymbol(mod_name,
+                                            visibility=default_visibility)
                 parent.symbol_table.add(container)
             else:
                 new_container = False
@@ -1505,8 +1555,8 @@ class Fparser2Reader(object):
 
             # Create a generic Symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
-                if not new_container and not container.wildcard_import \
-                   and not parent.symbol_table.imported_symbols(container):
+                if not new_container and not container.wildcard_import and \
+                   not parent.symbol_table.symbols_imported_from(container):
                     # TODO #11 Log the fact that this explicit symbol import
                     # will replace a previous import with an empty only-list.
                     pass
@@ -1517,16 +1567,15 @@ class Fparser2Reader(object):
                         # in the *current* scope therefore we do not check
                         # any ancestor symbol tables; we just create a
                         # new symbol. Since we don't yet know anything about
-                        # this symbol apart from its name we create a generic
-                        # Symbol.
+                        # the type of this symbol we create a generic Symbol.
                         parent.symbol_table.add(
-                            Symbol(sym_name,
-                                   interface=GlobalInterface(container)))
+                            Symbol(sym_name, visibility=default_visibility,
+                                   interface=ImportInterface(container)))
                     else:
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
                             sym_name)
-                        if not existing_symbol.is_global:
+                        if not existing_symbol.is_import:
                             raise SymbolError(
                                 "Symbol '{0}' is imported from module '{1}' "
                                 "but is already present in the symbol table as"
@@ -1537,8 +1586,8 @@ class Fparser2Reader(object):
                         # import of this symbol and that will take precendence.
             elif not decl.items[3]:
                 # We have a USE statement without an ONLY clause.
-                if (not new_container) and (not container.wildcard_import) \
-                   and (not parent.symbol_table.imported_symbols(container)):
+                if not new_container and not container.wildcard_import and \
+                   not parent.symbol_table.symbols_imported_from(container):
                     # TODO #11 Log the fact that this explicit symbol import
                     # will replace a previous import that had an empty
                     # only-list.
@@ -1552,7 +1601,7 @@ class Fparser2Reader(object):
                 # wildcard import) imply 'only:'.
                 if not new_container and \
                        (container.wildcard_import or
-                        parent.symbol_table.imported_symbols(container)):
+                        parent.symbol_table.symbols_imported_from(container)):
                     # TODO #11 Log the fact that this import with an empty
                     # only-list is ignored because of existing 'use's of
                     # the module.
@@ -1643,8 +1692,7 @@ class Fparser2Reader(object):
 
         return base_type, precision
 
-    def _process_decln(self, parent, symbol_table, decl, default_visibility,
-                       visibility_map=None):
+    def _process_decln(self, parent, symbol_table, decl, visibility_map=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
         entity that is declared, a symbol is added to the supplied symbol
@@ -1656,10 +1704,6 @@ class Fparser2Reader(object):
         :type symbol_table: py:class:`psyclone.psyir.symbols.SymbolTable`
         :param decl: fparser2 parse tree of declaration to process.
         :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
-        :param default_visibility: the default visibility of symbols in the \
-                                   current declaration section.
-        :type default_visibility: \
-            :py:class:`psyclone.symbols.Symbol.Visibility`
         :param visibility_map: mapping of symbol name to visibility (for \
             those symbols listed in an accessibility statement).
         :type visibility_map: dict with str keys and \
@@ -1689,7 +1733,7 @@ class Fparser2Reader(object):
         (type_spec, attr_specs, entities) = decl.items
 
         # Parse the type_spec
-        base_type, precision = self._process_type_spec(parent, type_spec)
+        base_type, _ = self._process_type_spec(parent, type_spec)
 
         # Parse declaration attributes:
         # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -1755,15 +1799,12 @@ class Fparser2Reader(object):
                     attribute_shape = \
                         self._parse_dimensions(attr, symbol_table)
                 elif isinstance(attr, Fortran2003.Access_Spec):
-                    if attr.string.lower() == 'public':
-                        decln_access_spec = Symbol.Visibility.PUBLIC
-                    elif attr.string.lower() == 'private':
-                        decln_access_spec = Symbol.Visibility.PRIVATE
-                    else:
-                        raise InternalError(
-                            "Could not process '{0}'. Unexpected Access "
-                            "Spec attribute '{1}'.".format(decl.items,
-                                                           str(attr)))
+                    try:
+                        decln_access_spec = _process_access_spec(attr)
+                    except InternalError as err:
+                        six.raise_from(InternalError(
+                            "Could not process '{0}': {1}".format(
+                                decl.items, str(err.value))), err)
                 else:
                     raise NotImplementedError(
                         "Could not process declaration: '{0}'. "
@@ -1837,10 +1878,10 @@ class Fparser2Reader(object):
             else:
                 # There was no access-spec on the LHS of the decln
                 if visibility_map is not None:
-                    visibility = visibility_map.get(sym_name,
-                                                    default_visibility)
+                    visibility = visibility_map.get(
+                        sym_name, symbol_table.default_visibility)
                 else:
-                    visibility = default_visibility
+                    visibility = symbol_table.default_visibility
 
             if entity_shape:
                 # array
@@ -1882,8 +1923,7 @@ class Fparser2Reader(object):
             # The Symbol must have the interface given by the declaration
             sym.interface = interface
 
-    def _process_derived_type_decln(self, parent, decl, default_visibility,
-                                    visibility_map):
+    def _process_derived_type_decln(self, parent, decl, visibility_map):
         '''
         Process the supplied fparser2 parse tree for a derived-type
         declaration. A DataTypeSymbol representing the derived-type is added
@@ -1893,10 +1933,6 @@ class Fparser2Reader(object):
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
         :param decl: fparser2 parse tree of declaration to process.
         :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
-        :param default_visibility: the default visibility of symbols in the \
-                                   current declaration section.
-        :type default_visibility: \
-            :py:class:`psyclone.symbols.Symbol.Visibility`
         :param visibility_map: mapping of symbol name to visibility (for \
             those symbols listed in an accessibility statement).
         :type visibility_map: dict with str keys and \
@@ -1921,7 +1957,8 @@ class Fparser2Reader(object):
             default_compt_visibility = Symbol.Visibility.PUBLIC
 
         # The visibility of the symbol representing this derived type
-        dtype_symbol_vis = visibility_map.get(name, default_visibility)
+        dtype_symbol_vis = visibility_map.get(
+            name, parent.symbol_table.default_visibility)
 
         # We have to create the symbol for this type before processing its
         # components as they may refer to it (e.g. for a linked list).
@@ -1954,10 +1991,10 @@ class Fparser2Reader(object):
         # the derived type
         try:
             # Re-use the existing code for processing symbols
-            local_table = SymbolTable()
+            local_table = SymbolTable(
+                default_visibility=default_compt_visibility)
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
-                self._process_decln(parent, local_table, child,
-                                    default_compt_visibility)
+                self._process_decln(parent, local_table, child)
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
                 dtype.add(symbol.name, symbol.datatype, symbol.visibility)
@@ -1971,26 +2008,21 @@ class Fparser2Reader(object):
             tsymbol.datatype = UnknownFortranType(str(decl))
 
     def process_declarations(self, parent, nodes, arg_list,
-                             default_visibility=None,
                              visibility_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
-        symbols in the symbol table of the PSyIR parent node. If
-        `default_visibility` and `visibility_map` are not supplied then
-        _parse_access_statements() is called on the provided parse tree.
-        If `visibility_map` is supplied and `default_visibility` omitted then
-        it defaults to PUBLIC (the Fortran default).
+        symbols in the symbol table of the PSyIR parent node. The default
+        visibility of any new symbol is taken from the symbol table associated
+        with the `parent` node if necessary. The `visibility_map` provides
+        information on any explicit symbol visibilities that are specified
+        for the declarations.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
-        :param nodes: fparser2 AST nodes to search for declaration statements.
+        :param nodes: fparser2 AST nodes containing declaration statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
-        :param default_visibility: the visibility of a symbol which does not \
-                        have an explicit accessibility specification.
-        :type default_visibility: \
-                        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
         :param visibility_map: mapping of symbol names to explicit
                         visibilities.
         :type visibility_map: dict with str keys and values of type \
@@ -2006,16 +2038,8 @@ class Fparser2Reader(object):
                                or invalid fparser or Fortran expression.
 
         '''
-        if default_visibility is None:
-            if visibility_map is None:
-                # If no default visibility or visibility mapping is supplied,
-                # check for any access statements.
-                default_visibility, visibility_map = \
-                    self._parse_access_statements(nodes)
-            else:
-                # In case the caller has provided a visibility map but
-                # omitted the default visibility, we use the Fortran default.
-                default_visibility = Symbol.Visibility.PUBLIC
+        if visibility_map is None:
+            visibility_map = {}
 
         # Look at any USE statements
         self._process_use_stmts(parent, nodes)
@@ -2024,46 +2048,95 @@ class Fparser2Reader(object):
         # at general variable declarations in case any of the latter use
         # the former.
         for decl in walk(nodes, Fortran2003.Derived_Type_Def):
-            self._process_derived_type_decln(parent, decl,
-                                             default_visibility,
-                                             visibility_map)
+            self._process_derived_type_decln(parent, decl, visibility_map)
 
         # Now we've captured any derived-type definitions, proceed to look
         # at the variable declarations.
-        for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
-            try:
-                self._process_decln(parent, parent.symbol_table, decl,
-                                    default_visibility,
-                                    visibility_map)
-            except NotImplementedError:
-                # Found an unsupported variable declaration. Create a
-                # DataSymbol with UnknownType for each entity being declared.
-                # Currently this means that any symbols that come after an
-                # unsupported declaration will also have UnknownType. This is
-                # the subject of Issue #791.
-                orig_children = list(decl.children[2].children[:])
-                for child in orig_children:
-                    # Modify the fparser2 parse tree so that it only declares
-                    # the current entity. `items` is a tuple and thus immutable
-                    # so we create a new one.
-                    decl.children[2].items = (child,)
-                    symbol_name = str(child.children[0])
-                    # If a declaration declares multiple entities, it's
-                    # possible that some may have already been processed
-                    # successfully and thus be in the symbol table.
-                    try:
-                        parent.symbol_table.add(
-                            DataSymbol(symbol_name,
-                                       UnknownFortranType(str(decl))))
-                    except KeyError:
-                        if len(orig_children) == 1:
-                            raise SymbolError(
-                                "Error while processing unsupported "
-                                "declaration ('{0}'). An entry for symbol "
-                                "'{1}' is already in the symbol table.".format(
-                                    str(decl), symbol_name))
-                # Restore the fparser2 parse tree
-                decl.children[2].items = tuple(orig_children)
+        for node in nodes:
+
+            if isinstance(node, Fortran2003.Interface_Block):
+
+                # We only support named interface blocks, and then only
+                # partially. Fortran standard R1203 says that:
+                #    interface-stmt = INTERFACE [ generic-spec ]
+                # where generic-spec is either (R1207) a generic-name or one
+                # of OPERATOR, ASSIGNMENT or dtio-spec.
+                if (not isinstance(node.children[0],
+                                   Fortran2003.Interface_Stmt) or
+                    not isinstance(node.children[0].children[0],
+                                   Fortran2003.Name)):
+                    # An unsupported interface definition will result in
+                    # the whole module containing this specification part
+                    # being put into a CodeBlock.
+                    raise NotImplementedError()
+                name = node.children[0].children[0].string
+                vis = visibility_map.get(
+                    name, parent.symbol_table.default_visibility)
+                # A named interface block corresponds to a RoutineSymbol.
+                # (There will be calls to it although there will be no
+                # corresponding implementation with that name.)
+                # We store its definition using an UnknownFortranType so that
+                # we can recreate it in the Fortran backend.
+                parent.symbol_table.add(
+                    RoutineSymbol(name, UnknownFortranType(str(node).lower()),
+                                  visibility=vis))
+
+            elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
+                try:
+                    self._process_decln(parent, parent.symbol_table, node,
+                                        visibility_map)
+                except NotImplementedError:
+                    # Found an unsupported variable declaration. Create a
+                    # DataSymbol with UnknownType for each entity being
+                    # declared. Currently this means that any symbols that come
+                    # after an unsupported declaration will also have
+                    # UnknownType. This is the subject of Issue #791.
+                    specs = walk(node, Fortran2003.Access_Spec)
+                    if specs:
+                        decln_vis = _process_access_spec(specs[0])
+                    else:
+                        decln_vis = parent.symbol_table.default_visibility
+
+                    orig_children = list(node.children[2].children[:])
+                    for child in orig_children:
+                        # Modify the fparser2 parse tree so that it only
+                        # declares the current entity. `items` is a tuple and
+                        # thus immutable so we create a new one.
+                        node.children[2].items = (child,)
+                        symbol_name = str(child.children[0])
+                        vis = visibility_map.get(symbol_name, decln_vis)
+                        # If a declaration declares multiple entities, it's
+                        # possible that some may have already been processed
+                        # successfully and thus be in the symbol table.
+                        try:
+                            parent.symbol_table.add(
+                                DataSymbol(symbol_name,
+                                           UnknownFortranType(str(node)),
+                                           visibility=vis))
+                        except KeyError as err:
+                            if len(orig_children) == 1:
+                                six.raise_from(SymbolError(
+                                    "Error while processing unsupported "
+                                    "declaration ('{0}'). An entry for symbol "
+                                    "'{1}' is already in the symbol table.".
+                                    format(str(node), symbol_name)), err)
+                    # Restore the fparser2 parse tree
+                    node.children[2].items = tuple(orig_children)
+
+            elif isinstance(node, (Fortran2003.Access_Stmt,
+                                   Fortran2003.Derived_Type_Def,
+                                   Fortran2003.Stmt_Function_Stmt,
+                                   Fortran2003.Use_Stmt,
+                                   Fortran2003.Implicit_Part)):
+                # These node types are handled separately with the exception
+                # of Implicit_Part which we currently silently ignore
+                # (TODO #1254).
+                pass
+
+            else:
+                raise NotImplementedError(
+                    "Error processing declarations: fparser2 node of type "
+                    "'{0}' not supported".format(type(node).__name__))
 
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
@@ -2093,9 +2166,13 @@ class Fparser2Reader(object):
                     # We didn't previously know that this Symbol was an
                     # argument (as it had no 'intent' qualifier). Mark
                     # that it is an argument by specifying its interface.
-                    # A Fortran argument has intent(inout) by default
+                    # Athough a Fortran argument has intent(inout) by default,
+                    # specifying this for an argument that is actually read
+                    # only (and is declared as such in the caller) causes
+                    # gfortran to complain. We therefore specify that the
+                    # access is unknown at this stage.
                     symbol.interface = ArgumentInterface(
-                        ArgumentInterface.Access.READWRITE)
+                        ArgumentInterface.Access.UNKNOWN)
                 arg_symbols.append(symbol)
             # Now that we've updated the Symbols themselves, set the
             # argument list
@@ -3864,20 +3941,19 @@ class Fparser2Reader(object):
         # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
         # determine the default accessibility of symbols as well as identifying
         # those that are explicitly declared as public or private.
-        (default_visibility, visibility_map) = self._parse_access_statements(
+        (default_visibility, visibility_map) = self.process_access_statements(
             node)
+        container.symbol_table.default_visibility = default_visibility
 
         # Create symbols for all routines defined within this module
-        _process_routine_symbols(node, container.symbol_table,
-                                 default_visibility, visibility_map)
+        _process_routine_symbols(node, container.symbol_table, visibility_map)
 
         # Parse the declarations if it has any
         try:
             spec_part = _first_type_match(
                 node.children, Fortran2003.Specification_Part)
             self.process_declarations(container, spec_part.children,
-                                      [], default_visibility,
-                                      visibility_map)
+                                      [], visibility_map)
         except ValueError:
             pass
 

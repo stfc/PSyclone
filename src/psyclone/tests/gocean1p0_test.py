@@ -55,10 +55,10 @@ from psyclone.gocean1p0 import GOKern, GOLoop, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
-    ContainerSymbol, DataSymbol, GlobalInterface, ScalarType, INTEGER_TYPE, \
+    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, INTEGER_TYPE, \
     ArgumentInterface, DataTypeSymbol
 from psyclone.psyir.nodes import Node, StructureReference, Member, \
-    StructureMember, Reference
+    StructureMember, Reference, Literal
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -69,6 +69,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
+    yield()
+    Config._instance = None
 
 
 def test_field(tmpdir, dist_mem):
@@ -390,7 +392,7 @@ def test_scalar_float_arg_from_module():
     my_mod = ContainerSymbol("my_mod")
     symtab = schedule.symbol_table
     symtab.add(my_mod)
-    symtab.lookup("a_scalar").interface = GlobalInterface(my_mod)
+    symtab.lookup("a_scalar").interface = ImportInterface(my_mod)
     symtab.specify_argument_list([schedule.symbol_table.lookup("ssh_fld")])
 
     # Generate the code. 'a_scalar' should now come from a module instead of a
@@ -1557,6 +1559,32 @@ def test_gokernelargument_psyir_expression():
         _ = argument_list.args[0].psyir_expression()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
             "'scalar' but found 'incompatible'." in str(excinfo.value))
+
+
+def test_gokernelargument_constant_psyir_expression():
+    '''Test various constant arguments and their conversion to PSyIR.
+    '''
+
+    # Parse an invoke with a scalar int and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    for (const, intr_type) in [("1", ScalarType.Intrinsic.INTEGER),
+                               ("1.0", ScalarType.Intrinsic.REAL),
+                               ("1.0e+0", ScalarType.Intrinsic.REAL),
+                               ("1.0E-0", ScalarType.Intrinsic.REAL)]:
+        argument_list.args[0]._name = const
+        expr = argument_list.args[0].psyir_expression()
+        assert isinstance(expr, Literal)
+        assert expr.datatype.intrinsic == intr_type
 
 
 def test_gokernelargument_type(monkeypatch):

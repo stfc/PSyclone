@@ -58,11 +58,12 @@ MODULE_IN = (
     "end module\n")
 MODULE_OUT = (
     "module a\n"
-    "  implicit none\n\n"
+    "  implicit none\n"
+    "  public\n\n"
     "  public :: sub1, sub2\n\n"
     "  contains\n"
     "  subroutine sub1(a)\n"
-    "    real, intent(inout) :: a\n\n\n"
+    "    real :: a\n\n\n"
     "  end subroutine sub1\n"
     "  subroutine sub2()\n\n\n"
     "  end subroutine sub2\n\n"
@@ -95,7 +96,7 @@ FUNCTION_IN = (
     "end function tmp")
 FUNCTION_OUT = (
     "function tmp(a)\n"
-    "  real, intent(inout) :: a\n"
+    "  real :: a\n"
     "  integer :: tmp\n\n"
     "  a = 0.0\n"
     "  tmp = a\n\n"
