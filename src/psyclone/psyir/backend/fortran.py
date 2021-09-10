@@ -34,6 +34,7 @@
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab.
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. R. Porter, STFC Daresbury Lab.
+# Modified A. B. G. Chalk, STFC Daresbury Lab.
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel and NemoInvoke schedules as
@@ -421,7 +422,7 @@ class FortranWriter(LanguageWriter):
 
         # Construct the list of symbol names for the ONLY clause
         only_list = [dsym.name for dsym in
-                     symbol_table.imported_symbols(symbol)]
+                     symbol_table.symbols_imported_from(symbol)]
 
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
@@ -680,7 +681,7 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol \
-            which does not have a GlobalInterface or LocalInterface as this \
+            which does not have an ImportInterface or LocalInterface as this \
             is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
             argument declarations exist in symbol_table.
@@ -706,8 +707,8 @@ class FortranWriter(LanguageWriter):
                     wildcard_imports_checked = True
                 if not has_wildcard_import:
                     raise VisitorError(
-                        "Routine symbol '{0}' does not have a GlobalInterface "
-                        "or LocalInterface, is not a Fortran intrinsic and "
+                        "Routine symbol '{0}' does not have an ImportInterface"
+                        " or LocalInterface, is not a Fortran intrinsic and "
                         "there is no wildcard import which could bring it into"
                         " scope. This is not supported by the Fortran "
                         "back-end.".format(sym.name))
@@ -1303,13 +1304,33 @@ class FortranWriter(LanguageWriter):
             result += self._visit(child)
         return result
 
-    def directive_node(self, node):
-        '''This method is called when a Directive instance is found in
+    def regiondirective_node(self, node):
+        '''This method is called when a RegionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
-        the statements in between as a string (depending on the language).
+        the statements in between as a string.
 
-        :param node: a Directive PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Directive`
+        :param node: a RegionDirective PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.RegionDirective`
+
+        :returns: the Fortran code for this node.
+        :rtype: str
+
+        '''
+        result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
+        for child in node.dir_body:
+            result_list.append(self._visit(child))
+
+        end_string = node.end_string()
+        if end_string:
+            result_list.append("{0}!${1}\n".format(self._nindent, end_string))
+        return "".join(result_list)
+
+    def standalonedirective_node(self, node):
+        '''This method is called when a StandaloneDirective instance is found
+        in the PSyIR tree. It returns the directive as a string.
+
+        :param node: a StandaloneDirective PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.StandloneDirective`
 
         :returns: the Fortran code for this node.
         :rtype: str
@@ -1317,12 +1338,6 @@ class FortranWriter(LanguageWriter):
         '''
         result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
 
-        for child in node.dir_body:
-            result_list.append(self._visit(child))
-
-        end_string = node.end_string()
-        if end_string:
-            result_list.append("{0}!${1}\n".format(self._nindent, end_string))
         return "".join(result_list)
 
     def call_node(self, node):

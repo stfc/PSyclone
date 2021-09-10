@@ -153,13 +153,13 @@ class GOOpenCLTrans(Transformation):
         for kern in sched.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
-            global_variables = ksched.symbol_table.global_symbols
+            global_variables = ksched.symbol_table.imported_symbols
             if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "
                     "symbols with 'global' scope: {1}. An OpenCL kernel cannot"
                     " call other kernels and all of the data it accesses must "
-                    "be passed by argument. Use the KernelGlobalsToArguments "
+                    "be passed by argument. Use the KernelImportsToArguments "
                     "transformation to convert such symbols to kernel "
                     "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))

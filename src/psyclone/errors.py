@@ -39,6 +39,37 @@
 ''' This module provides various error classes used in PSyclone'''
 
 
+class LazyString:
+    '''Utility that defers any computation associated with computing a
+    string until the string is required. This is particularly useful
+    for exceptions, where the string will typically not need to be
+    computed unless the program is about to stop.
+
+    :param function func: a function that computes a string.
+
+    :raises TypeError: if the func argument is not a function.
+
+    '''
+    def __init__(self, func):
+        if not hasattr(func, '__call__'):
+            raise TypeError(
+                "The func argument for the LazyString class should be a "
+                "function, but found '{0}'.".format(type(func).__name__))
+        self._func = func
+
+    def __str__(self):
+        '''
+        :raises TypeError: if the function stored in self._func does \
+            not return a string.
+        '''
+        result = self._func()
+        if not isinstance(result, str):
+            raise TypeError(
+                "The function supplied to the LazyString class should return "
+                "a string, but found '{0}'.".format(type(result).__name__))
+        return result
+
+
 class PSycloneError(Exception):
     ''' Provides a PSyclone specific error class as a generic parent class for
     all PSyclone exceptions.
@@ -48,7 +79,7 @@ class PSycloneError(Exception):
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = "PSyclone Error: " + str(value)
+        self.value = LazyString(lambda: "PSyclone Error: {0}".format(value))
 
     def __repr__(self):
         return type(self).__name__ + "()"
@@ -92,5 +123,5 @@ class InternalError(PSycloneError):
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ["PSycloneError", "GenerationError", "FieldNotFoundError",
-           "InternalError"]
+__all__ = ["LazyString", "PSycloneError", "GenerationError",
+           "FieldNotFoundError", "InternalError"]

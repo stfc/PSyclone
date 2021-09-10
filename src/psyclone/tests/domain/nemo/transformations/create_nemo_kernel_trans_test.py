@@ -40,10 +40,13 @@
 from __future__ import absolute_import
 
 import pytest
-from psyclone.psyir.nodes import Loop, CodeBlock, Assignment
-from psyclone.psyGen import InlinedKern
-from psyclone.transformations import Transformation, TransformationError
+
 from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
+from psyclone.errors import LazyString
+from psyclone.psyGen import InlinedKern
+from psyclone.psyir.nodes import Loop, CodeBlock, Assignment
+from psyclone.transformations import Transformation, TransformationError
+
 
 BASIC_KERN_CODE = '''subroutine basic_kern()
   integer, parameter :: jpi=16
@@ -95,6 +98,7 @@ def test_kern_trans_validation(fortran_reader):
     assert loop.walk(CodeBlock)
     with pytest.raises(TransformationError) as err:
         trans.validate(loop.loop_body)
+    assert isinstance(err.value.value, LazyString)
     assert ("A NEMO Kernel cannot contain nodes of type: ['CodeBlock']" in
             str(err.value))
 
