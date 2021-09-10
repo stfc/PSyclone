@@ -321,12 +321,12 @@ computational cost (so that we 'fail fast'):
 
  1. All links within all MarkDown files are checked;
 
- 2. All of the examples are tested using the ``Makefile`` in the
-    ``examples`` directory. No compilation is performed;
-    only the ``transform`` (performs the PSyclone transformations) and
-    ``notebook`` (runs the various Jupyter notebooks) targets are used.
+ 2. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
+    using the ``Makefile`` in the ``examples`` directory. No compilation is
+    performed; only the ``transform`` (performs the PSyclone transformations)
+    and ``notebook`` (runs the various Jupyter notebooks) targets are used.
 
- 3. The full test suite is run for Python 2.7, 3.5 and 3.8 but without
+ 3. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
     the compilation checks.
 
 Since we try to be good 'open-source citizens' we do not do any compilation
