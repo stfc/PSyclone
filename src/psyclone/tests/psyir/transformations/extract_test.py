@@ -100,10 +100,7 @@ def test_determine_postfix():
     assert postfix == "_post2"
 
     # Handle clash between output variables: the first variable will
-    # create "var_post", the second "var_post_post". So at this stage
-    # there is no actual clash (only if 'var_post' is an input- and
-    # output-variable would we have a clash). Still, in order to avoid
-    # issue with future uses, we avoid this as well:
+    # create "var" and var_post", the second "var_post" and "var_post_post".
     postfix = ExtractTrans.determine_postfix([],
                                              [Signature("var"),
                                               Signature("var_post")])
