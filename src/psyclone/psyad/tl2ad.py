@@ -40,8 +40,8 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 import logging
 from fparser.two import Fortran2003
 from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
     CodeBlock, FileContainer, ArrayReference, Range
@@ -50,10 +50,20 @@ from psyclone.psyir.symbols import SymbolTable, GlobalInterface, \
     INTEGER_TYPE, REAL_DOUBLE_TYPE
 
 
-## The tolerance applied to the comparison of the inner product values in
-# the generated test-harness code.
-# TODO #1346 this tolerance should be user configurable.
+#: The tolerance applied to the comparison of the inner product values in
+#: the generated test-harness code.
+#: TODO #1346 this tolerance should be user configurable.
 INNER_PRODUCT_TOLERANCE = "1.0e-10"
+#: The type (and precision) of the variable used to accumulate the inner
+#: product in the generated test-harness code.
+INNER_PRODUCT_DATATYPE = REAL_DOUBLE_TYPE
+#: The suffix we will prepend to a routine and container name when generating
+#: its adjoint.
+ADJOINT_NAME_SUFFIX = "_adj"
+#: The extent we will allocate to each dimension of arrays used in the
+#: generated test-harness code.
+#: TODO #1331 provide some way of configuring the extent of the test arrays
+TEST_ARRAY_DIM_SIZE = 20
 
 
 def generate_adjoint_str(tl_fortran_str, create_test=False):
@@ -113,6 +123,8 @@ def _find_container(psyir):
 
     :raises InternalError: if there are two Containers and the second is a \
                            FileContainer.
+    :raises NotImplementedError: if there are two Containers and the first is \
+                                 not a FileContainer.
     :raises NotImplementedError: if there are more than two Containers.
 
     '''
@@ -130,6 +142,10 @@ def _find_container(psyir):
             raise InternalError(
                 "The supplied PSyIR contains two Containers but the innermost "
                 "is a FileContainer. This should not be possible.")
+        if not isinstance(containers[0], FileContainer):
+            raise NotImplementedError(
+                "The supplied PSyIR contains two Containers and the outermost "
+                "one is not a FileContainer. This is not supported.")
         return containers[1]
 
     raise NotImplementedError("The supplied PSyIR contains more than two "
@@ -175,7 +191,7 @@ def generate_adjoint(tl_psyir):
         # for the existing TL code so that we don't accidentally clash with
         # e.g. the name of the kernel routine.
         container.name = container.symbol_table.next_available_name(
-            container.name + name_suffix)
+            container.name + ADJOINT_NAME_SUFFIX)
 
     routines = ad_psyir.walk(Routine)
 
@@ -194,7 +210,7 @@ def generate_adjoint(tl_psyir):
     # within a module.
     if container:
         kernel_sym = container.symbol_table.lookup(routine.name)
-        adj_kernel_name = routine.name + name_suffix
+        adj_kernel_name = routine.name + ADJOINT_NAME_SUFFIX
         # A symbol's name is immutable so create a new RoutineSymbol
         adj_kernel_sym = container.symbol_table.new_symbol(
             adj_kernel_name, symbol_type=RoutineSymbol,
@@ -203,7 +219,7 @@ def generate_adjoint(tl_psyir):
         routine.name = adj_kernel_sym.name
     else:
         routine.name = routine.symbol_table.next_available_name(
-            routine.name + name_suffix)
+            routine.name + ADJOINT_NAME_SUFFIX)
 
     logger.debug("AD kernel will be named '{0}'".format(routine.name))
 
@@ -228,8 +244,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     :raises NotImplementedError: if the supplied TL/Adjoint PSyIR contains \
         just a Routine that is a Program (since this would have to \
         be converted to a subroutine in order to construct the test harness).
-    :raises NotImplementedError: if on of the kernel arguments is dimensioned \
-        by a variable that is not passed as an argument.
+    :raises NotImplementedError: if one of the kernel arguments is \
+        dimensioned by a variable that is not passed as an argument.
     :raises InternalError: if a kernel argument has a shape defined by \
         something other than ArrayType.Extent or a Reference.
 
@@ -237,9 +253,6 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     logger = logging.getLogger(__name__)
 
     symbol_table = SymbolTable()
-
-    # TODO #1331 provide some way of configuring the extent of the test arrays
-    array_dim_size = 20
 
     # We expect a single Container containing a single Kernel. Anything else
     # is not supported. However, we have to allow for the fact that, in
@@ -298,7 +311,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     dim_size_sym = symbol_table.new_symbol("array_extent",
                                            symbol_type=DataSymbol,
                                            datatype=INTEGER_TYPE,
-                                           constant_value=array_dim_size)
+                                           constant_value=TEST_ARRAY_DIM_SIZE)
 
     # Create symbols for the results of the inner products
     inner1 = symbol_table.new_symbol("inner1", symbol_type=DataSymbol,
@@ -444,7 +457,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                                         zip(inputs, input_copies))
 
     # Compare the inner products.
-    tol_zero = Literal(INNER_PRODUCT_TOLERANCE, REAL_DOUBLE_TYPE)
+    tol_zero = Literal(INNER_PRODUCT_TOLERANCE, INNER_PRODUCT_DATATYPE)
 
     diff = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                   Reference(inner1), Reference(inner2))
@@ -503,7 +516,7 @@ def _create_inner_product(result, symbol_pairs):
     '''
     # Zero the variable used to accumulate the result
     statements = [Assignment.create(Reference(result),
-                                    Literal("0.0", REAL_DOUBLE_TYPE))]
+                                    Literal("0.0", INNER_PRODUCT_DATATYPE))]
 
     # Now generate code to compute the inner product of each pair of symbols
     for (sym1, sym2) in symbol_pairs:

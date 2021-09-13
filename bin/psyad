@@ -40,7 +40,7 @@ adjoint.
 
 '''
 import sys
-from psyclone.psyad.main import main
+from psyclone.psyad import main
 
 if __name__ == "__main__":
     main(sys.argv[1:])

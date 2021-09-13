@@ -101,6 +101,12 @@ def test_find_container():
         _find_container(cont)
     assert ("The supplied PSyIR contains two Containers but the innermost is "
             "a FileContainer. This should not be possible" in str(err.value))
+    cont = Container("my_mod")
+    cont.addchild(Container("another_mod"))
+    with pytest.raises(NotImplementedError) as err:
+        _find_container(cont)
+    assert ("supplied PSyIR contains two Containers and the outermost one is "
+            "not a FileContainer. This is not supported." in str(err.value))
     file_cont = FileContainer("test")
     cont = Container("my_mod")
     file_cont.addchild(cont)
