@@ -72,6 +72,8 @@ def trans(psy):
     invoke = psy.invokes.get("invoke_testkern_w0")
     schedule = invoke.schedule
 
+    # TODO #1392: ATM driver creation in LFRic is broken due to
+    # the changes in driver creation in #1288.
     # Enclose everything in a extract region
     _, _ = extract.apply(schedule.children,
                          {"create_driver": True,
