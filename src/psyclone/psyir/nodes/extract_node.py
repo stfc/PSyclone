@@ -109,11 +109,6 @@ class ExtractNode(PSyDataNode):
         else:
             self._post_name = "_post"
 
-        # Store the list of input- and output-variables, so that a driver
-        # generator can get the list of variables that are written.
-        self._input_list = []
-        self._output_list = []
-
     @property
     def extract_body(self):
         '''
@@ -133,34 +128,6 @@ class ExtractNode(PSyDataNode):
         '''
         return "extract_" + str(self.position)
 
-    @property
-    def input_list(self):
-        '''
-        :returns: the list of variables that are inputs to this \
-            extraction region.
-        :rtype: list of str
-        '''
-        return self._input_list
-
-    @property
-    def output_list(self):
-        '''
-        :returns: the list of variables that are outputs of this \
-            extraction region.
-        :rtype: list of str
-        '''
-        return self._output_list
-
-    def update_vars_and_postname(self):
-        '''
-        This function is called after the variables to be extracted
-        have been stored in self._input_list and self._output_list.
-        It can be used to e.g. remove unnecessary variables (e.g. loop
-        counter), or adjust the postfix to assure that no duplicated
-        variable name is created. This default function does not
-        do anything atm.
-        '''
-
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''
@@ -178,15 +145,10 @@ class ExtractNode(PSyDataNode):
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         # Determine the variables to write:
         dep = DependencyTools()
-        self._input_list, self._output_list = dep.get_in_out_parameters(self)
+        input_list, output_list = dep.get_in_out_parameters(self)
 
-        # Add a callback here so that derived classes can adjust the list
-        # of variables to provide, or the suffix used (which might
-        # depend on the variable name which could create clashes).
-        self.update_vars_and_postname()
-
-        options = {'pre_var_list': self._input_list,
-                   'post_var_list': self._output_list,
+        options = {'pre_var_list': input_list,
+                   'post_var_list': output_list,
                    'post_var_postfix': self._post_name}
 
         parent.add(CommentGen(parent, ""))

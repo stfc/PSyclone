@@ -78,16 +78,6 @@ class NanTestNode(PSyDataNode):
         '''
         return "nan_test_" + str(self.position)
 
-    def update_vars_and_postname(self):
-        '''
-        This function is called after the variables to be checked
-        have been stored in self._input_list and self._output_list.
-        It can be used to e.g. remove unnecessary variables (e.g. loop
-        counter), or adjust the postfix to assure that no duplicated
-        variable name is created. This default function does not
-        do anything atm.
-        '''
-
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''
