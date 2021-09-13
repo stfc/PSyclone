@@ -263,6 +263,24 @@ def test_generate_adjoint_str_generate_harness():
 end program adj_test''' in harness)
 
 
+def test_generate_adjoint_str_generate_harness_logging(caplog):
+    ''' Test the create_test option to generate_adjoint_str() produces the
+    expected logging output. '''
+    tl_code = (
+        "module my_mod\n"
+        "  contains\n"
+        "  subroutine kern(field, n)\n"
+        "    integer, intent(in) :: n\n"
+        "    real, intent(inout), dimension(n) :: field\n"
+        "    field = 0.0\n"
+        "  end subroutine kern\n"
+        "end module my_mod\n"
+    )
+    with caplog.at_level(logging.INFO):
+        _ = generate_adjoint_str(tl_code, create_test=True)
+    assert "hello" in caplog.text
+
+
 def test_create_inner_product_errors():
     ''' Check that the _create_inner_product() utility raises the expected
     exceptions if given invalid inputs. '''
