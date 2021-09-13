@@ -217,6 +217,8 @@ def test_generate_adjoint_logging(caplog):
     assert (
         "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:100 Transformation from TL to "
         "AD should be done now." in caplog.text)
+    assert ("DEBUG    psyclone.psyad.tl2ad:tl2ad.py:224 AD kernel will be "
+            "named 'kern_adj'" in caplog.text)
 
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
@@ -278,7 +280,17 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     )
     with caplog.at_level(logging.INFO):
         _ = generate_adjoint_str(tl_code, create_test=True)
-    assert "hello" in caplog.text
+    assert caplog.text == ""
+    with caplog.at_level(logging.DEBUG):
+        _, harness = generate_adjoint_str(tl_code, create_test=True)
+    assert ("Creating test harness for TL kernel 'kern' and AD kernel "
+            "'kern_adj'" in caplog.text)
+    assert ("Kernel 'kern' has the following dimensioning arguments: ['n']" in
+            caplog.text)
+    assert ("Generated symbols for new argument list: ['field', 'n']" in
+            caplog.text)
+    assert "Created test-harness program named 'adj_test'" in caplog.text
+    assert harness in caplog.text
 
 
 def test_create_inner_product_errors():
