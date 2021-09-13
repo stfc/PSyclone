@@ -325,9 +325,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     :type grainsize: int or None
     :param num_tasks: the num_tasks to use for this transformation.
     :type num_tasks: int or None
-    :param nogroup: Whether of not to use a nogroup clause for this
-                    transformation. Default is False.
-    :type nogroup: bool
+    :param bool nogroup: whether of not to use a nogroup clause for this
+                         transformation. Default is False.
 
     For example:
 
@@ -381,7 +380,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         Returns whether the nogroup clause should be specified for
         this transformation. By default the nogroup clause is applied.
 
-        :returns: Whether the nogroup clause should be specified by
+        :returns: whether the nogroup clause should be specified by
                   this transformation.
         :rtype: bool
         '''
@@ -393,9 +392,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         Sets whether the nogroup clause should be specified for this
         transformation.
 
-        :param nogroup: bool value to set whether the nogroup clause
-                        should be used for this transformation.
-        :type value: bool
+        :param bool nogroup: value to set whether the nogroup clause should be
+                             used for this transformation.
 
         raises TypeError: if the nogroup parameter is not a bool.
         '''
@@ -531,14 +529,16 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         within (i.e. a child of) an OpenMP SERIAL region.
 
         If the keyword "nogroup" is specified in the options, it will cause a
-        nogroup clause be generated if it is set to True.
+        nogroup clause be generated if it is set to True. This will override
+        the value supplied to the constructor, but will only apply to the
+        apply call to which the value is supplied.
 
         :param node: the supplied node to which we will apply the \
                      OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations\
                         and validation.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
         :param bool options["nogroup"]:
                 indicating whether a nogroup clause should be applied to
                 this taskloop.
@@ -550,9 +550,13 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         if not options:
             options = {}
         current_nogroup = self.omp_nogroup
+        # If nogroup is specified it overrides that supplied to the
+        # constructor of the Transformation, but will be reset at the
+        # end of this function
         self.omp_nogroup = options.get("nogroup", current_nogroup)
 
         rval = super(OMPTaskloopTrans, self).apply(node, options)
+        # Reset the nogroup value to the original value
         self.omp_nogroup = current_nogroup
         return rval
 
@@ -1569,7 +1573,7 @@ class OMPSingleTrans(ParallelRegionTrans):
             this transformation. Checks that the value supplied in
             :py:obj:`value` is a bool
 
-            :param bool value: Whether this Single clause should have a \
+            :param bool value: whether this Single clause should have a \
                                nowait applied.
 
             :raises TypeError: if the value parameter is not a bool.

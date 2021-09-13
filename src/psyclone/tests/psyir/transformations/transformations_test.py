@@ -56,6 +56,7 @@ from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -164,6 +165,46 @@ def test_omptaskloop_getters_and_setters():
     with pytest.raises(TypeError) as err:
         trans = OMPTaskloopTrans(nogroup=32)
     assert "Expected nogroup to be a bool but got a int" in str(err.value)
+
+
+def test_omptaskloop_apply():
+    '''Check that the gen_code method in the OMPTaskloopDirective
+    class generates the expected code when passing options to
+    the OMPTaskloopTrans's apply method and correctly overrides the
+    taskloop's inbuilt value. Use the gocean API.
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    taskloop = OMPTaskloopTrans()
+    master = OMPMasterTrans()
+    parallel = OMPParallelTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    taskloop.apply(schedule.children[0], {"nogroup": True})
+    taskloop_node = schedule.children[0]
+    master.apply(schedule.children[0])
+    parallel.apply(schedule.children[0])
+    goceantrans = GOceanExtractTrans()
+    goceantrans.apply(schedule.children[0])
+
+    code = str(psy.gen)
+
+    clauses = " nogroup"
+
+    assert (
+        "    !$omp parallel default(shared), private(i,j)\n" +
+        "      !$omp master\n" +
+        "      !$omp taskloop{0}\n".format(clauses) +
+        "      DO" in code)
+    assert (
+        "      END DO\n" +
+        "      !$omp end taskloop\n" +
+        "      !$omp end master\n" +
+        "      !$omp end parallel" in code)
+
+    assert taskloop_node.begin_string() == "omp taskloop{0}".format(clauses)
 
 
 def test_ifblock_children_region():

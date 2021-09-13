@@ -756,10 +756,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
             clause_list.append("nogroup")
 
         # Generate the string containing the required clauses
-        for i in range(len(clause_list)):
-            extra_clauses = extra_clauses + clause_list[i]
-            if i < len(clause_list)-1:
-                extra_clauses = extra_clauses + ", "
+        extra_clauses = ", ".join(clause_list)
 
         parent.add(DirectiveGen(parent, "omp", "begin", "taskloop",
                                 extra_clauses))
@@ -792,10 +789,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
             clause_list.append(" nogroup")
 
         # Generate the string containing the required clauses
-        for i in range(len(clause_list)):
-            extra_clauses = extra_clauses + clause_list[i]
-            if i < len(clause_list)-1:
-                extra_clauses = extra_clauses + ","
+        extra_clauses = ",".join(clause_list)
 
         return "omp taskloop" + extra_clauses
 
