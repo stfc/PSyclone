@@ -32,30 +32,31 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Laboratory
+# Modified by S. Siso, and A. R. Porter, STFC Daresbury Laboratory
 
-''' example showing the use of the module-inline transformation '''
+''' Example showing the use of the module-inline transformation for the
+    LFRic domain. '''
 from __future__ import print_function
 import os
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, Kern
 from psyclone.transformations import KernelModuleInlineTrans
 
 
 def inline():
-    ''' function exercising the module-inline transformation '''
+    ''' Function exercising the module-inline transformation. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "psyclone", "tests",
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1")
-    psy = PSyFactory("dynamo0.1").create(info)
+                                 os.pardir, os.pardir, os.pardir, "src",
+                                 "psyclone", "tests", "test_files",
+                                 "dynamo0p3", "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
     invokes = psy.invokes
     print(psy.invokes.names)
     invoke = invokes.get("invoke_0_testkern_type")
     schedule = invoke.schedule
     schedule.view()
-    kern = schedule.children[0].loop_body[0]
+    kern = schedule.walk(Kern)[0]
     # setting module inline directly
     kern.module_inline = True
     schedule.view()
