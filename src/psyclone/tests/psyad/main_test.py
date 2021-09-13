@@ -263,10 +263,30 @@ def test_main_verbose(tmpdir, capsys, caplog):
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
-    assert ("INFO     psyclone.psyad.main:main.py:77 Reading kernel file /"
+    assert ("INFO     psyclone.psyad.main:main.py:88 Reading kernel file /"
             in caplog.text)
     assert "/tl.f90" in caplog.text
     assert "/tl.f90" in caplog.text
-    assert ("INFO     psyclone.psyad.main:main.py:86 Writing adjoint of "
+    assert ("INFO     psyclone.psyad.main:main.py:99 Writing adjoint of "
             "kernel to file /" in caplog.text)
     assert "/ad.f90" in caplog.text
+
+
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
+def test_main_otest_verbose(tmpdir, capsys, caplog):
+    ''' Test that the -otest option combined with -v generates the expected
+    logging output. '''
+    filename_in = str(tmpdir.join("tl.f90"))
+    filename_out = str(tmpdir.join("ad.f90"))
+    harness_out = str(tmpdir.join("harness.f90"))
+    with open(filename_in, "a") as my_file:
+        my_file.write(TEST_MOD)
+    with caplog.at_level(logging.DEBUG):
+        main([filename_in, "-v", "-oad", filename_out, "-otest", harness_out])
+    assert ("Creating test harness for TL kernel 'kern' and AD kernel "
+            "'kern_adj'" in caplog.text)
+    assert "Created test-harness program named 'adj_test'" in caplog.text
+    assert "end program adj_test" in caplog.text
+    assert "Writing test harness for adjoint kernel to file" in caplog.text
+    assert "/harness.f90" in caplog.text
