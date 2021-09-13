@@ -54,7 +54,6 @@ from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_base_path, get_invoke
-from psyclone.transformations import GOConstLoopBoundsTrans
 
 # API names
 GOCEAN_API = "gocean1.0"
@@ -82,12 +81,9 @@ def test_driver_creation1(tmpdir):
     tmpdir.chdir()
 
     etrans = GOceanExtractTrans()
-    ctrans = GOConstLoopBoundsTrans()
     psy, invoke = get_invoke("driver_test.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    ctrans.apply(schedule)
 
     etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
@@ -128,8 +124,8 @@ def test_driver_creation1(tmpdir):
   call extract_psy_data%ReadVariable('dx', dx)
   call extract_psy_data%ReadVariable('in_fld%grid%dx', in_fld_grid_dx)
   call extract_psy_data%ReadVariable('in_fld%grid%gphiu', in_fld_grid_gphiu)
-  do j = 2, jstop, 1
-    do i = 2, istop+1, 1
+  do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
+    do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
       call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, ''' \
       '''in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
