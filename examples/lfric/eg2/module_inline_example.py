@@ -34,26 +34,33 @@
 # Author R. Ford STFC Daresbury Lab
 # Modified by S. Siso, and A. R. Porter, STFC Daresbury Laboratory
 
-''' Example showing the use of the module-inline transformation for the
-    LFRic domain. '''
+''' Example transformation script showing the use of the module-inline
+    transformation for the LFRic domain. '''
+
 from __future__ import print_function
-import os
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, Kern
 from psyclone.transformations import KernelModuleInlineTrans
+from psyclone.psyGen import Kern
 
 
-def inline():
-    ''' Function exercising the module-inline transformation. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "single_invoke.x90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which module-inlines
+    the kernel used in the second invoke in the supplied PSy object.
+
+    :param psy: the PSy object that PSyclone has constructed for the invokes \
+                found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
     invokes = psy.invokes
     print(psy.invokes.names)
-    invoke = invokes.get("invoke_0_testkern_type")
+    invoke = invokes.get("invoke_1")
     schedule = invoke.schedule
     schedule.view()
+    # Find the kernel we want to inline.
     kern = schedule.walk(Kern)[0]
     # setting module inline directly
     kern.module_inline = True
@@ -65,8 +72,5 @@ def inline():
     # setting module inline via a transformation
     trans.apply(kern)
     schedule.view()
-    print(str(psy.gen))
 
-
-if __name__ == "__main__":
-    inline()
+    return psy
