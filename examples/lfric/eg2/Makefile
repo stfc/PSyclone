@@ -44,10 +44,10 @@ vanilla:
 	${PSYCLONE} -nodm -s ./print_psyir_trans.py ./multi_invoke_mod.x90
 
 inline:
-	${PSYCLONE} -nodm -s ./module_inline_example.py ./multi_invoke_mod.x90
+	${PSYCLONE} -nodm -s ./module_inline_trans.py ./multi_invoke_mod.x90
 
 loopfuse:
-	${PSYCLONE} -nodm -s ./runme_loop_fuse.py ./multi_invoke_mod.x90
+	${PSYCLONE} -nodm -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg2"
