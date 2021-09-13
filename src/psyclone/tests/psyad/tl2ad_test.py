@@ -265,6 +265,8 @@ def test_generate_adjoint_str_generate_harness():
 end program adj_test''' in harness)
 
 
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
 def test_generate_adjoint_str_generate_harness_logging(caplog):
     ''' Test the create_test option to generate_adjoint_str() produces the
     expected logging output. '''
