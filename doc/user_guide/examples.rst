@@ -326,20 +326,19 @@ code using the PSyIR language backends.
 LFRic
 ------
 
-Examples 1 and 2 are for the (deprecated) Dynamo 0.1 API. The remaining
-examples are all for the Dynamo 0.3 API.
+These examples illustrate the functionality of PSyclone for the LFRic
+domain.
 
 Example 1
 ^^^^^^^^^
 
-Basic operation of PSyclone with invoke()'s containing just one kernel
-for the Dynamo 0.1 API. Also includes an example of transforming for
-OpenMP.
+Basic operation of PSyclone with an invoke() containing two kernels, one
+user-supplied, the other a Built-in.
 
 Example 2
 ^^^^^^^^^
 
-A more complex example for the Dynamo 0.1 API containing multi-kernel
+A more complex example containing multi-kernel
 invokes. Provides examples of OpenMP and loop fusion transformations.
 
 Example 3

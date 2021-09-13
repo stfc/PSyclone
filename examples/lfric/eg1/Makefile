@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,14 +38,8 @@ include ../../common.mk
 
 .PHONY: vanilla openmp
 
-
-transform: vanilla openmp
-
-vanilla:
-	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme.py
-
-openmp:
-	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme_openmp.py
+transform:
+	${PSYCLONE} -api dynamo0.3 -nodm ./single_invoke.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg1"
