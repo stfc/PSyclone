@@ -45,7 +45,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
     CodeBlock, FileContainer, ArrayReference, Range
-from psyclone.psyir.symbols import SymbolTable, GlobalInterface, \
+from psyclone.psyir.symbols import SymbolTable, ImportInterface, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
     INTEGER_TYPE, REAL_DOUBLE_TYPE
 
@@ -295,7 +295,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     csym = ContainerSymbol(container.name)
     symbol_table.add(csym)
     tl_kernel_sym = tl_kernel.symbol_table.lookup(tl_kernel.name).copy()
-    tl_kernel_sym.interface = GlobalInterface(csym)
+    tl_kernel_sym.interface = ImportInterface(csym)
     symbol_table.add(tl_kernel_sym)
 
     # Create a symbol for the adjoint kernel so that the harness code is able
@@ -304,7 +304,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     symbol_table.add(adj_container)
     adj_kernel_sym = symbol_table.new_symbol(
         adjoint_kernel_name, symbol_type=RoutineSymbol,
-        interface=GlobalInterface(adj_container))
+        interface=ImportInterface(adj_container))
 
     # Create a symbol to hold the extent of any test arrays. This is done here
     # to avoid any clashes with any of the container and kernel names.
