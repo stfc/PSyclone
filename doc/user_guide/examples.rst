@@ -333,13 +333,15 @@ Example 1
 ^^^^^^^^^
 
 Basic operation of PSyclone with an invoke() containing two kernels, one
-user-supplied, the other a Built-in.
+user-supplied, the other a Built-in. Code is generated both with and
+without distributed-memory support.
 
 Example 2
 ^^^^^^^^^
 
-A more complex example containing multi-kernel
-invokes. Provides examples of OpenMP and loop fusion transformations.
+A more complex example showing the use of PSyclone transformations to
+change the generated PSy-layer code. Provides examples of
+kernel-inlining and loop-fusion transformations.
 
 Example 3
 ^^^^^^^^^

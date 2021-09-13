@@ -39,7 +39,10 @@ include ../../common.mk
 .PHONY: vanilla openmp
 
 transform:
+	@echo "Sequential code:"
 	${PSYCLONE} -api dynamo0.3 -nodm ./single_invoke.x90
+	@echo "With distributed-memory support:"
+	${PSYCLONE} -api dynamo0.3 ./single_invoke.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg1"
