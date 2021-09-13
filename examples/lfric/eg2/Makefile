@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,15 +36,15 @@
 
 include ../../common.mk
 
-.PHONY: vanilla openmp loopfuse
+.PHONY: vanilla inline loopfuse
 
-transform: vanilla openmp loopfuse
+transform: vanilla inline loopfuse
 
 vanilla:
-	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme.py
+	${PSYCLONE} -s ./runme.py ./multi_invoke_mod.x90
 
-openmp:
-	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme_openmp.py
+inline:
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./module_inline_example.py
 
 loopfuse:
 	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme_loop_fuse.py

@@ -33,21 +33,32 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
+''' Simple transformation script that prints out the names of the Invokes in
+    the supplied PSy object and the PSyIR for each. '''
+
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-api = "dynamo0.1"
-ast, invokeInfo = parse("dynamo_algorithm_mod.F90", api=api)
-psy = PSyFactory(api).create(invokeInfo)
-print(psy.gen)
 
-print(psy.invokes.names)
 
-schedule = psy.invokes.get('invoke_0').schedule
-schedule.view()
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which only prints
+    information about the object with which it has been supplied.
 
-schedule = psy.invokes.get('invoke_1_v2_kernel_type').schedule
-schedule.view()
+    :param psy: the PSy object that PSyclone has constructed for the invokes \
+                found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-schedule = psy.invokes.get('invoke_2_v1_kernel_type').schedule
-schedule.view()
+    :returns: the supplied PSy object unmodified.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
+    print(type(psy))
+    print("Supplied code has invokes: ", psy.invokes.names)
+
+    schedule = psy.invokes.get('invoke_0').schedule
+    schedule.view()
+
+    schedule = psy.invokes.get('invoke_1').schedule
+    schedule.view()
+
+    return psy
