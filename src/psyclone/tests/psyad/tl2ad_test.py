@@ -39,8 +39,8 @@ within the psyad directory.
 '''
 from __future__ import print_function, absolute_import
 import logging
-import pytest
 import six
+import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter

@@ -622,4 +622,7 @@ def _create_array_inner_product(result, array1, array2):
                                    Reference(result), inner))
 
 
+# =============================================================================
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
 __all__ = ["generate_adjoint_str", "generate_adjoint", "generate_adjoint_test"]

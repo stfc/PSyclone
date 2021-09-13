@@ -132,7 +132,7 @@ alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
 .. note:: PSyclone currently only supports OpenCL and
-          KernelGlobalsToArguments transformations for the GOcean 1.0
+          KernelImportsToArguments transformations for the GOcean 1.0
           API, the OpenACC Data transformation is limited to
           the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
           transformation is limited to the NEMO and Dynamo0.3 APIs.
@@ -246,7 +246,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OCLTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
 
@@ -476,7 +476,7 @@ applied to either or both the PSy-layer and Kernel-layer PSyIR.
 
 ####
 
-.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
+.. autoclass:: psyclone.transformations.KernelImportsToArguments
     :members: apply
     :noindex:
 
@@ -702,7 +702,7 @@ transformation.
 OpenCL
 ------
 
-OpenCL is added to a code by using the ``OCLTrans`` transformation (see the
+OpenCL is added to a code by using the ``GOOpenCLTrans`` transformation (see the
 :ref:`sec_transformations_available` Section above).
 Currently this transformation is only supported for the GOcean1.0 API and
 is applied to the whole InvokeSchedule of an Invoke.
@@ -722,7 +722,7 @@ provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
     `<modulename>_<kernelname>_index.cl`
 
 
-The ``OCLTrans`` transformation accepts an `options` argument with a
+The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
 map of optional parameters to tune the OpenCL host code in the PSy layer.
 These options will be attached to the transformed InvokeSchedule.
 The current available options are:
@@ -762,7 +762,7 @@ The current available options are:
 +--------------+---------------------------------------------+---------+
 
 
-Below is an example of a PSyclone script that uses an ``OCLTrans`` with
+Below is an example of a PSyclone script that uses a ``GOOpenCLTrans`` with
 multiple InvokeSchedule and kernel-specific optimization options.
 
 

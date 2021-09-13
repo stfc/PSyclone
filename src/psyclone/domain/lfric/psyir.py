@@ -43,7 +43,7 @@ definitions.
 from __future__ import absolute_import
 from collections import namedtuple
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DeferredType, \
-    GlobalInterface, ScalarType, ArrayType
+    ImportInterface, ScalarType, ArrayType
 from psyclone.psyir.nodes import Literal
 from psyclone.domain.lfric import LFRicConstants
 
@@ -67,7 +67,7 @@ for module in MODULES:
     # Create the variables specified by the module (using PSyIR DataSymbols)
     for module_var in module.vars:
         exec("{0} = DataSymbol('{1}', DeferredType(), interface="
-             "GlobalInterface({2}))".format(
+             "ImportInterface({2}))".format(
                  module_var.upper(), module_var, MODULE_NAME.upper()))
 
 # Define generic LFRic scalar datatypes and symbols

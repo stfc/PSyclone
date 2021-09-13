@@ -51,7 +51,8 @@ from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
-from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes.directive import StandaloneDirective, \
+    RegionDirective
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.routine import Routine
 
@@ -60,34 +61,28 @@ from psyclone.psyir.nodes.routine import Routine
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 
-class OMPDirective(Directive):
+@six.add_metaclass(abc.ABCMeta)
+class OMPDirective():
     '''
-    Base class for all OpenMP-related directives
+    Base mixin class for all OpenMP-related directives.
 
+    This class is useful to provide a unique common ancestor to all the
+    OpenMP directives, for instance when traversing the tree with
+    `node.walk(OMPDirective)`
+
+    Note that classes inheriting from it must place the OMPDirective in
+    front of the other Directive node sub-class, so that the Python
+    MRO gives preference to this class's attributes.
     '''
     _PREFIX = "OMP"
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in a dag for this node
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_directive_" + str(position)
 
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
+@six.add_metaclass(abc.ABCMeta)
+class OMPRegionDirective(OMPDirective, RegionDirective):
+    '''
+    Base class for all OpenMP region-related directives.
 
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP]"
-
+    '''
     def _get_reductions_list(self, reduction_type):
         '''
         Returns the names of all scalars within this region that require a
@@ -113,7 +108,93 @@ class OMPDirective(Directive):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class OMPSerialDirective(OMPDirective):
+class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
+    '''
+    Base class for all OpenMP-related standalone directives
+
+    '''
+
+
+class OMPTaskwaitDirective(OMPStandaloneDirective):
+    '''
+    Class representing an OpenMP TASKWAIT directive in the PSyIR.
+
+    '''
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "OMP_taskwait_" + str(position)
+
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes. \
+                            Default value is True.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+
+        '''
+        return self.coloured_name(colour) + "[OMP taskwait]"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPTaskwait is not enclosed \
+                            within some OpenMP parallel region.
+
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As a Parallel Child
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPTaskwaitDirective must be inside an OMP parallel region "
+                "but could not find an ancestor OMPParallelDirective node")
+
+        super(OMPTaskwaitDirective, self).validate_global_constraints()
+
+    def gen_code(self, parent):
+        '''Generate the fortran OMP Taskwait Directive and any associated
+        code
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "omp", "begin", "taskwait", ""))
+        # No children or end code for this node
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp taskwait". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp taskwait"
+
+
+@six.add_metaclass(abc.ABCMeta)
+class OMPSerialDirective(OMPRegionDirective):
     '''
     Abstract class representing OpenMP serial regions, e.g.
     OpenMP SINGLE or OpenMP Master.
@@ -331,7 +412,7 @@ class OMPMasterDirective(OMPSerialDirective):
         return "omp end master"
 
 
-class OMPParallelDirective(OMPDirective):
+class OMPParallelDirective(OMPRegionDirective):
 
     @property
     def dag_name(self):
@@ -547,8 +628,8 @@ class OMPParallelDirective(OMPDirective):
             OpenMP), it is likely that an absence of directives
             is an error on the part of the user. '''
         # We need to recurse down through all our children and check
-        # whether any of them are an OMPDirective.
-        node_list = self.walk(OMPDirective)
+        # whether any of them are an OMPRegionDirective.
+        node_list = self.walk(OMPRegionDirective)
         if not node_list:
             # TODO raise a warning here so that the user can decide
             # whether or not this is OK.
@@ -570,7 +651,7 @@ class OMPParallelDirective(OMPDirective):
             end_text="end parallel")
 
 
-class OMPTaskloopDirective(OMPDirective):
+class OMPTaskloopDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP TASKLOOP directive in the PSyIR.
 
@@ -705,7 +786,7 @@ class OMPTaskloopDirective(OMPDirective):
         return "omp end taskloop"
 
 
-class OMPDoDirective(OMPDirective):
+class OMPDoDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
@@ -975,6 +1056,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
 
 # For automatic API documentation generation
-__all__ = ["OMPDirective", "OMPParallelDirective", "OMPSingleDirective",
+__all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
-           "OMPSerialDirective", "OMPTaskloopDirective"]
+           "OMPSerialDirective", "OMPTaskloopDirective",
+           "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective"]

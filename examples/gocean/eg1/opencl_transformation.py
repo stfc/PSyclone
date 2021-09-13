@@ -37,15 +37,15 @@
 Schedule of each Invoke to use OpenCL. '''
 
 from psyclone.psyGen import TransInfo
-from psyclone.domain.gocean.transformations import \
+from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
     GOMoveIterationBoundariesInsideKernelTrans
 
 
 def trans(psy):
     '''
-    Transformation routine for use with PSyclone. Converts any global-variable
-    accesses into kernel arguments and then applies the OpenCL transformation
-    to the PSy layer.
+    Transformation routine for use with PSyclone. Converts any imported-
+    variable accesses into kernel arguments and then applies the OpenCL
+    transformation to the PSy layer.
 
     :param psy: the PSy object which this script will transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -56,9 +56,9 @@ def trans(psy):
 
     # Get the necessary transformations
     tinfo = TransInfo()
-    globaltrans = tinfo.get_trans_name('KernelGlobalsToArguments')
+    import_trans = tinfo.get_trans_name('KernelImportsToArguments')
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
-    cltrans = tinfo.get_trans_name('OCLTrans')
+    cltrans = GOOpenCLTrans()
 
     for invoke in psy.invokes.invoke_list:
         print("Converting to OpenCL invoke: " + invoke.name)
@@ -66,16 +66,16 @@ def trans(psy):
 
         # Skip invoke_2 as its time_smooth_code kernel contains a
         # module variable (alpha) which is not dealt with by the
-        # KernelGlobalsToArguments transformation, see issue #826.
+        # KernelImportsToArguments transformation, see issue #826.
         if invoke.name == "invoke_2":
             continue
 
-        # Remove the globals from inside each kernel and move PSy-layer
+        # Remove the imports from inside each kernel and move PSy-layer
         # loop boundaries inside the kernel as a mask.
         for kern in schedule.kernels():
             print("Update kernel: " + kern.name)
             move_boundaries_trans.apply(kern)
-            globaltrans.apply(kern)
+            import_trans.apply(kern)
 
         # Transform invoke to OpenCL
         cltrans.apply(schedule)
