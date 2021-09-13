@@ -293,133 +293,6 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     assert harness in caplog.text
 
 
-def test_create_inner_product_errors():
-    ''' Check that the _create_inner_product() utility raises the expected
-    exceptions if given invalid inputs. '''
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    var1 = DataSymbol("var1", REAL_DOUBLE_TYPE)
-    var2 = DataSymbol("var2", INTEGER_TYPE)
-    with pytest.raises(TypeError) as err:
-        _create_inner_product(accum, [(var1, var2)])
-    assert ("Cannot compute inner product of Symbols 'var1' and 'var2' "
-            "because they represent different datatypes (Scalar" in
-            str(err.value))
-    var3 = DataSymbol("var3", ArrayType(REAL_DOUBLE_TYPE, [10]))
-    with pytest.raises(TypeError) as err:
-        _create_inner_product(accum, [(var1, var3)])
-    assert ("Cannot compute inner product of Symbols 'var1' and 'var3' "
-            "because they represent different datatypes (Scalar" in
-            str(err.value))
-    var4 = DataSymbol("var4", ArrayType(REAL_TYPE, [10]))
-    with pytest.raises(TypeError) as err:
-        _create_inner_product(accum, [(var4, var3)])
-    assert ("Cannot compute inner product of Symbols 'var4' and 'var3' "
-            "because they represent different datatypes (Array" in
-            str(err.value))
-    var5 = DataSymbol("var5", ArrayType(REAL_TYPE, [10, 10]))
-    with pytest.raises(TypeError) as err:
-        _create_inner_product(accum, [(var4, var5)])
-    assert ("Cannot compute inner product of Symbols 'var4' and 'var5' "
-            "because they represent different datatypes (Array" in
-            str(err.value))
-
-
-def test_create_array_inner_product_errors():
-    ''' Tests for the checks in _create_array_inner_product function. '''
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    array_type = ArrayType(INTEGER_TYPE, [10])
-    var1 = DataSymbol("var1", INTEGER_TYPE)
-    var2 = DataSymbol("var2", array_type)
-    with pytest.raises(TypeError) as err:
-        _create_array_inner_product(accum, var1, var2)
-    assert ("Symbols 'var1' and 'var2' because they represent different "
-            "datatypes" in str(err.value))
-    var2 = DataSymbol("var2", INTEGER_TYPE)
-    with pytest.raises(TypeError) as err:
-        _create_array_inner_product(accum, var1, var2)
-    assert ("Supplied Symbols must represent arrays but got 'Scalar<INTEGER, "
-            "UNDEFINED>' for 'var1'" in str(err.value))
-
-
-def test_create_inner_product_scalars(fortran_writer):
-    ''' Test for utility that creates PSyIR for computing an
-    inner product when given scalars. '''
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    var1 = DataSymbol("var1", INTEGER_TYPE)
-    var2 = DataSymbol("var2", INTEGER_TYPE)
-    nodes = _create_inner_product(accum, [(var1, var2)])
-    assert len(nodes) == 2
-    assert isinstance(nodes[0], Assignment)
-    assert nodes[0].lhs.symbol is accum
-    assert nodes[0].rhs.value == "0.0"
-    assert isinstance(nodes[1], Assignment)
-    assert nodes[1].lhs.symbol is accum
-    assert isinstance(nodes[1].rhs, BinaryOperation)
-    assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
-    code = fortran_writer(nodes[1])
-    assert "result = result + var1 * var2" in code
-
-
-def test_create_inner_product_1d_arrays(fortran_writer):
-    ''' Test for utility that creates PSyIR for computing an
-    inner product when given rank-1 arrays. '''
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    array_type = ArrayType(INTEGER_TYPE, [10])
-    var1 = DataSymbol("var1", array_type)
-    var2 = DataSymbol("var2", array_type)
-    nodes = _create_inner_product(accum, [(var1, var2)])
-    assert len(nodes) == 2
-    assert isinstance(nodes[0], Assignment)
-    assert nodes[0].lhs.symbol is accum
-    assert nodes[0].rhs.value == "0.0"
-    assert isinstance(nodes[1], Assignment)
-    assert nodes[1].lhs.symbol is accum
-    assert isinstance(nodes[1].rhs, BinaryOperation)
-    assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
-    code = fortran_writer(nodes[1])
-    assert "result = result + DOT_PRODUCT(var1, var2)" in code
-
-
-def test_create_inner_product_arrays(fortran_writer):
-    ''' Test for utility that creates PSyIR for computing an
-    inner product when given arrays with rank > 1. '''
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
-    var1 = DataSymbol("var1", array_type)
-    var2 = DataSymbol("var2", array_type)
-    nodes = _create_inner_product(accum, [(var1, var2)])
-    assert len(nodes) == 2
-    assert isinstance(nodes[0], Assignment)
-    assert nodes[0].lhs.symbol is accum
-    assert nodes[0].rhs.value == "0.0"
-    assert isinstance(nodes[1], Assignment)
-    assert nodes[1].lhs.symbol is accum
-    assert isinstance(nodes[1].rhs, BinaryOperation)
-    assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
-    code = fortran_writer(nodes[1])
-    assert "result = result + SUM(var1(:,:,:) * var2(:,:,:))" in code
-
-
-def test_inner_product_scalars_and_arrays(fortran_writer):
-    ''' Test for utility that creates PSyIR for computing an
-    inner product when given arrays and scalars. '''
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    array3d_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
-    vars3d = DataSymbol("var1", array3d_type), DataSymbol("var2", array3d_type)
-    array1d_type = ArrayType(INTEGER_TYPE, [5])
-    vecs = DataSymbol("vec1", array1d_type), DataSymbol("vec2", array1d_type)
-    scals = DataSymbol("a1", REAL_TYPE), DataSymbol("a2", REAL_TYPE)
-    nodes = _create_inner_product(accum, [vars3d, vecs, scals])
-    assert len(nodes) == 4
-    assert all([isinstance(node, Assignment) for node in nodes])
-    assert fortran_writer(nodes[0]) == "result = 0.0\n"
-    assert (fortran_writer(nodes[1]) ==
-            "result = result + SUM(var1(:,:,:) * var2(:,:,:))\n")
-    assert (fortran_writer(nodes[2]) ==
-            "result = result + DOT_PRODUCT(vec1, vec2)\n")
-    assert (fortran_writer(nodes[3]) == "result = result + a1 * a2\n")
-
-
 def test_generate_adjoint_test_errors():
     ''' Check that generate_adjoint_test() raises the expected exceptions if
     the input is not valid for test-harness generation. '''
@@ -685,3 +558,130 @@ def test_generate_harness_kernel_arg_invalid_shape(fortran_reader):
     assert ("Argument 'field1' to kernel 'kernel' contains a 'int' in its "
             "shape definition but expected an ArrayType.Extent or "
             "ArrayType.ArrayBound" in str(err.value))
+
+
+def test_create_inner_product_errors():
+    ''' Check that the _create_inner_product() utility raises the expected
+    exceptions if given invalid inputs. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    var1 = DataSymbol("var1", REAL_DOUBLE_TYPE)
+    var2 = DataSymbol("var2", INTEGER_TYPE)
+    with pytest.raises(TypeError) as err:
+        _create_inner_product(accum, [(var1, var2)])
+    assert ("Cannot compute inner product of Symbols 'var1' and 'var2' "
+            "because they represent different datatypes (Scalar" in
+            str(err.value))
+    var3 = DataSymbol("var3", ArrayType(REAL_DOUBLE_TYPE, [10]))
+    with pytest.raises(TypeError) as err:
+        _create_inner_product(accum, [(var1, var3)])
+    assert ("Cannot compute inner product of Symbols 'var1' and 'var3' "
+            "because they represent different datatypes (Scalar" in
+            str(err.value))
+    var4 = DataSymbol("var4", ArrayType(REAL_TYPE, [10]))
+    with pytest.raises(TypeError) as err:
+        _create_inner_product(accum, [(var4, var3)])
+    assert ("Cannot compute inner product of Symbols 'var4' and 'var3' "
+            "because they represent different datatypes (Array" in
+            str(err.value))
+    var5 = DataSymbol("var5", ArrayType(REAL_TYPE, [10, 10]))
+    with pytest.raises(TypeError) as err:
+        _create_inner_product(accum, [(var4, var5)])
+    assert ("Cannot compute inner product of Symbols 'var4' and 'var5' "
+            "because they represent different datatypes (Array" in
+            str(err.value))
+
+
+def test_create_array_inner_product_errors():
+    ''' Tests for the checks in _create_array_inner_product function. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    array_type = ArrayType(INTEGER_TYPE, [10])
+    var1 = DataSymbol("var1", INTEGER_TYPE)
+    var2 = DataSymbol("var2", array_type)
+    with pytest.raises(TypeError) as err:
+        _create_array_inner_product(accum, var1, var2)
+    assert ("Symbols 'var1' and 'var2' because they represent different "
+            "datatypes" in str(err.value))
+    var2 = DataSymbol("var2", INTEGER_TYPE)
+    with pytest.raises(TypeError) as err:
+        _create_array_inner_product(accum, var1, var2)
+    assert ("Supplied Symbols must represent arrays but got 'Scalar<INTEGER, "
+            "UNDEFINED>' for 'var1'" in str(err.value))
+
+
+def test_create_inner_product_scalars(fortran_writer):
+    ''' Test for utility that creates PSyIR for computing an
+    inner product when given scalars. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    var1 = DataSymbol("var1", INTEGER_TYPE)
+    var2 = DataSymbol("var2", INTEGER_TYPE)
+    nodes = _create_inner_product(accum, [(var1, var2)])
+    assert len(nodes) == 2
+    assert isinstance(nodes[0], Assignment)
+    assert nodes[0].lhs.symbol is accum
+    assert nodes[0].rhs.value == "0.0"
+    assert isinstance(nodes[1], Assignment)
+    assert nodes[1].lhs.symbol is accum
+    assert isinstance(nodes[1].rhs, BinaryOperation)
+    assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
+    code = fortran_writer(nodes[1])
+    assert "result = result + var1 * var2" in code
+
+
+def test_create_inner_product_1d_arrays(fortran_writer):
+    ''' Test for utility that creates PSyIR for computing an
+    inner product when given rank-1 arrays. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    array_type = ArrayType(INTEGER_TYPE, [10])
+    var1 = DataSymbol("var1", array_type)
+    var2 = DataSymbol("var2", array_type)
+    nodes = _create_inner_product(accum, [(var1, var2)])
+    assert len(nodes) == 2
+    assert isinstance(nodes[0], Assignment)
+    assert nodes[0].lhs.symbol is accum
+    assert nodes[0].rhs.value == "0.0"
+    assert isinstance(nodes[1], Assignment)
+    assert nodes[1].lhs.symbol is accum
+    assert isinstance(nodes[1].rhs, BinaryOperation)
+    assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
+    code = fortran_writer(nodes[1])
+    assert "result = result + DOT_PRODUCT(var1, var2)" in code
+
+
+def test_create_inner_product_arrays(fortran_writer):
+    ''' Test for utility that creates PSyIR for computing an
+    inner product when given arrays with rank > 1. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
+    var1 = DataSymbol("var1", array_type)
+    var2 = DataSymbol("var2", array_type)
+    nodes = _create_inner_product(accum, [(var1, var2)])
+    assert len(nodes) == 2
+    assert isinstance(nodes[0], Assignment)
+    assert nodes[0].lhs.symbol is accum
+    assert nodes[0].rhs.value == "0.0"
+    assert isinstance(nodes[1], Assignment)
+    assert nodes[1].lhs.symbol is accum
+    assert isinstance(nodes[1].rhs, BinaryOperation)
+    assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
+    code = fortran_writer(nodes[1])
+    assert "result = result + SUM(var1(:,:,:) * var2(:,:,:))" in code
+
+
+def test_inner_product_scalars_and_arrays(fortran_writer):
+    ''' Test for utility that creates PSyIR for computing an
+    inner product when given arrays and scalars. '''
+    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    array3d_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
+    vars3d = DataSymbol("var1", array3d_type), DataSymbol("var2", array3d_type)
+    array1d_type = ArrayType(INTEGER_TYPE, [5])
+    vecs = DataSymbol("vec1", array1d_type), DataSymbol("vec2", array1d_type)
+    scals = DataSymbol("a1", REAL_TYPE), DataSymbol("a2", REAL_TYPE)
+    nodes = _create_inner_product(accum, [vars3d, vecs, scals])
+    assert len(nodes) == 4
+    assert all([isinstance(node, Assignment) for node in nodes])
+    assert fortran_writer(nodes[0]) == "result = 0.0\n"
+    assert (fortran_writer(nodes[1]) ==
+            "result = result + SUM(var1(:,:,:) * var2(:,:,:))\n")
+    assert (fortran_writer(nodes[2]) ==
+            "result = result + DOT_PRODUCT(vec1, vec2)\n")
+    assert (fortran_writer(nodes[3]) == "result = result + a1 * a2\n")
