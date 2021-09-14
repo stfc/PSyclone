@@ -178,7 +178,7 @@ def test_nemo_acc_kernels(default_present, expected, parser, fortran_writer):
     cvisitor = CWriter()
     with pytest.raises(VisitorError) as err:
         _ = cvisitor(nemo_sched[0])
-    assert "Unsupported node 'ACCKernelsDirective' found" in str(err.value)
+    assert "Unsupported node 'NemoKern' found" in str(err.value)
 
 
 # ----------------------------------------------------------------------------
@@ -214,7 +214,7 @@ def test_nemo_acc_parallel(parser):
     cvisitor = CWriter(check_global_constraints=False)
     with pytest.raises(VisitorError) as err:
         _ = cvisitor(nemo_sched[0])
-    assert "Unsupported node 'ACCDataDirective' found" in str(err.value)
+    assert "Unsupported node 'NemoKern' found" in str(err.value)
 
 
 # ----------------------------------------------------------------------------
@@ -307,6 +307,9 @@ a = b
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
-    with pytest.raises(VisitorError) as err:
-        _ = cvisitor(invoke.schedule[0])
-    assert "Unsupported node 'ACCParallelDirective' found" in str(err.value)
+    correct = '''#pragma acc parallel default(present)
+{
+  a = b;
+}'''
+    result = cvisitor(invoke.schedule[0])
+    assert correct in result

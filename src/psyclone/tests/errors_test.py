@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,31 +31,55 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-#         S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford and S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''This module contains the transformations for GOcean.
-'''
+'''pytest tests for the errors module.'''
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations.gocean_opencl_trans \
-    import GOOpenCLTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
-    import GOceanLoopFuseTrans
-from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
-    import GOConstLoopBoundsTrans
+from __future__ import absolute_import
+import pytest
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.gocean.transformations import GOceanExtractTrans
+from psyclone.errors import LazyString, PSycloneError
 
-__all__ = ['GOceanExtractTrans',
-           'GOMoveIterationBoundariesInsideKernelTrans',
-           'GOceanLoopFuseTrans',
-           'GOOpenCLTrans',
-           'GOConstLoopBoundsTrans',
-           'GOceanLoopFuseTrans']
+
+# LazyString class
+
+def test_lazystring():
+    ''' Test the LazyString class works as expected.'''
+
+    def func():
+        ''' Utility function to test LazyString behaviour.
+
+        returns: the string "hello"
+        rtype: str
+
+        '''
+        return "hello"
+    lazy_string = LazyString(func)
+    assert isinstance(lazy_string, LazyString)
+    assert lazy_string._func is func
+    assert str(lazy_string) == lazy_string._func()
+
+
+def test_lazystring_error():
+    '''Test the LazyString class raises the expected exceptions.'''
+    with pytest.raises(TypeError) as info:
+        _ = LazyString("hello")
+    assert ("The func argument for the LazyString class should be a function, "
+            "but found 'str'." in str(info.value))
+    lazy_string = LazyString(lambda: None)
+    with pytest.raises(TypeError) as info:
+        str(lazy_string)
+    assert ("The function supplied to the LazyString class should return a "
+            "string, but found 'NoneType'." in str(info.value))
+
+
+# PSycloneError class
+
+def test_psycloneerror():
+    '''Test that the PSycloneError class behaves as expected.'''
+    error = PSycloneError("hello")
+    assert isinstance(error, PSycloneError)
+    assert isinstance(error.value, LazyString)
+    assert repr(error) == "PSycloneError()"
+    assert str(error) == "PSyclone Error: hello"

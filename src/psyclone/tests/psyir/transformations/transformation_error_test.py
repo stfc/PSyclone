@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,31 +31,23 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-#         S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford and S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''This module contains the transformations for GOcean.
-'''
+'''pytest tests for the transformation_errors module.'''
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations.gocean_opencl_trans \
-    import GOOpenCLTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
-    import GOceanLoopFuseTrans
-from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
-    import GOConstLoopBoundsTrans
+from __future__ import absolute_import
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.gocean.transformations import GOceanExtractTrans
+from psyclone.errors import LazyString
+from psyclone.psyir.transformations import TransformationError
 
-__all__ = ['GOceanExtractTrans',
-           'GOMoveIterationBoundariesInsideKernelTrans',
-           'GOceanLoopFuseTrans',
-           'GOOpenCLTrans',
-           'GOConstLoopBoundsTrans',
-           'GOceanLoopFuseTrans']
+
+# TransformationError class
+
+def test_transformationerror():
+    '''Test that the TransformationError class behaves as expected.'''
+    error = TransformationError("hello")
+    assert isinstance(error, TransformationError)
+    assert isinstance(error.value, LazyString)
+    assert repr(error) == "TransformationError()"
+    assert str(error) == "Transformation Error: hello"
