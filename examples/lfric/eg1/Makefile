@@ -36,7 +36,7 @@
 
 include ../../common.mk
 
-.PHONY: vanilla openmp
+.PHONY: transform compile run
 
 transform:
 	@echo "Sequential code:"

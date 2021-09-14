@@ -1,28 +1,57 @@
 # PSyclone LFRic Examples
 
-## Examples 1 and 2: Dynamo 0.1 API
-
-The LFRic examples in the eg1 and eg2 directories below the one
-containing this README use the Dynamo 0.1 API. Those in eg3 - eg14 use
-version 0.3 of the Dynamo API. They are primarily provided to
-illustrate the use of the PSyclone code-generation system. No guarantee
-is made as to their functional correctness or usefulness (i.e. the
-calculations that they perform may often be nonsensical - it is the use
-of PSyclone that is being illustrated).
-
 These examples assume that you have PSyclone installed. The easiest
 way to do this is via pip, e.g. `pip install psyclone`. See the user
 manual for more details (`../../psyclone.pdf` or
 http://psyclone.readthedocs.io/en/stable/). After doing this `psyclone`
 should be on your PATH.
 
-PSyclone can be run for the first two examples by entering the directory and
-executing, e.g.
+The first two examples are primarily provided to illustrate the use of
+the PSyclone code-generation system. No guarantee is made as to their
+functional correctness or usefulness (i.e. the calculations that they
+perform may often be nonsensical - it is the use of PSyclone that is
+being illustrated).
+
+## Example 1: Basic Operation
+
+The first example simply illustrates the use of PSyclone to generate
+'vanilla', sequential PSy-layer code for a single invoke() that
+specifies one built-in kernel and one user-supplied kernel:
 ```sh
-python ./runme.py
+cd eg1/
+psyclone -nodm ./single_invoke.x90
 ```
 
-Examine the ``runme*.py`` scripts themselves for further details.
+PSyclone will output two lots of Fortran code to stdout when run in
+this way: the first is the transformed Algorithm layer (the code from
+`single_invoke.x90`) and the second is the generated PSy-layer code.
+
+The `transform` target in the Makefile will also run this command. It
+also repeats it without the `-nodm` flag so that PSyclone generates
+the necessary code for running with distributed memory.
+
+## Example 2: Applying Transformations
+
+The second example provides an introduction to the use of
+transformations to:
+
+1. display the PSyclone Internal Representation of the PSy-layer code
+```sh
+cd eg2/
+psyclone -nodm -s ./print_psyir_trans.py ./multi_invoke_mod.x90
+```
+
+2. module-inline a user-supplied kernel into the PSy layer:
+```sh
+psyclone -nodm -s ./module_inline_trans.py ./multi_invoke_mod.x90
+```
+
+3. perform loop fusion:
+```sh
+psyclone -nodm -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
+```
+
+Please see the individual transformation scripts for more details.
 
 ## Example 3: Distributed and Shared Memory
 
