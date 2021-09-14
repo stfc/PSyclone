@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import six
 
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
-    ArrayReference, Routine
+    ArrayReference, Routine, FileContainer
 from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
     ImportInterface, RoutineSymbol
 from psyclone.errors import GenerationError
@@ -201,9 +201,17 @@ class AlgorithmInvokeCall(Call):
 
         '''
         self.psylayer_routine_root_name = self._def_routine_root_name()
-        # Use the name of the closest ancestor routine of this node as
-        # the basis for the new container name
-        node = self.ancestor(Routine, include_self=True)
+
+        # The PSy-layer module naming logic (in algorithm.py) finds
+        # the first program, module, subroutine or function in the
+        # parse tree and uses that name for the container name. Here
+        # we temporarily replicate this functionality. Eventually we
+        # will merge. Note, a better future solution could be to use
+        # the closest ancestor routine instead.
+        nodes = self.root.walk(Routine)
+        node = nodes[0]
+        if isinstance(node, FileContainer):
+            node = nodes[1]
         self.psylayer_container_root_name = "psy_{0}".format(node.name)
 
     def lower_to_language_level(self):
