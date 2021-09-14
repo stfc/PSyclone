@@ -52,7 +52,6 @@ def trans(psy):
     :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
     '''
-    print(type(psy))
     print("Supplied code has invokes: ", psy.invokes.names)
 
     schedule = psy.invokes.get('invoke_0').schedule
