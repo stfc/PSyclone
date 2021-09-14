@@ -722,7 +722,7 @@ def test_gen_decls(fortran_writer):
     '''Check the FortranWriter class gen_decls method produces the
     expected declarations. Also check that an exception is raised if
     an 'argument' symbol exists in the supplied symbol table and the
-    optional argument 'args_allowed' is set to False.
+    optional argument 'is_module_scope' is set to True.
 
     '''
     symbol_table = SymbolTable()
@@ -754,7 +754,7 @@ def test_gen_decls(fortran_writer):
                       "integer :: local\n"
                       "type(grid_type) :: grid\n")
     with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_decls(symbol_table, args_allowed=False)
+        _ = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
     assert ("Arguments are not allowed in this context but this symbol table "
             "contains argument(s): '['arg']'." in str(excinfo.value))
 

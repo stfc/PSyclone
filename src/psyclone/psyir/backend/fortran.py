@@ -622,6 +622,8 @@ class FortranWriter(LanguageWriter):
 
         :param symbol: the derived-type to declare.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :param bool include_visibility: whether or not to include visibility \
+            information in the declaration. (Default is True.)
 
         :returns: the Fortran declaration of the derived type.
         :rtype: str
@@ -768,15 +770,14 @@ class FortranWriter(LanguageWriter):
             return result
         return ""
 
-    def gen_decls(self, symbol_table, args_allowed=True):
+    def gen_decls(self, symbol_table, is_module_scope=False):
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool args_allowed: if False then one or more argument \
-                declarations in symbol_table will cause this method to raise \
-                an exception. Defaults to True.
+        :param bool is_module_scope: whether or not the declarations are in \
+                                     a module scoping unit. Default is False.
 
         :returns: the Fortran declarations as a string.
         :rtype: str
@@ -823,7 +824,7 @@ class FortranWriter(LanguageWriter):
             # declared.
             if isinstance(sym.datatype, UnknownType):
                 declarations += self.gen_vardecl(
-                    sym, include_visibility=(not args_allowed))
+                    sym, include_visibility=is_module_scope)
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)
@@ -849,7 +850,7 @@ class FortranWriter(LanguageWriter):
         # declares any argument variables before local variables.
 
         # 1: Argument variable declarations
-        if symbol_table.argument_datasymbols and not args_allowed:
+        if symbol_table.argument_datasymbols and is_module_scope:
             raise VisitorError(
                 "Arguments are not allowed in this context but this symbol "
                 "table contains argument(s): '{0}'."
@@ -857,27 +858,27 @@ class FortranWriter(LanguageWriter):
                            symbol_table.argument_datasymbols]))
         for symbol in symbol_table.argument_datasymbols:
             declarations += self.gen_vardecl(
-                symbol, include_visibility=(not args_allowed))
+                symbol, include_visibility=is_module_scope)
 
         # 2: Local constants.
         local_constants = [sym for sym in symbol_table.local_datasymbols if
                            sym.is_constant]
         for symbol in local_constants:
             declarations += self.gen_vardecl(
-                symbol, include_visibility=(not args_allowed))
+                symbol, include_visibility=is_module_scope)
 
         # 3: Derived-type declarations. These must come before any declarations
         #    of symbols of these types.
         for symbol in symbol_table.local_datatypesymbols:
             declarations += self.gen_typedecl(
-                symbol, include_visibility=(not args_allowed))
+                symbol, include_visibility=is_module_scope)
 
         # 4: Local variable declarations.
         local_vars = [sym for sym in symbol_table.local_datasymbols if not
                       sym.is_constant]
         for symbol in local_vars:
             declarations += self.gen_vardecl(
-                symbol, include_visibility=(not args_allowed))
+                symbol, include_visibility=is_module_scope)
 
         return declarations
 
@@ -959,9 +960,8 @@ class FortranWriter(LanguageWriter):
         for symbol in node.symbol_table.containersymbols:
             imports += self.gen_use(symbol, node.symbol_table)
 
-        # Declare the Container's data and specify that Containers do
-        # not allow argument declarations.
-        declarations = self.gen_decls(node.symbol_table, args_allowed=False)
+        # Declare the Container's data
+        declarations = self.gen_decls(node.symbol_table, is_module_scope=True)
 
         # Generate the access statement (PRIVATE or PUBLIC)
         declarations += self.gen_access_stmt(node.symbol_table)
