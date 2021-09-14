@@ -35,6 +35,7 @@
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenACC Directive
@@ -45,7 +46,8 @@ import abc
 import six
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes.directive import StandaloneDirective, \
+    RegionDirective
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -53,31 +55,36 @@ from psyclone.psyir.symbols import DataSymbol
 from psyclone.core import AccessType, VariablesAccessInfo
 
 
-class ACCDirective(Directive):
-    ''' Base class for all OpenACC directive statements. '''
+@six.add_metaclass(abc.ABCMeta)
+class ACCDirective():
+    '''
+    Base mixin class for all OpenACC directive statements.
+
+    This class is useful to provide a unique common ancestor to all the
+    OpenACC directives, for instance when traversing the tree with
+    `node.walk(ACCDirective)`
+
+    Note that classes inheriting from it must place the ACCDirective in
+    front of the other Directive node sub-class, so that the Python
+    MRO gives preference to this class's attributes.
+    '''
     _PREFIX = "ACC"
 
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node.
 
-        :returns: Name of corresponding node in DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_directive_" + str(position)
-
+@six.add_metaclass(abc.ABCMeta)
+class ACCRegionDirective(ACCDirective, RegionDirective):
+    ''' Base class for all OpenACC region directive statements. '''
     def validate_global_constraints(self):
         '''
         Perform validation checks for any global constraints. This can only
         be done at code-generation time.
 
-        :raises GenerationError: if this ACCDirective encloses any form of \
-            PSyData node since calls to PSyData routines within OpenACC \
+        :raises GenerationError: if this ACCRegionDirective encloses any form \
+            of PSyData node since calls to PSyData routines within OpenACC \
             regions are not supported.
 
         '''
-        super(ACCDirective, self).validate_global_constraints()
+        super(ACCRegionDirective, self).validate_global_constraints()
 
         data_nodes = self.walk(PSyDataNode)
         if data_nodes:
@@ -90,7 +97,12 @@ class ACCDirective(Directive):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ACCEnterDataDirective(ACCDirective):
+class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
+    ''' Base class for all standalone OpenACC directive statements. '''
+
+
+@six.add_metaclass(abc.ABCMeta)
+class ACCEnterDataDirective(ACCStandaloneDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
@@ -233,14 +245,6 @@ class ACCEnterDataDirective(ACCDirective):
 
         return "acc enter data " + copy_in_str
 
-    def end_string(self):
-        '''
-        :returns: the closing statement for this directive.
-        :rtype: str
-        '''
-        # pylint: disable=no-self-use
-        return ""
-
     @abc.abstractmethod
     def data_on_device(self, parent):
         '''
@@ -252,7 +256,7 @@ class ACCEnterDataDirective(ACCDirective):
         '''
 
 
-class ACCParallelDirective(ACCDirective):
+class ACCParallelDirective(ACCRegionDirective):
     '''
     Class representing the !$ACC PARALLEL directive of OpenACC
     in the PSyIR. By default it includes the 'DEFAULT(PRESENT)' clause which
@@ -422,7 +426,7 @@ class ACCParallelDirective(ACCDirective):
                          data_movement="present")
 
 
-class ACCLoopDirective(ACCDirective):
+class ACCLoopDirective(ACCRegionDirective):
     '''
     Class managing the creation of a '!$acc loop' OpenACC directive.
 
@@ -568,7 +572,7 @@ class ACCLoopDirective(ACCDirective):
         return ""
 
 
-class ACCKernelsDirective(ACCDirective):
+class ACCKernelsDirective(ACCRegionDirective):
     '''
     Class representing the !$ACC KERNELS directive in the PSyIR.
 
@@ -695,7 +699,7 @@ class ACCKernelsDirective(ACCDirective):
                          data_movement=data_movement)
 
 
-class ACCDataDirective(ACCDirective):
+class ACCDataDirective(ACCRegionDirective):
     '''
     Class representing the !$ACC DATA ... !$ACC END DATA directive
     in the PSyIR.
@@ -822,7 +826,7 @@ class ACCDataDirective(ACCDirective):
         return "acc end data"
 
 
-class ACCUpdateDirective(ACCDirective):
+class ACCUpdateDirective(ACCStandaloneDirective):
     ''' Class representing the !$ACC UPDATE directive of OpenACC in the PSyIR.
     It includes a direction attribute that can be set to 'host' or 'device' and
     the symbol that is being updated.
@@ -877,19 +881,9 @@ class ACCUpdateDirective(ACCDirective):
         '''
         return "acc update " + self._direction + "(" + self._symbol.name + ")"
 
-    def end_string(self):
-        # pylint: disable=no-self-use
-        '''
-        This statement has no end string, so it returns an empty string.
-
-        :returns: an empty string.
-        :rtype: str
-
-        '''
-        return ""
-
 
 # For automatic API documentation generation
-__all__ = ["ACCDirective", "ACCEnterDataDirective", "ACCParallelDirective",
-           "ACCLoopDirective", "ACCKernelsDirective", "ACCDataDirective",
-           "ACCUpdateDirective"]
+__all__ = ["ACCRegionDirective", "ACCEnterDataDirective",
+           "ACCParallelDirective", "ACCLoopDirective", "ACCKernelsDirective",
+           "ACCDataDirective", "ACCUpdateDirective", "ACCStandaloneDirective",
+           "ACCDirective"]

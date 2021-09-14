@@ -42,7 +42,7 @@ import six
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference, Routine
 from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
-    GlobalInterface, RoutineSymbol
+    ImportInterface, RoutineSymbol
 from psyclone.errors import GenerationError
 
 
@@ -201,7 +201,6 @@ class AlgorithmInvokeCall(Call):
 
         '''
         self.psylayer_routine_root_name = self._def_routine_root_name()
-
         # Use the name of the closest ancestor routine of this node as
         # the basis for the new container name
         node = self.ancestor(Routine, include_self=True)
@@ -243,7 +242,7 @@ class AlgorithmInvokeCall(Call):
                 symbol_type=ContainerSymbol)
 
         routine_tag = self.psylayer_routine_root_name
-        interface = GlobalInterface(container_symbol)
+        interface = ImportInterface(container_symbol)
         routine_symbol = symbol_table.new_symbol(
             root_name=routine_tag, tag=routine_tag, symbol_type=RoutineSymbol,
             interface=interface)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,51 +31,23 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford and S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. Transforms all kernels in the invoke
-to have them compiled for an OpenACC accelerator. '''
+'''pytest tests for the transformation_errors module.'''
 
-from psyclone.transformations import ACCParallelTrans, \
-    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
-    KernelImportsToArguments, KernelModuleInlineTrans
-from psyclone.psyir.nodes import Loop
+from __future__ import absolute_import
+
+from psyclone.errors import LazyString
+from psyclone.psyir.transformations import TransformationError
 
 
-def trans(psy):
-    ''' Take the supplied psy object, apply OpenACC transformations
-    to the schedule of the first invoke and return the new psy object '''
-    ptrans = ACCParallelTrans()
-    ltrans = ACCLoopTrans()
-    dtrans = ACCEnterDataTrans()
-    ktrans = ACCRoutineTrans()
-    itrans = KernelModuleInlineTrans()
-    g2localtrans = KernelImportsToArguments()
+# TransformationError class
 
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    schedule.view()
-
-    # Apply the OpenACC Loop transformation to *every* loop
-    # nest in the schedule
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            ltrans.apply(child, {"collapse": 2})
-
-    # Put all of the loops in a single parallel region
-    ptrans.apply(schedule.children)
-
-    # Add an enter-data directive
-    dtrans.apply(schedule)
-
-    # Convert any accesses to imported data into kernel arguments, put an
-    # 'acc routine' directive inside, and module-inline each kernel
-    for kern in schedule.coded_kernels():
-        if kern.name == "kern_use_var_code":
-            g2localtrans.apply(kern)
-        ktrans.apply(kern)
-        itrans.apply(kern)
-
-    schedule.view()
-    return psy
+def test_transformationerror():
+    '''Test that the TransformationError class behaves as expected.'''
+    error = TransformationError("hello")
+    assert isinstance(error, TransformationError)
+    assert isinstance(error.value, LazyString)
+    assert repr(error) == "TransformationError()"
+    assert str(error) == "Transformation Error: hello"
