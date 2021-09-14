@@ -49,8 +49,7 @@ from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import Directive
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.core import AccessType, VariablesAccessInfo
 
 
@@ -752,10 +751,53 @@ class ACCDataDirective(ACCDirective):
         :returns: the opening statement of this directive.
         :rtype: str
 
-        :raises NotImplementedError: if the region contains one or more \
-                                     references to structures (TODO #1028).
+        TODO #1396 - remove this whole method in favour of having the
+        visitor backend generate the code.
 
         '''
+        def _create_access_list(signatures, var_accesses):
+            '''
+            Constructs a list of variables for inclusion in a data-access
+            clause.
+
+            :param signatures: the list of Signatures for which to create \
+                entries in the list.
+            :type signatures: list of :py:class:`psyclone.core.Signature`
+            :param var_accesses: object holding details on all variable \
+                accesses in the region to which the data-access clause applies.
+            :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+
+            :returns: list of variable accesses.
+            :rtype: list of str
+
+            '''
+            access_list = []
+            for sig in signatures:
+                if sig.is_structure:
+                    # We have to do a 'deep copy' of any structure access. This
+                    # means that if we have an access `a%b%c(i)` then we need
+                    # to copy `a`, `a%b` and then `a%b%c`.
+                    # Look up a PSyIR node that corresponds to this access.
+                    current = var_accesses[sig].all_accesses[0].node
+                    part_list = [current.name]
+                    if current.name not in access_list:
+                        access_list.append(current.name)
+                    while hasattr(current, "member"):
+                        current = current.member
+                        # Currently this is hardwired to generate Fortran (i.e.
+                        # we use '%' when accessing a component of a struct).
+                        # TODO #1386 a new StructureReference needs to be
+                        # created for 'current' and then given to an
+                        # appropriate backend.
+                        ref_string = "%".join(part_list[:]+[current.name])
+                        if ref_string not in access_list:
+                            access_list.append(ref_string)
+                else:
+                    ref_string = str(sig)
+                    if ref_string not in access_list:
+                        access_list.append(ref_string)
+            return access_list
+
         result = "acc data"
 
         # Identify the inputs and outputs to the region (variables that
@@ -767,8 +809,9 @@ class ACCDataDirective(ACCDirective):
         for signature in var_accesses.all_signatures:
             sym = table.lookup(signature.var_name)
             accesses = var_accesses[signature]
-            if not (signature.is_structure or sym.is_array):
-                # We ignore scalars
+            if isinstance(sym.datatype, ScalarType):
+                # We ignore scalars as these are passed by value when OpenACC
+                # kernels are launched.
                 continue
             if accesses.is_read():
                 readers.add(signature)
@@ -788,56 +831,15 @@ class ACCDataDirective(ACCDirective):
         readwrites_list = sorted(list(readwrites))
         if readers_list:
             result += " copyin({0})".format(
-                ",".join(self._create_access_list(readers_list, var_accesses)))
+                ",".join(_create_access_list(readers_list, var_accesses)))
         if writers_list:
             result += " copyout({0})".format(
-                ",".join(self._create_access_list(writers_list, var_accesses)))
+                ",".join(_create_access_list(writers_list, var_accesses)))
         if readwrites_list:
             result += " copy({0})".format(",".join(
-                self._create_access_list(readwrites_list, var_accesses)))
+                _create_access_list(readwrites_list, var_accesses)))
 
         return result
-
-    def _create_access_list(self, signatures, var_accesses):
-        '''
-        Constructs a list of variables for inclusion in a data-access clause.
-
-        :param signatures: the list of Signatures for which to create entries \
-            in the list.
-        :type signatures: list of :py:class:`psyclone.core.Signature`
-        :param var_accesses: object holding details on all variable accesses \
-            in the region to which the data-access clause applies.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-
-        :returns: list of variable accesses.
-        :rtype: list of str
-
-        '''
-        access_list = []
-        for sig in signatures:
-            if sig.is_structure:
-                # We have to do a 'deep copy' of any structure access. This
-                # means that if we have an access `a%b%c(i)` then we need to
-                # copy `a`, `a%b` and then `a%b%c`.
-                # Look up a PSyIR node that corresponds to this access.
-                current = var_accesses[sig].all_accesses[0].node
-                part_list = [current.name]
-                if current.name not in access_list:
-                    access_list.append(current.name)
-                while hasattr(current, "member"):
-                    current = current.member
-                    # Currently this is hardwired to generate Fortran (i.e. we
-                    # use '%' when accessing a component of a structure).
-                    # TODO #1386 a new StructureReference needs to be created
-                    # for 'current' and then given to an appropriate backend.
-                    ref_string = "%".join(part_list[:]+[current.name])
-                    if ref_string not in access_list:
-                        access_list.append(ref_string)
-            else:
-                ref_string = str(sig)
-                if ref_string not in access_list:
-                    access_list.append(ref_string)
-        return access_list
 
     def end_string(self):
         '''
