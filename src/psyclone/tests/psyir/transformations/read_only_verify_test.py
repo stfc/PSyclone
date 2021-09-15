@@ -112,7 +112,7 @@ def test_read_only_options():
                            options={"region_name": ("a", "b")})
     code = str(invoke.gen())
 
-    assert 'CALL read_only_verify_psy_data%PreStart("a", "b", 2, 2)' in code
+    assert 'CALL read_only_verify_psy_data%PreStart("a", "b", 4, 4)' in code
 
 
 # -----------------------------------------------------------------------------
