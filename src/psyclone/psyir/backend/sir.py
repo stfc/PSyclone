@@ -101,6 +101,7 @@ def gen_stencil(node):
                     "gen_stencil unsupported stencil index found '{0}'."
                     "".format(str(child)))
         else:
+            node.view()
             raise VisitorError(
                 "gen_stencil unsupported (non-stencil) index found '{0}'."
                 "".format(str(child)))
@@ -453,23 +454,18 @@ class SIRWriter(PSyIRVisitor):
                 "Method unaryoperation_node in class SIRWriter, unsupported "
                 "operator '{0}' found.".format(str(node.operator))),
                 err)
-        # Currently only '-<literal>' is supported in the SIR mapping.
-        if not (len(node.children) == 1 and
-                isinstance(node.children[0], Literal)):
-            raise VisitorError(
-                "Currently, unary operators can only be applied to literals.")
-        literal = node.children[0]
-        if literal.datatype.intrinsic not in [ScalarType.Intrinsic.REAL,
-                                              ScalarType.Intrinsic.INTEGER]:
-            # The '-' operator can only be applied to REAL and INTEGER
-            # datatypes.
-            raise VisitorError(
-                "PSyIR type '{0}' does not work with the '-' operator."
-                "".format(str(literal.datatype)))
-        result = literal.value
-        datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
-        return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
-                "".format(self._nindent, oper, result, datatype))
+        # Default to REAL as we currently have no way of finding out
+        # the type. Replace -x with -1.0 * x.
+        datatype = TYPE_MAP_TO_SIR[ScalarType.Intrinsic.REAL]
+        self._depth += 1
+        lhs = "{0}make_literal_access_expr(\"-1.0\", {1})".format(
+            self._nindent, datatype)
+        operator = "{0}\"*\"".format(self._nindent)
+        rhs = self._visit(node.children[0])
+        self._depth -= 1
+        result = "{0}make_binary_operator(\n{1},\n{2},\n{3})\n".format(
+            self._nindent, lhs, operator, rhs)
+        return result
 
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in
