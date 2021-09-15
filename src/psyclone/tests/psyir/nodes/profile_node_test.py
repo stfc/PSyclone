@@ -70,6 +70,8 @@ def test_profile_node_create():
     pnode = ProfileNode.create([], SymbolTable())
     sched.addchild(pnode)
     assert str(pnode) == ("ProfileStart[var=profile_psy_data]\n"
+                          "Schedule:\n"
+                          "End Schedule\n"
                           "ProfileEnd")
     pnode2 = ProfileNode.create([], symbol_table=sched.symbol_table,
                                 options={"region_name": ("my_mod", "first")})

@@ -74,8 +74,6 @@ def test_profile_basic(capsys):
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
-    # This test expects constant loop bounds
-    invoke.schedule._const_loop_bounds = True
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     assert isinstance(invoke.schedule[0], ProfileNode)
@@ -91,7 +89,7 @@ def test_profile_basic(capsys):
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
     expected = (
-        gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
+        gsched + "[invoke='invoke_0']\n"
         "    0: " + profile + "[]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='outer', field_space='go_cv', "
@@ -103,47 +101,13 @@ def test_profile_basic(capsys):
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    prt.apply(invoke.schedule[0].profile_body[0].loop_body[0])
+    node = invoke.schedule[0].profile_body[0].loop_body[0]
+    prt.apply(node)
 
-    new_sched_str = str(invoke.schedule)
-    correct = ("""GOInvokeSchedule[invoke='invoke_0', \
-Constant loop bounds=True]:
-ProfileStart[var=profile_psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop-1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-ProfileStart[var=profile_psy_data_1]
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: compute_cv_code
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule""")
-    assert correct in new_sched_str
+    assert isinstance(invoke.schedule[0].profile_body[0].loop_body[0],
+                      ProfileNode)
+    assert invoke.schedule[0].profile_body[0].loop_body[0].children[0].\
+        children[0] is node
 
     Profiler.set_options(None)
 
@@ -474,15 +438,11 @@ def test_profile_named_dynamo0p3():
 
 
 # -----------------------------------------------------------------------------
-def test_transform(capsys):
+def test_transform():
     '''Tests normal behaviour of profile region transformation.'''
-
-    # pylint: disable=too-many-locals
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
     assert str(prt) == "Create a sub-tree of the PSyIR that has " \
@@ -490,143 +450,32 @@ def test_transform(capsys):
     assert prt.name == "ProfileTrans"
 
     # Try applying it to a list
+    previous_first_node = schedule[0]
     prt.apply(schedule.children)
 
-    correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
-Constant loop bounds=True]:
-ProfileStart[var=profile_psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_solid_u_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_solid_v_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule""")
-    assert correct in str(invoke.schedule)
+    # It has now a ProfileNode with the previous content inside
+    assert isinstance(schedule[0], ProfileNode)
+    assert isinstance(schedule[0].children[0], Schedule)
+    assert schedule[0].children[0][0] is previous_first_node
 
     # Now only wrap a single node - the middle loop:
+    previous_first_node = schedule[0].profile_body[1]
     prt.apply(schedule[0].profile_body[1])
 
-    correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
-Constant loop bounds=True]:
-ProfileStart[var=profile_psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileStart[var=profile_psy_data_1]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_solid_u_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileEnd
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_solid_v_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule""")
-    assert correct in str(invoke.schedule)
+    assert isinstance(schedule[0].profile_body[1], ProfileNode)
+    assert isinstance(schedule[0].profile_body[1].children[0], Schedule)
+    assert schedule[0].profile_body[1].children[0][0] is previous_first_node
 
     # Check that a sublist created from individual elements
     # can be wrapped
     sched = invoke.schedule
     prt.apply([sched[0].profile_body[0], sched[0].profile_body[1]])
-    sched.view()
-    out, _ = capsys.readouterr()
 
-    gsched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
-    prof = colored("Profile", ProfileNode._colour)
-    sched = colored("Schedule", Schedule._colour)
-    loop = colored("Loop", Loop._colour)
-
-    indent = 4*" "
-    correct = (gsched+"[invoke='invoke_loop1', Constant loop bounds=True]\n" +
-               indent + "0: " + prof + "[]\n" +
-               2*indent + sched + "[]\n" +
-               3*indent + "0: " + prof + "[]\n" +
-               4*indent + sched + "[]\n" +
-               5*indent + "0: " + loop + "[type='outer', field_space='go_ct',"
-               " it_space='go_internal_pts']\n")
-    assert correct in out
-    correct2 = (5*indent + "1: " + prof + "[]\n" +
-                6*indent + sched + "[]\n" +
-                7*indent + "0: " + loop + "[type='outer', field_space='go_cu',"
-                " it_space='go_all_pts']\n")
-    assert correct2 in out
+    assert isinstance(schedule[0].profile_body[0], ProfileNode)
+    content = schedule[0].profile_body[0].children[0].children
+    assert len(content) == 2
+    assert isinstance(content[0], Loop)
+    assert isinstance(content[1], ProfileNode)
 
 
 # -----------------------------------------------------------------------------
@@ -768,8 +617,6 @@ def test_omp_transform():
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
     omp_loop = GOceanOMPLoopTrans()
@@ -785,8 +632,8 @@ def test_omp_transform():
         "\"invoke_loop1:bc_ssh_code:r0\", 0, 0)\n"
         "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop\n"
+        "      DO j=t%internal%ystart,t%internal%ystop\n"
+        "        DO i=t%internal%xstart,t%internal%xstop\n"
         "          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
         "        END DO\n"
         "      END DO\n"
@@ -809,8 +656,8 @@ def test_omp_transform():
       CALL profile_psy_data_1%PreStart("psy_test27_loop_swap", ''' + \
         '''"invoke_loop1:bc_ssh_code:r1", 0, 0)
       !$omp do schedule(static)
-      DO j=2,jstop
-        DO i=2,istop
+      DO j=t%internal%ystart,t%internal%ystop
+        DO i=t%internal%xstart,t%internal%xstop
           CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
         END DO
       END DO
