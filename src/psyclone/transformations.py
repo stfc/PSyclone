@@ -325,7 +325,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     :type grainsize: int or None
     :param num_tasks: the num_tasks to use for this transformation.
     :type num_tasks: int or None
-    :param bool nogroup: whether of not to use a nogroup clause for this
+    :param bool nogroup: whether or not to use a nogroup clause for this
                          transformation. Default is False.
 
     For example:
@@ -555,9 +555,11 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         # end of this function
         self.omp_nogroup = options.get("nogroup", current_nogroup)
 
-        rval = super(OMPTaskloopTrans, self).apply(node, options)
-        # Reset the nogroup value to the original value
-        self.omp_nogroup = current_nogroup
+        try:
+            rval = super(OMPTaskloopTrans, self).apply(node, options)
+        finally:
+            # Reset the nogroup value to the original value
+            self.omp_nogroup = current_nogroup
         return rval
 
 
