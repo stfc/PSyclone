@@ -39,14 +39,12 @@
 from __future__ import absolute_import, print_function
 import pytest
 
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Loop, Assignment, Reference, \
     IfBlock, ArrayReference
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     BOOLEAN_TYPE, ArrayType
 from psyclone.psyir.transformations import HoistTrans, TransformationError
-from psyclone.tests.utilities import Compile
 
 
 # init
@@ -59,7 +57,7 @@ def test_init():
 
 # apply
 
-def test_apply(tmpdir):
+def test_apply():
     '''Test the apply method moves the loop invariant assignment out of
     the loop and places it immediately before the loop.
 
@@ -72,27 +70,20 @@ def test_apply(tmpdir):
         "    a = 1.0\n"
         "  end do\n"
         "end program\n")
-    expected_code = (
-        "program test\n"
-        "  integer :: i\n"
-        "  real :: a\n\n"
-        "  a = 1.0\n"
-        "  do i = 1, 1, 1\n"
-        "  enddo\n\n"
-        "end program test\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
-    assignment = psyir.walk(Assignment)[0]
+    loop = psyir.walk(Loop)[0]
+    assignment = loop.loop_body[0]
     hoist_trans = HoistTrans()
     hoist_trans.apply(assignment)
-    writer = FortranWriter()
-    output = writer(psyir)
-    assert output == expected_code
-    assert Compile(tmpdir).string_compiles(output)
+    # The assignment is no longer within the loop
+    assert loop.loop_body.children == []
+    # The assignment is now before the loop
+    previous = loop.parent.children[loop.position-1]
+    assert previous is assignment
 
 
 def test_apply_validate():
-
     '''Test the apply method calls the validate method.'''
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
@@ -172,13 +163,12 @@ def test_validate_dependent_variable():
             "parent loop iterator 'i'." in str(info.value))
 
 
-# name and str
+# str
 
-def test_name_str():
-    '''Test the hoist transformations name and str methods return the
+def test_str():
+    '''Test the hoist transformation's str method return the
     expected results.
 
     '''
     hoist_trans = HoistTrans()
-    assert hoist_trans.name == "HoistTrans"
     assert str(hoist_trans) == "Hoist an assignment outside of its parent loop"

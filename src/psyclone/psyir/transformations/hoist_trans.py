@@ -86,9 +86,10 @@ class HoistTrans(Transformation):
 
     '''
     def apply(self, node, options=None):
-        '''Applies the hoist transformation to an assignment node within a
-        loop, moving the assignment outside of the loop if it is valid
-        to do so.
+        '''Applies the hoist transformation to the supplied assignment node
+        within a loop, moving the assignment outside of the loop if it
+        is valid to do so. Issue #1387 will also look to extend this
+        transformation to other types of node.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
@@ -98,7 +99,8 @@ class HoistTrans(Transformation):
         '''
         self.validate(node, options)
 
-        # Find the enclosing loop
+        # Find the enclosing loop (the validate() method has already
+        # verified that there is one).
         loop = node.ancestor(Loop)
 
         # Remove the assignment node
@@ -109,12 +111,13 @@ class HoistTrans(Transformation):
 
     def validate(self, node, options=None):
         '''Checks that the supplied node is a valid target for a hoist
-        transformation.
+        transformation. Dependency and checks still need to be added,
+        see issue #1387.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
         :raises TransformationError: if the supplied node is not an \
             assignment.
@@ -149,14 +152,6 @@ class HoistTrans(Transformation):
             current = current.parent
 
         # TODO: Dependency checks, see issue #1387.
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of this class.
-        :rtype: str
-        '''
-        return self.__class__.__name__
 
     def __str__(self):
         return "Hoist an assignment outside of its parent loop"

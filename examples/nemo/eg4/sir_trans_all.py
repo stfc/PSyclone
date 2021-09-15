@@ -120,7 +120,12 @@ def trans(psy):
                     min_trans.apply(oper, symbol_table)
 
         # Remove any loop invariant assignments inside k-loops to make
-        # them perfectly nested.
+        # them perfectly nested. At the moment this transformation
+        # does not perform any dependence analysis validation so could
+        # move code that should not be moved, see issue
+        # #1387. However, it is known that it is safe do apply this
+        # transformation to this particular code
+        # (tra_adv_compute.F90).
         for loop in schedule.loops():
             # outermost only
             if loop.loop_type == "levels":
