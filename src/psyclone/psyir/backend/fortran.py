@@ -953,8 +953,8 @@ class FortranWriter(LanguageWriter):
 
         # All children must be either Routines or CodeBlocks as modules within
         # modules are not supported.
-        if not all([isinstance(child, (Routine, CodeBlock)) for
-                    child in node.children]):
+        if not all(isinstance(child, (Routine, CodeBlock)) for
+                   child in node.children):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
                 "to be either CodeBlocks or sub-classes of Routine but found: "
@@ -1045,10 +1045,19 @@ class FortranWriter(LanguageWriter):
                 except KeyError:
                     new_name = whole_routine_scope.next_available_name(
                         symbol.name)
-                    # Ensure that the new name isn't already in the current
-                    # symbol table.
-                    new_name = schedule.symbol_table.next_available_name(
-                        new_name)
+                    while True:
+                        # Ensure that the new name isn't already in the current
+                        # symbol table.
+                        local_name = schedule.symbol_table.next_available_name(
+                            new_name)
+                        if local_name == new_name:
+                            # new_name is availble in the current symbol table
+                            # so we're done.
+                            break
+                        # new_name clashed with an entry in the current symbol
+                        # table so try again.
+                        new_name = whole_routine_scope.next_available_name(
+                            local_name)
                     schedule.symbol_table.rename_symbol(symbol, new_name)
                     whole_routine_scope.add(symbol)
 

@@ -48,7 +48,8 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
-    StructureReference, Schedule, Routine, Return, FileContainer
+    StructureReference, Schedule, Routine, Return, FileContainer, \
+    Assignment, IfBlock
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -1192,6 +1193,59 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(schedule)
     assert "Expected node name to have a value." in str(excinfo.value)
+
+
+def test_fw_routine_nameclash(fortran_reader, fortran_writer):
+    ''' Test that any name clashes are handled when merging symbol tables. '''
+    sym1 = DataSymbol("var1", INTEGER_TYPE)
+    sym2 = DataSymbol("var1", INTEGER_TYPE)
+    assign1 = Assignment.create(Reference(sym1), Literal("1", INTEGER_TYPE))
+    assign2 = Assignment.create(Reference(sym2), Literal("2", INTEGER_TYPE))
+    ifblock = IfBlock.create(Literal("true", BOOLEAN_TYPE),
+                             [assign1], [assign2])
+    # Place the symbols for the two variables in the tables associated with
+    # the two branches of the IfBlock. These then represent *different*
+    # variables, despite having the same name.
+    ifblock.if_body.symbol_table.add(sym1)
+    ifblock.else_body.symbol_table.add(sym2)
+    routine = Routine.create("my_sub", SymbolTable(), [ifblock])
+    result = fortran_writer(routine)
+    assert ("  integer :: var1\n"
+            "  integer :: var1_1\n"
+            "\n"
+            "  if (.true.) then\n"
+            "    var1 = 1\n"
+            "  else\n"
+            "    var1_1 = 2\n"
+            "  end if" in result)
+    # Add a symbol to the local scope of the else that will clash with
+    # the name generated with reference to the routine scope.
+    ifblock.else_body.symbol_table.add(DataSymbol("var1_1", INTEGER_TYPE))
+    result = fortran_writer(routine)
+    print(result)
+    assert ("  integer :: var1\n"
+            "  integer :: var1_1_1\n"
+            "  integer :: var1_1\n"
+            "\n"
+            "  if (.true.) then\n"
+            "    var1 = 1\n"
+            "  else\n"
+            "    var1_1_1 = 2\n"
+            "  end if" in result)
+    # Add a symbol to the routine scope that will clash with the first name
+    # generated with reference to the else scope.
+    routine.symbol_table.add(DataSymbol("var1_1_1", INTEGER_TYPE))
+    result = fortran_writer(routine)
+    assert ("  integer :: var1_1_1\n"
+            "  integer :: var1\n"
+            "  integer :: var1_1_2\n"
+            "  integer :: var1_1\n"
+            "\n"
+            "  if (.true.) then\n"
+            "    var1 = 1\n"
+            "  else\n"
+            "    var1_1_2 = 2\n"
+            "  end if" in result)
 
 
 def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
