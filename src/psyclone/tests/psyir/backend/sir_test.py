@@ -715,39 +715,26 @@ def test_sirwriter_unary_node_2(parser, sir_writer):
 
 
 # (3/5) Method unaryoperation_node
-def test_sirwriter_unary_node_3(parser, sir_writer):
-    '''Check the unaryoperation_node method of the SIRWriter class raises
-    the expected exception if the subject of the unary operator is not
-    a literal value (as currently only '-' is supported and it is only
-    supported for literal values).
+@pytest.mark.parametrize(
+    "value, datatype", [("-1", "Integer"), ("-1.0", "Float")])
+def test_sirwriter_unary_node_3(parser, sir_writer, value, datatype):
+    '''Check the unaryoperation_node method of the SIRWriter class outputs
+    the expected SIR when the subject of the unary operator is a
+    literal (tests for both integer and real).
 
     '''
-    code = CODE.replace("1.0", "-a(i,j,k)")
+    code = CODE.replace("1.0", value)
     rhs = get_rhs(parser, code)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer.unaryoperation_node(rhs)
-    assert ("unary operators can only be applied to literals."
-            in str(excinfo.value))
+    result = sir_writer.unaryoperation_node(rhs)
+    assert ("make_literal_access_expr(\"{0}\", BuiltinType.{1})"
+            "".format(value, datatype) in result)
 
 
 # (4/5) Method unaryoperation_node
 def test_sirwriter_unary_node_4(parser, sir_writer):
-    '''Check the unaryoperation_node method of the SIRWriter class outputs
-    the expected SIR when the subject of the unary operator is an
-    integer literal.
-
-    '''
-    code = CODE.replace("1.0", "-1")
-    rhs = get_rhs(parser, code)
-    result = sir_writer.unaryoperation_node(rhs)
-    assert "make_literal_access_expr(\"-1\", BuiltinType.Integer)" in result
-
-
-# (5/5) Method unaryoperation_node
-def test_sirwriter_unary_node_5(parser, sir_writer):
     '''Check the unaryoperation_node method of the SIRWriter class raises
     the expected Exception when the subject of the '-' unary operator
-    is not of type REAL or INTEGER.
+    is a literal but is not of type REAL or INTEGER.
 
     '''
     code = CODE.replace("1.0", "-.false.")
@@ -756,6 +743,24 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
         _ = sir_writer.unaryoperation_node(rhs)
     assert ("PSyIR type 'Scalar<BOOLEAN, UNDEFINED>' does not work "
             "with the '-' operator." in str(excinfo.value))
+
+
+# (5/5) Method unaryoperation_node
+def test_sirwriter_unary_node_5(parser, sir_writer):
+    '''Check the unaryoperation_node method of the SIRWriter class outputs
+    the expected SIR when the subject of the unary operator is not a
+    literal.
+
+    '''
+    code = CODE.replace("1.0", "-a(i,j,k)")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.unaryoperation_node(rhs)
+    assert (
+        result ==
+        "make_binary_operator(\n"
+        "  make_literal_access_expr(\"-1.0\", BuiltinType.Float),\n"
+        "  \"*\",\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]))\n")
 
 
 # (1/4) Method ifblock_node

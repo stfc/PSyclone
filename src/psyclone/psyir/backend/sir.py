@@ -454,8 +454,26 @@ class SIRWriter(PSyIRVisitor):
                 "Method unaryoperation_node in class SIRWriter, unsupported "
                 "operator '{0}' found.".format(str(node.operator))),
                 err)
-        # Default to REAL as we currently have no way of finding out
-        # the type. Replace -x with -1.0 * x.
+        if isinstance(node.children[0], Literal):
+            # The unary minus operator is being applied to a
+            # literal. This is a special case as the literal value can
+            # be negative in SIR.
+            literal = node.children[0]
+            if literal.datatype.intrinsic not in [
+                    ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]:
+                # The '-' operator can only be applied to REAL and INTEGER
+                # datatypes.
+                raise VisitorError(
+                    "PSyIR type '{0}' does not work with the '-' operator."
+                    "".format(str(literal.datatype)))
+            result = literal.value
+            datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
+            return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
+                    "".format(self._nindent, oper, result, datatype))
+
+        # The unary minus operator is being applied to something that
+        # is not a literal. Default to REAL as we currently have no
+        # way of finding out the type. Replace -x with -1.0 * x.
         datatype = TYPE_MAP_TO_SIR[ScalarType.Intrinsic.REAL]
         self._depth += 1
         lhs = "{0}make_literal_access_expr(\"-1.0\", {1})".format(
