@@ -31,7 +31,7 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
-   Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+   Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 
 
@@ -331,8 +331,7 @@ The SIR back-end is limited in a number of ways:
   of loops (lat/lon/levels) is currently assumed.
 - Fortran literals such as `0.0d0` are output directly in the
   generated code (but this could also be a frontend issue).
-- the only unary operator currently supported is '-' and the subject
-  of this unary operator must be a literal.
+- the only unary operator currently supported is '-'.
 
 The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to

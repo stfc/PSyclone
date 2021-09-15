@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab.
+# Author: R. W. Ford, STFC Daresbury Lab.
 # Modified by: A. R. Porter, STFC Daresbury Lab.
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
@@ -101,7 +101,6 @@ def gen_stencil(node):
                     "gen_stencil unsupported stencil index found '{0}'."
                     "".format(str(child)))
         else:
-            node.view()
             raise VisitorError(
                 "gen_stencil unsupported (non-stencil) index found '{0}'."
                 "".format(str(child)))
