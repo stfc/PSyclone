@@ -176,6 +176,9 @@
 	60) PR #1354 for #1256. Change GOConstLoopBoundsTrans to modify the
         tree rather than just setting a flag.
 
+	61) PR #1343 for #1336. Use github actions to verify all links in
+		all markdown files.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
