@@ -322,6 +322,8 @@ def add_accessibility_to_unknown_declaration(symbol):
 
     :raises TypeError: if the supplied argument is not a Symbol of \
         UnknownFortranType.
+    :raises InternalError: if the declaration associated with the Symbol is \
+        empty.
     :raises NotImplementedError: if the original declaration does not use \
         '::' to separate the entity name from its type.
     :raises InternalError: if the declaration stored for the supplied symbol \
@@ -338,6 +340,13 @@ def add_accessibility_to_unknown_declaration(symbol):
                         "'{0}' has type '{1}'".format(symbol.name,
                                                       symbol.datatype))
 
+    if not symbol.datatype.declaration:
+        raise InternalError(
+            "Symbol '{0}' is of UnknownFortranType but the associated "
+            "declaration text is empty.".format(symbol.name))
+
+    # The original declaration text is obtained from fparser2 and will
+    # already have had any line-continuation symbols removed.
     first_line = symbol.datatype.declaration.split("\n")[0]
     if "::" not in first_line:
         raise NotImplementedError(

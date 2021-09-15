@@ -175,6 +175,13 @@ def test_fw_add_accessibility_errors():
     assert ("Symbol 'var' of UnknownFortranType has public visibility but "
             "its associated declaration specifies that it is private: 'real, "
             "pRivate :: var'" in str(err.value))
+    # Missing declaration text
+    sym = DataSymbol("var", UnknownFortranType(""),
+                     visibility=Symbol.Visibility.PUBLIC)
+    with pytest.raises(InternalError) as err:
+        add_accessibility_to_unknown_declaration(sym)
+    assert ("Symbol 'var' is of UnknownFortranType but the "
+            "associated declaration text is empty." in str(err.value))
 
 
 def test_fw_add_accessibility():
