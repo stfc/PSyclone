@@ -35,6 +35,7 @@
 # Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
 # MOdified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
@@ -6340,20 +6341,6 @@ def test_acclooptrans():
 # Class ACCLoopTrans end
 
 # End OpenACC section
-
-
-def test_no_ocl():
-    ''' Check that attempting to apply an OpenCL transformation to a Dynamo
-    InvokeSchedule raises the expected error. '''
-    from psyclone.transformations import OCLTrans
-    _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
-                           name="invoke_0_testkern_type", dist_mem=False)
-    sched = invoke.schedule
-    trans = OCLTrans()
-    with pytest.raises(TransformationError) as err:
-        _ = trans.apply(sched)
-    assert ("OpenCL generation is currently only supported for the GOcean "
-            "API but got an InvokeSchedule of type:" in str(err.value))
 
 
 def test_async_hex_wrong_node():

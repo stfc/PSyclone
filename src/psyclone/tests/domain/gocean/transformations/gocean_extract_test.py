@@ -46,14 +46,13 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
-from psyclone.psyir.nodes import ExtractNode
-from psyclone.psyGen import Loop
+from psyclone.psyir.nodes import ExtractNode, Loop, OMPDirective
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
-                                      ACCLoopTrans, GOConstLoopBoundsTrans,
-                                      GOceanOMPLoopTrans,
+                                      ACCLoopTrans, GOceanOMPLoopTrans,
                                       GOceanOMPParallelLoopTrans,
                                       OMPParallelTrans)
+from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.utilities import get_invoke
 
 # API names
@@ -194,147 +193,7 @@ def test_extract_node_position():
 def test_single_node_ompparalleldo_gocean1p0():
     ''' Test that applying Extract Transformation on a Node enclosed
     within an OMP Parallel DO Directive produces the correct result
-    in GOcean1.0 API. Note that this test only pases due to TODO #969:
-    the loop boundaries are actually missing. Once #969 is fixed, this
-    test should be removed, since it is covered by the test further down!
-    But for now this test is left in place since it tests the omp
-    functionality with a passing test.
-    '''
-
-    etrans = GOceanExtractTrans()
-    otrans = GOceanOMPParallelLoopTrans()
-
-    # Test a Loop nested within the OMP Parallel DO Directive
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90",
-                             GOCEAN_API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    # This test expects constant loop bounds
-    schedule._const_loop_bounds = True
-
-    # Apply GOceanOMPParallelLoopTrans to the second Loop
-    otrans.apply(schedule.children[1])
-    # Now enclose the parallel region within an ExtractNode (inserted
-    # at the previous location of the OMPParallelDoDirective
-    etrans.apply(schedule.children[1])
-
-    code = str(psy.gen)
-    output = """      ! ExtractStart
-      !
-      CALL extract_psy_data%PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0:compute_cv_code:r0", 2, 3)
-      CALL extract_psy_data%PreDeclareVariable("p_fld", p_fld)
-      CALL extract_psy_data%PreDeclareVariable("v_fld", v_fld)
-      CALL extract_psy_data%PreDeclareVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data%PreDeclareVariable("i_post", i)
-      CALL extract_psy_data%PreDeclareVariable("j_post", j)
-      CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("p_fld", p_fld)
-      CALL extract_psy_data%ProvideVariable("v_fld", v_fld)
-      CALL extract_psy_data%PreEnd
-      !$omp parallel do default(shared), private(i,j), schedule(static)
-      DO j=2,jstop+1
-        DO i=2,istop
-          CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
-        END DO
-      END DO
-      !$omp end parallel do
-      CALL extract_psy_data%PostStart
-      CALL extract_psy_data%ProvideVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data%ProvideVariable("i_post", i)
-      CALL extract_psy_data%ProvideVariable("j_post", j)
-      CALL extract_psy_data%PostEnd
-      !
-      ! ExtractEnd"""
-
-    assert output in code
-
-
-# -----------------------------------------------------------------------------
-def test_single_node_ompparalleldo_gocean1p0_with_workaround():
-    ''' Test that applying Extract Transformation on a Node enclosed
-    within an OMP Parallel DO Directive produces the correct result
-    in GOcean1.0 API. This test is mostly identical to the previous one,
-    but it adds the work around for viewing the schedule, which will
-    define the loop boundaries. This test is left here so we have a
-    passing test that verifies that the loop boundaries are correctly
-    reported. This test can be removed once #969 is fixed, and the
-    next test will not fail anymore.
-    '''
-
-    etrans = GOceanExtractTrans()
-    otrans = GOceanOMPParallelLoopTrans()
-
-    # Test a Loop nested within the OMP Parallel DO Directive
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90",
-                             GOCEAN_API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-
-    # Apply GOceanOMPParallelLoopTrans to the second Loop
-    otrans.apply(schedule.children[1])
-
-    # TODO #969: this call will define the loop boundaries
-    schedule.view()
-
-    # Now enclose the parallel region within an ExtractNode (inserted
-    # at the previous location of the OMPParallelDoDirective
-    etrans.apply(schedule.children[1])
-
-    code = str(psy.gen)
-    output = """      ! ExtractStart
-      !
-      CALL extract_psy_data%PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0:compute_cv_code:r0", 6, 3)
-      CALL extract_psy_data%PreDeclareVariable("cv_fld%internal%xstart", """ \
-                                               """cv_fld%internal%xstart)
-      CALL extract_psy_data%PreDeclareVariable("cv_fld%internal%xstop", """ \
-                                               """cv_fld%internal%xstop)
-      CALL extract_psy_data%PreDeclareVariable("cv_fld%internal%ystart", """ \
-                                               """cv_fld%internal%ystart)
-      CALL extract_psy_data%PreDeclareVariable("cv_fld%internal%ystop", """ \
-                                               """cv_fld%internal%ystop)
-      CALL extract_psy_data%PreDeclareVariable("p_fld", p_fld)
-      CALL extract_psy_data%PreDeclareVariable("v_fld", v_fld)
-      CALL extract_psy_data%PreDeclareVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data%PreDeclareVariable("i_post", i)
-      CALL extract_psy_data%PreDeclareVariable("j_post", j)
-      CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("cv_fld%internal%xstart", """ \
-                                            """cv_fld%internal%xstart)
-      CALL extract_psy_data%ProvideVariable("cv_fld%internal%xstop", """ \
-                                            """cv_fld%internal%xstop)
-      CALL extract_psy_data%ProvideVariable("cv_fld%internal%ystart", """ \
-                                            """cv_fld%internal%ystart)
-      CALL extract_psy_data%ProvideVariable("cv_fld%internal%ystop", """ \
-                                            """cv_fld%internal%ystop)
-      CALL extract_psy_data%ProvideVariable("p_fld", p_fld)
-      CALL extract_psy_data%ProvideVariable("v_fld", v_fld)
-      CALL extract_psy_data%PreEnd
-      !$omp parallel do default(shared), private(i,j), schedule(static)
-      DO j=cv_fld%internal%ystart,cv_fld%internal%ystop
-        DO i=cv_fld%internal%xstart,cv_fld%internal%xstop
-          CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
-        END DO
-      END DO
-      !$omp end parallel do
-      CALL extract_psy_data%PostStart
-      CALL extract_psy_data%ProvideVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data%ProvideVariable("i_post", i)
-      CALL extract_psy_data%ProvideVariable("j_post", j)
-      CALL extract_psy_data%PostEnd
-      !
-      ! ExtractEnd"""
-    assert output in code
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="TODO #969 Loop boundaries not defined")
-def test_single_node_ompparalleldo_gocean1p0_failing():
-    ''' Test that applying Extract Transformation on a Node enclosed
-    within an OMP Parallel DO Directive produces the correct result
-    in GOcean1.0 API. This test is mostly identical to the previous one,
-    but due to TODO #969 the loop boundaries are not defined and are
-    therefore missing. Once #969 is fixed, the previous test can be
-    removed.
+    in GOcean1.0 API.
 
     '''
     etrans = GOceanExtractTrans()
@@ -400,14 +259,11 @@ def test_single_node_ompparalleldo_gocean1p0_failing():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="TODO #969 and #1281 Loop boundaries missing")
-def test_single_node_ompparalleldo_gocean1p0_failing_const_loop():
+def test_single_node_ompparalleldo_gocean1p0_const_loop():
     ''' Test that applying Extract Transformation on a Node enclosed
     within an OMP Parallel DO Directive produces the correct result
     in GOcean1.0 API. This test is mostly identical to the previous one,
-    but uses const loop bounds. At this stage, the dependency analysis
-    still reports `cv_fld%internal%xstart` etc as loop boundaries, but
-    the code created will be using istop and jstop.
+    but uses const loop bounds.
 
     '''
     etrans = GOceanExtractTrans()
@@ -418,22 +274,22 @@ def test_single_node_ompparalleldo_gocean1p0_failing_const_loop():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
+
+    # Apply Constant Loop Bounds transformation
     ctrans.apply(schedule)
-    # Required for #969
-    schedule.view()
 
     # Apply GOceanOMPParallelLoopTrans to the second Loop
-    otrans.apply(schedule.children[1])
+    otrans.apply(schedule.children[3])
 
     # Now enclose the parallel region within an ExtractNode (inserted
     # at the previous location of the OMPParallelDoDirective
-    etrans.apply(schedule.children[1])
+    etrans.apply(schedule.children[3])
 
     code = str(psy.gen)
     output = """      ! ExtractStart
       !
       CALL extract_psy_data%PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0:compute_cv_code:r0", 6, 3)
+      """"invoke_0:compute_cv_code:r0", 4, 3)
       CALL extract_psy_data%PreDeclareVariable("istop", istop)
       CALL extract_psy_data%PreDeclareVariable("jstop", jstop)
       CALL extract_psy_data%PreDeclareVariable("p_fld", p_fld)
@@ -448,7 +304,7 @@ def test_single_node_ompparalleldo_gocean1p0_failing_const_loop():
       CALL extract_psy_data%ProvideVariable("v_fld", v_fld)
       CALL extract_psy_data%PreEnd
       !$omp parallel do default(shared), private(i,j), schedule(static)
-      DO j=2,jstop+1
+      DO j=2,jstop + 1
         DO i=2,istop
           CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
         END DO
@@ -483,20 +339,25 @@ def test_node_list_ompparallel_gocean1p0():
     # Apply GOConstLoopBoundsTrans
     ctrans.apply(schedule)
     # Apply GOceanOMPParallelLoopTrans to the first two Loops
-    ltrans.apply(schedule.children[0])
-    ltrans.apply(schedule.children[1])
+    outerloops = schedule.walk(Loop, stop_type=Loop)
+    ltrans.apply(outerloops[0])
+    ltrans.apply(outerloops[1])
     # and enclose them within a parallel region
-    otrans.apply(schedule.children[0:2])
+    directives = schedule.walk(OMPDirective, stop_type=OMPDirective)
+    otrans.apply(directives)
     # Now enclose the parallel region within an ExtractNode (inserted
     # at the previous location of the OMPParallelDirective
-    etrans.apply(schedule.children[0])
+    directive = schedule.walk(OMPDirective, stop_type=OMPDirective)
+    etrans.apply(directive)
 
     code = str(psy.gen)
     output = """
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0:r0", 3, 4)
+      """"invoke_0:r0", 5, 4)
+      CALL extract_psy_data%PreDeclareVariable("istop", istop)
+      CALL extract_psy_data%PreDeclareVariable("jstop", jstop)
       CALL extract_psy_data%PreDeclareVariable("p_fld", p_fld)
       CALL extract_psy_data%PreDeclareVariable("u_fld", u_fld)
       CALL extract_psy_data%PreDeclareVariable("v_fld", v_fld)
@@ -505,6 +366,8 @@ def test_node_list_ompparallel_gocean1p0():
       CALL extract_psy_data%PreDeclareVariable("i_post", i)
       CALL extract_psy_data%PreDeclareVariable("j_post", j)
       CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("istop", istop)
+      CALL extract_psy_data%ProvideVariable("jstop", jstop)
       CALL extract_psy_data%ProvideVariable("p_fld", p_fld)
       CALL extract_psy_data%ProvideVariable("u_fld", u_fld)
       CALL extract_psy_data%ProvideVariable("v_fld", v_fld)
@@ -512,13 +375,13 @@ def test_node_list_ompparallel_gocean1p0():
       !$omp parallel default(shared), private(i,j)
       !$omp do schedule(static)
       DO j=2,jstop
-        DO i=2,istop+1
+        DO i=2,istop + 1
           CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO
       !$omp end do
       !$omp do schedule(static)
-      DO j=2,jstop+1
+      DO j=2,jstop + 1
         DO i=2,istop
           CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
         END DO
@@ -588,7 +451,8 @@ def test_driver_creation(tmpdir):
     # This test expects constant loop bounds
     ctrans.apply(schedule)
 
-    etrans.apply(schedule.children[0], {'create_driver': True})
+    outerloops = schedule.walk(Loop, stop_type=Loop)
+    etrans.apply(outerloops[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
@@ -630,7 +494,7 @@ def test_driver_creation(tmpdir):
       CALL extract_psy_data%ReadVariable("in_fld%grid%gphiu", gphiu)
       ! RegionStart
       DO j=2,jstop
-        DO i=2,istop+1
+        DO i=2,istop + 1
           CALL compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, ''' \
       '''dx, dx_1, gphiu)
         END DO
@@ -909,7 +773,7 @@ def test_rename_region(tmpdir):
                  {'create_driver': True, 'region_name': ("main", "update")})
 
     # Test that the extraction code contains the right names
-    assert 'CALL extract_psy_data%PreStart("main", "update", 4, 3)' \
+    assert 'CALL extract_psy_data%PreStart("main", "update", 8, 3)' \
         in str(psy.gen)
 
     # Now test if the created driver has the right name, and will open the
@@ -944,8 +808,9 @@ def test_change_prefix(tmpdir, monkeypatch):
                   'prefix': "NEW"})
 
     # Test that the extraction code contains the new prefix:
-    assert 'CALL NEW_psy_data%PreStart("main", "update", 4, 3)' \
-        in str(psy.gen)
+    gen = str(psy.gen)
+    assert 'CALL NEW_psy_data%PreStart("main", "update", 8, 3)' \
+        in gen
 
     # Now test if the created driver has the right prefix:
     driver_name = tmpdir.join("driver-main-update.f90")

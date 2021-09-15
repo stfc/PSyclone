@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -48,7 +49,9 @@ from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import colored, Directive, ACCEnterDataDirective, \
-    ACCKernelsDirective, Schedule, Loop
+    ACCKernelsDirective, Schedule, Loop, ACCUpdateDirective, \
+    ACCParallelDirective
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCLoopTrans, ACCEnterDataTrans, \
     ACCParallelTrans, ACCKernelsTrans
@@ -98,7 +101,8 @@ def test_acc_dir_node_str():
     acclt.apply(schedule[1].dir_body[0].dir_body[0], {"collapse": 2})
     out = schedule[1].dir_body[0].dir_body[0].node_str()
     assert out.startswith(
-        colored("Directive", colour) + "[ACC Loop, collapse=2, independent]")
+        colored("Directive", colour) + "[ACC Loop, collapse=2, "
+                                       "independent]")
 
 
 def test_acc_dag_names():
@@ -116,13 +120,16 @@ def test_acc_dag_names():
     assert schedule[0].dag_name == "ACC_data_1"
     # Parallel region
     accpt.apply(schedule[1])
-    assert schedule[1].dag_name == "ACC_parallel_3"
+    assert schedule[1].dag_name == "ACC_parallel_2"
+    # Base directive class
+    name = super(ACCParallelDirective, schedule[1]).dag_name
+    assert name == "region_directive_2"
     # Loop directive
     acclt.apply(schedule[1].dir_body[0])
-    assert schedule[1].dir_body[0].dag_name == "ACC_loop_5"
-    # Base class
+    assert schedule[1].dir_body[0].dag_name == "ACC_loop_4"
+    # Base standalone directive class
     name = super(ACCEnterDataDirective, schedule[0]).dag_name
-    assert name == "ACC_directive_1"
+    assert name == "standalone_directive_1"
 
 # Class ACCKernelsDirective start
 
@@ -353,3 +360,38 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,m2_proxy%data,"
         "ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,undf_w3,map_w3,"
         "f3_proxy,f3_proxy%data)\n" in code)
+
+
+# Class ACCUpdateDirective
+
+def test_accupdatedirective_init():
+    ''' Test the constructor of ACCUpdateDirective node'''
+
+    # Check argument validations
+    with pytest.raises(TypeError) as err:
+        _ = ACCUpdateDirective("invalid", "host")
+    assert ("The ACCUpdateDirective symbol argument must be a 'DataSymbol' "
+            "but found 'str'." in str(err.value))
+
+    symbol = DataSymbol("x", REAL_TYPE)
+    with pytest.raises(ValueError) as err:
+        _ = ACCUpdateDirective(symbol, "invalid")
+    assert ("The ACCUpdateDirective direction argument must be a string with "
+            "any of the values in '('host', 'device')' but found 'invalid'."
+            in str(err.value))
+
+    # Successful init
+    directive = ACCUpdateDirective(symbol, "host")
+    assert directive._symbol is symbol
+    assert directive._direction == "host"
+
+
+def test_accupdatedirective_begin_string():
+    ''' Test the begin_string method of ACCUpdateDirective'''
+
+    symbol = DataSymbol("x", REAL_TYPE)
+    directive1 = ACCUpdateDirective(symbol, "host")
+    directive2 = ACCUpdateDirective(symbol, "device")
+
+    assert directive1.begin_string() == "acc update host(x)"
+    assert directive2.begin_string() == "acc update device(x)"

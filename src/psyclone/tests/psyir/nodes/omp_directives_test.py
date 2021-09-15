@@ -45,13 +45,14 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
-from psyclone.psyir.nodes import OMPDoDirective, Schedule, OMPDirective, \
+from psyclone.psyir.nodes import OMPDoDirective, Schedule, \
     OMPParallelDoDirective, Directive, colored, OMPParallelDirective, \
-    OMPSingleDirective, OMPMasterDirective
+    OMPSingleDirective, OMPMasterDirective, OMPTaskloopDirective, \
+    OMPTaskwaitDirective
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
-    OMPMasterTrans
+    OMPMasterTrans, OMPTaskloopTrans
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -100,7 +101,6 @@ def test_ompdo_directive_class_node_str(dist_mem):
         {"current_class": OMPDoDirective, "current_string": "[OMP do]"},
         {"current_class": OMPParallelDirective,
          "current_string": "[OMP parallel]"},
-        {"current_class": OMPDirective, "current_string": "[OMP]"},
         {"current_class": Directive, "current_string": ""}]
     otrans = OMPParallelLoopTrans()
 
@@ -197,9 +197,7 @@ def test_omp_dag_names():
     assert omp_par_node.dag_name == "OMP_parallel_1"
     assert omp_par_node.dir_body[0].dag_name == "OMP_do_3"
     omp_directive = super(OMPParallelDirective, omp_par_node)
-    assert omp_directive.dag_name == "OMP_directive_1"
-    directive = super(OMPDirective, omp_par_node)
-    assert directive.dag_name == "directive_1"
+    assert omp_directive.dag_name == "region_directive_1"
 
 
 def test_omp_forward_dependence():
@@ -290,9 +288,9 @@ def test_omp_single_node_str():
     ''' Test the node_str() method of the OMPSingle directive '''
     single_directive = OMPSingleDirective()
     out = single_directive.node_str()
-    directive = colored("Directive", Directive._colour)
+    directive = colored("OMPSingleDirective", Directive._colour)
     expected_output = directive + "[OMP single]"
-    assert expected_output in out
+    assert expected_output == out
 
 
 def test_omp_single_validate_global_constraints():
@@ -395,9 +393,9 @@ def test_omp_master_node_str():
     ''' Test the node_str() method of the OMPMaster directive '''
     master_directive = OMPMasterDirective()
     out = master_directive.node_str()
-    directive = colored("Directive", Directive._colour)
+    directive = colored("OMPMasterDirective", Directive._colour)
     expected_output = directive + "[OMP master]"
-    assert expected_output in out
+    assert expected_output == out
 
 
 def test_omp_master_gencode():
@@ -469,3 +467,190 @@ def test_omp_master_nested_validate_global_constraints(monkeypatch):
         master_omp.validate_global_constraints()
     assert ("OMPMasterDirective must not be inside another OpenMP serial " +
             "region") in str(excinfo.value)
+
+
+def test_omptaskwait_dag_name():
+    '''Test the OMPTaskwait, OMPStandaloneDirective and StandaloneDirective
+    dag_name methods'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    taskwait = OMPTaskwaitDirective()
+    schedule.addchild(taskwait, 0)
+    assert taskwait.dag_name == "OMP_taskwait_1"
+    omp_cdirective = super(OMPTaskwaitDirective, taskwait)
+    assert omp_cdirective.dag_name == "standalone_directive_1"
+
+
+def test_omptaskwait_strings():
+    ''' Test the begin_string and method of the OMPTaskwait directive '''
+    taskwait = OMPTaskwaitDirective()
+
+    assert taskwait.begin_string() == "omp taskwait"
+
+
+def test_omptaskwait_node_str():
+    '''Test the OMPTaskwaitDirective and OMPStandaloneDirective node_str
+    methods'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    taskwait = OMPTaskwaitDirective()
+    schedule.addchild(taskwait, 0)
+    directive = colored("Directive", Directive._colour)
+    expected_output = directive + "[OMP taskwait]"
+    assert taskwait.node_str() == expected_output
+    omp_cdirective = super(OMPTaskwaitDirective, taskwait)
+    expected_output = directive + "[]"
+    assert omp_cdirective.node_str() == expected_output
+
+
+def test_omptaskwait_gencode():
+    '''Check that the gen_code method in the OMPTaskwaitDirective
+    class generates the expected code. Use the gocean API.
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    taskwait = OMPTaskwaitDirective()
+    parallel = OMPParallelTrans()
+    master = OMPMasterTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    taskloop = OMPTaskloopTrans()
+
+    schedule.addchild(taskwait, 1)
+    taskloop.apply(schedule.children[0])
+    master.apply(schedule.children[0:2])
+    parallel.apply(schedule.children[0])
+    goceantrans = GOceanExtractTrans()
+    goceantrans.apply(schedule.children[0])
+
+    code = str(psy.gen)
+    assert (
+        "      END DO\n" +
+        "      !$omp end taskloop\n" +
+        "      !$omp taskwait\n" +
+        "      !$omp end master\n" +
+        "      !$omp end parallel" in code)
+
+
+def test_omp_taskwait_validate_global_constraints():
+    ''' Test the validate_global_constraints method of the OMPTaskwait
+        directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    taskwait = OMPTaskwaitDirective()
+    schedule.addchild(taskwait, 0)
+    with pytest.raises(GenerationError) as excinfo:
+        taskwait.validate_global_constraints()
+    assert ("OMPTaskwaitDirective must be inside an OMP parallel region but "
+            "could not find an ancestor OMPParallelDirective node"
+            in str(excinfo.value))
+
+
+def test_omp_taskloop_dag_name():
+    '''Test the omp_taskloop dag_name method'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    taskloop = OMPTaskloopTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    taskloop.apply(schedule.children[0])
+    assert schedule.children[0].dag_name == "OMP_taskloop_1"
+
+
+def test_omp_taskloop_strings():
+    ''' Test the begin_string and end_string methods of the
+        OMPTaskloop directive '''
+    omp_taskloop = OMPTaskloopDirective()
+
+    assert omp_taskloop.begin_string() == "omp taskloop"
+    assert omp_taskloop.end_string() == "omp end taskloop"
+
+
+def test_omp_taskloop_init():
+    ''' Test the constructor of the OMPTaskloop directive'''
+    with pytest.raises(GenerationError) as excinfo:
+        OMPTaskloopDirective(grainsize=32, num_tasks=32)
+    assert("OMPTaskloopDirective must not have both grainsize and "
+           "numtasks clauses specified.") in str(excinfo.value)
+
+
+def test_omp_taskloop_node_str():
+    ''' Test the node_str() method of the OMPTaskloop directive '''
+    omp_taskloop = OMPTaskloopDirective()
+    out = OMPTaskloopDirective.node_str(omp_taskloop)
+    directive = colored("Directive", Directive._colour)
+    expected_output = directive + "[OMP taskloop]"
+    assert expected_output in out
+
+
+@pytest.mark.parametrize("grainsize,num_tasks", [(None, None), (32, None),
+                                                 (None, 32)])
+def test_omp_taskloop_gencode(grainsize, num_tasks):
+    '''Check that the gen_code method in the OMPTaskloopDirective
+    class generates the expected code. Use the gocean API.
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    taskloop = OMPTaskloopTrans(grainsize, num_tasks)
+    master = OMPMasterTrans()
+    parallel = OMPParallelTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    taskloop.apply(schedule.children[0])
+    taskloop_node = schedule.children[0]
+    master.apply(schedule.children[0])
+    parallel.apply(schedule.children[0])
+    goceantrans = GOceanExtractTrans()
+    goceantrans.apply(schedule.children[0])
+
+    code = str(psy.gen)
+
+    clauses = ""
+    if grainsize is not None:
+        clauses = " grainsize({0})".format(grainsize)
+    if num_tasks is not None:
+        clauses = " num_tasks({0})".format(num_tasks)
+
+    assert (
+        "    !$omp parallel default(shared), private(i,j)\n" +
+        "      !$omp master\n" +
+        "      !$omp taskloop{0}\n".format(clauses) +
+        "      DO" in code)
+    assert (
+        "      END DO\n" +
+        "      !$omp end taskloop\n" +
+        "      !$omp end master\n" +
+        "      !$omp end parallel" in code)
+
+    assert taskloop_node.begin_string() == "omp taskloop{0}".format(clauses)
+
+
+def test_omp_taskloop_validate_global_constraints():
+    ''' Test the validate_global_constraints method of the OMPTaskloop
+        directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    taskloop = OMPTaskloopTrans()
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    taskloop.apply(schedule.children[0])
+    with pytest.raises(GenerationError) as excinfo:
+        schedule.children[0].validate_global_constraints()
+    assert ("OMPTaskloopDirective must be inside an OMP "
+            "Serial region but could not find an ancestor node"
+            in str(excinfo.value))

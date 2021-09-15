@@ -903,7 +903,7 @@ the GOcean 1.0 API. For an overview of transformations in general see
 
 ####
 
-.. autoclass:: psyclone.transformations.GOConstLoopBoundsTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOConstLoopBoundsTrans
    :members:
    :noindex:
 

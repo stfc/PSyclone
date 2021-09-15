@@ -47,6 +47,12 @@ on:
   pull_request:
     branches: [ master ]
 jobs:
+  markdown-link-check:
+    # Check all markdown files for dead links
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - uses: gaurav-nelson/github-action-markdown-link-check@v1
   build:
     runs-on: ubuntu-latest
     strategy:
@@ -95,6 +101,7 @@ jobs:
     - name: Run tutorials
       run: |
         ( make -C tutorial/practicals transform > /dev/null )
+        ( make -C tutorial/notebooks notebook )
     - name: Test with pytest
       if: ${{ !(matrix.python-version == 3.8) }}
       run: |

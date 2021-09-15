@@ -39,26 +39,25 @@
     GOcean 1.0 API '''
 
 from __future__ import absolute_import
-import os
 import re
 import inspect
 from importlib import import_module
 import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
+    GOceanExtractTrans
 from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOLoop
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
-from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
-    GOLoopSwapTrans, OMPParallelTrans, MoveTrans, \
-    GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
-    ACCParallelTrans, ACCEnterDataTrans, ACCDataTrans, ACCLoopTrans, \
-    OCLTrans, OMPLoopTrans
-from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
+from psyclone.transformations import ACCKernelsTrans, GOLoopSwapTrans, \
+    OMPParallelTrans, MoveTrans, GOceanOMPParallelLoopTrans, \
+    GOceanOMPLoopTrans, KernelModuleInlineTrans, OMPLoopTrans, \
+    ACCParallelTrans, ACCEnterDataTrans, ACCDataTrans, ACCLoopTrans
+from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
 # The version of the PSyclone API that the tests in this file
@@ -74,78 +73,6 @@ def setup():
     Config._instance = None
 
 
-def test_const_loop_bounds_not_schedule():
-    ''' Check that we raise an error if we attempt to apply the
-    constant loop-bounds transformation to something that is
-    not an InvokeSchedule '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           API, idx=0)
-    schedule = invoke.schedule
-    cbtrans = GOConstLoopBoundsTrans()
-
-    with pytest.raises(TransformationError):
-        _, _ = cbtrans.apply(schedule.children[0])
-
-
-def test_const_loop_bounds_enabled_and_disabled(tmpdir):
-    ''' Check that we can turn the constant loop bounds on and off and
-    that the default behaviour is "on" '''
-    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                             API, idx=0)
-    schedule = invoke.schedule
-    cbtrans = GOConstLoopBoundsTrans()
-
-    # First check that the generated code doesn't use constant loop
-    # bounds by default.
-    assert schedule._const_loop_bounds is False
-    gen = str(psy.gen)
-    assert "DO j = cv_fld%internal%ystart, cv_fld%internal%ystop" in gen
-    assert "DO i = cv_fld%internal%xstart, cv_fld%internal%xstop" in gen
-    assert "DO j = p_fld%whole%ystart, p_fld%whole%ystop" in gen
-    assert "DO i = p_fld%whole%xstart, p_fld%whole%xstop" in gen
-
-    # Next, check the generated code applying the constant loop-bounds
-    # transformation.
-    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                             API, idx=0)
-    schedule = invoke.schedule
-    cbtrans.apply(schedule)
-    gen = str(psy.gen)
-    assert schedule._const_loop_bounds is True
-    assert "INTEGER istop" in gen
-    assert "INTEGER istop" in gen
-    assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
-    assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j = 2, jstop-1" in gen
-    assert "DO i = 2, istop" in gen
-
-    # Next, check that applying the constant loop-bounds
-    # transformation again has no effect.
-    cbtrans.apply(schedule)
-    gen = str(psy.gen)
-    assert "INTEGER istop" in gen
-    assert "INTEGER jstop" in gen
-    assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
-    assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j = 2, jstop-1" in gen
-    assert "DO i = 2, istop" in gen
-
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_const_loop_bounds_invalid_offset():
-    ''' Test that we raise an appropriate error if we attempt to generate
-    code with constant loop bounds for a kernel that expects an
-    unsupported grid-offset '''
-    psy, invoke = get_invoke("test26_const_bounds_invalid_offset.f90",
-                             API, idx=0)
-    cbtrans = GOConstLoopBoundsTrans()
-    schedule = invoke.schedule
-    cbtrans.apply(schedule, {"const_bounds": True})
-    with pytest.raises(GenerationError):
-        _ = psy.gen
-
-
 def test_loop_fuse_different_iterates_over():
     ''' Test that an appropriate error is raised when we attempt to
     fuse two loops that have differing values of ITERATES_OVER '''
@@ -153,20 +80,12 @@ def test_loop_fuse_different_iterates_over():
                            API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     lftrans = LoopFuseTrans()
-    cbtrans = GOConstLoopBoundsTrans()
 
     # Attempt to fuse two loops that are iterating over different
     # things
     with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1])
-    assert "Loops do not have the same iteration space" in str(err.value)
-
-    # Turn off constant loop bounds (which should have no effect)
-    # and repeat
-    cbtrans.apply(schedule, {"const_bounds": False})
-    with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
     assert "Loops do not have the same iteration space" in str(err.value)
 
 
@@ -216,21 +135,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
     omp = GOceanOMPParallelLoopTrans()
     cbtrans = GOConstLoopBoundsTrans()
     omp.apply(schedule[0])
-    cbtrans.apply(schedule, {"const_bounds": True})
 
-    gen = fortran_writer(psy.container)
-    expected = ("!$omp parallel do default(shared), private(i,j), "
-                "schedule(static)\n"
-                "    do j = 2, jstop, 1\n"
-                "      do i = 2, istop+1, 1\n"
-                "        call compute_cu_code(i, j, cu_fld%data, "
-                "p_fld%data, u_fld%data)\n"
-                "      enddo\n"
-                "    enddo\n"
-                "    !$omp end parallel do")
-    assert expected in gen
-
-    cbtrans.apply(schedule, {"const_bounds": False})
     gen = fortran_writer(psy.container)
     expected = (
         "    !$omp parallel do default(shared), private(i,j), "
@@ -242,6 +147,19 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
         "      enddo\n"
         "    enddo\n"
         "    !$omp end parallel do")
+    assert expected in gen
+
+    cbtrans.apply(schedule)
+    gen = fortran_writer(psy.container)
+    expected = ("!$omp parallel do default(shared), private(i,j), "
+                "schedule(static)\n"
+                "    do j = 2, jstop, 1\n"
+                "      do i = 2, istop + 1, 1\n"
+                "        call compute_cu_code(i, j, cu_fld%data, "
+                "p_fld%data, u_fld%data)\n"
+                "      enddo\n"
+                "    enddo\n"
+                "    !$omp end parallel do")
     assert expected in gen
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -402,7 +320,7 @@ def test_omp_region_no_slice(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_no_slice_no_const_bounds(tmpdir):
+def test_omp_region_no_slice_const_bounds(tmpdir):
     ''' Test that we generate the correct code when we apply an OpenMP
     PARALLEL region transformation to a list of nodes when the InvokeSchedule
     has been transformed to use loop-bound look-ups '''
@@ -413,7 +331,7 @@ def test_omp_region_no_slice_no_const_bounds(tmpdir):
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
 
-    cbtrans.apply(schedule, {"const_bounds": False})
+    cbtrans.apply(schedule)
     ompr.apply(schedule.children)
     # Store the results of applying this code transformation as
     # a string
@@ -684,17 +602,13 @@ def test_omp_region_commutes_with_loop_trans(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
+def test_omp_region_commutes_with_loop_trans(tmpdir):
     ''' Test that the OpenMP PARALLEL region and (orphan) loop
-    transformations commute after constant bounds have been
-    switched off - i.e. we get the same result
+    transformations commute - i.e. we get the same result
     independent of the order in which they are applied. '''
     psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
-    # Turn-off constant loop bounds
-    cbtrans = GOConstLoopBoundsTrans()
-    cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put an OpenMP do directive around each loop contained
     # in the schedule
@@ -716,9 +630,6 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
-    # Turn-off constant loop bounds
-    cbtrans = GOConstLoopBoundsTrans()
-    cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put all of the loops in the schedule within a single
     # OpenMP region
@@ -1477,38 +1388,6 @@ def test_go_loop_swap_wrong_loop_type():
     assert "is not a GOLoop, but an instance of 'Loop'" in str(error.value)
 
 
-def test_ocl_apply(kernel_outputdir):
-    ''' Check that OCLTrans generates correct code '''
-    psy, invoke = get_invoke("test11_different_iterates_over_"
-                             "one_invoke.f90", API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for the GOcean gen_ocl() code generation.
-    trans = GOMoveIterationBoundariesInsideKernelTrans()
-    for kernel in schedule.coded_kernels():
-        trans.apply(kernel)
-    ocl = OCLTrans()
-
-    # Check that we raise the correct error if we attempt to apply the
-    # transformation to something that is not an InvokeSchedule
-    with pytest.raises(TransformationError) as err:
-        _, _ = ocl.apply(schedule.children[0])
-    assert "the supplied node must be a (sub-class of) InvokeSchedule " \
-        in str(err.value)
-
-    ocl.apply(schedule)
-    assert schedule.opencl
-
-    gen = str(psy.gen)
-    assert "USE clfortran" in gen
-    # Check that the new kernel files have been generated
-    kernel_files = os.listdir(str(kernel_outputdir))
-    assert len(kernel_files) == 2
-    assert "kernel_ne_offset_compute_cv_0.cl" in kernel_files
-    assert "kernel_scalar_int_bc_ssh_0.cl" in kernel_files
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
-
-
 def test_acc_parallel_not_a_loop():
     ''' Test that we raise an appropriate error if we attempt
     to apply the OpenACC Parallel transformation to something that
@@ -1755,14 +1634,10 @@ def test_accloop(tmpdir, fortran_writer):
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
-    cbtrans = GOConstLoopBoundsTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
-
-    # This test expects constant loop bounds
-    cbtrans.apply(schedule, {"const_bounds": True})
 
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
@@ -1800,10 +1675,11 @@ def test_accloop(tmpdir, fortran_writer):
     assert '''\
             !$acc parallel default(present)
             !$acc loop independent
-            do j = 2, jstop, 1''' in gen
+            do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1''' in gen
     assert ("enddo\n"
             "            !$acc loop independent\n"
-            "            do j = 2, jstop+1, 1" in gen)
+            "            do j = cv_fld%internal%ystart, cv_fld%internal%ystop"
+            ", 1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1830,6 +1706,160 @@ def test_acc_loop_not_within_data_region():
     assert ("An ACC parallel region must either be preceded by an ACC enter "
             "data directive or enclosed within an ACC data region but in "
             "'invoke_0' this is not the case." in str(err.value))
+
+
+def test_acc_enter_directive_infrastructure_setup():
+    ''' Test that the GOcean-specific OpenACC EnterData directive also sets
+    up the necessary GOcean infrastructure to keep track and update the
+    data allocated on the device. '''
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+
+    # Apply ACCLoopTrans to just the second loop
+    acclpt.apply(schedule[1])
+    # Add an enclosing parallel region
+    accpara.apply(schedule[1])
+    # Add a data region. This directive will set-up the necessary GOcean
+    # infrastructure device pointers
+    accdata.apply(schedule)
+
+    # Generate the code
+    gen = str(psy.gen)
+
+    # Check that the read_from_device routine has been generated
+    expected = """\
+    SUBROUTINE read_from_device(from, to, startx, starty, nx, ny, blocking)
+      USE iso_c_binding, ONLY: c_ptr
+      USE kind_params_mod, ONLY: go_wp
+      TYPE(c_ptr), intent(in) :: from
+      REAL(KIND=go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
+      INTEGER, intent(in) :: startx
+      INTEGER, intent(in) :: starty
+      INTEGER, intent(in) :: nx
+      INTEGER, intent(in) :: ny
+      LOGICAL, intent(in) :: blocking
+
+      !$acc update host(to)
+
+    END SUBROUTINE read_from_device"""
+    assert expected in gen
+
+    # Check that the routine has been introduced to the tree (with the
+    # appropriate tag) and only once (even if there are 3 fields)
+    symbol = schedule.symbol_table.lookup_with_tag("openacc_read_func")
+    assert symbol.name == "read_from_device"
+    assert len(schedule.parent.children) == 2
+    assert isinstance(schedule.parent.children[1], Routine)
+    assert schedule.parent.children[1].name == symbol.name
+    count = count_lines(gen, "SUBROUTINE read_from_device(")
+    assert count == 1
+
+    # Check that each field data_on_device and read_from_device_f have been
+    # initialised
+    for field in ["cv_fld", "p_fld", "v_fld"]:
+        assert "{0}%data_on_device = .true.\n".format(field) in gen
+        assert ("{0}%read_from_device_f => read_from_device\n".format(field)
+                in gen)
+
+
+def test_acc_enter_directive_infrastructure_setup_error():
+    ''' Test that the GOcean-specific OpenACC EnterData directive also sets
+    up the necessary GOcean infrastructure to keep track and update the
+    data allocated on the device. '''
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+
+    # Apply ACCLoopTrans to just the second loop
+    acclpt.apply(schedule[1])
+    # Add an enclosing parallel region
+    accpara.apply(schedule[1])
+    # Add a data region. This directive will set-up the necessary GOcean
+    # infrastructure device pointers
+    accdata.apply(schedule)
+
+    # Remove the InvokeSchedule from its Container so that OpenACC will not
+    # find where to add the read_from_device function.
+    schedule.detach()
+
+    # Generate the code
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("The GOACCEnterDataDirective can only be generated/lowered inside "
+            "a Container in order to insert a sibling subroutine, but "
+            "'Directive[ACC enter data]' is not inside a Container."
+            in str(err.value))
+
+
+def test_acc_enter_directive_infrastructure_setup_gen_code():
+    ''' Test that the GOcean-specific OpenACC EnterData directive also sets
+    up the necessary GOcean infrastructure to keep track and update the
+    data allocated on the device.
+
+    TODO #1010: This is the same as the previous test but forcing the f2pygen
+    code generation path. This test can be removed when GOcean PSy-layer will
+    exclusively use the PSyIR backend to generate code.
+
+    '''
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+    etrans = GOceanExtractTrans()
+
+    # Apply ACCLoopTrans to just the second loop
+    acclpt.apply(schedule[1])
+    # Add an enclosing parallel region
+    accpara.apply(schedule[1])
+    # Add a data region. This directive will set-up the necessary GOcean
+    # infrastructure device pointers
+    accdata.apply(schedule)
+
+    # Apply Extract Transformation to force f2pygen code generation path
+    etrans.apply(schedule)
+
+    # Generate the code
+    gen = str(psy.gen)
+
+    # Check that the read_from_device routine has been generated
+    expected = """\
+    SUBROUTINE read_from_device(from, to, startx, starty, nx, ny, blocking)
+      USE iso_c_binding, ONLY: c_ptr
+      USE kind_params_mod, ONLY: go_wp
+      TYPE(c_ptr), intent(in) :: from
+      REAL(KIND=go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
+      INTEGER, intent(in) :: startx
+      INTEGER, intent(in) :: starty
+      INTEGER, intent(in) :: nx
+      INTEGER, intent(in) :: ny
+      LOGICAL, intent(in) :: blocking
+
+      !$acc update host(to)
+
+    END SUBROUTINE read_from_device"""
+    assert expected in gen
+
+    # Check that each field data_on_device and read_from_device_f have been
+    # initialised
+    for field in ["cv_fld", "p_fld", "v_fld"]:
+        assert "{0}%data_on_device = .true.\n".format(field) in gen
+        assert ("{0}%read_from_device_f => read_from_device\n".format(field)
+                in gen)
 
 
 def test_acc_loop_before_enter_data():
@@ -1864,7 +1894,6 @@ def test_acc_loop_before_enter_data():
 
 def test_acc_collapse(tmpdir):
     ''' Tests for the collapse clause to a loop directive '''
-    cbtrans = GOConstLoopBoundsTrans()
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
@@ -1872,8 +1901,6 @@ def test_acc_collapse(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    _, _ = cbtrans.apply(schedule, {"const_bounds": True})
     child = schedule.children[0]
 
     # Check that we reject non-integer collapse arguments
@@ -1904,8 +1931,8 @@ def test_acc_collapse(tmpdir):
     gen = str(psy.gen)
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop independent collapse(2)\n"
-            "      DO j = 2, jstop, 1\n"
-            "        DO i = 2, istop+1, 1\n"
+            "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+            "        DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -1916,20 +1943,18 @@ def test_acc_indep(tmpdir):
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
-    cbtrans = GOConstLoopBoundsTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    cbtrans.apply(schedule)
     acclpt.apply(schedule.children[0], {"independent": False})
     acclpt.apply(schedule.children[1], {"independent": True})
     accpara.apply(schedule.children)
     accdata.apply(schedule)
     # Check the generated code
     gen = str(psy.gen)
-    assert "!$acc loop\n      DO j = 2, jstop, 1" in gen
-    assert "!$acc loop independent\n      DO j = 2, jstop+1, 1" in gen
+    assert "!$acc loop\n      DO j = cu_fld%internal%ystart," in gen
+    assert "!$acc loop independent\n      DO j = cv_fld%internal%ystart" in gen
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -1940,11 +1965,9 @@ def test_acc_loop_seq():
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
-    cbtrans = GOConstLoopBoundsTrans()
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
-    cbtrans.apply(schedule)
     acclpt.apply(schedule.children[0], {"sequential": True})
     accpara.apply(schedule.children)
     accdata.apply(schedule)
@@ -1952,7 +1975,8 @@ def test_acc_loop_seq():
     gen = str(psy.gen).lower()
     assert ("      !$acc parallel default(present)\n"
             "      !$acc loop seq\n"
-            "      do j = 2, jstop, 1\n" in gen)
+            "      do j = cu_fld%internal%ystart, cu_fld%internal%ystop"
+            ", 1\n" in gen)
 
 
 def test_acc_loop_view(capsys):

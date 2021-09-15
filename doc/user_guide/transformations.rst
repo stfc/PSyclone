@@ -132,7 +132,7 @@ alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
 .. note:: PSyclone currently only supports OpenCL and
-          KernelGlobalsToArguments transformations for the GOcean 1.0
+          KernelImportsToArguments transformations for the GOcean 1.0
           API, the OpenACC Data transformation is limited to
           the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
           transformation is limited to the NEMO and Dynamo0.3 APIs.
@@ -246,7 +246,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OCLTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
 
@@ -254,6 +254,12 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
     :members: apply, omp_schedule
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.OMPTaskloopTrans
+    :members: apply, omp_grainsize, omp_num_tasks
     :noindex:
 
 ####
@@ -470,7 +476,7 @@ applied to either or both the PSy-layer and Kernel-layer PSyIR.
 
 ####
 
-.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
+.. autoclass:: psyclone.transformations.KernelImportsToArguments
     :members: apply
     :noindex:
 
@@ -627,13 +633,17 @@ examples/check_examples script).
 OpenMP
 ------
 
-OpenMP is added to a code by using transformations. The five
-transformations currently supported allow the addition of an
-**OpenMP Parallel** directive, an **OpenMP Do** directive, an
-**OpenMP Single** directive, an **OpenMP Master** directive, 
-and an **OpenMP Parallel Do** directive, respectively, to a code.
+OpenMP is added to a code by using transformations. The OpenMP
+transformations currently supported allow the addition of:
 
-The generic versions of these five transformations (i.e. ones that
+* an **OpenMP Parallel** directive
+* an **OpenMP Do** directive
+* an **OpenMP Single** directive
+* an **OpenMP Master** directive
+* an **OpenMP Taskloop** directive; and
+* an **OpenMP Parallel Do** directive.
+
+The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
@@ -692,7 +702,7 @@ transformation.
 OpenCL
 ------
 
-OpenCL is added to a code by using the ``OCLTrans`` transformation (see the
+OpenCL is added to a code by using the ``GOOpenCLTrans`` transformation (see the
 :ref:`sec_transformations_available` Section above).
 Currently this transformation is only supported for the GOcean1.0 API and
 is applied to the whole InvokeSchedule of an Invoke.
@@ -712,7 +722,7 @@ provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
     `<modulename>_<kernelname>_index.cl`
 
 
-The ``OCLTrans`` transformation accepts an `options` argument with a
+The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
 map of optional parameters to tune the OpenCL host code in the PSy layer.
 These options will be attached to the transformed InvokeSchedule.
 The current available options are:
@@ -752,7 +762,7 @@ The current available options are:
 +--------------+---------------------------------------------+---------+
 
 
-Below is an example of a PSyclone script that uses an ``OCLTrans`` with
+Below is an example of a PSyclone script that uses a ``GOOpenCLTrans`` with
 multiple InvokeSchedule and kernel-specific optimization options.
 
 

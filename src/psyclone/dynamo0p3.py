@@ -78,7 +78,7 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   OMPParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
-    DeferredType, DataTypeSymbol, ContainerSymbol, GlobalInterface, ArrayType)
+    DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -9248,7 +9248,7 @@ class DynKernelArgument(KernelArgument):
                     root_table.add(arg_mod_container)
                 arg_type = DataTypeSymbol(
                     type_name, DeferredType(),
-                    interface=GlobalInterface(arg_mod_container))
+                    interface=ImportInterface(arg_mod_container))
                 root_table.add(arg_type)
             return arg_type
 
@@ -9293,7 +9293,7 @@ class DynKernelArgument(KernelArgument):
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
                     kind_name, INTEGER_SINGLE_TYPE,
-                    interface=GlobalInterface(constants_container))
+                    interface=ImportInterface(constants_container))
                 root_table.add(kind_symbol)
             return ScalarType(prim_type, kind_symbol)
 

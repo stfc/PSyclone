@@ -51,7 +51,10 @@ from __future__ import print_function
 import re
 import six
 
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, \
+    Pointer_Assignment_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
@@ -61,27 +64,27 @@ from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
+from psyclone.parse.algorithm import Arg
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.parse.algorithm import Arg
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, HaloExchange
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Call, Assignment, PSyDataNode, ACCEnterDataDirective, \
-    ACCParallelDirective, ACCKernelsDirective
+from psyclone.psyir.nodes import Loop, Literal, Schedule, KernelSchedule, \
+    StructureReference, BinaryOperation, Reference, Call, Assignment, \
+    PSyDataNode, ACCEnterDataDirective, ACCParallelDirective, CodeBlock, \
+    ACCKernelsDirective, Container, ACCUpdateDirective
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol, DeferredType, DataTypeSymbol, UnresolvedInterface, \
-    UnknownFortranType, LocalInterface, BOOLEAN_TYPE
+    INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
+    DataTypeSymbol, UnresolvedInterface, UnknownFortranType, BOOLEAN_TYPE, \
+    REAL_TYPE
 
 
 # Specify which OpenCL command queue to use for management operations like
 # data transfers when generating an OpenCL PSy-layer
-# TODO #1134: This value should be moved to the OCLTrans when the
+# TODO #1134: This value should be moved to the GOOpenCLTrans when the
 # transformation logic is also moved there.
 _OCL_MANAGEMENT_QUEUE = 1
 
@@ -215,49 +218,6 @@ class GOInvokes(Invokes):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
-        # If the const_loop_bounds flag is True for any invoke, we need to
-        # declare and initialize the loop bounds variables.
-        # TODO 1256: The code below should be moved to the const_loop_bounds
-        # transformation itself.
-        for invoke in self.invoke_list:
-            if invoke.schedule.const_loop_bounds:
-                i_stop = invoke.schedule.symbol_table.new_symbol(
-                    invoke.schedule.iloop_stop, symbol_type=DataSymbol,
-                    datatype=INTEGER_TYPE)
-                j_stop = invoke.schedule.symbol_table.new_symbol(
-                    invoke.schedule.jloop_stop, symbol_type=DataSymbol,
-                    datatype=INTEGER_TYPE)
-
-                # Look-up the loop bounds using the first field object in the
-                # list
-                api_config = Config.get().api_conf("gocean1.0")
-                arg = invoke.schedule.symbol_table.argument_list[0].name
-                xstop = api_config.grid_properties["go_grid_xstop"].fortran \
-                    .format(arg)
-                ystop = api_config.grid_properties["go_grid_ystop"].fortran \
-                    .format(arg)
-
-                # Get a field argument from the argument list
-                for arg in invoke.schedule.symbol_table.argument_list:
-                    if isinstance(arg.datatype, DataTypeSymbol):
-                        if arg.datatype.name == "r2d_field":
-                            field = arg
-                            break
-
-                # Add the assignments of the bounds to its variables at the
-                # beginning of the invoke.
-                assign1 = Assignment.create(
-                            Reference(i_stop),
-                            StructureReference.create(
-                                field, xstop.split('%')[1:]))
-                assign2 = Assignment.create(
-                            Reference(j_stop),
-                            StructureReference.create(
-                                field, ystop.split('%')[1:]))
-                invoke.schedule.children.insert(0, assign1)
-                invoke.schedule.children.insert(1, assign2)
-                assign1.preceding_comment = "Look-up loop bounds"
-
         # Lower the GOcean PSyIR to language level so it can be visited
         # by the backends
         invoke.schedule.root.lower_to_language_level()
@@ -352,43 +312,12 @@ class GOInvoke(Invoke):
 
         :param parent: the node in the generated AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+
         '''
-
-        def sort_by_interface(symbol_names):
-            ''' Utility to help differentiate between arguments and local
-            symbols from a given list of symbols names. Other symbols are
-            ignored.
-
-            :param symbol_names: a list of symbols to categorise.
-            :type symbol_names: list of str
-
-            :returns: a tuple of 2 lists with the given symbol_names \
-                      categorised as argument symbols and local symbols.
-            :rtype: 2-tuple of lists of str
-            '''
-            arg_symbols = []
-            local_symbols = []
-            symtab = self.schedule.symbol_table
-            for name in symbol_names:
-                interface = symtab.lookup(name).interface
-                if isinstance(interface, LocalInterface):
-                    local_symbols.append(name)
-                elif isinstance(interface, ArgumentInterface):
-                    arg_symbols.append(name)
-                # Other symbols are ignored
-            return arg_symbols, local_symbols
-
-        # create the subroutine
+        # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names)
         parent.add(invoke_sub)
-
-        # add declarations for the variables holding the upper bounds
-        # of loops in i and j
-        if self.schedule.const_loop_bounds:
-            invoke_sub.add(DeclGen(invoke_sub, datatype="INTEGER",
-                                   entity_decls=[self.schedule.iloop_stop,
-                                                 self.schedule.jloop_stop]))
 
         # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
@@ -405,48 +334,33 @@ class GOInvoke(Invoke):
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
 
-        # Add the subroutine argument declarations for real scalars
-        r_args, _ = sort_by_interface(self.unique_args_rscalars)
+        # Add the subroutine argument declarations for integer and real scalars
+        r_args = []
+        i_args = []
+        for argument in self.schedule.symbol_table.argument_datasymbols:
+            if argument.name in self.unique_args_rscalars:
+                r_args.append(argument.name)
+            if argument.name in self.unique_args_iscalars:
+                i_args.append(argument.name)
+
         if r_args:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
                                        entity_decls=r_args)
             invoke_sub.add(my_decl_rscalars)
 
-        # Add the subroutine declarations for integer scalars
-        int_args, int_locals = sort_by_interface(self.unique_args_iscalars)
-        if int_args:
+        if i_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
-                                       entity_decls=int_args)
-            invoke_sub.add(my_decl_iscalars)
-        if int_locals:
-            my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
-                                       entity_decls=int_locals)
+                                       entity_decls=i_args)
             invoke_sub.add(my_decl_iscalars)
 
-        if self._schedule.const_loop_bounds and self.unique_args_arrays:
-
-            # Look-up the loop bounds using the first field object in the
-            # list
-            api_config = Config.get().api_conf("gocean1.0")
-            xstop = api_config.grid_properties["go_grid_xstop"].fortran \
-                .format(self.unique_args_arrays[0])
-            ystop = api_config.grid_properties["go_grid_ystop"].fortran \
-                .format(self.unique_args_arrays[0])
-            position = invoke_sub.last_declaration()
-            invoke_sub.add(CommentGen(invoke_sub, ""),
-                           position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.jloop_stop,
-                                     rhs=ystop),
-                           position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.iloop_stop,
-                                     rhs=xstop),
-                           position=["after", position])
-            invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
-                           position=["after", position])
-            invoke_sub.add(CommentGen(invoke_sub, ""),
-                           position=["after", position])
+        # Add remaining local symbols using the symbol table
+        for symbol in self.schedule.symbol_table.local_datasymbols:
+            invoke_sub.add(DeclGen(
+                invoke_sub,
+                datatype=symbol.datatype.intrinsic.name,
+                entity_decls=[symbol.name]))
 
 
 class GOInvokeSchedule(InvokeSchedule):
@@ -472,70 +386,6 @@ class GOInvokeSchedule(InvokeSchedule):
                                 GOBuiltInCallFactory,
                                 alg_calls, reserved_names, parent=parent)
 
-        # The GOcean Constants Loops Bounds Optimization is implemented using
-        # a flag parameter. It defaults to False and can be turned on applying
-        # the GOConstLoopBoundsTrans transformation to this InvokeSchedule.
-        self._const_loop_bounds = False
-
-    def node_str(self, colour=True):
-        ''' Creates a text description of this node with (optional) control
-        codes to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return "{0}[invoke='{1}', Constant loop bounds={2}]".format(
-            self.coloured_name(colour), self.invoke.name,
-            self._const_loop_bounds)
-
-    def __str__(self):
-        ''' Returns the string representation of this GOInvokeSchedule '''
-        result = self.node_str(False) + ":\n"
-        for entity in self._children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
-        return result
-
-    @property
-    def iloop_stop(self):
-        '''Returns the variable name to use for the upper bound of inner
-        loops if we're generating loops with constant bounds. Raises
-        an error if constant bounds are not being used.
-
-        '''
-        if self._const_loop_bounds:
-            return "istop"
-        raise GenerationError(
-            "Refusing to supply name of inner loop upper bound "
-            "because constant loop bounds are not being used.")
-
-    @property
-    def jloop_stop(self):
-        '''Returns the variable name to use for the upper bound of outer
-        loops if we're generating loops with constant bounds. Raises
-        an error if constant bounds are not being used.
-
-        '''
-        if self._const_loop_bounds:
-            return "jstop"
-        raise GenerationError(
-            "Refusing to supply name of outer loop upper bound "
-            "because constant loop bounds are not being used.")
-
-    @property
-    def const_loop_bounds(self):
-        ''' Returns True if constant loop bounds are enabled for this
-        schedule. Returns False otherwise. '''
-        return self._const_loop_bounds
-
-    @const_loop_bounds.setter
-    def const_loop_bounds(self, obj):
-        ''' Set whether the InvokeSchedule will use constant loop bounds or
-        will look them up from the field object for every loop '''
-        self._const_loop_bounds = obj
-
 
 # pylint: disable=too-many-instance-attributes
 class GOLoop(Loop):
@@ -547,8 +397,10 @@ class GOLoop(Loop):
 
         :param parent: optional parent node (default None).
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param str topology_name: optional opology of the loop (unused atm).
         :param str loop_type: loop type - must be 'inner' or 'outer'.
+        :param str field_name: name of the field this loop iterates on.
+        :param str field_space: space of the field this loop iterates on.
+        :param str iteration_space: iteration space of the loop.
 
         :raises GenerationError: if the loop is not inserted inside a \
             GOInvokeSchedule region.
@@ -556,12 +408,19 @@ class GOLoop(Loop):
     '''
     _bounds_lookup = {}
 
-    def __init__(self, parent=None, topology_name="", loop_type=""):
-        # pylint: disable=unused-argument
+    def __init__(self, parent, loop_type="", field_name="", field_space="",
+                 iteration_space="", index_offset=""):
         const = GOceanConstants()
+
         Loop.__init__(self, parent=parent,
                       valid_loop_types=const.VALID_LOOP_TYPES)
+
+        # The following attributes are validated in the respective setters
         self.loop_type = loop_type
+        self.field_name = field_name
+        self.field_space = field_space
+        self.iteration_space = iteration_space
+        self.index_offset = index_offset
 
         # Check that the GOLoop is inside the GOcean PSy-layer
         if not self.ancestor(GOInvokeSchedule):
@@ -595,16 +454,124 @@ class GOLoop(Loop):
                 suggested_name, tag, symbol_type=DataSymbol,
                 datatype=INTEGER_TYPE)
 
-        # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
-                              parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
-                              parent=self))  # stop
-        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
-        self.addchild(Schedule(parent=self))  # loop body
-
+        # Initialise bounds lookup map if it is not already
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
+
+    @staticmethod
+    def create(parent, loop_type, field_name="", field_space="",
+               iteration_space="", index_offset=""):
+        '''
+        Create a new instance of a GOLoop with the expected children to
+        represent the bounds given by the loop properties.
+
+        :param parent: parent node of this GOLoop.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param str loop_type: loop type - must be 'inner' or 'outer'.
+        :param str field_name: name of the field this loop iterates on.
+        :param str field_space: space of the field this loop iterates on.
+        :param str iteration_space: iteration space of the loop.
+        :param str index_offset: the grid index offset used by the kernel(s) \
+            within this loop.
+
+        :returns: a new GOLoop node (with appropriate child nodes).
+        :rtype: :py:class:`psyclone.gocean1p0.GOLoop`
+        '''
+
+        # Create loop node
+        node = GOLoop(parent, loop_type, field_name, field_space,
+                      iteration_space, index_offset)
+
+        # Add start, stop, step and body and Loop children
+        node.addchild(node.lower_bound())
+        node.addchild(node.upper_bound())
+        node.addchild(Literal("1", INTEGER_TYPE))
+        node.addchild(Schedule())
+
+        return node
+
+    @property
+    def field_space(self):
+        '''
+        :returns: the loop's field space (e.g. CU, CV...).
+        :rtype: str
+        '''
+        return self._field_space
+
+    @field_space.setter
+    def field_space(self, my_field_space):
+        ''' Sets new value for the field_space and updates the Loop bounds,
+        if these exist, to match the given field_space.
+
+        :param str my_field_space: new field_space value.
+
+        :raises TypeError: if the provided field_space is not a string.
+        :raises ValueError: if the provided field_space is not a valid GOcean \
+                            field_space.
+
+        '''
+        # TODO 1393: This could call the super setter if the validations are
+        # generic
+        if not isinstance(my_field_space, six.string_types):
+            raise TypeError(
+                "Field space must be a 'str' but found '{0}' instead.".
+                format(type(my_field_space).__name__))
+        valid_fs = GOceanConstants().VALID_FIELD_GRID_TYPES + ['']
+        if my_field_space not in valid_fs:
+            raise ValueError(
+                "Invalid string '{0}' provided for a GOcean field_space. The "
+                "valid values are {1}".format(my_field_space, valid_fs))
+
+        self._field_space = my_field_space
+        if len(self.children) > 1:
+            self.start_expr.replace_with(self.lower_bound())
+        if len(self.children) > 2:
+            self.stop_expr.replace_with(self.upper_bound())
+
+    @property
+    def iteration_space(self):
+        '''
+        :returns: the loop's iteration space (e.g. 'go_internal_pts', \
+                  'go_all_pts', ...).
+        :rtype: str
+        '''
+        return self._iteration_space
+
+    @iteration_space.setter
+    def iteration_space(self, it_space):
+        ''' Sets new value for the iteration_space and updates the Loop bounds,
+        if these exist, to match the given iteration_space.
+
+        :param str it_space: new iteration_space value.
+
+        :raises TypeError: if the provided it_space is not a string.
+
+        '''
+        if not isinstance(it_space, six.string_types):
+            raise TypeError(
+                "Iteration space must be a 'str' but found '{0}' instead.".
+                format(type(it_space).__name__))
+
+        # TODO 1393: We could validate also the value, but at the moment there
+        # are some ambiguities to resolve.
+
+        self._iteration_space = it_space
+        if len(self.children) > 1:
+            self.start_expr.replace_with(self.lower_bound())
+        if len(self.children) > 2:
+            self.stop_expr.replace_with(self.upper_bound())
+
+    @property
+    def bounds_lookup(self):
+        '''
+        :returns: the GOcean loop bounds lookup table. This is a \
+                  5-dimensional dictionary with index-offset, field-space, \
+                  iteration-space, loop-type, and boundary-side lookup keys \
+                  which provides information about how to construct the \
+                  loop boundaries for a kernel with such parameters.
+        :rtype: dict
+        '''
+        return self._bounds_lookup
 
     # -------------------------------------------------------------------------
     def _halo_read_access(self, arg):
@@ -845,6 +812,66 @@ class GOLoop(Loop):
             {'outer': {'start': data[3], 'stop': data[4]},
              'inner': {'start': data[5], 'stop': data[6]}}
 
+    def get_custom_bound_string(self, side):
+        '''
+        Get the string that represents a customized custom bound for this
+        GOLoop (provided by the add_bounds() method). It can provide the
+        'start' or 'stop' side of the bounds.
+
+        :param str side: 'start' or 'stop' side of the bound.
+
+        :returns: the string that represents the loop bound.
+        :rtype: str
+
+        :raises GenerationError: if this node can not find a field in \
+            the Invoke to be the base of the infrastructure call.
+        :raises GenerationError: if no expression is known to obtain the \
+            boundaries for a loop of this characteristics, because they \
+            are not in the GOcean lookup table or the loop type is not \
+            `inner` or `outer`.
+        '''
+        api_config = Config.get().api_conf("gocean1.0")
+        # Get a field argument from the argument list
+        field = None
+        invoke = self.ancestor(InvokeSchedule)
+        if invoke:
+            for arg in invoke.symbol_table.argument_list:
+                if isinstance(arg.datatype, DataTypeSymbol):
+                    if arg.datatype.name == "r2d_field":
+                        field = arg
+                        break
+
+        if field is None:
+            raise GenerationError(
+                "Cannot generate custom loop bound for loop {0}. Couldn't"
+                " find any suitable field.".format(str(self)))
+
+        if self.loop_type == "inner":
+            prop_access = api_config.grid_properties["go_grid_xstop"]
+        elif self.loop_type == "outer":
+            prop_access = api_config.grid_properties["go_grid_ystop"]
+        else:
+            raise GenerationError(
+                "Invalid loop type of '{0}'. Expected one of {1}".
+                format(self.loop_type, GOceanConstants().VALID_LOOP_TYPES))
+
+        stop_expr = prop_access.fortran.format(field.name)
+        try:
+            bound = self.bounds_lookup[self.index_offset][self.field_space][
+                self.iteration_space][self.loop_type][side].format(
+                    start='2', stop=stop_expr)
+        except KeyError as err:
+            six.raise_from(GenerationError(
+                "Cannot generate custom loop bound for a loop with an index-"
+                "offset of '{0}', a field-space of '{1}', an iteration-space "
+                "of '{2}' and a loop-type of '{3}', for the side '{4}' because"
+                " this keys combination does not exist in the "
+                "GOLoop.bounds_lookup table."
+                "".format(self.index_offset, self.field_space,
+                          self.iteration_space, self.loop_type, side)), err)
+
+        return bound
+
     # -------------------------------------------------------------------------
     def _grid_property_psyir_expression(self, grid_property):
         '''
@@ -878,66 +905,21 @@ class GOLoop(Loop):
         fld_sym = self.scope.symbol_table.lookup(self.field_name)
         return StructureReference.create(fld_sym, members[1:])
 
-    # -------------------------------------------------------------------------
-    # pylint: disable=too-many-branches
     def upper_bound(self):
         ''' Creates the PSyIR of the upper bound of this loop.
-        This takes the field type and usage of const_loop_bounds
-        into account. In the case of const_loop_bounds it will be
-        using the data in GOLoop._bounds_lookup to find the appropriate
-        indices depending on offset, field type, and iteration space.
-        All occurences of {start} and {stop} in _bounds_lookup will
-        be replaced with the constant loop boundary variable, e.g.
-        "{stop}+1" will become "istop+1" (or "jstop+1 depending on
-        loop type).
 
         :returns: the PSyIR for the upper bound of this loop.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        schedule = self.ancestor(GOInvokeSchedule)
-        if schedule.const_loop_bounds:
-            # Look for a child kernel in order to get the index offset.
-            # Since we have no guarantee of what state we expect our object
-            # to be in we allow for the case where we don't have any child
-            # kernels.
-            index_offset = ""
-            go_kernels = self.walk(GOKern)
-            if go_kernels:
-                index_offset = go_kernels[0].index_offset
-
-            if not index_offset:
-                return Literal("not_yet_set", INTEGER_TYPE, self)
-
-            if self._loop_type == "inner":
-                stop = schedule.iloop_stop
-            else:
-                stop = schedule.jloop_stop
-
-            # This strange line splitting was the only way I could find
-            # to avoid pep8 warnings: using [..._space]\ keeps on
-            # complaining about a white space
-            bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
-                self._iteration_space][self._loop_type]
-            stop = bounds["stop"].format(start='2', stop=stop)
-            # Remove all white spaces
-            stop = "".join(stop.split())
-            # This common case is a bit of compile-time computation
-            # but it helps to fix all of the test cases.
-            if stop == "2-1":
-                stop = "1"
-            return Literal(stop, INTEGER_TYPE, self)
-
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-
             # We look-up the upper bounds by enquiring about the SIZE of
             # the array itself
-            stop = BinaryOperation(BinaryOperation.Operator.SIZE,
-                                   self)
-            api_config = Config.get().api_conf("gocean1.0")
+            stop = BinaryOperation(BinaryOperation.Operator.SIZE)
             # Use the data property to access the member of the field that
             # contains the actual grid points.
+            api_config = Config.get().api_conf("gocean1.0")
             sref = self._grid_property_psyir_expression(
                 api_config.grid_properties["go_grid_data"].fortran)
             stop.addchild(sref)
@@ -947,148 +929,52 @@ class GOLoop(Loop):
                 stop.addchild(Literal("2", INTEGER_TYPE, parent=stop))
             return stop
 
-        # Loop bounds are pulled from the field object which
-        # is more straightforward for us but provides the
-        # Fortran compiler with less information.
+        # Loop bounds are pulled from a infrastructure call from a field
+        # object. For 'go_internal_pts' and 'go_all_points' we use the
+        # 'internal' and 'whole' structures respectively. For other
+        # iteration_spaces we look if a custom expression is defined in the
+        # lookup table.
+        props = Config.get().api_conf("gocean1.0").grid_properties
+        if self.iteration_space.lower() == "go_internal_pts":
+            return self._grid_property_psyir_expression(
+                props["go_grid_{0}_{1}_stop".format(
+                    "internal", self._loop_type)].fortran)
+        if self.iteration_space.lower() == "go_all_pts":
+            return self._grid_property_psyir_expression(
+                props["go_grid_{0}_{1}_stop".format(
+                    "whole", self._loop_type)].fortran)
+        bound_str = self.get_custom_bound_string("stop")
+        return FortranReader().psyir_from_expression(
+                    bound_str, self.scope.symbol_table)
 
-        if self._iteration_space.lower() == "go_internal_pts":
-            key = "internal"
-        elif self._iteration_space.lower() == "go_all_pts":
-            key = "whole"
-        else:
-            raise GenerationError("Unrecognised iteration space, '{0}'. "
-                                  "Cannot generate loop bounds.".
-                                  format(self._iteration_space))
-
-        api_config = Config.get().api_conf("gocean1.0")
-        props = api_config.grid_properties
-        # key is 'internal' or 'whole', and _loop_type is either
-        # 'inner' or 'outer'. The four possible combinations are
-        # defined in the config file:
-        return self._grid_property_psyir_expression(
-            props["go_grid_{0}_{1}_stop".format(key, self._loop_type)].fortran)
-
-    # -------------------------------------------------------------------------
-    # pylint: disable=too-many-branches
     def lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
-        This takes the field type and usage of const_loop_bounds
-        into account. In case of const_loop_bounds it will be
-        using the data in GOLoop._bounds_lookup to find the appropriate
-        indices depending on offset, field type, and iteration space.
-        All occurences of {start} and {stop} in _bounds_loopup will
-        be replaced with the constant loop boundary variable, e.g.
-        "{stop}+1" will become "istop+1" (or "jstop+1" depending on
-        loop type).
 
         :returns: root of PSyIR sub-tree describing this lower bound.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        schedule = self.ancestor(GOInvokeSchedule)
-        if schedule.const_loop_bounds:
-            index_offset = ""
-            # Look for a child kernel in order to get the index offset.
-            # Since this is the __str__ method we have no guarantee
-            # what state we expect our object to be in so we allow
-            # for the case where we don't have any child kernels.
-            go_kernels = self.walk(GOKern)
-            if go_kernels:
-                index_offset = go_kernels[0].index_offset
-
-            if not index_offset:
-                return Literal("not_yet_set", INTEGER_TYPE, self)
-
-            if self._loop_type == "inner":
-                stop = schedule.iloop_stop
-            else:
-                stop = schedule.jloop_stop
-            # This strange line splitting was the only way I could find
-            # to avoid pep8 warnings: using [..._space]\ keeps on
-            # complaining about a white space
-            bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
-                self._iteration_space][self._loop_type]
-            start = bounds["start"].format(start='2', stop=stop)
-            # Remove all white spaces
-            start = "".join(start.split())
-            # This common case is a bit of compile-time computation
-            # but it helps with fixing all of the test cases.
-            if start == "2-1":
-                start = "1"
-            return Literal(start, INTEGER_TYPE, self)
-
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-            return Literal("1", INTEGER_TYPE, self)
+            return Literal("1", INTEGER_TYPE)
 
-        # Loop bounds are pulled from the field object which is more
-        # straightforward for us but provides the Fortran compiler
-        # with less information.
-        if self._iteration_space.lower() == "go_internal_pts":
-            key = "internal"
-        elif self._iteration_space.lower() == "go_all_pts":
-            key = "whole"
-        else:
-            raise GenerationError("Unrecognised iteration space, '{0}'. "
-                                  "Cannot generate loop bounds.".
-                                  format(self._iteration_space))
-        api_config = Config.get().api_conf("gocean1.0")
-        props = api_config.grid_properties
-        # key is 'internal' or 'whole', and _loop_type is either
-        # 'inner' or 'outer'. The four possible combinations are
-        # defined in the config file:
-        return self._grid_property_psyir_expression(
-            props["go_grid_{0}_{1}_start".format(key,
-                                                 self._loop_type)].fortran)
-
-    def lower_to_language_level(self):
-        '''
-        In-place replacement of DSL or high-level concepts into generic
-        PSyIR constructs. A GOLoop needs to make sure the start and stop
-        expressions of the Loop contain the boundaries defined by the API.
-
-        '''
-        # Check that it is a properly formed GOLoop
-        self._validate_loop()
-
-        # Generate the upper and lower loop bounds
-        self.start_expr = self.lower_bound()
-        self.stop_expr = self.upper_bound()
-
-        # Once the bounds are set, lower the loops multiple children
-        for child in self.children:
-            child.lower_to_language_level()
-
-        # Finally, lose the DSL-level abstraction since the lower_bound() and
-        # upper_bound() methods will fail after lowering because they rely on
-        # a GOKern to be found inside the Loop, and this doesn't exist anymore
-        new_loop = Loop(variable=self.variable)
-        new_loop.children = self.pop_all_children()
-        self.replace_with(new_loop)
-
-    def node_str(self, colour=True):
-        ''' Creates a text description of this node with (optional) control
-        codes to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        # Generate the upper and lower loop bounds
-        self.start_expr = self.lower_bound()
-        self.stop_expr = self.upper_bound()
-
-        return super(GOLoop, self).node_str(colour)
-
-    def __str__(self):
-        ''' Returns a string describing this Loop object '''
-
-        # Generate the upper and lower loop bounds
-        self.start_expr = self.lower_bound()
-        self.stop_expr = self.upper_bound()
-
-        return super(GOLoop, self).__str__()
+        # Loop bounds are pulled from a infrastructure call from a field
+        # object. For 'go_internal_pts' and 'go_all_points' we use the
+        # 'internal' and 'whole' structures respectively. For other
+        # iteration_spaces we look if a custom expression is defined in the
+        # lookup table.
+        props = Config.get().api_conf("gocean1.0").grid_properties
+        if self.iteration_space.lower() == "go_internal_pts":
+            return self._grid_property_psyir_expression(
+                props["go_grid_{0}_{1}_start".format(
+                    "internal", self._loop_type)].fortran)
+        if self.iteration_space.lower() == "go_all_pts":
+            return self._grid_property_psyir_expression(
+                props["go_grid_{0}_{1}_start".format(
+                    "whole", self._loop_type)].fortran)
+        bound_str = self.get_custom_bound_string("start")
+        return FortranReader().psyir_from_expression(
+                    bound_str, self.scope.symbol_table)
 
     def _validate_loop(self):
         ''' Validate that the GOLoop has all necessary boundaries information
@@ -1116,14 +1002,7 @@ class GOLoop(Loop):
             raise GenerationError("Cannot find the "
                                   "GOcean Kernel enclosed by this loop")
         index_offset = go_kernels[0].index_offset
-        const = GOceanConstants()
-        if schedule.const_loop_bounds and \
-           index_offset not in const.SUPPORTED_OFFSETS:
-            raise GenerationError("Constant bounds generation"
-                                  " not implemented for a grid offset "
-                                  "of {0}. Supported offsets are {1}".
-                                  format(index_offset,
-                                         const.SUPPORTED_OFFSETS))
+
         # Check that all kernels enclosed by this loop expect the same
         # grid offset
         for kernel in go_kernels:
@@ -1145,10 +1024,6 @@ class GOLoop(Loop):
         '''
         # Check that it is a properly formed GOLoop
         self._validate_loop()
-
-        # Generate the upper and lower loop bounds
-        self.start_expr = self.lower_bound()
-        self.stop_expr = self.upper_bound()
 
         Loop.gen_code(self, parent)
 
@@ -1175,25 +1050,46 @@ class GOKernCallFactory():
     @staticmethod
     def create(call, parent=None):
         ''' Create a new instance of a call to a GO kernel. Includes the
-        looping structure as well as the call to the kernel itself. '''
-        outer_loop = GOLoop(parent=parent, loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop.loop_body, loop_type="inner")
+        looping structure as well as the call to the kernel itself.
+
+        :param parent: node where the kernel call structure will be inserted.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: new PSyIR tree representing the kernel call loop.
+        :rtype: :py:class:`psyclone.gocean1p0.GOLoop`
+
+        '''
+        # Add temporary parent as the GOKern constructor needs to find its
+        # way to the top-level InvokeSchedule but we still don't have the
+        # PSyIR loops to place it in the appropriate place. We can't create
+        # the loops first because those depend on information provided by
+        # this kernel.
+        gocall = GOKern(call, parent=parent)
+
+        # Determine Loop information from the enclosed Kernel
+        iteration_space = gocall.iterates_over
+        field_space = gocall.arguments.iteration_space_arg().function_space
+        field_name = gocall.arguments.iteration_space_arg().name
+        index_offset = gocall.index_offset
+
+        # Create the double loop structure
+        outer_loop = GOLoop.create(loop_type="outer",
+                                   iteration_space=iteration_space,
+                                   field_space=field_space,
+                                   field_name=field_name,
+                                   index_offset=index_offset,
+                                   parent=parent)
+        inner_loop = GOLoop.create(loop_type="inner",
+                                   iteration_space=iteration_space,
+                                   field_space=field_space,
+                                   field_name=field_name,
+                                   index_offset=index_offset,
+                                   parent=outer_loop.loop_body)
         outer_loop.loop_body.addchild(inner_loop)
-        gocall = GOKern()
-        gocall.load(call, parent=inner_loop.loop_body)
+        # Remove temporary parent
+        # pylint: disable=protected-access
+        gocall._parent = None
         inner_loop.loop_body.addchild(gocall)
-        # determine inner and outer loops space information from the
-        # child kernel call. This is only picked up automatically (by
-        # the inner loop) if the kernel call is passed into the inner
-        # loop.
-        inner_loop.iteration_space = gocall.iterates_over
-        outer_loop.iteration_space = inner_loop.iteration_space
-        inner_loop.field_space = gocall.\
-            arguments.iteration_space_arg().function_space
-        outer_loop.field_space = inner_loop.field_space
-        inner_loop.field_name = gocall.\
-            arguments.iteration_space_arg().name
-        outer_loop.field_name = inner_loop.field_name
         return outer_loop
 
 
@@ -1204,20 +1100,20 @@ class GOKern(CodedKern):
     code for the Kernel instance. Specialises the gen_code method to
     create the appropriate GOcean specific kernel call.
 
+    :param call: information on the way in which this kernel is called \
+                 from the Algorithm layer.
+    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param parent: optional node where the kernel call will be inserted.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
     '''
-    def __init__(self):
-        ''' Create an empty GOKern object. The object is given state via
-        the load method '''
-        # pylint: disable=super-init-not-called, non-parent-init-called
-        # Can't use super() as the parent class has mandatory arguments that
-        # in GOKern are initialized with the load() method.
-        Node.__init__(self)
-        if False:  # pylint: disable=using-constant-test
-            self._arguments = GOKernelArguments(None, None)  # for pyreverse
-        # Create those member variables required for testing and to keep
-        # pylint happy
-        self._name = ""
-        self._index_offset = ""
+    def __init__(self, call, parent=None):
+        super(GOKern, self).__init__(GOKernelArguments, call, parent,
+                                     check=False)
+        # Pull out the grid index-offset that this kernel expects and
+        # store it here. This is used to check that all of the kernels
+        # invoked by an application are using compatible index offsets.
+        self._index_offset = call.ktype.index_offset
 
     @staticmethod
     def _format_access(var_name, var_value, depth):
@@ -2543,6 +2439,13 @@ class GOKernelArgument(KernelArgument):
         if six.text_type(self.name).isnumeric():
             return Literal(self.name, INTEGER_TYPE)
 
+        # Now try for a real value. The constructor will raise an exception
+        # if the string is not a valid floating point number.
+        try:
+            return Literal(self.name, REAL_TYPE)
+        except ValueError:
+            pass
+
         # Otherwise it's some form of Reference
         symbol = self._call.scope.symbol_table.lookup(self.name)
 
@@ -3219,6 +3122,12 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                        assignment nodes.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
+
+        # Get a reference to the f2pygen module root
+        module = parent
+        while module.parent:
+            module = module.parent
+
         obj_list = []
         for pdir in self._acc_dirs:
             for var in pdir.fields:
@@ -3226,7 +3135,81 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                     parent.add(AssignGen(parent,
                                          lhs=var+"%data_on_device",
                                          rhs=".true."))
+                    parent.add(AssignGen(
+                        parent,
+                        lhs=var+"%read_from_device_f",
+                        rhs=self._read_from_device_routine(module).name,
+                        pointer=True))
                     obj_list.append(var)
+
+    def _read_from_device_routine(self, f2pygen_module=None, psyir=None):
+        ''' Return the symbol of the routine that reads data from the OpenACC
+        device, if it doesn't exist create the Routine and the Symbol, and if
+        either f2pygen_module or psyir are supplied then a suitable node
+        representing the routine is inserted.
+
+        :param f2pygen_module: optional f2pygen module where to insert the \
+                               generated read_from_device routine.
+        :type f2pygen_module: :py:class:`psyclone.f2pygen.ModuleGen` or \
+                              NoneType
+        :param psyir: optional psyir tree where to insert the generated \
+                      read_from_device routine.
+        :type psyir: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+
+        :returns: the symbol representing the read_from_device routine.
+        :rtype: :py:class:`psyclone.psyir.symbols.symbol`
+        '''
+        symtab = self.root.symbol_table
+        try:
+            return symtab.lookup_with_tag("openacc_read_func")
+        except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
+            pass
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "read_from_device", symbol_type=RoutineSymbol,
+            tag="openacc_read_func").name
+
+        code = '''
+            subroutine read_openacc(from, to, startx, starty, nx, ny, blocking)
+                use iso_c_binding, only: c_ptr
+                use kind_params_mod, only: go_wp
+                type(c_ptr), intent(in) :: from
+                real(go_wp), dimension(:,:), intent(inout), target :: to
+                integer, intent(in) :: startx, starty, nx, ny
+                logical, intent(in) :: blocking
+            end subroutine read_openacc
+            '''
+
+        # Obtain the PSyIR representation of the code above
+        fortran_reader = FortranReader()
+        container = fortran_reader.psyir_from_source(code)
+        subroutine = container.children[0]
+        # Add an ACCUpdateDirective inside the subroutine
+        symbol = subroutine.symbol_table.lookup("to")
+        subroutine.addchild(ACCUpdateDirective(symbol, "host"))
+
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # If a f2pygen module is provided insert a PSyIRGen node
+        if f2pygen_module:
+            f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        # If PSyIR is provided insert the routine as a child of the parent
+        # Container
+        if psyir:
+            if not psyir.ancestor(Container):
+                raise GenerationError(
+                    "The GOACCEnterDataDirective can only be generated/lowered"
+                    " inside a Container in order to insert a sibling "
+                    "subroutine, but '{0}' is not inside a Container."
+                    "".format(psyir))
+            psyir.ancestor(Container).addchild(subroutine.detach())
+
+        return symtab.lookup_with_tag("openacc_read_func")
 
     def lower_to_language_level(self):
         '''
@@ -3244,12 +3227,23 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                 if var not in obj_list:
                     obj_list.append(var)
 
+        read_routine_symbol = self._read_from_device_routine(psyir=self)
+
         for var in obj_list:
             symbol = self.scope.symbol_table.lookup(var)
             assignment = Assignment.create(
                 StructureReference.create(symbol, ['data_on_device']),
                 Literal("true", BOOLEAN_TYPE))
             self.parent.children.insert(self.position, assignment)
+
+            # Use a CodeBlock to encode a Fortran pointer assignment
+            reader = FortranStringReader(
+                        "{0}%read_from_device_f => {1}\n"
+                        "".format(symbol.name, read_routine_symbol.name))
+            reader.set_format(FortranFormat(True, True))
+            block = Pointer_Assignment_Stmt(reader)
+            codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
+            self.parent.children.insert(self.position, codeblock)
 
         super(GOACCEnterDataDirective, self).lower_to_language_level()
 

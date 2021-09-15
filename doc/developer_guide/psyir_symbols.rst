@@ -159,7 +159,7 @@ whether tags should be unique or not.
 All other methods act only on symbols in the local symbol table. In
 particular `__contains__`, `remove`, `get_unresolved_data_symbols`,
 `symbols`, `datasymbols`, `local_datasymbols`, `argument_datasymbols`,
-`global_symbols`, `precision_datasymbols` and `containersymbols`. It
+`imported_symbols`, `precision_datasymbols` and `containersymbols`. It
 is currently not clear whether this is the best solution and it is
 possible that these should reflect a global view. One issue is that
 the `__contains__` method has no mechanism to pass a `scope_limit`
@@ -669,9 +669,3 @@ can be parallelised::
               # as feedback for the user:
               for message in dt.get_all_messages():
                   print(message)
-
-.. note:: While the dependency tools constructor takes an argument
-    to specify a language writer, so that errors can use the syntax
-    appropriate for the language, at this stage the C-backend does
-    not yet fully support the necessary functionality for this.
-    This will be fixed with either #1324 or #1320.
