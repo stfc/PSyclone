@@ -133,7 +133,7 @@ in all tutorials. See, for instance, this code from the
 ```
 
 and [here](
-https://psyclone.readthedocs.io/en/stable/psyclone_script.html) for more
+https://psyclone.readthedocs.io/en/stable/psyclone_command.html) for more
 information on running the `psyclone` script.
 
 As in LFRic, the generated algorithm and PSy-layer source is not kept in
