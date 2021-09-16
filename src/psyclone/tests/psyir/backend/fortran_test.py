@@ -1195,7 +1195,7 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     assert "Expected node name to have a value." in str(excinfo.value)
 
 
-def test_fw_routine_nameclash(fortran_reader, fortran_writer):
+def test_fw_routine_nameclash(fortran_writer):
     ''' Test that any name clashes are handled when merging symbol tables. '''
     sym1 = DataSymbol("var1", INTEGER_TYPE)
     sym2 = DataSymbol("var1", INTEGER_TYPE)
@@ -1222,7 +1222,6 @@ def test_fw_routine_nameclash(fortran_reader, fortran_writer):
     # the name generated with reference to the routine scope.
     ifblock.else_body.symbol_table.add(DataSymbol("var1_1", INTEGER_TYPE))
     result = fortran_writer(routine)
-    print(result)
     assert ("  integer :: var1\n"
             "  integer :: var1_1_1\n"
             "  integer :: var1_1\n"
