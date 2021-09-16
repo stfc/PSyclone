@@ -736,7 +736,7 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
                 Fortran2003.Function_Subprogram: DeferredType()}
     for routine in routines:
-        name = str(routine.children[0].children[1])
+        name = str(routine.children[0].children[1]).lower()
         vis = visibility_map.get(name, symbol_table.default_visibility)
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
@@ -952,7 +952,7 @@ class Fparser2Reader(object):
         # directives whose structure are in discussion. Therefore, for
         # the moment, an exception is raised if a directive is found
         # as a parent.
-        if isinstance(parent, Schedule):
+        if isinstance(parent, (Schedule, Container)):
             structure = CodeBlock.Structure.STATEMENT
         elif isinstance(parent, Directive):
             raise InternalError(
@@ -972,10 +972,8 @@ class Fparser2Reader(object):
         Identify variables that are inputs and outputs to the section of
         Fortran code represented by the supplied list of nodes in the
         fparser2 parse tree. Loop variables are ignored.
-
         :param nodes: list of Nodes in the fparser2 AST to analyse.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
-
         :return: 3-tuple of list of inputs, list of outputs, list of in-outs
         :rtype: (list of str, list of str, list of str)
         '''
@@ -1468,12 +1466,12 @@ class Fparser2Reader(object):
                 else:
                     default_visibility = Symbol.Visibility.PRIVATE
             else:
+                symbol_names = [child.string.lower() for child in
+                                stmt.children[1].children]
                 if public_stmt:
-                    explicit_public.update(
-                        [child.string for child in stmt.children[1].children])
+                    explicit_public.update(symbol_names)
                 else:
-                    explicit_private.update(
-                        [child.string for child in stmt.children[1].children])
+                    explicit_private.update(symbol_names)
         # Sanity check the lists of symbols (because fparser2 does not
         # currently do much validation)
         invalid_symbols = explicit_public.intersection(explicit_private)
@@ -1943,7 +1941,7 @@ class Fparser2Reader(object):
             or is not of DeferredType.
 
         '''
-        name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
+        name = str(walk(decl.children[0], Fortran2003.Type_Name)[0]).lower()
         # Create a new StructureType for this derived type
         dtype = StructureType()
 
@@ -1957,8 +1955,14 @@ class Fparser2Reader(object):
             default_compt_visibility = Symbol.Visibility.PUBLIC
 
         # The visibility of the symbol representing this derived type
-        dtype_symbol_vis = visibility_map.get(
-            name, parent.symbol_table.default_visibility)
+        if name in visibility_map:
+            dtype_symbol_vis = visibility_map[name]
+        else:
+            specs = walk(decl.children[0], Fortran2003.Access_Spec)
+            if specs:
+                dtype_symbol_vis = _process_access_spec(specs[0])
+            else:
+                dtype_symbol_vis = parent.symbol_table.default_visibility
 
         # We have to create the symbol for this type before processing its
         # components as they may refer to it (e.g. for a linked list).
@@ -2069,7 +2073,7 @@ class Fparser2Reader(object):
                     # the whole module containing this specification part
                     # being put into a CodeBlock.
                     raise NotImplementedError()
-                name = node.children[0].children[0].string
+                name = node.children[0].children[0].string.lower()
                 vis = visibility_map.get(
                     name, parent.symbol_table.default_visibility)
                 # A named interface block corresponds to a RoutineSymbol.
@@ -2103,8 +2107,21 @@ class Fparser2Reader(object):
                         # declares the current entity. `items` is a tuple and
                         # thus immutable so we create a new one.
                         node.children[2].items = (child,)
-                        symbol_name = str(child.children[0])
+                        symbol_name = str(child.children[0]).lower()
                         vis = visibility_map.get(symbol_name, decln_vis)
+
+                        # Check whether the symbol we're about to add
+                        # corresponds to the routine we're currently inside. If
+                        # it does then we remove the RoutineSymbol in order to
+                        # free the exact name for the DataSymbol.
+                        try:
+                            routine_sym = parent.symbol_table.lookup_with_tag(
+                                "own_routine_symbol")
+                            if routine_sym.name.lower() == symbol_name:
+                                parent.symbol_table.remove(routine_sym)
+                        except KeyError:
+                            pass
+
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed
                         # successfully and thus be in the symbol table.

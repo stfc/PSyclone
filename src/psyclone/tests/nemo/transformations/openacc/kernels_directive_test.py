@@ -408,5 +408,5 @@ def test_no_psydata_in_kernels(parser, monkeypatch):
     # Check that an appropriate error is raised at code-generation time
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("Cannot include calls to PSyData routines within OpenACC "
-            "regions" in str(err.value))
+    assert ("Cannot include CodeBlocks or calls to PSyData routines within "
+            "OpenACC regions but found [" in str(err.value))
