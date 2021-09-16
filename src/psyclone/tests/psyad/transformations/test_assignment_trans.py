@@ -213,8 +213,9 @@ def test_single_assign(tmpdir):
         "  a(2*i) = b(n-1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n  real, dimension(n) :: a\n"
-        "  real, dimension(n) :: b\n  integer, parameter :: i = 2\n\n"
+        "  integer, parameter :: n = 10\n  integer, parameter :: i = 2\n"
+        "  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n\n"
         "  b(n - 1) = b(n - 1) + a(2 * i)\n"
         "  a(2 * i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)

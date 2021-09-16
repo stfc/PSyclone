@@ -1272,8 +1272,8 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
     ''' Check that adding a new iteration space works and the
     GOConstLoopBoundsTrans can also use it. '''
 
-    # Add new iteration space 'dofs'
-    GOLoop.add_bounds("go_offset_sw:go_cu:dofs:1:2:3:{stop}")
+    # Add new iteration space 'go_dofs'
+    GOLoop.add_bounds("go_offset_sw:go_cu:go_dofs:1:2:3:{stop}")
 
     _, invoke_info = \
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
