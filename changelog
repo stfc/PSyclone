@@ -182,6 +182,8 @@
 	62) PR #1385 towards #430 and 737. Improve accessibility attribute support
 	on the PSyIR Fortran frontend and backend.
 
+	63) PR #1363 for #1356. Adds a hoist transformation for assignments.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
