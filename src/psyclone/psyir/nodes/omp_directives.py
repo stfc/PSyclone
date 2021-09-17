@@ -668,15 +668,20 @@ class OMPTaskloopDirective(OMPRegionDirective):
                       the num_tasks clause is not applied. Default value \
                       is None.
     :type num_tasks: int or None.
+    :param nogroup: Whether the nogroup clause should be used for this node. \
+                    Default value is False
+    :type nogroup: bool
 
     :raises GenerationError: if this OMPTaskloopDirective has both \
                              a grainsize and num_tasks value \
                              specified.
     '''
+    # pylint: disable=too-many-arguments
     def __init__(self, children=None, parent=None, grainsize=None,
-                 num_tasks=None):
+                 num_tasks=None, nogroup=False):
         self._grainsize = grainsize
         self._num_tasks = num_tasks
+        self._nogroup = nogroup
         if self._grainsize is not None and self._num_tasks is not None:
             raise GenerationError(
                 "OMPTaskloopDirective must not have both grainsize and "
@@ -741,10 +746,17 @@ class OMPTaskloopDirective(OMPRegionDirective):
         self.validate_global_constraints()
 
         extra_clauses = ""
+        # Find the specified clauses
+        clause_list = []
         if self._grainsize is not None:
-            extra_clauses = "grainsize({0})".format(self._grainsize)
+            clause_list.append("grainsize({0})".format(self._grainsize))
         if self._num_tasks is not None:
-            extra_clauses = "num_tasks({0})".format(self._num_tasks)
+            clause_list.append("num_tasks({0})".format(self._num_tasks))
+        if self._nogroup:
+            clause_list.append("nogroup")
+
+        # Generate the string containing the required clauses
+        extra_clauses = ", ".join(clause_list)
 
         parent.add(DirectiveGen(parent, "omp", "begin", "taskloop",
                                 extra_clauses))
@@ -766,12 +778,20 @@ class OMPTaskloopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        clauses = ""
+        extra_clauses = ""
+        # Find the specified clauses
+        clause_list = []
         if self._grainsize is not None:
-            clauses = " grainsize({0})".format(self._grainsize)
+            clause_list.append(" grainsize({0})".format(self._grainsize))
         if self._num_tasks is not None:
-            clauses = " num_tasks({0})".format(self._num_tasks)
-        return "omp taskloop" + clauses
+            clause_list.append(" num_tasks({0})".format(self._num_tasks))
+        if self._nogroup:
+            clause_list.append(" nogroup")
+
+        # Generate the string containing the required clauses
+        extra_clauses = ",".join(clause_list)
+
+        return "omp taskloop" + extra_clauses
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
