@@ -172,7 +172,6 @@ def generate_adjoint(tl_psyir):
 
     '''
     logger = logging.getLogger(__name__)
-    name_suffix = "_adj"
 
     # TL LFRic-specific PSyIR
     logger.debug(
@@ -315,12 +314,12 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
     # Create symbols for the results of the inner products
     inner1 = symbol_table.new_symbol("inner1", symbol_type=DataSymbol,
-                                     datatype=REAL_DOUBLE_TYPE)
+                                     datatype=INNER_PRODUCT_DATATYPE)
     inner2 = symbol_table.new_symbol("inner2", symbol_type=DataSymbol,
-                                     datatype=REAL_DOUBLE_TYPE)
+                                     datatype=INNER_PRODUCT_DATATYPE)
     # Create symbol for result of the diff of the inner products
     diff_sym = symbol_table.new_symbol("abs_diff", symbol_type=DataSymbol,
-                                       datatype=REAL_DOUBLE_TYPE)
+                                       datatype=INNER_PRODUCT_DATATYPE)
 
     # Identify any arguments to the kernel that are used to dimension other
     # arguments.
