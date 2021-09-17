@@ -213,11 +213,12 @@ def test_omptaskloop_apply(monkeypatch):
     # Test that the nogroup attribute isn't permanently changed if validate
     # throws an exception
     assert taskloop._nogroup is False
-    with pytest.raises(TransformationError):
+    with pytest.raises(TransformationError) as excinfo:
         _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                "single_invoke.f90"), api="gocean1.0")
         schedule = psy.invokes.invoke_list[0].schedule
         taskloop.apply(schedule[0], {"nogroup": True})
+    assert "Fake error" in str(excinfo.value)
     assert taskloop._nogroup is False
 
 
