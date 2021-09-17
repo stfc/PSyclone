@@ -524,7 +524,8 @@ class ExtractDriverCreator:
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
         output information, and calls the kernels specified in the 'nodes'
-        PSyIR tree with the parameters from the file.
+        PSyIR tree with the parameters from the file. It returns the
+        file container which contains the driver.
 
         :param nodes: a list of nodes.
         :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
@@ -544,6 +545,9 @@ class ExtractDriverCreator:
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
             should uniquely identify a region.
+
+        :returns: the program PSyIR for a stand-alone driver.
+        :rtype: :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
 
         '''
         # pylint: disable=too-many-locals
@@ -604,8 +608,90 @@ class ExtractDriverCreator:
 
         self.add_result_tests(program, output_symbols)
 
-        code = writer(file_container)
+        return file_container
 
+    # -------------------------------------------------------------------------
+    def get_driver_as_string(self, nodes, input_list, output_list,
+                             prefix, postfix, region_name,
+                             writer=FortranWriter()):
+        # pylint: disable=too-many-arguments
+        '''This function uses 'create()` function to get a PSyIR of a
+        stand-alone driver, and then uses the provided language writer
+        to create a string representation in the selected language
+        (defaults to Fortran).
+
+        :param nodes: a list of nodes.
+        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
+        :param input_list: list of variables that are input parameters.
+        :type input_list: list of :py:class:`psyclone.core.Signature`
+        :param output_list: list of variables that are output parameters.
+        :type output_list: list or :py:class:`psyclone.core.Signature`
+        :param str prefix: the prefix to use for each PSyData symbol, \
+            e.g. 'extract' as prefix will create symbols `extract_psydata`.
+        :param str postfix: a postfix that is appended to an output variable \
+            to create the corresponding variable that stores the output \
+            value from the kernel data file. The caller must guarantee that \
+            no name clashes are created when adding the postfix to a variable \
+            and that the postfix is consistent between extract code and \
+            driver code (see 'ExtractTrans.determine_postfix()').
+        :param (str,str) region_name: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region.
+        :param language_writer: a backend visitor to convert PSyIR \
+            representation to the selected language. It defaults to \
+            the FortranWriter.
+        :type language_writer: an optional instance of \
+            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
+
+        :return: the string representation of the driver in the selected \
+            language.
+        :type: str
+        '''
+
+        file_container = self.create(nodes, input_list, output_list,
+                                     prefix, postfix, region_name)
+        return writer(file_container)
+
+    # -------------------------------------------------------------------------
+    def write_driver(self, nodes, input_list, output_list,
+                     prefix, postfix, region_name, writer=FortranWriter()):
+        # pylint: disable=too-many-arguments
+        '''This function uses 'create()` function to get a PSyIR of a
+        stand-alone driver, and then writes source code to a file. The
+        file name is derived from the region name:
+        "driver-"+module_name+"_"+region_name+".f90"
+
+        :param nodes: a list of nodes.
+        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
+        :param input_list: list of variables that are input parameters.
+        :type input_list: list of :py:class:`psyclone.core.Signature`
+        :param output_list: list of variables that are output parameters.
+        :type output_list: list or :py:class:`psyclone.core.Signature`
+        :param str prefix: the prefix to use for each PSyData symbol, \
+            e.g. 'extract' as prefix will create symbols `extract_psydata`.
+        :param str postfix: a postfix that is appended to an output variable \
+            to create the corresponding variable that stores the output \
+            value from the kernel data file. The caller must guarantee that \
+            no name clashes are created when adding the postfix to a variable \
+            and that the postfix is consistent between extract code and \
+            driver code (see 'ExtractTrans.determine_postfix()').
+        :param (str,str) region_name: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region.
+        :param language_writer: a backend visitor to convert PSyIR \
+            representation to the selected language. It defaults to \
+            the FortranWriter.
+        :type language_writer: an optional instance of \
+            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
+
+        '''
+
+        code = self.get_driver_as_string(nodes, input_list, output_list,
+                                         prefix, postfix, region_name,
+                                         writer=writer)
+        module_name, local_name = region_name
         with open("driver-{0}-{1}.f90".
                   format(module_name, local_name), "w") as out:
             out.write(code)

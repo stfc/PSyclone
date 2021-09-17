@@ -181,11 +181,11 @@ class GOceanExtractTrans(ExtractTrans):
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
-            self._driver_creator.create(nodes,
-                                        input_list, output_list,
-                                        postfix=postfix,
-                                        prefix=my_options["prefix"],
-                                        region_name=region_name)
+            self._driver_creator.write_driver(nodes,
+                                              input_list, output_list,
+                                              postfix=postfix,
+                                              prefix=my_options["prefix"],
+                                              region_name=region_name)
 
         result = super(GOceanExtractTrans, self).apply(nodes, my_options)
 
