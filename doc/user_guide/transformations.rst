@@ -206,6 +206,16 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.HoistTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation does not currently check that it is
+             safe to hoist an assignment out of its parent loop, see
+             issue #1387.
+
+####
+
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
     :members: apply
     :noindex:
