@@ -438,5 +438,5 @@ documentation on how to build and link this library.
 
 .. note::
 
-  Driver creation in LFRic is not yet fully supported, and will be
+  Driver creation in LFRic is not yet fully supported, and is
   tracked in issue #1392.

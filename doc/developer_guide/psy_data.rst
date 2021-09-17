@@ -966,7 +966,8 @@ at the specified part of the tree. Then a domain-specific extraction
 node is inserted in the tree (e.g. ``GOceanExtractNode``).
 
 When an extraction transformation is applied, it will determine the input-
-and output-variable for the code region using the dependency analysis.
+and output-variable for the code region using the dependency analysis
+(see :ref:`variable_accesses`).
 The code created by PSyclone's PSyData transformation will then call the
 PSyData extraction library as follows:
 
@@ -977,8 +978,8 @@ PSyData extraction library as follows:
 
 As example, an input- and output-variable ``my_field`` will therefore have
 two values stored in the file: the input value using the name ``my_field``
-and the output value using ``my_field_post``. If the variable should
-be a derived type, the key-name of the variable to be written to
+and the output value using ``my_field_post``. If the variable is a member
+of a structure, the key-name of the variable to be written to
 the file will contain the ``%``, e.g.
 ``my_field%whole%xstart``. It is therefore important that the output
 format supports special characters (e.g. NetCDF does allow the use of

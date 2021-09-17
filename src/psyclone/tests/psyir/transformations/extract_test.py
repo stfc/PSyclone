@@ -82,13 +82,13 @@ def test_determine_postfix():
                                              [Signature("var")])
     assert postfix == "_post0"
 
-    # Two lashes between input variable and a created output variable:
+    # Two clashes between input variable and a created output variable:
     postfix = ExtractTrans.determine_postfix([Signature("var_post"),
                                               Signature("var_post0")],
                                              [Signature("var")])
     assert postfix == "_post1"
 
-    # Two lashes between different input variables and created output
+    # Two clashes between different input variables and created output
     # variables: 'var1' prevents the '_post' to be used, 'var2'
     # prevents "_post0" to be used, 'var3' prevents "_post1":
     postfix = ExtractTrans.determine_postfix([Signature("var1_post"),

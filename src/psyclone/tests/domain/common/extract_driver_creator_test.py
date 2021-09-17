@@ -38,6 +38,8 @@
 previously dumped kernel input- and output-data.
 '''
 
+# TODO #706: Add compilation support
+
 from __future__ import absolute_import
 
 from collections import namedtuple
@@ -46,6 +48,7 @@ import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.parse.algorithm import parse
@@ -73,7 +76,7 @@ def clear_region_name_cache():
 
 # -----------------------------------------------------------------------------
 def test_driver_creation1(tmpdir):
-    '''Test that driver is created correctly for all variable access \
+    '''Test that driver is created correctly for all variable access
     modes (input, input-output, output).
 
     '''
@@ -314,14 +317,14 @@ def test_rename_suffix_if_name_clash(tmpdir):
     # be declared twice: once for the input value using the original variable
     # name, and once as output using the "_post1" suffix"
     assert 'PreDeclareVariable("out_fld_post", out_fld_post)' in extract_code
-    assert 'PreDeclareVariable("out_fld_post_post1", out_fld_post)' \
-        in extract_code
+    assert ('PreDeclareVariable("out_fld_post_post1", out_fld_post)'
+            in extract_code)
 
     # Check that *out_fld_post0* is declared correctly: as input-only
     # variable it must be declared once for using the original variable name.
     assert 'PreDeclareVariable("out_fld_post0", out_fld_post0)' in extract_code
-    assert 'PreDeclareVariable("out_fld_post0_post1", out_fld_post0)' \
-        not in extract_code
+    assert ('PreDeclareVariable("out_fld_post0_post1", out_fld_post0)'
+            not in extract_code)
 
 
 # -----------------------------------------------------------------------------
@@ -346,11 +349,11 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
     # Remove the default types to trigger the error of
     # not finding the default type to use:
     edc._default_types = {}
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(InternalError) as err:
         # The symbol table can be None, that code is not reached.
         edc.create_flattened_symbol("new_name", ref, None)
-    assert "Unknown type 'real' in the reference 'in_fld%grid%gphiu' in the " \
-           "GOcean API" in str(err.value)
+    assert ("Unknown type 'real' in the reference 'in_fld%grid%gphiu' in the "
+            "GOcean API" in str(err.value))
 
     # Monkey patch the grid property dictionary to remove the
     # go_grid_lat_u entry, triggering an earlier error:
@@ -358,11 +361,11 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
     grid_properties = api_config.grid_properties
     monkeypatch.delitem(grid_properties, "go_grid_lat_u")
 
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(InternalError) as err:
         # The symbol table can be None, that code is not reached.
         edc.create_flattened_symbol("new_name", ref, None)
-    assert "Could not find type for reference 'in_fld%grid%gphiu'" \
-        in str(err.value)
+    assert ("Could not find type for reference 'in_fld%grid%gphiu'"
+            in str(err.value))
 
     grid_properties = api_config.grid_properties
 
@@ -373,16 +376,16 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
     monkeypatch.setitem(grid_properties, "go_grid_lat_u", prop)
     # We need a new instance, since the instance above was modified
     edc = ExtractDriverCreator()
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(InternalError) as err:
         edc.create_flattened_symbol("new_name", ref, SymbolTable())
-    assert "Unknown gocean property type 'invalid-type' in expression " \
-           "'in_fld%grid%gphiu." in str(err.value)
+    assert ("Unknown gocean property type 'invalid-type' in expression "
+            "'in_fld%grid%gphiu." in str(err.value))
 
 
 # -----------------------------------------------------------------------------
 def test_errors_add_call():
-    '''Test that it is detected if a call added that is not a
-    RoutineSymbol.
+    '''Test than an error is raised if the symbol supplied to 'add_call()' is
+    not a RoutineSymbol.
 
     '''
     program = Routine("test", is_program=True)
@@ -395,11 +398,11 @@ def test_errors_add_call():
     edc = ExtractDriverCreator()
 
     # Then try to add a call to 'psy_data_mod':
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(TypeError) as err:
         edc.add_call(program, "psy_data_mod", [])
-    assert "Error when adding call: Routine 'psy_data_mod' is already a " \
-           "symbol of type 'ContainerSymbol', not a 'RoutineSymbol'." \
-           in str(err.value)
+    assert ("Error when adding call: Routine 'psy_data_mod' is a "
+            "symbol of type 'ContainerSymbol', not a 'RoutineSymbol'."
+            in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -423,20 +426,21 @@ def test_driver_creation_add_all_kernel_symbols_errors():
     assert ref.symbol.datatype.name == "r2d_field"
     ref.symbol.datatype._name = "unknown type"
     symbol_table = SymbolTable()
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(InternalError) as err:
         edc.add_all_kernel_symbols(schedule_copy, symbol_table)
-    assert "Error when constructing driver for 'invoke_0_compute_kernel': " \
-           "Unknown derived type 'unknown type'" in str(err.value)
+    assert ("Error when constructing driver for 'invoke_0_compute_kernel': "
+            "Unknown derived type 'unknown type'" in str(err.value))
     ref.symbol.datatype._name = "r2d_field"
 
     # Remove the default types to trigger the error of
     # not finding the default type to use:
     edc._default_types = {}
     symbol_table = SymbolTable()
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(InternalError) as err:
         edc.add_all_kernel_symbols(schedule_copy, symbol_table)
-    assert "Error when constructing driver for 'invoke_0_compute_kernel': " \
-           "Unknown intrinsic data type 'Intrinsic.INTEGER'" in str(err.value)
+    assert ("Error when constructing driver for 'invoke_0_compute_kernel': "
+            "Unknown intrinsic data type 'Intrinsic.INTEGER'"
+            in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -482,9 +486,10 @@ def test_driver_creation_same_symbol(tmpdir):
 
 # -----------------------------------------------------------------------------
 def test_driver_creation_import_modules(fortran_reader):
-    '''Tests if global and local interfaces in calls are handled correctly.
-    '''
+    '''Test that calls to RoutineSymbols with both imported and local
+    interfaces are handled correctly.
 
+    '''
     code = '''program test_prog
               use my_module, only : mod_func
               call mod_func()
@@ -508,11 +513,13 @@ def test_driver_creation_import_modules(fortran_reader):
 
 # -----------------------------------------------------------------------------
 def test_driver_node_verification(tmpdir):
-    '''Test that driver verifies the node list it receives and only
-    accept the valid parameters.
+    '''Test that the create() method verifies the node list it receives
+    and only accept the valid parameters.
 
     '''
-    # Use tmpdir so that the driver is created in tmp
+    # Use tmpdir in case that the call below does not raise an
+    # exception, which would result in the driver being created
+    # in the current directory.
     tmpdir.chdir()
 
     api = "gocean1.0"
@@ -524,7 +531,7 @@ def test_driver_node_verification(tmpdir):
     edc = ExtractDriverCreator()
 
     # Provide the nodes in the wrong order.
-    # Invoke #3 has all in all three invokes:
+    # Invoke #3 has all in all three kernels:
     schedule = invokes[3].schedule
     with pytest.raises(TransformationError) as err:
         edc.create(nodes=[schedule.children[1],
@@ -532,10 +539,10 @@ def test_driver_node_verification(tmpdir):
                           schedule.children[0]],
                    input_list=[], output_list=[], prefix="extract",
                    postfix="post", region_name=("file", "region"))
-    assert "Children are not consecutive children of one parent" \
-        in str(err.value)
-    assert "has position 0, but previous child had position 2." \
-        in str(err.value)
+    assert ("Children are not consecutive children of one parent"
+            in str(err.value))
+    assert ("has position 0, but previous child had position 2."
+            in str(err.value))
 
     # Provide nodes from different invokes:
     with pytest.raises(TransformationError) as err:
@@ -543,5 +550,5 @@ def test_driver_node_verification(tmpdir):
                           invokes[2].schedule.children[0]],
                    input_list=[], output_list=[], prefix="extract",
                    postfix="post", region_name=("file", "region"))
-    assert "supplied nodes are not children of the same parent." \
-        in str(err.value)
+    assert ("supplied nodes are not children of the same parent."
+            in str(err.value))

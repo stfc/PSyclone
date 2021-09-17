@@ -74,7 +74,6 @@ class GOceanExtractNode(ExtractNode):
         not overwritten in the options dictionary.
 
     '''
-
     @property
     def dag_name(self):
         '''

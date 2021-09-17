@@ -44,14 +44,18 @@ from __future__ import absolute_import
 import six
 
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Assignment, Call, FileContainer, \
-    Literal, Reference, Routine, StructureReference
-from psyclone.psyir.symbols import ArrayType, CHARACTER_TYPE, \
-    ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, \
-    ImportInterface, INTEGER_TYPE, REAL8_TYPE, RoutineSymbol, ScalarType
-from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
+                                  Literal, Reference, Routine,
+                                  StructureReference)
+from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
+                                    ContainerSymbol, DataSymbol,
+                                    DataTypeSymbol, DeferredType,
+                                    ImportInterface, INTEGER_TYPE,
+                                    REAL8_TYPE, RoutineSymbol, ScalarType)
+from psyclone.psyir.transformations import ExtractTrans
 
 # TODO 1392: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
@@ -81,9 +85,9 @@ class ExtractDriverCreator:
     # -------------------------------------------------------------------------
     def create_flattened_symbol(self, flattened_name, reference, symbol_table,
                                 writer=FortranWriter()):
-        '''Takes a reference to a structure and determines the Fortran type.
-        E.g. fld%data will be mapped to `real, dimension(:,:)`, and
-        `fld%data$whole%xstart` to `integer`.
+        '''Takes a reference to a structure and creates a new Symbol of the
+        type that the reference resolves to, e.g. fld%data... will be mapped
+        to `real, dimension(:,:)`, and `fld%data$whole%xstart` to `integer`.
 
         :param str flattened_name: the new 'flattened' name to be used for \
             the newly created symbol.
@@ -98,12 +102,12 @@ class ExtractDriverCreator:
         :type writer: \
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
-        :raises TransformationError: if the structure access is not to a \
+        :raises InternalError: if the structure access is not to a \
             GOCean grid property.
-        :raises TransformationError: if there is no default type defined for \
+        :raises InternalError: if there is no default type defined for \
             the type of the GOCean grid property (defaults are defined in \
             the constructor of this class).
-        :raises TransformationError: if the gocean grid property type is \
+        :raises InternalError: if the gocean grid property type is \
             neither 'array' nor 'scalar'.
 
         :returns: the new symbol created.
@@ -120,17 +124,17 @@ class ExtractDriverCreator:
             if fortran_expression == deref_name:
                 break
         else:
-            raise TransformationError(
+            raise InternalError(
                 "Could not find type for reference '{0}'."
                 .format(fortran_expression))
         try:
             base_type = self._default_types[gocean_property.intrinsic_type]
         except KeyError as err:
             raise six.raise_from(
-                TransformationError("Unknown type '{0}' in the reference "
-                                    "'{1}' in the GOcean API."
-                                    .format(gocean_property.intrinsic_type,
-                                            fortran_expression)),
+                InternalError("Unknown type '{0}' in the reference "
+                              "'{1}' in the GOcean API."
+                              .format(gocean_property.intrinsic_type,
+                                      fortran_expression)),
                 err)
         # Handle name clashes (e.g. if the user used a variable that is
         # the same as a flattened grid property)
@@ -145,10 +149,10 @@ class ExtractDriverCreator:
                                           ArrayType.Extent.DEFERRED])
             new_symbol = DataSymbol(flattened_name, array)
         else:
-            raise TransformationError("Unknown gocean property type '{0}' in "
-                                      "expression '{1}."
-                                      .format(gocean_property.type,
-                                              fortran_expression))
+            raise InternalError("Unknown gocean property type '{0}' in "
+                                "expression '{1}."
+                                .format(gocean_property.type,
+                                        fortran_expression))
 
         return new_symbol
 
@@ -180,7 +184,7 @@ class ExtractDriverCreator:
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param writer: a Fortran writer used when flattening a \
             `StructureReference`.
-        :type writer: :py:`psyclone.psyir.backend.fortan.FortranWriter`
+        :type writer: :py:`psyclone.psyir.backend.fortran.FortranWriter`
 
         '''
         # A field access (`fld%data`) will get the `%data` removed, since then
@@ -223,9 +227,9 @@ class ExtractDriverCreator:
             `StructureReference`.
         :type writer: :py:`psyclone.psyir.backend.fortan.FortranWriter`
 
-        :raises TransformationError: if a non-derived type has an unknown \
+        :raises InternalError: if a non-derived type has an unknown \
             intrinsic type.
-        :raises TransformationError: if an unknown derived type is \
+        :raises InternalError: if an unknown derived type is \
             encountered. At this stage only the dl_esm_inf `field` type \
             is supported.
 
@@ -253,7 +257,7 @@ class ExtractDriverCreator:
             try:
                 new_type = self._default_types[old_symbol.datatype.intrinsic]
             except KeyError as err:
-                six.raise_from(TransformationError(
+                six.raise_from(InternalError(
                     "Error when constructing driver for '{0}': "
                     "Unknown intrinsic data type '{1}'."
                     .format(sched.name, old_symbol.datatype.intrinsic)), err)
@@ -277,7 +281,7 @@ class ExtractDriverCreator:
                 continue
             old_symbol = reference.symbol
             if old_symbol.datatype.name != "r2d_field":
-                raise TransformationError(
+                raise InternalError(
                     "Error when constructing driver for '{0}': "
                     "Unknown derived type '{1}'."
                     .format(sched.name, old_symbol.datatype.name))
@@ -300,12 +304,14 @@ class ExtractDriverCreator:
         :param args: list of all arguments for the call.
         :type args: list of :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises TypeError: if there is a symbol with the \
+            specified name defined that is not a RoutineSymbol.
         '''
         if name in program.symbol_table:
             routine_symbol = program.symbol_table.lookup(name)
             if not isinstance(routine_symbol, RoutineSymbol):
-                raise TransformationError(
-                    "Error when adding call: Routine '{0}' is already "
+                raise TypeError(
+                    "Error when adding call: Routine '{0}' is "
                     "a symbol of type '{1}', not a 'RoutineSymbol'."
                     .format(name, type(routine_symbol).__name__))
         else:
@@ -354,7 +360,7 @@ class ExtractDriverCreator:
             a 2-tuple containing the symbol of the computed variable, and \
             the symbol of the variable that contains the value read from \
             the file.
-        :type: list of 2-tuples of \
+        :rtype: list of 2-tuples of \
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
@@ -438,7 +444,7 @@ class ExtractDriverCreator:
         actual kernel calls. It finds all calls in the PSyIR tree and
         checks for calls with a ImportInterface. Any such call will
         get a ContainerSymbol added for the module, and a RoutineSymbol
-        with a global interface pointing to this module.
+        with an import interface pointing to this module.
 
         :param program: the PSyIR Routine to which any code must \
             be added. It also contains the symbol table to be used.

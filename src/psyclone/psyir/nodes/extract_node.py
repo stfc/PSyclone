@@ -98,7 +98,7 @@ class ExtractNode(PSyDataNode):
         # "myvar" will be stored as "myvar" with its input value, and
         # "myvar_post" with its output value. It is the responsibility
         # of the transformation that inserts this node to make sure this
-        # value is consistent with the value used when creating the driver
+        # name is consistent with the name used when creating the driver
         # (otherwise the driver will not be able to read in the dumped
         # valued), and also to handle any potential name clashes (e.g. a
         # variable 'a' exists, which creates 'a_out' for the output variable,
