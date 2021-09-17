@@ -43,16 +43,16 @@ import six
 import pytest
 
 from psyclone.errors import InternalError
+from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
+    generate_adjoint_test
+from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
+    _create_array_inner_product
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
     Assignment, BinaryOperation
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, \
     INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface
-from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
-    generate_adjoint_test
-from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
-    _create_array_inner_product
 
 
 # 1: generate_adjoint_str function
@@ -92,136 +92,6 @@ def test_generate_adjoint_str(caplog):
     assert expected in caplog.text
     assert expected in result
     assert test_harness is None
-
-
-def test_find_container():
-    ''' Tests for the internal, helper function _find_container(). '''
-    assert _find_container(Return()) is None
-    assert _find_container(FileContainer("test")) is None
-    cont = Container("my_mod")
-    assert _find_container(cont) is cont
-    cont.addchild(FileContainer("test"))
-    with pytest.raises(InternalError) as err:
-        _find_container(cont)
-    assert ("The supplied PSyIR contains two Containers but the innermost is "
-            "a FileContainer. This should not be possible" in str(err.value))
-    cont = Container("my_mod")
-    cont.addchild(Container("another_mod"))
-    with pytest.raises(NotImplementedError) as err:
-        _find_container(cont)
-    assert ("supplied PSyIR contains two Containers and the outermost one is "
-            "not a FileContainer. This is not supported." in str(err.value))
-    file_cont = FileContainer("test")
-    cont = Container("my_mod")
-    file_cont.addchild(cont)
-    assert _find_container(file_cont) is cont
-    file_cont.addchild(cont.copy())
-    with pytest.raises(NotImplementedError) as err:
-        _find_container(file_cont)
-    assert ("The supplied PSyIR contains more than two Containers. This is "
-            "not supported." in str(err.value))
-
-
-# 2: generate_adjoint function
-def test_generate_adjoint(fortran_reader):
-    '''Test that the generate_adjoint() function works as expected.'''
-
-    tl_fortran_str = (
-        "program test\n"
-        "integer :: a\n"
-        "a = 0.0\n"
-        "end program test\n")
-    expected_ad_fortran_str = (
-        "program test_adj\n"
-        "  integer :: a\n\n"
-        "  a = 0.0\n\n"
-        "end program test_adj\n")
-    tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
-
-    ad_psyir = generate_adjoint(tl_psyir)
-
-    writer = FortranWriter()
-    ad_fortran_str = writer(ad_psyir)
-    assert expected_ad_fortran_str in ad_fortran_str
-
-
-def test_generate_adjoint_errors():
-    ''' Check that generate_adjoint() raises the expected exceptions when
-    given invalid input. '''
-    # Only a FileContainer
-    psyir = FileContainer("test_file")
-    with pytest.raises(InternalError) as err:
-        generate_adjoint(psyir)
-    assert ("The supplied PSyIR does not contain any routines." in
-            str(err.value))
-    with pytest.raises(InternalError) as err:
-        generate_adjoint(Container.create("test_mod", SymbolTable(),
-                                          [psyir.copy()]))
-    assert ("The supplied PSyIR contains two Containers but the innermost is "
-            "a FileContainer. This should not be possible" in str(err.value))
-    # No kernel code
-    cont = Container("test_mod")
-    with pytest.raises(InternalError) as err:
-        generate_adjoint(cont)
-    assert ("The supplied PSyIR does not contain any routines." in
-            str(err.value))
-    # Only one routine is permitted
-    cont.addchild(Routine.create("my_kern1", SymbolTable(), [Return()]))
-    cont.addchild(Routine.create("my_kern2", SymbolTable(), [Return()]))
-    with pytest.raises(NotImplementedError) as err:
-        generate_adjoint(cont)
-    assert ("The supplied Fortran must contain one and only one routine but "
-            "found: ['my_kern1', 'my_kern2']" in str(err.value))
-
-
-# generate_adjoint function logging
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
-def test_generate_adjoint_logging(caplog):
-    '''Test that logging works as expected in the generate_adjoint()
-    function.
-
-    '''
-    tl_fortran_str = (
-        "program test\n"
-        "integer :: a\n"
-        "a = 0.0\n"
-        "end program test\n")
-    expected_ad_fortran_str = (
-        "program test\n"
-        "  integer :: a\n\n"
-        "  a = 0.0\n\n"
-        "end program test\n")
-    reader = FortranReader()
-    tl_psyir = reader.psyir_from_source(tl_fortran_str)
-
-    with caplog.at_level(logging.INFO):
-        ad_psyir = generate_adjoint(tl_psyir)
-    assert caplog.text == ""
-
-    writer = FortranWriter()
-    ad_fortran_str = writer(ad_psyir)
-    assert expected_ad_fortran_str in ad_fortran_str
-
-    with caplog.at_level(logging.DEBUG):
-        ad_psyir = generate_adjoint(tl_psyir)
-    # Python2 and 3 report different line numbers
-    if six.PY2:
-        line_number = 96
-    else:
-        line_number = 95
-    assert (
-        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:{0} Translation from generic "
-        "PSyIR to LFRic-specific PSyIR should be done now.".format(line_number)
-        in caplog.text)
-    assert (
-        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:100 Transformation from TL to "
-        "AD should be done now." in caplog.text)
-    assert ("DEBUG    psyclone.psyad.tl2ad:tl2ad.py:224 AD kernel will be "
-            "named 'kern_adj'" in caplog.text)
-
-    ad_fortran_str = writer(ad_psyir)
-    assert expected_ad_fortran_str in ad_fortran_str
 
 
 def test_generate_adjoint_str_generate_harness():
@@ -294,6 +164,142 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     assert "Created test-harness program named 'adj_test'" in caplog.text
     assert harness in caplog.text
 
+
+# 2: _find_container function
+
+def test_find_container():
+    ''' Tests for the internal, helper function _find_container(). '''
+    assert _find_container(Return()) is None
+    assert _find_container(FileContainer("test")) is None
+    cont = Container("my_mod")
+    assert _find_container(cont) is cont
+    cont.addchild(FileContainer("test"))
+    with pytest.raises(InternalError) as err:
+        _find_container(cont)
+    assert ("The supplied PSyIR contains two Containers but the innermost is "
+            "a FileContainer. This should not be possible" in str(err.value))
+    cont = Container("my_mod")
+    cont.addchild(Container("another_mod"))
+    with pytest.raises(NotImplementedError) as err:
+        _find_container(cont)
+    assert ("supplied PSyIR contains two Containers and the outermost one is "
+            "not a FileContainer. This is not supported." in str(err.value))
+    file_cont = FileContainer("test")
+    cont = Container("my_mod")
+    file_cont.addchild(cont)
+    assert _find_container(file_cont) is cont
+    file_cont.addchild(cont.copy())
+    with pytest.raises(NotImplementedError) as err:
+        _find_container(file_cont)
+    assert ("The supplied PSyIR contains more than two Containers. This is "
+            "not supported." in str(err.value))
+
+
+# 3: generate_adjoint function
+
+def test_generate_adjoint(fortran_reader):
+    '''Test that the generate_adjoint() function works as expected.'''
+
+    tl_fortran_str = (
+        "program test\n"
+        "integer :: a\n"
+        "a = 0.0\n"
+        "end program test\n")
+    expected_ad_fortran_str = (
+        "program test_adj\n"
+        "  integer :: a\n\n"
+        "  a = 0.0\n\n"
+        "end program test_adj\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+
+    ad_psyir = generate_adjoint(tl_psyir)
+
+    writer = FortranWriter()
+    ad_fortran_str = writer(ad_psyir)
+    assert expected_ad_fortran_str in ad_fortran_str
+
+
+def test_generate_adjoint_errors():
+    ''' Check that generate_adjoint() raises the expected exceptions when
+    given invalid input. '''
+    # Only a FileContainer
+    psyir = FileContainer("test_file")
+    with pytest.raises(InternalError) as err:
+        generate_adjoint(psyir)
+    assert ("The supplied PSyIR does not contain any routines." in
+            str(err.value))
+    with pytest.raises(InternalError) as err:
+        generate_adjoint(Container.create("test_mod", SymbolTable(),
+                                          [psyir.copy()]))
+    assert ("The supplied PSyIR contains two Containers but the innermost is "
+            "a FileContainer. This should not be possible" in str(err.value))
+    # No kernel code
+    cont = Container("test_mod")
+    with pytest.raises(InternalError) as err:
+        generate_adjoint(cont)
+    assert ("The supplied PSyIR does not contain any routines." in
+            str(err.value))
+    # Only one routine is permitted
+    cont.addchild(Routine.create("my_kern1", SymbolTable(), [Return()]))
+    cont.addchild(Routine.create("my_kern2", SymbolTable(), [Return()]))
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint(cont)
+    assert ("The supplied Fortran must contain one and only one routine but "
+            "found: ['my_kern1', 'my_kern2']" in str(err.value))
+
+
+# generate_adjoint function logging
+
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
+def test_generate_adjoint_logging(caplog):
+    '''Test that logging works as expected in the generate_adjoint()
+    function.
+
+    '''
+    tl_fortran_str = (
+        "program test\n"
+        "integer :: a\n"
+        "a = 0.0\n"
+        "end program test\n")
+    expected_ad_fortran_str = (
+        "program test\n"
+        "  integer :: a\n\n"
+        "  a = 0.0\n\n"
+        "end program test\n")
+    reader = FortranReader()
+    tl_psyir = reader.psyir_from_source(tl_fortran_str)
+
+    with caplog.at_level(logging.INFO):
+        ad_psyir = generate_adjoint(tl_psyir)
+    assert caplog.text == ""
+
+    writer = FortranWriter()
+    ad_fortran_str = writer(ad_psyir)
+    assert expected_ad_fortran_str in ad_fortran_str
+
+    with caplog.at_level(logging.DEBUG):
+        ad_psyir = generate_adjoint(tl_psyir)
+    # Python2 and 3 report different line numbers
+    if six.PY2:
+        line_number = 96
+    else:
+        line_number = 95
+    assert (
+        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:{0} Translation from generic "
+        "PSyIR to LFRic-specific PSyIR should be done now.".format(line_number)
+        in caplog.text)
+    assert (
+        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:100 Transformation from TL to "
+        "AD should be done now." in caplog.text)
+    assert ("DEBUG    psyclone.psyad.tl2ad:tl2ad.py:224 AD kernel will be "
+            "named 'kern_adj'" in caplog.text)
+
+    ad_fortran_str = writer(ad_psyir)
+    assert expected_ad_fortran_str in ad_fortran_str
+
+
+# 4: generate_adjoint_test
 
 def test_generate_adjoint_test_errors():
     ''' Check that generate_adjoint_test() raises the expected exceptions if
@@ -561,6 +567,8 @@ def test_generate_harness_kernel_arg_invalid_shape(fortran_reader):
             "shape definition but expected an ArrayType.Extent or "
             "ArrayType.ArrayBound" in str(err.value))
 
+
+# 5: _create_inner_product and _create_array_inner_product
 
 def test_create_inner_product_errors():
     ''' Check that the _create_inner_product() utility raises the expected
