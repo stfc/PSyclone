@@ -90,7 +90,8 @@ def test_file_container_create():
     assert result == (
         "module mod_1\n"
         "  implicit none\n"
-        "  real :: tmp\n\n"
+        "  real, public :: tmp\n"
+        "  public\n\n"
         "  contains\n\n"
         "end module mod_1\n"
         "program prog_1\n\n\n"

@@ -51,7 +51,8 @@ MODULE1_IN = (
     "end module\n")
 MODULE1_OUT = (
     "module a\n"
-    "  implicit none\n\n"
+    "  implicit none\n"
+    "  public\n\n"
     "  contains\n\n"
     "end module a\n")
 # module with symbols/declarations
@@ -64,7 +65,8 @@ MODULE2_OUT = (
     "module a\n"
     "  use my_mod, only : b\n"
     "  implicit none\n"
-    "  real :: c\n\n"
+    "  real, public :: c\n"
+    "  public\n\n"
     "  contains\n\n"
     "end module a\n")
 # module with subprograms
@@ -79,11 +81,12 @@ MODULE3_IN = (
     "end module\n")
 MODULE3_OUT = (
     "module a\n"
-    "  implicit none\n\n"
+    "  implicit none\n"
+    "  public\n\n"
     "  public :: sub1, sub2\n\n"
     "  contains\n"
     "  subroutine sub1(a)\n"
-    "    real, intent(inout) :: a\n\n\n"
+    "    real :: a\n\n\n"
     "  end subroutine sub1\n"
     "  subroutine sub2()\n\n\n"
     "  end subroutine sub2\n\n"

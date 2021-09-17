@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
     REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
-    GlobalInterface, BOOLEAN_TYPE)
+    ImportInterface, BOOLEAN_TYPE)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -499,10 +499,6 @@ def test_generate_schedule_dummy_subroutine(parser):
     schedule = processor.generate_schedule("dummy_code", ast)
     assert isinstance(schedule, KernelSchedule)
 
-    # Test argument intent is inferred when not available in the declaration
-    assert schedule.symbol_table.lookup('f3').interface.access is \
-        ArgumentInterface.Access.READWRITE
-
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule
     del ast.content[0].content[2].content[1].content[2]
@@ -693,21 +689,22 @@ def test_process_declarations():
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_accessibility():
-    ''' Check that process_declarations handles accessibility statements if
-    no mapping is provided. '''
+    ''' Check that process_declarations behaves as expected when a visibility
+    map is or is not supplied. '''
     sched = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("private :: x\n"
                                  "real :: x\n")
     fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(sched, fparser2spec, [])
+    _, vis_map = processor.process_access_statements(fparser2spec)
+    processor.process_declarations(sched, fparser2spec, [], vis_map)
     xsym = sched.symbol_table.lookup("x")
     assert xsym.visibility == Symbol.Visibility.PRIVATE
-    # Repeat but provide a default visibility argument
+    # Repeat but change the default visibility in the parent table
     reader = FortranStringReader("real :: y\n")
     fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(
-        sched, fparser2spec, [], default_visibility=Symbol.Visibility.PRIVATE)
+    sched.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    processor.process_declarations(sched, fparser2spec, [])
     ysym = sched.symbol_table.lookup("y")
     assert ysym.visibility == Symbol.Visibility.PRIVATE
     # Repeat but provide a visibility mapping
@@ -1179,9 +1176,20 @@ def test_process_declarations_intent():
     arg_list.append(Fortran2003.Name("arg5"))
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(InternalError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+        processor.process_declarations(
+            fake_parent, [fparser2spec], arg_list, {})
+    del arg_list[-1]
     assert "Could not process " in str(err.value)
     assert "Unexpected intent attribute " in str(err.value)
+
+    # Test that argument intent is left as UNKNOWN when not available in the
+    # declaration
+    reader = FortranStringReader("integer :: arg6")
+    arg_list.append(Fortran2003.Name("arg6"))
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg6").interface.access is \
+        ArgumentInterface.Access.UNKNOWN
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1381,7 +1389,8 @@ def test_process_declarations_unsupported_node():
     # Append an fparser2 node that is not a valid/supported declaration
     fparser2spec.content.append(Fortran2003.Name("wrong"))
     with pytest.raises(NotImplementedError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(
+            fake_parent, fparser2spec.content, [], {})
     assert "fparser2 node of type 'Name' not supported" in str(err.value)
 
 
@@ -1478,7 +1487,7 @@ def test_parse_array_dimensions_attributes():
     reader = FortranStringReader("dimension(var3)")
     fparser2spec = Dimension_Attr_Spec(reader)
     csym = sym_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
-    vsym = sym_table.new_symbol("var3", interface=GlobalInterface(csym))
+    vsym = sym_table.new_symbol("var3", interface=ImportInterface(csym))
     # pylint: disable=unidiomatic-typecheck
     assert type(vsym) == Symbol
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
@@ -1489,7 +1498,7 @@ def test_parse_array_dimensions_attributes():
     assert shape[0][1].symbol is vsym
     assert isinstance(shape[0][1].symbol, DataSymbol)
     assert shape[0][1].symbol.name == "var3"
-    assert isinstance(shape[0][1].symbol.interface, GlobalInterface)
+    assert isinstance(shape[0][1].symbol.interface, ImportInterface)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
@@ -1583,7 +1592,8 @@ def test_use_stmt_error(monkeypatch):
     monkeypatch.setattr(fparser2spec.content[0], "items",
                         [None, "hello", None])
     with pytest.raises(GenerationError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(
+            fake_parent, fparser2spec.content, [], {})
     assert ("Expected the parse tree for a USE statement to contain 5 items "
             "but found 3 for 'hello'" in str(err.value))
 
@@ -1608,12 +1618,12 @@ def test_process_declarations_unrecognised_attribute():
     assert isinstance(sym.datatype, UnknownFortranType)
     assert sym.visibility == Symbol.Visibility.PUBLIC
     # No access statement so should pick up the default visibility supplied
-    # to the process_declarations call.
+    # to the symbol table.
+    fake_parent.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
     reader = FortranStringReader("integer, target :: idx3\n")
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(
-        fake_parent, fparser2spec.children, [],
-        default_visibility=Symbol.Visibility.PRIVATE)
+        fake_parent, fparser2spec.children, [], {})
     sym = fake_parent.symbol_table.lookup("idx3")
     assert isinstance(sym.datatype, UnknownFortranType)
     assert sym.visibility == Symbol.Visibility.PRIVATE
@@ -1623,8 +1633,7 @@ def test_process_declarations_unrecognised_attribute():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(
         fake_parent, fparser2spec.children, [],
-        visibility_map={"idx4": Symbol.Visibility.PUBLIC},
-        default_visibility=Symbol.Visibility.PRIVATE)
+        {"idx4": Symbol.Visibility.PUBLIC})
     sym = fake_parent.symbol_table.lookup("idx4")
     assert isinstance(sym.datatype, UnknownFortranType)
     assert sym.visibility == Symbol.Visibility.PUBLIC

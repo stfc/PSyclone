@@ -37,8 +37,7 @@ contains
     !   END DO
     !END DO
 
-    ! SIR backend can only deal with triply nested loops
-    ! zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
+    zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
 
     DO jk = 1, jpk-1
        DO jj = 1, jpj-1
@@ -49,8 +48,7 @@ contains
        END DO
     END DO
 
-    ! SIR backend can only deal with triply nested loops
-    ! zslpx(:,:,jpk) = 0.e0   ;   zslpy(:,:,jpk) = 0.e0 
+    zslpx(:,:,jpk) = 0.e0   ;   zslpy(:,:,jpk) = 0.e0
 
     DO jk = 1, jpk-1
        DO jj = 2, jpj
@@ -77,8 +75,7 @@ contains
     END DO
 
     DO jk = 1, jpk-1
-       ! SIR backend only supports perfectly nested triple loops
-       ! zdt  = 1
+       zdt  = 1
        DO jj = 2, jpj-1
           DO ji = 2, jpi-1
              z0u = SIGN( 0.5d0, pun(ji,jj,jk) )
@@ -116,15 +113,13 @@ contains
        END DO
     END DO
     
-    ! SIR backend can only deal with triply nested loops
-    ! zwx (:,:, 1 ) = 0.e0    ;    zwx (:,:,jpk) = 0.e0
+    zwx (:,:, 1 ) = 0.e0    ;    zwx (:,:,jpk) = 0.e0
     
     DO jk = 2, jpk-1   
        zwx(:,:,jk) = tmask(:,:,jk) * ( mydomain(:,:,jk-1) - mydomain(:,:,jk) )
     END DO
 
-    ! SIR backend can only deal with triply nested loops
-    ! zslpx(:,:,1) = 0.e0
+    zslpx(:,:,1) = 0.e0
     
     DO jk = 2, jpk-1    
        DO jj = 1, jpj
@@ -145,8 +140,7 @@ contains
        END DO
     END DO
     
-    ! SIR backend can only deal with triply nested loops
-    ! zwx(:,:, 1 ) = pwn(:,:,1) * mydomain(:,:,1)
+    zwx(:,:, 1 ) = pwn(:,:,1) * mydomain(:,:,1)
 
     zdt  = 1
     zbtr = 1.

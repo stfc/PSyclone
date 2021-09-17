@@ -43,8 +43,8 @@ from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
 from psyclone.psyir.symbols import REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
 
-from psyclone.psyad.transformations import AdjointTransformation, \
-    TangentLinearError
+from psyclone.psyad.transformations import TangentLinearError
+from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
 
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-branches

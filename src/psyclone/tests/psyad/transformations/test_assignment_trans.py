@@ -65,8 +65,8 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     :param list of str active_variable_names: a list of active \
         variable names.
     :param str tl_fortran: the expected adjoint code to be produced.
-    :param str tmpdir: temporary directory created by pytest in which
-    to perform compilation.
+    :param str tmpdir: temporary directory created by pytest in which \
+        to perform compilation.
 
     '''
     # Add "subroutine / end subroutine" lines to the incoming code.
@@ -187,9 +187,10 @@ def test_zero_fail(tmpdir):
 
 def test_single_assign(tmpdir):
     '''Test the transformation works when there is one active variable on
-    the rhs and with the active variable on the lhs being a write, not
-    an increment. Scalars, directly addressed arrays, indirectly
-    addressed arrays and structure array accesses are tested.
+    the rhs (B) and with the active variable on the lhs (A) only being
+    written to, i.e. not also read on the rhs. Scalars, directly
+    addressed arrays, indirectly addressed arrays and structure array
+    accesses are tested.
 
     A=B -> B*=B*+A*; A*=0.0
 
@@ -212,8 +213,9 @@ def test_single_assign(tmpdir):
         "  a(2*i) = b(n-1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n  real, dimension(n) :: a\n"
-        "  real, dimension(n) :: b\n  integer, parameter :: i = 2\n\n"
+        "  integer, parameter :: n = 10\n  integer, parameter :: i = 2\n"
+        "  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n\n"
         "  b(n - 1) = b(n - 1) + a(2 * i)\n"
         "  a(2 * i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -266,10 +268,11 @@ def test_single_assign_fail(tmpdir):
 
 
 def test_single_valued_assign(tmpdir):
-    '''Test the transformation works when there is one active
-    variable on the rhs that is multipled by a factor and with the
-    active variable on the lhs being a write, not an increment. Also
-    test mixed-case active variables list and actual variables.
+    '''Test the transformation works when there is one active variable on
+    the rhs (B) that is multipled by a factor (x) and with the active
+    variable on the lhs (A) only being written to, i.e. not also read
+    on the rhs. Also test mixed-case active variables list and actual
+    variables.
 
     A=xB -> B*=B*+xA*; A*=0.0
 
@@ -291,9 +294,10 @@ def test_single_valued_assign(tmpdir):
                    "Not work properly.")
 def test_multi_add(tmpdir):
     '''Test the transformation works when there are many active variables
-    on the rhs with some of them being multipled by a factor and with
-    the active variable on the lhs being a write, not an
-    increment. Also test mixed-case declarations.
+    on the rhs (B,C,D) with some of them being multipled by a factor
+    and with the active variable on the lhs (A) only being written to,
+    i.e. is not also read on the rhs. Also test mixed-case
+    declarations.
 
     A=xB+yC+D -> D*=D*+A; C*=C*+yA*; B*=B*+xA*; A*=0.0
 
@@ -335,9 +339,10 @@ def test_increment(tmpdir):
 
 
 def test_increment_mult(tmpdir):
-    '''Test the transformation works when there are no additions on the
-    rhs with the lhs being a scaled increment. Also test mixed-case
-    variables.
+    '''Test the transformation works when the active variable that is
+    written to on the lhs (A) is also read (and scaled (x)) on the rhs
+    and there are no other active variables on the rhs. Also test
+    mixed-case variables.
 
     A=xA -> A*=xA*
 
@@ -355,8 +360,9 @@ def test_increment_mult(tmpdir):
 
 
 def test_increment_add(tmpdir):
-    '''Test the transformation works when there is a single addition on
-    the rhs with the lhs being an increment. Also test mixed-case
+    '''Test the transformation works when the active variable that is
+    written to on the lhs (A) is also read on the rhs and there is a
+    another active variable (B) read on the rhs. Also test mixed-case
     variables.
 
     A+=B -> B*+=A*; A*=A*
@@ -374,9 +380,12 @@ def test_increment_add(tmpdir):
 
 
 def test_increment_add_reorder(tmpdir):
-    '''Test the transformation works when there is a single addition on
-    the rhs with the lhs being a scaled increment. Additionally the
-    scaled increment is not the first term on the rhs.
+    '''Test the transformation works when the active variable that is
+    written to on the lhs (A) is also read (and scaled (k)) on the rhs
+    and there is another active variable (B) read on the
+    rhs. Additionally, the active variable A is not the first term on
+    the rhs (where we define terms as expressions separated by an
+    addition (or subtraction)).
 
     A=B+kA -> B*+=A*; A*=kA*
 
@@ -396,8 +405,10 @@ def test_increment_add_reorder(tmpdir):
 
 
 def test_increment_multi_add(tmpdir):
-    '''Test the transformation works when there are multiple additions on
-    the rhs with the lhs being a scaled increment.
+    '''Test the transformation works when the active variable that is
+    written to on the lhs (A) is also read (and scaled (w)) on the rhs
+    and there are many other active variables on the rhs (B, C, D),
+    which are also scaled.
 
     A=wA+xB+yC+zD -> D*=D*+zA*; C*=C*+yA*; B*=B*+xA*; A*=wA*
 
@@ -420,10 +431,10 @@ def test_increment_multi_add(tmpdir):
 
 
 def test_multi_increment(tmpdir):
-    '''Test the code works when the lhs is a scaled increment but the
-    scaled increment is written as multiple terms on the rhs.  The
-    resultant adjoint code has the same form as the tangent-linear
-    code.
+    '''Test the code works when the active variable that is written to on
+    the lhs (A) is also read on the rhs, but is read more than once in
+    different terms, some of which are scaled. The resultant adjoint
+    code has the same form as the tangent-linear code.
 
     A=A+xA -> A=A+xA.
 
@@ -442,8 +453,8 @@ def test_multi_increment(tmpdir):
 
 def test_single_valued_sub(tmpdir):
     '''Test the transformation works when there is one active variable on
-    the rhs that is negated with the active variable on the lhs being
-    a write, not an increment.
+    the rhs (B) that is negated, with the active variable on the lhs
+    (A) only being written to, i.e. not also read on the rhs.
 
     A=-B -> B*=B*-A*; A*=0.0
 
@@ -465,9 +476,10 @@ def test_single_valued_sub(tmpdir):
                    "brackets.")
 def test_multi_valued_sub(tmpdir):
     '''Test the transformation works when there are multiple active
-    variable on the rhs that have unary plus and minus operators as
-    well as minus separating the terms. The active variable on the lhs
-    is a write, not an increment.
+    variable on the rhs (B, C, D) that have unary plus and minus
+    operators as well as minus separating one of the terms. The active
+    variable on the lhs (A) is only written to, i.e. is not also read
+    on the rhs.
 
     A=-B-x(+C)+(-D)y -> B*=B*-A*; C*=C*-xA*; D*=D*-yA*; A*=0.0
 
@@ -490,8 +502,9 @@ def test_multi_valued_sub(tmpdir):
 
 
 def test_inc_sub(tmpdir):
-    '''Test the transformation works when there is a single increment with
-    a minus operator.
+    '''Test the transformation works when the active variable that is
+    written to on the lhs is also read (and multiplied by -1) on the
+    rhs. There are no other active variables on the rhs.
 
     A=-A -> A*=-A*
 
@@ -509,10 +522,13 @@ def test_inc_sub(tmpdir):
 
 
 def test_multi_inc_sub(tmpdir):
-    '''Test the transformation works when there are multiple increment and
-    scaled increment terms with and without a minus operator
-    interspersed with another active variable. Also includes a
-    division rather than a multiplication in one of the rhs terms.
+    '''Test the transformation works when the active variable that is
+    written to on the lhs (A) is also read multiple times from
+    different terms on the rhs. The terms on the rhs combine the
+    active variable with an inactive variable (or no inactive
+    variable) in different supported combinations (multiplication,
+    division, unary minus). The terms are also combined on the rhs
+    with both addition and subtraction.
 
     A=-A-xA+B+A/y -> B*=B*+A*; A*=A*(-1.0-x+1.0/y)
 
@@ -534,9 +550,13 @@ def test_multi_inc_sub(tmpdir):
 
 def test_multi_rhs(tmpdir):
     '''Test the transformation works when there are multiple terms on the
-    rhs of an assignment with the same active variable and the active
-    variable on the lhs is a write, not an increment. Also includes a
-    division rather than a multiplication in one of the rhs terms.
+    rhs of an assignment with the same active variable (B) and the
+    active variable on the lhs (A) is only written to, i.e. not also
+    read on the rhs. Also includes a division rather than a
+    multiplication in one of the rhs terms. The terms on the rhs
+    combine the active variable (B) with an inactive variable in
+    different supported combinations (division as well as
+    multiplication).
 
     A=B+xB+B/y -> B*=B*+A*; B*=B*+xA*; B*=B*+A*/y
 
@@ -557,8 +577,11 @@ def test_multi_rhs(tmpdir):
 
 
 def test_different_indices(tmpdir):
-    '''Test the adjoint transformation recognises that an access is
-    not an increment when the indices of an array are different.
+    '''Test the adjoint transformation recognises that a write and a read
+    access to the same active array (A) but with different array
+    indices count as separate accesses. Also test that two reads of
+    the same array (B) but with different array indices count as
+    separate accesses.
 
     A(i)=A(i+1)+B(i)+B(i-1) -> B*(i-1)=B*(i-1)+A*(i); B*(i)=B*(i)*+A*(i);
                                        A*(i+1)=A*(i+1)+A*(i); A*(i)=0.0
@@ -579,12 +602,11 @@ def test_different_indices(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(reason="issue #1332 literal math_equal() does "
-                   "not work properly.")
 def test_same_indices_ordering(tmpdir):
-    '''Test the adjoint transformation recognises that an access is an
-    increment when the indices of an array are the same but in a
-    different order.
+    '''Test the adjoint transformation recognises a write and a read
+    access to the same active array (A) with the same indices, but
+    where the indices are specified in a different form (the ordering
+    of the addition differs).
 
     A(i+1)=A(1+i)+B(i) -> B*(i)=B*(i)*+A*(i+1)
 
@@ -604,9 +626,10 @@ def test_same_indices_ordering(tmpdir):
 @pytest.mark.xfail(reason="issue #1075: Better symbolic comparison of indices "
                    "is needed.")
 def test_same_indices_ordering2(tmpdir):
-    '''Test the adjoint transformation recognises that an access is an
-    increment when the indices of an array are the same but are
-    written in a different way.
+    '''Test the adjoint transformation recognises a write and a read
+    access to the same active array (A) with the same indices, but
+    where the indices are specified in a different form
+    (multiplication vs. addition).
 
     A(2*i)=A(i+i)+B(i) -> B*(i)=B*(i)*+A*(2 * i)
 
@@ -625,8 +648,8 @@ def test_same_indices_ordering2(tmpdir):
 
 @pytest.mark.xfail(reason="issue #1332 math_equal thinks a%b(i) equals a%c(i)")
 def test_different_structures(tmpdir):
-    '''Test the adjoint transformation recognises that an access is
-    not an increment when a structure access differs.
+    '''Test the adjoint transformation recognises a distinct write and
+    read within a structure (A).
 
     A%data(i)=A%data(i+i)+A%X(i) -> A%data*(i+1)=A%data*(i+1)+A%data*(i);
                                     A%x*(i)=A%x*(i)+A%data*(i);
@@ -869,9 +892,9 @@ def test_validate_rhs_single_active_var():
                                       BinaryOperation.Operator.DIV])
 def test_validate_rhs_active_var_mul_div(operator):
     '''Test the validate method returns successfully if the term on the
-    RHS of an assignment contains an active variable that is part of a
-    set of multiplications or divides and the active variable is not
-    part of the denominator.
+    RHS of an assignment contains an active variable (b) that is part
+    of a set of multiplications or divides and the active variable is
+    not part of the denominator.
 
     active vars = ["a", "b"]
     a = (x*b)*y
@@ -909,9 +932,9 @@ def test_validate_rhs_active_var_mul_div(operator):
 
 
 def test_validate_rhs_active_divisor_direct():
-    '''Test the validate method raises the expected exception if a
-    term on the RHS of an assignment has an active variable as a
-    direct divisor.
+    '''Test the validate method raises the expected exception if a term on
+    the RHS of an assignment has an active variable (b) as a direct
+    divisor.
 
     active vars = ["a", "b"]
     a = x/b
@@ -933,9 +956,9 @@ def test_validate_rhs_active_divisor_direct():
 
 
 def test_validate_rhs_active_divisor_indirect():
-    '''Test the validate method raises the expected exception if a
-    term on the RHS of an assignment has an active variable as part of
-    the divisor.
+    '''Test the validate method raises the expected exception if a term on
+    the RHS of an assignment has an active variable (b) as part of the
+    divisor.
 
     active vars = ["a", "b"]
     a = x/(y*b)
@@ -996,8 +1019,8 @@ def test_validate_rhs_active_multi_divisor():
 
 def test_validate_rhs_active_var_no_mul():
     '''Test the validate method fails if the term on the RHS of the
-    assignment contains an active variable that is not part of a set
-    of multiplications or divides.
+    assignment contains an active variable (b) that is not part of a
+    set of multiplications or divides.
 
     active vars = ["a", "b"]
     a = b**x
@@ -1023,9 +1046,9 @@ def test_validate_rhs_active_var_no_mul():
 def test_validate_mixed_mul_add():
     '''Test the validate method fails if the term on the RHS of the
     assignment contains an active variable that is not part of a pure
-    set of multiplications or divides as the code will not be linear
-    with respect to the active variables. In this particular case,
-    expanding the example ends up with a constant term x*y.
+    set of multiplications or divides (b) as the code will not be
+    linear with respect to the active variables. In this particular
+    case, expanding the example ends up with a constant term x*y.
 
     active vars = ["a", "b", "c"]
     a = x*(b+y) + c
@@ -1060,7 +1083,7 @@ def test_validate_mixed_mul_add():
 
 def test_validate_unaryop():
     '''Test the validate test fails if a unaryoperation, other than +
-    or - is applied directly to an active variable.
+    or - is applied directly to an active variable (b).
 
     active vars = ["a", "b", "c"]
     a = sqrt(b)

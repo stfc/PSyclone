@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,8 +56,9 @@ from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
                                   NaryOperation, Operation, Assignment)
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
-    Min2CodeTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+    Min2CodeTrans, HoistTrans
+from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
+    NemoAllArrayAccess2LoopTrans
 
 
 def trans(psy):
@@ -75,7 +76,9 @@ def trans(psy):
     abs_trans = Abs2CodeTrans()
     sign_trans = Sign2CodeTrans()
     min_trans = Min2CodeTrans()
-    nemo_loop_trans = NemoAllArrayRange2LoopTrans()
+    array_range_trans = NemoAllArrayRange2LoopTrans()
+    array_access_trans = NemoAllArrayAccess2LoopTrans()
+    hoist_trans = HoistTrans()
 
     sir_writer = SIRWriter()
     fortran_writer = FortranWriter()
@@ -85,8 +88,15 @@ def trans(psy):
     # the invokes represent all of the original code.
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
+
+        # Transform any single index accesses in array assignments
+        # (e.g. a(1)) into 1-trip loops.
         for assignment in schedule.walk(Assignment):
-            nemo_loop_trans.apply(assignment)
+            array_access_trans.apply(assignment)
+
+        # Transform any array assignments (Fortran ':' notation) into loops.
+        for assignment in schedule.walk(Assignment):
+            array_range_trans.apply(assignment)
 
         for kernel in schedule.walk(NemoKern):
 
@@ -108,6 +118,21 @@ def trans(psy):
                                        NaryOperation.Operator.MIN]:
                     # Apply (2-n arg) MIN transformation
                     min_trans.apply(oper, symbol_table)
+
+        # Remove any loop invariant assignments inside k-loops to make
+        # them perfectly nested. At the moment this transformation
+        # does not perform any dependence analysis validation so could
+        # move code that should not be moved, see issue
+        # #1387. However, it is known that it is safe do apply this
+        # transformation to this particular code
+        # (tra_adv_compute.F90).
+        for loop in schedule.loops():
+            # outermost only
+            if loop.loop_type == "levels":
+                for child in loop.loop_body[:]:
+                    if isinstance(child, Assignment):
+                        hoist_trans.apply(child)
+
         kern = fortran_writer(schedule)
         print(kern)
         kern = sir_writer(schedule)

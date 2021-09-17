@@ -211,8 +211,8 @@ def test_access_stmt_undeclared_symbol(parser):
     assert var5.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_parse_access_statements_invalid(parser):
-    ''' Tests for the _parse_access_statements() method when an
+def test_process_access_statements_invalid(parser):
+    ''' Tests for the process_access_statements() method when an
     invalid parse tree is encountered. '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
@@ -226,7 +226,7 @@ def test_parse_access_statements_invalid(parser):
     # Break the parse tree created by fparser2
     fparser2spec.children[1].items = ('not-private', None)
     with pytest.raises(InternalError) as err:
-        processor._parse_access_statements([fparser2spec])
+        processor.process_access_statements([fparser2spec])
     assert ("Failed to process 'not-private'. Found an accessibility "
             "attribute of 'not-private' but expected either 'public' or "
             "'private'" in str(err.value))
@@ -250,7 +250,7 @@ def test_access_stmt_no_module(parser):
     module.__class__ = Fortran2003.Program
     spec_part = module.children[1]
     with pytest.raises(GenerationError) as err:
-        processor._parse_access_statements([spec_part])
+        processor.process_access_statements([spec_part])
     assert ("Found multiple access statements with omitted access-id-lists "
             "and no enclosing Module. Both of these things are invalid "
             "Fortran." in str(err.value))

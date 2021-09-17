@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     Container, Range, ArrayReference, Call, Routine, FileContainer
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
-    GlobalInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
+    ImportInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
     INTEGER_SINGLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
@@ -160,20 +160,26 @@ def create_psyir_tree():
     container = Container.create("CONTAINER", container_symbol_table,
                                  [routine])
 
+    # Container, Routines and any statement can have comments
+    container.preceding_comment = "PSyIR Node creation example"
+    routine.preceding_comment = "Example work routine"
+    call.preceding_comment = "Any statement can have preceding ..."
+    call.inline_comment = " ... and inline comments."
+
     # Import data from another container
     external_container = ContainerSymbol("some_mod")
     container_symbol_table.add(external_container)
     external_var = DataSymbol("some_var", INTEGER_TYPE,
-                              interface=GlobalInterface(external_container))
+                              interface=ImportInterface(external_container))
     container_symbol_table.add(external_var)
-    routine_symbol.interface = GlobalInterface(external_container)
+    routine_symbol.interface = ImportInterface(external_container)
     container_symbol_table.add(routine_symbol)
 
     # Routine (specified as being a program)
     program_symbol_table = SymbolTable()
     work_symbol = RoutineSymbol("work")
     container_symbol = ContainerSymbol("CONTAINER")
-    work_symbol.interface = GlobalInterface(container_symbol)
+    work_symbol.interface = ImportInterface(container_symbol)
     arg_symbol = program_symbol_table.new_symbol(root_name="arg",
                                                  symbol_type=DataSymbol,
                                                  datatype=REAL_TYPE)

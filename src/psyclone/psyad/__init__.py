@@ -31,16 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''PSyAD, the PSyclone adjoint generation module.'''
 
 from psyclone.psyad.adjoint_visitor import AdjointVisitor
 from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint
 from psyclone.psyad.main import main
-
-
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyad import main'
-__all__ = ["main", "generate_adjoint_str", "generate_adjoint",
-           "AdjointVisitor"]

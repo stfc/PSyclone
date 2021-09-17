@@ -155,7 +155,8 @@ def test_scoping_node_copy_hierarchy():
     expected = '''\
 module module
   implicit none
-  integer, dimension(5) :: b_global
+  integer, dimension(5), public :: b_global
+  public
 
   contains
   subroutine routine(a)

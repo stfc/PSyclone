@@ -34,6 +34,7 @@
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab.
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. R. Porter, STFC Daresbury Lab.
+# Modified A. B. G. Chalk, STFC Daresbury Lab.
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel and NemoInvoke schedules as
@@ -41,17 +42,22 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
+# pylint: disable=too-many-lines
 from __future__ import absolute_import
+import six
+
 from fparser.two import Fortran2003
+
+from psyclone.errors import InternalError
+from psyclone.psyir.backend.language_writer import LanguageWriter
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
-    SymbolTable, RoutineSymbol, UnresolvedInterface, Symbol, DataTypeSymbol
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Routine, Literal, DataNode, CodeBlock, Member, Range, Schedule
-from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.errors import InternalError
+from psyclone.psyir.nodes import BinaryOperation, CodeBlock, DataNode, \
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation
+from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
+    ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, ScalarType, \
+    Symbol, SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -88,8 +94,9 @@ def gen_intent(symbol):
         try:
             return mapping[symbol.interface.access]
         except KeyError as excinfo:
-            raise VisitorError("Unsupported access '{0}' found."
-                               "".format(str(excinfo)))
+            raise six.raise_from(
+                VisitorError("Unsupported access '{0}' found."
+                             "".format(str(excinfo))), excinfo)
     else:
         return None  # non-Arguments do not have intent
 
@@ -133,10 +140,10 @@ def gen_datatype(datatype, name):
 
     try:
         fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
-    except KeyError:
-        raise NotImplementedError(
+    except KeyError as error:
+        raise six.raise_from(NotImplementedError(
             "Unsupported datatype '{0}' for symbol '{1}' found in "
-            "gen_datatype().".format(datatype.intrinsic, name))
+            "gen_datatype().".format(datatype.intrinsic, name)), error)
 
     precision = datatype.precision
 
@@ -299,20 +306,116 @@ def precedence(fortran_operator):
     raise KeyError()
 
 
-class FortranWriter(PSyIRVisitor):
+def add_accessibility_to_unknown_declaration(symbol):
+    '''
+    Utility that manipulates the unknown Fortran declaration for the supplied
+    Symbol so as to ensure that it has the correct accessibility specifier.
+    (This is required because we capture an 'unknown' Fortran declaration as
+    is and this may or may not include accessibility information.)
+
+    :param symbol: the symbol for which the declaration is required.
+    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+    :returns: Fortran declaration of the supplied symbol with accessibility \
+        information included (public/private).
+    :rtype: str
+
+    :raises TypeError: if the supplied argument is not a Symbol of \
+        UnknownFortranType.
+    :raises InternalError: if the declaration associated with the Symbol is \
+        empty.
+    :raises NotImplementedError: if the original declaration does not use \
+        '::' to separate the entity name from its type.
+    :raises InternalError: if the declaration stored for the supplied symbol \
+        contains accessibility information which does not match the \
+        visibility of the supplied symbol.
+
+    '''
+    if not isinstance(symbol, Symbol):
+        raise TypeError("Expected a Symbol but got '{0}'".format(
+            type(symbol).__name__))
+
+    if not isinstance(symbol.datatype, UnknownFortranType):
+        raise TypeError("Expected a Symbol of UnknownFortranType but symbol "
+                        "'{0}' has type '{1}'".format(symbol.name,
+                                                      symbol.datatype))
+
+    if not symbol.datatype.declaration:
+        raise InternalError(
+            "Symbol '{0}' is of UnknownFortranType but the associated "
+            "declaration text is empty.".format(symbol.name))
+
+    # The original declaration text is obtained from fparser2 and will
+    # already have had any line-continuation symbols removed.
+    first_line = symbol.datatype.declaration.split("\n")[0]
+    if "::" not in first_line:
+        raise NotImplementedError(
+            "Cannot add accessibility information to an UnknownFortranType "
+            "that does not have '::' in its original declaration: '{0}'".
+            format(symbol.datatype.declaration))
+
+    parts = symbol.datatype.declaration.split("::")
+    first_part = parts[0].lower()
+    if symbol.visibility == Symbol.Visibility.PUBLIC:
+        if "public" not in first_part:
+            if "private" in first_part:
+                raise InternalError(
+                    "Symbol '{0}' of UnknownFortranType has public visibility "
+                    "but its associated declaration specifies that it is "
+                    "private: '{1}'".format(symbol.name,
+                                            symbol.datatype.declaration))
+            first_part = first_part.rstrip() + ", public "
+    else:
+        if "private" not in first_part:
+            if "public" in first_part:
+                raise InternalError(
+                    "Symbol '{0}' of UnknownFortranType has private "
+                    "visibility but its associated declaration specifies that "
+                    "it is public: '{1}'".format(symbol.name,
+                                                 symbol.datatype.declaration))
+            first_part = first_part.rstrip() + ", private "
+    return "::".join([first_part]+parts[1:])
+
+
+class FortranWriter(LanguageWriter):
+    # pylint: disable=too-many-public-methods
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
     generating Fortran).
 
-    '''
+    :param bool skip_nodes: If skip_nodes is False then an exception \
+        is raised if a visitor method for a PSyIR node has not been \
+        implemented, otherwise the visitor silently continues. This is an \
+        optional argument which defaults to False.
+    :param str indent_string: Specifies what to use for indentation. This \
+        is an optional argument that defaults to two spaces.
+    :param int initial_indent_depth: Specifies how much indentation to \
+        start with. This is an optional argument that defaults to 0.
+    :param bool check_global_constraints: whether or not to validate all \
+        global constraints when walking the tree. Defaults to True.
 
-    def _gen_dims(self, shape):
+    '''
+    _COMMENT_PREFIX = "! "
+
+    def __init__(self, skip_nodes=False, indent_string="  ",
+                 initial_indent_depth=0, check_global_constraints=True):
+        # Construct the base class using () as array parenthesis, and
+        # % as structure access symbol
+        super(FortranWriter, self).__init__(("(", ")"), "%", skip_nodes,
+                                            indent_string,
+                                            initial_indent_depth,
+                                            check_global_constraints)
+
+    def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
-        This is used both for array references and array declarations.
+        This is used both for array references and array declarations. Note
+        that 'indices' can also be a shape in case of Fortran.
 
-        :param shape: list of PSyIR nodes.
-        :type shape: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param indices: list of PSyIR nodes.
+        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param str var_name: name of the variable for which the dimensions \
+            are created. Not used in the Fortran implementation.
 
         :returns: the Fortran representation of the dimensions.
         :rtype: list of str
@@ -322,7 +425,7 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         dims = []
-        for index in shape:
+        for index in indices:
             if isinstance(index, (DataNode, Range)):
                 # literal constant, symbol reference, or computed
                 # dimension
@@ -343,7 +446,7 @@ class FortranWriter(PSyIRVisitor):
                 dims.append(":")
             else:
                 raise NotImplementedError(
-                    "unsupported gen_dims index '{0}'".format(str(index)))
+                    "unsupported gen_indices index '{0}'".format(str(index)))
         return dims
 
     def gen_use(self, symbol, symbol_table):
@@ -390,7 +493,7 @@ class FortranWriter(PSyIRVisitor):
 
         # Construct the list of symbol names for the ONLY clause
         only_list = [dsym.name for dsym in
-                     symbol_table.imported_symbols(symbol)]
+                     symbol_table.symbols_imported_from(symbol)]
 
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
@@ -406,26 +509,31 @@ class FortranWriter(PSyIRVisitor):
             use_stmts += "{0}use {1}\n".format(self._nindent, symbol.name)
         return use_stmts
 
-    def gen_vardecl(self, symbol):
+    def gen_vardecl(self, symbol, include_visibility=False):
         '''Create and return the Fortran variable declaration for this Symbol
         or derived-type member.
 
         :param symbol: the symbol or member instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol` or \
-                      :py:class:`psyclone.psyir.nodes.MemberReference`
+            :py:class:`psyclone.psyir.nodes.MemberReference`
+        :param bool include_visibility: whether to include the visibility of \
+            the symbol in the generated declaration (default False).
 
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbols is of UnknownFortranType and \
+        :raises VisitorError: if the symbol is of UnknownFortranType and \
             is not local.
         :raises VisitorError: if the symbol is of known type but does not \
             specify a variable declaration (it is not a local declaration or \
             an argument declaration).
         :raises VisitorError: if the symbol or member is an array with a \
             shape containing a mixture of DEFERRED and other extents.
+        :raises InternalError: if visibility is to be included but is not \
+            either PUBLIC or PRIVATE.
 
         '''
+        # pylint: disable=too-many-branches
         # Whether we're dealing with a Symbol or a member of a derived type
         is_symbol = isinstance(symbol, (DataSymbol, RoutineSymbol))
         # Whether we're dealing with an array declaration and, if so, the
@@ -452,7 +560,12 @@ class FortranWriter(PSyIRVisitor):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                return symbol.datatype.declaration + "\n"
+                if include_visibility and not isinstance(symbol,
+                                                         RoutineSymbol):
+                    decln = add_accessibility_to_unknown_declaration(symbol)
+                else:
+                    decln = symbol.datatype.declaration
+                return "{0}{1}\n".format(self._nindent, decln)
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
                 "{0} '{1}' is of '{2}' type. This is not supported by the "
@@ -469,7 +582,7 @@ class FortranWriter(PSyIRVisitor):
                     "A Fortran declaration of an allocatable array must have"
                     " the extent of every dimension as 'DEFERRED' but "
                     "symbol '{0}' has shape: {1}.".format(
-                        symbol.name, self._gen_dims(array_shape)))
+                        symbol.name, self.gen_indices(array_shape)))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
         if ArrayType.Extent.ATTRIBUTE in array_shape:
@@ -483,9 +596,9 @@ class FortranWriter(PSyIRVisitor):
                         "An assumed-size Fortran array must only have its "
                         "last dimension unspecified (as 'ATTRIBUTE') but "
                         "symbol '{0}' has shape: {1}."
-                        "".format(symbol.name, self._gen_dims(array_shape)))
+                        "".format(symbol.name, self.gen_indices(array_shape)))
         if array_shape:
-            dims = self._gen_dims(array_shape)
+            dims = self.gen_indices(array_shape)
             result += ", dimension({0})".format(",".join(dims))
         if is_symbol:
             # A member of a derived type cannot have the 'intent' or
@@ -495,27 +608,41 @@ class FortranWriter(PSyIRVisitor):
                 result += ", intent({0})".format(intent)
             if symbol.is_constant:
                 result += ", parameter"
-        if symbol.visibility == Symbol.Visibility.PRIVATE:
-            result += ", private"
+
+        if include_visibility:
+            if symbol.visibility == Symbol.Visibility.PRIVATE:
+                result += ", private"
+            elif symbol.visibility == Symbol.Visibility.PUBLIC:
+                result += ", public"
+            else:
+                raise InternalError(
+                    "A Symbol must be either public or private but symbol "
+                    "'{0}' has visibility '{1}'".format(symbol.name,
+                                                        symbol.visibility))
+
         result += " :: {0}".format(symbol.name)
         if is_symbol and symbol.is_constant:
             result += " = {0}".format(self._visit(symbol.constant_value))
         result += "\n"
         return result
 
-    def gen_typedecl(self, symbol):
+    def gen_typedecl(self, symbol, include_visibility=True):
         '''
         Creates a derived-type declaration for the supplied DataTypeSymbol.
 
         :param symbol: the derived-type to declare.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :param bool include_visibility: whether or not to include visibility \
+            information in the declaration. (Default is True.)
 
         :returns: the Fortran declaration of the derived type.
         :rtype: str
 
         :raises VisitorError: if the supplied symbol is not a DataTypeSymbol.
         :raises VisitorError: if the datatype of the symbol is of UnknownType \
-                              but is not of UnknownFortranType.
+            but is not of UnknownFortranType.
+        :raises InternalError: if include_visibility is True and the \
+            visibility of the symbol is not of the correct type.
 
         '''
         if not isinstance(symbol, DataTypeSymbol):
@@ -525,25 +652,72 @@ class FortranWriter(PSyIRVisitor):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                return "{0}{1}".format(self._nindent,
-                                       symbol.datatype.declaration)
+                # This is a declaration of unknown type. We have to ensure
+                # that its visibility is correctly specified though.
+                if include_visibility:
+                    decln = add_accessibility_to_unknown_declaration(symbol)
+                else:
+                    decln = symbol.datatype.declaration
+                return "{0}{1}\n".format(self._nindent, decln)
+
             raise VisitorError(
                 "Fortran backend cannot generate code for symbol '{0}' of "
                 "type '{1}'".format(symbol.name,
                                     type(symbol.datatype).__name__))
 
         result = "{0}type".format(self._nindent)
-        if symbol.visibility == Symbol.Visibility.PRIVATE:
-            result += ", private"
+
+        if include_visibility:
+            if symbol.visibility == Symbol.Visibility.PRIVATE:
+                result += ", private"
+            elif symbol.visibility == Symbol.Visibility.PUBLIC:
+                result += ", public"
+            else:
+                raise InternalError(
+                    "A Symbol's visibility must be one of Symbol.Visibility."
+                    "PRIVATE/PUBLIC but '{0}' has visibility of type '{1}'".
+                    format(symbol.name, type(symbol.visibility).__name__))
         result += " :: {0}\n".format(symbol.name)
 
         self._depth += 1
         for member in symbol.datatype.components.values():
-            result += self.gen_vardecl(member)
+            # We always want to specify the visibility of components within
+            # a derived type.
+            result += self.gen_vardecl(member, include_visibility=True)
         self._depth -= 1
 
         result += "{0}end type {1}\n".format(self._nindent, symbol.name)
         return result
+
+    def gen_access_stmt(self, symbol_table):
+        '''
+        Generates the access statement for a module - either "private" or
+        "public". Although the PSyIR captures the visibility of every Symbol
+        explicitly, this information is required in order
+        to ensure the correct visibility of symbols that have been imported
+        into the current module from another one using a wildcard import
+        (i.e. a `use` without an `only` clause) and also for those Symbols
+        that are of UnknownFortranType (because their declaration may or may
+        not include visibility information).
+
+        :returns: text containing the access statement line.
+        :rtype: str
+
+        :raises InternalError: if the symbol table has an invalid default \
+                               visibility.
+        '''
+        # If no default visibility has been set then we use the Fortran
+        # default of public.
+        if symbol_table.default_visibility in [None, Symbol.Visibility.PUBLIC]:
+            return self._nindent + "public\n"
+        if symbol_table.default_visibility == Symbol.Visibility.PRIVATE:
+            return self._nindent + "private\n"
+
+        raise InternalError(
+            "Unrecognised visibility ('{0}') found when attempting to generate"
+            " access statement. Should be either 'Symbol.Visibility.PUBLIC' "
+            "or 'Symbol.Visibility.PRIVATE'\n".format(
+                str(symbol_table.default_visibility)))
 
     def gen_routine_access_stmts(self, symbol_table):
         '''
@@ -606,22 +780,21 @@ class FortranWriter(PSyIRVisitor):
             return result
         return ""
 
-    def gen_decls(self, symbol_table, args_allowed=True):
+    def gen_decls(self, symbol_table, is_module_scope=False):
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool args_allowed: if False then one or more argument \
-                declarations in symbol_table will cause this method to raise \
-                an exception. Defaults to True.
+        :param bool is_module_scope: whether or not the declarations are in \
+                                     a module scoping unit. Default is False.
 
         :returns: the Fortran declarations as a string.
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol \
-            which does not have a GlobalInterface or LocalInterface as this \
-            is not supported by this backend.
+            which does not have an ImportInterface or LocalInterface (and is \
+            not a Fortran intrinsic) as this is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
             argument declarations exist in symbol_table.
         :raises VisitorError: if there are any symbols in the supplied table \
@@ -629,6 +802,7 @@ class FortranWriter(PSyIRVisitor):
             wildcard imports.
 
         '''
+        # pylint: disable=too-many-branches
         declarations = ""
         # Keep a record of whether we've already checked for any wildcard
         # imports to save doing so repeatedly
@@ -645,8 +819,8 @@ class FortranWriter(PSyIRVisitor):
                     wildcard_imports_checked = True
                 if not has_wildcard_import:
                     raise VisitorError(
-                        "Routine symbol '{0}' does not have a GlobalInterface "
-                        "or LocalInterface, is not a Fortran intrinsic and "
+                        "Routine symbol '{0}' does not have an ImportInterface"
+                        " or LocalInterface, is not a Fortran intrinsic and "
                         "there is no wildcard import which could bring it into"
                         " scope. This is not supported by the Fortran "
                         "back-end.".format(sym.name))
@@ -659,7 +833,8 @@ class FortranWriter(PSyIRVisitor):
             # RoutineSymbols of UnknownFortranType. These must therefore be
             # declared.
             if isinstance(sym.datatype, UnknownType):
-                declarations += self.gen_vardecl(sym)
+                declarations += self.gen_vardecl(
+                    sym, include_visibility=is_module_scope)
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)
@@ -685,22 +860,35 @@ class FortranWriter(PSyIRVisitor):
         # declares any argument variables before local variables.
 
         # 1: Argument variable declarations
-        if symbol_table.argument_datasymbols and not args_allowed:
+        if symbol_table.argument_datasymbols and is_module_scope:
             raise VisitorError(
                 "Arguments are not allowed in this context but this symbol "
                 "table contains argument(s): '{0}'."
                 "".format([symbol.name for symbol in
                            symbol_table.argument_datasymbols]))
         for symbol in symbol_table.argument_datasymbols:
-            declarations += self.gen_vardecl(symbol)
+            declarations += self.gen_vardecl(
+                symbol, include_visibility=is_module_scope)
 
-        # 2: Local variable declarations
-        for symbol in symbol_table.local_datasymbols:
-            declarations += self.gen_vardecl(symbol)
+        # 2: Local constants.
+        local_constants = [sym for sym in symbol_table.local_datasymbols if
+                           sym.is_constant]
+        for symbol in local_constants:
+            declarations += self.gen_vardecl(
+                symbol, include_visibility=is_module_scope)
 
-        # 3: Derived-type declarations
+        # 3: Derived-type declarations. These must come before any declarations
+        #    of symbols of these types.
         for symbol in symbol_table.local_datatypesymbols:
-            declarations += self.gen_typedecl(symbol)
+            declarations += self.gen_typedecl(
+                symbol, include_visibility=is_module_scope)
+
+        # 4: Local variable declarations.
+        local_vars = [sym for sym in symbol_table.local_datasymbols if not
+                      sym.is_constant]
+        for symbol in local_vars:
+            declarations += self.gen_vardecl(
+                symbol, include_visibility=is_module_scope)
 
         return declarations
 
@@ -755,20 +943,23 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if the name attribute of the supplied \
-        node is empty or None.
+            node is empty or None.
         :raises VisitorError: if any of the children of the supplied \
-        Container node are not Routines.
+            Container node are not Routines or CodeBlocks.
 
         '''
         if not node.name:
             raise VisitorError("Expected Container node name to have a value.")
 
-        # All children must be Routine as modules within
+        # All children must be either Routines or CodeBlocks as modules within
         # modules are not supported.
-        if not all([isinstance(child, Routine) for child in node.children]):
+        if not all(isinstance(child, (Routine, CodeBlock)) for
+                   child in node.children):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
-                "to be a sub-class of Routine.")
+                "to be either CodeBlocks or sub-classes of Routine but found: "
+                "{0}.".format(
+                    [type(child).__name__ for child in node.children]))
 
         result = "{0}module {1}\n".format(self._nindent, node.name)
 
@@ -779,9 +970,11 @@ class FortranWriter(PSyIRVisitor):
         for symbol in node.symbol_table.containersymbols:
             imports += self.gen_use(symbol, node.symbol_table)
 
-        # Declare the Container's data and specify that Containers do
-        # not allow argument declarations.
-        declarations = self.gen_decls(node.symbol_table, args_allowed=False)
+        # Declare the Container's data
+        declarations = self.gen_decls(node.symbol_table, is_module_scope=True)
+
+        # Generate the access statement (PRIVATE or PUBLIC)
+        declarations += self.gen_access_stmt(node.symbol_table)
 
         # Accessibility statements for routine symbols
         declarations += self.gen_routine_access_stmts(node.symbol_table)
@@ -829,7 +1022,7 @@ class FortranWriter(PSyIRVisitor):
             if node.return_symbol:
                 # This Routine has a return value and is therefore a Function
                 routine_type = "function"
-                if node.return_symbol.name != node.name:
+                if node.return_symbol.name.lower() != node.name.lower():
                     suffix = " result({0})".format(node.return_symbol.name)
             else:
                 routine_type = "subroutine"
@@ -844,14 +1037,28 @@ class FortranWriter(PSyIRVisitor):
         # point we have to unify all declarations and resolve possible name
         # clashes that appear when merging the scopes.
         whole_routine_scope = SymbolTable(node)
+
         for schedule in node.walk(Schedule):
-            for symbol in schedule.symbol_table.symbols:
+            for symbol in schedule.symbol_table.symbols[:]:
                 try:
                     whole_routine_scope.add(symbol)
                 except KeyError:
-                    schedule.symbol_table.rename_symbol(
-                        symbol,
-                        whole_routine_scope.next_available_name(symbol.name))
+                    new_name = whole_routine_scope.next_available_name(
+                        symbol.name)
+                    while True:
+                        # Ensure that the new name isn't already in the current
+                        # symbol table.
+                        local_name = schedule.symbol_table.next_available_name(
+                            new_name)
+                        if local_name == new_name:
+                            # new_name is availble in the current symbol table
+                            # so we're done.
+                            break
+                        # new_name clashed with an entry in the current symbol
+                        # table so try again.
+                        new_name = whole_routine_scope.next_available_name(
+                            local_name)
+                    schedule.symbol_table.rename_symbol(symbol, new_name)
                     whole_routine_scope.add(symbol)
 
         # Generate module imports
@@ -934,9 +1141,10 @@ class FortranWriter(PSyIRVisitor):
                             # associative due to rounding errors.
                             return "({0} {1} {2})".format(lhs, fort_oper, rhs)
             return "{0} {1} {2}".format(lhs, fort_oper, rhs)
-        except KeyError:
-            raise VisitorError("Unexpected binary op '{0}'."
-                               "".format(node.operator))
+        except KeyError as error:
+            raise six.raise_from(VisitorError("Unexpected binary op '{0}'."
+                                              "".format(node.operator)),
+                                 error)
 
     def naryoperation_node(self, node):
         '''This method is called when an NaryOperation instance is found in
@@ -957,117 +1165,10 @@ class FortranWriter(PSyIRVisitor):
         try:
             fort_oper = get_fortran_operator(node.operator)
             return "{0}({1})".format(fort_oper, ", ".join(arg_list))
-        except KeyError:
-            raise VisitorError("Unexpected N-ary op '{0}'".
-                               format(node.operator))
-
-    def structurereference_node(self, node):
-        '''
-        Creates the Fortran for an access to a member of a structure type.
-
-        :param node: a StructureReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        :raises VisitorError: if this node does not have an instance of Member\
-                              as its only child.
-
-        '''
-        if len(node.children) != 1:
-            raise VisitorError(
-                "A StructureReference must have a single child but the "
-                "reference to symbol '{0}' has {1}.".format(
-                    node.name, len(node.children)))
-        if not isinstance(node.children[0], Member):
-            raise VisitorError(
-                "A StructureReference must have a single child which is a "
-                "sub-class of Member but the reference to symbol '{0}' has a "
-                "child of type '{1}'".format(node.name,
-                                             type(node.children[0]).__name__))
-        result = node.symbol.name + "%" + self._visit(node.children[0])
-        return result
-
-    def arrayofstructuresreference_node(self, node):
-        '''
-        Creates the Fortran for a reference to one or more elements of an
-        array of derived types.
-
-        :param node: an ArrayOfStructuresReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresReference`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        :raises VisitorError: if the supplied node does not have the correct \
-                              number and type of children.
-        '''
-        if len(node.children) < 2:
-            raise VisitorError(
-                "An ArrayOfStructuresReference must have at least two children"
-                " but found {0}".format(len(node.children)))
-
-        if not isinstance(node.children[0], Member):
-            raise VisitorError(
-                "An ArrayOfStructuresReference must have a Member as its "
-                "first child but found '{0}'".format(
-                    type(node.children[0]).__name__))
-
-        # Generate the array reference. We need to skip over the first child
-        # (as that refers to the member of the derived type being accessed).
-        args = self._gen_dims(node.children[1:])
-
-        result = (node.symbol.name + "({0})".format(",".join(args)) +
-                  "%" + self._visit(node.children[0]))
-        return result
-
-    def member_node(self, node):
-        '''
-        Creates the Fortran for an access to a member of a derived type.
-
-        :param node: a Member PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Member`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        '''
-        result = node.name
-        if not node.children:
-            return result
-
-        if isinstance(node.children[0], Member):
-            if len(node.children) > 1:
-                args = self._gen_dims(node.children[1:])
-                result += "({0})".format(",".join(args))
-            result += "%" + self._visit(node.children[0])
-        else:
-            args = self._gen_dims(node.children)
-            result += "({0})".format(",".join(args))
-
-        return result
-
-    def arrayreference_node(self, node):
-        '''This method is called when an ArrayReference instance is found
-        in the PSyIR tree.
-
-        :param node: an ArrayNode PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayNode`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        :raises VisitorError: if the node does not have any children.
-
-        '''
-        if not node.children:
-            raise VisitorError(
-                "Incomplete ArrayReference node (for symbol '{0}') found: "
-                "must have one or more children.".format(node.name))
-        args = self._gen_dims(node.children)
-        result = "{0}({1})".format(node.name, ",".join(args))
-        return result
+        except KeyError as error:
+            raise six.raise_from(VisitorError("Unexpected N-ary op '{0}'".
+                                              format(node.operator)),
+                                 error)
 
     def range_node(self, node):
         '''This method is called when a Range instance is found in the PSyIR
@@ -1264,9 +1365,9 @@ class FortranWriter(PSyIRVisitor):
                     return "({0}{1})".format(fort_oper, content)
             return "{0}{1}".format(fort_oper, content)
 
-        except KeyError:
-            raise VisitorError("Unexpected unary op '{0}'.".format(
-                node.operator))
+        except KeyError as error:
+            raise six.raise_from(VisitorError("Unexpected unary op '{0}'."
+                                              .format(node.operator)), error)
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in
@@ -1310,24 +1411,6 @@ class FortranWriter(PSyIRVisitor):
                  "".format(node.structure)))
         return result
 
-    def nemoinvokeschedule_node(self, node):
-        '''A NEMO invoke schedule is the top level node in a PSyIR
-        representation of a NEMO program unit (program, subroutine
-        etc). It does not represent any code itself so all it needs to
-        to is call its children and return the result.
-
-        :param node: a NemoInvokeSchedule PSyIR node.
-        :type node: :py:class:`psyclone.nemo.NemoInvokeSchedule`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        '''
-        result = ""
-        for child in node.children:
-            result += self._visit(child)
-        return result
-
     def nemokern_node(self, node):
         '''NEMO kernels are a group of nodes collected into a schedule
         so simply call the nodes in the schedule.
@@ -1345,13 +1428,33 @@ class FortranWriter(PSyIRVisitor):
             result += self._visit(child)
         return result
 
-    def directive_node(self, node):
-        '''This method is called when a Directive instance is found in
+    def regiondirective_node(self, node):
+        '''This method is called when a RegionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
-        the statements in between as a string (depending on the language).
+        the statements in between as a string.
 
-        :param node: a Directive PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Directive`
+        :param node: a RegionDirective PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.RegionDirective`
+
+        :returns: the Fortran code for this node.
+        :rtype: str
+
+        '''
+        result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
+        for child in node.dir_body:
+            result_list.append(self._visit(child))
+
+        end_string = node.end_string()
+        if end_string:
+            result_list.append("{0}!${1}\n".format(self._nindent, end_string))
+        return "".join(result_list)
+
+    def standalonedirective_node(self, node):
+        '''This method is called when a StandaloneDirective instance is found
+        in the PSyIR tree. It returns the directive as a string.
+
+        :param node: a StandaloneDirective PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.StandloneDirective`
 
         :returns: the Fortran code for this node.
         :rtype: str
@@ -1359,12 +1462,6 @@ class FortranWriter(PSyIRVisitor):
         '''
         result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
 
-        for child in node.dir_body:
-            result_list.append(self._visit(child))
-
-        end_string = node.end_string()
-        if end_string:
-            result_list.append("{0}!${1}\n".format(self._nindent, end_string))
         return "".join(result_list)
 
     def call_node(self, node):
