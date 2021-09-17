@@ -74,13 +74,13 @@ def test_transform_apply_mixed_implicit_do():
     writer = FortranWriter()
     result = writer(schedule)
     expected = (
-        "do jk = 1, jpk, 1\n"
-        "  do jj = 1, jpj, 1\n"
-        "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jj,jk) = vmask(ji,jj,jk) + 1.0\n"
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jj,jk) = vmask(ji,jj,jk) + 1.0\n"
+        "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo")
+        "  enddo")
     assert expected in result
 
 
@@ -97,27 +97,27 @@ def test_apply_multi_assignments():
     writer = FortranWriter()
     result = writer(schedule)
     expected = (
-        "do jk = 1, jpk, 1\n"
-        "  do jj = 1, jpj, 1\n"
-        "    do ji = 1, jpi, 1\n"
-        "      zftv(ji,jj,jk) = 0.0e0\n"
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        zftv(ji,jj,jk) = 0.0e0\n"
+        "      enddo\n"
         "    enddo\n"
         "  enddo\n"
-        "enddo\n"
-        "if (l_ptr) then\n"
+        "  if (l_ptr) then\n"
+        "    call dia_ptr_hst(jn, 'ldf', -zftv(:,:,:))\n"
+        "  end if\n"
         "  call dia_ptr_hst(jn, 'ldf', -zftv(:,:,:))\n"
-        "end if\n"
-        "call dia_ptr_hst(jn, 'ldf', -zftv(:,:,:))\n"
-        "do jj = 1, jpj, 1\n"
-        "  do ji = 1, jpi, 1\n"
-        "    zftu(ji,jj,1) = 1.0e0\n"
+        "  do jj = 1, jpj, 1\n"
+        "    do ji = 1, jpi, 1\n"
+        "      zftu(ji,jj,1) = 1.0e0\n"
+        "    enddo\n"
         "  enddo\n"
-        "enddo\n"
-        "do jj = 1, jpj, 1\n"
-        "  do ji = 1, jpi, 1\n"
-        "    tmask(ji,jj) = jpi\n"
-        "  enddo\n"
-        "enddo\n")
+        "  do jj = 1, jpj, 1\n"
+        "    do ji = 1, jpi, 1\n"
+        "      tmask(ji,jj) = jpi\n"
+        "    enddo\n"
+        "  enddo\n")
     assert expected in result
 
 
