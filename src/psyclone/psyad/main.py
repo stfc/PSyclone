@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Top-level driver functions for PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -58,35 +58,72 @@ def main(args):
     '''
     logger = logging.getLogger(__name__)
 
+    # There is a well known bug in arparse when mixing positional and
+    # variable arguments. The simplest solution is to separate them
+    # with --. The usage message is therefore manually updated to
+    # reflect this workaround.
+    def msg():
+        '''Function to overide the argpass usage message'''
+        return "psyad [-h] [-oad OAD] [-v] -a ACTIVE [ACTIVE ...] -- filename"
+
     parser = argparse.ArgumentParser(
         description="Run the PSyclone adjoint code generator on an LFRic "
-        "tangent-linear kernel file")
+        "tangent-linear kernel file", usage=msg())
+    parser.add_argument(
+        '-a', '--active', nargs='+', help='active variable names',
+        required=True)
+    parser.add_argument('filename', help='LFRic tangent-linear kernel source')
+    parser.add_argument('-oad', help='filename for the transformed code')
     parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
-    parser.add_argument('-oad', help='filename for the transformed code')
-    parser.add_argument('filename', help='LFRic tangent-linear kernel source')
+    parser.add_argument(
+        '-t', '--gen-test',
+        help='generate a standalone unit test for the adjoint code',
+        action='store_true')
+    parser.add_argument('-otest',
+                        help='filename for the unit test (implies -t)',
+                        dest='test_filename')
 
     args = parser.parse_args(args)
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
+    # Specifying an output file for the test harness is taken to mean that
+    # the user wants us to generate it.
+    generate_test = args.gen_test or args.test_filename
+
     # TL Fortran code
     filename = args.filename
     logger.info("Reading kernel file %s", filename)
-    with open(filename) as my_file:
-        tl_fortran_str = my_file.read()
-        tl_fortran_str = six.text_type(tl_fortran_str)
+    try:
+        with open(filename) as my_file:
+            tl_fortran_str = my_file.read()
+            tl_fortran_str = six.text_type(tl_fortran_str)
+    except FileNotFoundError:
+        logger.error(
+            "psyad error: file '{0}', not found.".format(filename))
+        sys.exit(1)
 
-    ad_fortran_str = generate_adjoint_str(tl_fortran_str)
+    ad_fortran_str = generate_adjoint_str(
+        tl_fortran_str, args.active)
 
-    # AD Fortran code
+    # Output the Fortran code for the adjoint kernel
     if args.oad:
         logger.info("Writing adjoint of kernel to file %s", args.oad)
         write_unicode_file(ad_fortran_str, args.oad)
     else:
         print(ad_fortran_str, file=sys.stdout)
+
+    # Output test framework if requested
+    if generate_test:
+        if args.test_filename:
+            logger.info("Writing test harness for adjoint kernel to file %s",
+                        args.test_filename)
+            write_unicode_file(test_fortran_str, args.test_filename)
+        else:
+            print(test_fortran_str, file=sys.stdout)
 
 
 # =============================================================================
