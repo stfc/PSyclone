@@ -64,7 +64,8 @@ def main(args):
     # reflect this workaround.
     def msg():
         '''Function to overide the argpass usage message'''
-        return "psyad [-h] [-oad OAD] [-v] -a ACTIVE [ACTIVE ...] -- filename"
+        return ("psyad [-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+                "-a ACTIVE [ACTIVE ...] -- filename")
 
     parser = argparse.ArgumentParser(
         description="Run the PSyclone adjoint code generator on an LFRic "

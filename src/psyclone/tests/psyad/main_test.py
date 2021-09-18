@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''A module to perform pytest tests on the code in the main.py file
 within the psyad directory.
@@ -54,20 +54,27 @@ def test_main_h_option(capsys):
         main(["-h", "filename"])
     assert str(info.value) == "0"
     output, error = capsys.readouterr()
+    print (output)
     assert error == ""
     # The name of the executable is replaced with either pytest or -c
     # when using pytest, therefore we split this test into sections.
     expected1 = "usage: "
     expected2 = (
-        "[-h] [-v] [-oad OAD] filename\n\n"
+        "[-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+        "-a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
-        "  filename       LFRic tangent-linear kernel source\n\n"
+        "  filename              LFRic tangent-linear kernel source\n\n"
         "optional arguments:\n"
-        "  -h, --help     show this help message and exit\n"
-        "  -v, --verbose  increase the verbosity of the output\n"
-        "  -oad OAD       filename for the transformed code\n")
+        "  -h, --help            show this help message and exit\n"
+        "  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
+        "                        active variable names\n"
+        "  -oad OAD              filename for the transformed code\n"
+        "  -v, --verbose         increase the verbosity of the output\n"
+        "  -t, --gen-test        generate a standalone unit test for the "
+        "adjoint code\n"
+        "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n")
     assert expected1 in output
     assert expected2 in output
 
