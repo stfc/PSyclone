@@ -248,8 +248,6 @@ def test_generate_adjoint_errors():
             "found: ['my_kern1', 'my_kern2']" in str(err.value))
 
 
-# generate_adjoint function logging
-
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
 def test_generate_adjoint_logging(caplog):
