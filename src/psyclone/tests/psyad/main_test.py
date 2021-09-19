@@ -122,14 +122,14 @@ def test_main_h_option(capsys):
     assert expected2 in output
 
 
-# no filename
-def test_main_no_filename(capsys):
-    '''Test that the main() function raises an exception if the filename
-    argument is not supplied.
+# no args
+def test_main_no_args(capsys):
+    '''Test that the main() function raises an exception if the required
+    arguments are not supplied.
 
     '''
     with pytest.raises(SystemExit) as info:
-        main(["-a", "var"])
+        main([])
     assert str(info.value) == "2"
     output, error = capsys.readouterr()
     assert output == ""
@@ -142,16 +142,78 @@ def test_main_no_filename(capsys):
     if six.PY2:
         expected3 = "error: too few arguments\n"
     else:
-        expected3 = "error: the following arguments are required: filename\n"
+        expected3 = ("error: the following arguments are required: "
+                     "-a/--active, filename\n")
     assert expected1 in error
     assert expected2 in error
     assert expected3 in error
 
 
+# no -a
+def test_main_no_a_arg(capsys):
+    '''Test that the main() function raises an exception if the -a
+    argument is not supplied.
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["file"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = ("error: the following arguments are required: "
+                "-a/--active")
+    assert expected in error
+
+
+# no -a arg arg
+def test_main_no_a_arg_arg(capsys):
+    '''Test that the main() function raises an exception if an argument to
+    the -a argument is not supplied.
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["file", "-a"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = ("error: argument -a/--active: expected at least one "
+                "argument")
+    assert expected in error
+
+
+# no filename
+def test_main_no_filename(capsys):
+    '''Test that the main() function raises an exception if no filename is
+    supplied.
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "var"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = "error: the following arguments are required: filename\n"
+    assert expected in error
+
+
+# no --
+def test_main_no_filename(capsys):
+    '''Test that the main() function raises an exception if the -- is not
+    provided between the argument and the filename.
+
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "var", "filename"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = "error: the following arguments are required: filename\n"
+    assert expected in error
+
+
 # invalid filename
-def test_main_invalid_filename(capsys):
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
+def test_main_invalid_filename(capsys, caplog):
     '''Test that the the main() function raises an exception if the
-    filename does not exist.
+    file specified by filename does not exist.
 
     '''
     # FileNotFoundError does not exist in Python2
@@ -166,6 +228,7 @@ def test_main_invalid_filename(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     assert error == ""
+    assert "file 'does_not_exist.f90', not found." in caplog.text
 
 
 # writing to stdout

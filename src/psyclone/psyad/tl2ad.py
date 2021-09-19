@@ -66,13 +66,14 @@ ADJOINT_NAME_SUFFIX = "_adj"
 TEST_ARRAY_DIM_SIZE = 20
 
 
-def generate_adjoint_str(tl_fortran_str, create_test=False):
+def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     '''Takes an LFRic tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
 
     :param str tl_fortran_str: Fortran implementation of an LFRic \
         tangent-linear kernel.
+    :param list of str active_variables: list of active variables names.
     :param bool create_test: whether or not to create test code for the \
         adjoint kernel.
 
@@ -95,7 +96,7 @@ def generate_adjoint_str(tl_fortran_str, create_test=False):
     # logger.debug(tl_psyir.view())
 
     # TL to AD translation
-    ad_psyir = generate_adjoint(tl_psyir)
+    ad_psyir = generate_adjoint(tl_psyir, active_variables)
 
     # AD Fortran code
     writer = FortranWriter()
@@ -152,7 +153,7 @@ def _find_container(psyir):
                               "Containers. This is not supported.")
 
 
-def generate_adjoint(tl_psyir):
+def generate_adjoint(tl_psyir, active_variables):
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
@@ -162,6 +163,7 @@ def generate_adjoint(tl_psyir):
     :param tl_psyir: language-level PSyIR containing the LFRic \
         tangent-linear kernel.
     :type tl_psyir: :py:class:`psyclone.psyir.Node`
+    :param list of str active_variables: list of active variables names.
 
     :returns: language-level PSyIR containing the adjoint of the \
         supplied tangent-linear kernel.
@@ -178,7 +180,8 @@ def generate_adjoint(tl_psyir):
         "Translation from generic PSyIR to LFRic-specific PSyIR should be "
         "done now.")
 
-    # Transform from TL to AD
+    # Transform from TL to AD. The list of active variables in
+    # the active_variables variables will be used here.
     logger.debug("Transformation from TL to AD should be done now but instead "
                  "we copy the input.")
     ad_psyir = tl_psyir.copy()

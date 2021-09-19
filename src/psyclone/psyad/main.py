@@ -108,8 +108,8 @@ def main(args):
         sys.exit(1)
 
     # Create the adjoint (and associated test framework if requested)
-    ad_fortran_str, test_fortran_str = generate_adjoint_str(tl_fortran_str,
-                                                            generate_test)
+    ad_fortran_str, test_fortran_str = generate_adjoint_str(
+        tl_fortran_str, args.active, create_test=generate_test)
 
     # Output the Fortran code for the adjoint kernel
     if args.oad:
