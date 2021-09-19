@@ -45,7 +45,7 @@ import sys
 import six
 
 from psyclone.generator import write_unicode_file
-from psyclone.psyad import generate_adjoint_str
+from psyclone.psyad.tl2ad import generate_adjoint_str
 
 
 def main(args):
@@ -73,8 +73,6 @@ def main(args):
     parser.add_argument(
         '-a', '--active', nargs='+', help='active variable names',
         required=True)
-    parser.add_argument('filename', help='LFRic tangent-linear kernel source')
-    parser.add_argument('-oad', help='filename for the transformed code')
     parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
@@ -85,6 +83,8 @@ def main(args):
     parser.add_argument('-otest',
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')
+    parser.add_argument('-oad', help='filename for the transformed code')
+    parser.add_argument('filename', help='LFRic tangent-linear kernel source')
 
     args = parser.parse_args(args)
 
@@ -107,8 +107,9 @@ def main(args):
             "psyad error: file '{0}', not found.".format(filename))
         sys.exit(1)
 
-    ad_fortran_str = generate_adjoint_str(
-        tl_fortran_str, args.active)
+    # Create the adjoint (and associated test framework if requested)
+    ad_fortran_str, test_fortran_str = generate_adjoint_str(tl_fortran_str,
+                                                            generate_test)
 
     # Output the Fortran code for the adjoint kernel
     if args.oad:
