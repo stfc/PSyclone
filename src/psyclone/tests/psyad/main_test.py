@@ -98,7 +98,6 @@ def test_main_h_option(capsys):
         main(["-h", "filename"])
     assert str(info.value) == "0"
     output, error = capsys.readouterr()
-    print (output)
     assert error == ""
     # The name of the executable is replaced with either pytest or -c
     # when using pytest, therefore we split this test into sections.
@@ -114,11 +113,11 @@ def test_main_h_option(capsys):
         "  -h, --help            show this help message and exit\n"
         "  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
         "                        active variable names\n"
-        "  -oad OAD              filename for the transformed code\n"
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
-        "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n")
+        "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
+        "  -oad OAD              filename for the transformed code\n")
     assert expected1 in output
     assert expected2 in output
 
@@ -130,7 +129,7 @@ def test_main_no_filename(capsys):
 
     '''
     with pytest.raises(SystemExit) as info:
-        main([])
+        main(["-a", "var"])
     assert str(info.value) == "2"
     output, error = capsys.readouterr()
     assert output == ""
@@ -138,7 +137,8 @@ def test_main_no_filename(capsys):
     # of the executable is replaced with either pytest or -c when
     # using pytest, therefore we split the test into sections.
     expected1 = "usage: "
-    expected2 = "[-h] [-v] [-t] [-otest TEST_FILENAME] [-oad OAD] filename"
+    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+                 "-a ACTIVE [ACTIVE ...] -- filename")
     if six.PY2:
         expected3 = "error: too few arguments\n"
     else:
@@ -149,7 +149,7 @@ def test_main_no_filename(capsys):
 
 
 # invalid filename
-def test_main_invalid_filename():
+def test_main_invalid_filename(capsys):
     '''Test that the the main() function raises an exception if the
     filename does not exist.
 
@@ -160,10 +160,12 @@ def test_main_invalid_filename():
     except NameError:
         # pylint: disable=redefined-builtin
         FileNotFoundError = IOError
-    with pytest.raises(FileNotFoundError) as info:
-        main(["does_not_exist.f90"])
-    assert ("[Errno 2] No such file or directory: 'does_not_exist.f90'"
-            in str(info.value))
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "var", "--", "does_not_exist.f90"])
+    assert str(info.value) == "1"
+    output, error = capsys.readouterr()
+    assert output == ""
+    assert error == ""
 
 
 # writing to stdout
@@ -180,7 +182,7 @@ def test_main_stdout(tmpdir, capsys):
     filename = six.text_type(tmpdir.join("tl.f90"))
     with open(filename, "a") as my_file:
         my_file.write(TEST_PROG)
-    main([filename])
+    main(["-a", "var", "--", filename])
     output, error = capsys.readouterr()
     assert error == ""
     assert expected in output
@@ -201,7 +203,7 @@ def test_main_fileout(tmpdir, capsys):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(TEST_PROG)
-    main([filename_in, "-oad", filename_out])
+    main([filename_in, "-oad", filename_out, "-a", "var"])
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
@@ -216,7 +218,7 @@ def test_main_t_option(tmpdir, capsys):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(TEST_MOD)
-    main([filename_in, "-oad", filename_out, "-t"])
+    main([filename_in, "-oad", filename_out, "-t", "-a", "var"])
     output, error = capsys.readouterr()
     assert error == ""
     assert EXPECTED_HARNESS_CODE in output
@@ -232,8 +234,8 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     harness_out = str(tmpdir.join("harness.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(TEST_MOD)
-    main([filename_in, "-oad", filename_out, "-otest", harness_out] +
-         extra_args)
+    main([filename_in, "-a", "var", "-oad", filename_out,
+          "-otest", harness_out] + extra_args)
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
