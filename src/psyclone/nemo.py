@@ -123,22 +123,18 @@ class NemoInvoke(Invoke):
 class NemoInvokes(Invokes):
     '''
     Class capturing information on all 'Invokes' (program units) within
-    a single NEMO source file. Contains a reference to the PSyIR Container
-    node for the encapsulating Fortran module.
+    a single NEMO source file.
 
-    :param ast: the fparser2 AST for the whole Fortran source file.
-    :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
+    :param psyir: the language-level PSyIR for the whole Fortran source file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.Container`
+
     '''
-    def __init__(self, ast, psy):
+    def __init__(self, psyir, psy):
         # pylint: disable=super-init-not-called
         self._psy = psy
         self.invoke_map = {}
         self.invoke_list = []
-        # Keep a pointer to the whole fparser2 AST
-        self._ast = ast
 
-        processor = Fparser2Reader()
-        psyir = processor.generate_psyir(ast)
         # Transform the language-level PSyIR into NEMO-specific PSyIR
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
@@ -173,10 +169,12 @@ class NemoPSy(PSy):
             raise InternalError("Found no names in supplied Fortran - should "
                                 "be impossible!")
         self._name = str(names[0]) + "_psy"
-        self._invokes = NemoInvokes(ast, self)
-        self._container = None
-        if self._invokes.invoke_list:
-            self._container = self._invokes.invoke_list[0].schedule.root
+
+        processor = Fparser2Reader()
+        psyir = processor.generate_psyir(ast)
+
+        self._invokes = NemoInvokes(psyir, self)
+        self._container = psyir
 
     def inline(self, _):
         '''
