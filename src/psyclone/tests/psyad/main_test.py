@@ -161,6 +161,8 @@ def test_main_no_a_arg(capsys):
     assert output == ""
     expected = ("error: the following arguments are required: "
                 "-a/--active")
+    if six.PY2:
+        expected = "argument -a/--active is required"
     assert expected in error
 
 
@@ -190,6 +192,8 @@ def test_main_no_filename(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     expected = "error: the following arguments are required: filename\n"
+    if six.PY2:
+        expected = "error: too few arguments\n"
     assert expected in error
 
 
@@ -205,6 +209,8 @@ def test_main_no_separator(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     expected = "error: the following arguments are required: filename\n"
+    if six.PY2:
+        expected = "error: too few arguments\n"
     assert expected in error
 
 
