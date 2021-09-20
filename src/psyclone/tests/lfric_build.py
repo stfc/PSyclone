@@ -151,7 +151,6 @@ class LFRicBuild(Compile):
                 name = self.find_fortran_file([self._infrastructure_path],
                                               fort_file)
                 self.compile_file(name)
-                print ("compiling {0}".format(name))
             LFRicBuild._infrastructure_built = True
 
         except (CompileError, IOError) as err:

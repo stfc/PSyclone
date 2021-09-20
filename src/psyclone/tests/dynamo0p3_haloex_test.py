@@ -561,7 +561,7 @@ def test_add_halo_exchange_code_nreader(monkeypatch):
             "never happen." in str(info.value))
 
 
-def test_readinc(tmpdir):
+def test_gh_readinc(tmpdir):
     '''Test that the GH_READINC access requires a halo exchange before the
     loop is executed if its level 1 halo is dirty (and it is in a
     standard loop that iterates to the level1 halo). This is in
@@ -587,5 +587,5 @@ def test_readinc(tmpdir):
     check_dirty = not known
     assert not check_dirty
     assert f1_hex._compute_halo_depth() == '1'
-    
+
     assert LFRicBuild(tmpdir).code_compiles(psy)

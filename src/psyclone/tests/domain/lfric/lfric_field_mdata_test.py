@@ -358,8 +358,11 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
 
 @pytest.mark.parametrize("access", ["gh_inc", "gh_readinc"])
 def test_fs_anyspace_dofs_inc_error(access):
-    ''' Test that an error is raised if a field on 'any_space' with
-    'gh_inc' access is specified for a kernel that operates on DoFs. '''
+    '''Test that an error is raised if a field on 'any_space' with
+    'gh_inc' or 'gh_readinc' access is specified for a kernel that
+    operates on DoFs.
+
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     dof_code = FIELD_CODE.replace("integer :: operates_on = cell_column",
                                   "integer :: operates_on = dof", 1)

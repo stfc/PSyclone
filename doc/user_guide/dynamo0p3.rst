@@ -774,30 +774,36 @@ For example::
        /)
 
 .. warning:: It is important that ``GH_INC`` is not incorrectly used
-  in place of ``GH_READINC`` as it could result in the reading of data
-  from a dirty outermost halo when run in parallel, giving incorrect
-  results. The reason for this is that PSyclone does not add a halo
-  exchange for the outermost modified halo level of a field before a
-  loop that contains a ``GH_INC`` access to that field i.e. a loop
-  iterating to the level-n halo will result in a halo exchange to the
-  level n-1 halo being added before the loop (which means no halo
-  exchange is added when `n==1`). The reason this can be performed is
-  because any computation performed in the outermost halo will be
-  incorrect (will only compute partial sums) and PSyclone therefore sets
-  this halo level to dirty after the loop has completed. There is therefore
-  no reason to make the values of the incremented field clean for the
-  outermost modified halo. However, this optimisation does require
-  that any (dirty) data in the outermost modified halo does not result
-  in exceptions. With some compilers an exception can occur for a
-  field that has not yet had its outermost halo data written to
-  i.e. if there is a read to uninitialised data. To avoid this potential
-  problem in user code it is recommended that a (redundant computation)
-  transformation is added to compute all ``setval_c`` and ``setval_x``
-  builtin calls to the same halo depth as the associated ``GH_INC``
-  access - which is level-1 without any redundant computation
-  transformations being applied to the associated loops. This will
-  guarantee that all data has been initialised with a value before it
-  is incremented and avoid any potential exceptions.
+             in place of a ``GH_READINC`` access as it could result in
+             the reading of data from a dirty outermost halo when run
+             in parallel, giving incorrect results. The reason for
+             this is that PSyclone does not add a halo exchange for
+             the outermost modified halo level of a field before a
+             loop that contains a ``GH_INC`` access to that field,
+             i.e. a loop iterating to the level-``n`` halo will result
+             in a halo exchange to the level-(``n-1``) halo being
+             added before the loop (which means no halo exchange is
+             added when ``n==1``). The reason this can be performed is
+             because any computation in the outermost halo will be
+             incorrect (will only compute partial sums) and PSyclone
+             therefore sets this halo level to dirty after the loop
+             has completed. There is, therefore, no reason to make the
+             values of the incremented field clean for the outermost
+             modified halo. However, this optimisation does require
+             that any (dirty) data in the outermost modified halo does
+             not result in exceptions. With some compilers an
+             exception can occur for a field that has not yet had its
+             outermost halo data written to, i.e. if the uninitialised
+             data is read. To avoid this potential problem in user
+             code it is recommended that a redundant computation
+             transformation is added to compute all ``setval_c`` and
+             ``setval_x`` built-in calls (see :ref:`built-ins`) to the
+             same halo depth as the associated ``GH_INC`` access -
+             which is level-1 without any redundant computation
+             transformations being applied to the associated
+             loops. This will guarantee that all data has been
+             initialised with a value before it is incremented and
+             avoid any potential exceptions.
 
 .. note:: In the LFRic API only :ref:`lfric-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).
