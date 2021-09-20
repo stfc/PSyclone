@@ -247,6 +247,9 @@ def test_rename_suffix_if_name_clash(tmpdir):
     with the variable names, e.g. an output variable 'a', and
     an input variable 'a_post' - writing the output variable 'a'
     would use 'a_post' as name, so the suffix must be changed.
+    This is technically done in the transformation that calls
+    the driver creation, but the proper integration of the transformation
+    with the driver creation needs to be tested.
     Also check that the specified region_name is used for the output
     filename.
 
