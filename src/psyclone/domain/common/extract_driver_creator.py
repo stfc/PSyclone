@@ -263,13 +263,15 @@ class ExtractDriverCreator:
                 new_type = self._default_types[old_symbol.datatype.intrinsic]
             except KeyError as err:
                 fortran_string = writer(reference)
+                valid = list(self._default_types.keys())
+                # Sort to make sure we get a reproducible order for testing
+                valid.sort()
                 six.raise_from(InternalError(
                     "Error when constructing driver for '{0}': "
                     "Unknown intrinsic data type '{1}' in reference '{2}'. "
                     "Valid types are '{3}'."
                     .format(sched.name, old_symbol.datatype.intrinsic,
-                            fortran_string,
-                            list(self._default_types.keys()))),
+                            fortran_string, valid)),
                     err)
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
