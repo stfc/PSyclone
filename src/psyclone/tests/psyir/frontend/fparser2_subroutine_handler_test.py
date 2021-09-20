@@ -270,6 +270,32 @@ def test_function_unsupported_type(fortran_reader):
             "complex :: my_func")
 
 
+def test_function_unsupported_derived_type(fortran_reader):
+    ''' Test that the frontend handles a function when the return type is a
+    derived type that is not supported in the PSyIR. '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func()\n"
+        "    type :: my_type\n"
+        "      integer :: flag\n"
+        "    end type my_type\n"
+        "    type(my_type), pointer :: my_func, var1\n"
+        "    my_func => null()\n"
+        "  end function my_func\n"
+        "end module a\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0].children[0]
+    assert isinstance(routine, Routine)
+    assert routine.return_symbol.name == "my_func"
+    assert isinstance(routine.return_symbol.datatype, UnknownFortranType)
+    assert (routine.return_symbol.datatype.declaration.lower() ==
+            "type(my_type), pointer :: my_func")
+    sym = routine.symbol_table.lookup("var1")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
+
+
 @pytest.mark.parametrize("fn_prefix",
                          ["pure real", "real pure", "recursive", "elemental"])
 def test_unsupported_function_prefix(fortran_reader, fn_prefix):

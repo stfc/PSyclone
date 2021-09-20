@@ -48,9 +48,10 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
-    StructureReference, Schedule, Routine, Return, FileContainer
+    StructureReference, Schedule, Routine, Return, FileContainer, \
+    Assignment, IfBlock
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
+    ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
     DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType, \
     DataTypeSymbol, StructureType
@@ -355,17 +356,30 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
         fortran_writer.gen_typedecl(tsymbol)
     assert ("cannot generate code for symbol 'my_type' of type "
             "'UnknownType'" in str(err.value))
+    # Symbol with an invalid visibility
+    dtype = StructureType.create([
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE)])
+    tsymbol = DataTypeSymbol("my_type", dtype)
+    tsymbol._visibility = "wrong"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_typedecl(tsymbol, include_visibility=True)
+    assert ("visibility must be one of Symbol.Visibility.PRIVATE/PUBLIC but "
+            "'my_type' has visibility of type 'str'" in str(err.value))
 
 
 def test_gen_typedecl_unknown_fortran_type(fortran_writer):
     ''' Check that gen_typedecl() works for a symbol of UnknownFortranType. '''
     tsymbol = DataTypeSymbol("my_type", UnknownFortranType(
-        "type :: my_type\nend type my_type"))
+        "type :: my_type\nend type my_type"),
+                             visibility=Symbol.Visibility.PUBLIC)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type, public :: my_type\nend type my_type\n")
     tsymbol.visibility = Symbol.Visibility.PRIVATE
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type, private :: my_type\nend type my_type\n")
+    assert (fortran_writer.gen_typedecl(tsymbol, include_visibility=False) ==
+            "type :: my_type\nend type my_type\n")
 
 
 def test_gen_typedecl_unknown_fortran_type_missing_colons(fortran_writer):
@@ -521,10 +535,10 @@ def test_fw_gen_use(fortran_writer):
     container_symbol = ContainerSymbol("my_module")
     symbol_table.add(container_symbol)
     symbol = DataSymbol("dummy1", DeferredType(),
-                        interface=GlobalInterface(container_symbol))
+                        interface=ImportInterface(container_symbol))
     symbol_table.add(symbol)
     symbol = RoutineSymbol(
-        "my_sub", interface=GlobalInterface(container_symbol))
+        "my_sub", interface=ImportInterface(container_symbol))
     symbol_table.add(symbol)
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert result == "use my_module, only : dummy1, my_sub\n"
@@ -535,7 +549,7 @@ def test_fw_gen_use(fortran_writer):
                       "use my_module\n")
 
     symbol2 = DataSymbol("dummy2", DeferredType(),
-                         interface=GlobalInterface(container_symbol))
+                         interface=ImportInterface(container_symbol))
     symbol_table.add(symbol2)
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert result == ("use my_module, only : dummy1, dummy2, my_sub\n"
@@ -619,8 +633,18 @@ def test_fw_gen_vardecl(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
-    # An unresolved symbol with a specific type
-    symbol = DataSymbol("dummy1", INTEGER_TYPE,
+    # Use statement
+    symbol = DataSymbol("dummy1", DeferredType(),
+                        interface=ImportInterface(
+                            ContainerSymbol("my_module")))
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fortran_writer.gen_vardecl(symbol)
+    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
+            "an Argument interface but found a 'ImportInterface' interface."
+            in str(excinfo.value))
+
+    # An unresolved symbol
+    symbol = DataSymbol("dummy1", DeferredType(),
                         interface=UnresolvedInterface())
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
@@ -657,17 +681,55 @@ def test_fw_gen_vardecl(fortran_writer):
             "['2', ':', ':']." in str(excinfo.value))
 
 
+def test_fw_gen_vardecl_visibility(fortran_writer):
+    ''' Test the include_visibility argument to gen_vardecl(). '''
+    # Simple constant
+    symbol = DataSymbol("dummy3", INTEGER_TYPE,
+                        visibility=Symbol.Visibility.PUBLIC, constant_value=10)
+    # Expect include_visibility to default to False
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == "integer, parameter :: dummy3 = 10\n"
+    result = fortran_writer.gen_vardecl(symbol, include_visibility=False)
+    assert result == "integer, parameter :: dummy3 = 10\n"
+    result = fortran_writer.gen_vardecl(symbol, include_visibility=True)
+    assert result == "integer, parameter, public :: dummy3 = 10\n"
+
+    # Known type but invalid visibility
+    symbol._visibility = "wrong"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_vardecl(symbol, include_visibility=True)
+    assert ("A Symbol must be either public or private but symbol 'dummy3' "
+            "has visibility 'wrong'" in str(err.value))
+
+    # A symbol of unknown Fortran type
+    symbol = DataSymbol("var", UnknownFortranType("type :: var\n"
+                                                  "  integer, private :: id\n"
+                                                  "  integer, public :: flag\n"
+                                                  "end type var"),
+                        visibility=Symbol.Visibility.PRIVATE)
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == ("type :: var\n"
+                      "  integer, private :: id\n"
+                      "  integer, public :: flag\n"
+                      "end type var\n")
+    result = fortran_writer.gen_vardecl(symbol, include_visibility=True)
+    assert result == ("type, private :: var\n"
+                      "  integer, private :: id\n"
+                      "  integer, public :: flag\n"
+                      "end type var\n")
+
+
 def test_gen_decls(fortran_writer):
     '''Check the FortranWriter class gen_decls method produces the
     expected declarations. Also check that an exception is raised if
     an 'argument' symbol exists in the supplied symbol table and the
-    optional argument 'args_allowed' is set to False.
+    optional argument 'is_module_scope' is set to True.
 
     '''
     symbol_table = SymbolTable()
     symbol_table.add(ContainerSymbol("my_module"))
     use_statement = DataSymbol("my_use", DeferredType(),
-                               interface=GlobalInterface(
+                               interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
     argument_variable = DataSymbol("arg", INTEGER_TYPE,
@@ -680,7 +742,7 @@ def test_gen_decls(fortran_writer):
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
     grid_type = DataTypeSymbol("grid_type", DeferredType(),
-                               interface=GlobalInterface(
+                               interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(grid_type)
     grid_variable = DataSymbol("grid", grid_type)
@@ -693,7 +755,7 @@ def test_gen_decls(fortran_writer):
                       "integer :: local\n"
                       "type(grid_type) :: grid\n")
     with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_decls(symbol_table, args_allowed=False)
+        _ = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
     assert ("Arguments are not allowed in this context but this symbol table "
             "contains argument(s): '['arg']'." in str(excinfo.value))
 
@@ -745,7 +807,7 @@ def test_gen_decls_nested_scope(fortran_writer):
 
 def test_gen_decls_routine(fortran_writer):
     '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not a GlobalInterface, unless there's a wildcard
+    of a routine symbol is not an ImportInterface, unless there's a wildcard
     import from a Container.
 
     '''
@@ -769,7 +831,7 @@ def test_gen_decls_routine(fortran_writer):
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbol 'sub2' does not have a GlobalInterface or "
+        "Routine symbol 'sub2' does not have an ImportInterface or "
         "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
         "import which could bring it into scope. This is not supported by the "
         "Fortran back-end." in str(info.value))
@@ -823,7 +885,7 @@ def test_gen_routine_access_stmts(fortran_writer):
     # Check that the interface of the symbol does not matter
     symbol_table.add(
         RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
-                      interface=GlobalInterface(ContainerSymbol("some_mod"))))
+                      interface=ImportInterface(ContainerSymbol("some_mod"))))
     code = fortran_writer.gen_routine_access_stmts(symbol_table)
     assert "public :: my_sub1\nprivate :: my_sub2, used_sub\n" in code
     # Break the visibility of the second symbol
@@ -1131,6 +1193,58 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(schedule)
     assert "Expected node name to have a value." in str(excinfo.value)
+
+
+def test_fw_routine_nameclash(fortran_writer):
+    ''' Test that any name clashes are handled when merging symbol tables. '''
+    sym1 = DataSymbol("var1", INTEGER_TYPE)
+    sym2 = DataSymbol("var1", INTEGER_TYPE)
+    assign1 = Assignment.create(Reference(sym1), Literal("1", INTEGER_TYPE))
+    assign2 = Assignment.create(Reference(sym2), Literal("2", INTEGER_TYPE))
+    ifblock = IfBlock.create(Literal("true", BOOLEAN_TYPE),
+                             [assign1], [assign2])
+    # Place the symbols for the two variables in the tables associated with
+    # the two branches of the IfBlock. These then represent *different*
+    # variables, despite having the same name.
+    ifblock.if_body.symbol_table.add(sym1)
+    ifblock.else_body.symbol_table.add(sym2)
+    routine = Routine.create("my_sub", SymbolTable(), [ifblock])
+    result = fortran_writer(routine)
+    assert ("  integer :: var1\n"
+            "  integer :: var1_1\n"
+            "\n"
+            "  if (.true.) then\n"
+            "    var1 = 1\n"
+            "  else\n"
+            "    var1_1 = 2\n"
+            "  end if" in result)
+    # Add a symbol to the local scope of the else that will clash with
+    # the name generated with reference to the routine scope.
+    ifblock.else_body.symbol_table.add(DataSymbol("var1_1", INTEGER_TYPE))
+    result = fortran_writer(routine)
+    assert ("  integer :: var1\n"
+            "  integer :: var1_1_1\n"
+            "  integer :: var1_1\n"
+            "\n"
+            "  if (.true.) then\n"
+            "    var1 = 1\n"
+            "  else\n"
+            "    var1_1_1 = 2\n"
+            "  end if" in result)
+    # Add a symbol to the routine scope that will clash with the first name
+    # generated with reference to the else scope.
+    routine.symbol_table.add(DataSymbol("var1_1_1", INTEGER_TYPE))
+    result = fortran_writer(routine)
+    assert ("  integer :: var1_1_1\n"
+            "  integer :: var1\n"
+            "  integer :: var1_1_2\n"
+            "  integer :: var1_1\n"
+            "\n"
+            "  if (.true.) then\n"
+            "    var1 = 1\n"
+            "  else\n"
+            "    var1_1_2 = 2\n"
+            "  end if" in result)
 
 
 def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
@@ -2024,7 +2138,7 @@ def test_fw_call_node(fortran_writer):
     symbol_use = ContainerSymbol("my_mod")
     symbol_table.add(symbol_use)
     symbol_call = RoutineSymbol(
-        "my_sub", interface=GlobalInterface(symbol_use))
+        "my_sub", interface=ImportInterface(symbol_use))
     symbol_table.add(symbol_call)
     mult_ab = BinaryOperation.create(
         BinaryOperation.Operator.MUL, ref_a.copy(), ref_b.copy())

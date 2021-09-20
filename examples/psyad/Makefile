@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,32 +30,32 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-#         S. Siso, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Laboratory
 
-'''This module contains the transformations for GOcean.
-'''
+include ../common.mk
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations.gocean_opencl_trans \
-    import GOOpenCLTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
-    import GOceanLoopFuseTrans
-from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
-    import GOConstLoopBoundsTrans
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod \
+                   test_harness.*
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.gocean.transformations import GOceanExtractTrans
+# The first command will write the adjoint kernel to stdout. The second will
+# write both it and the corresponding test harness to separate files.
+transform:
+	$(PSYAD) testkern_mod.f90
+	$(PSYAD) -t -otest test_harness.f90 -oad testkernadj_mod.f90 \
+                 testkern_mod.f90
 
-__all__ = ['GOceanExtractTrans',
-           'GOMoveIterationBoundariesInsideKernelTrans',
-           'GOceanLoopFuseTrans',
-           'GOOpenCLTrans',
-           'GOConstLoopBoundsTrans',
-           'GOceanLoopFuseTrans']
+compile: transform
+	$(F90) -c testkern_mod.f90
+	$(F90) -c testkernadj_mod.f90
+	$(F90) -c test_harness.f90
+	$(F90) -o test_harness.exe testkern_mod.o testkernadj_mod.o \
+                  test_harness.o
+
+run: compile
+	@echo ""
+	@echo "Running PSyAD-generated test harness..."
+	@./test_harness.exe
+	@echo "...done."
+

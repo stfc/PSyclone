@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (Node, ProfileNode, Literal, Assignment,
                                   Reference, Return, KernelSchedule, Loop,
                                   CodeBlock)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
-    ContainerSymbol, DataTypeSymbol, UnknownFortranType, GlobalInterface
+    ContainerSymbol, DataTypeSymbol, UnknownFortranType, ImportInterface
 from psyclone.profiler import Profiler
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
@@ -70,6 +70,8 @@ def test_profile_node_create():
     pnode = ProfileNode.create([], SymbolTable())
     sched.addchild(pnode)
     assert str(pnode) == ("ProfileStart[var=profile_psy_data]\n"
+                          "Schedule:\n"
+                          "End Schedule\n"
                           "ProfileEnd")
     pnode2 = ProfileNode.create([], symbol_table=sched.symbol_table,
                                 options={"region_name": ("my_mod", "first")})
@@ -83,7 +85,7 @@ def test_profile_node_create():
     # A type symbol for the derived type used to capture profiling data
     type_sym = table.lookup("profile_PSyDataType")
     assert isinstance(type_sym, DataTypeSymbol)
-    assert isinstance(type_sym.interface, GlobalInterface)
+    assert isinstance(type_sym.interface, ImportInterface)
     assert type_sym.interface.container_symbol is csym
     # A symbol of derived type to contain the profiling data. As it must
     # have the (unsupported) 'save' and 'target' attributes, it has to be of

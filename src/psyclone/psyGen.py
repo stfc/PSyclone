@@ -56,7 +56,7 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
     Routine, Call, OMPDoDirective
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
+    Symbol, ContainerSymbol, ImportInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
@@ -1021,15 +1021,15 @@ class InvokeSchedule(Routine):
         self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
         # pylint: enable=protected-access
 
-        # Global symbols promoted from Kernel Globals are in the SymbolTable
-        # First aggregate all globals variables from the same module in a map
+        # Imported symbols promoted from Kernel imports are in the SymbolTable.
+        # First aggregate all variables imported from the same module in a map.
         module_map = {}
-        for globalvar in self.symbol_table.global_symbols:
-            module_name = globalvar.interface.container_symbol.name
+        for imported_var in self.symbol_table.imported_symbols:
+            module_name = imported_var.interface.container_symbol.name
             if module_name in module_map:
-                module_map[module_name].append(globalvar.name)
+                module_map[module_name].append(imported_var.name)
             else:
-                module_map[module_name] = [globalvar.name]
+                module_map[module_name] = [imported_var.name]
 
         # Then we can produce the UseGen statements without repeating modules
         for module_name, var_list in module_map.items():
@@ -1883,7 +1883,7 @@ class CodedKern(Kern):
                 except KeyError:
                     csymbol = ContainerSymbol(self._module_name)
                     symtab.add(csymbol)
-                rsymbol.interface = GlobalInterface(csymbol)
+                rsymbol.interface = ImportInterface(csymbol)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
@@ -2775,7 +2775,7 @@ class Argument(object):
                 self._name = new_argument.name
 
                 # Unless the argument already exists with another interface
-                # (e.g. globals) they come from the invoke argument list
+                # (e.g. import) they come from the invoke argument list
                 if (isinstance(new_argument.interface, ArgumentInterface) and
                         new_argument not in previous_arguments):
                     symtab.specify_argument_list(previous_arguments +

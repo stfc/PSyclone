@@ -42,11 +42,11 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.nodes import Assignment, Reference, Loop, Directive
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Assignment, Reference, Loop, Directive
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.transformations import (ACCKernelsTrans, ACCDataTrans,
                                       ACCParallelTrans)
 from psyclone.tests.utilities import get_invoke
@@ -80,7 +80,7 @@ DOUBLE_LOOP = ("program do_loop\n"
 
 
 # ----------------------------------------------------------------------------
-def test_acc_data_region(parser):
+def test_acc_data_region(parser, fortran_writer):
     ''' Test that an ACCDataDirective node generates the expected code. '''
     # Generate fparser2 parse tree from Fortran code.
     reader = FortranStringReader(NEMO_TEST_CODE)
@@ -89,8 +89,7 @@ def test_acc_data_region(parser):
     sched = psy.invokes.invoke_list[0].schedule
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
-    fvisitor = FortranWriter()
-    result = fvisitor(sched)
+    result = fortran_writer(sched)
     assert ("  !$acc data copyin(d) copyout(c) copy(b)\n"
             "  do i = 1, 20, 2\n" in result)
     assert ("  enddo\n"
@@ -98,12 +97,12 @@ def test_acc_data_region(parser):
     assigns = sched.walk(Assignment)
     # Remove the read from array 'd'
     assigns[0].detach()
-    result = fvisitor(sched)
+    result = fortran_writer(sched)
     assert ("  !$acc data copyout(c) copy(b)\n"
             "  do i = 1, 20, 2\n" in result)
     # Remove the readwrite of array 'b'
     assigns[2].detach()
-    result = fvisitor(sched)
+    result = fortran_writer(sched)
     assert ("  !$acc data copyout(c)\n"
             "  do i = 1, 20, 2\n" in result)
 
@@ -150,7 +149,7 @@ end module test''')
 # ----------------------------------------------------------------------------
 @pytest.mark.parametrize("default_present, expected",
                          [(True, " default(present)"), (False, "")])
-def test_nemo_acc_kernels(default_present, expected, parser):
+def test_nemo_acc_kernels(default_present, expected, parser, fortran_writer):
     '''
     Tests that an OpenACC kernels directive is handled correctly in the
     NEMO API.
@@ -166,8 +165,7 @@ def test_nemo_acc_kernels(default_present, expected, parser):
     options = {"default_present": default_present}
     ktrans.apply(nemo_sched[0], options)
 
-    fvisitor = FortranWriter()
-    result = fvisitor(nemo_sched)
+    result = fortran_writer(nemo_sched)
     correct = '''  !$acc kernels{0}
   do i = 1, 20, 2
     a = 2 * i + d(i)
@@ -180,7 +178,7 @@ def test_nemo_acc_kernels(default_present, expected, parser):
     cvisitor = CWriter()
     with pytest.raises(VisitorError) as err:
         _ = cvisitor(nemo_sched[0])
-    assert "Unsupported node 'ACCKernelsDirective' found" in str(err.value)
+    assert "Unsupported node 'NemoKern' found" in str(err.value)
 
 
 # ----------------------------------------------------------------------------
@@ -216,11 +214,11 @@ def test_nemo_acc_parallel(parser):
     cvisitor = CWriter(check_global_constraints=False)
     with pytest.raises(VisitorError) as err:
         _ = cvisitor(nemo_sched[0])
-    assert "Unsupported node 'ACCDataDirective' found" in str(err.value)
+    assert "Unsupported node 'NemoKern' found" in str(err.value)
 
 
 # ----------------------------------------------------------------------------
-def test_acc_loop(parser):
+def test_acc_loop(parser, fortran_writer):
     ''' Tests that an OpenACC loop directive is handled correctly. '''
     reader = FortranStringReader(DOUBLE_LOOP)
     code = parser(reader)
@@ -232,8 +230,7 @@ def test_acc_loop(parser):
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     _ = acc_trans.apply(loops[0], {"sequential": True})
-    fort_writer = FortranWriter()
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("  !$acc kernels\n"
             "  !$acc loop seq\n"
             "  do jj = 1, jpj, 1\n" in result)
@@ -241,22 +238,22 @@ def test_acc_loop(parser):
     # Rather than keep apply the transformation with different options,
     # change the internal state of the Directive directly.
     loop_dir._sequential = False
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("  !$acc kernels\n"
             "  !$acc loop independent\n"
             "  do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = 2
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("  !$acc kernels\n"
             "  !$acc loop independent collapse(2)\n"
             "  do jj = 1, jpj, 1\n" in result)
     loop_dir._independent = False
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("  !$acc kernels\n"
             "  !$acc loop collapse(2)\n"
             "  do jj = 1, jpj, 1\n" in result)
     loop_dir._collapse = None
-    result = fort_writer(schedule)
+    result = fortran_writer(schedule)
     assert ("  !$acc kernels\n"
             "  !$acc loop\n"
             "  do jj = 1, jpj, 1\n" in result)
@@ -310,6 +307,9 @@ a = b
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
-    with pytest.raises(VisitorError) as err:
-        _ = cvisitor(invoke.schedule[0])
-    assert "Unsupported node 'ACCParallelDirective' found" in str(err.value)
+    correct = '''#pragma acc parallel default(present)
+{
+  a = b;
+}'''
+    result = cvisitor(invoke.schedule[0])
+    assert correct in result

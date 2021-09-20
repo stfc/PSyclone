@@ -117,13 +117,13 @@ def test_multi_use_stmt():
     my_mod = symtab.lookup("my_mod")
     assert not my_mod.wildcard_import
     # Check that we have accumulated all imports
-    import_list = symtab.imported_symbols(my_mod)
+    import_list = symtab.symbols_imported_from(my_mod)
     assert len(import_list) == 3
     names = [sym.name for sym in import_list]
     assert sorted(names) == ["some_var", "var1", "var2"]
     this_mod = symtab.lookup("this_mod")
     assert this_mod.wildcard_import
-    names = [sym.name for sym in symtab.imported_symbols(this_mod)]
+    names = [sym.name for sym in symtab.symbols_imported_from(this_mod)]
     assert names == ["var3"]
 
 
@@ -154,7 +154,7 @@ def test_use_no_only_list():
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     some_mod = fake_parent.symbol_table.lookup("some_mod")
     assert not some_mod.wildcard_import
-    assert fake_parent.symbol_table.imported_symbols(some_mod) == []
+    assert fake_parent.symbol_table.symbols_imported_from(some_mod) == []
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -203,7 +203,7 @@ def test_redundant_empty_only_list():
     sym_table = fake_parent.symbol_table
     csym = sym_table.lookup("mod3")
     assert not csym.wildcard_import
-    assert sym_table.imported_symbols(csym)[0].name == "fred"
+    assert sym_table.symbols_imported_from(csym)[0].name == "fred"
     # Named import followed by empty only-list
     reader = FortranStringReader("use mod4, only: bob\n"
                                  "use mod4, only:\n")
@@ -211,7 +211,7 @@ def test_redundant_empty_only_list():
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     csym = sym_table.lookup("mod4")
     assert not csym.wildcard_import
-    assert sym_table.imported_symbols(csym)[0].name == "bob"
+    assert sym_table.symbols_imported_from(csym)[0].name == "bob"
 
 
 @pytest.mark.usefixtures("parser")
@@ -223,16 +223,16 @@ def test_use_same_symbol():
     '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
-    reader = FortranStringReader("use mod2, only: fred\n"
-                                 "use mod3, only: fred\n")
+    reader = FortranStringReader("use mod2, only: a\n"
+                                 "use mod3, only: a\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     csym = fake_parent.symbol_table.lookup("mod2")
-    assert fake_parent.symbol_table.imported_symbols(csym)[0].name == "fred"
+    assert fake_parent.symbol_table.symbols_imported_from(csym)[0].name == "a"
     csym = fake_parent.symbol_table.lookup("mod3")
-    # mod3 will have an empty list of symbols as 'fred' is already imported
+    # mod3 will have an empty list of symbols as 'a' is already imported
     # from mod2.
-    assert not fake_parent.symbol_table.imported_symbols(csym)
+    assert not fake_parent.symbol_table.symbols_imported_from(csym)
 
 
 @pytest.mark.usefixtures("parser")

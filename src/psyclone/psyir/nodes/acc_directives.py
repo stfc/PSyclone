@@ -35,6 +35,7 @@
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenACC Directive
@@ -46,39 +47,44 @@ import six
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes.directive import StandaloneDirective, \
+    RegionDirective
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.core import AccessType, VariablesAccessInfo
 
 
-class ACCDirective(Directive):
-    ''' Base class for all OpenACC directive statements. '''
+@six.add_metaclass(abc.ABCMeta)
+class ACCDirective():
+    '''
+    Base mixin class for all OpenACC directive statements.
+
+    This class is useful to provide a unique common ancestor to all the
+    OpenACC directives, for instance when traversing the tree with
+    `node.walk(ACCDirective)`
+
+    Note that classes inheriting from it must place the ACCDirective in
+    front of the other Directive node sub-class, so that the Python
+    MRO gives preference to this class's attributes.
+    '''
     _PREFIX = "ACC"
 
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node.
 
-        :returns: Name of corresponding node in DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_directive_" + str(position)
-
+@six.add_metaclass(abc.ABCMeta)
+class ACCRegionDirective(ACCDirective, RegionDirective):
+    ''' Base class for all OpenACC region directive statements. '''
     def validate_global_constraints(self):
         '''
         Perform validation checks for any global constraints. This can only
         be done at code-generation time.
 
-        :raises GenerationError: if this ACCDirective encloses any form of \
-            PSyData node since calls to PSyData routines within OpenACC \
+        :raises GenerationError: if this ACCRegionDirective encloses any form \
+            of PSyData node since calls to PSyData routines within OpenACC \
             regions are not supported.
 
         '''
-        super(ACCDirective, self).validate_global_constraints()
+        super(ACCRegionDirective, self).validate_global_constraints()
 
         data_nodes = self.walk((PSyDataNode, CodeBlock))
         if data_nodes:
@@ -91,7 +97,12 @@ class ACCDirective(Directive):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ACCEnterDataDirective(ACCDirective):
+class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
+    ''' Base class for all standalone OpenACC directive statements. '''
+
+
+@six.add_metaclass(abc.ABCMeta)
+class ACCEnterDataDirective(ACCStandaloneDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
@@ -234,14 +245,6 @@ class ACCEnterDataDirective(ACCDirective):
 
         return "acc enter data " + copy_in_str
 
-    def end_string(self):
-        '''
-        :returns: the closing statement for this directive.
-        :rtype: str
-        '''
-        # pylint: disable=no-self-use
-        return ""
-
     @abc.abstractmethod
     def data_on_device(self, parent):
         '''
@@ -253,7 +256,7 @@ class ACCEnterDataDirective(ACCDirective):
         '''
 
 
-class ACCParallelDirective(ACCDirective):
+class ACCParallelDirective(ACCRegionDirective):
     '''
     Class representing the !$ACC PARALLEL directive of OpenACC
     in the PSyIR. By default it includes the 'DEFAULT(PRESENT)' clause which
@@ -423,7 +426,7 @@ class ACCParallelDirective(ACCDirective):
                          data_movement="present")
 
 
-class ACCLoopDirective(ACCDirective):
+class ACCLoopDirective(ACCRegionDirective):
     '''
     Class managing the creation of a '!$acc loop' OpenACC directive.
 
@@ -569,7 +572,7 @@ class ACCLoopDirective(ACCDirective):
         return ""
 
 
-class ACCKernelsDirective(ACCDirective):
+class ACCKernelsDirective(ACCRegionDirective):
     '''
     Class representing the !$ACC KERNELS directive in the PSyIR.
 
@@ -696,7 +699,7 @@ class ACCKernelsDirective(ACCDirective):
                          data_movement=data_movement)
 
 
-class ACCDataDirective(ACCDirective):
+class ACCDataDirective(ACCRegionDirective):
     '''
     Class representing the !$ACC DATA ... !$ACC END DATA directive
     in the PSyIR.
@@ -743,10 +746,53 @@ class ACCDataDirective(ACCDirective):
         :returns: the opening statement of this directive.
         :rtype: str
 
-        :raises NotImplementedError: if the region contains one or more \
-                                     references to structures (TODO #1028).
+        TODO #1396 - remove this whole method in favour of having the
+        visitor backend generate the code.
 
         '''
+        def _create_access_list(signatures, var_accesses):
+            '''
+            Constructs a list of variables for inclusion in a data-access
+            clause.
+
+            :param signatures: the list of Signatures for which to create \
+                entries in the list.
+            :type signatures: list of :py:class:`psyclone.core.Signature`
+            :param var_accesses: object holding details on all variable \
+                accesses in the region to which the data-access clause applies.
+            :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+
+            :returns: list of variable accesses.
+            :rtype: list of str
+
+            '''
+            access_list = []
+            for sig in signatures:
+                if sig.is_structure:
+                    # We have to do a 'deep copy' of any structure access. This
+                    # means that if we have an access `a%b%c(i)` then we need
+                    # to copy `a`, `a%b` and then `a%b%c`.
+                    # Look up a PSyIR node that corresponds to this access.
+                    current = var_accesses[sig].all_accesses[0].node
+                    part_list = [current.name]
+                    if current.name not in access_list:
+                        access_list.append(current.name)
+                    while hasattr(current, "member"):
+                        current = current.member
+                        # Currently this is hardwired to generate Fortran (i.e.
+                        # we use '%' when accessing a component of a struct).
+                        # TODO #1386 a new StructureReference needs to be
+                        # created for 'current' and then given to an
+                        # appropriate backend.
+                        ref_string = "%".join(part_list[:]+[current.name])
+                        if ref_string not in access_list:
+                            access_list.append(ref_string)
+                else:
+                    ref_string = str(sig)
+                    if ref_string not in access_list:
+                        access_list.append(ref_string)
+            return access_list
+
         result = "acc data"
 
         # Identify the inputs and outputs to the region (variables that
@@ -758,8 +804,9 @@ class ACCDataDirective(ACCDirective):
         for signature in var_accesses.all_signatures:
             sym = table.lookup(signature.var_name)
             accesses = var_accesses[signature]
-            if not (signature.is_structure or sym.is_array):
-                # We ignore scalars
+            if isinstance(sym.datatype, ScalarType):
+                # We ignore scalars as these are passed by value when OpenACC
+                # kernels are launched.
                 continue
             if accesses.is_read():
                 readers.add(signature)
@@ -779,55 +826,15 @@ class ACCDataDirective(ACCDirective):
         readwrites_list = sorted(list(readwrites))
         if readers_list:
             result += " copyin({0})".format(
-                ",".join(self._create_access_list(readers_list, var_accesses)))
+                ",".join(_create_access_list(readers_list, var_accesses)))
         if writers_list:
             result += " copyout({0})".format(
-                ",".join(self._create_access_list(writers_list, var_accesses)))
+                ",".join(_create_access_list(writers_list, var_accesses)))
         if readwrites_list:
             result += " copy({0})".format(",".join(
-                self._create_access_list(readwrites_list, var_accesses)))
+                _create_access_list(readwrites_list, var_accesses)))
 
         return result
-
-    def _create_access_list(self, signatures, var_accesses):
-        '''
-        Constructs a list of variables for inclusion in a data-access clause.
-
-        :param signatures: the list of Signatures for which to create entries \
-            in the list.
-        :type signatures: list of :py:class:`psyclone.core.Signature`
-        :param var_accesses: object holding details on all variable accesses \
-            in the region to which the data-access clause applies.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-
-        :returns: list of variable accesses.
-        :rtype: list of str
-
-        '''
-        access_list = []
-        for sig in signatures:
-            if sig.is_structure:
-                # We have to do a 'deep copy' of any structure access. This
-                # means that if we have an access `a%b%c(i)` then we need to
-                # copy `a`, `a%b` and then `a%b%c`.
-                # Look up a PSyIR node that corresponds to this access.
-                current = var_accesses[sig].all_accesses[0].node
-                part_list = [current.name]
-                if current.name not in access_list:
-                    access_list.append(current.name)
-                while hasattr(current, "member"):
-                    current = current.member
-                    # Currently this is hardwired to generate Fortran (i.e. we
-                    # use '%' when accessing a component of a structure).
-                    # TODO XXXX
-                    ref_string = "%".join(part_list[:]+[current.name])
-                    if ref_string not in access_list:
-                        access_list.append(ref_string)
-            else:
-                ref_string = str(sig)
-                if ref_string not in access_list:
-                    access_list.append(ref_string)
-        return access_list
 
     def end_string(self):
         '''
@@ -839,7 +846,7 @@ class ACCDataDirective(ACCDirective):
         return "acc end data"
 
 
-class ACCUpdateDirective(ACCDirective):
+class ACCUpdateDirective(ACCStandaloneDirective):
     ''' Class representing the !$ACC UPDATE directive of OpenACC in the PSyIR.
     It includes a direction attribute that can be set to 'host' or 'device' and
     the symbol that is being updated.
@@ -894,19 +901,9 @@ class ACCUpdateDirective(ACCDirective):
         '''
         return "acc update " + self._direction + "(" + self._symbol.name + ")"
 
-    def end_string(self):
-        # pylint: disable=no-self-use
-        '''
-        This statement has no end string, so it returns an empty string.
-
-        :returns: an empty string.
-        :rtype: str
-
-        '''
-        return ""
-
 
 # For automatic API documentation generation
-__all__ = ["ACCDirective", "ACCEnterDataDirective", "ACCParallelDirective",
-           "ACCLoopDirective", "ACCKernelsDirective", "ACCDataDirective",
-           "ACCUpdateDirective"]
+__all__ = ["ACCRegionDirective", "ACCEnterDataDirective",
+           "ACCParallelDirective", "ACCLoopDirective", "ACCKernelsDirective",
+           "ACCDataDirective", "ACCUpdateDirective", "ACCStandaloneDirective",
+           "ACCDirective"]
