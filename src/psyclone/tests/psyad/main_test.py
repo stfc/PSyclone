@@ -194,7 +194,7 @@ def test_main_no_filename(capsys):
 
 
 # no --
-def test_main_no_filename(capsys):
+def test_main_no_separator(capsys):
     '''Test that the main() function raises an exception if the -- is not
     provided between the argument and the filename.
 
