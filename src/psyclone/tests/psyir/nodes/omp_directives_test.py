@@ -594,15 +594,17 @@ def test_omp_taskloop_node_str():
     assert expected_output in out
 
 
-@pytest.mark.parametrize("grainsize,num_tasks", [(None, None), (32, None),
-                                                 (None, 32)])
-def test_omp_taskloop_gencode(grainsize, num_tasks):
+@pytest.mark.parametrize("grainsize,num_tasks,nogroup,clauses",
+                         [(None, None, False, ""),
+                          (32, None, False, " grainsize(32)"),
+                          (None, 32, True, " num_tasks(32), nogroup")])
+def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
     '''Check that the gen_code method in the OMPTaskloopDirective
     class generates the expected code. Use the gocean API.
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
-    taskloop = OMPTaskloopTrans(grainsize, num_tasks)
+    taskloop = OMPTaskloopTrans(grainsize, num_tasks, nogroup)
     master = OMPMasterTrans()
     parallel = OMPParallelTrans()
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
@@ -617,12 +619,6 @@ def test_omp_taskloop_gencode(grainsize, num_tasks):
     goceantrans.apply(schedule.children[0])
 
     code = str(psy.gen)
-
-    clauses = ""
-    if grainsize is not None:
-        clauses = " grainsize({0})".format(grainsize)
-    if num_tasks is not None:
-        clauses = " num_tasks({0})".format(num_tasks)
 
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
