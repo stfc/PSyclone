@@ -50,11 +50,13 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.domain.common import ExtractDriverCreator
-from psyclone.domain.gocean.transformations import GOceanExtractTrans
+from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
+                                                    GOConstLoopBoundsTrans)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
+from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -77,7 +79,9 @@ def clear_region_name_cache():
 # -----------------------------------------------------------------------------
 def test_driver_creation1(tmpdir):
     '''Test that driver is created correctly for all variable access
-    modes (input, input-output, output).
+    modes (input, input-output, output). Do not specify a region name,
+    so test that thet driver (including its filename) use the proper
+    default name.
 
     '''
     # Use tmpdir so that the driver is created in tmp
@@ -156,28 +160,28 @@ def test_driver_creation1(tmpdir):
 
 # -----------------------------------------------------------------------------
 def test_driver_creation2(tmpdir):
-    '''Test different ways of specifying the nodes, including code creation
-    without constant loop boundaries.
+    '''Verify that the region names are used when opening the file, and that
+    constant loop boundaries work as expected.
 
     '''
     # Use tmpdir so that the driver is created in tmp
     tmpdir.chdir()
 
-    etrans = GOceanExtractTrans()
-    psy, invoke = get_invoke("driver_test.f90",
-                             GOCEAN_API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    etrans.apply([schedule.children[0]], {'create_driver': True})
-    # We are only interested in the driver, so ignore results.
-    str(psy.gen)
+    _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
+                           idx=0, dist_mem=False)
 
-    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
-                         "access_patterns-invoke_0_compute_kernel:compute_"
-                         "kernel_code:r0.f90")
-    assert driver.isfile()
+    nodes = [invoke.schedule.children[0]]
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(invoke.schedule)
 
-    with driver.open("r") as driver_file:
-        driver_code = driver_file.read()
+    dep = DependencyTools()
+    input_list, output_list = dep.get_in_out_parameters(nodes)
+
+    edc = ExtractDriverCreator()
+
+    driver_code = edc.get_driver_as_string(nodes, input_list, output_list,
+                                           "extract", "_post",
+                                           ("module_name", "local_name"))
 
     # This is an excerpt of the code that should get created.
     # It is tested line by line since there is other code in between
@@ -187,6 +191,8 @@ def test_driver_creation2(tmpdir):
     # property dx. The grid property will be renamed to 'dx_1':
     expected = '''use extract_psy_data_mod, only : extract_PsyDataType
 
+  integer :: istop
+  integer :: jstop
   real*8, allocatable, dimension(:,:) :: out_fld
   real*8, allocatable, dimension(:,:) :: in_out_fld
   real*8, allocatable, dimension(:,:) :: in_fld
@@ -196,8 +202,7 @@ def test_driver_creation2(tmpdir):
   real*8 :: in_fld_grid_dx
   real*8, allocatable, dimension(:,:) :: in_out_fld_post
   type(extract_PsyDataType) :: extract_psy_data
-  call extract_psy_data%OpenRead('psy_extract_example_with_various_variable_''' \
-  '''access_patterns', 'invoke_0_compute_kernel:compute_kernel_code:r0')
+  call extract_psy_data%OpenRead('module_name', 'local_name')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
   ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
   out_fld = 0
@@ -206,8 +211,10 @@ def test_driver_creation2(tmpdir):
   call extract_psy_data%ReadVariable('dx', dx)
   call extract_psy_data%ReadVariable('in_fld%grid%dx', in_fld_grid_dx)
   call extract_psy_data%ReadVariable('in_fld%grid%gphiu', in_fld_grid_gphiu)
-  do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
-    do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
+  istop = out_fld_grid_subdomain_internal_xstop
+  jstop = out_fld_grid_subdomain_internal_ystop
+  do j = 2, jstop, 1
+    do i = 2, istop + 1, 1
       call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, ''' \
       '''in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
@@ -239,6 +246,8 @@ def test_rename_suffix_if_name_clash(tmpdir):
     with the variable names, e.g. an output variable 'a', and
     an input variable 'a_post' - writing the output variable 'a'
     would use 'a_post' as name, so the suffix must be changed.
+    Also check that the specified region_name is used for the output
+    filename.
 
     '''
     # Use tmpdir so that the driver is created in tmp
@@ -248,8 +257,9 @@ def test_rename_suffix_if_name_clash(tmpdir):
     psy, invoke = get_invoke("driver_test.f90",
                              GOCEAN_API, idx=1, dist_mem=False)
     schedule = invoke.schedule
-
-    etrans.apply(schedule.children[0], {'create_driver': True})
+    etrans.apply(schedule.children[0], {'create_driver': True,
+                                        'region_name':
+                                        ("module_name", "local_name")})
     extract_code = str(psy.gen)
 
     # Due to the name clash of "out_fld"+"_post" and "out_fld_post"
@@ -271,9 +281,7 @@ def test_rename_suffix_if_name_clash(tmpdir):
     # Now we also need to check that the driver uses the new suffix,
     # i.e. both as key for ReadVariable, as well as for the variable
     # names.
-    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
-                         "access_patterns-invoke_1_compute_kernel:compute_"
-                         "kernel_code:r0.f90")
+    driver = tmpdir.join("driver-module_name-local_name.f90")
     assert driver.isfile()
 
     with driver.open("r") as driver_file:
@@ -444,30 +452,24 @@ def test_driver_creation_add_all_kernel_symbols_errors():
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation_same_symbol(tmpdir):
+def test_driver_creation_same_symbol():
     '''Make sure that if a symbol appears in more than one invoke no duplicated
     symbol is created.
 
     '''
-    # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
 
-    etrans = GOceanExtractTrans()
     # The fourth invoke calls a kernel twice with identical parameters
-    psy, invoke = get_invoke("driver_test.f90",
-                             GOCEAN_API, idx=3, dist_mem=False)
-    schedule = invoke.schedule
+    _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
+                           idx=3, dist_mem=False)
 
-    etrans.apply(schedule.children[0], {'create_driver': True})
-    # We are only interested in the driver, so ignore results.
-    str(psy.gen)
+    nodes = [invoke.schedule.children[0]]
+    dep = DependencyTools()
+    input_list, output_list = dep.get_in_out_parameters(nodes)
 
-    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
-                         "access_patterns-invoke_3:compute_kernel_code:r0.f90")
-    assert driver.isfile()
-
-    with driver.open("r") as driver_file:
-        driver_code = driver_file.read()
+    edc = ExtractDriverCreator()
+    driver_code = edc.get_driver_as_string(nodes, input_list, output_list,
+                                           "extract", "_post",
+                                           ("module_name", "local_name"))
     # Make sure we have both kernel calls in the driver.
     correct = """  do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
     do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
