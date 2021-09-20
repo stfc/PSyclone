@@ -44,6 +44,7 @@ from __future__ import absolute_import
 
 from collections import namedtuple
 import os
+import re
 
 import pytest
 
@@ -360,8 +361,11 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
     with pytest.raises(InternalError) as err:
         # The symbol table can be None, that code is not reached.
         edc.create_flattened_symbol("new_name", ref, None)
-    assert ("Unknown type 'real' in the reference 'in_fld%grid%gphiu' in the "
-            "GOcean API" in str(err.value))
+    # Leave out the config filename in the test
+    assert re.search("Type 'real' of the property reference "
+                     "'in_fld%grid%gphiu' as defined in the config file "
+                     "'.*' is not supported in the GOcean API",
+                     str(err.value))
 
     # Monkey patch the grid property dictionary to remove the
     # go_grid_lat_u entry, triggering an earlier error:
@@ -372,8 +376,8 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
     with pytest.raises(InternalError) as err:
         # The symbol table can be None, that code is not reached.
         edc.create_flattened_symbol("new_name", ref, None)
-    assert ("Could not find type for reference 'in_fld%grid%gphiu'"
-            in str(err.value))
+    assert re.search("Could not find type for reference 'in_fld%grid%gphiu' "
+                     "in the config file '.*'.", str(err.value))
 
     grid_properties = api_config.grid_properties
 
@@ -386,8 +390,9 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
     edc = ExtractDriverCreator()
     with pytest.raises(InternalError) as err:
         edc.create_flattened_symbol("new_name", ref, SymbolTable())
-    assert ("Unknown gocean property type 'invalid-type' in expression "
-            "'in_fld%grid%gphiu." in str(err.value))
+    assert re.search("The expression 'in_fld%grid%gphiu' maps to an unknown "
+                     "GOcean property type 'invalid-type' in the config "
+                     "file '.*'.", str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -437,18 +442,21 @@ def test_driver_creation_add_all_kernel_symbols_errors():
     with pytest.raises(InternalError) as err:
         edc.add_all_kernel_symbols(schedule_copy, symbol_table)
     assert ("Error when constructing driver for 'invoke_0_compute_kernel': "
-            "Unknown derived type 'unknown type'" in str(err.value))
+            "Unknown derived type 'unknown type' in reference "
+            "'out_fld%internal%ystart'." in str(err.value))
     ref.symbol.datatype._name = "r2d_field"
 
-    # Remove the default types to trigger the error of
+    # Define some new default types to trigger the error of
     # not finding the default type to use:
-    edc._default_types = {}
+    edc._default_types = {"a": "a", "b": "b"}
     symbol_table = SymbolTable()
     with pytest.raises(InternalError) as err:
         edc.add_all_kernel_symbols(schedule_copy, symbol_table)
+    # With no default types defined at all, the reference to 'i' will be
+    # the first reference that triggers the unknown intrinsic
     assert ("Error when constructing driver for 'invoke_0_compute_kernel': "
-            "Unknown intrinsic data type 'Intrinsic.INTEGER'"
-            in str(err.value))
+            "Unknown intrinsic data type 'Intrinsic.INTEGER' in reference "
+            "'i'. Valid types are '['a', 'b']'" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -457,8 +465,10 @@ def test_driver_creation_same_symbol():
     symbol is created.
 
     '''
-
-    # The fourth invoke calls a kernel twice with identical parameters
+    # The fourth invoke calls a kernel twice with identical parameters.
+    # This means the same symbols are re-encountered when handling the
+    # second kernel call (since each kernel argument has already been
+    # declared when the first kernel was done).
     _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
                            idx=3, dist_mem=False)
 

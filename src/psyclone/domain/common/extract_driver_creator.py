@@ -125,16 +125,19 @@ class ExtractDriverCreator:
                 break
         else:
             raise InternalError(
-                "Could not find type for reference '{0}'."
-                .format(fortran_expression))
+                "Could not find type for reference '{0}' in the "
+                "config file '{1}'."
+                .format(fortran_expression, Config.get().filename))
         try:
             base_type = self._default_types[gocean_property.intrinsic_type]
         except KeyError as err:
             raise six.raise_from(
-                InternalError("Unknown type '{0}' in the reference "
-                              "'{1}' in the GOcean API."
+                InternalError("Type '{0}' of the property reference "
+                              "'{1}' as defined in the config file "
+                              "'{2}' is not supported in the GOcean API."
                               .format(gocean_property.intrinsic_type,
-                                      fortran_expression)),
+                                      fortran_expression,
+                                      Config.get().filename)),
                 err)
         # Handle name clashes (e.g. if the user used a variable that is
         # the same as a flattened grid property)
@@ -149,10 +152,12 @@ class ExtractDriverCreator:
                                           ArrayType.Extent.DEFERRED])
             new_symbol = DataSymbol(flattened_name, array)
         else:
-            raise InternalError("Unknown gocean property type '{0}' in "
-                                "expression '{1}."
-                                .format(gocean_property.type,
-                                        fortran_expression))
+            raise InternalError("The expression '{0}' maps to an unknown "
+                                "GOcean property type '{1}' in the config "
+                                "file '{2}'."
+                                .format(fortran_expression,
+                                        gocean_property.type,
+                                        Config.get().filename))
 
         return new_symbol
 
@@ -257,10 +262,15 @@ class ExtractDriverCreator:
             try:
                 new_type = self._default_types[old_symbol.datatype.intrinsic]
             except KeyError as err:
+                fortran_string = writer(reference)
                 six.raise_from(InternalError(
                     "Error when constructing driver for '{0}': "
-                    "Unknown intrinsic data type '{1}'."
-                    .format(sched.name, old_symbol.datatype.intrinsic)), err)
+                    "Unknown intrinsic data type '{1}' in reference '{2}'. "
+                    "Valid types are '{3}'."
+                    .format(sched.name, old_symbol.datatype.intrinsic,
+                            fortran_string,
+                            list(self._default_types.keys()))),
+                    err)
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,
@@ -281,10 +291,12 @@ class ExtractDriverCreator:
                 continue
             old_symbol = reference.symbol
             if old_symbol.datatype.name != "r2d_field":
+                fortran_string = writer(reference)
                 raise InternalError(
                     "Error when constructing driver for '{0}': "
-                    "Unknown derived type '{1}'."
-                    .format(sched.name, old_symbol.datatype.name))
+                    "Unknown derived type '{1}' in reference '{2}'."
+                    .format(sched.name, old_symbol.datatype.name,
+                            fortran_string))
             # We have a structure reference to a field, flatten it, and
             # replace the StructureReference with a new Reference to this
             # flattened name (e.g. `fld%data` becomes `fld_data`)
