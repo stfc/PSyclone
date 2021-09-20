@@ -77,14 +77,14 @@ def test_generate_adjoint_str(caplog):
         "end program test\n")
 
     with caplog.at_level(logging.INFO):
-        result, test_harness = generate_adjoint_str(tl_code)
+        result, test_harness = generate_adjoint_str(tl_code, None)
 
     assert caplog.text == ""
     assert expected in result
     assert test_harness is None
 
     with caplog.at_level(logging.DEBUG):
-        result, test_harness = generate_adjoint_str(tl_code)
+        result, test_harness = generate_adjoint_str(tl_code, None)
 
     assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:58" in caplog.text
     assert tl_code in caplog.text
@@ -107,7 +107,7 @@ def test_generate_adjoint_str_generate_harness():
     )
     result, harness = generate_adjoint_str(tl_code, [], create_test=True)
     assert "subroutine kern_adj(field)\n" in result
-    assert ('''program adj_test
+    assert '''program adj_test
   use my_mod, only : kern
   use my_mod_adj, only : kern_adj
   integer, parameter :: array_extent = 20
@@ -132,7 +132,7 @@ def test_generate_adjoint_str_generate_harness():
   end if
   WRITE(*, *) 'Test of adjoint of ''kern'' passed: diff = ', abs_diff
 
-end program adj_test''' in harness)
+end program adj_test''' in harness
 
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
@@ -507,8 +507,7 @@ def test_generate_harness_kernel_arg_static_shape(fortran_reader,
     assert "real, dimension(10,npts) :: field1_input" in harness
 
 
-def test_generate_harness_kernel_arg_shape_error(fortran_reader,
-                                                 fortran_writer):
+def test_generate_harness_kernel_arg_shape_error(fortran_reader):
     ''' Test that we raise the expected error if the shape of a kernel
     argument is a variable that is not passed as an argument. '''
     tl_code = (
@@ -686,10 +685,10 @@ def test_inner_product_scalars_and_arrays(fortran_writer):
     scals = DataSymbol("a1", REAL_TYPE), DataSymbol("a2", REAL_TYPE)
     nodes = _create_inner_product(accum, [vars3d, vecs, scals])
     assert len(nodes) == 4
-    assert all([isinstance(node, Assignment) for node in nodes])
+    assert all(isinstance(node, Assignment) for node in nodes)
     assert fortran_writer(nodes[0]) == "result = 0.0\n"
     assert (fortran_writer(nodes[1]) ==
             "result = result + SUM(var1(:,:,:) * var2(:,:,:))\n")
     assert (fortran_writer(nodes[2]) ==
             "result = result + DOT_PRODUCT(vec1, vec2)\n")
-    assert (fortran_writer(nodes[3]) == "result = result + a1 * a2\n")
+    assert fortran_writer(nodes[3]) == "result = result + a1 * a2\n"

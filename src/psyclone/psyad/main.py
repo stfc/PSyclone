@@ -103,8 +103,7 @@ def main(args):
             tl_fortran_str = my_file.read()
             tl_fortran_str = six.text_type(tl_fortran_str)
     except FileNotFoundError:
-        logger.error(
-            "psyad error: file '{0}', not found.".format(filename))
+        logger.error("psyad error: file '%s', not found.", filename)
         sys.exit(1)
 
     # Create the adjoint (and associated test framework if requested)

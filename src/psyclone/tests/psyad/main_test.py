@@ -343,7 +343,7 @@ def test_main_verbose(tmpdir, capsys, caplog):
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
-def test_main_otest_verbose(tmpdir, capsys, caplog):
+def test_main_otest_verbose(tmpdir, caplog):
     ''' Test that the -otest option combined with -v generates the expected
     logging output. '''
     filename_in = str(tmpdir.join("tl.f90"))
