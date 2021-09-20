@@ -35,6 +35,7 @@
 # Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
 # MOdified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 

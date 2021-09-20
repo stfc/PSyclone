@@ -39,7 +39,7 @@ to have them compiled for an OpenACC accelerator. '''
 
 from psyclone.transformations import ACCParallelTrans, \
     ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
-    KernelGlobalsToArguments, KernelModuleInlineTrans
+    KernelImportsToArguments, KernelModuleInlineTrans
 from psyclone.psyir.nodes import Loop
 
 
@@ -51,7 +51,7 @@ def trans(psy):
     dtrans = ACCEnterDataTrans()
     ktrans = ACCRoutineTrans()
     itrans = KernelModuleInlineTrans()
-    g2localtrans = KernelGlobalsToArguments()
+    g2localtrans = KernelImportsToArguments()
 
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -69,7 +69,7 @@ def trans(psy):
     # Add an enter-data directive
     dtrans.apply(schedule)
 
-    # Convert any accesses to global data into kernel arguments, put an
+    # Convert any accesses to imported data into kernel arguments, put an
     # 'acc routine' directive inside, and module-inline each kernel
     for kern in schedule.coded_kernels():
         if kern.name == "kern_use_var_code":

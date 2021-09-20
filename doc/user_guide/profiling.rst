@@ -232,7 +232,7 @@ be part of the profiling region, including all loops created by
 PSyclone and all kernel calls (note that for brevity, the nodes
 holding the loop bounds have been omitted for all but the first loop)::
 
-    GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
+    GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
             Schedule[]
                 0: Loop[type='outer',field_space='go_cu',it_space='go_internal_pts']
@@ -267,7 +267,7 @@ And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
 region::
 
-    GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
+    GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
             Schedule[]
                 0: Loop[type='outer',field_space='go_cu',it_space='go_internal_pts']
@@ -304,7 +304,7 @@ region::
 
 Both options can be specified at the same time::
 
-    GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
+    GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
             Schedule[]
                 0: [Profile]

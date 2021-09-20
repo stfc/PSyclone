@@ -114,8 +114,8 @@ def test_accroutine_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
-    assert ("global scope: ['rdt']. If these symbols represent data then they"
-            " must first" in str(err.value))
+    assert ("imported interface: ['rdt']. If these symbols represent data then"
+            " they must first" in str(err.value))
 
 
 def test_accroutine():
