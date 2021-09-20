@@ -35,7 +35,7 @@
 
 include ../../common.mk
 
-.PHONY: vanilla
+.PHONY: vanilla compile run
 
 transform: vanilla
 

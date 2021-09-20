@@ -302,27 +302,29 @@ the LFRic code. For more details please refer to the relevant
 [eg17/README.md](./eg17) document.
 
 
-## Example 18: GH_READINC
+## Example 18: GH_READINC: Incrementing a Continuous Field After Reading it
 
-This example shows the use of a GH_READINC access. GH_READINC access
-indicates that a field is first read within a kernel and then
-subsequently incremented. The only difference from a PSyclone code
+This example shows the use of a ``GH_READINC`` access. ``GH_READINC``
+access indicates that a field is first read within a kernel and then
+subsequently incremented. The field must, therefore, be on a
+continuous funcrtion space. The only difference from a PSyclone code
 generation point of view (for vanilla distributed memory code
-generation) is that a GH_READINC access will produce a halo exchange
-call before the associated kernel whereas a GH_INC access will
-not. The example demonstrates the generation of such a halo exchange,
-see the `CALL mass_flux_i_proxy%halo_exchange(depth=1)` line in the
-generated code. if you manually change the metadata to GH_INC in this
-example and ensure that the configuration file has annexed_dofs set to
-true, you will see that this halo exchange is not generated (although
-the generated code would then be invalid).
-run:
+generation) is that a ``GH_READINC`` access will produce a halo
+exchange call before the associated kernel whereas a ``GH_INC`` access
+will not. The example demonstrates the generation of such a halo
+exchange, see the ``CALL mass_flux_i_proxy%halo_exchange(depth=1)``
+line in the generated code. if you manually change the metadata to
+``GH_INC` in this example and ensure that the configuration file has
+``COMPUTE_ANNEXED_DOFS`` set to ``true``, you will see that this halo
+exchange is not generated (although the generated code would then be
+invalid). To run:
+
 ```sh
 cd eg18/
 psyclone advection_alg_mod.x90
-# optionally edit impose_min_flux_kernel_mod.f90 line 65 to replace
-# GH_READINC with GH_INC, change the value of annexed_dofs to true in
-# the config file and re-run psyclone.
+# Optionally edit 'impose_min_flux_kernel_mod.f90' line 65 to replace
+# GH_READINC with GH_INC, change the value of 'COMPUTE_ANNEXED_DOFS' to
+# 'true' in the config file and re-run psyclone.
 ```
 
 ## Code

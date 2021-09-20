@@ -548,6 +548,18 @@ kernel call. For example:
     ./extract
     ncdump ./main-update.nc | less
 
+Example 18: Incrementing a Continuous Field After Reading it
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example of a ``GH_READINC`` access. A kernel with ``GH_READINC``
+access first reads the field data and then increments the field
+data. This contrasts with a ``GH_INC`` access which simply increments
+the field data. As an increment is effectively a read followed by
+a write, it may not be clear why we need to distinguish between these
+cases. The reason for distinguishing is that the ``GH_INC`` access is
+able to remove a halo exchange, or at least reduce its depth by one,
+in certain circumstances, whereas a ``GH_READINC`` is not able to take
+advantage of this optimisation.
 
 
 NEMO
