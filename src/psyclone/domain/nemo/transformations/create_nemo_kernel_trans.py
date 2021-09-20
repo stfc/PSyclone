@@ -137,7 +137,7 @@ class CreateNemoKernelTrans(Transformation):
         if nodes and isinstance(nodes[-1], (CodeBlock, Loop, Call, NemoKern)):
             raise TransformationError(
                 "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
-                " contain a node of type: {0}".format(
+                " contain a node of type: '{0}'".format(
                     type(nodes[-1]).__name__))
 
         # Check for array assignments
