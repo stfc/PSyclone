@@ -81,7 +81,7 @@ def clear_region_name_cache():
 def test_driver_creation1(tmpdir):
     '''Test that driver is created correctly for all variable access
     modes (input, input-output, output). Do not specify a region name,
-    so test that thet driver (including its filename) use the proper
+    so test that the driver (including its filename) use the proper
     default name.
 
     '''
@@ -400,7 +400,7 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
 
 # -----------------------------------------------------------------------------
 def test_errors_add_call():
-    '''Test than an error is raised if the symbol supplied to 'add_call()' is
+    '''Test that an error is raised if the symbol supplied to 'add_call()' is
     not a RoutineSymbol.
 
     '''

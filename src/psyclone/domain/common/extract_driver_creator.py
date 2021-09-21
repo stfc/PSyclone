@@ -189,7 +189,7 @@ class ExtractDriverCreator:
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param writer: a Fortran writer used when flattening a \
             `StructureReference`.
-        :type writer: :py:`psyclone.psyir.backend.fortran.FortranWriter`
+        :type writer: :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
 
         '''
         # A field access (`fld%data`) will get the `%data` removed, since then
@@ -230,7 +230,7 @@ class ExtractDriverCreator:
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param writer: a Fortran writer used when flattening a \
             `StructureReference`.
-        :type writer: :py:`psyclone.psyir.backend.fortan.FortranWriter`
+        :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
 
         :raises InternalError: if a non-derived type has an unknown \
             intrinsic type.
@@ -340,19 +340,20 @@ class ExtractDriverCreator:
                             postfix):
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
+
         - variable that is read-only, it will declare the symbol and add code
-            that reads in the variable using the PSyData library.
+          that reads in the variable using the PSyData library.
         - variable that is read and written, it will create code to read in the
-            variable that is read, and create a new variable with the same name
-            and "_post" added which is read in to store the values from the
-            NetCDF file after the instrumented region was executed. In the end,
-            the variable that was read and written should have the same value
-            as the corresponding "_post" variable.
+          variable that is read, and create a new variable with the same name
+          and "_post" added which is read in to store the values from the
+          NetCDF file after the instrumented region was executed. In the end,
+          the variable that was read and written should have the same value
+          as the corresponding "_post" variable.
         - variable that is written only, it will create a variable with "_post"
-            as postfix that reads in the output data from the NetCDF file. It
-            then also declares a variable without postfix (which will be the
-            parameter to the function), allocates it based on the shape of
-            the corresponding "_post" variable, and initialises it with 0.
+          as postfix that reads in the output data from the NetCDF file. It
+          then also declares a variable without postfix (which will be the
+          parameter to the function), allocates it based on the shape of
+          the corresponding "_post" variable, and initialises it with 0.
 
         :param program: the PSyIR Routine to which any code must \
             be added. It also contains the symbol table to be used.
@@ -655,14 +656,13 @@ class ExtractDriverCreator:
         :param language_writer: a backend visitor to convert PSyIR \
             representation to the selected language. It defaults to \
             the FortranWriter.
-        :type language_writer: an optional instance of \
+        :type language_writer: \
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
-        :return: the string representation of the driver in the selected \
-            language.
-        :type: str
-        '''
+        :returns: the driver in the selected language.
+        :rtype: str
 
+        '''
         file_container = self.create(nodes, input_list, output_list,
                                      prefix, postfix, region_name)
         return writer(file_container)
@@ -671,8 +671,8 @@ class ExtractDriverCreator:
     def write_driver(self, nodes, input_list, output_list,
                      prefix, postfix, region_name, writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses 'create()` function to get a PSyIR of a
-        stand-alone driver, and then writes source code to a file. The
+        '''This function uses the 'get_driver_as_string()` function to get a
+        a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
         "driver-"+module_name+"_"+region_name+".f90"
 
@@ -697,11 +697,10 @@ class ExtractDriverCreator:
         :param language_writer: a backend visitor to convert PSyIR \
             representation to the selected language. It defaults to \
             the FortranWriter.
-        :type language_writer: an optional instance of \
+        :type language_writer: \
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''
-
         code = self.get_driver_as_string(nodes, input_list, output_list,
                                          prefix, postfix, region_name,
                                          writer=writer)
