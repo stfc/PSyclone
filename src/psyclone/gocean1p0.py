@@ -54,7 +54,7 @@ import six
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, \
-    Pointer_Assignment_Stmt
+    Pointer_Assignment_Stmt, Subroutine_Subprogram
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
@@ -204,16 +204,27 @@ class GOInvokes(Invokes):
                        content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
-        # First check if there is any unsupported invoke, in this case the
-        # f2pygen gen_code path is used instead
+        # First check if there is any unsupported invokes
         for invoke in self.invoke_list:
             # TODO 1134: The opencl path is still largely implemented using
             # the f2pygen and cannot be processed by the backend yet.
             if invoke.schedule.opencl:
-                super(GOInvokes, self).gen_code(parent)
-                return
+                name = invoke.schedule.name
+                temporary_module = ModuleGen("dummy")
+                super(GOInvokes, self).gen_code(temporary_module)
+                for item in temporary_module.root.content:
+                    if hasattr(item, 'name') and item.name == name:
+                        print(item.name)
+                        reader = FortranStringReader(str(item))
+                        reader.set_format(FortranFormat(True, True))
+                        sub = Subroutine_Subprogram(reader)
+                        codeblock = CodeBlock(
+                            [sub], CodeBlock.Structure.STATEMENT)
+                        invoke.schedule.replace_with(codeblock)
+                        invoke.schedule = codeblock
 
             # TODO 1168: PSyDataNodes are not supported by the backend yet.
+            # For now the f2pygen gen_code path is used instead
             if invoke.schedule.root.walk(PSyDataNode):
                 super(GOInvokes, self).gen_code(parent)
                 return

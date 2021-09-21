@@ -38,10 +38,12 @@
 
 import six
 from psyclone.psyGen import Transformation
-from psyclone.undoredo import Memento
 from psyclone.transformations import TransformationError, KernelTrans
 from psyclone.psyGen import args_filter, InvokeSchedule
 from psyclone.gocean1p0 import GOInvokeSchedule
+
+from psyclone.psyir.symbols import ContainerSymbol, RoutineSymbol, \
+    ImportInterface
 
 
 class GOOpenCLTrans(Transformation):
@@ -70,7 +72,7 @@ class GOOpenCLTrans(Transformation):
         '''
         return "GOOpenCLTrans"
 
-    def apply(self, sched, options=None):
+    def apply(self, node, options=None):
         '''
         Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
@@ -78,8 +80,8 @@ class GOOpenCLTrans(Transformation):
         library (https://github.com/stfc/FortCL) in order to manage the
         OpenCL device directly from Fortran.
 
-        :param sched: the InvokeSchedule to transform.
-        :type sched: :py:class:`psyclone.psyGen.GOInvokeSchedule`
+        :param node: the InvokeSchedule to transform.
+        :type node: :py:class:`psyclone.psyGen.GOInvokeSchedule`
         :param options: set of option to tune the OpenCL generation.
         :type options: dict of string:values or None
         :param bool options["opencl"]: whether or not to enable OpenCL \
@@ -89,36 +91,48 @@ class GOOpenCLTrans(Transformation):
         :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
+        self.validate(node, options)
+
         if not options:
             options = {}
-        opencl = options.get("opencl", True)
-
-        if opencl:
-            self.validate(sched, options)
-
-        # Create a memento of the schedule and the proposed transformation
-        keep = Memento(sched, self, [sched, opencl])
-        # All we have to do here is set the flag in the Schedule. When this
-        # flag is True PSyclone produces OpenCL at code-generation time.
-        sched.opencl = opencl
 
         try:
             # Store the provided OpenCL options in the InvokeSchedule.
-            sched.set_opencl_options(options)
-
+            node.set_opencl_options(options)
         # The raised exceptions are converted to 'TransformationError's.
         except (TypeError, AttributeError) as error:
             six.raise_from(TransformationError(str(error)), error)
 
-        return sched, keep
+        # Insert fortcl, clfotran and c_iso_binding import statement
+        fortcl = ContainerSymbol("fortcl")
+        node.symbol_table.add(fortcl)
+        get_num_cmd_queues = RoutineSymbol(
+                "get_num_cmd_queues", interface=ImportInterface(fortcl))
+        get_cmd_queues = RoutineSymbol(
+                "get_cmd_queues", interface=ImportInterface(fortcl))
+        get_kernel_by_name = RoutineSymbol(
+                "get_kernel_by_name", interface=ImportInterface(fortcl))
+        node.symbol_table.add(get_num_cmd_queues)
+        node.symbol_table.add(get_cmd_queues)
+        node.symbol_table.add(get_kernel_by_name)
+        clfortran = ContainerSymbol("clforntran")
+        clfortran.wildcard_import = True
+        node.symbol_table.add(clfortran)
+        iso_c_bindings = ContainerSymbol("iso_c_bindings")
+        iso_c_bindings.wildcard_import = True
+        node.symbol_table.add(iso_c_bindings)
 
-    def validate(self, sched, options=None):
+        node.opencl = True
+
+        return None, None
+
+    def validate(self, node, options=None):
         '''
         Checks that the supplied InvokeSchedule is valid and that an OpenCL
         version of it can be generated.
 
-        :param sched: the Schedule to check.
-        :type sched: :py:class:`psyclone.psyGen.InvokeSchedule`
+        :param node: the Schedule to check.
+        :type node: :py:class:`psyclone.psyGen.InvokeSchedule`
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or None
 
@@ -128,19 +142,19 @@ class GOOpenCLTrans(Transformation):
                                      passed by value.
         '''
 
-        if isinstance(sched, InvokeSchedule):
-            if not isinstance(sched, GOInvokeSchedule):
+        if isinstance(node, InvokeSchedule):
+            if not isinstance(node, GOInvokeSchedule):
                 raise TransformationError(
                     "OpenCL generation is currently only supported for the "
                     "GOcean API but got an InvokeSchedule of type: '{0}'".
-                    format(type(sched).__name__))
+                    format(type(node).__name__))
         else:
             raise TransformationError(
                 "Error in GOOpenCLTrans: the supplied node must be a (sub-"
-                "class of) InvokeSchedule but got {0}".format(type(sched)))
+                "class of) InvokeSchedule but got {0}".format(type(node)))
 
         # Now we need to check the arguments of all the kernels
-        args = args_filter(sched.args, arg_types=["scalar"], is_literal=True)
+        args = args_filter(node.args, arg_types=["scalar"], is_literal=True)
         for arg in args:
             if arg.is_literal:
                 raise NotImplementedError(
@@ -150,7 +164,7 @@ class GOOpenCLTrans(Transformation):
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
         # any form of global data (that is not a routine argument).
-        for kern in sched.kernels():
+        for kern in node.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
             global_variables = ksched.symbol_table.imported_symbols
