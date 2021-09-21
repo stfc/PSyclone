@@ -73,7 +73,4 @@ def trans(psy):
     # Enclose everything in a read_only_verify region
     read_only_verify.apply(schedule.children,
                            {"region_name": ("main", "update")})
-    # TODO #969 This view is required, otherwise the loop boundaries
-    # are not tested
-    schedule.view()
     return psy

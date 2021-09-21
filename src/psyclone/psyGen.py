@@ -1667,14 +1667,6 @@ class Kern(Statement):
             parent_loop = parent_loop.ancestor(Loop)
         return False
 
-    def clear_cached_data(self):
-        '''This function is called to remove all cached data (which
-        then forces all functions to recompute their results). At this
-        stage it supports gen_code by enforcing all arguments to
-        be recomputed.
-        '''
-        self.arguments.clear_cached_data()
-
     @property
     def iterates_over(self):
         return self._iterates_over
@@ -2486,11 +2478,6 @@ class Arguments(object):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-
-    def clear_cached_data(self):
-        '''This function is called to clear all cached data, which
-        enforces that raw_arg_list is recomputed.'''
-        self._raw_arg_list = []
 
     @property
     def names(self):
