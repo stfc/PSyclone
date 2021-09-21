@@ -45,13 +45,11 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
-from psyclone.psyir.nodes import OMPDoDirective, Schedule, \
-    OMPParallelDoDirective, Directive, colored, OMPParallelDirective, \
-    OMPSingleDirective, OMPMasterDirective, OMPTaskloopDirective, \
-    OMPTaskwaitDirective
+from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
+    OMPMasterDirective, OMPTaskloopDirective, OMPTaskwaitDirective, Schedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
+    DynamoOMPParallelLoopTrans, OMPSingleTrans, \
     OMPMasterTrans, OMPTaskloopTrans
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
