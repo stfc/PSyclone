@@ -896,27 +896,28 @@ class BaseDeclGen(BaseGen):
     Abstract base class for all types of Fortran declaration. Uses the
     abc module so it cannot be instantiated.
 
-    :param parent: node to which to add this declaration as a child
+    :param parent: node to which to add this declaration as a child.
     :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-    :param str datatype: the (intrinsic) type for this declaration
-    :param list entity_decls: list of variable names to declare
-    :param str intent: the INTENT attribute of this declaration
-    :param bool pointer: whether or not this is a pointer declaration
+    :param str datatype: the (intrinsic) type for this declaration.
+    :param list entity_decls: list of variable names to declare.
+    :param str intent: the INTENT attribute of this declaration.
+    :param bool pointer: whether or not this is a pointer declaration.
     :param str dimension: the DIMENSION specifier (i.e. the xx in \
-                          DIMENSION(xx))
+                          DIMENSION(xx)).
     :param bool allocatable: whether this declaration is for an \
-                             ALLOCATABLE quantity
+                             ALLOCATABLE quantity.
     :param bool save: whether this declaration has the SAVE attribute.
     :param bool target: whether this declaration has the TARGET attribute.
-    :param initial_values: Initial value to give each variable.
+    :param initial_values: initial value to give each variable.
     :type initial_values: list of str with same no. of elements as entity_decls
-    :param bool private: whether this declaration has the PRIVATE attribute.
+    :param bool private: whether this declaration has the PRIVATE attribute \
+                         (default is False).
 
     :raises RuntimeError: if no variable names are specified.
     :raises RuntimeError: if the wrong number or type of initial values are \
                           supplied.
     :raises RuntimeError: if initial values are supplied for a quantity that \
-                          is allocatable or has INTENT(in)
+                          is allocatable or has INTENT(in).
     :raises NotImplementedError: if initial values are supplied for array \
                                  variables (dimension != "").
 
@@ -1030,7 +1031,7 @@ class DeclGen(BaseDeclGen):
     CharDeclGen should be used.
 
     :param parent: node to which to add this declaration as a child.
-    :type parent: :py:class:`psyclone.f2pygen.BaseGen`.
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
     :param str datatype: the (intrinsic) type for this declaration.
     :param list entity_decls: list of variable names to declare.
     :param str intent: the INTENT attribute of this declaration.
@@ -1042,10 +1043,11 @@ class DeclGen(BaseDeclGen):
                              ALLOCATABLE quantity.
     :param bool save: whether this declaration has the SAVE attribute.
     :param bool target: whether this declaration has the TARGET attribute.
-    :param initial_values: Initial value to give each variable.
+    :param initial_values: initial value to give each variable.
     :type initial_values: list of str with same no. of elements as \
-                          entity_decls.
-    :param bool private: whether this declaration has the PRIVATE attribute.
+                          entity_decls
+    :param bool private: whether this declaration has the PRIVATE attribute \
+                         (default is False).
 
     :raises RuntimeError: if datatype is not one of DeclGen.SUPPORTED_TYPES.
 
@@ -1167,11 +1169,10 @@ class CharDeclGen(BaseDeclGen):
     :param bool save: whether this declaration has the SAVE attribute.
     :param bool target: whether this declaration has the TARGET attribute.
     :param str length: expression to use for the (len=xx) selector.
-    :param initial_values: Initial value to give each variable.
-    :type initial_values: list of str with same no. of elements as \
-                          entity_decls. Each of these can be either a \
-                          variable name or a literal, quoted string \
-                          (e.g. "'hello'").
+    :param initial_values: list of initial values, one for each variable. \
+        Each of these can be either a variable name or a literal, quoted \
+        string (e.g. "'hello'"). Default is None.
+    :type initial_values: list of str with same no. of elements as entity_decls
     :param bool private: whether this declaration has the PRIVATE attribute.
 
     '''
