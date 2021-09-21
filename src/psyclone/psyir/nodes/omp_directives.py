@@ -640,18 +640,6 @@ class OMPParallelDirective(OMPRegionDirective):
             #                       "any OpenMP directives. This is probably "
             #                       "not what you want.")
 
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        parallel region.
-
-        '''
-        # TODO #435: Remove this function once this is fixed
-        self._add_region(
-            start_text="parallel default(shared), private({0})".format(
-                ",".join(self._get_private_list())),
-            end_text="end parallel")
-
 
 class OMPTaskloopDirective(OMPRegionDirective):
     '''
@@ -976,19 +964,6 @@ class OMPDoDirective(OMPRegionDirective):
         # pylint: disable=no-self-use
         return "omp end do"
 
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP do.
-
-        :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenMP parallel do.
-        '''
-        self.validate_global_constraints()
-
-        self._add_region(start_text="do schedule({0})".format(
-            self._omp_schedule), end_text="end do")
-
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
     ''' Class for the !$OMP PARALLEL DO directive. This inherits from
@@ -1067,20 +1042,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         # pylint: disable=no-self-use
         return "omp end parallel do"
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        parallel do.
-
-        '''
-        self.validate_global_constraints()
-
-        self._add_region(
-            start_text="parallel do default(shared), private({0}), "
-            "schedule({1})".format(",".join(self._get_private_list()),
-                                   self._omp_schedule),
-            end_text="end parallel do")
 
     def validate_global_constraints(self):
         '''
