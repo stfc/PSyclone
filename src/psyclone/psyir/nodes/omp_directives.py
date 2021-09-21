@@ -1075,8 +1075,25 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             end_text="end parallel do")
 
 
+class OMPTargetDirective(OMPRegionDirective):
+    ''' Class for the !$OMP TARGET directive that offloads the code contained
+    in its region into an accelerator device. '''
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp target". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp target"
+
+
 # For automatic API documentation generation
 __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
-           "OMPSerialDirective", "OMPTaskloopDirective",
+           "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective"]

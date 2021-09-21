@@ -48,7 +48,7 @@ from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, Schedule, \
     OMPParallelDoDirective, Directive, colored, OMPParallelDirective, \
     OMPSingleDirective, OMPMasterDirective, OMPTaskloopDirective, \
-    OMPTaskwaitDirective
+    OMPTaskwaitDirective, OMPTargetDirective
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
@@ -650,3 +650,12 @@ def test_omp_taskloop_validate_global_constraints():
     assert ("OMPTaskloopDirective must be inside an OMP "
             "Serial region but could not find an ancestor node"
             in str(excinfo.value))
+
+
+# Test OMPTargetDirective
+
+def test_omp_target_directive():
+    ''' Test the OMPTargetDirective. '''
+    target = OMPTargetDirective()
+    assert target.begin_string() == "omp target"
+    assert str(target) == "OMPTargetDirective"
