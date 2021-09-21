@@ -88,6 +88,8 @@ class ScopingNode(Node):
         # the `variable` getter causes an error (because it checks the
         # internal-consistency of the Loop node). We therefore have to check
         # the value of the 'private' `_variable` for now.
+        # We have to import Loop here to avoid a circular dependency.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.loop import Loop
         for node in self.walk((Reference, Loop)):
             if isinstance(node, Reference):
