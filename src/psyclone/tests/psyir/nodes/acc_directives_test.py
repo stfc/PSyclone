@@ -82,7 +82,7 @@ def test_accloopdirective_node_str(monkeypatch):
     assert directive.node_str() == expected
     assert str(directive) == expected
 
-    # Non-default value outptu
+    # Non-default value output
     directive._sequential = True
     directive._collapse = 2
     directive._independent = False

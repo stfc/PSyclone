@@ -234,7 +234,6 @@ def test_schedule_view(capsys):
         "UNDEFINED>]\n" +
         6*indent + sched_str + "[]\n" +
         7*indent + "0: " + kern_str + "[]\n")
-    print(output)
     assert expected_sched in output
 
 

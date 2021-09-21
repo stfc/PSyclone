@@ -115,7 +115,7 @@ def test_node_str(monkeypatch):
     ''' Tests for the Node.node_str method. '''
     tnode = Node()
 
-    # Mock the coloured_name method because it is already testes elsewhere
+    # Mock the coloured_name method because it is already tested elsewhere
     def mock_coloured_name(colour):
         if colour:
             return "coloured_name_string"
