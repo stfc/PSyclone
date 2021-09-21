@@ -190,6 +190,8 @@
 	65) PR #1379 towards #1288. Alters the driver generation for
 	GOcean kernel extraction to use the PSyIR.
 
+	66) PR #1403. Adds support for private clause for declarations in f2pygen.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
