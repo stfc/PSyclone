@@ -2791,7 +2791,7 @@ class LFRicFields(DynCollection):
 
         # Create a field argument map that splits the (real and
         # integer) fields into their different datatypes.
-        field_datatype_map = {}
+        field_datatype_map = OrderedDict()
         for arg in real_field_args + int_field_args:
             try:
                 field_datatype_map[
@@ -3073,7 +3073,7 @@ class DynProxies(DynCollection):
         # Create a field argument map that splits the (real and
         # integer) fields into their different datatypes for their
         # proxy's
-        field_datatype_map = {}
+        field_datatype_map = OrderedDict()
         for arg in real_field_args + int_field_args:
             try:
                 field_datatype_map[
