@@ -66,21 +66,25 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
     tnode = Node()
-    # Node is an abstract class
-    with pytest.raises(NotImplementedError) as err:
-        tnode.node_str()
-    assert ("_text_name is an abstract attribute which needs to be given a "
-            "string value in the concrete class 'Node'." in str(err.value))
-    # Exception as _colour has not been set
-    tnode._text_name = "ATest"
+    # Exception as Node is abstract and _colour has not been set
     with pytest.raises(NotImplementedError) as err:
         _ = tnode.coloured_name()
     assert ("The _colour attribute is abstract so needs to be given a string "
             "value in the concrete class 'Node'." in str(err.value))
-    # Valid values
-    tnode._colour = "white"
-    assert tnode.coloured_name(False) == "ATest"
-    assert tnode.coloured_name(True) == colored("ATest", "white")
+
+    # Create a node type with a colour attribute
+    class MyNode(Node):
+        ''' Mock node sub-class with green coloured text. '''
+        _colour = "green"
+
+    mynode = MyNode()
+    assert mynode.coloured_name(False) == "MyNode"
+    assert mynode.coloured_name(True) == colored("MyNode", "green")
+
+    # Give MyNode a specific _text_name
+    MyNode._text_name = "MyFancyNodeName"
+    assert mynode.coloured_name(False) == "MyFancyNodeName"
+    assert mynode.coloured_name(True) == colored("MyFancyNodeName", "green")
 
 
 def test_node_coloured_name_exception(monkeypatch):
@@ -107,22 +111,21 @@ def test_node_coloured_name_exception(monkeypatch):
             "package." in str(err.value))
 
 
-def test_node_str():
+def test_node_str(monkeypatch):
     ''' Tests for the Node.node_str method. '''
     tnode = Node()
-    # Node is an abstract class
-    with pytest.raises(NotImplementedError) as err:
-        tnode.node_str()
-    assert ("_text_name is an abstract attribute which needs to be given a "
-            "string value in the concrete class 'Node'." in str(err.value))
 
-    # Manually set the _text_name and _colour for this node to
-    # something that will result in coloured output (if requested
-    # *and* termcolor is installed).
-    tnode._text_name = "FakeName"
-    tnode._colour = "green"
-    assert tnode.node_str(False) == "FakeName[]"
-    assert tnode.node_str(True) == colored("FakeName", "green") + "[]"
+    # Mock the coloured_name method because it is already testes elsewhere
+    def mock_coloured_name(colour):
+        if colour:
+            return "coloured_name_string"
+        return "plain_name_string"
+    monkeypatch.setattr(tnode, "coloured_name", mock_coloured_name)
+
+    # Test that the generic node_str calls the appropriate coloured_name and
+    # adds a [] at the end.
+    assert tnode.node_str(False) == "plain_name_string[]"
+    assert tnode.node_str(True) == "coloured_name_string[]"
 
 
 def test_node_depth():

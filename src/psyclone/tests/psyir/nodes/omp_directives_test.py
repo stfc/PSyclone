@@ -87,45 +87,6 @@ def test_ompdo_constructor():
     assert len(ompdo.dir_body.children) == 1
 
 
-def test_ompdo_directive_class_node_str(dist_mem):
-    '''Tests the node_str method in the OMPDoDirective class. We create a
-    sub-class object then call this method from it.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-
-    cases = [
-        {"current_class": OMPParallelDoDirective,
-         "current_string": "[OMP parallel do]"},
-        {"current_class": OMPDoDirective, "current_string": "[OMP do]"},
-        {"current_class": OMPParallelDirective,
-         "current_string": "[OMP parallel]"},
-        {"current_class": Directive, "current_string": ""}]
-    otrans = OMPParallelLoopTrans()
-
-    psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    if dist_mem:
-        idx = 4
-    else:
-        idx = 0
-
-    _, _ = otrans.apply(schedule.children[idx])
-    omp_parallel_loop = schedule.children[idx]
-
-    for case in cases:
-        # Call the OMPDirective node_str method
-        out = case["current_class"].node_str(omp_parallel_loop)
-
-        directive = colored("Directive", Directive._colour)
-        expected_output = directive + case["current_string"]
-
-        assert expected_output in out
-
-
 def test_directive_get_private(monkeypatch):
     ''' Tests for the _get_private_list() method of OMPParallelDirective.
     Note: this test does not apply colouring so the loops must be over
@@ -284,15 +245,6 @@ def test_omp_single_strings(nowait):
     assert omp_single.end_string() == "omp end single"
 
 
-def test_omp_single_node_str():
-    ''' Test the node_str() method of the OMPSingle directive '''
-    single_directive = OMPSingleDirective()
-    out = single_directive.node_str()
-    directive = colored("OMPSingleDirective", Directive._colour)
-    expected_output = directive + "[OMP single]"
-    assert expected_output == out
-
-
 def test_omp_single_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPSingle
         directive '''
@@ -389,15 +341,6 @@ def test_omp_master_strings():
     assert omp_master.end_string() == "omp end master"
 
 
-def test_omp_master_node_str():
-    ''' Test the node_str() method of the OMPMaster directive '''
-    master_directive = OMPMasterDirective()
-    out = master_directive.node_str()
-    directive = colored("OMPMasterDirective", Directive._colour)
-    expected_output = directive + "[OMP master]"
-    assert expected_output == out
-
-
 def test_omp_master_gencode():
     '''Check that the gen_code method in the OMPMasterDirective class
     generates the expected code. Use the gocean API.
@@ -491,24 +434,6 @@ def test_omptaskwait_strings():
     assert taskwait.begin_string() == "omp taskwait"
 
 
-def test_omptaskwait_node_str():
-    '''Test the OMPTaskwaitDirective and OMPStandaloneDirective node_str
-    methods'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    taskwait = OMPTaskwaitDirective()
-    schedule.addchild(taskwait, 0)
-    directive = colored("Directive", Directive._colour)
-    expected_output = directive + "[OMP taskwait]"
-    assert taskwait.node_str() == expected_output
-    omp_cdirective = super(OMPTaskwaitDirective, taskwait)
-    expected_output = directive + "[]"
-    assert omp_cdirective.node_str() == expected_output
-
-
 def test_omptaskwait_gencode():
     '''Check that the gen_code method in the OMPTaskwaitDirective
     class generates the expected code. Use the gocean API.
@@ -583,15 +508,6 @@ def test_omp_taskloop_init():
         OMPTaskloopDirective(grainsize=32, num_tasks=32)
     assert("OMPTaskloopDirective must not have both grainsize and "
            "numtasks clauses specified.") in str(excinfo.value)
-
-
-def test_omp_taskloop_node_str():
-    ''' Test the node_str() method of the OMPTaskloop directive '''
-    omp_taskloop = OMPTaskloopDirective()
-    out = OMPTaskloopDirective.node_str(omp_taskloop)
-    directive = colored("Directive", Directive._colour)
-    expected_output = directive + "[OMP taskloop]"
-    assert expected_output in out
 
 
 @pytest.mark.parametrize("grainsize,num_tasks,nogroup,clauses",

@@ -50,7 +50,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import colored, Directive, ACCEnterDataDirective, \
     ACCKernelsDirective, Schedule, Loop, ACCUpdateDirective, \
-    ACCParallelDirective
+    ACCParallelDirective, ACCLoopDirective
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCLoopTrans, ACCEnterDataTrans, \
@@ -68,41 +68,28 @@ def setup():
     Config._instance = None
 
 
-def test_acc_dir_node_str():
-    ''' Test the node_str() method of OpenACC directives '''
+def test_accloopdirective_node_str(monkeypatch):
+    ''' Test the node_str() method of ACCLoopDirective node '''
+    directive = ACCLoopDirective()
 
-    acclt = ACCLoopTrans()
-    accdt = ACCEnterDataTrans()
-    accpt = ACCParallelTrans()
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    colour = Directive._colour
-    schedule = invoke.schedule
+    # Mock the coloured name as this is tested elsewhere
+    monkeypatch.setattr(directive, "coloured_name",
+                        lambda x: "ACCLoopDirective")
 
-    # Enter-data
-    accdt.apply(schedule)
-    out = schedule[0].node_str()
-    assert out.startswith(
-        colored("Directive", colour)+"[ACC enter data]")
+    # Default value output
+    expected = ("ACCLoopDirective[sequential=False,collapse=None,"
+                "independent=True]")
+    assert directive.node_str() == expected
+    assert str(directive) == expected
 
-    # Parallel region around outermost loop
-    accpt.apply(schedule[1])
-    out = schedule[1].node_str()
-    assert out.startswith(
-        colored("Directive", colour)+"[ACC Parallel]")
-
-    # Loop directive on outermost loop
-    acclt.apply(schedule[1].dir_body[0])
-    out = schedule[1].dir_body[0].node_str()
-    assert out.startswith(
-        colored("Directive", colour)+"[ACC Loop, independent]")
-
-    # Loop directive with collapse
-    acclt.apply(schedule[1].dir_body[0].dir_body[0], {"collapse": 2})
-    out = schedule[1].dir_body[0].dir_body[0].node_str()
-    assert out.startswith(
-        colored("Directive", colour) + "[ACC Loop, collapse=2, "
-                                       "independent]")
+    # Non-default value outptu
+    directive._sequential = True
+    directive._collapse = 2
+    directive._independent = False
+    expected = ("ACCLoopDirective[sequential=True,collapse=2,"
+                "independent=False]")
+    assert directive.node_str() == expected
+    assert str(directive) == expected
 
 
 def test_acc_dag_names():
@@ -162,26 +149,6 @@ def test_acckernelsdirective_dagname():
     trans = ACCKernelsTrans()
     _, _ = trans.apply(sched)
     assert sched.children[0].dag_name == "ACC_kernels_1"
-
-
-# (1/1) Method node_str
-def test_acckernelsdirective_node_str():
-    '''Check that the node_str method in the ACCKernelsDirective class behaves
-    as expected.
-
-    '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched)
-
-    out = sched[0].node_str()
-    assert out.startswith(
-        colored("Directive", Directive._colour)+"[ACC Kernels]")
-    assert colored("Loop", Loop._colour) in sched[0].dir_body[0].node_str()
-    assert "CodedKern" in sched[0].dir_body[0].loop_body[0].node_str()
 
 
 # (1/1) Method gen_code
