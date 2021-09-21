@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,47 +30,32 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: S. Siso, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Laboratory
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel read-only-verification to
-the invokes. This then creates code that, at runtime, verifies that
-all read-only entities passed to the kernel have not been modified.
-'''
+include ../common.mk
 
-from __future__ import print_function
-from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod \
+                   test_harness.*
 
+# The first command will write the adjoint kernel to stdout. The second will
+# write both it and the corresponding test harness to separate files.
+transform:
+	$(PSYAD) testkern_mod.f90
+	$(PSYAD) -t -otest test_harness.f90 -oad testkernadj_mod.f90 \
+                 testkern_mod.f90
 
-def trans(psy):
-    '''
-    Take the supplied psy object, and add verification to both
-    invokes that read only parameters are not modified.
+compile: transform
+	$(F90) -c testkern_mod.f90
+	$(F90) -c testkernadj_mod.f90
+	$(F90) -c test_harness.f90
+	$(F90) -o test_harness.exe testkern_mod.o testkernadj_mod.o \
+                  test_harness.o
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+run: compile
+	@echo ""
+	@echo "Running PSyAD-generated test harness..."
+	@./test_harness.exe
+	@echo "...done."
 
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
-
-    '''
-    read_only_verify = ReadOnlyVerifyTrans()
-
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
-
-    # You could just apply the transform for all elements of
-    # psy.invokes.invoke_list. But in this case we also
-    # want to give the regions a friendlier name:
-    read_only_verify.apply(schedule.children,
-                           {"region_name": ("main", "init")})
-
-    invoke = psy.invokes.get("invoke_1_update_field")
-    schedule = invoke.schedule
-
-    # Enclose everything in a read_only_verify region
-    read_only_verify.apply(schedule.children,
-                           {"region_name": ("main", "update")})
-    return psy

@@ -33,6 +33,7 @@
 ! Modified by R. W. Ford, STFC Daresbury Lab
 
 SUBROUTINE tra_ldf_iso()
+  USE some_mod, only: dia_ptr_hst
   INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
   INTEGER :: jn
   INTEGER, PARAMETER :: wp=4
