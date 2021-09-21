@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
@@ -218,7 +218,7 @@ def test_scoping_node_copy_loop(fortran_writer, tmpdir):
     output = fortran_writer(new_schedule)
     assert Compile(tmpdir).string_compiles(output)
     # Check that the copy operation succeeds, even if there is no variable
-    # assocated with the Loop (as can be the case in the LFRic domain).
+    # associated with the Loop (as can be the case in the LFRic domain).
     loop._variable = None
     new_schedule2 = schedule.copy()
     new_loop_var = new_schedule2.symbol_table.lookup("idx")
