@@ -906,10 +906,11 @@ class BaseDeclGen(BaseGen):
                           DIMENSION(xx))
     :param bool allocatable: whether this declaration is for an \
                              ALLOCATABLE quantity
-    :param bool save: whether this declaration has the SAVE attribute
-    :param bool target: whether this declaration has the TARGET attribute
+    :param bool save: whether this declaration has the SAVE attribute.
+    :param bool target: whether this declaration has the TARGET attribute.
     :param initial_values: Initial value to give each variable.
     :type initial_values: list of str with same no. of elements as entity_decls
+    :param bool private: whether this declaration has the PRIVATE attribute.
 
     :raises RuntimeError: if no variable names are specified.
     :raises RuntimeError: if the wrong number or type of initial values are \
@@ -924,7 +925,7 @@ class BaseDeclGen(BaseGen):
 
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, dimension="", allocatable=False,
-                 save=False, target=False, initial_values=None):
+                 save=False, target=False, initial_values=None, private=False):
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a variable declaration without specifying the "
@@ -983,6 +984,8 @@ class BaseDeclGen(BaseGen):
             my_attrspec.append("allocatable")
         if save:
             my_attrspec.append("save")
+        if private:
+            my_attrspec.append("private")
         if dimension != "":
             my_attrspec.append("dimension({0})".format(dimension))
         self._decl.attrspec = my_attrspec
@@ -1042,6 +1045,7 @@ class DeclGen(BaseDeclGen):
     :param initial_values: Initial value to give each variable.
     :type initial_values: list of str with same no. of elements as \
                           entity_decls.
+    :param bool private: whether this declaration has the PRIVATE attribute.
 
     :raises RuntimeError: if datatype is not one of DeclGen.SUPPORTED_TYPES.
 
@@ -1051,7 +1055,7 @@ class DeclGen(BaseDeclGen):
 
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, initial_values=None):
+                 save=False, target=False, initial_values=None, private=False):
 
         dtype = datatype.lower()
         if dtype not in self.SUPPORTED_TYPES:
@@ -1095,7 +1099,8 @@ class DeclGen(BaseDeclGen):
                                       dimension=dimension,
                                       allocatable=allocatable, save=save,
                                       target=target,
-                                      initial_values=initial_values)
+                                      initial_values=initial_values,
+                                      private=private)
 
     def _check_initial_values(self, dtype, values):
         '''
@@ -1167,11 +1172,13 @@ class CharDeclGen(BaseDeclGen):
                           entity_decls. Each of these can be either a \
                           variable name or a literal, quoted string \
                           (e.g. "'hello'").
+    :param bool private: whether this declaration has the PRIVATE attribute.
 
     '''
     def __init__(self, parent, entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, length="", initial_values=None):
+                 save=False, target=False, length="", initial_values=None,
+                 private=False):
 
         reader = FortranStringReader(
             "character(len=vanilla_len) :: vanilla")
@@ -1189,7 +1196,8 @@ class CharDeclGen(BaseDeclGen):
                                           dimension=dimension,
                                           allocatable=allocatable, save=save,
                                           target=target,
-                                          initial_values=initial_values)
+                                          initial_values=initial_values,
+                                          private=private)
 
     def _check_initial_values(self, _, values):
         '''
@@ -1230,11 +1238,12 @@ class TypeDeclGen(BaseDeclGen):
     :param bool save: whether this declaration has the SAVE attribute.
     :param bool target: whether this declaration has the TARGET attribute.
     :param bool is_class: whether this is a class rather than type declaration.
-
+    :param bool private: whether or not this declaration has the PRIVATE \
+                         attribute. (Defaults to False.)
     '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, dimension="", allocatable=False,
-                 save=False, target=False, is_class=False):
+                 save=False, target=False, is_class=False, private=False):
         if is_class:
             reader = FortranStringReader("class(vanillatype) :: vanilla")
         else:
@@ -1253,7 +1262,7 @@ class TypeDeclGen(BaseDeclGen):
                                           intent=intent, pointer=pointer,
                                           dimension=dimension,
                                           allocatable=allocatable, save=save,
-                                          target=target)
+                                          target=target, private=private)
 
     def _check_initial_values(self, _type, _values):
         '''
