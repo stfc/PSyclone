@@ -82,14 +82,6 @@ class ReadOnlyVerifyNode(PSyDataNode):
         '''
         return "read_only_verify_" + str(self.position)
 
-    def update_vars_and_postname(self):
-        '''
-        This function is called after the variables to be verified
-        have been stored in self._input_list and self._output_list.
-        This default function does not do anything for read-only
-        verification.
-        '''
-
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''
@@ -108,11 +100,6 @@ class ReadOnlyVerifyNode(PSyDataNode):
         for var_name in variables_info:
             if variables_info[var_name].is_read_only():
                 read_only.append(var_name)
-
-        # Add a callback here so that derived classes can adjust the list
-        # of variables to provide, or the suffix used (which might
-        # depend on the variable name which could create clashes).
-        self.update_vars_and_postname()
 
         options = {'pre_var_list': read_only,
                    'post_var_list': read_only}
