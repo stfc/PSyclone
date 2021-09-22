@@ -89,7 +89,7 @@ class RegionDirective(Directive):
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
-        sched = self._insert_schedule(children, ast)
+        sched = Schedule(children=children, parent=self)
         super(RegionDirective, self).__init__(ast, children=[sched],
                                               parent=parent)
 

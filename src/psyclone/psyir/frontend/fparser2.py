@@ -1116,12 +1116,6 @@ class Fparser2Reader(object):
         if container:
             container.children.append(new_schedule)
 
-        # Set pointer from schedule into fparser2 tree
-        # TODO #435 remove this line once fparser2 tree not needed
-        # pylint: disable=protected-access
-        new_schedule._ast = subroutine
-        # pylint: enable=protected-access
-
         try:
             sub_spec = _first_type_match(subroutine.content,
                                          Fortran2003.Specification_Part)

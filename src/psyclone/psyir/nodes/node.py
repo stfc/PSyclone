@@ -1208,31 +1208,6 @@ class Node(object):
         for child in self._children:
             child.reference_accesses(var_accesses)
 
-    def _insert_schedule(self, children=None, ast=None):
-        '''
-        Utility method to insert a Schedule between this Node and the
-        supplied list of children.
-
-        :param children: nodes which will become children of the \
-                         new Schedule.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param ast: reference to fparser2 parse tree for associated \
-                    Fortran code.
-        :type ast: :py:class:`fparser.two.utils.Base`
-
-        :returns: the new Schedule node.
-        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
-        '''
-        from psyclone.psyir.nodes import Schedule
-        sched = Schedule(children=children, parent=self)
-        if children:
-            # If we have children then set the Schedule's AST pointer to
-            # point to the AST associated with them.
-            sched.ast = children[0].ast
-        else:
-            sched.ast = ast
-        return sched
-
     @property
     def scope(self):
         ''' Some nodes (e.g. Schedule and Container) allow symbols to be

@@ -127,19 +127,6 @@ class LoopTrans(Transformation):
                 "Cannot apply a {0} transformation to a 'null' loop.".format(
                     self.name))
 
-        # The checks below this point only apply to the NEMO API and can be
-        # removed once #435 is done.
-        if not isinstance(node.root, NemoInvokeSchedule):
-            return
-
-        if "was_where" in node.annotations:
-            # This limitation is because the NEMO API currently relies on
-            # manipulation of the fparser2 parse tree
-            # TODO #435.
-            raise TransformationError(
-                "In the NEMO API a transformation cannot be applied to a "
-                "PSyIR loop representing a WHERE construct.")
-
     @property
     def name(self):
         '''

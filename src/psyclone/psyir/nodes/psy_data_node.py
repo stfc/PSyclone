@@ -188,7 +188,6 @@ class PSyDataNode(Statement):
             self.set_region_identifier(self._module_name,
                                        self._region_name)
 
-
     @classmethod
     def create(cls, children, symbol_table, ast=None, options=None):
         '''
@@ -250,10 +249,7 @@ class PSyDataNode(Statement):
             symbol_table.add(csym, tag=data_node.fortran_module)
 
         # A PSyData node always contains a Schedule
-        # TODO 435 we can probably get rid of _insert_schedule() once we
-        # do away with the ast argument?
-        # pylint: disable=protected-access
-        sched = data_node._insert_schedule(children=children, ast=ast)
+        sched = Schedule(children=children, parent=data_node)
         data_node.addchild(sched)
 
         # Add the symbols that will be imported from the module. Use the

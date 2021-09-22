@@ -204,20 +204,3 @@ class RegionTrans(Transformation):
                 "Cannot apply transformation to the immediate children of a "
                 "Loop/IfBlock unless it is to a single Schedule representing"
                 " the Loop/If/Else body.")
-
-        # The checks below this point only apply to the NEMO API and can be
-        # removed once #435 is done.
-        node = node_list[0]
-        if not isinstance(node.root, NemoInvokeSchedule):
-            return
-
-        if_or_loop = node.ancestor((IfBlock, Loop))
-        if if_or_loop and ("was_single_stmt" in if_or_loop.annotations
-                           or "was_where" in if_or_loop.annotations):
-            # This limitation is because the NEMO API currently relies on
-            # manipulation of the fparser2 parse tree
-            # TODO #435.
-            raise TransformationError(
-                "In the NEMO API a transformation cannot be applied to the "
-                "children of either a single-line if statement or a PSyIR loop"
-                " representing a WHERE construct.")
