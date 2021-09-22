@@ -195,6 +195,9 @@
 	67) PR #1406 for #1404. Temporary copy() bug fix while the loop variable
 	is not part of the PSyIR tree.
 
+	68) PR #1407 towards #1383. Standardises the node_str() method of
+	DirectiveNode and remove un-needed code.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
