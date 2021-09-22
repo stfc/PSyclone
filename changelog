@@ -192,6 +192,9 @@
 
 	66) PR #1403. Adds support for private clause for declarations in f2pygen.
 
+	67) PR #1406 for #1404. Temporary copy() bug fix while the loop variable
+	is not part of the PSyIR tree.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
