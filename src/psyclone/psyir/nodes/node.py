@@ -406,10 +406,9 @@ class Node(object):
         :rtype: str
         '''
         if not self._text_name:
-            raise NotImplementedError(
-                "_text_name is an abstract attribute which needs to be "
-                "given a string value in the concrete class '{0}'."
-                "".format(type(self).__name__))
+            name_string = type(self).__name__
+        else:
+            name_string = self._text_name
         if colour:
             if self._colour is None:
                 raise NotImplementedError(
@@ -417,14 +416,14 @@ class Node(object):
                     "a string value in the concrete class '{0}'."
                     "".format(type(self).__name__))
             try:
-                return colored(self._text_name, self._colour)
+                return colored(name_string, self._colour)
             except KeyError as info:
                 message = (
                     "The _colour attribute in class '{0}' has been set to a "
                     "colour ('{1}') that is not supported by the termcolor "
                     "package.".format(type(self).__name__, self._colour))
                 six.raise_from(InternalError(message), info)
-        return self._text_name
+        return name_string
 
     def node_str(self, colour=True):
         '''

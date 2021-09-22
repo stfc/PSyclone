@@ -126,18 +126,6 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         self._variables_to_copy = []
         self._node_lowered = False
 
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC enter data]"
-
     @property
     def dag_name(self):
         '''
@@ -264,18 +252,6 @@ class ACCParallelDirective(ACCRegionDirective):
     a DataDirective.
 
     '''
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC Parallel]"
-
     @property
     def dag_name(self):
         '''
@@ -466,14 +442,10 @@ class ACCLoopDirective(ACCRegionDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        text = self.coloured_name(colour) + "[ACC Loop"
-        if self._sequential:
-            text += ", seq"
-        else:
-            if self._collapse:
-                text += ", collapse={0}".format(self._collapse)
-            if self._independent:
-                text += ", independent"
+        text = self.coloured_name(colour)
+        text += "[sequential={0},".format(self._sequential)
+        text += "collapse={0},".format(self._collapse)
+        text += "independent={0}".format(self._independent)
         text += "]"
         return text
 
@@ -602,17 +574,6 @@ class ACCKernelsDirective(ACCRegionDirective):
         _, position = self._find_position(self.ancestor(Routine))
         return "ACC_kernels_" + str(position)
 
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC Kernels]"
-
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this
@@ -713,17 +674,6 @@ class ACCDataDirective(ACCRegionDirective):
         '''
         _, position = self._find_position(self.ancestor(Routine))
         return "ACC_data_" + str(position)
-
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC DATA]"
 
     def gen_code(self, _):
         '''

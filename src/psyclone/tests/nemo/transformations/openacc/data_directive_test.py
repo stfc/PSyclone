@@ -126,18 +126,54 @@ def test_data_no_gen_code():
             "been called" in str(err.value))
 
 
-def test_data_view(parser, capsys):
-    ''' Check that the ACCDataDirective.view() method works as expected. '''
+def test_add_region_invalid_data_move():
+    ''' Check that _add_region() raises the expected error if an invalid
+    value for data_movement is supplied. '''
+    _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    acc_trans.apply(schedule.children)
+    datadir = schedule.children[0]
+    with pytest.raises(InternalError) as err:
+        datadir._add_region("DATA", "END DATA", data_movement="invalid")
+    assert ("optional data_movement argument must be one of ['present', "
+            "'analyse'] but got 'invalid'" in str(err.value))
+
+
+def test_add_region(parser):
+    ''' Check that add_region works as expected. '''
     reader = FortranStringReader(EXPLICIT_DO)
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    schedule.view()
-    output, _ = capsys.readouterr()
-    assert "[ACC DATA]" in output
-    assert schedule.children[0].dag_name == "ACC_data_1"
+    datadir = schedule.children[0]
+    datadir._add_region("data", "end data")
+    assert isinstance(datadir._ast, Fortran2003.Comment)
+    assert str(datadir._ast).lower() == "!$acc data"
+    assert isinstance(datadir._ast_end, Fortran2003.Comment)
+    assert str(datadir._ast_end).lower() == "!$acc end data"
+
+
+def test_add_region_comment_err(parser):
+    ''' Check that _add_region rejects begin and end strings that contain
+    comments that are not directives. '''
+    reader = FortranStringReader(EXPLICIT_DO)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.get('explicit_do').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    acc_trans.apply(schedule.children)
+    datadir = schedule.children[0]
+    with pytest.raises(InternalError) as err:
+        datadir._add_region("!data", "!end data")
+    assert ("start_text must be a plain label without directive or comment "
+            "characters but got: '!data'" in str(err.value))
+    with pytest.raises(InternalError) as err:
+        datadir._add_region("data", "!end data")
+    assert ("end_text must be a plain label without directive or comment "
+            "characters but got: '!end data'" in str(err.value))
 
 
 def test_explicit_directive(parser):
