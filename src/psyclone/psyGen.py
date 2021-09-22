@@ -173,20 +173,24 @@ class PSyFactory(object):
     Creates a specific version of the PSy. If a particular api is not
     provided then the default api, as specified in the psyclone.cfg
     file, is chosen.
+
+    :param str api: name of the PSyclone API (domain) for which to create \
+        a factory.
+    :param bool distributed_memory: whether or not the PSy object created \
+        will include support for distributed-memory parallelism.
+
+    :raises TypeError: if the distributed_memory argument is not a bool.
+
     '''
     def __init__(self, api="", distributed_memory=None):
-        '''Initialises a factory which can create API specific PSY objects.
-        :param str api: Name of the API to use.
-        :param bool distributed_memory: True if distributed memory should be \
-                                        supported.
-        '''
+
         if distributed_memory is None:
             _distributed_memory = Config.get().distributed_memory
         else:
             _distributed_memory = distributed_memory
 
         if _distributed_memory not in [True, False]:
-            raise GenerationError(
+            raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
         Config.get().distributed_memory = _distributed_memory
@@ -196,12 +200,15 @@ class PSyFactory(object):
         '''
         Create the API-specific PSy instance.
 
-        :param invoke_info: information on the invoke()s found by parsing
+        :param invoke_info: information on the invoke()s found by parsing \
                             the Algorithm layer.
         :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+
+        :raises InternalError: if this factory is found to have an \
+                               unsupported type (API).
         '''
         if self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynamoPSy as PSyClass
@@ -216,9 +223,9 @@ class PSyFactory(object):
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed
         else:
-            raise GenerationError("PSyFactory: Internal Error: Unsupported "
-                                  "api type '{0}' found. Should not be "
-                                  "possible.".format(self._type))
+            raise InternalError(
+                "PSyFactory: Unsupported API type '{0}' found. Expected one "
+                "of {1}.".format(self._type, Config.get().supported_apis))
         return PSyClass(invoke_info)
 
 
