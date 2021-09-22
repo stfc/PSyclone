@@ -63,7 +63,6 @@ class Directive(Statement):
     # The prefix to use when code-generating this directive
     # (e.g. "OMP") must be set by a mixin or sub-class.
     _PREFIX = ""
-    _text_name = "Directive"
     _colour = "green"
 
 
