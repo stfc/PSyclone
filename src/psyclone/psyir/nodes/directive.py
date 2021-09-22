@@ -48,7 +48,6 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Comment
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.node import Node
 from psyclone.errors import InternalError
@@ -122,15 +121,6 @@ class RegionDirective(Directive):
                 "Schedule as a child but found: {0}".format(
                     [type(child).__name__ for child in self.children]))
         return self.children[0]
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "region_directive_" + str(position)
 
     def _add_region(self, start_text, end_text=None, data_movement=None):
         '''
@@ -286,15 +276,6 @@ class StandaloneDirective(Directive):
         '''
         # Children are not allowed for StandaloneDirective
         return False
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "standalone_directive_" + str(position)
 
 
 # For automatic API documentation generation

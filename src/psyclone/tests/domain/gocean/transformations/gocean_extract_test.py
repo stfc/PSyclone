@@ -198,7 +198,6 @@ def test_extract_node_position():
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos
     assert extract_node[0].depth == dpth
-    assert extract_node[0].dag_name == "gocean_extract_1"
 
 
 # -----------------------------------------------------------------------------

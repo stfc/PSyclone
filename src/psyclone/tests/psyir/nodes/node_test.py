@@ -506,7 +506,12 @@ def test_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    assert super(Schedule, schedule).dag_name == "node_1"
+
+    # Classes without the dag_name specialised should show the name of the
+    # class and the relative position to the ancestor routine
+    assert schedule.children[4].start_expr.dag_name == "Literal_6"
+
+    # Some classes have their won specialisation of the dag_name
     assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
     assert schedule.children[4].dag_name == "loop_5"
@@ -515,6 +520,12 @@ def test_dag_names():
     schedule.children[4].loop_type = ""
     assert (schedule.children[4].loop_body[0].dag_name ==
             "kernel_testkern_code_10")
+
+    # If there is no ancestor routine, the index is the absolute position
+    loop = schedule.children[4].detach()
+    assert loop.start_expr.dag_name == "Literal_1"
+
+    # GlobalSum and BuiltIn also have specialised dag_names
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
@@ -621,24 +632,24 @@ EXPECTED2 = re.compile(
     r"\s*loop_1_end\n"
     r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
     r"\s*routine_invoke_0_0_start -> loop_1_start \[color=blue\]\n"
-    r"\s*schedule_5_start\n"
-    r"\s*schedule_5_end\n"
-    r"\s*schedule_5_end -> loop_1_end \[color=blue\]\n"
-    r"\s*loop_1_start -> schedule_5_start \[color=blue\]\n"
+    r"\s*Schedule_5_start\n"
+    r"\s*Schedule_5_end\n"
+    r"\s*Schedule_5_end -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> Schedule_5_start \[color=blue\]\n"
     r"\s*kernel_testkern_qr_code_6\n"
-    r"\s*kernel_testkern_qr_code_6 -> schedule_5_end \[color=blue\]\n"
-    r"\s*schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_6 -> Schedule_5_end \[color=blue\]\n"
+    r"\s*Schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
     r"\s*loop_7_start\n"
     r"\s*loop_7_end\n"
     r"\s*loop_7_end -> routine_invoke_0_0_end \[color=blue\]\n"
     r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
-    r"\s*schedule_11_start\n"
-    r"\s*schedule_11_end\n"
-    r"\s*schedule_11_end -> loop_7_end \[color=blue\]\n"
-    r"\s*loop_7_start -> schedule_11_start \[color=blue\]\n"
+    r"\s*Schedule_11_start\n"
+    r"\s*Schedule_11_end\n"
+    r"\s*Schedule_11_end -> loop_7_end \[color=blue\]\n"
+    r"\s*loop_7_start -> Schedule_11_start \[color=blue\]\n"
     r"\s*kernel_testkern_qr_code_12\n"
-    r"\s*kernel_testkern_qr_code_12 -> schedule_11_end \[color=blue\]\n"
-    r"\s*schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_12 -> Schedule_11_end \[color=blue\]\n"
+    r"\s*Schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
     r"}")
 # pylint: enable=anomalous-backslash-in-string
 

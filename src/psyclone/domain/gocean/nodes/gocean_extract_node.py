@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology
 #          A. R. Porter, STFC Daresbury Laboratory
+#          S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''
@@ -53,36 +54,7 @@ class GOceanExtractNode(ExtractNode):
     It adds a function 'generate_driver' which creates a GOcean-specific
     stand-alone driver program that can read the created output files.
 
-    :param ast: reference into the fparser2 parse tree corresponding to \
-        this node.
-    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dictionary with options for transformations.
-    :type options: dictionary of string:values or None
-    :param bool options["create-driver"]: whether or not to create a driver \
-        program at code-generation time. If set, the driver will be created \
-        in the current working directory with the name \
-        "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
-        corresponding values for this region. Defaults to False.
-    :param str options["prefix"]: a prefix to use for the PSyData module name \
-        (``prefix_psy_data_mod``) and the PSyDataType \
-        (``prefix_PSyDataType``) - a "_" will be added automatically. \
-        It defaults to "extract", which is set in the base class if \
-        not overwritten in the options dictionary.
-
     '''
-    @property
-    def dag_name(self):
-        '''
-        Returns the name to use in a DAG for this Node
-
-        :returns: the dag name of ExtractNode.
-        :rtype: str
-        '''
-        return "gocean_extract_" + str(self.position)
 
 
 # -------------------------------------------------------------------------
