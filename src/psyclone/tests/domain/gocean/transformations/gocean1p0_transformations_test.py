@@ -1798,7 +1798,7 @@ def test_acc_enter_directive_infrastructure_setup_error():
         _ = psy.gen
     assert ("The GOACCEnterDataDirective can only be generated/lowered inside "
             "a Container in order to insert a sibling subroutine, but "
-            "'Directive[ACC enter data]' is not inside a Container."
+            "'GOACCEnterDataDirective[]' is not inside a Container."
             in str(err.value))
 
 
@@ -1977,24 +1977,6 @@ def test_acc_loop_seq():
             "      !$acc loop seq\n"
             "      do j = cu_fld%internal%ystart, cu_fld%internal%ystop"
             ", 1\n" in gen)
-
-
-def test_acc_loop_view(capsys):
-    ''' Test for the view() method of ACCLoopDirective. '''
-    acclpt = ACCLoopTrans()
-
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
-                           name="invoke_0", dist_mem=False)
-    schedule = invoke.schedule
-    acclpt.apply(schedule.children[0], {"independent": False})
-    acclpt.apply(schedule.children[1], {"independent": True})
-    acclpt.apply(schedule.children[2], {"sequential": True})
-    # Check the view method
-    schedule.view()
-    output, _ = capsys.readouterr()
-    assert "[ACC Loop]" in output
-    assert "[ACC Loop, independent]" in output
-    assert "[ACC Loop, seq]" in output
 
 
 def test_acc_kernels_error():
