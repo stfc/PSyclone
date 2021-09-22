@@ -35,9 +35,9 @@
 # Modified work Copyright (c) 2019 by J. Henrichs, Bureau of Meteorology
 
 '''This module implements the PSyclone NEMO API by specialising
-   the required base classes for both code generation (PSy, Invokes,
-   Invoke, InvokeSchedule, Loop, CodedKern, Arguments and KernelArgument)
-   and parsing (Fparser2Reader).
+   the required base classes for code generation (PSy, Invokes,
+   Invoke, InvokeSchedule, Loop, CodedKern, Arguments and KernelArgument).
+
 
 '''
 
@@ -51,53 +51,6 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop, Schedule, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import GenerationError
-
-
-class NemoFparser2Reader(Fparser2Reader):
-    '''
-    Specialisation of Fparser2Reader for the Nemo API.
-    '''
-    @staticmethod
-    def _create_schedule(name):
-        '''
-        Create an empty InvokeSchedule.
-
-        :param str name: the name of the Schedule to create.
-
-        :returns: New InvokeSchedule empty object.
-        :rtype: py:class:`psyclone.nemo.NemoInvokeSchedule`
-
-        '''
-        return NemoInvokeSchedule(name)
-
-    def _create_loop(self, parent, variable):
-        '''
-        Specialised method to create a NemoLoop instead of a
-        generic Loop.
-
-        TODO #1210 replace this with a Transformation.
-
-        :param parent: the parent of the node.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param variable: the loop variable.
-        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        :return: a new NemoLoop instance.
-        :rtype: :py:class:`psyclone.nemo.NemoLoop`
-
-        '''
-        loop = NemoLoop(parent=parent, variable=variable)
-
-        loop_type_mapping = Config.get().api_conf("nemo")\
-            .get_loop_type_mapping()
-
-        # Identify the type of loop
-        if variable.name in loop_type_mapping:
-            loop.loop_type = loop_type_mapping[variable.name]
-        else:
-            loop.loop_type = "unknown"
-
-        return loop
 
 
 class NemoInvoke(Invoke):
@@ -218,37 +171,6 @@ class NemoInvokeSchedule(InvokeSchedule):
         super(NemoInvokeSchedule, self).__init__(name, None, None)
 
         self._invoke = invoke
-        # Whether or not we've already checked the associated Fortran for
-        # potential name-clashes when inserting PSyData code.
-        # TODO this can be removed once #435 is done and we're no longer
-        # manipulating the fparser2 parse tree.
-        self._name_clashes_checked = False
-
-    @property
-    def psy_data_name_clashes_checked(self):
-        '''Getter for whether or not the underlying fparser2 AST has been
-        checked for clashes with the symbols required by PSyData.
-        TODO remove once #435 is complete.
-
-        :returns: whether or not we've already checked the underlying \
-                  fparser2 parse tree for symbol clashes with code we will \
-                  insert for PSyData.
-        :rtype: bool
-
-        '''
-        return self._name_clashes_checked
-
-    @psy_data_name_clashes_checked.setter
-    def psy_data_name_clashes_checked(self, value):
-        ''' Setter for whether or not we've already checked the underlying
-        fparser2 parse tree for symbol clashes with code we will insert for
-        PSyData.
-        TODO remove once #435 is complete.
-
-        :param bool value: whether or not the check has been performed.
-
-        '''
-        self._name_clashes_checked = value
 
     def coded_kernels(self):
         '''

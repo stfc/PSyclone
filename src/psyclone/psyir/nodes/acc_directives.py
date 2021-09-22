@@ -376,31 +376,6 @@ class ACCParallelDirective(ACCRegionDirective):
                     fld_list.append(arg)
         return fld_list
 
-    @property
-    def scalars(self):
-        '''
-        Returns a list of the scalar quantities required by the Kernels in
-        this region.
-
-        :returns: list of names of scalar arguments.
-        :rtype: list of str
-        '''
-        scalars = []
-        for call in self.kernels():
-            for arg in call.arguments.scalars:
-                if arg not in scalars:
-                    scalars.append(arg)
-        return scalars
-
-    def update(self):
-        '''
-        Update the underlying fparser2 parse tree with nodes for the start
-        and end of this parallel region.
-        '''
-        self.validate_global_constraints()
-        self._add_region(start_text="PARALLEL", end_text="END PARALLEL",
-                         data_movement="present")
-
 
 class ACCLoopDirective(ACCRegionDirective):
     '''
@@ -490,21 +465,6 @@ class ACCLoopDirective(ACCRegionDirective):
 
         for child in self.children:
             child.gen_code(parent)
-
-    def update(self):
-        '''
-        Update the existing fparser2 parse tree with the code associated with
-        this ACC LOOP directive.
-
-        '''
-        self.validate_global_constraints()
-
-        # Use begin_string() to avoid code duplication although we have to
-        # put back the "loop" qualifier.
-        # TODO #435 remove this method altogether once the NEMO API is able to
-        # use the PSyIR backend.
-        self._add_region(
-            start_text="loop " + self.begin_string(leading_acc=False))
 
     def begin_string(self, leading_acc=True):
         ''' Returns the opening statement of this directive, i.e.
@@ -642,23 +602,6 @@ class ACCKernelsDirective(ACCRegionDirective):
         # pylint: disable=no-self-use
         return "acc end kernels"
 
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this ACC kernels
-        directive.
-
-        TODO #435 remove this routine once the NEMO API is able to use the
-        PSyIR backend.
-
-        '''
-        self.validate_global_constraints()
-
-        data_movement = None
-        if self._default_present:
-            data_movement = "present"
-        self._add_region(start_text="KERNELS", end_text="END KERNELS",
-                         data_movement=data_movement)
-
 
 class ACCDataDirective(ACCRegionDirective):
     '''
@@ -679,10 +622,8 @@ class ACCDataDirective(ACCRegionDirective):
         '''
         :raises InternalError: the ACC data directive is currently only \
                                supported for the NEMO API and that uses the \
-                               update() method to alter the underlying \
+                               PSyIR backend to generate code.
                                fparser2 parse tree.
-
-        TODO #435 update above explanation when update() method is removed.
 
         '''
         raise InternalError(
