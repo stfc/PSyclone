@@ -61,14 +61,14 @@ class TypedSymbol(Symbol):
 
         self._datatype = None
         super(TypedSymbol, self).__init__(name)
-        self._init_class_fields(datatype=datatype, **kwargs)
+        self._process_arguments(datatype=datatype, **kwargs)
 
-    def _init_class_fields(self, **kwargs):
+    def _process_arguments(self, **kwargs):
         if "datatype" in kwargs:
             self.datatype = kwargs.pop("datatype")
         else:
             self._datatype = None
-        super(TypedSymbol, self)._init_class_fields(**kwargs)
+        super(TypedSymbol, self)._process_arguments(**kwargs)
 
     @abc.abstractmethod
     def __str__(self):

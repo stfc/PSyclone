@@ -63,23 +63,26 @@ class DataSymbol(TypedSymbol):
     def __init__(self, name, datatype=None, **kwargs):
         super(DataSymbol, self).__init__(name, datatype)
         self._constant_value = None
-        self._init_class_fields(datatype=datatype, **kwargs)
+        self._process_arguments(datatype=datatype, **kwargs)
 
-    def _init_class_fields(self, **kwargs):
+    def _process_arguments(self, **kwargs):
 
-        constant_value = None
+        if not hasattr(self, '_constant_value'):
+            self._constant_value = None
+
+        new_constant_value = None
         if "constant_value" in kwargs:
-            constant_value = kwargs.pop("constant_value")
+            new_constant_value = kwargs.pop("constant_value")
 
         # We need to consume the 'constant_value' before calling the super
         # because otherwise there will be an unknown argument in kwargs but
         # we need to call the 'constant_value' setter after this because it
         # uses the self.datatype which is not yet set.
-        super(DataSymbol, self)._init_class_fields(**kwargs)
+        super(DataSymbol, self)._process_arguments(**kwargs)
 
-        if constant_value:
+        if new_constant_value:
             # The following attribute has a setter method (with error checking)
-            self.constant_value = constant_value
+            self.constant_value = new_constant_value
 
     @property
     def is_constant(self):

@@ -61,9 +61,9 @@ class ContainerSymbol(Symbol):
         # Whether or not there is a wildcard import of all public symbols
         # from this container (e.g. an unqualified USE of a module in Fortran).
         self._has_wildcard_import = False
-        self._init_class_fields(**kwargs)
+        self._process_arguments(**kwargs)
 
-    def _init_class_fields(self, **kwargs):
+    def _process_arguments(self, **kwargs):
         # TODO #1298: ContainerSymbol currently defaults to
         # FortranModuleInterface expecting externally defined containers
         # which can be imported, but this is not always true.
@@ -76,7 +76,7 @@ class ContainerSymbol(Symbol):
                             "Container '{1}'."
                             "".format(type(kwargs["interface"]).__name__,
                                       self.name))
-        super(ContainerSymbol, self)._init_class_fields(**kwargs)
+        super(ContainerSymbol, self)._process_arguments(**kwargs)
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the

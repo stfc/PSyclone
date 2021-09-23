@@ -48,12 +48,12 @@ class RoutineSymbol(TypedSymbol):
         if datatype is None:
             datatype = NoType()
         super(RoutineSymbol, self).__init__(name, datatype)
-        self._init_class_fields(datatype=datatype, **kwargs)
+        self._process_arguments(datatype=datatype, **kwargs)
 
-    def _init_class_fields(self, **kwargs):
+    def _process_arguments(self, **kwargs):
         if "datatype" not in kwargs and (not hasattr(self, '_datatype') or self.datatype is None):
             kwargs["datatype"] = NoType()
-        super(RoutineSymbol, self)._init_class_fields(**kwargs)
+        super(RoutineSymbol, self)._process_arguments(**kwargs)
 
     def __str__(self):
         # This implementation could be moved to TypedSymbol but it is kept

@@ -234,9 +234,9 @@ class Symbol(object):
         self._visibility = None
         self._interface = None
 
-        self._init_class_fields(visibility=visibility, interface=interface)
+        self._process_arguments(visibility=visibility, interface=interface)
 
-    def _init_class_fields(self, **kwargs):
+    def _process_arguments(self, **kwargs):
         if "interface" in kwargs and kwargs["interface"] is not None:
             self.interface = kwargs.pop("interface")
         elif not self.interface:
@@ -303,7 +303,7 @@ class Symbol(object):
                 "but found '{2}'.".format(
                     self.name, type(self).__name__, subclass.__name__))
         self.__class__ = subclass
-        self._init_class_fields(**kwargs)
+        self._process_arguments(**kwargs)
 
     # pylint: disable=inconsistent-return-statements
     def get_external_symbol(self):
