@@ -64,10 +64,12 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     InlinedKern, object_index, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
     InvokeSchedule
+from psyclone.psyir.backend.c import CWriter
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
     Literal, Node, KernelSchedule, Call, Loop, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    GlobalInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
+    ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
@@ -142,10 +144,38 @@ def test_psyfactory_valid_dm_flag():
 # Transformation class unit tests
 
 def test_base_class_not_callable():
-    '''make sure we can not instantiate abstract Transformation class
-    directly'''
+    '''Make sure we can not instantiate abstract Transformation class
+    directly.'''
     with pytest.raises(TypeError):
         _ = Transformation()  # pylint: disable=abstract-class-instantiated
+
+
+def test_transformation_init_name():
+    '''Make sure a FortranWriter is created by default, is stored by the
+    base class, can be changed if required and an exception is raised
+    if the wrong argument type is supplied. Also test that the name()
+    method behaves in the expected way.
+
+    '''
+    class TestTrans(Transformation):
+        '''Utility transformation that subclasses Transformation to stop it
+        being abstract in order to test the non-abstract
+        transformation methods.
+
+        '''
+        def apply(self, _1, _2=None):
+            '''Dummy apply method to ensure this transformation is not
+            abstract.'''
+
+    trans = TestTrans()
+    assert trans.name == "TestTrans"
+    assert isinstance(trans._writer, FortranWriter)
+    with pytest.raises(TypeError) as info:
+        _ = TestTrans(writer=None)
+    assert ("The writer argument to a transformation should be a "
+            "PSyIRVisitor, but found 'NoneType'." in str(info.value))
+    trans = TestTrans(writer=CWriter())
+    assert isinstance(trans._writer, CWriter)
 
 
 # TransInfo class unit tests
@@ -403,8 +433,8 @@ def test_invokeschedule_gen_code_with_preexisting_globals():
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
     schedule.symbol_table.add(my_mod)
-    global1 = DataSymbol('gvar1', REAL_TYPE, interface=GlobalInterface(my_mod))
-    global2 = DataSymbol('gvar2', REAL_TYPE, interface=GlobalInterface(my_mod))
+    global1 = DataSymbol('gvar1', REAL_TYPE, interface=ImportInterface(my_mod))
+    global2 = DataSymbol('gvar2', REAL_TYPE, interface=ImportInterface(my_mod))
     schedule.symbol_table.add(global1)
     schedule.symbol_table.add(global2)
 
@@ -600,7 +630,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     # in the symbol table
     rsymbol = call.scope.symbol_table.lookup('testkern_code')
     assert isinstance(rsymbol, RoutineSymbol)
-    assert isinstance(rsymbol.interface, GlobalInterface)
+    assert isinstance(rsymbol.interface, ImportInterface)
     csymbol = rsymbol.interface.container_symbol
     assert isinstance(csymbol, ContainerSymbol)
     assert csymbol.name == "testkern_mod"
@@ -697,10 +727,6 @@ def test_call_abstract_methods():
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.__str__()
-    assert "Kern.__str__ should be implemented" in str(excinfo.value)
 
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)

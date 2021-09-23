@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -47,8 +48,9 @@ from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import colored, Directive, ACCEnterDataDirective, \
-    ACCKernelsDirective, Schedule, Loop, ACCUpdateDirective
+from psyclone.psyir.nodes import ACCEnterDataDirective, \
+    ACCKernelsDirective, Schedule, ACCUpdateDirective, \
+    ACCParallelDirective, ACCLoopDirective
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCLoopTrans, ACCEnterDataTrans, \
@@ -66,42 +68,6 @@ def setup():
     Config._instance = None
 
 
-def test_acc_dir_node_str():
-    ''' Test the node_str() method of OpenACC directives '''
-
-    acclt = ACCLoopTrans()
-    accdt = ACCEnterDataTrans()
-    accpt = ACCParallelTrans()
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    colour = Directive._colour
-    schedule = invoke.schedule
-
-    # Enter-data
-    accdt.apply(schedule)
-    out = schedule[0].node_str()
-    assert out.startswith(
-        colored("Directive", colour)+"[ACC enter data]")
-
-    # Parallel region around outermost loop
-    accpt.apply(schedule[1])
-    out = schedule[1].node_str()
-    assert out.startswith(
-        colored("Directive", colour)+"[ACC Parallel]")
-
-    # Loop directive on outermost loop
-    acclt.apply(schedule[1].dir_body[0])
-    out = schedule[1].dir_body[0].node_str()
-    assert out.startswith(
-        colored("Directive", colour)+"[ACC Loop, independent]")
-
-    # Loop directive with collapse
-    acclt.apply(schedule[1].dir_body[0].dir_body[0], {"collapse": 2})
-    out = schedule[1].dir_body[0].dir_body[0].node_str()
-    assert out.startswith(
-        colored("Directive", colour) + "[ACC Loop, collapse=2, independent]")
-
-
 def test_acc_dag_names():
     ''' Check that we generate the correct dag names for ACC parallel,
     ACC enter-data and ACC loop directive Nodes '''
@@ -117,119 +83,16 @@ def test_acc_dag_names():
     assert schedule[0].dag_name == "ACC_data_1"
     # Parallel region
     accpt.apply(schedule[1])
-    assert schedule[1].dag_name == "ACC_parallel_3"
+    assert schedule[1].dag_name == "ACC_parallel_2"
+    # Base directive class
+    name = super(ACCParallelDirective, schedule[1]).dag_name
+    assert name == "region_directive_2"
     # Loop directive
     acclt.apply(schedule[1].dir_body[0])
-    assert schedule[1].dir_body[0].dag_name == "ACC_loop_5"
-    # Base class
+    assert schedule[1].dir_body[0].dag_name == "ACC_loop_4"
+    # Base standalone directive class
     name = super(ACCEnterDataDirective, schedule[0]).dag_name
-    assert name == "ACC_directive_1"
-
-# Class ACCKernelsDirective start
-
-
-# (1/1) Method __init__
-def test_acckernelsdirective_init():
-    '''Test an ACCKernelsDirective can be created and that the optional
-    arguments are set and can be set as expected.
-
-    '''
-    directive = ACCKernelsDirective()
-    assert directive._default_present
-    assert directive.parent is None
-    assert len(directive.children) == 1
-    assert isinstance(directive.children[0], Schedule)
-    directive = ACCKernelsDirective(default_present=False)
-    assert not directive._default_present
-
-
-# (1/1) Method dag_name
-def test_acckernelsdirective_dagname():
-    '''Check that the dag_name method in the ACCKernelsDirective class
-    behaves as expected.
-
-    '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched)
-    assert sched.children[0].dag_name == "ACC_kernels_1"
-
-
-# (1/1) Method node_str
-def test_acckernelsdirective_node_str():
-    '''Check that the node_str method in the ACCKernelsDirective class behaves
-    as expected.
-
-    '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched)
-
-    out = sched[0].node_str()
-    assert out.startswith(
-        colored("Directive", Directive._colour)+"[ACC Kernels]")
-    assert colored("Loop", Loop._colour) in sched[0].dir_body[0].node_str()
-    assert "CodedKern" in sched[0].dir_body[0].loop_body[0].node_str()
-
-
-# (1/1) Method gen_code
-@pytest.mark.parametrize("default_present", [False, True])
-def test_acckernelsdirective_gencode(default_present):
-    '''Check that the gen_code method in the ACCKernelsDirective class
-    generates the expected code. Use the dynamo0.3 API.
-
-    '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched, {"default_present": default_present})
-
-    code = str(psy.gen)
-    string = ""
-    if default_present:
-        string = " default(present)"
-    assert (
-        "      !$acc kernels{0}\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n".format(string) in code)
-    assert (
-        "      END DO\n"
-        "      !$acc end kernels\n" in code)
-
-
-# (1/1) Method update
-@pytest.mark.parametrize("default_present", [False, True])
-def test_acckernelsdirective_update(parser, default_present):
-    '''Check that the update method in the ACCKernelsDirective class
-    generates the expected code. Use the nemo API.
-
-    '''
-    reader = FortranStringReader("program implicit_loop\n"
-                                 "real(kind=wp) :: sto_tmp(5,5)\n"
-                                 "sto_tmp(:,:) = 0.0_wp\n"
-                                 "end program implicit_loop\n")
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernels_trans = ACCKernelsTrans()
-    kernels_trans.apply(schedule.children[0:1],
-                        {"default_present": default_present})
-    gen_code = str(psy.gen)
-    string = ""
-    if default_present:
-        string = " DEFAULT(PRESENT)"
-    assert ("  !$ACC KERNELS{0}\n"
-            "  sto_tmp(:, :) = 0.0_wp\n"
-            "  !$ACC END KERNELS\n".format(string) in gen_code)
-
-# Class ACCKernelsDirective end
+    assert name == "standalone_directive_1"
 
 # Class ACCEnterDataDirective start
 
@@ -244,9 +107,6 @@ def test_acc_datadevice_virtual():
     # pylint:enable=abstract-class-instantiated
     assert ("instantiate abstract class ACCEnterDataDirective with abstract "
             "methods data_on_device" in str(err.value))
-
-# (1/1) Method node_str
-# Covered in test test_acc_dir_node_str
 
 # (1/1) Method dag_name
 # Covered in test_acc_dag_names
@@ -356,6 +216,121 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
         "f3_proxy,f3_proxy%data)\n" in code)
 
 
+# Class ACCLoopDirective start
+
+# (1/1) Method node_str
+def test_accloopdirective_node_str(monkeypatch):
+    ''' Test the node_str() method of ACCLoopDirective node '''
+    directive = ACCLoopDirective()
+
+    # Mock the coloured name as this is tested elsewhere
+    monkeypatch.setattr(directive, "coloured_name",
+                        lambda x: "ACCLoopDirective")
+
+    # Default value output
+    expected = ("ACCLoopDirective[sequential=False,collapse=None,"
+                "independent=True]")
+    assert directive.node_str() == expected
+    assert str(directive) == expected
+
+    # Non-default value output
+    directive._sequential = True
+    directive._collapse = 2
+    directive._independent = False
+    expected = ("ACCLoopDirective[sequential=True,collapse=2,"
+                "independent=False]")
+    assert directive.node_str() == expected
+    assert str(directive) == expected
+
+# Class ACCLoopDirective end
+
+
+# Class ACCKernelsDirective start
+
+# (1/1) Method __init__
+def test_acckernelsdirective_init():
+    '''Test an ACCKernelsDirective can be created and that the optional
+    arguments are set and can be set as expected.
+
+    '''
+    directive = ACCKernelsDirective()
+    assert directive._default_present
+    assert directive.parent is None
+    assert len(directive.children) == 1
+    assert isinstance(directive.children[0], Schedule)
+    directive = ACCKernelsDirective(default_present=False)
+    assert not directive._default_present
+
+
+# (1/1) Method dag_name
+def test_acckernelsdirective_dagname():
+    '''Check that the dag_name method in the ACCKernelsDirective class
+    behaves as expected.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched)
+    assert sched.children[0].dag_name == "ACC_kernels_1"
+
+
+# (1/1) Method gen_code
+@pytest.mark.parametrize("default_present", [False, True])
+def test_acckernelsdirective_gencode(default_present):
+    '''Check that the gen_code method in the ACCKernelsDirective class
+    generates the expected code. Use the dynamo0.3 API.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched, {"default_present": default_present})
+
+    code = str(psy.gen)
+    string = ""
+    if default_present:
+        string = " default(present)"
+    assert (
+        "      !$acc kernels{0}\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n".format(string) in code)
+    assert (
+        "      END DO\n"
+        "      !$acc end kernels\n" in code)
+
+
+# (1/1) Method update
+@pytest.mark.parametrize("default_present", [False, True])
+def test_acckernelsdirective_update(parser, default_present):
+    '''Check that the update method in the ACCKernelsDirective class
+    generates the expected code. Use the nemo API.
+
+    '''
+    reader = FortranStringReader("program implicit_loop\n"
+                                 "real(kind=wp) :: sto_tmp(5,5)\n"
+                                 "sto_tmp(:,:) = 0.0_wp\n"
+                                 "end program implicit_loop\n")
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels_trans = ACCKernelsTrans()
+    kernels_trans.apply(schedule.children[0:1],
+                        {"default_present": default_present})
+    gen_code = str(psy.gen)
+    string = ""
+    if default_present:
+        string = " DEFAULT(PRESENT)"
+    assert ("  !$ACC KERNELS{0}\n"
+            "  sto_tmp(:, :) = 0.0_wp\n"
+            "  !$ACC END KERNELS\n".format(string) in gen_code)
+
+# Class ACCKernelsDirective end
+
+
 # Class ACCUpdateDirective
 
 def test_accupdatedirective_init():
@@ -380,8 +355,8 @@ def test_accupdatedirective_init():
     assert directive._direction == "host"
 
 
-def test_accupdatedirective_begin_and_end_strings():
-    ''' Test the begin_string and end_string methods of ACCUpdateDirective'''
+def test_accupdatedirective_begin_string():
+    ''' Test the begin_string method of ACCUpdateDirective'''
 
     symbol = DataSymbol("x", REAL_TYPE)
     directive1 = ACCUpdateDirective(symbol, "host")
@@ -389,4 +364,3 @@ def test_accupdatedirective_begin_and_end_strings():
 
     assert directive1.begin_string() == "acc update host(x)"
     assert directive2.begin_string() == "acc update device(x)"
-    assert directive1.end_string() == ""

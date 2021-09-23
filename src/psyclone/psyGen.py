@@ -51,13 +51,14 @@ from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
 from psyclone.parse.algorithm import BuiltInCall
-from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
-    ArgumentInterface, DeferredType
-from psyclone.psyir.symbols.datatypes import UnknownFortranType
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
     Routine, Call, OMPDoDirective
-
+from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
+    Symbol, ContainerSymbol, ImportInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
+    ArgumentInterface, DeferredType
+from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -423,7 +424,7 @@ class Invokes(object):
 
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CallGen, UseGen, CharDeclGen, IfThenGen
+            CharDeclGen, IfThenGen
 
         def bool_to_fortran(value):
             '''
@@ -1002,8 +1003,7 @@ class InvokeSchedule(Routine):
                        which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, IfThenGen, \
-            CallGen
+        from psyclone.f2pygen import DeclGen, AssignGen, IfThenGen
 
         # The gen_code methods may generate new Symbol names, however, we want
         # subsequent calls to invoke.gen_code() to produce the exact same code,
@@ -1021,15 +1021,15 @@ class InvokeSchedule(Routine):
         self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
         # pylint: enable=protected-access
 
-        # Global symbols promoted from Kernel Globals are in the SymbolTable
-        # First aggregate all globals variables from the same module in a map
+        # Imported symbols promoted from Kernel imports are in the SymbolTable.
+        # First aggregate all variables imported from the same module in a map.
         module_map = {}
-        for globalvar in self.symbol_table.global_symbols:
-            module_name = globalvar.interface.container_symbol.name
+        for imported_var in self.symbol_table.imported_symbols:
+            module_name = imported_var.interface.container_symbol.name
             if module_name in module_map:
-                module_map[module_name].append(globalvar.name)
+                module_map[module_name].append(imported_var.name)
             else:
-                module_map[module_name] = [globalvar.name]
+                module_map[module_name] = [imported_var.name]
 
         # Then we can produce the UseGen statements without repeating modules
         for module_name, var_list in module_map.items():
@@ -1214,9 +1214,6 @@ class GlobalSum(Statement):
         return "{0}[scalar='{1}']".format(self.coloured_name(colour),
                                           self._scalar.name)
 
-    def __str__(self):
-        return self.node_str(False)
-
 
 class HaloExchange(Statement):
     '''
@@ -1376,9 +1373,6 @@ class HaloExchange(Statement):
                     self._halo_type, self._halo_depth,
                     self._check_dirty))
 
-    def __str__(self):
-        return self.node_str(False)
-
 
 class Kern(Statement):
     '''
@@ -1456,8 +1450,10 @@ class Kern(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return (self.coloured_name(colour) + " " + self.name +
-                "(" + self.arguments.names + ")")
+        if self.name:
+            return (self.coloured_name(colour) + " " + self.name +
+                    "(" + self.arguments.names + ")")
+        return self.coloured_name(colour) + "[]"
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -1667,23 +1663,12 @@ class Kern(Statement):
             parent_loop = parent_loop.ancestor(Loop)
         return False
 
-    def clear_cached_data(self):
-        '''This function is called to remove all cached data (which
-        then forces all functions to recompute their results). At this
-        stage it supports gen_code by enforcing all arguments to
-        be recomputed.
-        '''
-        self.arguments.clear_cached_data()
-
     @property
     def iterates_over(self):
         return self._iterates_over
 
     def local_vars(self):
         raise NotImplementedError("Kern.local_vars should be implemented")
-
-    def __str__(self):
-        raise NotImplementedError("Kern.__str__ should be implemented")
 
     def gen_code(self, parent):
         raise NotImplementedError("Kern.gen_code should be implemented")
@@ -1883,7 +1868,7 @@ class CodedKern(Kern):
                 except KeyError:
                     csymbol = ContainerSymbol(self._module_name)
                     symtab.add(csymbol)
-                rsymbol.interface = GlobalInterface(csymbol)
+                rsymbol.interface = ImportInterface(csymbol)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
@@ -2182,7 +2167,6 @@ class CodedKern(Kern):
             # limit the line length). This test is only required
             # whilst old style (direct fp2) transformations still
             # exist.
-            from psyclone.psyir.backend.fortran import FortranWriter
             fortran_writer = FortranWriter()
             # Start from the root of the schedule as we want to output
             # any module information surrounding the kernel subroutine
@@ -2390,21 +2374,6 @@ class InlinedKern(Kern):
         '''
         return position == 0 and isinstance(child, Schedule)
 
-    def node_str(self, colour=True):
-        '''
-        Creates a class-specific text description of this node, optionally
-        including colour control codes (for coloured output in a terminal).
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: the class-specific text describing this node.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
-
-    def __str__(self):
-        return self.coloured_name(False)
-
     @abc.abstractmethod
     def local_vars(self):
         '''
@@ -2487,11 +2456,6 @@ class Arguments(object):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-
-    def clear_cached_data(self):
-        '''This function is called to clear all cached data, which
-        enforces that raw_arg_list is recomputed.'''
-        self._raw_arg_list = []
 
     @property
     def names(self):
@@ -2775,7 +2739,7 @@ class Argument(object):
                 self._name = new_argument.name
 
                 # Unless the argument already exists with another interface
-                # (e.g. globals) they come from the invoke argument list
+                # (e.g. import) they come from the invoke argument list
                 if (isinstance(new_argument.interface, ArgumentInterface) and
                         new_argument not in previous_arguments):
                     symtab.specify_argument_list(previous_arguments +
@@ -3282,12 +3246,29 @@ class TransInfo(object):
 @six.add_metaclass(abc.ABCMeta)
 class Transformation(object):
     '''Abstract baseclass for a transformation. Uses the abc module so it
-        can not be instantiated. '''
+    can not be instantiated.
 
-    @abc.abstractproperty
+    :param writer: optional argument to set the type of writer to \
+        provide to a transformation for use when constructing error \
+        messages. Defaults to FortranWriter().
+    :type writer: :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
+
+    '''
+    def __init__(self, writer=FortranWriter()):
+        if not isinstance(writer, PSyIRVisitor):
+            raise TypeError(
+                "The writer argument to a transformation should be a "
+                "PSyIRVisitor, but found '{0}'.".format(type(writer).__name__))
+        self._writer = writer
+
+    @property
     def name(self):
-        '''Returns the name of the transformation.'''
-        return
+        '''
+        :returns: the transformation's class name.
+        :rtype: str
+
+        '''
+        return type(self).__name__
 
     @abc.abstractmethod
     def apply(self, node, options=None):
@@ -3356,6 +3337,8 @@ class Transformation(object):
 
 class DummyTransformation(Transformation):
     '''Dummy transformation use elsewhere to keep pyreverse happy.'''
+
+    @property
     def name(self):
         return
 

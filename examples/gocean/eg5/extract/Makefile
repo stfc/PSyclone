@@ -46,8 +46,9 @@
 PSYROOT=../../../..
 include $(PSYROOT)/examples/common.mk
 
-GENERATED_FILES += *.o *.mod $(NAME) $(DRIVER_INIT) $(DRIVER_INIT).f90 \
-		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90 alg.f90 psy.f90
+GENERATED_FILES += *.o *.mod $(NAME)  alg.f90 psy.f90 \
+		  $(DRIVER_INIT)   $(DRIVER_INIT).f90         \
+		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -63,20 +64,23 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 NAME = extract_test
 
-run: compile
-	./extract_test
-	@echo "TODO the driver cannot be tested yet because of #644"
-
-compile: transform $(NAME)
-	@echo "TODO the driver does not yet compile because of #644"
-
-transform: psy.f90
-
 # The name of the stand-alone driver that will call the init kernel.
 DRIVER_INIT = driver-main-init
 
 # The name of the stand-alone driver that will call the update kernel.
 DRIVER_UPDATE = driver-main-update
+
+.PHONY: transform compile run
+
+run: compile
+	./extract_test
+	./driver-main-init
+	./driver-main-update
+
+compile: transform $(NAME) $(DRIVER_INIT) $(DRIVER_UPDATE)
+
+transform: psy.f90
+
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
@@ -91,30 +95,35 @@ $(NAME): $(INF_LIB) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a $(KERNELS) alg.o psy
 	$(INF_LIB)                                \
 	$$(nf-config --flibs)
 
+$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o \
+				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
+	$(F90) $(KERNELS) $(DRIVER_INIT).o \
+	-o $(DRIVER_INIT)            \
+	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
+	$(INF_LIB)     \
+	$$(nf-config --flibs)
+
+$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o \
+				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
+	$(F90) $(KERNELS) $(DRIVER_UPDATE).o  \
+	-o $(DRIVER_UPDATE)                         \
+	$(INF_LIB)     \
+	-L$(EXTRACT_DIR) -l_kernel_data_netcdf      \
+	$$(nf-config --flibs)
 
 # The dl_esm_inf library
 $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90=$(F90)
 
-# The driver does not yet compile because of #644
-$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o main.o \
-				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
-	$(F90) $(KERNELS) $(DRIVER_INIT).o main.o \
-	-o $(DRIVER_INIT)            \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
-	$$(nf-config --flibs)
-
-# The driver does not yet compile because of #644
-$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o main.o \
-				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
-	$(F90) $(KERNELS) $(DRIVER_UPDATE).o main.o \
-	-o $(DRIVER_UPDATE)                         \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf      \
-	$$(nf-config --flibs)
-
 alg.o:	psy.o
 
 psy.o:	$(KERNELS)
+
+# The driver will be created when creating the psy.f90 file.
+# This dependency is required, otherwise a 'make compile' in a clean
+# directory will fail.
+$(DRIVER_INIT).f90: psy.f90
+$(DRIVER_UPDATE).f90: psy.f90
 
 # Dependency to INF_LIB to make sure the mod file are available
 $(KERNELS):  $(INF_LIB)

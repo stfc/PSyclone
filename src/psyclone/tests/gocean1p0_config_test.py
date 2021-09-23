@@ -46,6 +46,7 @@ from psyclone.configuration import Config, ConfigurationError, GOceanConfig
 from psyclone.generator import main
 from psyclone.gocean1p0 import GOLoop
 from psyclone.errors import InternalError
+from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -359,7 +360,8 @@ def test_valid_config_files():
 
     psy, invoke = get_invoke("new_iteration_space.f90", "gocean1.0", idx=0)
     # This test expects constant loop bounds
-    invoke.schedule._const_loop_bounds = True
+    ctrans = GOConstLoopBoundsTrans()
+    ctrans.apply(invoke.schedule)
 
     gen = str(psy.gen)
     new_loop1 = '''\
@@ -372,7 +374,7 @@ def test_valid_config_files():
 
     new_loop2 = '''\
       DO j = 2, jstop, 1
-        DO i = 1, istop+1, 1
+        DO i = 1, istop + 1, 1
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
@@ -380,8 +382,8 @@ def test_valid_config_files():
 
     # The third kernel tests {start} and {stop}
     new_loop3 = '''\
-      DO j = 2-2, 1, 1
-        DO i = istop, istop+1, 1
+      DO j = 2 - 2, 1, 1
+        DO i = istop, istop + 1, 1
           CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''

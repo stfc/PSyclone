@@ -35,6 +35,7 @@
 # Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
 # MOdified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
@@ -3454,7 +3455,8 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
 
     # Ensure we check for text containing the correct (colour) control codes
     isched = colored("InvokeSchedule", InvokeSchedule._colour)
-    directive = colored("Directive", Directive._colour)
+    ompparallel = colored("OMPParallelDirective", Directive._colour)
+    ompdo = colored("OMPDoDirective", Directive._colour)
     gsum = colored("GlobalSum", GlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
@@ -3482,9 +3484,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     if dist_mem:  # annexed can be True or False
         expected = (
             isched + "[invoke='invoke_0', dm=True]\n" +
-            indent + "0: " + directive + "[OMP parallel]\n" +
+            indent + "0: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3495,9 +3497,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             indent + "1: " + gsum + "[scalar='asum']\n" +
-            indent + "2: " + directive + "[OMP parallel]\n" +
+            indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do]\n" +
+            3*indent + "0: " + ompdo + "[]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3507,9 +3509,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
-            indent + "3: " + directive + "[OMP parallel]\n" +
+            indent + "3: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3525,9 +3527,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     else:  # not dist_mem. annexed can be True or False
         expected = (
             isched + "[invoke='invoke_0', dm=False]\n" +
-            indent + "0: " + directive + "[OMP parallel]\n" +
+            indent + "0: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3537,9 +3539,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
-            indent + "1: " + directive + "[OMP parallel]\n" +
+            indent + "1: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do]\n" +
+            3*indent + "0: " + ompdo + "[]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3549,9 +3551,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
-            indent + "2: " + directive + "[OMP parallel]\n" +
+            indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "

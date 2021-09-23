@@ -42,11 +42,10 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.nodes import colored, PSyDataNode, Schedule
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import PSyDataNode
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
-from psyclone.psyGen import Loop
 from psyclone.tests.utilities import get_invoke
-from psyclone.gocean1p0 import GOInvokeSchedule
 
 
 # -----------------------------------------------------------------------------
@@ -59,14 +58,12 @@ def test_psy_data_trans_empty_list():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_trans_basic(capsys):
+def test_psy_data_trans_basic():
     '''Check basic functionality: node names, schedule view.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    schedule._const_loop_bounds = True
 
     data_trans = PSyDataTrans()
     assert "Create a sub-tree of the PSyIR that has a node of type " \
@@ -77,69 +74,16 @@ def test_psy_data_trans_basic(capsys):
 
     assert isinstance(invoke.schedule[0], PSyDataNode)
 
-    schedule.view()
-    out, _ = capsys.readouterr()
-
-    gsched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
-    sched = colored("Schedule", Schedule._colour)
-    loop = Loop().coloured_name(True)
-    data = invoke.schedule[0].coloured_name(True)
-
-    # Do one test based on schedule view, to make sure colouring
-    # and indentation is correct
-    expected = (
-        gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
-        "    0: " + data + "[]\n"
-        "        " + sched + "[]\n"
-        "            0: " + loop + "[type='outer', field_space='go_cv', "
-        "it_space='go_internal_pts']\n")
-    assert expected in out
-
     # Insert a DataTrans call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    data_trans.apply(invoke.schedule[0].psy_data_body[0].loop_body[0])
+    node = invoke.schedule[0].psy_data_body[0].loop_body[0]
+    data_trans.apply(node)
 
-    new_sched_str = str(invoke.schedule)
-    correct = ("""GOInvokeSchedule[invoke='invoke_0', \
-Constant loop bounds=True]:
-PSyDataStart[var=psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop-1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-PSyDataStart[var=psy_data_1]
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: compute_cv_code
-End Schedule
-End GOLoop
-PSyDataEnd[var=psy_data_1]
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-PSyDataEnd[var=psy_data]
-End Schedule""")
-
-    assert correct in new_sched_str
+    assert isinstance(invoke.schedule[0].psy_data_body[0].loop_body[0],
+                      PSyDataNode)
+    assert invoke.schedule[0].psy_data_body[0].loop_body[0].children[0].\
+        children[0] is node
 
 
 # -----------------------------------------------------------------------------
@@ -197,3 +141,35 @@ def test_class_definitions():
     assert "Error in 'prefix' parameter: found 'invalid-prefix', expected " \
         "one of " in str(err.value)
     assert "as defined in /" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_psy_data_get_unique_region_names():
+    '''Tests the get_unique_region_names function.'''
+    data_trans = PSyDataTrans()
+    region_name = data_trans.\
+        get_unique_region_name([], {"region_name": ("a", "b")})
+    assert region_name == ("a", "b")
+
+    with pytest.raises(InternalError) as err:
+        region_name = data_trans.\
+            get_unique_region_name([], {"region_name": 1})
+    assert "The name must be a tuple containing two non-empty strings." \
+        in str(err.value)
+
+    with pytest.raises(InternalError) as err:
+        region_name = data_trans.\
+            get_unique_region_name([], {"region_name": ("a", "")})
+    assert "The name must be a tuple containing two non-empty strings." \
+        in str(err.value)
+
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
+    region_name = data_trans.get_unique_region_name(invoke.schedule, {})
+    assert region_name == ('psy_single_invoke_different_iterates_over',
+                           'invoke_0:r0')
+
+    region_name = data_trans.\
+        get_unique_region_name([invoke.schedule[0]], {})
+    assert region_name == ('psy_single_invoke_different_iterates_over',
+                           'invoke_0:compute_cv_code:r0')

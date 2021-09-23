@@ -65,7 +65,7 @@ MODULE2_OUT = (
     "module a\n"
     "  use my_mod, only : b\n"
     "  implicit none\n"
-    "  real :: c\n"
+    "  real, public :: c\n"
     "  public\n\n"
     "  contains\n\n"
     "end module a\n")

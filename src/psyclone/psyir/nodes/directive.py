@@ -35,11 +35,15 @@
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab.
 # -----------------------------------------------------------------------------
 
-''' This module contains the Directive node implementation.'''
+''' This module contains the Directive, RegionDirective, StandaloneDirective
+    node implementation.'''
 
 from __future__ import absolute_import
+import abc
+import six
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Comment
 from psyclone.psyir.nodes.statement import Statement
@@ -50,11 +54,24 @@ from psyclone.psyir.nodes.node import Node
 from psyclone.errors import InternalError
 
 
+@six.add_metaclass(abc.ABCMeta)
 class Directive(Statement):
     '''
-    Base class for all Directive statements.
+    Abstract base class for all Directive statements.
 
-    All classes that generate Directive statements (e.g. OpenMP,
+    '''
+    # The prefix to use when code-generating this directive
+    # (e.g. "OMP") must be set by a mixin or sub-class.
+    _PREFIX = ""
+    _colour = "green"
+
+
+class RegionDirective(Directive):
+    '''
+    Base class for all Directive nodes that have an associated
+    region of code with them.
+
+    All classes that generate RegionDirective statements (e.g. OpenMP,
     OpenACC, compiler-specific) inherit from this class.
 
     :param ast: the entry in the fparser2 parse tree representing the code \
@@ -67,18 +84,14 @@ class Directive(Statement):
     :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
     '''
-    # The prefix to use when constructing this directive in Fortran
-    # (e.g. "OMP"). Must be set by sub-class.
-    _PREFIX = ""
     # Textual description of the node.
     _children_valid_format = "Schedule"
-    _text_name = "Directive"
-    _colour = "green"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = self._insert_schedule(children, ast)
-        super(Directive, self).__init__(ast, children=[sched], parent=parent)
+        super(RegionDirective, self).__init__(ast, children=[sched],
+                                              parent=parent)
 
     @staticmethod
     def _validate_child(position, child):
@@ -117,7 +130,7 @@ class Directive(Statement):
         :rtype: str
         '''
         _, position = self._find_position(self.ancestor(Routine))
-        return "directive_" + str(position)
+        return "region_directive_" + str(position)
 
     def _add_region(self, start_text, end_text=None, data_movement=None):
         '''
@@ -142,9 +155,10 @@ class Directive(Statement):
         :raises InternalError: if data_movement=="analyse" and this is an \
                                OpenMP directive.
         '''
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        from psyclone.psyir.nodes.acc_directives import ACCDirective
+        # pylint:disable=import-outside-toplevel
         from psyclone.psyGen import object_index
+        from psyclone.psyir.nodes.acc_directives import ACCDirective
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         valid_data_movement = ["present", "analyse"]
 
         # Ensure the fparser2 AST is up-to-date for all of our children
@@ -203,9 +217,9 @@ class Directive(Statement):
                 # statements belonging to this PSyIR node.
                 self.ast_end = directive
                 self.dir_body.ast_end = directive
-        except (IndexError, ValueError):
-            raise InternalError("Failed to find locations to insert "
-                                "begin/end directives.")
+        except(IndexError, ValueError) as error:
+            six.raise_from(InternalError("Failed to find locations to insert "
+                                         "begin/end directives."), error)
 
         text = "!$" + self._PREFIX + " " + start_text
 
@@ -246,5 +260,42 @@ class Directive(Statement):
             self.ast_end = fp_parent.content[ast_start_index+1]
 
 
+class StandaloneDirective(Directive):
+    '''
+    Base class for all StandaloneDirective statements. This class is
+    designed for directives which do not have code associated with
+    them, e.g. OpenMP's taskwait.
+
+    All classes that generate StandaloneDirective statements
+    (e.g. OpenMP, OpenACC, compiler-specific) inherit from this class.
+
+    '''
+    # Textual description of the node.
+    _children_valid_format = None
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # Children are not allowed for StandaloneDirective
+        return False
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "standalone_directive_" + str(position)
+
+
 # For automatic API documentation generation
-__all__ = ["Directive"]
+__all__ = ["Directive", "RegionDirective", "StandaloneDirective"]

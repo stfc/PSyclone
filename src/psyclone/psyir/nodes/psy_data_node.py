@@ -54,7 +54,7 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
                                     ContainerSymbol, DeferredType,
-                                    UnknownFortranType, GlobalInterface)
+                                    UnknownFortranType, ImportInterface)
 
 
 # =============================================================================
@@ -172,6 +172,8 @@ class PSyDataNode(Statement):
         self._module_name = None
         self._region_name = None
 
+        # TODO: #1394 Fix code duplication between
+        # PSyDataTrans and this PSyDataNode
         name = options.get("region_name", None)
 
         if name:
@@ -271,7 +273,7 @@ class PSyDataNode(Statement):
         # than once if multiple transformations are applied.
         for sym in data_node.imported_symbols:
             symbol_table.symbol_from_tag(sym.name, symbol_type=sym.symbol_type,
-                                         interface=GlobalInterface(csym),
+                                         interface=ImportInterface(csym),
                                          datatype=DeferredType())
 
         # Store the name of the PSyData variable that is used for this
