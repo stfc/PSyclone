@@ -60,16 +60,26 @@ class DataSymbol(TypedSymbol):
         :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, name, datatype, constant_value=None, **kwargs):
+    def __init__(self, name, datatype=None, **kwargs):
         super(DataSymbol, self).__init__(name, datatype)
-
-        # The following attribute has a setter method (with error checking)
         self._constant_value = None
-        self.constant_value = constant_value
-        self._init_class_fields(**kwargs)
+        self._init_class_fields(datatype=datatype, **kwargs)
 
     def _init_class_fields(self, **kwargs):
+
+        constant_value = None
+        if "constant_value" in kwargs:
+            constant_value = kwargs.pop("constant_value")
+
+        # We need to consume the 'constant_value' before calling the super
+        # because otherwise there will be an unknown argument in kwargs but
+        # we need to call the 'constant_value' setter after this because it
+        # uses the self.datatype which is not yet set.
         super(DataSymbol, self)._init_class_fields(**kwargs)
+
+        if constant_value:
+            # The following attribute has a setter method (with error checking)
+            self.constant_value = constant_value
 
     @property
     def is_constant(self):

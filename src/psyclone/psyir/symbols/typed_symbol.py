@@ -59,15 +59,13 @@ class TypedSymbol(Symbol):
     '''
     def __init__(self, name, datatype, **kwargs):
 
-        super(TypedSymbol, self).__init__(name)
-
-        # The following attribute has a setter method (with error checking)
         self._datatype = None
+        super(TypedSymbol, self).__init__(name)
         self._init_class_fields(datatype=datatype, **kwargs)
 
-    def _init_class_fields(self, datatype=None, **kwargs):
-        if datatype:
-            self.datatype = datatype
+    def _init_class_fields(self, **kwargs):
+        if "datatype" in kwargs:
+            self.datatype = kwargs.pop("datatype")
         else:
             self._datatype = None
         super(TypedSymbol, self)._init_class_fields(**kwargs)

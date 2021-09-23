@@ -1324,8 +1324,7 @@ class Fparser2Reader(object):
                         # An entry for this symbol exists but it's only a
                         # generic Symbol and we now know it must be a
                         # DataSymbol.
-                        sym.specialise(DataSymbol, datatype=DeferredType(),
-                                       interface=sym.interface)
+                        sym.specialise(DataSymbol, datatype=DeferredType())
                     elif isinstance(sym.datatype, (UnknownType,
                                                    DeferredType)):
                         # Allow symbols of Unknown/DeferredType.

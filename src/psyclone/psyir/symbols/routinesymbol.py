@@ -43,20 +43,17 @@ from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
 class RoutineSymbol(TypedSymbol):
-    '''Symbol identifying a callable routine.
-
-    :param str name: name of the routine.
-    :param datatype: data type returned by the routine. Defaults to NoType.
-    :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or `NoneType`
-
-    '''
+    '''Symbol identifying a callable routine. '''
     def __init__(self, name, datatype=None, **kwargs):
-        # We override the constructor purely to add a default datatype
-        local_datatype = datatype
-        if local_datatype is None:
-            local_datatype = NoType()
+        if datatype is None:
+            datatype = NoType()
+        super(RoutineSymbol, self).__init__(name, datatype)
+        self._init_class_fields(datatype=datatype, **kwargs)
 
-        super(RoutineSymbol, self).__init__(name, local_datatype, **kwargs)
+    def _init_class_fields(self, **kwargs):
+        if "datatype" not in kwargs and (not hasattr(self, '_datatype') or self.datatype is None):
+            kwargs["datatype"] = NoType()
+        super(RoutineSymbol, self)._init_class_fields(**kwargs)
 
     def __str__(self):
         # This implementation could be moved to TypedSymbol but it is kept
