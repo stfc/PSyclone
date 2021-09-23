@@ -1063,13 +1063,35 @@ TBD
 NEMO
 ====
 
+PSyIR Construction
+------------------
+
+Since NEMO is an existing code, the way it is handled in PSyclone is
+slightly different from those APIs that mandate a PSyKAl separation of
+concerns (LFRic and GOcean1.0).  As with the other APIs, fparser2 is
+used to parse the supplied Fortran source file and construct a parse
+tree (in `psyclone.generator.generate`). This parse tree is then
+passed to the ``NemoPSy`` constructor which uses the `fparser2` PSyIR
+frontend to construct the equivalent PSyIR. (This PSyIR is
+'language-level' in that it does not contain any domain-specific
+constructs.) Finally, the PSyIR is passed to the ``NemoInvokes``
+constructor which applies various 'raising' transformations which
+raise the level of abstraction by introducing domain-specific
+information.
+
 Implicit Loops
 --------------
 
-When constructing the PSyIR of NEMO source code, PSyclone identifies loops
-that are implied by the use of Fortran array notation. Such use of array
-notation is encouraged in the NEMO Coding Conventions :cite:`nemo_code_conv`
-and identifying these loops can be important when introducing, e.g. OpenMP.
+When constructing the PSyIR of NEMO source code, PSyclone currently
+only considers explicit loops as candidates for being
+raised/transformed into ``NemoLoop`` instances. However, many of the
+loops in NEMO are written using Fortran array notation. Such use of
+array notation is encouraged in the NEMO Coding Conventions
+:cite:`nemo_code_conv` and identifying these loops can be important
+when introducing, e.g. OpenMP. Currently these implicit loops are not
+automatically 'raised' into ``NemoLoop`` instances but can be done
+separately using the ``NemoAllArrayRange2LoopTrans`` transformation.
+
 
 However, not all uses of Fortran array notation in NEMO imply a
 loop. For instance,
