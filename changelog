@@ -198,6 +198,9 @@
 	68) PR #1407 towards #1383. Standardises the node_str() method of
 	DirectiveNode and remove un-needed code.
 
+	69) PR #1401 for #1400. Extend psyad script to allow list of active
+	variables to be specified.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
