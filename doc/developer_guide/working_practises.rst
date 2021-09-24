@@ -326,13 +326,26 @@ computational cost (so that we 'fail fast'):
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
 
- 3. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
+ 3. All links within the Sphinx documentation (rst files) are checked (see
+    note below);
+
+ 4. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
     the compilation checks.
 
 Since we try to be good 'open-source citizens' we do not do any compilation
 testing using GitHub as that would use a lot more compute time. Instead, it
 is the responsibility of the developer and code reviewer to run these checks
 locally (see :ref:`compilation_testing`).
+
+Note that the link checking performed for the Sphinx documentation uses
+Sphinx's link-check functionality. Some URLs are excluded from this checking
+(due to outdated http server or pages requiring authentication) and this
+is configured in the ``conf.py`` file of each document.
+Note also that anchors on GitHub actually have "user-content-" prepended
+but this is not shown in the links displayed by the browser (see
+https://github.com/sphinx-doc/sphinx/issues/6779). Therefore, any links to
+such anchors provided in the rst sources *must include* this "user-content-"
+text when specifying an anchor.
 
 By default, the GitHub Actions configuration uses ``pip`` to install
 the dependencies required by PSyclone before running the test
