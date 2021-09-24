@@ -38,11 +38,13 @@ include ../../common.mk
 
 .PHONY: transform compile run
 
+# The '-d ../code' argument specifies that PSyclone should search the
+# '../code' directory when looking for user-supplied kernels.
 transform:
 	@echo "Sequential code:"
-	${PSYCLONE} -api dynamo0.3 -nodm ./single_invoke.x90
+	${PSYCLONE} -api dynamo0.3 -d ../code -nodm ./single_invoke.x90
 	@echo "With distributed-memory support:"
-	${PSYCLONE} -api dynamo0.3 ./single_invoke.x90
+	${PSYCLONE} -api dynamo0.3 -d ../code ./single_invoke.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg1"

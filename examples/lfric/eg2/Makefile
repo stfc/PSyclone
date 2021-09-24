@@ -40,14 +40,20 @@ include ../../common.mk
 
 transform: vanilla inline loopfuse
 
+# The '-d ../code' argument specifies that PSyclone should search the
+# '../code' directory when looking for user-supplied kernels.
+
+# The '-s my_script.py' argument specifies that PSyclone should apply
+# the transformation script 'my_script.py.'
+
 vanilla:
-	${PSYCLONE} -nodm -s ./print_psyir_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -nodm -d ../code -s ./print_psyir_trans.py ./multi_invoke_mod.x90
 
 inline:
-	${PSYCLONE} -nodm -s ./module_inline_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -nodm -d ../code -s ./module_inline_trans.py ./multi_invoke_mod.x90
 
 loopfuse:
-	${PSYCLONE} -nodm -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -nodm -d ../code -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg2"
