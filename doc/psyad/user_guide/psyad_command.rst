@@ -123,10 +123,10 @@ an alternative form is
     > psyad -a var1 var2 -oad ad_kern.f90 tl_kern.f90
 
 
-Test-harness
+Test harness
 ------------
 
-psyad also supports the optional generation of test-harness code which
+``psyad`` also supports the optional generation of test-harness code which
 can be compiled together with the original tangent-linear kernel and
 generated adjoint kernel to test that the adjoint code is correct. The
 harness code will be generated if the ``-t`` option is specified. The
