@@ -112,7 +112,7 @@ def test_main_h_option(capsys):
         "optional arguments:\n"
         "  -h, --help            show this help message and exit\n"
         "  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
-        "                        active variable names\n"
+        "                        name of active variables\n"
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"

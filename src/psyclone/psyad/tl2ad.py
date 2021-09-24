@@ -73,7 +73,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
 
     :param str tl_fortran_str: Fortran implementation of an LFRic \
         tangent-linear kernel.
-    :param list of str active_variables: list of active variables names.
+    :param list of str active_variables: list of active variable names.
     :param bool create_test: whether or not to create test code for the \
         adjoint kernel.
 
@@ -163,7 +163,7 @@ def generate_adjoint(tl_psyir, active_variables):
     :param tl_psyir: language-level PSyIR containing the LFRic \
         tangent-linear kernel.
     :type tl_psyir: :py:class:`psyclone.psyir.Node`
-    :param list of str active_variables: list of active variables names.
+    :param list of str active_variables: list of active variable names.
 
     :returns: language-level PSyIR containing the adjoint of the \
         supplied tangent-linear kernel.
@@ -181,7 +181,7 @@ def generate_adjoint(tl_psyir, active_variables):
         "done now.")
 
     # Transform from TL to AD. The list of active variables in
-    # the active_variables variables will be used here.
+    # the active_variables variable will be used here.
     logger.debug("Transformation from TL to AD should be done now but instead "
                  "we copy the input.")
     ad_psyir = tl_psyir.copy()

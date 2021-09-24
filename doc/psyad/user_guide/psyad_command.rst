@@ -42,7 +42,7 @@ The simplest way to run PSyAD is to use the ``psyad`` command. If you
 installed PSyclone using ``pip`` then this command should be available
 on your PATH (see the PSyclone user guide for more
 details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
-directory. The command takes an LFRic tangent linear kernel file and a
+directory. The command takes an LFRic tangent-linear kernel file and a
 list of active variables as input and outputs its adjoint. This
 section walks through the functionality of the command.
 
@@ -60,7 +60,7 @@ by the command:
 
 .. parsed-literal::
 		
-  > psyad -h
+  >>> psyad -h
     usage: psyad [-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
 
     Run the PSyclone adjoint code generator on an LFRic tangent-linear kernel file
@@ -71,7 +71,7 @@ by the command:
     optional arguments:
       -h, --help            show this help message and exit
       -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]
-                            active variable names
+                            name of active variables
       -v, --verbose         increase the verbosity of the output
       -t, --gen-test        generate a standalone unit test for the adjoint code
       -otest TEST_FILENAME  filename for the unit test (implies -t)
@@ -94,9 +94,11 @@ If the kernel file and active variables are valid then the adjoint
 kernel code will be output to the terminal screen.
 
 The ``--`` is required to separate the filename from the list of
-active variables. An alternative would be to supply the active
-variables as the last command line argument (or follow the list of
-active variables with another optional argument (see later))
+active variables.
+
+Alternatively the list of active variables may be supplied as the last
+command-line argument (or the list of active variables may be followed
+by another optional argument [see the next section])
 ::
    
    > psyad tl_kern.f90 -a var1 var2
@@ -121,21 +123,21 @@ an alternative form is
     > psyad -a var1 var2 -oad ad_kern.f90 tl_kern.f90
 
 
-Test harness
+Test-harness
 ------------
 
-psyad also supports the optional generation of test harness code which
-can be compiled together with the original tangent linear kernel and
+psyad also supports the optional generation of test-harness code which
+can be compiled together with the original tangent-linear kernel and
 generated adjoint kernel to test that the adjoint code is correct. The
 harness code will be generated if the ``-t`` option is specified. The
-following will output the test harness code to the terminal screen
+following will output the test-harness code to the terminal screen
 ::
 
    > psyad -oad ad_kernel.f90 -a var1 var2 -t tl_kern.f90
 
-The test harness code can be written to file by using the ``-otest
-<file>`` option. For example, the following will output the test
-harness code to the file 'harness.f90'
+The test-harness code can be written to file by using the ``-otest
+<file>`` option. For example, the following will output the
+test-harness code to the file 'harness.f90'
 ::
 
    > psyad -oad ad_kernel.f90 -a var1 var2 -t -otest harness.f90 tl_kern.f90

@@ -58,7 +58,7 @@ def main(args):
     '''
     logger = logging.getLogger(__name__)
 
-    # There is a well known bug in arparse when mixing positional and
+    # There is a well known bug in argparse when mixing positional and
     # variable arguments. The simplest solution is to separate them
     # with --. The usage message is therefore manually updated to
     # reflect this workaround.
@@ -71,7 +71,7 @@ def main(args):
         description="Run the PSyclone adjoint code generator on an LFRic "
         "tangent-linear kernel file", usage=msg())
     parser.add_argument(
-        '-a', '--active', nargs='+', help='active variable names',
+        '-a', '--active', nargs='+', help='name of active variables',
         required=True)
     parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
