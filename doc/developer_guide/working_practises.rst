@@ -338,7 +338,7 @@ is the responsibility of the developer and code reviewer to run these checks
 locally (see :ref:`compilation_testing`).
 
 Note that the link checking performed for the Sphinx documentation uses
-Sphinx's link-check functionality. Some URLs are excluded from this checking
+Sphinx's linkcheck functionality. Some URLs are excluded from this checking
 (due to outdated http server or pages requiring authentication) and this
 is configured in the ``conf.py`` file of each document.
 Note also that anchors on GitHub actually have "user-content-" prepended
