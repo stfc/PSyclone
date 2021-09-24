@@ -68,7 +68,7 @@ on the PSyclone page or download and extract the latest release of
 PSyclone directly, e.g.
 
 .. parsed-literal::
-   > wget https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
+   > wget https://github.com/stfc/PSyclone/releases/\ |release|\ .tar.gz
    > tar zxf \ |release|\ .tar.gz
    > ls
    PSyclone-\ |release|\
@@ -113,8 +113,7 @@ to do a user-local install instead then supply the ``--user`` flag::
    > pip install --user psyclone
 
 PSyclone can also be installed to a specific location using ``--install-option``
-(see ``pip``
-`documentation <https://pip.pypa.io/en/stable/reference/pip_install/#install-install-option>`_
+(see ``pip`` `documentation <https://pip.pypa.io/en/stable/cli/pip_install/>`_
 for more detailed information)::
 
    > pip install --install-option="--prefix=/my/install/path" psyclone==X.Y.Z

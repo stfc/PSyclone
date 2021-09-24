@@ -60,7 +60,7 @@ download the latest stable release of PSyclone.
 .. parsed-literal::
 
    > cd <PSYCLONEHOME>
-   > wget https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
+   > wget https://github.com/stfc/PSyclone/releases/\ |release|\ .tar.gz
    > gunzip \ |release|\ .tar.gz
    > tar xf \ |release|\ .tar
    > rm \ |release|\ .tar

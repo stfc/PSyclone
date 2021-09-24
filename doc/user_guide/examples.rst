@@ -56,7 +56,7 @@ what each example does and how to run each example please see the
 Alternatively, some of the examples have associated Jupyter notebooks
 that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
 This is most easily done by following the links from the top-level
-`README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
+`README <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.
 
 For the purposes of correctness checking, the whole suite of examples
 may be executed using Gnu ``make`` (this functionality is used by GitHub
@@ -174,9 +174,9 @@ NetCDF
 ~~~~~~
 
 Some examples require NetCDF for compilation. Installation of NetCDF
-is described in details in
+is described in detail in
 `the hands-on practicals documentation
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_.
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#user-content-netcdf-library-lfric-examples>`_.
 
 GOcean
 ------
@@ -522,7 +522,7 @@ to the previous example, but uses NetCDF to read the initial grid
 from the NetCDF file ``mesh_BiP128x16-400x100.nc``.
 Installation of NetCDF is described in
 `the hands-on practicals documentation
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_.
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#user-content-netcdf-library-lfric-examples>`_.
 The code can be compiled with ``make compile``, and
 the binary executed with either ``make run`` or ``./example``.
 
@@ -533,7 +533,7 @@ The example in the subdirectory ``full_example_extract`` shows the
 use of :ref:`kernel extraction <psyke>`. It requires the
 installation of a NetCDF development environment (see
 `here
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#user-content-netcdf-library-lfric-examples>`_
 for installing NetCDF).
 The code can be compiled with ``make compile``, and
 the binary executed with either ``make run`` or ``./extract``
