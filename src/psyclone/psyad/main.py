@@ -46,7 +46,7 @@ import six
 
 from psyclone.generator import write_unicode_file
 from psyclone.psyad.tl2ad import generate_adjoint_str
-
+from psyclone.psyad.transformations import TangentLinearError
 
 def main(args):
     '''Takes an LFRic tangent linear kernel source file as input and
@@ -90,9 +90,13 @@ def main(args):
         tl_fortran_str = my_file.read()
         tl_fortran_str = six.text_type(tl_fortran_str)
 
-    # Create the adjoint (and associated test framework if requested)
-    ad_fortran_str, test_fortran_str = generate_adjoint_str(tl_fortran_str,
-                                                            generate_test)
+    try:
+        # Create the adjoint (and associated test framework if requested)
+        ad_fortran_str, test_fortran_str = generate_adjoint_str(
+            tl_fortran_str, generate_test)
+    except (TangentLinearError, TypeError) as info:
+        print(str(info.value))
+        exit(1)
 
     # Output the Fortran code for the adjoint kernel
     if args.oad:
