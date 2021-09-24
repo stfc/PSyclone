@@ -98,8 +98,8 @@ jobs:
       if: ${{ matrix.python-version == 3.8 }}
       run: |
         cd doc/user_guide; make linkcheck
-	cd doc/developer_guide; make linkcheck
-	cd doc/reference_guide; make linkcheck
+        cd doc/developer_guide; make linkcheck
+        cd doc/reference_guide; make linkcheck
     - name: Run examples
       run: |
         ( make -C examples transform > /dev/null )
