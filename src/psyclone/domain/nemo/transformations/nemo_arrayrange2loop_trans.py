@@ -45,7 +45,7 @@ array index should be transformed.
 
 from __future__ import absolute_import
 
-from psyclone.psyGen import Transformation
+from psyclone.psyGen import Transformation, InvokeSchedule
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.errors import InternalError
@@ -133,7 +133,8 @@ class NemoArrayRange2LoopTrans(Transformation):
         array_index = node.position
         assignment = array_reference.parent
         parent = assignment.parent
-        symbol_table = node.scope.symbol_table
+        # Ensure we always use the routine-level symbol table
+        symbol_table = node.ancestor(InvokeSchedule).symbol_table
 
         # See if there is any configuration information for this array index
         loop_type_order = Config.get().api_conf("nemo").get_index_order()

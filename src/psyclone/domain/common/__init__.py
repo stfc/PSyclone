@@ -31,3 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
+
+'''A package module for domain/common.'''
+
+from psyclone.domain.common.extract_driver_creator import ExtractDriverCreator
+
+__all__ = ["ExtractDriverCreator"]

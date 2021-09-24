@@ -75,8 +75,7 @@ contains
     END DO
 
     DO jk = 1, jpk-1
-       ! SIR backend only supports perfectly nested triple loops
-       ! zdt  = 1
+       zdt  = 1
        DO jj = 2, jpj-1
           DO ji = 2, jpi-1
              z0u = SIGN( 0.5d0, pun(ji,jj,jk) )
