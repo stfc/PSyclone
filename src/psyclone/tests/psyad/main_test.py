@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''A module to perform pytest tests on the code in the main.py file
 within the psyad directory.
@@ -103,13 +103,16 @@ def test_main_h_option(capsys):
     # when using pytest, therefore we split this test into sections.
     expected1 = "usage: "
     expected2 = (
-        "[-h] [-v] [-t] [-otest TEST_FILENAME] [-oad OAD] filename\n\n"
+        "[-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+        "-a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
         "  filename              LFRic tangent-linear kernel source\n\n"
         "optional arguments:\n"
         "  -h, --help            show this help message and exit\n"
+        "  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
+        "                        names of active variables\n"
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
@@ -119,10 +122,10 @@ def test_main_h_option(capsys):
     assert expected2 in output
 
 
-# no filename
-def test_main_no_filename(capsys):
-    '''Test that the main() function raises an exception if the filename
-    argument is not supplied.
+# no args
+def test_main_no_args(capsys):
+    '''Test that the main() function raises an exception if the required
+    arguments are not supplied.
 
     '''
     with pytest.raises(SystemExit) as info:
@@ -134,20 +137,89 @@ def test_main_no_filename(capsys):
     # of the executable is replaced with either pytest or -c when
     # using pytest, therefore we split the test into sections.
     expected1 = "usage: "
-    expected2 = "[-h] [-v] [-t] [-otest TEST_FILENAME] [-oad OAD] filename"
+    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+                 "-a ACTIVE [ACTIVE ...] -- filename")
     if six.PY2:
         expected3 = "error: too few arguments\n"
     else:
-        expected3 = "error: the following arguments are required: filename\n"
+        expected3 = ("error: the following arguments are required: "
+                     "-a/--active, filename\n")
     assert expected1 in error
     assert expected2 in error
     assert expected3 in error
 
 
+# no -a
+def test_main_no_a_arg(capsys):
+    '''Test that the main() function raises an exception if the -a
+    argument is not supplied.
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["file"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = ("error: the following arguments are required: "
+                "-a/--active")
+    if six.PY2:
+        expected = "argument -a/--active is required"
+    assert expected in error
+
+
+# no -a arg arg
+def test_main_no_a_arg_arg(capsys):
+    '''Test that the main() function raises an exception if an argument to
+    the -a argument is not supplied.
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["file", "-a"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = ("error: argument -a/--active: expected at least one "
+                "argument")
+    assert expected in error
+
+
+# no filename
+def test_main_no_filename(capsys):
+    '''Test that the main() function raises an exception if no filename is
+    supplied.
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "var"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = "error: the following arguments are required: filename\n"
+    if six.PY2:
+        expected = "error: too few arguments\n"
+    assert expected in error
+
+
+# no --
+def test_main_no_separator(capsys):
+    '''Test that the main() function raises an exception if the -- is not
+    provided between the argument and the filename.
+
+    '''
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "var", "filename"])
+    assert str(info.value) == "2"
+    output, error = capsys.readouterr()
+    assert output == ""
+    expected = "error: the following arguments are required: filename\n"
+    if six.PY2:
+        expected = "error: too few arguments\n"
+    assert expected in error
+
+
 # invalid filename
-def test_main_invalid_filename():
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
+def test_main_invalid_filename(capsys, caplog):
     '''Test that the the main() function raises an exception if the
-    filename does not exist.
+    file specified by filename does not exist.
 
     '''
     # FileNotFoundError does not exist in Python2
@@ -156,10 +228,13 @@ def test_main_invalid_filename():
     except NameError:
         # pylint: disable=redefined-builtin
         FileNotFoundError = IOError
-    with pytest.raises(FileNotFoundError) as info:
-        main(["does_not_exist.f90"])
-    assert ("[Errno 2] No such file or directory: 'does_not_exist.f90'"
-            in str(info.value))
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "var", "--", "does_not_exist.f90"])
+    assert str(info.value) == "1"
+    output, error = capsys.readouterr()
+    assert output == ""
+    assert error == ""
+    assert "file 'does_not_exist.f90', not found." in caplog.text
 
 
 # writing to stdout
@@ -176,7 +251,7 @@ def test_main_stdout(tmpdir, capsys):
     filename = six.text_type(tmpdir.join("tl.f90"))
     with open(filename, "a") as my_file:
         my_file.write(TEST_PROG)
-    main([filename])
+    main(["-a", "var", "--", filename])
     output, error = capsys.readouterr()
     assert error == ""
     assert expected in output
@@ -197,7 +272,7 @@ def test_main_fileout(tmpdir, capsys):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(TEST_PROG)
-    main([filename_in, "-oad", filename_out])
+    main([filename_in, "-oad", filename_out, "-a", "var"])
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
@@ -212,7 +287,7 @@ def test_main_t_option(tmpdir, capsys):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(TEST_MOD)
-    main([filename_in, "-oad", filename_out, "-t"])
+    main([filename_in, "-oad", filename_out, "-t", "-a", "var"])
     output, error = capsys.readouterr()
     assert error == ""
     assert EXPECTED_HARNESS_CODE in output
@@ -228,8 +303,8 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     harness_out = str(tmpdir.join("harness.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(TEST_MOD)
-    main([filename_in, "-oad", filename_out, "-otest", harness_out] +
-         extra_args)
+    main([filename_in, "-a", "var", "-oad", filename_out,
+          "-otest", harness_out] + extra_args)
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
@@ -274,7 +349,7 @@ def test_main_verbose(tmpdir, capsys, caplog):
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
-def test_main_otest_verbose(tmpdir, capsys, caplog):
+def test_main_otest_verbose(tmpdir, caplog):
     ''' Test that the -otest option combined with -v generates the expected
     logging output. '''
     filename_in = str(tmpdir.join("tl.f90"))
