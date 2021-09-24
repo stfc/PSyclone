@@ -316,18 +316,18 @@ is a push to the repository. The work performed by the action is
 configured by the ``PSyclone/.github/workflows/python-package.yml``
 file.
 
-Currently there are three main checks performed, in order of increasing
+Currently there are four main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
  1. All links within all MarkDown files are checked;
 
- 2. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
+ 2. All links within the Sphinx documentation (rst files) are checked (see
+    note below);
+
+ 3. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
-
- 3. All links within the Sphinx documentation (rst files) are checked (see
-    note below);
 
  4. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
     the compilation checks.
@@ -337,15 +337,16 @@ testing using GitHub as that would use a lot more compute time. Instead, it
 is the responsibility of the developer and code reviewer to run these checks
 locally (see :ref:`compilation_testing`).
 
-Note that the link checking performed for the Sphinx documentation uses
-Sphinx's linkcheck functionality. Some URLs are excluded from this checking
-(due to outdated http server or pages requiring authentication) and this
-is configured in the ``conf.py`` file of each document.
-Note also that anchors on GitHub actually have "user-content-" prepended
-but this is not shown in the links displayed by the browser (see
-https://github.com/sphinx-doc/sphinx/issues/6779). Therefore, any links to
-such anchors provided in the rst sources *must include* this "user-content-"
-text when specifying an anchor.
+Note that the link checking performed for the Sphinx documentation
+uses Sphinx's `linkcheck` functionality. Some URLs are excluded from
+this checking (due to ssl isues with an outdated http server or pages
+requiring authentication) and this is configured in the ``conf.py``
+file of each document.  Note also that anchors on GitHub actually have
+"user-content-" prepended but this is not shown in the links displayed
+by the browser (see
+https://github.com/sphinx-doc/sphinx/issues/6779). Therefore, any
+links to such anchors provided in the rst sources *must include* this
+"user-content-" text when specifying an anchor.
 
 By default, the GitHub Actions configuration uses ``pip`` to install
 the dependencies required by PSyclone before running the test
