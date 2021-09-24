@@ -19,8 +19,11 @@ the necessary sequential PSy-layer code for a single invoke() that
 specifies one Built-in kernel and one user-supplied kernel:
 ```sh
 cd eg1/
-psyclone -nodm ./single_invoke.x90
+psyclone -nodm -d ../code ./single_invoke.x90
 ```
+
+(The `-d ../code` argument tells PSyclone where it should search for any
+user-supplied kernels.)
 
 PSyclone will output two lots of Fortran code to `stdout` when run in
 this way: the first is the transformed Algorithm layer (the code from
@@ -38,17 +41,17 @@ transformations to:
 1. display the PSyclone Internal Representation of the PSy-layer code:
    ```sh
    cd eg2/
-   psyclone -nodm -s ./print_psyir_trans.py ./multi_invoke_mod.x90
+   psyclone -nodm -d ../code -s ./print_psyir_trans.py ./multi_invoke_mod.x90
    ```
 
 2. module-inline a user-supplied kernel into the PSy layer:
    ```sh
-   psyclone -nodm -s ./module_inline_trans.py ./multi_invoke_mod.x90
+   psyclone -nodm -d ../code -s ./module_inline_trans.py ./multi_invoke_mod.x90
    ```
 
 3. perform loop fusion:
    ```sh
-   psyclone -nodm -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
+   psyclone -nodm -d ../code -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
    ```
 
 Please see the individual transformation scripts for more details.

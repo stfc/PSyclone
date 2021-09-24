@@ -335,7 +335,8 @@ Example 1: Basic Operation
 Basic operation of PSyclone with an ``invoke()`` containing two
 kernels, one :ref:`user-supplied <dynamo0.3-kernel>`, the other a
 :ref:`Built-in <lfric-built-ins>`. Code is generated both with and
-without distributed-memory support.
+without distributed-memory support. Also demonstrates the use of the
+``-d`` flag to specify where to search for user-supplied kernel code.
 
 Example 2: Applying Transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
