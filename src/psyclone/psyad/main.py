@@ -71,7 +71,7 @@ def main(args):
         description="Run the PSyclone adjoint code generator on an LFRic "
         "tangent-linear kernel file", usage=msg())
     parser.add_argument(
-        '-a', '--active', nargs='+', help='name of active variables',
+        '-a', '--active', nargs='+', help='names of active variables',
         required=True)
     parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
