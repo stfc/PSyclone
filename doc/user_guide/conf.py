@@ -335,6 +335,16 @@ epub_copyright = u'2017-2021, STFC'
 # epub_tocdup = True
 
 
+# -- Options for linkcheck -------------------------------------------------
+
+linkcheck_anchors = True
+
+# puma is using an old https server and that causes errors in linkcheck.
+# Despite its name 'collab.metoffice.../twiki' requires authenticated access.
+linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
+                    r'http://collab.metoffice.gov.uk/twiki/*']
+
+
 # Configuration for intersphinx: refer to the Python standard library and
 # to the PSyclone Developers' Guide.
 intersphinx_mapping = {
