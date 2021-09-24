@@ -42,7 +42,8 @@ from __future__ import absolute_import, print_function
 
 import pytest
 
-from psyclone.domain.nemo.transformations import NemoLoopFuseTrans
+from psyclone.domain.nemo.transformations import (NemoLoopFuseTrans,
+                                                  CreateNemoPSyTrans)
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
@@ -136,11 +137,13 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
                              :py:class:`psyclone.psyir.nodes.Routine`)
 
     '''
-    # TODO #1210: Apply transformation to convert PSyIR to Nemo PSY layer
     psyir = fortran_reader.psyir_from_source(fortran_code)
-    loop1 = psyir.children[0].children[0]
-    loop2 = psyir.children[0].children[1]
+    psy_trans = CreateNemoPSyTrans()
     fuse = NemoLoopFuseTrans()
+    # Raise the language-level PSyIR to NEMO PSyIR
+    nemo_psy, _ = psy_trans.apply(psyir)
+    loop1 = nemo_psy.children[0].children[0]
+    loop2 = nemo_psy.children[0].children[1]
     fuse.apply(loop1, loop2)
 
     return fortran_writer(psyir), psyir
