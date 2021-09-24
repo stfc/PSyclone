@@ -15,14 +15,14 @@ being illustrated).
 ## Example 1: Basic Operation
 
 The first example simply illustrates the use of PSyclone to generate
-'vanilla', sequential PSy-layer code for a single invoke() that
-specifies one built-in kernel and one user-supplied kernel:
+the necessary sequential PSy-layer code for a single invoke() that
+specifies one Built-in kernel and one user-supplied kernel:
 ```sh
 cd eg1/
 psyclone -nodm ./single_invoke.x90
 ```
 
-PSyclone will output two lots of Fortran code to stdout when run in
+PSyclone will output two lots of Fortran code to `stdout` when run in
 this way: the first is the transformed Algorithm layer (the code from
 `single_invoke.x90`) and the second is the generated PSy-layer code.
 
@@ -35,21 +35,21 @@ the necessary code for running with distributed memory.
 The second example provides an introduction to the use of
 transformations to:
 
-1. display the PSyclone Internal Representation of the PSy-layer code
-```sh
-cd eg2/
-psyclone -nodm -s ./print_psyir_trans.py ./multi_invoke_mod.x90
-```
+1. display the PSyclone Internal Representation of the PSy-layer code:
+   ```sh
+   cd eg2/
+   psyclone -nodm -s ./print_psyir_trans.py ./multi_invoke_mod.x90
+   ```
 
 2. module-inline a user-supplied kernel into the PSy layer:
-```sh
-psyclone -nodm -s ./module_inline_trans.py ./multi_invoke_mod.x90
-```
+   ```sh
+   psyclone -nodm -s ./module_inline_trans.py ./multi_invoke_mod.x90
+   ```
 
 3. perform loop fusion:
-```sh
-psyclone -nodm -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
-```
+   ```sh
+   psyclone -nodm -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
+   ```
 
 Please see the individual transformation scripts for more details.
 
@@ -58,24 +58,24 @@ Please see the individual transformation scripts for more details.
 The third example can be used to demonstrate PSyclone:
 
 1. generating distributed memory parallel code
-```sh
-cd eg3/
-psyclone solver_mod.x90
-# look for %set_dirty and %halo_exchange in the generated code
-```
+   ```sh
+   cd eg3/
+   psyclone solver_mod.x90
+   # look for %set_dirty and %halo_exchange in the generated code
+   ```
 
 2. using a transformation script to perform loop colouring and OpenMP
-parallelisation, either with distributed memory parallel code:
-```sh
-cd eg3/
-psyclone -s ./colouring_and_omp.py solver_mod.x90
-```
+   parallelisation, either with distributed memory parallel code:
+   ```sh
+   cd eg3/
+   psyclone -s ./colouring_and_omp.py solver_mod.x90
+   ```
 
-or without distributed memory parallel code:
-```sh
-cd eg3/
-psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
-```
+   or without distributed memory parallel code:
+   ```sh
+   cd eg3/
+   psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
+   ```
 
 This example also demonstrates the use of `Wchi` function space metadata
 for coordinate fields and the use of `integer`-valued fields in LFRic.
@@ -280,28 +280,29 @@ expected to run correctly but it gives a starting point for
 evaluation.
 
 1. Adding OpenACC kernels directives. -nodm is used as an exception is
-raised if Halo Exchange nodes are found within an OpenACC kernels
-region.
-```sh
-cd eg14/
-psyclone -s ./acc_kernels.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
-```
+   raised if Halo Exchange nodes are found within an OpenACC kernels
+   region.
+   ```sh
+   cd eg14/
+   psyclone -s ./acc_kernels.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+   ```
 
 2. Adding OpenACC enter data, parallel and loop directives. -nodm is
-used as an exception is raised if Halo Exchange nodes are found within
-an OpenACC parallel region.
-```sh
-cd eg14/
-psyclone -s ./acc_parallel.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
-```
+   used as an exception is raised if Halo Exchange nodes are found within
+   an OpenACC parallel region.
+   ```sh
+   cd eg14/
+   psyclone -s ./acc_parallel.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+   ```
 
 3. Adding OpenACC enter data, parallel and loop directives in the
-presence of halo exchanges. This does not currently produce compilable code because
-calls to set_clean()/dirty() end up within parallel regions - TODO #450.
-```sh
-cd eg14/
-psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
-```
+   presence of halo exchanges. This does not currently produce compilable code
+   because calls to set_clean()/dirty() end up within parallel regions - TODO
+   #450.
+   ```sh
+   cd eg14/
+   psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+   ```
 
 ## Example 15: Optimise matvec Kernel for CPU
 

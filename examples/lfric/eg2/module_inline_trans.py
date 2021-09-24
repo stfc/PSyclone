@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Laboratory
 # Modified by S. Siso, and A. R. Porter, STFC Daresbury Laboratory
 
 ''' Example transformation script showing the use of the module-inline
@@ -45,10 +45,10 @@ from psyclone.psyGen import Kern
 def trans(psy):
     '''
     PSyclone transformation routine. This is an example which module-inlines
-    the kernel used in the second invoke in the supplied PSy object.
+    the kernel used in the second 'invoke' in the supplied PSy object.
 
-    :param psy: the PSy object that PSyclone has constructed for the invokes \
-                found in the Algorithm file.
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
     :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
     :returns: the transformed PSy object.
@@ -65,12 +65,12 @@ def trans(psy):
     # setting module inline directly
     kern.module_inline = True
     schedule.view()
-    # unsetting module inline via a transformation
-    trans = KernelModuleInlineTrans()
-    trans.apply(kern, {"inline": False})
+    # Unsetting module inline via a transformation.
+    inline_trans = KernelModuleInlineTrans()
+    inline_trans.apply(kern, {"inline": False})
     schedule.view()
-    # setting module inline via a transformation
-    trans.apply(kern)
+    # Setting module inline via a transformation.
+    inline_trans.apply(kern)
     schedule.view()
 
     return psy

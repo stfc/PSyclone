@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,14 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 ! Modified I. Kavcic, Met Office
 
 program multi_invoke
 
-  ! Very simple example of the LFRic domain with two separate invoke() calls.
-  ! This is to illustrate the use of PSyclone - it is not actually a valid
-  ! program (the field objects etc. are not initialised).
+  ! A very simple example of the LFRic domain with two separate 'invoke()'
+  ! calls. This is to illustrate the use of PSyclone - it is not actually a
+  ! valid program (the field objects etc. are not initialised).
   use constants_mod, only: r_def
   use field_mod,     only: field_type
   use testkern_mod,  only: testkern_type
@@ -52,7 +52,7 @@ program multi_invoke
                setval_c(f2, 0.0_r_def), &
                setval_c(m1, 0.0_r_def), &
                setval_c(m2, 0.0_r_def) )
-  ! This example artificially has two separate invoke() calls. In practice
+  ! This example artificially has two separate 'invoke()' calls. In practice
   ! these would be merged into a single call.
   call invoke( testkern_type(a, f1, f2, m1, m2), &
                testkern_type(a, f1, f2, m1, m2) )

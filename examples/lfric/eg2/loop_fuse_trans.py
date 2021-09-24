@@ -31,21 +31,25 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
 from __future__ import print_function
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+
+''' Module implementing a `trans` method for use as a PSyclone transformation
+    script. This example performs loop fusion.
+'''
 
 
 def trans(psy):
     '''
     PSyclone transformation routine. This is an example which performs loop
-    fusion for the built-in 'setval_c' kernels in the first invoke. For the
+    fusion for the Built-in 'setval_c' kernels in the first 'invoke'. For the
     sake of this example we use the 'same_space' option to tell the
-    transformation this this is safe to do.
+    transformation that this is safe to do.
 
-    :param psy: the PSy object that PSyclone has constructed for the invokes \
-                found in the Algorithm file.
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
     :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
     :returns: the transformed PSy object.
@@ -61,10 +65,11 @@ def trans(psy):
 
     lftrans = LFRicLoopFuseTrans()
 
-    # Since the arguments to the setval_c built-in are on 'any-space', we
+    # Since the arguments to the 'setval_c' built-in are on 'ANY_SPACE', we
     # assert that the various loops over degrees of freedom are of
     # the same extent and may safely be fused. (This is not actually true
-    # but we do this for the purposes of illustration.)
+    # for this particular example but we do this for the purposes of
+    # illustration.)
     lftrans.apply(schedule[0], schedule[1], {"same_space": True})
     lftrans.apply(schedule[0], schedule[1], {"same_space": True})
     lftrans.apply(schedule[0], schedule[1], {"same_space": True})
