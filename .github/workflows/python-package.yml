@@ -96,10 +96,9 @@ jobs:
         flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics src/psyclone examples tutorial
     - name: Check links in Sphinx documentation
       if: ${{ matrix.python-version == 3.8 }}
-      run: |
-        cd doc/user_guide; make linkcheck
-        cd doc/developer_guide; make linkcheck
-        cd doc/reference_guide; make linkcheck
+      run: cd doc/user_guide; make linkcheck
+      run: cd doc/developer_guide; make linkcheck
+      run: cd doc/reference_guide; make linkcheck
     - name: Run examples
       run: |
         ( make -C examples transform > /dev/null )
