@@ -42,9 +42,9 @@ GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod \
 # The first command will write the adjoint kernel to stdout. The second will
 # write both it and the corresponding test harness to separate files.
 transform:
-	$(PSYAD) testkern_mod.f90
+	$(PSYAD) testkern_mod.f90 -a field1 field2
 	$(PSYAD) -t -otest test_harness.f90 -oad testkernadj_mod.f90 \
-                 testkern_mod.f90
+                 testkern_mod.f90 -a field1 field2
 
 compile: transform
 	$(F90) -c testkern_mod.f90
