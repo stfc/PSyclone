@@ -1214,9 +1214,6 @@ class GlobalSum(Statement):
         return "{0}[scalar='{1}']".format(self.coloured_name(colour),
                                           self._scalar.name)
 
-    def __str__(self):
-        return self.node_str(False)
-
 
 class HaloExchange(Statement):
     '''
@@ -1376,9 +1373,6 @@ class HaloExchange(Statement):
                     self._halo_type, self._halo_depth,
                     self._check_dirty))
 
-    def __str__(self):
-        return self.node_str(False)
-
 
 class Kern(Statement):
     '''
@@ -1456,8 +1450,10 @@ class Kern(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return (self.coloured_name(colour) + " " + self.name +
-                "(" + self.arguments.names + ")")
+        if self.name:
+            return (self.coloured_name(colour) + " " + self.name +
+                    "(" + self.arguments.names + ")")
+        return self.coloured_name(colour) + "[]"
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -1667,23 +1663,12 @@ class Kern(Statement):
             parent_loop = parent_loop.ancestor(Loop)
         return False
 
-    def clear_cached_data(self):
-        '''This function is called to remove all cached data (which
-        then forces all functions to recompute their results). At this
-        stage it supports gen_code by enforcing all arguments to
-        be recomputed.
-        '''
-        self.arguments.clear_cached_data()
-
     @property
     def iterates_over(self):
         return self._iterates_over
 
     def local_vars(self):
         raise NotImplementedError("Kern.local_vars should be implemented")
-
-    def __str__(self):
-        raise NotImplementedError("Kern.__str__ should be implemented")
 
     def gen_code(self, parent):
         raise NotImplementedError("Kern.gen_code should be implemented")
@@ -2389,21 +2374,6 @@ class InlinedKern(Kern):
         '''
         return position == 0 and isinstance(child, Schedule)
 
-    def node_str(self, colour=True):
-        '''
-        Creates a class-specific text description of this node, optionally
-        including colour control codes (for coloured output in a terminal).
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: the class-specific text describing this node.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
-
-    def __str__(self):
-        return self.coloured_name(False)
-
     @abc.abstractmethod
     def local_vars(self):
         '''
@@ -2486,11 +2456,6 @@ class Arguments(object):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-
-    def clear_cached_data(self):
-        '''This function is called to clear all cached data, which
-        enforces that raw_arg_list is recomputed.'''
-        self._raw_arg_list = []
 
     @property
     def names(self):

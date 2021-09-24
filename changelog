@@ -187,6 +187,17 @@
 	64) PR #1330 for #1297. Adds TL to Adjoint test harness code
 	generation.
 
+	65) PR #1379 towards #1288. Alters the driver generation for
+	GOcean kernel extraction to use the PSyIR.
+
+	66) PR #1403. Adds support for private clause for declarations in f2pygen.
+
+	67) PR #1406 for #1404. Temporary copy() bug fix while the loop variable
+	is not part of the PSyIR tree.
+
+	68) PR #1407 towards #1383. Standardises the node_str() method of
+	DirectiveNode and remove un-needed code.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

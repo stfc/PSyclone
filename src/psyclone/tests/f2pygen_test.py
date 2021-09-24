@@ -1069,6 +1069,28 @@ def test_decl_target(tmpdir):
     assert Compile(tmpdir).string_compiles(gen)
 
 
+def test_decl_private(tmpdir):
+    ''' Check that we can declare variables with the 'private' attribute. '''
+    module = ModuleGen(name="testmodule")
+    for idx, dtype in enumerate(DeclGen.SUPPORTED_TYPES):
+        module.add(DeclGen(module, datatype=dtype, private=True,
+                           entity_decls=["var"+str(idx)]))
+    module.add(CharDeclGen(module, private=True, length="10",
+                           entity_decls=["varchar"]))
+    module.add(TypeDeclGen(module, private=True, datatype="field_type",
+                           entity_decls=["ufld"]))
+    gen = str(module.root).lower()
+    for dtype in DeclGen.SUPPORTED_TYPES:
+        assert "{0}, private :: var".format(dtype.lower()) in gen
+    assert "character(len=10), private :: varchar" in gen
+    assert "type(field_type), private :: ufld" in gen
+    # Check that the generated code compiles (if enabled). We
+    # must manually add a definition for the derived type.
+    parts = gen.split("implicit none")
+    gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
+    assert Compile(tmpdir).string_compiles(gen)
+
+
 def test_decl_initial_vals(tmpdir):
     ''' Check that we can specify initial values for a declaration '''
     module = ModuleGen(name="testmodule")
