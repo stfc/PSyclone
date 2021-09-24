@@ -54,6 +54,7 @@ jobs:
     - uses: actions/checkout@master
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
   sphinx-link-check:
+    # Check all Sphinx documentation for dead links
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -63,6 +64,7 @@ jobs:
     - run: cd doc/user_guide; make linkcheck
     - run: cd doc/developer_guide; make linkcheck
     - run: cd doc/reference_guide; make linkcheck
+    - run: cd doc/psyad/user_guide; make linkcheck
   build:
     runs-on: ubuntu-latest
     strategy:
