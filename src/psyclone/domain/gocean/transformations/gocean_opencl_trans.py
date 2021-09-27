@@ -114,13 +114,6 @@ class GOOpenCLTrans(Transformation):
         if 'out_of_order' in options:
             self._out_of_order = options['out_of_order']
 
-        try:
-            # Store the provided OpenCL options in the InvokeSchedule.
-            node.set_opencl_options(options)
-        # The raised exceptions are converted to 'TransformationError's.
-        except (TypeError, AttributeError) as error:
-            six.raise_from(TransformationError(str(error)), error)
-
         # Insert fortcl, clfotran and c_iso_binding import statement
         fortcl = ContainerSymbol("fortcl")
         node.symbol_table.add(fortcl)

@@ -177,18 +177,6 @@ class GOInvokes(Invokes):
                     # those seen so far
                     index_offsets.append(kern_call.index_offset)
 
-    def gen_rank_expression(self, scope):
-        ''' Generate the expression to retrieve the process rank.
-
-        :param scope: where the expression is going to be located.
-        :type scope: :py:class:`psyclone.f2pygen.BaseGen`
-        :return: generate the Fortran expression to retrieve the process rank.
-        :rtype: str
-        '''
-        scope.add(UseGen(scope, name="parallel_mod", only=True,
-                         funcnames=["get_rank"]))
-        return "get_rank()"
-
     def gen_code(self, parent):
         '''
         GOcean redefines the Invokes.gen_code() to start using the PSyIR
@@ -222,7 +210,6 @@ class GOInvokes(Invokes):
                 for item in temporary_module.root.content:
                     if hasattr(item, 'name') and \
                             (item.name == name or item.name.endswith("set_args")):
-                        print(item.name)
                         reader = FortranStringReader(str(item))
                         reader.set_format(FortranFormat(True, True))
                         sub = Subroutine_Subprogram(reader)
