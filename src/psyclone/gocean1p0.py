@@ -204,6 +204,7 @@ class GOInvokes(Invokes):
                        content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
+        opencl_kernels = []
         # First check if there is any unsupported invokes
         for invoke in self.invoke_list:
             # TODO 1134: The opencl path is still largely implemented using
@@ -212,7 +213,12 @@ class GOInvokes(Invokes):
                     invoke.schedule.opencl:
                 name = invoke.schedule.name
                 temporary_module = ModuleGen("dummy")
-                super(GOInvokes, self).gen_code(temporary_module)
+
+                for kern in invoke.schedule.coded_kernels():
+                    if kern.name not in opencl_kernels:
+                        opencl_kernels.append(kern.name)
+                        kern.gen_arg_setter_code(temporary_module)
+                invoke.gen_code(temporary_module)
                 for item in temporary_module.root.content:
                     if hasattr(item, 'name') and \
                             (item.name == name or item.name.endswith("set_args")):
