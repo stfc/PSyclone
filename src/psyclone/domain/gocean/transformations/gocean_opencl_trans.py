@@ -36,16 +36,12 @@
 '''This module contains the GOcean-specific OpenCL transformation.
 '''
 
-import six
-from psyclone.psyGen import Transformation
-from psyclone.transformations import TransformationError, KernelTrans
-from psyclone.psyGen import args_filter, InvokeSchedule
-from psyclone.gocean1p0 import GOInvokeSchedule
-
 from psyclone.configuration import Config
+from psyclone.gocean1p0 import GOInvokeSchedule
+from psyclone.psyGen import Transformation, args_filter, InvokeSchedule
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.symbols import ContainerSymbol, RoutineSymbol, \
-    ImportInterface
+from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.transformations import TransformationError, KernelTrans
 
 
 class GOOpenCLTrans(Transformation):
@@ -71,9 +67,14 @@ class GOOpenCLTrans(Transformation):
     # data transfers when generating an OpenCL PSy-layer
     _OCL_MANAGEMENT_QUEUE = 1
 
+    # TODO #1134: This are class attributes because multiple invokes may have
+    # to generate a single OpenCL environment (e.g. to share the device data
+    # pointers) and therefore guarantee the same properties, but this hasn't
+    # been tested. PSycloneBench ShallowWater could be an example of this.
     _max_queue_number = 1
     _enable_profiling = False
     _out_of_order = False
+    _transformed_invokes = 0
 
     @property
     def name(self):
@@ -82,73 +83,6 @@ class GOOpenCLTrans(Transformation):
         :rtype: str
         '''
         return "GOOpenCLTrans"
-
-    def apply(self, node, options=None):
-        '''
-        Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
-        causes PSyclone to generate an OpenCL version of the corresponding
-        PSy-layer routine. The generated code makes use of the FortCL
-        library (https://github.com/stfc/FortCL) in order to manage the
-        OpenCL device directly from Fortran.
-
-        :param node: the InvokeSchedule to transform.
-        :type node: :py:class:`psyclone.psyGen.GOInvokeSchedule`
-        :param options: set of option to tune the OpenCL generation.
-        :type options: dict of string:values or None
-        :param bool options["opencl"]: whether or not to enable OpenCL \
-                                       generation.
-
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-        '''
-
-        if not options:
-            options = {}
-
-        self.validate(node, options)
-
-        if 'enable_profiling' in options:
-            self._enable_profiling = options['enable_profiling']
-
-        if 'out_of_order' in options:
-            self._out_of_order = options['out_of_order']
-
-        # Insert fortcl, clfotran and c_iso_binding import statement
-        fortcl = ContainerSymbol("fortcl")
-        node.symbol_table.add(fortcl)
-        get_num_cmd_queues = RoutineSymbol(
-                "get_num_cmd_queues", interface=ImportInterface(fortcl))
-        get_cmd_queues = RoutineSymbol(
-                "get_cmd_queues", interface=ImportInterface(fortcl))
-        get_kernel_by_name = RoutineSymbol(
-                "get_kernel_by_name", interface=ImportInterface(fortcl))
-        node.symbol_table.add(get_num_cmd_queues)
-        node.symbol_table.add(get_cmd_queues)
-        node.symbol_table.add(get_kernel_by_name)
-        clfortran = ContainerSymbol("clforntran")
-        clfortran.wildcard_import = True
-        node.symbol_table.add(clfortran)
-        iso_c_bindings = ContainerSymbol("iso_c_bindings")
-        iso_c_bindings.wildcard_import = True
-        node.symbol_table.add(iso_c_bindings)
-
-        node.opencl = True
-
-        # Update max
-        for kernel in node.coded_kernels():
-            self._max_queue_number = max(self._max_queue_number,
-                                         kernel.opencl_options["queue_number"])
-
-        # Insert necessary OpenCL helper subroutines in the root Container
-        self._insert_opencl_init_routine(node.root)
-        self._insert_initialise_grid_buffers(node.root)
-        self._insert_write_grid_buffers(node.root)
-        self._insert_ocl_read_from_device_function(node.root)
-        self._insert_ocl_write_to_device_function(node.root)
-        self._insert_ocl_initialise_buffer(node.root)
-
-        return None, None
 
     def validate(self, node, options=None):
         '''
@@ -165,6 +99,9 @@ class GOOpenCLTrans(Transformation):
         :raises TransformationError: if any of the kernels have arguments \
                                      which are passed as a literal.
         :raises TransformationError: if any of the provided options is invalid.
+        :raises TransformationError: if any of the provided options is not \
+                                     compatible with a previous OpenCL
+                                     environment.
         :raises TransformationError: if any kernel in this invoke has a \
                                      global variable used by an import.
         '''
@@ -195,13 +132,31 @@ class GOOpenCLTrans(Transformation):
                     "The supported options are: {1}."
                     "".format(key, valid_options))
 
+        # Validate that the options are valid with previously generated OpenCL
+        if self._transformed_invokes > 0:
+            if ('enable_profiling' in options and
+                    self._enable_profiling != options['enable_profiling']):
+                raise TransformationError(
+                    "Can't generate a OpenCL Invoke with enable_profiling='"
+                    "{0}' since a previous transformation used a different "
+                    "value, and their OpenCL environment must match."
+                    "".format(options['enable_profiling']))
+
+            if ('out_of_order' in options and
+                    self._out_of_order != options['out_of_order']):
+                raise TransformationError(
+                    "Can't generate a OpenCL Invoke with out_of_order='{0}' "
+                    "since a previous transformation used a different value, "
+                    "and their OpenCL environment must match."
+                    "".format(options['out_of_order']))
+
         # Now we need to check that any of the invoke arguments is a literal
         args = args_filter(node.args, arg_types=["scalar"], is_literal=True)
         for arg in args:
             if arg.is_literal:
                 raise TransformationError(
                     "Cannot generate OpenCL for Invokes that contain "
-                    "kernels with arguments which are a literal")
+                    "kernels with arguments which are a literal.")
 
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
@@ -220,22 +175,80 @@ class GOOpenCLTrans(Transformation):
                     "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
 
+    def apply(self, node, options=None):
+        '''
+        Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
+        causes PSyclone to generate an OpenCL version of the corresponding
+        PSy-layer routine. The generated code makes use of the FortCL
+        library (https://github.com/stfc/FortCL) in order to manage the
+        OpenCL device directly from Fortran.
+
+        :param node: the InvokeSchedule to transform.
+        :type node: :py:class:`psyclone.psyGen.GOInvokeSchedule`
+        :param options: set of option to tune the OpenCL generation.
+        :type options: dict of string:values or None
+        :param bool options["opencl"]: whether or not to enable OpenCL \
+                                       generation.
+
+        :returns: None, None
+        :rtype: (NoneType, NoneType)
+
+        '''
+        if not options:
+            options = {}
+
+        self.validate(node, options)
+
+        # Update class attributes
+        if 'enable_profiling' in options:
+            self._enable_profiling = options['enable_profiling']
+
+        if 'out_of_order' in options:
+            self._out_of_order = options['out_of_order']
+
+        self._transformed_invokes += 1
+
+        # Update the maximum value that the queue_number have.
+        for kernel in node.coded_kernels():
+            self._max_queue_number = max(self._max_queue_number,
+                                         kernel.opencl_options["queue_number"])
+
+        # Insert necessary OpenCL helper subroutines in the root Container
+        self._insert_opencl_init_routine(node.root)
+        self._insert_initialise_grid_buffers(node.root)
+        self._insert_write_grid_buffers(node.root)
+        self._insert_ocl_read_from_device_function(node.root)
+        self._insert_ocl_write_to_device_function(node.root)
+        self._insert_ocl_initialise_buffer(node.root)
+
+        # TODO #1134: Some of the OpenCL logic is provided at generation time
+        # when the following opencl flag is set. This should eventually be part
+        # of this tranformation.
+        node.opencl = True
+        if 'end_barrier' in options:
+            node._opencl_end_barrier = options['end_barrier']
+
+        return None, None
+
     def _insert_opencl_init_routine(self, node):
         '''
-        Inserts and returns the symbol of a subroutine that initialises the
-        OpenCL environment using FortCL if the subroutine doesn't already
-        exist.
+        Returns the symbol of the subroutine that initialises the OpenCL
+        environment using FortCL. If the subroutine doesn't exist it also
+        generates it.
 
-        :param node: the module where the new subroutine will be inserted.
+        :param node: the container where the new subroutine will be inserted.
         :param type: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol representing the OpenCL initialisation subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
-        # pylint: disable=too-many-locals
         symtab = node.symbol_table
         try:
+            # TODO #1134: The init routine may need to be regenerated if there
+            # are multiple Invokes (multiple applies of this transformation),
+            # because _max_queue_number may have increased and we need to load
+            # the kernels of both invokes.
             return symtab.lookup_with_tag("ocl_init_routine")
         except KeyError:
             # If the Symbol does not exist, the rest of this method
@@ -243,48 +256,49 @@ class GOOpenCLTrans(Transformation):
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol(
-            "psy_init", symbol_type=RoutineSymbol,
-            tag="ocl_init_routine").name
+        subroutine_name = symtab.new_symbol("psy_init",
+                                            symbol_type=RoutineSymbol,
+                                            tag="ocl_init_routine").name
 
+        # Choose a round-robin device number if it has MPI and multiple
+        # accelerators.
         distributed_memory = Config.get().distributed_memory
         devices_per_node = Config.get().ocl_devices_per_node
-
+        additional_decls = ""
+        additional_stmts = ""
         if devices_per_node > 1 and distributed_memory:
-            declaration = "USE parallel_mod, ONLY: get_rank"
-            statement = ("ocl_device_num = mod(get_rank() - 1, {0}) + 1"
-                         "".format(devices_per_node))
-        else:
-            declaration = ""
-            statement = ""
+            additional_decls += "USE parallel_mod, ONLY: get_rank"
+            additional_stmts += \
+                ("ocl_device_num = mod(get_rank() - 1, {0}) + 1"
+                 "".format(devices_per_node))
 
         # Code of the subroutine in Fortran
         code = '''
-    subroutine psy_init()
-      {0}
-      use fortcl, only: ocl_env_init, add_kernels
-      character(len=30) kernel_names(1)
-      integer :: ocl_device_num=1
-      logical, save :: initialised=.false.
-      ! check to make sure we only execute this routine once
-      if (.not. initialised) then
-        initialised = .true.
-        ! initialise the opencl environment/device
-        {1}
-        call ocl_env_init({2}, ocl_device_num, {3}, {4})
-        ! the kernels this psy layer module requires
-        kernel_names(1) = "compute_cu_code"
-        ! create the opencl kernel objects. expects to find all of the compiled
-        ! kernels in fortcl_kernels_file.
-        call add_kernels(1, kernel_names)
-      end if
-    end subroutine psy_init'''.format(
-            declaration,
-            statement,
-            self._max_queue_number,
-            ".true." if self._enable_profiling else ".false.",
-            ".true." if self._out_of_order else ".false.",
-            )
+        subroutine psy_init()
+          {0}
+          use fortcl, only: ocl_env_init, add_kernels
+          character(len=30) kernel_names(1)
+          integer :: ocl_device_num=1
+          logical, save :: initialised=.false.
+          ! Check to make sure we only execute this routine once
+          if (.not. initialised) then
+            initialised = .true.
+            ! Initialise the opencl environment/device
+            {1}
+            call ocl_env_init({2}, ocl_device_num, {3}, {4})
+            ! The kernels this psy layer module requires
+            kernel_names(1) = "compute_cu_code"
+            ! Create the opencl kernel objects. This expects to find all of
+            ! the compiled kernels in FORTCL_KERNELS_FILE environment variable
+            call add_kernels(1, kernel_names)
+          end if
+        end subroutine psy_init'''.format(
+                additional_decls,
+                additional_stmts,
+                self._max_queue_number,
+                ".true." if self._enable_profiling else ".false.",
+                ".true." if self._out_of_order else ".false.",
+                )
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
@@ -298,15 +312,15 @@ class GOOpenCLTrans(Transformation):
 
         return symtab.lookup_with_tag("ocl_init_routine")
 
-    def _insert_initialise_grid_buffers(self, node):
+    @staticmethod
+    def _insert_initialise_grid_buffers(node):
         '''
         Returns the symbol of a subroutine that initialises all OpenCL grid
         buffers in the OpenCL device using FortCL. If the subroutine doesn't
-        already exist it is generated in the supplied f2pygen module.
+        already exist it also generates it.
 
-        :param f2pygen_module: the module where the new function will be \
-                               inserted.
-        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+        :param node: the container where the new subroutine will be inserted.
+        :param type: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol of the grid buffer initialisation subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -322,9 +336,9 @@ class GOOpenCLTrans(Transformation):
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol(
-            "initialise_grid_device_buffers", symbol_type=RoutineSymbol,
-            tag="ocl_init_grid_buffers").name
+        subroutine_name = symtab.new_symbol("initialise_grid_device_buffers",
+                                            symbol_type=RoutineSymbol,
+                                            tag="ocl_init_grid_buffers").name
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean1.0")
@@ -394,12 +408,10 @@ class GOOpenCLTrans(Transformation):
         '''
         Returns the symbol of a subroutine that writes the values of the grid
         properties into the OpenCL device buffers using FortCL. If the
-        subroutine doesn't already exist it is generated in the supplied
-        f2pygen module.
+        subroutine doesn't already exist it also generates it.
 
-        :param f2pygen_module: the module where the new function will be \
-                               inserted.
-        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+        :param node: the container where the new subroutine will be inserted.
+        :param type: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol representing the grid buffers writing subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -415,9 +427,9 @@ class GOOpenCLTrans(Transformation):
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol(
-            "write_grid_buffers", symbol_type=RoutineSymbol,
-            tag="ocl_write_grid_buffers").name
+        subroutine_name = symtab.new_symbol("write_grid_buffers",
+                                            symbol_type=RoutineSymbol,
+                                            tag="ocl_write_grid_buffers").name
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean1.0")
@@ -478,11 +490,10 @@ class GOOpenCLTrans(Transformation):
         '''
         Returns the symbol of a subroutine that retrieves the data back from
         an OpenCL device using FortCL. If the subroutine doesn't already exist
-        it is generated in the supplied f2pygen module.
+        it also generates it.
 
-        :param f2pygen_module: the module where the new function will be \
-                               inserted.
-        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+        :param node: the container where the new subroutine will be inserted.
+        :param type: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol of the buffer data retrieving subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -497,9 +508,9 @@ class GOOpenCLTrans(Transformation):
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol(
-            "read_from_device", symbol_type=RoutineSymbol,
-            tag="ocl_read_func").name
+        subroutine_name = symtab.new_symbol("read_from_device",
+                                            symbol_type=RoutineSymbol,
+                                            tag="ocl_read_func").name
 
         # Code of the subroutine in Fortran
         code = '''
@@ -570,11 +581,10 @@ class GOOpenCLTrans(Transformation):
         '''
         Returns the symbol of a subroutine that writes the buffer data into
         an OpenCL device using FortCL. If the subroutine doesn't already exist
-        it is generated in the supplied f2pygen module.
+        it also generates it.
 
-        :param f2pygen_module: the module where the new function will be \
-                               inserted.
-        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+        :param node: the container where the new subroutine will be inserted.
+        :param type: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol of the buffer writing subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -589,9 +599,9 @@ class GOOpenCLTrans(Transformation):
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol(
-            "write_to_device", symbol_type=RoutineSymbol,
-            tag="ocl_write_func").name
+        subroutine_name = symtab.new_symbol("write_to_device",
+                                            symbol_type=RoutineSymbol,
+                                            tag="ocl_write_func").name
 
         # Code of the subroutine in Fortran
         code = '''
@@ -657,16 +667,15 @@ class GOOpenCLTrans(Transformation):
 
         return symtab.lookup_with_tag("ocl_write_func")
 
-    def _insert_ocl_initialise_buffer(self, node):
+    @staticmethod
+    def _insert_ocl_initialise_buffer(node):
         '''
         Returns the symbol of a subroutine that initialises a OpenCL buffer in
         the OpenCL device using FortCL. If the subroutine doesn't already exist
-        it is generated in the supplied f2pygen module.
+        it also generates it.
 
-        :param f2pygen_module: the module where the new function will be \
-                               inserted.
-        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
-
+        :param node: the container where the new subroutine will be inserted.
+        :param type: :py:class:`psyclone.psyir.nodes.Container`
         :returns: the symbol of the buffer initialisation subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
@@ -681,9 +690,9 @@ class GOOpenCLTrans(Transformation):
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol(
-            "initialise_device_buffer", symbol_type=RoutineSymbol,
-            tag="ocl_init_buffer_func").name
+        subroutine_name = symtab.new_symbol("initialise_device_buffer",
+                                            symbol_type=RoutineSymbol,
+                                            tag="ocl_init_buffer_func").name
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean1.0")
@@ -732,7 +741,6 @@ class GOOpenCLTrans(Transformation):
         node.addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("ocl_init_buffer_func")
-
 
 
 # For AutoAPI documentation generation

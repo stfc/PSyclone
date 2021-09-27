@@ -193,23 +193,30 @@ class GOInvokes(Invokes):
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
         opencl_kernels = []
-        # First check if there is any unsupported invokes
         for invoke in self.invoke_list:
+
             # TODO 1134: The opencl path is still largely implemented using
-            # the f2pygen and cannot be processed by the backend yet.
+            # the f2pygen and cannot be processed by the backend.
             if isinstance(invoke.schedule, GOInvokeSchedule) and \
                     invoke.schedule.opencl:
                 name = invoke.schedule.name
                 temporary_module = ModuleGen("dummy")
 
+                # Generate set_args in a temporary fparser module
                 for kern in invoke.schedule.coded_kernels():
                     if kern.name not in opencl_kernels:
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(temporary_module)
+
+                # Generate invoke in a temporary fparser module
                 invoke.gen_code(temporary_module)
+
+                # Add the invoke and set_args subroutines as CodeBlocks in
+                # the PSyIR tree representing the PSy layer.
                 for item in temporary_module.root.content:
                     if hasattr(item, 'name') and \
-                            (item.name == name or item.name.endswith("set_args")):
+                            (item.name == name or
+                             item.name.endswith("set_args")):
                         reader = FortranStringReader(str(item))
                         reader.set_format(FortranFormat(True, True))
                         sub = Subroutine_Subprogram(reader)

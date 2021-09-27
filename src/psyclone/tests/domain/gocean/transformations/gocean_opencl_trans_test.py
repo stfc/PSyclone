@@ -73,11 +73,11 @@ def test_opencl_compiler_works(kernel_outputdir):
     '''
     Compile.skip_if_opencl_compilation_disabled()
     example_ocl_code = '''
-program hello
-  USE fortcl
-  write (*,*) "Hello"
-end program hello
-'''
+    program hello
+      USE fortcl
+      write (*,*) "Hello"
+    end program hello
+    '''
     old_pwd = kernel_outputdir.chdir()
     try:
         with open("hello_world_opencl.f90", "w") as ffile:
@@ -95,7 +95,7 @@ def test_transformation_name():
     assert trans.name == "GOOpenCLTrans"
 
 
-def test_unsupported_api():
+def test_validate_unsupported_api():
     ''' Check that attempting to apply an OpenCL transformation to a Dynamo
     InvokeSchedule raises the expected error. '''
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
@@ -165,9 +165,9 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
         expected += "      use ocl_utils_mod, only: check_status\n"
 
     expected += '''\
+      use fortcl, only: get_num_cmd_queues, get_cmd_queues, get_kernel_by_name
       use clfortran
       use iso_c_binding
-      use fortcl, only: get_num_cmd_queues, get_cmd_queues, get_kernel_by_name
       type(r2d_field), intent(inout), target :: cu_fld, p_fld, u_fld
       integer ystop
       integer ystart
@@ -351,13 +351,15 @@ c_sizeof(field%grid%area_t(1,1))'''
         ystart = out_fld % internal % ystart
         ystop = out_fld % internal % ystop
         out_fld_cl_mem = transfer(out_fld % device_ptr, out_fld_cl_mem)
-        in_out_fld_cl_mem = transfer(in_out_fld % device_ptr, in_out_fld_cl_mem)
+        in_out_fld_cl_mem = \
+transfer(in_out_fld % device_ptr, in_out_fld_cl_mem)
         in_fld_cl_mem = transfer(in_fld % device_ptr, in_fld_cl_mem)
         dx_cl_mem = transfer(dx % device_ptr, dx_cl_mem)
         gphiu_cl_mem = transfer(in_fld % grid % gphiu_device, gphiu_cl_mem)
         call compute_kernel_code_set_args(kernel_compute_kernel_code, \
-out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, in_fld % grid % dx, \
-gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
+out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
+in_fld % grid % dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
+ystop - 1)
         call out_fld % write_to_device
         call in_out_fld % write_to_device
         call in_fld % write_to_device
@@ -503,7 +505,7 @@ field%device_ptr)
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_psy_init_defaults(kernel_outputdir, monkeypatch):
+def test_psy_init_defaults(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=True)
@@ -536,9 +538,9 @@ def test_psy_init_defaults(kernel_outputdir, monkeypatch):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_psy_init_non_default_values(kernel_outputdir, monkeypatch):
-    ''' Test that we create the appropriate subroutine to initialise a
-    non-default OpenCL environment. '''
+def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
+    ''' Test that we create the appropriate subroutine to initialise an
+    hybrid MPI-OpenCL environment with multiple devices per node. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=True)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
@@ -551,7 +553,6 @@ def test_psy_init_non_default_values(kernel_outputdir, monkeypatch):
     # that needs a mod() and a get_rank() expression, and a kernel with
     # a higher queue number.
     monkeypatch.setattr(Config.get(), "_ocl_devices_per_node", 2)
-    sched.coded_kernels()[0].set_opencl_options({'queue_number': 5})
 
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
@@ -568,7 +569,7 @@ def test_psy_init_non_default_values(kernel_outputdir, monkeypatch):
       IF (.NOT.initialised) THEN
         initialised = .true.
         ocl_device_num = MOD(get_rank() - 1, 2) + 1
-        CALL ocl_env_init(5, ocl_device_num, .false., .false.)
+        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
         kernel_names(1) = 'compute_cu_code'
         CALL add_kernels(1, kernel_names)
       END IF
@@ -589,12 +590,13 @@ def test_psy_init_with_options(kernel_outputdir):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
+    # Use non-default kernel and transformation options
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': 5})
     otrans = GOOpenCLTrans()
-    otrans.apply(sched, options={"end_barrier": True,
-                                 "enable_profiling": True,
+    otrans.apply(sched, options={"enable_profiling": True,
                                  "out_of_order": True})
     generated_code = str(psy.gen)
-    assert "CALL ocl_env_init(1, ocl_device_num, .true., .true.)\n" \
+    assert "CALL ocl_env_init(5, ocl_device_num, .true., .true.)\n" \
         in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -734,7 +736,6 @@ def test_opencl_options_validation():
         in str(err.value)
 
 
-@pytest.mark.xfail(reason="Is this not valid?")
 @pytest.mark.usefixtures("kernel_outputdir")
 @pytest.mark.parametrize("option_to_check", ['enable_profiling',
                                              'out_of_order'])
@@ -755,13 +756,12 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
 
     otrans = GOOpenCLTrans()
     otrans.apply(invoke1_schedule, options={option_to_check: False})
-    otrans.apply(invoke2_schedule, options={option_to_check: True})
-    with pytest.raises(NotImplementedError) as err:
-        _ = str(psy.gen)
-    assert ("The current implementation creates a single OpenCL context for "
-            "all the invokes which needs certain OpenCL options to match "
-            "between invokes. Found '{0}' with unmatching values between "
-            "invokes.".format(option_to_check) in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        otrans.apply(invoke2_schedule, options={option_to_check: True})
+    assert ("Can't generate a OpenCL Invoke with {0}='True' since a previous "
+            "transformation used a different value, and their OpenCL "
+            "environment must match.".format(option_to_check)
+            in str(err.value))
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -793,13 +793,9 @@ def test_opencl_options_effects():
     # Reparse the example as changes are not possible after a psy.gen
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-
-    # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
-
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
 
@@ -811,24 +807,35 @@ def test_opencl_options_effects():
     # Reparse the example as changes are not possible after a psy.gen
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-
-    # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
-
-    # Change kernel queue to 2 (the barrier should then also go up to 2)
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
-    sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
 
+    # Change kernel queue number to 2 (the barrier should then also go up to 2)
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
     generated_code = str(psy.gen)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
     assert "      ierr = clFinish(cmd_queues(1))\n" \
            "      ierr = clFinish(cmd_queues(2))\n" in generated_code
+    assert "ierr = clFinish(cmd_queues(3))" not in generated_code
+
+    # Reparse the example as changes are not possible after a psy.gen
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+    otrans = GOOpenCLTrans()
+
+    # Remove barrier at the end of the Invoke
+    otrans.apply(sched, options={'end_barrier': False})
+    generated_code = str(psy.gen)
+    assert "! Block until all kernels have finished" not in generated_code
+    assert "ierr = clFinish(cmd_queues(1))" not in generated_code
 
 
 @pytest.mark.parametrize("dist_mem", [True, False])

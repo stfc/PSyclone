@@ -708,11 +708,7 @@ class InvokeSchedule(Routine):
         # TODO #1134: If OpenCL is just a PSyIR transformation the following
         # properties may not be needed or are transformation options instead.
         self._opencl = False  # Whether or not to generate OpenCL
-
-        # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True,
-                                "enable_profiling": False,
-                                "out_of_order": False}
+        self._opencl_end_barrier = True
 
         # This reference will store during gen_code() the block of code that
         # is executed only on the first iteration of the invoke.
@@ -867,7 +863,7 @@ class InvokeSchedule(Routine):
         for entity in self._children:
             entity.gen_code(parent)
 
-        if self.opencl and self._opencl_options['end_barrier']:
+        if self.opencl and self._opencl_end_barrier:
 
             parent.add(CommentGen(parent,
                                   " Block until all kernels have finished"))
