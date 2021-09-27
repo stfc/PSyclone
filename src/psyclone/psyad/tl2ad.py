@@ -66,13 +66,14 @@ ADJOINT_NAME_SUFFIX = "_adj"
 TEST_ARRAY_DIM_SIZE = 20
 
 
-def generate_adjoint_str(tl_fortran_str, create_test=False):
+def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     '''Takes an LFRic tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
 
     :param str tl_fortran_str: Fortran implementation of an LFRic \
         tangent-linear kernel.
+    :param list of str active_variables: list of active variable names.
     :param bool create_test: whether or not to create test code for the \
         adjoint kernel.
 
@@ -95,7 +96,7 @@ def generate_adjoint_str(tl_fortran_str, create_test=False):
     # logger.debug(tl_psyir.view())
 
     # TL to AD translation
-    ad_psyir = generate_adjoint(tl_psyir)
+    ad_psyir = generate_adjoint(tl_psyir, active_variables)
 
     # AD Fortran code
     writer = FortranWriter()
@@ -137,7 +138,7 @@ def _find_container(psyir):
             return None
         return containers[0]
 
-    elif len(containers) == 2:
+    if len(containers) == 2:
         if isinstance(containers[1], FileContainer):
             raise InternalError(
                 "The supplied PSyIR contains two Containers but the innermost "
@@ -152,7 +153,7 @@ def _find_container(psyir):
                               "Containers. This is not supported.")
 
 
-def generate_adjoint(tl_psyir):
+def generate_adjoint(tl_psyir, active_variables):
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
@@ -162,6 +163,7 @@ def generate_adjoint(tl_psyir):
     :param tl_psyir: language-level PSyIR containing the LFRic \
         tangent-linear kernel.
     :type tl_psyir: :py:class:`psyclone.psyir.Node`
+    :param list of str active_variables: list of active variable names.
 
     :returns: language-level PSyIR containing the adjoint of the \
         supplied tangent-linear kernel.
@@ -178,7 +180,8 @@ def generate_adjoint(tl_psyir):
         "Translation from generic PSyIR to LFRic-specific PSyIR should be "
         "done now.")
 
-    # Transform from TL to AD
+    # Transform from TL to AD. The list of active variables in
+    # the active_variables variable will be used here.
     logger.debug("Transformation from TL to AD should be done now but instead "
                  "we copy the input.")
     ad_psyir = tl_psyir.copy()
@@ -220,7 +223,7 @@ def generate_adjoint(tl_psyir):
         routine.name = routine.symbol_table.next_available_name(
             routine.name + ADJOINT_NAME_SUFFIX)
 
-    logger.debug("AD kernel will be named '{0}'".format(routine.name))
+    logger.debug("AD kernel will be named '%s'", routine.name)
 
     return ad_psyir
 
@@ -286,8 +289,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     adjoint_kernel_name = ad_psyir.walk(Routine)[0].name
     adjoint_module_name = ad_psyir.walk(Container)[1].name
 
-    logger.debug("Creating test harness for TL kernel '{0}' and AD kernel "
-                 "'{1}'".format(tl_kernel.name, adjoint_kernel_name))
+    logger.debug("Creating test harness for TL kernel '%s' and AD kernel "
+                 "'%s'", tl_kernel.name, adjoint_kernel_name)
 
     # Create a symbol for the TL kernel so that the harness code is able
     # to call it.
@@ -338,9 +341,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                             if ref.symbol in integer_scalars:
                                 dimensioning_args.add(ref.symbol)
 
-    logger.debug("Kernel '{0}' has the following dimensioning arguments: "
-                 "{1}".format(tl_kernel.name,
-                              [arg.name for arg in dimensioning_args]))
+    logger.debug("Kernel '%s' has the following dimensioning arguments: "
+                 "%s", tl_kernel.name,
+                 [arg.name for arg in dimensioning_args])
 
     # Create local versions of these dimensioning variables in the test
     # program. Since they are dimensioning variables, they have to be given
@@ -421,8 +424,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         inputs.append(new_sym)
         input_copies.append(input_sym)
 
-    logger.debug("Generated symbols for new argument list: {0}".format(
-        [arg.name for arg in new_arg_list]))
+    logger.debug("Generated symbols for new argument list: %s",
+                 [arg.name for arg in new_arg_list])
 
     statements = []
     # Initialise those variables and keep a copy of them.
@@ -487,8 +490,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     routine = Routine.create(
         "adj_test", symbol_table, statements, is_program=True)
 
-    logger.debug("Created test-harness program named '{0}'".format(
-        routine.name))
+    logger.debug("Created test-harness program named '%s'", routine.name)
 
     return routine
 
@@ -583,42 +585,42 @@ def _create_array_inner_product(result, array1, array2):
             Reference(result),
             BinaryOperation.create(BinaryOperation.Operator.ADD,
                                    Reference(result), cblock))
-    else:
-        # Create a matrix inner product
-        ranges1 = []
-        ranges2 = []
-        # Generate a Range object for each dimension of each array
-        for idx in range(len(array1.datatype.shape)):
-            idx_literal = Literal(str(idx+1), INTEGER_TYPE)
-            lbound1 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                             Reference(array1),
-                                             idx_literal.copy())
-            ubound1 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                             Reference(array1),
-                                             idx_literal.copy())
-            ranges1.append(Range.create(lbound1, ubound1))
 
-            lbound2 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                             Reference(array2),
-                                             idx_literal.copy())
-            ubound2 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                             Reference(array2),
-                                             idx_literal.copy())
-            ranges2.append(Range.create(lbound2, ubound2))
+    # Create a matrix inner product
+    ranges1 = []
+    ranges2 = []
+    # Generate a Range object for each dimension of each array
+    for idx in range(len(array1.datatype.shape)):
+        idx_literal = Literal(str(idx+1), INTEGER_TYPE)
+        lbound1 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                         Reference(array1),
+                                         idx_literal.copy())
+        ubound1 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                         Reference(array1),
+                                         idx_literal.copy())
+        ranges1.append(Range.create(lbound1, ubound1))
 
-        # Use these Ranges to create references for all elements of both arrays
-        ref1 = ArrayReference.create(array1, ranges1)
-        ref2 = ArrayReference.create(array2, ranges2)
-        # Element-wise product of the arrays
-        prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
-                                      ref1, ref2)
-        # Sum the resulting elements
-        inner = UnaryOperation.create(UnaryOperation.Operator.SUM, prod)
-        # Accumulate the result
-        return Assignment.create(
-            Reference(result),
-            BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                   Reference(result), inner))
+        lbound2 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                         Reference(array2),
+                                         idx_literal.copy())
+        ubound2 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                         Reference(array2),
+                                         idx_literal.copy())
+        ranges2.append(Range.create(lbound2, ubound2))
+
+    # Use these Ranges to create references for all elements of both arrays
+    ref1 = ArrayReference.create(array1, ranges1)
+    ref2 = ArrayReference.create(array2, ranges2)
+    # Element-wise product of the arrays
+    prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                  ref1, ref2)
+    # Sum the resulting elements
+    inner = UnaryOperation.create(UnaryOperation.Operator.SUM, prod)
+    # Accumulate the result
+    return Assignment.create(
+        Reference(result),
+        BinaryOperation.create(BinaryOperation.Operator.ADD,
+                               Reference(result), inner))
 
 
 # =============================================================================
