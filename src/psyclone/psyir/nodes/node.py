@@ -624,7 +624,7 @@ class Node(object):
     @property
     def dag_name(self):
         '''Return the dag name for this node. This includes the name of the
-        class and a index of its relative position to the parent Routine. If
+        class and the index of its relative position to the parent Routine. If
         no parent Routine is found, the index used is the absolute position
         in the tree.
 

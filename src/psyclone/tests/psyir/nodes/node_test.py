@@ -511,7 +511,7 @@ def test_dag_names():
     # class and the relative position to the ancestor routine
     assert schedule.children[4].start_expr.dag_name == "Literal_6"
 
-    # Some classes have their won specialisation of the dag_name
+    # Some classes have their own specialisation of the dag_name
     assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
     assert schedule.children[4].dag_name == "loop_5"
