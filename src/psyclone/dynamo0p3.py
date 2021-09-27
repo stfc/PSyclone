@@ -1042,12 +1042,12 @@ class DynamoPSy(PSy):
         kind_names.add(api_config.default_kind["integer"])
 
         # Add any precision associated with scalar kernel arguments.
-        for invoke in self.invokes.invoke_list:
-            schedule = invoke.schedule
-            for kernel in schedule.kernels():
-                for arg in kernel.args:
-                    if arg.is_scalar:
-                        kind_names.add(arg.precision)
+        #for invoke in self.invokes.invoke_list:
+        #    schedule = invoke.schedule
+        #    for kernel in schedule.kernels():
+        #        for arg in kernel.args:
+        #            if arg.is_scalar:
+        #                kind_names.add(arg.precision)
         # Add precision names. The assumption is that all of these
         # come from the same infrastructure module. Sort the names so
         # that all versions of Python return the same value (for
@@ -2246,9 +2246,14 @@ class DynReferenceElement(DynCollection):
 
         # Declare the necessary arrays
         array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
-        parent.add(DeclGen(parent, datatype="real",
-                           kind=api_config.default_kind["real"],
+        my_kind = api_config.default_kind["real"]
+        parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                            allocatable=True, entity_decls=array_decls))
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        const_mod_list = self._invoke.invokes.psy. \
+            infrastructure_modules[const_mod]
+        if my_kind not in const_mod_list:
+            const_mod_list.append(my_kind)
 
     def _stub_declarations(self, parent):
         '''
@@ -3081,7 +3086,8 @@ class DynProxies(DynCollection):
             except KeyError:
                 # This datatype has not been seen before so create a
                 # new entry
-                field_datatype_map[(arg.proxy_data_type, arg.module_name)] = [arg]
+                field_datatype_map[
+                    (arg.proxy_data_type, arg.module_name)] = [arg]
 
         # Add the Invoke subroutine argument declarations for the
         # different fields type proxy's
@@ -3372,6 +3378,11 @@ class LFRicScalarArgs(DynCollection):
 
         '''
         const = LFRicConstants()
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        const_mod_list = None
+        if self._invoke:
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
@@ -3383,6 +3394,11 @@ class LFRicScalarArgs(DynCollection):
                     DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=real_scalar_names,
                             intent=intent))
+                if self._invoke:
+                    if dkind not in const_mod_list:
+                        const_mod_list.append(dkind)
+                elif self._kernel:
+                    self._kernel.argument_kinds.add(dkind)
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -3395,26 +3411,28 @@ class LFRicScalarArgs(DynCollection):
                     DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=integer_scalar_names,
                             intent=intent))
+                if self._invoke:
+                    if dkind not in const_mod_list:
+                        const_mod_list.append(dkind)
+                elif self._kernel:
+                    self._kernel.argument_kinds.add(dkind)
 
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
                 dtype = self._logical_scalars[intent][0].intrinsic_type
                 dkind = self._logical_scalars[intent][0].precision
-                if self._invoke:
-                    const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-                    psy = self._invoke.invokes.psy
-                    const_module = psy.infrastructure_modules[const_mod]
-                    if not dkind in const_module:
-                        const_module.append(dkind)
-                if self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
                 logical_scalar_names = [arg.declaration_name for arg
                                         in self._logical_scalars[intent]]
                 parent.add(
                     DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=logical_scalar_names,
                             intent=intent))
+                if self._invoke:
+                    if dkind not in const_mod_list:
+                        const_mod_list.append(dkind)
+                elif self._kernel:
+                    self._kernel.argument_kinds.add(dkind)
 
 
 class DynLMAOperators(DynCollection):
@@ -3636,6 +3654,13 @@ class DynCMAOperators(DynCollection):
             parent.add(DeclGen(parent, datatype=cma_dtype,
                                kind=cma_kind, pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
+            const = LFRicConstants()
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if cma_kind not in const_mod_list:
+                const_mod_list.append(cma_kind)
+            
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
@@ -4505,10 +4530,16 @@ class DynBasisFunctions(DynCollection):
                 rhs="%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
                               "get_nodes()"]),
                 pointer=True))
+            my_kind = api_config.default_kind["real"]
             parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+                               kind=my_kind,
                                pointer=True,
                                entity_decls=[nodes_name+"(:,:) => null()"]))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if my_kind not in const_mod_list:
+                const_mod_list.append(my_kind)
 
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
@@ -4557,10 +4588,15 @@ class DynBasisFunctions(DynCollection):
 
         # declare the basis function arrays
         if basis_declarations:
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+            my_kind = api_config.default_kind["real"]
+            parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                                allocatable=True,
                                entity_decls=basis_declarations))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if my_kind not in const_mod_list:
+                const_mod_list.append(my_kind)
 
         # Compute the values for any basis arrays
         self._compute_basis_fns(parent)
@@ -4721,10 +4757,17 @@ class DynBasisFunctions(DynCollection):
                                   for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
+            my_kind = api_config.default_kind["real"]
             parent.add(
-                DeclGen(parent, datatype="real",
-                        kind=api_config.default_kind["real"],
+                DeclGen(parent, datatype="real", kind=my_kind,
                         pointer=True, entity_decls=decl_list))
+            const = LFRicConstants()
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if my_kind not in const_mod_list:
+                const_mod_list.append(my_kind)
+
             # Get the quadrature proxy
             proxy_name = qr_arg_name + "_proxy"
             parent.add(
@@ -4797,10 +4840,16 @@ class DynBasisFunctions(DynCollection):
             decl_list = [
                 symbol_table.symbol_from_tag(name+"_"+qr_arg_name).name
                 + "(:,:) => null()" for name in self.qr_weight_vars[qr_type]]
+            my_kind = api_config.default_kind["real"]
             parent.add(
-                DeclGen(parent, datatype="real", pointer=True,
-                        kind=api_config.default_kind["real"],
+                DeclGen(parent, datatype="real", pointer=True, kind=my_kind,
                         entity_decls=decl_list))
+            const = LFRicConstants()
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if my_kind not in const_mod_list:
+                const_mod_list.append(my_kind)
             # Get the quadrature proxy
             proxy_name = symbol_table.symbol_from_tag(
                 qr_arg_name+"_proxy").name
@@ -8707,13 +8756,15 @@ class DynKernelArgument(KernelArgument):
 
             # Check the metadata and algorithm types are consistent if
             # the algorithm information is available and is not being ignored.
-            if use_alg_info and alg_datatype and alg_datatype != self.intrinsic_type:
+            if use_alg_info and alg_datatype and \
+               alg_datatype != self.intrinsic_type:
                 raise GenerationError(
                     "The kernel metadata for argument '{0}' in kernel '{1}' "
                     "specifies this argument should be a scalar of type "
                     "'{2}' but in the algorithm layer it is defined as a "
                     "'{3}'.".format(
-                        self.name, self._call.name, self.intrinsic_type, alg_datatype))
+                        self.name, self._call.name, self.intrinsic_type,
+                        alg_datatype))
 
             # If the algorithm information is not being ignored and
             # the datatype is known in the algorithm layer then its
@@ -8742,7 +8793,8 @@ class DynKernelArgument(KernelArgument):
                 # then check that the expected precision and the
                 # precision defined in the algorithn layer are
                 # the same.
-                if use_alg_info and alg_precision and alg_precision != expected_precision:
+                if use_alg_info and alg_precision and \
+                   alg_precision != expected_precision:
                     raise GenerationError(
                         "This scalar is a reduction which assumes precision "
                         "of type '{0}' but the algorithm declares this "
@@ -8851,7 +8903,8 @@ class DynKernelArgument(KernelArgument):
                         "The metadata for argument '{0}' in kernel '{1}' "
                         "specifies that this is a columnwise operator, "
                         "however it is declared as a '{2}' in the algorithm "
-                        "code.".format(self.name, self._call.name, alg_datatype))
+                        "code.".format(
+                            self.name, self._call.name, alg_datatype))
                 argtype = "columnwise_operator"
             else:
                 raise InternalError(

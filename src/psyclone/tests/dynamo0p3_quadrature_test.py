@@ -86,6 +86,7 @@ def test_field_xyoz(tmpdir):
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
+        "      USE constants_mod, ONLY: r_def\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
@@ -276,6 +277,7 @@ def test_face_qr(tmpdir, dist_mem):
 
     output_decls = (
         "      USE testkern_qr_faces_mod, ONLY: testkern_qr_faces_code\n"
+        "      USE constants_mod, ONLY: r_def\n"
         "      USE quadrature_face_mod, ONLY: quadrature_face_type, "
         "quadrature_face_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n")
