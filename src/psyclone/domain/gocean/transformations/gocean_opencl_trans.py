@@ -42,8 +42,7 @@ from psyclone.transformations import TransformationError, KernelTrans
 from psyclone.psyGen import args_filter, InvokeSchedule
 from psyclone.gocean1p0 import GOInvokeSchedule
 
-from psyclone.configuration import Config, ConfigurationError
-from psyclone.f2pygen import PSyIRGen
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.symbols import ContainerSymbol, RoutineSymbol, \
     ImportInterface
@@ -73,6 +72,8 @@ class GOOpenCLTrans(Transformation):
     _OCL_MANAGEMENT_QUEUE = 1
 
     _max_queue_number = 1
+    _enable_profiling = False
+    _out_of_order = False
 
     @property
     def name(self):
@@ -101,10 +102,17 @@ class GOOpenCLTrans(Transformation):
         :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
-        self.validate(node, options)
 
         if not options:
             options = {}
+
+        self.validate(node, options)
+
+        if 'enable_profiling' in options:
+            self._enable_profiling = options['enable_profiling']
+
+        if 'out_of_order' in options:
+            self._out_of_order = options['out_of_order']
 
         try:
             # Store the provided OpenCL options in the InvokeSchedule.
@@ -147,9 +155,6 @@ class GOOpenCLTrans(Transformation):
         self._insert_ocl_write_to_device_function(node.root)
         self._insert_ocl_initialise_buffer(node.root)
 
-
-
-
         return None, None
 
     def validate(self, node, options=None):
@@ -164,8 +169,11 @@ class GOOpenCLTrans(Transformation):
 
         :raises TransformationError: if the InvokeSchedule is not for the \
                                      GOcean1.0 API.
-        :raises NotImplementedError: if any of the kernels have arguments \
-                                     passed by value.
+        :raises TransformationError: if any of the kernels have arguments \
+                                     which are passed as a literal.
+        :raises TransformationError: if any of the provided options is invalid.
+        :raises TransformationError: if any kernel in this invoke has a \
+                                     global variable used by an import.
         '''
 
         if isinstance(node, InvokeSchedule):
@@ -179,13 +187,28 @@ class GOOpenCLTrans(Transformation):
                 "Error in GOOpenCLTrans: the supplied node must be a (sub-"
                 "class of) InvokeSchedule but got {0}".format(type(node)))
 
-        # Now we need to check the arguments of all the kernels
+        # Validate options map
+        valid_options = ['end_barrier', 'enable_profiling', 'out_of_order']
+        for key, value in options.items():
+            if key in valid_options:
+                # All current options should contain boolean values
+                if not isinstance(value, bool):
+                    raise TransformationError(
+                        "InvokeSchedule OpenCL option '{0}' "
+                        "should be a boolean.".format(key))
+            else:
+                raise TransformationError(
+                    "InvokeSchedule does not support the OpenCL option '{0}'. "
+                    "The supported options are: {1}."
+                    "".format(key, valid_options))
+
+        # Now we need to check that any of the invoke arguments is a literal
         args = args_filter(node.args, arg_types=["scalar"], is_literal=True)
         for arg in args:
             if arg.is_literal:
-                raise NotImplementedError(
+                raise TransformationError(
                     "Cannot generate OpenCL for Invokes that contain "
-                    "kernels with arguments passed by value")
+                    "kernels with arguments which are a literal")
 
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
@@ -203,7 +226,6 @@ class GOOpenCLTrans(Transformation):
                     "transformation to convert such symbols to kernel "
                     "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
-
 
     def _insert_opencl_init_routine(self, node):
         '''
@@ -232,9 +254,21 @@ class GOOpenCLTrans(Transformation):
             "psy_init", symbol_type=RoutineSymbol,
             tag="ocl_init_routine").name
 
+        distributed_memory = Config.get().distributed_memory
+        devices_per_node = Config.get().ocl_devices_per_node
+
+        if devices_per_node > 1 and distributed_memory:
+            declaration = "USE parallel_mod, ONLY: get_rank"
+            statement = ("ocl_device_num = mod(get_rank() - 1, {0}) + 1"
+                         "".format(devices_per_node))
+        else:
+            declaration = ""
+            statement = ""
+
         # Code of the subroutine in Fortran
         code = '''
     subroutine psy_init()
+      {0}
       use fortcl, only: ocl_env_init, add_kernels
       character(len=30) kernel_names(1)
       integer :: ocl_device_num=1
@@ -243,14 +277,21 @@ class GOOpenCLTrans(Transformation):
       if (.not. initialised) then
         initialised = .true.
         ! initialise the opencl environment/device
-        call ocl_env_init({0}, ocl_device_num, .false., .false.)
+        {1}
+        call ocl_env_init({2}, ocl_device_num, {3}, {4})
         ! the kernels this psy layer module requires
         kernel_names(1) = "compute_cu_code"
         ! create the opencl kernel objects. expects to find all of the compiled
         ! kernels in fortcl_kernels_file.
         call add_kernels(1, kernel_names)
       end if
-    end subroutine psy_init'''.format(self._max_queue_number)
+    end subroutine psy_init'''.format(
+            declaration,
+            statement,
+            self._max_queue_number,
+            ".true." if self._enable_profiling else ".false.",
+            ".true." if self._out_of_order else ".false.",
+            )
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()

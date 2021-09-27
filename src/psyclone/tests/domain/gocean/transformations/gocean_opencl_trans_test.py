@@ -186,6 +186,7 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
       integer, save :: num_cmd_queues
       '''
+    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -504,7 +505,7 @@ field%device_ptr)
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_psy_init(kernel_outputdir, monkeypatch):
+def test_psy_init_defaults(kernel_outputdir, monkeypatch):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=True)
@@ -536,11 +537,31 @@ def test_psy_init(kernel_outputdir, monkeypatch):
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
-    # Test with a non-default number of OpenCL queues
+
+def test_psy_init_non_default_values(kernel_outputdir, monkeypatch):
+    ''' Test that we create the appropriate subroutine to initialise a
+    non-default OpenCL environment. '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=True)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
+    # Test with a different configuration value for OCL_DEVICES_PER_NODE
+    # that needs a mod() and a get_rank() expression, and a kernel with
+    # a higher queue number.
+    monkeypatch.setattr(Config.get(), "_ocl_devices_per_node", 2)
     sched.coded_kernels()[0].set_opencl_options({'queue_number': 5})
+
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
     generated_code = str(psy.gen)
+
     expected = '''
     SUBROUTINE psy_init()
+      USE parallel_mod, ONLY: get_rank
       USE fortcl, ONLY: add_kernels, ocl_env_init
       CHARACTER(LEN=30) kernel_names(1)
       INTEGER :: ocl_device_num = 1
@@ -548,41 +569,13 @@ def test_psy_init(kernel_outputdir, monkeypatch):
 
       IF (.NOT.initialised) THEN
         initialised = .true.
-        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
+        ocl_device_num = MOD(get_rank() - 1, 2) + 1
+        CALL ocl_env_init(5, ocl_device_num, .false., .false.)
         kernel_names(1) = 'compute_cu_code'
         CALL add_kernels(1, kernel_names)
       END IF
 
     END SUBROUTINE psy_init'''
-    print(generated_code)
-    assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
-
-    # Test with a different configuration value for OCL_DEVICES_PER_NODE
-    # that needs a mod() and a get_rank() expression.
-    monkeypatch.setattr(Config.get(), "_ocl_devices_per_node", 2)
-    generated_code = str(psy.gen)
-    expected = (
-        "    SUBROUTINE psy_init()\n"
-        "      USE parallel_mod, ONLY: get_rank\n"
-        "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
-        "      CHARACTER(LEN=30) kernel_names(1)\n"
-        "      INTEGER :: ocl_device_num=1\n"
-        "      LOGICAL, save :: initialised=.False.\n"
-        "      ! Check to make sure we only execute this routine once\n"
-        "      IF (.not. initialised) THEN\n"
-        "        initialised = .True.\n"
-        "        ! Initialise the OpenCL environment/device\n"
-        "        ocl_device_num = mod(get_rank() - 1, 2) + 1\n"
-        "        CALL ocl_env_init(5, ocl_device_num, .False., .False.)\n"
-        "        ! The kernels this PSy layer module requires\n"
-        "        kernel_names(1) = \"compute_cu_code\"\n"
-        "        ! Create the OpenCL kernel objects. Expects to find all of "
-        "the compiled\n"
-        "        ! kernels in FORTCL_KERNELS_FILE.\n"
-        "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF\n"
-        "    END SUBROUTINE psy_init\n")
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -603,7 +596,7 @@ def test_psy_init_with_options(kernel_outputdir):
                                  "enable_profiling": True,
                                  "out_of_order": True})
     generated_code = str(psy.gen)
-    assert "CALL ocl_env_init(1, ocl_device_num, .True., .True.)\n" \
+    assert "CALL ocl_env_init(1, ocl_device_num, .true., .true.)\n" \
         in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -628,16 +621,16 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
 
     # Set the boundaries for this kernel
     expected = '''
-        xstart = cu_fld%internal%xstart
-        xstop = cu_fld%internal%xstop
-        ystart = cu_fld%internal%ystart
-        ystop = cu_fld%internal%ystop'''
+      xstart = cu_fld % internal % xstart
+      xstop = cu_fld % internal % xstop
+      ystart = cu_fld % internal % ystart
+      ystop = cu_fld % internal % ystop'''
 
     # Cast dl_esm_inf pointers to cl_mem handlers
     expected += '''
-      cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
-      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
-      u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
+      cu_fld_cl_mem = TRANSFER(cu_fld % device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = TRANSFER(p_fld % device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = TRANSFER(u_fld % device_ptr, u_fld_cl_mem)'''
 
     # Call the set_args subroutine with the boundaries corrected for the
     # OpenCL 0-indexing
@@ -649,16 +642,16 @@ ystart - 1, ystop - 1)'''
 
     # Set up globalsize and localsize values
     expected += '''
-      globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
+      globalsize = (/p_fld % grid % nx, p_fld % grid % ny/)
       localsize = (/64, 1/)'''
 
     if debug_mode:
         # Check that the globalsize first dimension is a multiple of
         # the localsize first dimension
         expected += '''
-      IF (mod(p_fld%grid%nx, 64) .ne. 0) THEN
+      IF (MOD(p_fld % grid % nx, 64) .NE. 0) THEN
         CALL check_status("Global size is not a multiple of local size \
-(mandatory in OpenCL < 2.0).", -1)
+(mandatory in OpenCL < 2.0).", - 1)
       END IF'''
 
     if debug_mode:
@@ -669,11 +662,9 @@ ystart - 1, ystop - 1)'''
       CALL check_status('Errors before compute_cu_code launch', ierr)'''
 
     expected += '''
-      ! Launch the kernel
       ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
 2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
-C_NULL_PTR)
-      !'''
+C_NULL_PTR)'''
 
     if debug_mode:
         # Check that there are no errors during the kernel launch or during
@@ -781,6 +772,7 @@ def test_opencl_options_effects():
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
@@ -789,38 +781,55 @@ def test_opencl_options_effects():
 
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
-    generated_code = str(psy.gen)
 
     # By default there is 1 queue, with an end barrier and local_size is 64
+    generated_code = str(psy.gen)
     assert "localsize = (/64, 1/)" in generated_code
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(1), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
-    assert "! Block until all kernels have finished\n" \
-        "      ierr = clFinish(cmd_queues(1))" in generated_code
+    assert "ierr = clFinish(cmd_queues(1))" in generated_code
     assert "ierr = clFinish(cmd_queues(2))" not in generated_code
+
+    # Reparse the example as changes are not possible after a psy.gen
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
 
     # Change kernel local_size to 4
     sched.coded_kernels()[0].set_opencl_options({'local_size': 4})
     generated_code = str(psy.gen)
     assert "localsize = (/4, 1/)" in generated_code
 
+    # Reparse the example as changes are not possible after a psy.gen
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     # Change kernel queue to 2 (the barrier should then also go up to 2)
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
     sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
+
     generated_code = str(psy.gen)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
-    assert "! Block until all kernels have finished\n" \
-        "      ierr = clFinish(cmd_queues(1))\n" \
-        "      ierr = clFinish(cmd_queues(2))\n" in generated_code
-    assert "ierr = clFinish(cmd_queues(3))" not in generated_code
-
-    # Remove barrier at the end of the Invoke
-    otrans.apply(sched, options={'end_barrier': False})
-    generated_code = str(psy.gen)
-    assert "! Block until all kernels have finished" not in generated_code
-    assert "ierr = clFinish(cmd_queues(2))" not in generated_code
+    assert "      ierr = clFinish(cmd_queues(1))\n" \
+           "      ierr = clFinish(cmd_queues(2))\n" in generated_code
 
 
 @pytest.mark.parametrize("dist_mem", [True, False])
@@ -852,15 +861,16 @@ def test_multiple_command_queues(dist_mem):
 
     kernelbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      ! Launch the kernel'''
+      ierr = clEnqueueNDRangeKernel'''
 
     haloexbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      CALL cu_fld%halo_exchange(depth=1)'''
+      CALL cu_fld % halo_exchange(depth = 1)'''
 
     if dist_mem:
         # In distributed memory the command_queue synchronisation happens
         # before the HaloExchange (so it is not necessary before the kernel)
+        print(generated_code)
         assert kernelbarrier not in generated_code
         assert haloexbarrier in generated_code
     else:

@@ -208,12 +208,14 @@ class GOInvokes(Invokes):
         for invoke in self.invoke_list:
             # TODO 1134: The opencl path is still largely implemented using
             # the f2pygen and cannot be processed by the backend yet.
-            if isinstance(invoke.schedule, GOInvokeSchedule) and invoke.schedule.opencl:
+            if isinstance(invoke.schedule, GOInvokeSchedule) and \
+                    invoke.schedule.opencl:
                 name = invoke.schedule.name
                 temporary_module = ModuleGen("dummy")
                 super(GOInvokes, self).gen_code(temporary_module)
                 for item in temporary_module.root.content:
-                    if hasattr(item, 'name') and item.name == name:
+                    if hasattr(item, 'name') and \
+                            (item.name == name or item.name.endswith("set_args")):
                         print(item.name)
                         reader = FortranStringReader(str(item))
                         reader.set_format(FortranFormat(True, True))
