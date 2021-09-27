@@ -42,6 +42,7 @@ from __future__ import absolute_import
 
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import PSyDataNode
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
@@ -140,3 +141,35 @@ def test_class_definitions():
     assert "Error in 'prefix' parameter: found 'invalid-prefix', expected " \
         "one of " in str(err.value)
     assert "as defined in /" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_psy_data_get_unique_region_names():
+    '''Tests the get_unique_region_names function.'''
+    data_trans = PSyDataTrans()
+    region_name = data_trans.\
+        get_unique_region_name([], {"region_name": ("a", "b")})
+    assert region_name == ("a", "b")
+
+    with pytest.raises(InternalError) as err:
+        region_name = data_trans.\
+            get_unique_region_name([], {"region_name": 1})
+    assert "The name must be a tuple containing two non-empty strings." \
+        in str(err.value)
+
+    with pytest.raises(InternalError) as err:
+        region_name = data_trans.\
+            get_unique_region_name([], {"region_name": ("a", "")})
+    assert "The name must be a tuple containing two non-empty strings." \
+        in str(err.value)
+
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
+    region_name = data_trans.get_unique_region_name(invoke.schedule, {})
+    assert region_name == ('psy_single_invoke_different_iterates_over',
+                           'invoke_0:r0')
+
+    region_name = data_trans.\
+        get_unique_region_name([invoke.schedule[0]], {})
+    assert region_name == ('psy_single_invoke_different_iterates_over',
+                           'invoke_0:compute_cv_code:r0')

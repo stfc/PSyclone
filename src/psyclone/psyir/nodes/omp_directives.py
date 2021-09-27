@@ -129,20 +129,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_taskwait_" + str(position)
 
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes. \
-                            Default value is True.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-
-        '''
-        return self.coloured_name(colour) + "[OMP taskwait]"
-
     def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
@@ -268,20 +254,6 @@ class OMPSingleDirective(OMPSerialDirective):
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_single_" + str(position)
 
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes. \
-                            Default value is True.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-
-        '''
-        return self.coloured_name(colour) + "[OMP single]"
-
     def gen_code(self, parent):
         '''Generate the fortran OMP Single Directive and any associated
         code
@@ -354,18 +326,6 @@ class OMPMasterDirective(OMPSerialDirective):
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_master_" + str(position)
 
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP master]"
-
     def gen_code(self, parent):
         '''Generate the Fortran OMP Master Directive and any associated
         code
@@ -422,18 +382,6 @@ class OMPParallelDirective(OMPRegionDirective):
         '''
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_parallel_" + str(position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP parallel]"
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
@@ -698,18 +646,6 @@ class OMPTaskloopDirective(OMPRegionDirective):
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_taskloop_" + str(position)
 
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return "{0}[OMP taskloop]".format(self.coloured_name(colour))
-
     def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
@@ -853,10 +789,10 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
         '''
         if self.reductions():
-            reprod = "[reprod={0}]".format(self._reprod)
+            reprod = "reprod={0}".format(self._reprod)
         else:
             reprod = ""
-        return "{0}[OMP do]{1}".format(self.coloured_name(colour), reprod)
+        return "{0}[{1}]".format(self.coloured_name(colour), reprod)
 
     def _reduction_string(self):
         ''' Return the OMP reduction information as a string '''
@@ -993,18 +929,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_parallel_do_" + str(position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP parallel do]"
 
     def gen_code(self, parent):
 
