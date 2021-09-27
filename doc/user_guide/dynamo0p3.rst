@@ -797,13 +797,13 @@ For example::
              data is read. To avoid this potential problem in user
              code it is recommended that a redundant computation
              transformation is added to compute all ``setval_c`` and
-             ``setval_x`` built-in calls (see :ref:`built-ins`) to the
-             same halo depth as the associated ``GH_INC`` access -
-             which is level-1 without any redundant computation
-             transformations being applied to the associated
-             loops. This will guarantee that all data has been
-             initialised with a value before it is incremented and
-             avoid any potential exceptions.
+             ``setval_x`` Built-in calls (see :ref:`lfric-built-ins`)
+             to the same halo depth as the associated ``GH_INC``
+             access - which is level-1 without any redundant
+             computation transformations being applied to the
+             associated loops. This will guarantee that all data has
+             been initialised with a value before it is incremented
+             and avoid any potential exceptions.
 
 .. note:: In the LFRic API only :ref:`lfric-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).

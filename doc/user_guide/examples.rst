@@ -548,7 +548,7 @@ kernel call. For example:
     ./extract
     ncdump ./main-update.nc | less
 
-Example 18: Incrementing a Continuous Field After Reading it
+Example 18: Incrementing a Continuous Field After Reading It
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example of a ``GH_READINC`` access. A kernel with ``GH_READINC``

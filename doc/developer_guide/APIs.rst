@@ -459,7 +459,7 @@ in the halo have not yet been written to (i.e. there will be an access
 to uninitialised data).
 
 To avoid this problem the user guide currently recommends that all
-``setval_c`` and ``setval_x`` built-in calls (see
+``setval_c`` and ``setval_x`` Built-in calls (see
 :ref:`user_guide:built-ins` for more details) compute to the level-1
 halo (by using the redundant computation transformation). This will
 guarantee that all modified halo data has been initialised with a
@@ -467,11 +467,11 @@ value. If redundant computation transformations have been added then
 it is the outermost modified halo that will not require a halo
 exchange i.e. a loop iterating to the level-``n`` halo will result in
 a halo exchange to the level-(``n-1``) halo being added before the
-loop, so the above built-in calls would need to compute redundantly to
+loop, so the above Built-in calls would need to compute redundantly to
 the appropriate depth. In the future it may be that we should require
 fields with halos to have all of their data initialised to a set value
 when they are created, add an option to PSyclone, default to computing
-redundantly for the above built-ins, or generate code that sets the
+redundantly for the above Built-ins, or generate code that sets the
 halo to a specific value locally before the loop is called.
 
 
@@ -480,8 +480,9 @@ Cell iterators: Discontinuous
 
 When a kernel is written to iterate over cells and modify a
 discontinuous field, PSyclone only needs to compute dofs on owned
-cells. Users can apply a redundant computation transformation to
-redundantly compute into the halo but this is not done by default.
+cells. Users can apply a redundant computation transformation (see the
+:ref:`dynamo0.3-api-transformations` section) to redundantly compute
+into the halo but this is not done by default.
 
 .. _annexed_dofs:
 
