@@ -186,7 +186,6 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
       integer, save :: num_cmd_queues
       '''
-    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -254,7 +253,6 @@ p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
         call u_fld % write_to_device
       end if'''
 
-    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -870,7 +868,6 @@ def test_multiple_command_queues(dist_mem):
     if dist_mem:
         # In distributed memory the command_queue synchronisation happens
         # before the HaloExchange (so it is not necessary before the kernel)
-        print(generated_code)
         assert kernelbarrier not in generated_code
         assert haloexbarrier in generated_code
     else:
@@ -902,13 +899,12 @@ def test_set_kern_args(kernel_outputdir):
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), intent(in), target :: cu_fld, p_fld, u_fld
-      INTEGER, intent(in), target :: xstart, xstop, ystart, ystop
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: cu_fld, p_fld, u_fld
+      INTEGER, INTENT(IN), TARGET :: xstart, xstop, ystart, ystop
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: kernel_obj'''
+      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj'''
     assert expected in generated_code
     expected = '''\
-      ! Set the arguments for the compute_cu_code OpenCL Kernel
       ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
       CALL check_status('clSetKernelArg: arg 0 of compute_cu_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(p_fld), C_LOC(p_fld))
@@ -961,10 +957,10 @@ in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), intent(in), target :: out_fld, in_out_fld, \
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: out_fld, in_out_fld, \
 in_fld, dx, gphiu
-      REAL(KIND=go_wp), intent(in), target :: dx_1
-      INTEGER, intent(in), target :: xstart, xstop, ystart, ystop'''
+      REAL(KIND=go_wp), INTENT(IN), TARGET :: dx_1
+      INTEGER, INTENT(IN), TARGET :: xstart, xstop, ystart, ystop'''
     assert expected in generated_code
     # TODO 284: Currently this example cannot be compiled because it needs to
     # import a module which won't be found on kernel_outputdir
@@ -993,16 +989,15 @@ tmask, xstart, xstop_1, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), intent(in), target :: ssh_fld, tmask
-      INTEGER, intent(in), target :: xstop
-      REAL(KIND=go_wp), intent(in), target :: a_scalar
-      INTEGER, intent(in), target :: xstart, xstop_1, ystart, ystop
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld, tmask
+      INTEGER, INTENT(IN), TARGET :: xstop
+      REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
+      INTEGER, INTENT(IN), TARGET :: xstart, xstop_1, ystart, ystop
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: kernel_obj
+      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
 '''
     assert expected in generated_code
     expected = '''\
-      ! Set the arguments for the bc_ssh_code OpenCL Kernel
       ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(a_scalar), C_LOC(a_scalar))
       CALL check_status('clSetKernelArg: arg 0 of bc_ssh_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
@@ -1037,10 +1032,10 @@ def test_set_arg_const_scalar():
                         API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = GOOpenCLTrans()
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("Cannot generate OpenCL for Invokes that contain kernels with "
-            "arguments passed by value" in str(err.value))
+            "arguments which are a literal" in str(err.value))
 
 
 @pytest.mark.usefixtures("kernel_outputdir")

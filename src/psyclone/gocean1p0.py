@@ -222,8 +222,11 @@ class GOInvokes(Invokes):
                         sub = Subroutine_Subprogram(reader)
                         codeblock = CodeBlock(
                             [sub], CodeBlock.Structure.STATEMENT)
-                        invoke.schedule.replace_with(codeblock)
-                        invoke.schedule = codeblock
+                        if item.name == name:
+                            invoke.schedule.replace_with(codeblock)
+                            invoke.schedule = codeblock
+                        else:
+                            invoke.schedule.parent.addchild(codeblock)
 
             # TODO 1168: PSyDataNodes are not supported by the backend yet.
             # For now the f2pygen gen_code path is used instead
