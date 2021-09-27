@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Top-level driver functions for PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -58,9 +58,21 @@ def main(args):
     '''
     logger = logging.getLogger(__name__)
 
+    # There is a well known bug in argparse when mixing positional and
+    # variable arguments. The simplest solution is to separate them
+    # with --. The usage message is therefore manually updated to
+    # reflect this workaround.
+    def msg():
+        '''Function to overide the argpass usage message'''
+        return ("psyad [-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+                "-a ACTIVE [ACTIVE ...] -- filename")
+
     parser = argparse.ArgumentParser(
         description="Run the PSyclone adjoint code generator on an LFRic "
-        "tangent-linear kernel file")
+        "tangent-linear kernel file", usage=msg())
+    parser.add_argument(
+        '-a', '--active', nargs='+', help='names of active variables',
+        required=True)
     parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
@@ -86,13 +98,17 @@ def main(args):
     # TL Fortran code
     filename = args.filename
     logger.info("Reading kernel file %s", filename)
-    with open(filename) as my_file:
-        tl_fortran_str = my_file.read()
-        tl_fortran_str = six.text_type(tl_fortran_str)
+    try:
+        with open(filename) as my_file:
+            tl_fortran_str = my_file.read()
+            tl_fortran_str = six.text_type(tl_fortran_str)
+    except FileNotFoundError:
+        logger.error("psyad error: file '%s', not found.", filename)
+        sys.exit(1)
 
     # Create the adjoint (and associated test framework if requested)
-    ad_fortran_str, test_fortran_str = generate_adjoint_str(tl_fortran_str,
-                                                            generate_test)
+    ad_fortran_str, test_fortran_str = generate_adjoint_str(
+        tl_fortran_str, args.active, create_test=generate_test)
 
     # Output the Fortran code for the adjoint kernel
     if args.oad:
