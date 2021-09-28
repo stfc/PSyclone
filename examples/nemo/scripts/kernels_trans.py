@@ -246,26 +246,6 @@ def valid_acc_kernel(node):
             ksched = kernel.get_kernel_schedule()
             excluded_nodes += ksched.walk(IfBlock)
 
-    # Since SELECT blocks are mapped to nested IfBlocks in the PSyIR,
-    # we have to be careful to exclude attempts to put multiple
-    # CASE branches inside a single region. (Once we are no longer
-    # reliant on the original fparser2 parse tree this restriction
-    # can be lifted - #435.)
-    # Is the supplied node a child of an IfBlock originating from a
-    # SELECT block?
-    if isinstance(node, IfBlock) and "was_case" in node.annotations:
-        if isinstance(node.parent.parent, IfBlock) and \
-           "was_case" in node.parent.parent.annotations:
-            log_msg(routine_name, "cannot split children of a SELECT", node)
-            return False
-
-    if (isinstance(node.parent.parent, IfBlock) and
-            "was_where" in node.parent.parent.annotations):
-        # Cannot put KERNELS *within* a loop nest tht originated from
-        # a WHERE construct.
-        log_msg(routine_name, "cannot put KERNELs *inside* a WHERE", node)
-        return False
-
     for enode in excluded_nodes:
         if isinstance(enode, (CodeBlock, Return, Call)):
             log_msg(routine_name,
@@ -585,14 +565,7 @@ def add_profile_region(nodes):
                 # 'IF(condition) CALL blah()' inside profiling regions
                 return
         try:
-            if len(nodes) == 1 and isinstance(nodes[0], IfBlock) and \
-               "was_elseif" in nodes[0].annotations:
-                # Special case for IfBlocks that represent else-ifs in the
-                # fparser2 parse tree - we can't apply transformations to
-                # them, only to their body. TODO #435.
-                PROFILE_TRANS.apply(nodes[0].if_body)
-            else:
-                PROFILE_TRANS.apply(nodes)
+            PROFILE_TRANS.apply(nodes)
         except TransformationError:
             pass
 
@@ -632,17 +605,7 @@ def try_kernels_trans(nodes):
         excluding = EXCLUDING["default"]
 
     try:
-        if len(nodes) == 1 and isinstance(nodes[0], IfBlock) and \
-           "was_elseif" in nodes[0].annotations:
-            # Special case for IfBlocks that represent else-ifs in the fparser2
-            # parse tree - we can't apply transformations to them, only to
-            # their body. TODO #435.
-            ACC_KERN_TRANS.apply(nodes[0].if_body, {"default_present": False})
-            if nodes[0].else_body and nodes[0].else_body.walk(Loop):
-                ACC_KERN_TRANS.apply(nodes[0].else_body,
-                                     {"default_present": False})
-        else:
-            ACC_KERN_TRANS.apply(nodes, {"default_present": False})
+        ACC_KERN_TRANS.apply(nodes, {"default_present": False})
 
         # Force the compiler to parallelise the loops within this kernels
         # region if required. We also put COLLAPSE on any tightly-nested
