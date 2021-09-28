@@ -63,7 +63,8 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective, OMPTaskloopDirective
+    ACCKernelsDirective, OMPTaskloopDirective, OMPSerialDirective, \
+    OMPTaskwaitDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -561,6 +562,235 @@ class OMPTaskloopTrans(ParallelLoopTrans):
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
         return rval
+
+
+class OMPTaskwaitTrans(Transformation):
+
+    '''
+    Adds zero or more OpenMP Taskwait directives to an OMP parallel region.
+    This transformation will add directives to satisfy dependencies between
+    Taskloop directives without an associated taskgroup (i.e. no nogroup
+    clause). It also tries to minimise the number added to maximise available
+    parallelism.
+
+    For example:
+
+    >>> from pysclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> from psyclone.transformations import OMPTaskloopTrans, OMPTaskwaitTrans
+    >>> singletrans = OMPSingleTrans()
+    >>> paralleltrans = OMPParallelTrans()
+    >>> tasklooptrans = OMPTaskloopTrans()
+    >>> taskwaittrans = OMPTaskwaitTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Apply the OpenMP Taskloop transformation to *every* loop
+    >>> # in the schedule.
+    >>> # This ignores loop dependencies. These must be manually handled
+    >>> # either through end of regions.
+    >>> # TODO: #1368 These can also be handled through the taskwait
+    >>> # directive
+    >>> for child in schedule.children:
+    >>>     tasklooptrans.apply(child, nogroup = true)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # SINGLE region
+    >>> singletrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> paralleltrans.apply(schedule.children)
+    >>> taskwaittrans.apply(schedule.children)
+    >>> schedule.view()
+    '''
+    def __str__(self):
+        rval = ("Adds 'OpenMP TASKWAIT' directives to a loop to satisfy "
+                "'OpenMP TASKLOOP' dependencies")
+        return rval
+
+    def validate(self, node, options=None):
+        '''
+        Validity checks for input arguments.
+
+        :param node: the PSyIR node to validate.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: If the supplied node is not an \
+                                     OMPParallelDirective
+        :raises TransformationError: If there are no OMPTaskloopTrans nodes \
+                                     in this tree.
+        :raises TransformationError: If taskloop dependencies can't be \
+                                     satisfied due to dependencies across \
+                                     barrierless OpenMP Serial Regions.
+        '''
+        # Check the supplied node is an OMPParallelDirective
+        if not isinstance(node, nodes.OMPParallelDirective):
+            raise TransformationError("OMPTaskwaitTrans was supplied a {0} "
+                                      "node, but expected an "
+                                      "OMPParallelDirective".format(
+                                        node.__class__.__name__))
+
+        # Walk the tree to find any OMPTaskloopTrans
+        if node.walk(OMPTaskloopDirective) == []:
+            raise TransformationError("OMPTaskwaitTrans was supplied a "
+                                      "schedule containing no "
+                                      "OMPTaskloopDirectives")
+
+        # Check that all of the dependencies are satisfiable
+        taskloops = node.walk(OMPTaskloopDirective)
+
+        for taskloop in taskloops:
+            forward_dep = taskloop.forward_dependence()
+            if forward_dep is None:
+                continue
+            # Check if the taskloop and its forward dependence are in the
+            # same serial region
+            if (taskloop.ancestor(OMPSerialDirective) is not
+                    forward_dep.ancestor(OMPSerialDirective)):
+                # They're not in the same serial region. Check if our
+                # taskloop is in a waiting Single Directive
+                valid = True
+                ancestor = taskloop.ancestor(OMPSerialDirective)
+                valid = valid and isinstance(ancestor,
+                                             nodes.OMPSingleDirective)
+                if valid:
+                    valid = valid and (not ancestor.nowait())
+                # If not valid, then we're in a Master Directive or a
+                # Single Directive with nowait. In this case we can't
+                # safely guarantee our forward dependency so throw an
+                # error
+                if not valid:
+                    raise TransformationError("Couldn't satisfy the "
+                                              "dependencies due to "
+                                              "taskloop dependencies "
+                                              "across barrierless OMP "
+                                              "serial regions.")
+
+    def apply(self, node, options=None):
+        '''
+        Apply an OMPTaskwait Transformation to the supplied node
+        (which must be a OMPParallelDirective). In the generated code this
+        corresponds to adding zero or more OMPTaskwaitDirectives as
+        appropriate:
+
+        .. code-block:: fortran
+
+          !$OMP PARALLEL
+            ...
+            !$OMP TASKWAIT
+            ...
+            !$OMP TASKWAIT
+            ...
+          !$OMP END PARALLEL
+
+        :param node: the node to which to apply the transformation.
+        :type node: :py:class:`psyclone.f2pygen.DoGen`
+        :param options: a dictionary with options for transformations\
+                        and validation.
+        :type options: dictionary of string:values or None
+
+        :returns: two-tuple of transformed schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
+                 :py:class:`psyclone.undoredo.Memento`)
+        '''
+
+        self.validate(node, options=options)
+
+        schedule = node.root
+        # create a memento of the schedule and the proposed transformation
+        keep = Memento(schedule, self, [node])
+
+        # Find all the OpenMP Single & Master regions
+        task_regions = node.walk(OMPSerialDirective)
+
+        # Loop over the task regions
+        for task_region in task_regions:
+            # Find all of the taskloops
+            taskloops = task_region.walk(OMPTaskloopDirective)
+            # Get the positions of all of the taskloops
+            taskloop_positions = [-1] * len(taskloops)
+            # Get the forward_dependence position of all of the taskloops
+            dependence_position = [None] * len(taskloops)
+            for taskloop, i in enumerate(taskloops):
+                taskloop_positions[i] = taskloop.abs_position()
+                forward_dep = taskloop.forward_dependence()
+                # Check if the taskloop and its forward dependence are in the
+                # same serial region
+                if (taskloops[i].ancestor(OMPSerialDirective) is not
+                        forward_dep.ancestor(OMPSerialDirective)):
+                    # The barrier at the end of our parent
+                    # Single Directive will handle this dependency.
+                    # The validate function already checked that this happens
+                    dependence_position[i] = None
+                else:
+                    # We're in the same OMPSerialDirective so store the
+                    # position of the forward dependency
+                    dependence_position[i] = forward_dep.abs_position()
+            # Forward dependency positions are now computed for this region.
+            # Next we eliminate unneccessary dependencies. We loop over
+            # each dependence. For each dependence we loop over all other
+            # taskloops whose position is before that dependence. If that
+            # dependence is fulfilled by this dependence (i.e.
+            # dependence_position[this] < dependence_position[that]) then
+            # we remove that dependence. If this dependence is fulfilled
+            # by that dependence (i.e. dependence_position[that] <
+            # dependence_position[this]) then we remove this dependence.
+            # This assumes that taskloop_positions is in ascending order,
+            # which I believe to be true by construction.
+            for dep_pos, i in enumerate(dependence_position):
+                if dep_pos is not None:
+                    # Grab the position of the next dependence
+                    next_dependence = dep_pos
+                    # Loop over the other taskloops
+                    for j in range(i+1, len(dependence_position)):
+                        # If this taskloop happens after the next_dependence
+                        # then we can just stop.
+                        if taskloop_positions[j] >= next_dependence:
+                            break
+                        # If the jth taskloop has no dependency then continue
+                        if dependence_position[j] is None:
+                            continue
+                        # Check if next_dependence will satisfy the jth
+                        # taskloops dependency
+                        if next_dependence <= dependence_position[j]:
+                            dependence_position[j] = None
+                        # Check if the jth taskloops dependence will satisfy
+                        # the next_dependence
+                        if dependence_position[j] < next_dependence:
+                            dependence_position[i] = None
+                            # If it does then we can move to the next taskloop
+                            break
+            # dependence_position now contains only the required dependencies
+            # to satisfy the full superset of dependencies. We can loop over
+            # these by index, and if dependence_position[i] is not None then
+            # go to its forward dependency, and insert a TaskwaitDirective
+            # immediately before.
+            for dep_pos, i in enumerate(dependence_position):
+                if dep_pos is not None:
+                    forward_dep = taskloops[i].forward_dependence()
+                    fdep_parent = forward_dep.parent
+                    # Find the position of the forward_dep in its parent's
+                    # children list
+                    loc = -1
+                    for child, j in enumerate(fdep_parent.children):
+                        if child is forward_dep:
+                            loc = j
+                            break
+                    # We've found the position, so we now insert an
+                    # OMPTaskwaitDirective in that location instead
+                    fdep_parent.addchild(loc, OMPTaskwaitDirective())
+
+        # All done, return
+        return schedule, keep
 
 
 class OMPLoopTrans(ParallelLoopTrans):

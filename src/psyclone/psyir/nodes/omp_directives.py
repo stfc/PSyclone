@@ -254,6 +254,16 @@ class OMPSingleDirective(OMPSerialDirective):
         _, position = self._find_position(self.ancestor(Routine))
         return "OMP_single_" + str(position)
 
+    @property
+    def nowait(self):
+        '''
+        Returns whether the nowait clause is specified for this directive.
+
+        :returns: whether the nowait clause is specified for this directive.
+        :rtype: bool
+        '''
+        return self._nowait
+
     def gen_code(self, parent):
         '''Generate the fortran OMP Single Directive and any associated
         code
