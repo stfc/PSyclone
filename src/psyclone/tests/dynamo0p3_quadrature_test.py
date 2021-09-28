@@ -82,11 +82,15 @@ def test_field_xyoz(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert module_declns in generated_code
+
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
-        "      USE constants_mod, ONLY: r_def\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
@@ -275,9 +279,13 @@ def test_face_qr(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
 
+    module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert module_declns in generated_code
+
     output_decls = (
         "      USE testkern_qr_faces_mod, ONLY: testkern_qr_faces_code\n"
-        "      USE constants_mod, ONLY: r_def\n"
         "      USE quadrature_face_mod, ONLY: quadrature_face_type, "
         "quadrature_face_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n")

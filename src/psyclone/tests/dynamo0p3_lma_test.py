@@ -501,12 +501,17 @@ def test_operator_different_spaces(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n")
+    assert module_declns in generated_code
+
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
         "(mapping, coord, qr)\n"
         "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
         "assemble_weak_derivative_w3_w2_kernel_code\n"
-        "      USE constants_mod, ONLY: r_def\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
