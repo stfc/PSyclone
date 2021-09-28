@@ -69,13 +69,14 @@ TEST_API = "dynamo0.3"
 FIELD_CODE = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
-     type(arg_type), meta_args(6) =                             &
-          (/ arg_type(gh_scalar, gh_real,    gh_read),          &
-             arg_type(gh_field,  gh_real,    gh_inc,   w1),     &
-             arg_type(gh_field,  gh_real,    gh_read,  w2),     &
-             arg_type(gh_field,  gh_integer, gh_write, wtheta), &
-             arg_type(gh_field,  gh_integer, gh_read,  w3),     &
-             arg_type(gh_scalar, gh_integer, gh_read)           &
+     type(arg_type), meta_args(7) =                               &
+          (/ arg_type(gh_scalar, gh_real,    gh_read),            &
+             arg_type(gh_field,  gh_real,    gh_readinc, w0),     &
+             arg_type(gh_field,  gh_real,    gh_inc,     w1),     &
+             arg_type(gh_field,  gh_real,    gh_read,    w2),     &
+             arg_type(gh_field,  gh_integer, gh_write,   wtheta), &
+             arg_type(gh_field,  gh_integer, gh_read,    w3),     &
+             arg_type(gh_scalar, gh_integer, gh_read)             &
            /)
      type(func_type), dimension(2) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -97,8 +98,9 @@ def test_ad_fld_type_1st_arg():
     ''' Tests that an error is raised when the first argument descriptor
     metadata for a field is invalid. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = FIELD_CODE.replace("arg_type(gh_field,  gh_real,    gh_inc,   w1)",
-                              "arg_type(gh_hedge, gh_real, gh_inc, w1)", 1)
+    code = FIELD_CODE.replace(
+        "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
+        "arg_type(gh_hedge,  gh_real,    gh_inc,     w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
@@ -117,8 +119,8 @@ def test_ad_field_invalid_data_type():
     name = "testkern_field_type"
     # Check real field
     code = FIELD_CODE.replace(
-        "arg_type(gh_field,  gh_real,    gh_inc,   w1)",
-        "arg_type(gh_field,  gh_unreal,  gh_inc,   w1)", 1)
+        "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
+        "arg_type(gh_field,  gh_unreal,  gh_inc,     w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
@@ -130,8 +132,8 @@ def test_ad_field_invalid_data_type():
             in str(excinfo.value))
     # Check integer field
     code = FIELD_CODE.replace(
-        "arg_type(gh_field,  gh_integer, gh_read,  w3)",
-        "arg_type(gh_field,  gh_double,  gh_read,  w3)", 1)
+        "arg_type(gh_field,  gh_integer, gh_read,    w3)",
+        "arg_type(gh_field,  gh_double,  gh_read,    w3)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
@@ -143,15 +145,16 @@ def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
     access type 'gh_sum'. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = FIELD_CODE.replace("arg_type(gh_field,  gh_real,    gh_read,  w2)",
-                              "arg_type(gh_field, gh_real, gh_sum, w2)", 1)
+    code = FIELD_CODE.replace(
+        "arg_type(gh_field,  gh_real,    gh_read,    w2)",
+        "arg_type(gh_field,  gh_real,    gh_sum,     w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API, allowed accesses for fields on "
-            "continuous function spaces that are arguments to kernels "
-            "that operate on cell-columns are ['gh_read', 'gh_inc'], but "
+    assert ("In the LFRic API, allowed accesses for fields on continuous "
+            "function spaces that are arguments to kernels that operate on "
+            "cell-columns are ['gh_read', 'gh_inc', 'gh_readinc'], but "
             "found 'gh_sum' for 'w2'" in str(excinfo.value))
 
 
@@ -159,8 +162,9 @@ def test_ad_fld_type_too_few_args():
     ''' Tests that an error is raised when the field argument descriptor
     metadata for a field has fewer than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = FIELD_CODE.replace("arg_type(gh_field,  gh_real,    gh_inc,   w1)",
-                              "arg_type(gh_field,  gh_real,    gh_inc)", 1)
+    code = FIELD_CODE.replace(
+        "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
+        "arg_type(gh_field,  gh_real,    gh_inc)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
@@ -174,7 +178,7 @@ def test_ad_fld_type_too_many_args():
     metadata has more than 4 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace(
-        "arg_type(gh_field,  gh_real,    gh_inc,   w1)",
+        "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
         "arg_type(gh_field,  gh_real,    gh_inc,   w1, w1, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
@@ -245,8 +249,8 @@ def test_arg_descriptor_invalid_fs():
     name = "testkern_field_type"
     # Check real field
     code = FIELD_CODE.replace(
-        "arg_type(gh_field,  gh_real,    gh_inc,   w1)",
-        "arg_type(gh_field,  gh_real,    gh_inc,   w4)", 1)
+        "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
+        "arg_type(gh_field,  gh_real,    gh_inc,     w4)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
@@ -258,8 +262,8 @@ def test_arg_descriptor_invalid_fs():
             in str(excinfo.value))
     # Check integer field
     code = FIELD_CODE.replace(
-        "arg_type(gh_field,  gh_integer, gh_read,  w3)",
-        "arg_type(gh_field,  gh_integer, gh_read,  w10)", 1)
+        "arg_type(gh_field,  gh_integer, gh_read,    w3)",
+        "arg_type(gh_field,  gh_integer, gh_read,    w10)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
@@ -294,7 +298,7 @@ def test_fs_discontinuous_inc_error():
     const = LFRicConstants()
     for fspace in const.VALID_DISCONTINUOUS_NAMES:
         code = FIELD_CODE.replace(
-            "arg_type(gh_field,  gh_integer, gh_read,  w3)",
+            "arg_type(gh_field,  gh_integer, gh_read,    w3)",
             "arg_type(gh_field,  gh_integer, gh_inc, " + fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
@@ -317,7 +321,7 @@ def test_fs_continuous_cells_write_or_readwrite_error():
     for fspace in const.CONTINUOUS_FUNCTION_SPACES:
         for acc in ["gh_write", "gh_readwrite"]:
             code = FIELD_CODE.replace(
-                "arg_type(gh_field,  gh_real,    gh_read,  w2)",
+                "arg_type(gh_field,  gh_real,    gh_read,    w2)",
                 "arg_type(gh_field, gh_real, " + acc + ", " + fspace + ")", 1)
             ast = fpapi.parse(code, ignore_comments=False)
             with pytest.raises(ParseError) as excinfo:
@@ -325,7 +329,7 @@ def test_fs_continuous_cells_write_or_readwrite_error():
             assert ("In the LFRic API, allowed accesses for fields on "
                     "continuous function spaces that are arguments to "
                     "kernels that operate on cell-columns are ['gh_read', "
-                    "'gh_inc'], but found '{0}' for '{1}'".
+                    "'gh_inc', 'gh_readinc'], but found '{0}' for '{1}'".
                     format(acc, fspace) in str(excinfo.value))
 
 
@@ -340,7 +344,7 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
     for fspace in const.VALID_ANY_SPACE_NAMES:
         for acc in ["gh_write", "gh_readwrite"]:
             code = FIELD_CODE.replace(
-                "arg_type(gh_field,  gh_real,    gh_read,  w2)",
+                "arg_type(gh_field,  gh_real,    gh_read,    w2)",
                 "arg_type(gh_field, gh_real, " + acc + ", " + fspace + ")", 1)
             ast = fpapi.parse(code, ignore_comments=False)
             with pytest.raises(ParseError) as excinfo:
@@ -348,28 +352,34 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
             assert ("In the LFRic API, allowed accesses for fields on "
                     "continuous function spaces that are arguments to "
                     "kernels that operate on cell-columns are ['gh_read', "
-                    "'gh_inc'], but found '{0}' for '{1}'".
+                    "'gh_inc', 'gh_readinc'], but found '{0}' for '{1}'".
                     format(acc, fspace) in str(excinfo.value))
 
 
-def test_fs_anyspace_dofs_inc_error():
-    ''' Test that an error is raised if a field on 'any_space' with
-    'gh_inc' access is specified for a kernel that operates on DoFs. '''
+@pytest.mark.parametrize("access", ["gh_inc", "gh_readinc"])
+def test_fs_anyspace_dofs_inc_error(access):
+    '''Test that an error is raised if a field on 'any_space' with
+    'gh_inc' or 'gh_readinc' access is specified for a kernel that
+    operates on DoFs.
+
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     dof_code = FIELD_CODE.replace("integer :: operates_on = cell_column",
                                   "integer :: operates_on = dof", 1)
+    # gh_readinc also causes an exception so remove it for this test.
+    dof_code = dof_code.replace("gh_readinc", "gh_read")
     const = LFRicConstants()
     for fspace in const.VALID_ANY_SPACE_NAMES:
         code = dof_code.replace(
-            "arg_type(gh_field,  gh_real,    gh_inc,   w1)",
-            "arg_type(gh_field, gh_real, gh_inc, " + fspace + ")", 1)
+            "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
+            "arg_type(gh_field, gh_real, {0}, {1})".format(access, fspace), 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_field_type")
         assert ("In the LFRic API, allowed field accesses for a kernel "
                 "that operates on DoFs are ['gh_read', 'gh_write', "
-                "'gh_readwrite'], but found 'gh_inc' for '{0}'".
-                format(fspace) in str(excinfo.value))
+                "'gh_readwrite'], but found '{0}' for '{1}'".
+                format(access, fspace) in str(excinfo.value))
 
 
 def test_arg_descriptor_field():
@@ -378,7 +388,7 @@ def test_arg_descriptor_field():
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_field_type")
-    field_descriptor = metadata.arg_descriptors[1]
+    field_descriptor = metadata.arg_descriptors[2]
 
     # Assert correct string representation from LFRicArgDescriptor
     result = str(field_descriptor)
@@ -406,8 +416,8 @@ def test_invalid_vector_operator():
     use "*" as its operator. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace(
-        "(gh_field,  gh_real,    gh_inc,   w1)",
-        "(gh_field+3,  gh_real,    gh_inc,  w1)", 1)
+        "(gh_field,  gh_real,    gh_inc,     w1)",
+        "(gh_field+3,  gh_real,    gh_inc,    w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
@@ -419,8 +429,8 @@ def test_invalid_vector_value_type():
     ''' Tests that an error is raised when a vector value is not a valid
     integer. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,   w1)",
-                              "(gh_field*n,  gh_real,    gh_inc,   w1)", 1)
+    code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,     w1)",
+                              "(gh_field*n,  gh_real,    gh_inc,     w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
@@ -434,8 +444,8 @@ def test_invalid_vector_value_range():
     ''' Tests that an error is raised when a vector value is not a valid
     value (<2). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,   w1)",
-                              "(gh_field*1,  gh_real,    gh_inc,   w1)", 1)
+    code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,     w1)",
+                              "(gh_field*1,  gh_real,    gh_inc,     w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
@@ -453,12 +463,12 @@ def test_arg_descriptor_field_vector():
     as expected when we have a field vector. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the meta-data so that the second argument is a vector
-    code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,   w1)",
-                              "(gh_field*3,  gh_real,    gh_inc,  w1)", 1)
+    code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,     w1)",
+                              "(gh_field*3,  gh_real,    gh_inc,    w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     dkm = DynKernMetadata(ast, name=name)
-    field_descriptor = dkm.arg_descriptors[1]
+    field_descriptor = dkm.arg_descriptors[2]
 
     # Assert correct string representation from LFRicArgDescriptor
     field_descriptor_str = str(field_descriptor)

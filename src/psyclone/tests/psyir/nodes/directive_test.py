@@ -112,13 +112,13 @@ def test_regiondirective_children_validation():
     # First child
     with pytest.raises(GenerationError) as excinfo:
         directive.children[0] = datanode
-    assert ("Item 'Literal' can't be child 0 of 'Directive'. The valid "
+    assert ("Item 'Literal' can't be child 0 of 'RegionDirective'. The valid "
             "format is: 'Schedule'." in str(excinfo.value))
 
     # Additional children
     with pytest.raises(GenerationError) as excinfo:
         directive.addchild(schedule)
-    assert ("Item 'Schedule' can't be child 1 of 'Directive'. The valid "
+    assert ("Item 'Schedule' can't be child 1 of 'RegionDirective'. The valid "
             "format is: 'Schedule'." in str(excinfo.value))
 
 
@@ -132,5 +132,5 @@ def test_standalonedirective_children_validation():
     # test adding child
     with pytest.raises(GenerationError) as excinfo:
         cdir.addchild(schedule)
-    assert("Item 'Schedule' can't be child 0 of 'Directive'. The "
+    assert("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
            "valid format is: 'None'." in str(excinfo.value))

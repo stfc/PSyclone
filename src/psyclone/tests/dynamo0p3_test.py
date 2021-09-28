@@ -1276,9 +1276,11 @@ def test_dynkernelargument_intent_invalid(dist_mem):
     arg._access = "invalid"
     with pytest.raises(GenerationError) as excinfo:
         _ = arg.intent
-    assert ("In the LFRic API the argument access must be one of "
-            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
-            "but found 'invalid'." in str(excinfo.value))
+    valid = ([AccessType.READ.api_specific_name()] +
+             [access.api_specific_name()
+              for access in AccessType.all_write_accesses()])
+    assert ("In the LFRic API the argument access must be one of {0}, but "
+            "found 'invalid'.".format(str(valid)) in str(excinfo.value))
 
 
 @pytest.mark.parametrize("proxy", [True, False])
@@ -1532,9 +1534,11 @@ def test_arg_intent_error():
     first_argument._access = "gh_not_an_intent"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
-    assert ("In the LFRic API the argument access must be one of "
-            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
-            "but found 'gh_not_an_intent'." in str(excinfo.value))
+    valid = ([AccessType.READ.api_specific_name()] +
+             [access.api_specific_name()
+              for access in AccessType.all_write_accesses()])
+    assert ("In the LFRic API the argument access must be one of {0}, but "
+            "found 'gh_not_an_intent'.".format(valid) in str(excinfo.value))
 
 
 def test_arg_intrinsic_type_error():
@@ -3253,7 +3257,7 @@ def test_HaloReadAccess_field_not_reader():
         _ = HaloReadAccess(argument)
     assert (
         "In HaloInfo class, field 'f1' should be one of ['gh_read', "
-        "'gh_readwrite', 'gh_inc'], but found 'gh_write'"
+        "'gh_readwrite', 'gh_inc', 'gh_readinc'], but found 'gh_write'"
         in str(excinfo.value))
 
 

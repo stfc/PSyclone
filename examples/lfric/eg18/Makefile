@@ -31,31 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: R. W. Ford, STFC Daresbury Lab
 
-include ../common.mk
+include ../../common.mk
 
-CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
-GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod \
-                   test_harness.*
+.PHONY: vanilla compile run
 
-# The first command will write the adjoint kernel to stdout. The second will
-# write both it and the corresponding test harness to separate files.
-transform:
-	$(PSYAD) testkern_mod.f90 -a field1 field2
-	$(PSYAD) -t -otest test_harness.f90 -oad testkernadj_mod.f90 \
-                 testkern_mod.f90 -a field1 field2
+transform: vanilla
+
+vanilla:
+	${PSYCLONE} advection_alg_mod.x90
 
 compile: transform
-	$(F90) -c testkern_mod.f90
-	$(F90) -c testkernadj_mod.f90
-	$(F90) -c test_harness.f90
-	$(F90) -o test_harness.exe testkern_mod.o testkernadj_mod.o \
-                  test_harness.o
+	@echo "No compilation supported for lfric/eg18"
 
 run: compile
-	@echo ""
-	@echo "Running PSyAD-generated test harness..."
-	@./test_harness.exe
-	@echo "...done."
-
+	@echo "No run targets for lfric/eg18"
