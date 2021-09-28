@@ -796,7 +796,8 @@ For example::
              outermost halo data written to, i.e. if the uninitialised
              data is read. To avoid this potential problem in user
              code it is recommended that a redundant computation
-             transformation is added to compute all ``setval_c`` and
+             :ref:`transformation <dynamo0.3-api-transformations>`
+             is added to compute all ``setval_c`` and
              ``setval_x`` Built-in calls (see :ref:`lfric-built-ins`)
              to the same halo depth as the associated ``GH_INC``
              access - which is level-1 without any redundant

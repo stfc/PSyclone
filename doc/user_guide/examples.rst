@@ -500,7 +500,7 @@ Example 16: Generating LFRic Code Using LFRic-specific PSyIR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example shows how LFRic-specific PSyIR can be used to create
-LFRic kernel code. There is one python script provided which when run:
+LFRic kernel code. There is one Python script provided which when run:
 
 .. code-block:: bash
 
