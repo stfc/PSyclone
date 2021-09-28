@@ -51,6 +51,7 @@ Or, if you have Gnu 'parallel':
 from __future__ import print_function
 import os
 import sys
+from time import perf_counter
 
 # Files that we will only add profiling to
 PROFILE_ONLY = ["bdyini.f90", "bdydta.f90", "bdyvol.f90",
@@ -58,7 +59,7 @@ PROFILE_ONLY = ["bdyini.f90", "bdydta.f90", "bdyvol.f90",
                 "diawri.f90",  # Unused & has Return in profile region
                 "dommsk.f90",
                 "fldread.f90",
-                "icbclv.f90", "icbdyn.f90", "icblbc.f90", "icbrst.f90",
+                "icbclv.f90", "icbdyn.f90", "icbrst.f90",
                 "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
                 "icb_oce.f90", "icbstp.f90", "icbtrj.f90",
                 "ice.f90",  # lines are too long
@@ -130,14 +131,14 @@ if __name__ == "__main__":
             out_file = file_name
 
         args = [PSYCLONE_CMD, "--limit", "output", "-api", "nemo"]
-        if file_name in PROFILE_ONLY:
+        if file_name in EXCLUDED_FILES:
+            print("Skipping {0} entirely.".format(ffile))
+            continue
+        elif file_name in PROFILE_ONLY:
             print("Instrumenting {0} for profiling...".format(file_name))
             extra_args = ["-p", "invokes",
                           "-oalg", "/dev/null",
                           "-opsy", out_file, ffile]
-        elif file_name in EXCLUDED_FILES:
-            print("Skipping {0} entirely.".format(ffile))
-            continue
         else:
             print("Processing {0}...".format(file_name))
             extra_args = []
@@ -148,12 +149,18 @@ if __name__ == "__main__":
         # Since we're in Python we could call psyclone.generator.main()
         # directly but PSyclone is not designed to be called repeatedly
         # in that way and doesn't clear up state between invocations.
+        tstart = perf_counter()
         rtype = os.system(" ".join(args + extra_args))
+        tstop = perf_counter()
+
         if rtype != 0:
             print("Running PSyclone on {0} failed\n".format(ffile))
             if ARGS.exit_on_error:
                 sys.exit(1)
             FAILED_FILES.append(ffile)
+        else:
+            print("Time taken for {0}: {1:8.2f} (s)".format(file_name,
+                                                            tstop - tstart))
 
     print("All done.")
     if FAILED_FILES:
