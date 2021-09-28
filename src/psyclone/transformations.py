@@ -622,24 +622,30 @@ class OMPTaskwaitTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param bool options["fail_on_no_taskloop"]:
+                indicating whether this should throw an error if no \
+                OMPTaskloop nodes are found in this tree.
 
         :raises TransformationError: If the supplied node is not an \
                                      OMPParallelDirective
-        :raises TransformationError: If there are no OMPTaskloopTrans nodes \
-                                     in this tree.
+        :raises TransformationError: If there are no OMPTaskloopDirective \
+                                     nodes in this tree.
         :raises TransformationError: If taskloop dependencies can't be \
                                      satisfied due to dependencies across \
                                      barrierless OpenMP Serial Regions.
         '''
+        fail_on_no_taskloop = True
+        if options is not None:
+            fail_on_no_taskloop = options.get("fail_on_no_taskloop", True)
         # Check the supplied node is an OMPParallelDirective
         if not isinstance(node, nodes.OMPParallelDirective):
-            raise TransformationError("OMPTaskwaitTrans was supplied a {0} "
-                                      "node, but expected an "
+            raise TransformationError("OMPTaskwaitTrans was supplied a \"{0}\""
+                                      " node, but expected an "
                                       "OMPParallelDirective".format(
                                         node.__class__.__name__))
 
         # Walk the tree to find any OMPTaskloopTrans
-        if node.walk(OMPTaskloopDirective) == []:
+        if fail_on_no_taskloop and node.walk(OMPTaskloopDirective) == []:
             raise TransformationError("OMPTaskwaitTrans was supplied a "
                                       "schedule containing no "
                                       "OMPTaskloopDirectives")
@@ -667,7 +673,7 @@ class OMPTaskwaitTrans(Transformation):
                 valid = valid and isinstance(ancestor,
                                              nodes.OMPSingleDirective)
                 if valid:
-                    valid = valid and (not ancestor.nowait())
+                    valid = valid and (not ancestor.nowait)
                 # If not valid, then we're in a Master Directive or a
                 # Single Directive with nowait. In this case we can't
                 # safely guarantee our forward dependency so throw an
@@ -701,6 +707,9 @@ class OMPTaskwaitTrans(Transformation):
         :param options: a dictionary with options for transformations\
                         and validation.
         :type options: dictionary of string:values or None
+        :param bool options["fail_on_no_taskloop"]:
+                indicating whether this should throw an error if no \
+                OMPTaskloop nodes are found in this tree.
 
         :returns: two-tuple of transformed schedule and a record of the \
                   transformation.
@@ -725,9 +734,11 @@ class OMPTaskwaitTrans(Transformation):
             taskloop_positions = [-1] * len(taskloops)
             # Get the forward_dependence position of all of the taskloops
             dependence_position = [None] * len(taskloops)
-            for taskloop, i in enumerate(taskloops):
-                taskloop_positions[i] = taskloop.abs_position()
+            for i, taskloop in enumerate(taskloops):
+                taskloop_positions[i] = taskloop.abs_position
                 forward_dep = taskloop.forward_dependence()
+                if forward_dep is None:
+                    continue
                 # Check if the taskloop and its forward dependence are in the
                 # same serial region
                 if (taskloops[i].ancestor(OMPSerialDirective) is not
@@ -739,7 +750,7 @@ class OMPTaskwaitTrans(Transformation):
                 else:
                     # We're in the same OMPSerialDirective so store the
                     # position of the forward dependency
-                    dependence_position[i] = forward_dep.abs_position()
+                    dependence_position[i] = forward_dep.abs_position
             # Forward dependency positions are now computed for this region.
             # Next we eliminate unneccessary dependencies. We loop over
             # each dependence. For each dependence we loop over all other
@@ -751,7 +762,7 @@ class OMPTaskwaitTrans(Transformation):
             # dependence_position[this]) then we remove this dependence.
             # This assumes that taskloop_positions is in ascending order,
             # which I believe to be true by construction.
-            for dep_pos, i in enumerate(dependence_position):
+            for i, dep_pos in enumerate(dependence_position):
                 if dep_pos is not None:
                     # Grab the position of the next dependence
                     next_dependence = dep_pos
@@ -779,20 +790,20 @@ class OMPTaskwaitTrans(Transformation):
             # these by index, and if dependence_position[i] is not None then
             # go to its forward dependency, and insert a TaskwaitDirective
             # immediately before.
-            for dep_pos, i in enumerate(dependence_position):
+            for i, dep_pos in enumerate(dependence_position):
                 if dep_pos is not None:
                     forward_dep = taskloops[i].forward_dependence()
                     fdep_parent = forward_dep.parent
                     # Find the position of the forward_dep in its parent's
                     # children list
                     loc = -1
-                    for child, j in enumerate(fdep_parent.children):
+                    for j, child in enumerate(fdep_parent.children):
                         if child is forward_dep:
                             loc = j
                             break
                     # We've found the position, so we now insert an
                     # OMPTaskwaitDirective in that location instead
-                    fdep_parent.addchild(loc, OMPTaskwaitDirective())
+                    fdep_parent.addchild(OMPTaskwaitDirective(), loc)
 
         # All done, return
         return schedule, keep

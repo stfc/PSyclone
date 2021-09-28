@@ -222,6 +222,19 @@ def test_omp_single_dag_name():
 
 
 @pytest.mark.parametrize("nowait", [False, True])
+def test_omp_single_nowait(nowait):
+    ''' Test the nowait getter of the OMPSingle directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    single = OMPSingleTrans(nowait=nowait)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    _, _ = single.apply(schedule.children[0])
+    assert schedule.children[0].nowait is nowait
+
+
+@pytest.mark.parametrize("nowait", [False, True])
 def test_omp_single_strings(nowait):
     ''' Test the begin_string and end_string methods of the OMPSingle
         directive '''

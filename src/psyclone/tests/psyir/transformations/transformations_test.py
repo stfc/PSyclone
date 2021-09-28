@@ -46,14 +46,15 @@ import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective
+    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
+    OMPTaskwaitDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTaskwaitTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -416,3 +417,171 @@ def test_profile_trans_invalid_name(value):
         _ = profile_trans.apply(node, options={"region_name": value})
     assert ("User-supplied region name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
+
+
+def test_omptaskwait_trans_str():
+    '''Test the __str__ method of the OMPTaskwaitTrans'''
+    trans = OMPTaskwaitTrans()
+    assert trans.__str__() == ("Adds 'OpenMP TASKWAIT' directives to a loop "
+                               "to satisfy 'OpenMP TASKLOOP' dependencies")
+
+
+def test_omptaskwait_validate_non_parallel():
+    '''Test the validate method of the OMPTaskwaitTrans fails when supplied
+    a non-OMPParallelDirective node'''
+    a = Loop()
+    trans = OMPTaskwaitTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(a)
+    assert ("OMPTaskwaitTrans was supplied a \"Loop\" node, but expected an "
+            "OMPParallelDirective") in str(excinfo.value)
+
+
+def test_omptaskwait_validate_no_taskloop(fortran_reader):
+    '''Test the validate method of the OMPTaskwaitTrans fails when supplied
+    a parallel region containing no taskloops'''
+    code = '''
+    subroutine sub()
+        integer :: ji, jj, n
+        integer, dimension(10, 10) :: t
+        integer, dimension(10, 10) :: s
+        do jj = 1, n
+            do ji = 1, 10
+                s(ji, jj) = t(ji, jj)
+            end do
+        end do
+    end subroutine sub
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = OMPParallelTrans()
+    # Apply parallel trans to the loop
+    trans.apply(psyir.children[0].children[0])
+    ttrans = OMPTaskwaitTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ttrans.validate(psyir.children[0].children[0])
+    assert ("OMPTaskwaitTrans was supplied a schedule containing no "
+            "OMPTaskloopDirectives") in str(excinfo.value)
+    # Check this error can be disabled correctly
+    ttrans.validate(psyir.children[0].children[0],
+                    options={"fail_on_no_taskloop": False})
+
+
+def test_omptaskwait_validate_multiple_parallel_regions():
+    '''Test the validate method of the OMPTaskwaitTrans succeeds when
+    supplied a parallel region containing dependent taskloops in different
+    parallel regions
+    '''
+
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans()
+    sing = OMPSingleTrans()
+    ttrans = OMPTaskwaitTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    before = schedule1.children[0]
+    before1 = schedule1.children[1]
+    tloop.apply(schedule1.children[0])
+    a = schedule1.children[0]
+    tloop.apply(schedule1.children[1])
+    b = schedule1.children[1]
+    sing.apply(schedule1.children[0])
+    sing.apply(schedule1.children[1])
+    trans.apply(schedule1.children[0])
+    trans.apply(schedule1.children[1])
+    # Dependency should still exist
+    assert a.forward_dependence() is b
+    # This should be ok
+    ttrans.validate(schedule1.children[0])
+
+
+def test_omptaskwait_validate_barrierless_single_region():
+    '''Test the validate method of the OMPTaskwaitTrans throws an
+    error when supplied a dependency across barrierless single regions
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans()
+    sing = OMPSingleTrans(nowait=True)
+    ttrans = OMPTaskwaitTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    before = schedule1.children[0]
+    before1 = schedule1.children[1]
+    tloop.apply(schedule1.children[0])
+    a = schedule1.children[0]
+    tloop.apply(schedule1.children[1])
+    b = schedule1.children[1]
+    sing.apply(schedule1.children[0])
+    sing.apply(schedule1.children[1])
+    trans.apply(schedule1.children)
+    # Dependency should still exist
+    assert a.forward_dependence() is b
+    # This should be ok
+    with pytest.raises(TransformationError) as excinfo:
+        ttrans.validate(schedule1.children[0])
+    assert ("Couldn't satisfy the dependencies due to taskloop dependencies "
+            "across barrierless OMP serial regions.") in str(excinfo.value)
+
+
+def test_omptaskwait_validate_master_region():
+    '''Test the validate method of the OMPTaskwaitTrans throws an
+    error when supplied a dependency across master regions
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans()
+    sing = OMPMasterTrans()
+    ttrans = OMPTaskwaitTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    before = schedule1.children[0]
+    before1 = schedule1.children[1]
+    tloop.apply(schedule1.children[0])
+    a = schedule1.children[0]
+    tloop.apply(schedule1.children[1])
+    b = schedule1.children[1]
+    sing.apply(schedule1.children[0])
+    sing.apply(schedule1.children[1])
+    trans.apply(schedule1.children)
+    # Dependency should still exist
+    assert a.forward_dependence() is b
+    # This should be ok
+    with pytest.raises(TransformationError) as excinfo:
+        ttrans.validate(schedule1.children[0])
+    assert ("Couldn't satisfy the dependencies due to taskloop dependencies "
+            "across barrierless OMP serial regions.") in str(excinfo.value)
+
+
+def test_omptaskwait_validate_apply_simple():
+    '''Test the apply method of the OMPTaskwaitTrans works for
+    a simple example
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans()
+    sing = OMPSingleTrans()
+    ttrans = OMPTaskwaitTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    before = schedule1.children[0]
+    before1 = schedule1.children[1]
+    tloop.apply(schedule1.children[0])
+    tloop.apply(schedule1.children[1])
+    sing.apply(schedule1.children)
+    trans.apply(schedule1.children)
+    ttrans.apply(schedule1.children[0])
+
+    assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
