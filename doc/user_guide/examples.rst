@@ -496,6 +496,19 @@ code that is output is the same as the original (but looks different
 as it has been translated to PSyIR and then output by the PSyIR
 Fortran back-end).
 
+Example 16: Generating LFRic Code Using LFRic-specific PSyIR
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows how LFRic-specific PSyIR can be used to create
+LFRic kernel code. There is one python script provided which when run:
+
+.. code-block:: bash
+
+   > python create.py
+
+will print out generated LFRic kernel code. The script makes use of
+LFRic-specific data symbols to simplify code generation.
+
 Example 17: Runnable Simplified Examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
