@@ -651,6 +651,11 @@ class OMPTaskwaitTrans(Transformation):
             forward_dep = taskloop.forward_dependence()
             if forward_dep is None:
                 continue
+            # If the forward dependence is not in the same parallel region
+            # then we don't need to worry
+            if (taskloop.ancestor(nodes.OMPParallelDirective) is not
+                    forward_dep.ancestor(nodes.OMPParallelDirective)):
+                continue
             # Check if the taskloop and its forward dependence are in the
             # same serial region
             if (taskloop.ancestor(OMPSerialDirective) is not
