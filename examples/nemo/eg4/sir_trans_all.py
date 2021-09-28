@@ -54,7 +54,6 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
                                   NaryOperation, Operation, Assignment)
-from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
     Min2CodeTrans, HoistTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
