@@ -780,10 +780,8 @@ class OMPTaskwaitTrans(Transformation):
                 access1 = taskloop_vars[sig1]
                 access2 = node_vars[sig1]
                 # If both read only, we can ignore this signature
-                if access1.is_read_only() and access2.is_read_only():
-                    continue
-                # Otherwise, check that either writes and return this node as
-                # we have a dependency
+                # Otherwise, one of themwrites so return this node as
+                # we have a WaR or RaW dependency
                 if access1.is_written() or access2.is_written():
                     return node
         # If we found no dependencies, then return that!
@@ -854,13 +852,8 @@ class OMPTaskwaitTrans(Transformation):
                     continue
                 # Check if the taskloop and its forward dependence are in the
                 # same serial region
-                if (taskloops[i].ancestor(OMPSerialDirective) is not
+                if (taskloops[i].ancestor(OMPSerialDirective) is
                         forward_dep.ancestor(OMPSerialDirective)):
-                    # The barrier at the end of our parent
-                    # Single Directive will handle this dependency.
-                    # The validate function already checked that this happens
-                    dependence_position[i] = None
-                else:
                     # We're in the same OMPSerialDirective so store the
                     # position of the forward dependency
                     dependence_position[i] = forward_dep.abs_position
