@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import Subroutine_Subprogram, \
     Implicit_Part, Comment
 
 from psyclone import psyGen
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import VariablesAccessInfo
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
