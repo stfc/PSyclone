@@ -1063,6 +1063,19 @@ TBD
 NEMO
 ====
 
+Usage
+-----
+
+In general, the details of how PSyclone is used when building a
+particular model (such as LFRic) are left to the build system of
+that model. However, PSyclone support for the NEMO model is still
+evolving very rapidly and is not yet a part of the official NEMO
+repository. Consequently, the PSyclone repository contains two
+example scripts that are used when building the NEMO model.
+These scripts may be found in ``examples/nemo/scripts`` and their
+use is described in the ``README.md`` file in that directory.
+
+
 PSyIR Construction
 ------------------
 
