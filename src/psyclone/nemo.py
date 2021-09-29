@@ -162,6 +162,8 @@ class NemoInvokeSchedule(InvokeSchedule):
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
 
     '''
+    _text_name = "NemoInvokeSchedule"
+
     def __init__(self, name, invoke=None):
         super(NemoInvokeSchedule, self).__init__(name, None, None)
 
