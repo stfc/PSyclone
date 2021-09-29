@@ -691,6 +691,53 @@ def test_omptaskwait_get_forward_dependence6():
     assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is None
 
 
+def test_omptaskwait_get_forward_dependence7():
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans.
+    This test checks dependence from taskloop to taskwait'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
+    sing = OMPSingleTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    tloop.apply(schedule1.children[1])
+    schedule1.addchild(OMPTaskwaitDirective(), 1)
+    child0 = schedule1.children[0]
+    child1 = schedule1.children[1]
+    sing.apply(schedule1.children)
+    trans.apply(schedule1.children)
+
+#    print(psy.gen)
+    assert isinstance(child1, OMPTaskwaitDirective)
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is child1
+
+
+def test_omptaskwait_get_forward_dependence_readread_ignore():
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans.
+    This test checks that variables just read by both loops are skipped '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "reordered_dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
+    sing = OMPSingleTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    child0 = schedule1.children[0]
+    tloop.apply(schedule1.children[1])
+    child1 = schedule1.children[1]
+    sing.apply(schedule1.children)
+    trans.apply(schedule1.children)
+
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is child1
+
+
 def test_omptaskwait_apply_simple():
     '''Test the apply method of the OMPTaskwaitTrans works for
     a simple example

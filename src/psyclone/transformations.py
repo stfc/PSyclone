@@ -660,11 +660,8 @@ class OMPTaskwaitTrans(Transformation):
                                                                   node)
             if forward_dep is None:
                 continue
-            # If the forward dependence is not in the same parallel region
-            # then we don't need to worry
-            if (taskloop.ancestor(nodes.OMPParallelDirective) is not
-                    forward_dep.ancestor(nodes.OMPParallelDirective)):
-                continue
+            # If the forward dependence is always in the same Parallel
+            # Region or the parent Parallel region
             # Check if the taskloop and its forward dependence are in the
             # same serial region
             if (taskloop.ancestor(OMPSerialDirective) is not
@@ -744,8 +741,6 @@ class OMPTaskwaitTrans(Transformation):
             if (taskloop.ancestor(OMPSerialDirective) is not
                     node.ancestor(OMPSerialDirective) and
                     parent_single is not None):
-                print("returning parent?")
-                print(parent_single.nowait)
                 return parent_single
             # 2. If we have a different parent parallel node, then our parent
             # parallel node is our dependency
