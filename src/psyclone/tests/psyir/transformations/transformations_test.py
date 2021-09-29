@@ -54,7 +54,8 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTaskwaitTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTaskwaitTrans, \
+    MoveTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -429,10 +430,10 @@ def test_omptaskwait_trans_str():
 def test_omptaskwait_validate_non_parallel():
     '''Test the validate method of the OMPTaskwaitTrans fails when supplied
     a non-OMPParallelDirective node'''
-    a = Loop()
+    loop = Loop()
     trans = OMPTaskwaitTrans()
     with pytest.raises(TransformationError) as excinfo:
-        trans.validate(a)
+        trans.validate(loop)
     assert ("OMPTaskwaitTrans was supplied a \"Loop\" node, but expected an "
             "OMPParallelDirective") in str(excinfo.value)
 
@@ -482,18 +483,16 @@ def test_omptaskwait_validate_multiple_parallel_regions():
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
-    before = schedule1.children[0]
-    before1 = schedule1.children[1]
     tloop.apply(schedule1.children[0])
-    a = schedule1.children[0]
+    child0 = schedule1.children[0]
     tloop.apply(schedule1.children[1])
-    b = schedule1.children[1]
+    child1 = schedule1.children[1]
     sing.apply(schedule1.children[0])
     sing.apply(schedule1.children[1])
     trans.apply(schedule1.children[0])
     trans.apply(schedule1.children[1])
     # Dependency should still exist
-    assert a.forward_dependence() is b
+    assert child0.forward_dependence() is child1
     # This should be ok
     ttrans.validate(schedule1.children[0])
 
@@ -512,17 +511,15 @@ def test_omptaskwait_validate_barrierless_single_region():
     sing = OMPSingleTrans(nowait=True)
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
-    before = schedule1.children[0]
-    before1 = schedule1.children[1]
     tloop.apply(schedule1.children[0])
-    a = schedule1.children[0]
+    child0 = schedule1.children[0]
     tloop.apply(schedule1.children[1])
-    b = schedule1.children[1]
+    child1 = schedule1.children[1]
     sing.apply(schedule1.children[0])
     sing.apply(schedule1.children[1])
     trans.apply(schedule1.children)
     # Dependency should still exist
-    assert a.forward_dependence() is b
+    assert child0.forward_dependence() is child1
     # This should be ok
     with pytest.raises(TransformationError) as excinfo:
         ttrans.validate(schedule1.children[0])
@@ -544,17 +541,15 @@ def test_omptaskwait_validate_master_region():
     sing = OMPMasterTrans()
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
-    before = schedule1.children[0]
-    before1 = schedule1.children[1]
     tloop.apply(schedule1.children[0])
-    a = schedule1.children[0]
+    child0 = schedule1.children[0]
     tloop.apply(schedule1.children[1])
-    b = schedule1.children[1]
+    child1 = schedule1.children[1]
     sing.apply(schedule1.children[0])
     sing.apply(schedule1.children[1])
     trans.apply(schedule1.children)
     # Dependency should still exist
-    assert a.forward_dependence() is b
+    assert child0.forward_dependence() is child1
     # This should be ok
     with pytest.raises(TransformationError) as excinfo:
         ttrans.validate(schedule1.children[0])
@@ -562,7 +557,7 @@ def test_omptaskwait_validate_master_region():
             "across barrierless OMP serial regions.") in str(excinfo.value)
 
 
-def test_omptaskwait_validate_apply_simple():
+def test_omptaskwait_apply_simple():
     '''Test the apply method of the OMPTaskwaitTrans works for
     a simple example
     '''
@@ -576,12 +571,161 @@ def test_omptaskwait_validate_apply_simple():
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
-    before = schedule1.children[0]
-    before1 = schedule1.children[1]
     tloop.apply(schedule1.children[0])
     tloop.apply(schedule1.children[1])
     sing.apply(schedule1.children)
+    the_sing = schedule1.children[0]
     trans.apply(schedule1.children)
     ttrans.apply(schedule1.children[0])
 
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
+    assert (schedule1.walk(OMPTaskwaitDirective)[0] is
+            the_sing.children[0].children[1])
+
+
+def test_omptaskwait_apply_multidepend():
+    '''Test the apply method of the OMPTaskwaitTrans works for
+    two dependency setup - ABBA dependence
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "multi_dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans()
+    sing = OMPSingleTrans()
+    ttrans = OMPTaskwaitTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    tloop.apply(schedule1.children[1])
+    tloop.apply(schedule1.children[2])
+    tloop.apply(schedule1.children[3])
+    sing.apply(schedule1.children)
+    the_sing = schedule1.children[0]
+    trans.apply(schedule1.children)
+    ttrans.apply(schedule1.children[0])
+
+    assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
+    assert (schedule1.walk(OMPTaskwaitDirective)[0] is
+            the_sing.children[0].children[2])
+
+
+def test_omptaskwait_apply_multidepend2():
+    '''Test the apply method of the OMPTaskwaitTrans works for
+    two dependency setup - AABB dependence
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "multi_dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans()
+    sing = OMPSingleTrans()
+    ttrans = OMPTaskwaitTrans()
+    move = MoveTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    move.apply(schedule1.children[3], schedule1.children[0],
+               {"position": "after"})
+    tloop.apply(schedule1.children[0])
+    tloop.apply(schedule1.children[1])
+    tloop.apply(schedule1.children[2])
+    tloop.apply(schedule1.children[3])
+    sing.apply(schedule1.children)
+    the_sing = schedule1.children[0]
+    trans.apply(schedule1.children)
+    ttrans.apply(schedule1.children[0])
+
+    assert len(schedule1.walk(OMPTaskwaitDirective)) == 2
+    assert (schedule1.walk(OMPTaskwaitDirective)[0] is
+            the_sing.children[0].children[1])
+    assert (schedule1.walk(OMPTaskwaitDirective)[1] is
+            the_sing.children[0].children[4])
+
+
+def test_omptaskwait_apply_multidepend3():
+    '''Test the apply method of the OMPTaskwaitTrans works for
+    two dependency setup ABAB dependence
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "multi_dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans()
+    sing = OMPSingleTrans()
+    ttrans = OMPTaskwaitTrans()
+    move = MoveTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    move.apply(schedule1.children[3], schedule1.children[1],
+               {"position": "after"})
+    tloop.apply(schedule1.children[0])
+    tloop.apply(schedule1.children[1])
+    tloop.apply(schedule1.children[2])
+    tloop.apply(schedule1.children[3])
+    sing.apply(schedule1.children)
+    the_sing = schedule1.children[0]
+    trans.apply(schedule1.children)
+    ttrans.apply(schedule1.children[0])
+
+    assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
+    assert (schedule1.walk(OMPTaskwaitDirective)[0] is
+            the_sing.children[0].children[2])
+
+
+def test_omptaskwait_apply_multiloops():
+    '''Test the apply method of the OMPTaskwaitTrans works for
+    a system with both taskloop and OMPLoop nodes
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "multi_dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans()
+    oloop = OMPLoopTrans()
+    sing = OMPSingleTrans()
+    ttrans = OMPTaskwaitTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    oloop.apply(schedule1.children[1])
+    oloop.apply(schedule1.children[2])
+    oloop.apply(schedule1.children[3])
+    sing.apply(schedule1.children)
+    the_sing = schedule1.children[0]
+    trans.apply(schedule1.children)
+    ttrans.apply(schedule1.children[0])
+
+    assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
+    assert (schedule1.walk(OMPTaskwaitDirective)[0] is
+            the_sing.children[0].children[3])
+
+
+def test_omptaskwait_apply_multiregion():
+    '''Test the apply method of the OMPTaskwaitTrans works for
+    a system with dependencies only over the single boundary
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "multi_dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans()
+    oloop = OMPLoopTrans()
+    sing = OMPSingleTrans()
+    ttrans = OMPTaskwaitTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    oloop.apply(schedule1.children[1])
+    oloop.apply(schedule1.children[2])
+    oloop.apply(schedule1.children[3])
+    sing.apply(schedule1.children[0:2])
+    sing.apply(schedule1.children[2:])
+    trans.apply(schedule1.children)
+    ttrans.apply(schedule1.children[0])
+
+    assert len(schedule1.walk(OMPTaskwaitDirective)) == 0

@@ -779,6 +779,7 @@ class OMPTaskwaitTrans(Transformation):
                         # taskloops dependency
                         if next_dependence <= dependence_position[j]:
                             dependence_position[j] = None
+                            continue
                         # Check if the jth taskloops dependence will satisfy
                         # the next_dependence
                         if dependence_position[j] < next_dependence:
@@ -2103,7 +2104,7 @@ class MoveTrans(Transformation):
     >>> trans=MoveTrans()
     >>> new_schedule, memento = trans.apply(schedule.children[0],
                                             schedule.children[2],
-                                            position="after")
+                                            options = {"position":"after")
     >>> new_schedule.view()
 
     Nodes may only be moved to a new location with the same parent
