@@ -183,11 +183,11 @@ class ArgumentInterface(SymbolInterface):
 
 
 class Symbol(object):
-    '''Generic Symbol item for the Symbol Table. It always has a fixed
-    name label that matches with the key in the SymbolTables that
-    contain the symbol.  If the symbol is not public then it is only
-    visible to those nodes that are descendents of the Node to which
-    its containing Symbol Table belongs.
+    '''Generic Symbol item for the Symbol Table and PSyIR References.
+    It has an immutable name label because it must always match with the
+    key in the SymbolTable. If the symbol is private then it is only visible
+    to those nodes that are descendants of the Node to which its containing
+    Symbol Table belongs.
 
     :param str name: name of the symbol.
     :param visibility: the visibility of the symbol.
@@ -198,8 +198,7 @@ class Symbol(object):
         :py:class:`psyclone.psyir.symbols.LocalInterface`
     :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
-    :raises TypeError: if the name is not a str or visibility is not an \
-                       instance of Visibility.
+    :raises TypeError: if the name is not a str.
 
     '''
 
@@ -236,15 +235,26 @@ class Symbol(object):
 
         self._process_arguments(visibility=visibility, interface=interface)
 
-    def _process_arguments(self, **kwargs):
-        if "interface" in kwargs and kwargs["interface"] is not None:
-            self.interface = kwargs.pop("interface")
+    def _process_arguments(self, visibility=None, interface=None):
+        ''' Process the visibility and interface arguments of the constructor
+        and the specialise methods.
+
+        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :param interface: optional object describing the interface to this \
+            symbol (i.e. whether it is passed as a routine argument or \
+            accessed in some other way). Defaults to \
+            :py:class:`psyclone.psyir.symbols.LocalInterface`
+        :type interface: \
+            :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
+
+        '''
+        if interface:
+            self.interface = interface
         elif not self.interface:
-            # If an interface is not provided and not pre-existing, use
-            # LocalInterface by default
             self.interface = LocalInterface()
-        if "visibility" in kwargs:
-            self.visibility = kwargs.pop("visibility")
+
+        if visibility:
+            self.visibility = visibility
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the

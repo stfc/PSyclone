@@ -52,22 +52,43 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
+    :param bool wildcard_import: if all public Symbols of the Container are \
+        imported into the current scope. Defaults to False.
+    :param kwargs: additional keyword arguments provided by \
+                   :py:class:`psyclone.psyir.symbols.Symbol`
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, **kwargs):
+    def __init__(self, name, wildcard_import=False, **kwargs):
         super(ContainerSymbol, self).__init__(name)
 
         self._reference = None
         # Whether or not there is a wildcard import of all public symbols
         # from this container (e.g. an unqualified USE of a module in Fortran).
         self._has_wildcard_import = False
-        self._process_arguments(**kwargs)
+
+        self._process_arguments(wildcard_import=wildcard_import, **kwargs)
 
     def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the wildcard_import and a change in default
+        value for the interface.
+
+        :param kwargs: keyword arguments which can be:\n
+            :param bool wildcard_import: if all public Symbols of the \
+                Container are imported into the current scope. Defaults to \
+                False.\n
+            and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
+        :type kwargs: unwrapped dict.
+
+        '''
+
+        if "wildcard_import" in kwargs:
+            self.wildcard_import = kwargs.pop("wildcard_import")
+
         # TODO #1298: ContainerSymbol currently defaults to
         # FortranModuleInterface expecting externally defined containers
         # which can be imported, but this is not always true.
-
         if "interface" not in kwargs or kwargs["interface"] is None:
             kwargs["interface"] = FortranModuleInterface()
         elif not isinstance(kwargs["interface"], FortranModuleInterface):

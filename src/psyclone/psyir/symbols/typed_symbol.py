@@ -55,19 +55,32 @@ class TypedSymbol(Symbol):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
+    :param kwargs: additional keyword arguments provided by \
+                   :py:class:`psyclone.psyir.symbols.Symbol`
+    :type kwargs: unwrapped dict.
 
     '''
     def __init__(self, name, datatype, **kwargs):
-
-        self._datatype = None
         super(TypedSymbol, self).__init__(name)
+        self._datatype = None
         self._process_arguments(datatype=datatype, **kwargs)
 
     def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the datatype argument.
+
+        :param kwargs: keyword arguments which can be:\n
+            :param datatype: data type of the symbol.\n
+            :type datatype: :py:class:`psyclone.psyir.symbols.DataType`\n
+            and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
+        :type kwargs: unwrapped dict.
+
+        '''
         if "datatype" in kwargs:
             self.datatype = kwargs.pop("datatype")
         else:
             self._datatype = None
+
         super(TypedSymbol, self)._process_arguments(**kwargs)
 
     @abc.abstractmethod

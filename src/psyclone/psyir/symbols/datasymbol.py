@@ -58,30 +58,52 @@ class DataSymbol(TypedSymbol):
         TYPE_MAP_TO_PYTHON map. By default it is None.
     :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
         :py:class:`psyclone.psyir.nodes.Node`
+    :param kwargs: additional keyword arguments provided by \
+                   :py:class:`psyclone.psyir.symbols.TypedSymbol`
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, datatype=None, **kwargs):
+    def __init__(self, name, datatype=None, constant_value=None, **kwargs):
         super(DataSymbol, self).__init__(name, datatype)
         self._constant_value = None
-        self._process_arguments(datatype=datatype, **kwargs)
+        self._process_arguments(datatype=datatype,
+                                constant_value=constant_value,
+                                **kwargs)
 
     def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the constant_value argument.
 
-        if not hasattr(self, '_constant_value'):
-            self._constant_value = None
+        :param kwargs: keyword arguments which can be:\n
+            :param constant_value: sets a fixed known expression as a \
+                permanent value for this DataSymbol. If the value is None \
+                then this symbol does not have a fixed constant. Otherwise \
+                it can receive PSyIR expressions or Python intrinsic types \
+                available in the TYPE_MAP_TO_PYTHON map. By default it is \
+                set to None. \n
+            :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+                :py:class:`psyclone.psyir.nodes.Node`\n
+            and the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
+        :type kwargs: unwrapped dict.
 
+        '''
         new_constant_value = None
         if "constant_value" in kwargs:
             new_constant_value = kwargs.pop("constant_value")
+        elif not hasattr(self, '_constant_value'):
+            # At least initialise it if we reach this point and it doesn't
+            # exist
+            self._constant_value = None
 
         # We need to consume the 'constant_value' before calling the super
         # because otherwise there will be an unknown argument in kwargs but
         # we need to call the 'constant_value' setter after this because it
-        # uses the self.datatype which is not yet set.
+        # uses the self.datatype which is in turn set in the super.
         super(DataSymbol, self)._process_arguments(**kwargs)
 
+        # Now that we have a datatype we can use the constant_value setter
+        # with proper error checking
         if new_constant_value:
-            # The following attribute has a setter method (with error checking)
             self.constant_value = new_constant_value
 
     @property

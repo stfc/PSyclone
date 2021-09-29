@@ -38,12 +38,20 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.symbols.datatypes import NoType
-from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
 class RoutineSymbol(TypedSymbol):
-    '''Symbol identifying a callable routine. '''
+    '''Symbol identifying a callable routine.
+
+    :param str name: name of the symbol.
+    :param datatype: data type of the symbol. Default to NoType().
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
+    :param kwargs: additional keyword arguments provided by \
+                   :py:class:`psyclone.psyir.symbols.TypedSymbol`
+    :type kwargs: unwrapped dict.
+
+    '''
     def __init__(self, name, datatype=None, **kwargs):
         if datatype is None:
             datatype = NoType()
@@ -51,7 +59,17 @@ class RoutineSymbol(TypedSymbol):
         self._process_arguments(datatype=datatype, **kwargs)
 
     def _process_arguments(self, **kwargs):
-        if "datatype" not in kwargs and (not hasattr(self, '_datatype') or self.datatype is None):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case it provides a default NoType datatype is
+        none is found or provided.
+
+        :param kwargs: keyword arguments which can be:\n
+            the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
+        :type kwargs: unwrapped dict.
+
+        '''
+        if "datatype" not in kwargs and \
+           (not hasattr(self, '_datatype') or self.datatype is None):
             kwargs["datatype"] = NoType()
         super(RoutineSymbol, self)._process_arguments(**kwargs)
 
