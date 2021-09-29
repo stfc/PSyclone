@@ -63,8 +63,6 @@ class ContainerSymbol(Symbol):
         super(ContainerSymbol, self).__init__(name)
 
         self._reference = None
-        # Whether or not there is a wildcard import of all public symbols
-        # from this container (e.g. an unqualified USE of a module in Fortran).
         self._has_wildcard_import = False
 
         self._process_arguments(wildcard_import=wildcard_import, **kwargs)
@@ -82,9 +80,13 @@ class ContainerSymbol(Symbol):
         :type kwargs: unwrapped dict.
 
         '''
+        if not hasattr(self, '_reference'):
+            self._reference = None
 
         if "wildcard_import" in kwargs:
             self.wildcard_import = kwargs.pop("wildcard_import")
+        elif not hasattr(self, '_has_wildcard_import'):
+            self._has_wildcard_import = False
 
         # TODO #1298: ContainerSymbol currently defaults to
         # FortranModuleInterface expecting externally defined containers

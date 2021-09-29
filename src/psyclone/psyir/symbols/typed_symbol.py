@@ -61,8 +61,8 @@ class TypedSymbol(Symbol):
 
     '''
     def __init__(self, name, datatype, **kwargs):
-        super(TypedSymbol, self).__init__(name)
         self._datatype = None
+        super(TypedSymbol, self).__init__(name)
         self._process_arguments(datatype=datatype, **kwargs)
 
     def _process_arguments(self, **kwargs):
@@ -78,8 +78,8 @@ class TypedSymbol(Symbol):
         '''
         if "datatype" in kwargs:
             self.datatype = kwargs.pop("datatype")
-        else:
-            self._datatype = None
+        elif not hasattr(self, '_datatype'):
+            raise AttributeError("Missing mandatory 'datatype' attribute")
 
         super(TypedSymbol, self)._process_arguments(**kwargs)
 
