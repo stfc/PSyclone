@@ -480,19 +480,19 @@ def test_omptaskwait_validate_multiple_parallel_regions():
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
-    sing = OMPSingleTrans()
+    sing = OMPSingleTrans(nowait=True)
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     tloop.apply(schedule1.children[0])
     child0 = schedule1.children[0]
     tloop.apply(schedule1.children[1])
-    child1 = schedule1.children[1]
     sing.apply(schedule1.children[0])
     sing.apply(schedule1.children[1])
     trans.apply(schedule1.children[0])
     trans.apply(schedule1.children[1])
-    # Dependency should still exist
-    assert child0.forward_dependence() is child1
+    # Dependency should be to parallel region
+    assert (OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is
+            schedule1.children[0])
     # This should be ok
     ttrans.validate(schedule1.children[0])
 
@@ -519,7 +519,7 @@ def test_omptaskwait_validate_barrierless_single_region():
     sing.apply(schedule1.children[1])
     trans.apply(schedule1.children)
     # Dependency should still exist
-    assert child0.forward_dependence() is child1
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is child1
     # This should be ok
     with pytest.raises(TransformationError) as excinfo:
         ttrans.validate(schedule1.children[0])
@@ -549,12 +549,146 @@ def test_omptaskwait_validate_master_region():
     sing.apply(schedule1.children[1])
     trans.apply(schedule1.children)
     # Dependency should still exist
-    assert child0.forward_dependence() is child1
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is child1
     # This should be ok
     with pytest.raises(TransformationError) as excinfo:
         ttrans.validate(schedule1.children[0])
     assert ("Couldn't satisfy the dependencies due to taskloop dependencies "
             "across barrierless OMP serial regions.") in str(excinfo.value)
+
+
+def test_omptaskwait_get_forward_dependence1():
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans.
+    This test checks dependence from taskloop to loop '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
+    sing = OMPSingleTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    child0 = schedule1.children[0]
+    child1 = schedule1.children[1]
+    sing.apply(schedule1.children)
+    trans.apply(schedule1.children)
+
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is child1
+
+
+def test_omptaskwait_get_forward_dependence2():
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans.
+    This test checks dependence from taskloop to taskloop'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
+    sing = OMPSingleTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    child0 = schedule1.children[0]
+    tloop.apply(schedule1.children[1])
+    child1 = schedule1.children[1]
+    sing.apply(schedule1.children)
+    trans.apply(schedule1.children)
+
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is child1
+
+
+def test_omptaskwait_get_forward_dependence3():
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans.
+    This test checks dependence from taskloop to OMPloop'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
+    oloop = OMPLoopTrans()
+    sing = OMPSingleTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    child0 = schedule1.children[0]
+    oloop.apply(schedule1.children[1])
+    child1 = schedule1.children[1]
+    sing.apply(schedule1.children)
+    trans.apply(schedule1.children)
+
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is child1
+
+
+def test_omptaskwait_get_forward_dependence4():
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans.
+    This test checks dependence from taskloop to its parent single'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
+    sing = OMPSingleTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    child0 = schedule1.children[0]
+    tloop.apply(schedule1.children[1])
+    sing.apply(schedule1.children[0])
+    child1 = schedule1.children[0]
+    sing.apply(schedule1.children[1])
+    trans.apply(schedule1.children)
+
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is child1
+
+
+def test_omptaskwait_get_forward_dependence5():
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans.
+    This test checks dependence from taskloop to its parent parallel'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
+    sing = OMPSingleTrans(nowait=True)
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    child0 = schedule1.children[0]
+    tloop.apply(schedule1.children[1])
+    sing.apply(schedule1.children[0])
+    sing.apply(schedule1.children[1])
+    trans.apply(schedule1.children[0])
+    child1 = schedule1.children[0]
+    trans.apply(schedule1.children[1])
+
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is child1
+
+
+def test_omptaskwait_get_forward_dependence6():
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans.
+    This test checks dependence from taskloop to None'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
+    sing = OMPSingleTrans(nowait=True)
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    tloop.apply(schedule1.children[1])
+    child0 = schedule1.children[1]
+    sing.apply(schedule1.children)
+    trans.apply(schedule1.children)
+
+    assert OMPTaskwaitTrans.get_forward_dependence(child0, schedule1) is None
 
 
 def test_omptaskwait_apply_simple():
@@ -727,7 +861,6 @@ def test_omptaskwait_apply_multiregion():
     sing.apply(schedule1.children[2:])
     trans.apply(schedule1.children)
     ttrans.apply(schedule1.children[0])
-
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 0
 
 

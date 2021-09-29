@@ -53,6 +53,7 @@ from fparser.two.Fortran2003 import Subroutine_Subprogram, \
     Implicit_Part, Comment
 
 from psyclone import psyGen
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
@@ -64,7 +65,8 @@ from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
     ACCKernelsDirective, OMPTaskloopDirective, OMPSerialDirective, \
-    OMPTaskwaitDirective
+    OMPTaskwaitDirective, OMPDoDirective, OMPSingleDirective, \
+    OMPParallelDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -654,7 +656,8 @@ class OMPTaskwaitTrans(Transformation):
         taskloops = node.walk(OMPTaskloopDirective)
 
         for taskloop in taskloops:
-            forward_dep = taskloop.forward_dependence()
+            forward_dep = OMPTaskwaitTrans.get_forward_dependence(taskloop,
+                                                                  node)
             if forward_dep is None:
                 continue
             # If the forward dependence is not in the same parallel region
@@ -684,6 +687,112 @@ class OMPTaskwaitTrans(Transformation):
                                               "taskloop dependencies "
                                               "across barrierless OMP "
                                               "serial regions.")
+
+    @staticmethod
+    def get_forward_dependence(taskloop, root):
+        '''
+        Returns the next forward dependence for a taskloop using the new
+        dependency analysis functions.
+        Forward dependencies can be of the following types:
+        Loop
+        OMPDoDirective
+        OMPTaskloopDirective
+        OMPTaskwaitDirective (If in same OMPSingle and that single has
+        nowait=False)
+        OMPSingleDirective (If ancestor OMPSingle has nowait=False)
+        OMPParallelDirective
+
+        The forward dependency is never a child of taskloop, and must have
+        abs_position > taskloop.abs_position
+
+        :param taskloop: the taskloop node to search for the
+                         forward_dependence.
+        :type taskloop: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective
+        :param root: the tree in which to search for the forward_dependence.
+        :type root: :py:class:`psyclone.f2pygen.DoGen`
+
+        :returns: the forward_dependence of taskloop.
+        :rtype: :py:class:`psyclone.f2pygen.DoGen`
+        '''
+        # We only look for specific types
+        node_list = root.walk((Loop, OMPDoDirective, OMPTaskloopDirective,
+                               OMPTaskwaitDirective, OMPSingleDirective,
+                               OMPParallelDirective))
+        taskloop_vars = VariablesAccessInfo()
+        for child in taskloop.walk(nodes.Node):
+            if child is not taskloop and not isinstance(child,
+                                                        (Schedule, Loop)):
+                taskloop_vars.merge(VariablesAccessInfo(child))
+        taskloop_signatures = taskloop_vars.all_signatures
+        # Find our parent serial region if it has a barrier
+        parent_single = taskloop.ancestor(OMPSingleDirective)
+        if parent_single is not None and parent_single.nowait:
+            parent_single = None
+        # Find our parent parallel region
+        parent_parallel = taskloop.ancestor(OMPParallelDirective)
+        for node in node_list:
+            if node.abs_position <= taskloop.abs_position:
+                continue
+            # Ignore our children
+            anc = node.ancestor(OMPTaskloopDirective)
+            if anc is taskloop:
+                continue
+            node_vars = None
+            # Special cases:
+            # 1 .If we have a different parent serial node, and parent_single
+            # is not None then our parent_single is our dependency
+            if (taskloop.ancestor(OMPSerialDirective) is not
+                    node.ancestor(OMPSerialDirective) and
+                    parent_single is not None):
+                print("returning parent?")
+                print(parent_single.nowait)
+                return parent_single
+            # 2. If we have a different parent parallel node, then our parent
+            # parallel node is our dependency
+            if node.ancestor(OMPParallelDirective) is not parent_parallel:
+                return parent_parallel
+
+            if (isinstance(node, OMPTaskwaitDirective) and
+                    (taskloop.ancestor(OMPSingleDirective) is
+                     node.ancestor(OMPSingleDirective)) and
+                    taskloop.ancestor(OMPSingleDirective) is not None and
+                    taskloop.ancestor(OMPSingleDirective).nowait is False):
+                # If we find a taskwait barrier inside the same
+                # OMPSingleDirective and that OMPSingleDirective has a no
+                # nowait clause, then it acts as a barrier for dependencies
+                # as well
+                node_vars = taskloop_vars
+            elif not isinstance(node, (OMPSerialDirective,
+                                       OMPParallelDirective)):
+                # For all our other node types that cannot be our parents,
+                # they use their own signatures
+                node_vars = VariablesAccessInfo()
+                for child in node.walk(nodes.Node):
+                    if child is not node and not isinstance(child,
+                                                            (Schedule, Loop)):
+                        node_vars.merge(VariablesAccessInfo(child))
+            else:
+                # If we find node types that could be our parents (are are
+                # known to not be valid options from previous checks) then
+                # we set node_vars to empty
+                node_vars = VariablesAccessInfo()
+            node_signatures = node_vars.all_signatures
+            # Once we have the node's variable accesses, check for collisions
+            for sig1 in taskloop_signatures:
+                # If this signature is not in the node signatures then continue
+                if sig1 not in node_signatures:
+                    continue
+                access1 = taskloop_vars[sig1]
+                access2 = node_vars[sig1]
+                # If both read only, we can ignore this signature
+                if access1.is_read_only() and access2.is_read_only():
+                    continue
+                # Otherwise, check that either writes and return this node as
+                # we have a dependency
+                if access1.is_written() or access2.is_written():
+                    return node
+        # If we found no dependencies, then return that!
+        return None
 
     def apply(self, node, options=None):
         '''
@@ -739,7 +848,13 @@ class OMPTaskwaitTrans(Transformation):
                 # Only set forward_dep for taskloops with nogroup set
                 forward_dep = None
                 if taskloop.nogroup:
-                    forward_dep = taskloop.forward_dependence()
+                    forward_dep = OMPTaskwaitTrans.get_forward_dependence(
+                            taskloop, node)
+                    # If the forward_dependence is one of our parents then we
+                    # should ignore it
+                    if (forward_dep is not None and
+                            forward_dep.abs_position < taskloop.abs_position):
+                        forward_dep = None
                 if forward_dep is None:
                     continue
                 # Check if the taskloop and its forward dependence are in the
@@ -796,7 +911,8 @@ class OMPTaskwaitTrans(Transformation):
             # immediately before.
             for i, dep_pos in enumerate(dependence_position):
                 if dep_pos is not None:
-                    forward_dep = taskloops[i].forward_dependence()
+                    forward_dep = OMPTaskwaitTrans.get_forward_dependence(
+                            taskloops[i], node)
                     fdep_parent = forward_dep.parent
                     # Find the position of the forward_dep in its parent's
                     # children list

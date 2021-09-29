@@ -698,8 +698,7 @@ class Node(object):
                 # the tree as me.
                 while node.depth > self.depth:
                     node = node.parent
-                # if self.sameParent(node) and node is not self:
-                if node is not self:
+                if self.sameParent(node) and node is not self:
                     # The remote node (or one of its ancestors) shares
                     # the same parent as me (but its not me)
                     if not dependence:
