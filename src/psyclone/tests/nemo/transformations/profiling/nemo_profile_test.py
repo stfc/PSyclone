@@ -115,8 +115,7 @@ def test_profile_single_loop(parser):
     assert (
         "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
-        # TODO #616 the 1.0e0 should actually be 1.0d0
-        "    sto_tmp(ji) = 1.0e0\n"
+        "    sto_tmp(ji) = 1.0d0\n"
         "  enddo\n"
         "  call profile_psy_data % postend\n" in code)
 
@@ -177,15 +176,13 @@ def test_profile_two_loops(parser):
     assert (
         "  call profile_psy_data_1 % prestart('do_loop', 'r0', 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
-        # TODO #616 - should be 1.0d0 below.
-        "    sto_tmp(ji) = 1.0e0\n"
+        "    sto_tmp(ji) = 1.0d0\n"
         "  enddo\n"
         "  call profile_psy_data_1 % postend\n" in code)
     assert (
         "  call profile_psy_data % prestart('do_loop', 'r1', 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
-        # TODO #616 - should be 1.0d0 below.
-        "    sto_tmp2(ji) = 1.0e0\n"
+        "    sto_tmp2(ji) = 1.0d0\n"
         "  enddo\n"
         "  call profile_psy_data % postend\n" in code)
 

@@ -167,7 +167,7 @@ def test_array_syntax():
     assert ("  real(kind=wp), dimension(jpi,jpj,jpk) :: ztfw\n"
             "\n"
             "  !$acc data copyout(zftv)\n"
-            "  zftv(:,:,:) = 0.0e0" in gen_code)
+            "  zftv(:,:,:) = 0.0d0" in gen_code)
 
     assert ("  !$acc data copyout(tmask)\n"
             "  tmask(:,:) = jpi\n"
