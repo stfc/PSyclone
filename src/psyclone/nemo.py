@@ -38,7 +38,6 @@
    the required base classes for code generation (PSy, Invokes,
    Invoke, InvokeSchedule, Loop, CodedKern, Arguments and KernelArgument).
 
-
 '''
 
 from __future__ import print_function, absolute_import
@@ -48,6 +47,7 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern
 from psyclone.errors import InternalError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Loop, Schedule, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import GenerationError
@@ -62,7 +62,7 @@ class NemoInvoke(Invoke):
     :type sched: :py:class:`psyclone.psyir.nodes.Routine`
     :param str name: the name of this Invoke (program unit).
     :param invokes: the Invokes object that holds this Invoke.
-    :type invokes: :py:class:`psyclone.psyGen.NemoInvokes`
+    :type invokes: :py:class:`psyclone.nemo.NemoInvokes`
 
     '''
     def __init__(self, sched, name, invokes):
@@ -148,10 +148,7 @@ class NemoPSy(PSy):
         :rtype: str
 
         '''
-        from psyclone.psyir.backend.fortran import FortranWriter
         fwriter = FortranWriter()
-        # Ensure any domain-specific concepts are lowered
-        self._container.lower_to_language_level()
         return fwriter(self._container)
 
 
@@ -165,8 +162,6 @@ class NemoInvokeSchedule(InvokeSchedule):
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
 
     '''
-    _text_name = "NemoInvokeSchedule"
-
     def __init__(self, name, invoke=None):
         super(NemoInvokeSchedule, self).__init__(name, None, None)
 

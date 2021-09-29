@@ -44,13 +44,9 @@
 from __future__ import absolute_import
 import abc
 import six
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Comment
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.node import Node
 from psyclone.errors import InternalError
 
 

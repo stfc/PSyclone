@@ -39,12 +39,8 @@
 
 import six
 
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoInvoke
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
     OMPDoDirective, ACCDirective, ACCLoopDirective, FileContainer

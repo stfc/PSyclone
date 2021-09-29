@@ -44,7 +44,6 @@ from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.nodes import Schedule, Loop
-from psyclone.nemo import NemoInvokeSchedule
 
 
 @six.add_metaclass(abc.ABCMeta)

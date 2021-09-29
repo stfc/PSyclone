@@ -41,13 +41,11 @@
 '''
 
 from __future__ import absolute_import, print_function
-import re
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.errors import InternalError
 from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import PSyDataNode, Loop, ProfileNode
+from psyclone.psyir.nodes import Loop, ProfileNode
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
 from psyclone.transformations import OMPParallelLoopTrans, ACCKernelsTrans
 from psyclone.profiler import Profiler
@@ -179,14 +177,14 @@ def test_profile_two_loops(parser):
     assert (
         "  call profile_psy_data_1 % prestart('do_loop', 'r0', 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
-        # TODO 514 - should be 1.0d0 below.
+        # TODO #616 - should be 1.0d0 below.
         "    sto_tmp(ji) = 1.0e0\n"
         "  enddo\n"
         "  call profile_psy_data_1 % postend\n" in code)
     assert (
         "  call profile_psy_data % prestart('do_loop', 'r1', 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
-        # TODO 514 - should be 1.0d0 below.
+        # TODO #616 - should be 1.0d0 below.
         "    sto_tmp2(ji) = 1.0e0\n"
         "  enddo\n"
         "  call profile_psy_data % postend\n" in code)

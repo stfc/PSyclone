@@ -42,8 +42,6 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-
 from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse

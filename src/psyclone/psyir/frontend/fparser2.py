@@ -43,8 +43,6 @@ from __future__ import absolute_import
 from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
-    Data_Ref, If_Then_Stmt, Array_Section
 from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \

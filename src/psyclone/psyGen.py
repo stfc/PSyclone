@@ -201,8 +201,10 @@ class PSyFactory(object):
         Create the API-specific PSy instance.
 
         :param invoke_info: information on the invoke()s found by parsing \
-                            the Algorithm layer.
-        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
+                            the Algorithm layer or (for NEMO) the fparser2 \
+                            parse tree of the source file.
+        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` or \
+                           :py:class:`fparser.two.Fortran2003.Program`
 
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
@@ -210,6 +212,9 @@ class PSyFactory(object):
         :raises InternalError: if this factory is found to have an \
                                unsupported type (API).
         '''
+        # Conditional run-time importing is a part of this factory
+        # implementation.
+        # pylint: disable=import-outside-toplevel
         if self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynamoPSy as PSyClass
         elif self._type == "dynamo0.3":

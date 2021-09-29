@@ -636,22 +636,19 @@ def test_process_declarations():
             Symbol.Visibility.PRIVATE)
 
     # Initialisations of static constant values (parameters)
-    reader = FortranStringReader("integer, private, parameter :: i1 = 1")
+    reader = FortranStringReader("integer, parameter :: i1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     newsymbol = fake_parent.symbol_table.lookup("i1")
     assert newsymbol.is_constant
     assert isinstance(newsymbol.constant_value, Literal)
     assert newsymbol.constant_value.value == "1"
-    assert newsymbol.visibility == Symbol.Visibility.PRIVATE
 
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
     assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
-    assert (fake_parent.symbol_table.lookup("i3").visibility ==
-            Symbol.Visibility.PUBLIC)
 
     # Initialisation with constant expressions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")

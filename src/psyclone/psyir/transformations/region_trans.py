@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,7 @@ import six
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.nodes import Schedule, Node, IfBlock, Loop
-from psyclone.nemo import NemoInvokeSchedule
+from psyclone.psyir.nodes import Schedule, Node
 
 
 @six.add_metaclass(abc.ABCMeta)
