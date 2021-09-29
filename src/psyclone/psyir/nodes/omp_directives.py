@@ -648,6 +648,14 @@ class OMPTaskloopDirective(OMPRegionDirective):
                                                    parent=parent)
 
     @property
+    def nogroup(self):
+        '''
+        :returns: the nogroup clause status of this node.
+        :rtype: bool
+        '''
+        return self._nogroup
+
+    @property
     def dag_name(self):
         '''
         :returns: the name to use in the DAG for this node.

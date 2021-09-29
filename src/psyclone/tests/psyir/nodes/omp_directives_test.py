@@ -561,6 +561,13 @@ def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
     assert taskloop_node.begin_string() == "omp taskloop{0}".format(clauses)
 
 
+@pytest.mark.parametrize("nogroup", [False, True])
+def test_omptaskloop_nogroup(nogroup):
+    '''Test the nogroup method of OMPTaskloop'''
+    taskwait = OMPTaskloopDirective(nogroup=nogroup)
+    assert taskwait.nogroup == nogroup
+
+
 def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''

@@ -736,7 +736,10 @@ class OMPTaskwaitTrans(Transformation):
             dependence_position = [None] * len(taskloops)
             for i, taskloop in enumerate(taskloops):
                 taskloop_positions[i] = taskloop.abs_position
-                forward_dep = taskloop.forward_dependence()
+                # Only set forward_dep for taskloops with nogroup set
+                forward_dep = None
+                if taskloop.nogroup:
+                    forward_dep = taskloop.forward_dependence()
                 if forward_dep is None:
                     continue
                 # Check if the taskloop and its forward dependence are in the

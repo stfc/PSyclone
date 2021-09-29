@@ -479,7 +479,7 @@ def test_omptaskwait_validate_multiple_parallel_regions():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
-    tloop = OMPTaskloopTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
@@ -507,7 +507,7 @@ def test_omptaskwait_validate_barrierless_single_region():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
-    tloop = OMPTaskloopTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
     sing = OMPSingleTrans(nowait=True)
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
@@ -537,7 +537,7 @@ def test_omptaskwait_validate_master_region():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
-    tloop = OMPTaskloopTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
     sing = OMPMasterTrans()
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
@@ -567,7 +567,7 @@ def test_omptaskwait_apply_simple():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
-    tloop = OMPTaskloopTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
@@ -593,7 +593,7 @@ def test_omptaskwait_apply_multidepend():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
-    tloop = OMPTaskloopTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
@@ -621,7 +621,7 @@ def test_omptaskwait_apply_multidepend2():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
-    tloop = OMPTaskloopTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
     move = MoveTrans()
@@ -654,7 +654,7 @@ def test_omptaskwait_apply_multidepend3():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
-    tloop = OMPTaskloopTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
     move = MoveTrans()
@@ -685,7 +685,7 @@ def test_omptaskwait_apply_multiloops():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
-    tloop = OMPTaskloopTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
     oloop = OMPLoopTrans()
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
@@ -714,7 +714,7 @@ def test_omptaskwait_apply_multiregion():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
-    tloop = OMPTaskloopTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
     oloop = OMPLoopTrans()
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
@@ -729,3 +729,32 @@ def test_omptaskwait_apply_multiregion():
     ttrans.apply(schedule1.children[0])
 
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 0
+
+
+def test_omptaskwait_ignore_nogroup_flase():
+    '''Test the apply method of the OMPTaskwaitTrans ignores
+    OMPTaskloop nodes with no nogroup clause
+    '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "multi_dependent_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    trans = OMPParallelTrans()
+    tloop = OMPTaskloopTrans(nogroup=True)
+    tloop2 = OMPTaskloopTrans(nogroup=False)
+    sing = OMPSingleTrans()
+    ttrans = OMPTaskwaitTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    tloop.apply(schedule1.children[0])
+    tloop2.apply(schedule1.children[1])
+    tloop2.apply(schedule1.children[2])
+    tloop.apply(schedule1.children[3])
+    sing.apply(schedule1.children)
+    the_sing = schedule1.children[0]
+    trans.apply(schedule1.children)
+    ttrans.apply(schedule1.children[0])
+
+    assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
+    assert (schedule1.walk(OMPTaskwaitDirective)[0] is
+            the_sing.children[0].children[3])
