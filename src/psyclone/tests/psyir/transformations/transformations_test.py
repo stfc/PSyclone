@@ -731,7 +731,7 @@ def test_omptaskwait_apply_multiregion():
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 0
 
 
-def test_omptaskwait_ignore_nogroup_flase():
+def test_omptaskwait_ignore_nogroup_clause():
     '''Test the apply method of the OMPTaskwaitTrans ignores
     OMPTaskloop nodes with no nogroup clause
     '''
