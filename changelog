@@ -201,6 +201,9 @@
 	69) PR #1401 for #1400. Extend psyad script to allow list of active
 	variables to be specified.
 
+	70) PR #1326 for #1292. Add support for GH_READINC access for continuous
+	fields in the LFRic API.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
