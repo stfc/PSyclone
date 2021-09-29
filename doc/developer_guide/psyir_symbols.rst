@@ -204,6 +204,11 @@ the current implementation so that either a) references went in both
 directions or b) references were replaced with names and lookups. Each
 of these solutions has their benefits and disadvantages.
 
+A third solution would be for Symbol to be non-hierarchical class with just
+a name and a symbol type attribute. Then we could replace the symbol_type
+attribute when we discover more information without modifying the thinner
+Symbol class and therefore not affecting the references to it.
+
 What is currently done is to specialise the symbol in place (so that
 any references to it do not need to change). This is implemented by the
 `specialise` method in the `Symbol` class. It takes a subclass of a
@@ -217,12 +222,31 @@ the subclass. For example:
     sym.specialise(RoutineSymbol)
     # sym is now an instance of the RoutineSymbol class
 
-In the current implementation, any additional properties (associated
-with a `RoutineSymbol` in the above example) that are not in the
-original class would need to be set explicitly after
-specialisation. It may be possible to structure `Symbol` (and subclasses
-of `Symbol`) constructors so that the `specialise` method could take
-additional arguments to initialise properties.
+
+Sometimes providing additional properties of the new sub-class is desirable,
+even sometimes they are mandatory (e.g. a DataSymbol must always have a
+datatype and it has a optional constant_value parameter). For this reason the
+specialise implementation will provide the same interface than the constructor
+of the symbol type in order to provide the same behaviour and default value
+for optional parameter. For instance, in the DataSymbol case the following
+specialisations are possible:
+
+.. code-block:: python
+
+    sym = Symbol("a")
+    # The following statement would fail because it doesn't have a datatype
+    # sym.specialise(DataSymbol)
+
+    # The following statement is valid and constant_value is set to None
+     sym.specialise(DataSymbol, datatype=INTEGER_TYPE)
+
+    sym2 = Symbol("b")
+    # The following statement would fail because the constant_value doesn't
+    # match the datatype of the symbol
+    # sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3.14)
+
+    # The following statement is valid and constant_value is set to 3
+    sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3)
 
 
 Dependence Analysis
