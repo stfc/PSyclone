@@ -133,8 +133,8 @@ def test_datasymbol_specialise_and_process_arguments():
         sym4.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
                         constant_value=3.14)
     assert("This DataSymbol instance datatype is 'Scalar<INTEGER, SINGLE>' "
-           "which means the constant value is expected to be '<class 'int'>' "
-           "but found '<class 'float'>'." in str(error.value))
+           "which means the constant value is expected to be"
+           in str(error.value))
 
 
 def test_datasymbol_can_be_printed():

@@ -79,6 +79,9 @@ class ContainerSymbol(Symbol):
             and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
         :type kwargs: unwrapped dict.
 
+        :raises TypeError: if it is provided with an interface argument other \
+                then FortranModuleInterface.
+
         '''
         if not hasattr(self, '_reference'):
             self._reference = None

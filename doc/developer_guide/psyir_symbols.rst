@@ -222,13 +222,12 @@ the subclass. For example:
     sym.specialise(RoutineSymbol)
     # sym is now an instance of the RoutineSymbol class
 
-
 Sometimes providing additional properties of the new sub-class is desirable,
-even sometimes they are mandatory (e.g. a DataSymbol must always have a
-datatype and it has a optional constant_value parameter). For this reason the
-specialise implementation will provide the same interface than the constructor
-of the symbol type in order to provide the same behaviour and default value
-for optional parameter. For instance, in the DataSymbol case the following
+and sometimes even mandatory (e.g. a DataSymbol must always have a datatype
+and optionally a constant_value parameter). For this reason the specialise
+method implementation provides the same interface than the constructor
+of the symbol type in order to provide the same behaviour and default values
+than the constructor. For instance, in the DataSymbol case the following
 specialisations are possible:
 
 .. code-block:: python

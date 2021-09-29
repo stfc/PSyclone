@@ -75,6 +75,9 @@ class TypedSymbol(Symbol):
             and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
         :type kwargs: unwrapped dict.
 
+        :raises AttributeError: if the datatype argument is not given \
+            and it was also not pre-existent.
+
         '''
         if "datatype" in kwargs:
             self.datatype = kwargs.pop("datatype")
