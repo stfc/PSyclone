@@ -38,6 +38,8 @@ moves an assignment out of a parent loop if it is safe to do so. Hoist
 is a name that is often used to describe this type of transformation.
 
 '''
+
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Loop, Assignment, Schedule
 from psyclone.psyir.transformations.transformation_error \
@@ -152,6 +154,73 @@ class HoistTrans(Transformation):
             current = current.parent
 
         # TODO: Dependency checks, see issue #1387.
+        self.validate_dependencies(node, parent_loop)
+
+    def validate_dependencies(self, assignment, parent_loop):
+        '''Checks if the variable usage allows hoistage, i.e. no dependency
+        on loop variable (directly or indirectly).
+        '''
+        loop_var = parent_loop.variable
+        loop_sig = Signature(loop_var.name)
+
+        lhs = VariablesAccessInfo(assignment.lhs).all_signatures
+        rhs = VariablesAccessInfo(assignment.rhs).all_signatures
+
+        all_vars = VariablesAccessInfo(parent_loop)
+        var_accesses = all_vars[Signature(assignment.lhs.name)]
+
+        # Check if there is more than one write access to the variable
+        # to be hoisted. That would likely create invalid code (unless
+        # all assignments are the same, or the assigned value is not used)
+        writes_to_var = [access for access in var_accesses
+                         if access.access_type == AccessType.WRITE]
+        if len(writes_to_var) > 1:
+            raise TransformationError("There is more than one write to the "
+                                      "variable '{0}'."
+                                      .format(assignment.lhs.name))
+
+        if loop_sig in lhs:
+            raise TransformationError("The supplied assignment node '{0}' "
+                                      "depends directly on the parent loop "
+                                      "iterator '{1}' on the left-hand side."
+                                      .format(self._writer(assignment).strip(),
+                                              loop_var.name))
+
+        if loop_sig in rhs:
+            raise TransformationError("The supplied assignment node '{0}' "
+                                      "depends directly on the parent loop "
+                                      "iterator '{1}' on the right-hand side."
+                                      .format(self._writer(assignment).strip(),
+                                              loop_var.name))
+
+        for sig in all_vars.all_signatures:
+            accesses = all_vars[sig]
+            if sig == Signature(assignment.lhs.name):
+                # Ignore access to the assignment variable
+                continue
+
+            if sig == loop_sig:
+                # Ignore access to loop variable
+                continue
+            if accesses.is_written() and sig in lhs:
+                raise TransformationError(
+                    "The supplied assignment node '{0}' "
+                    "depends indirectly on the parent "
+                    "loop iterator '{1}' on the "
+                    "left-hand side via the variable '{2}'."
+                    .format(self._writer(assignment).strip(),
+                            loop_var.name,
+                            str(sig)))
+
+            if accesses.is_written() and sig in rhs:
+                raise TransformationError(
+                    "The supplied assignment node '{0}' "
+                    "depends indirectly on the parent "
+                    "loop iterator '{1}' on the "
+                    "right-hand side via the variable '{2}'."
+                    .format(self._writer(assignment).strip(),
+                            loop_var.name,
+                            str(sig)))
 
     def __str__(self):
         return "Hoist an assignment outside of its parent loop"

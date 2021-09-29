@@ -41,9 +41,9 @@ import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Loop, Assignment, Reference, \
-    IfBlock, ArrayReference
+    IfBlock
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    BOOLEAN_TYPE, ArrayType
+    BOOLEAN_TYPE
 from psyclone.psyir.transformations import HoistTrans, TransformationError
 
 
@@ -140,27 +140,122 @@ def test_validate_direct_loop():
             "within a loop but found 'if (.true.) then\n  a = 1.0\nend if\n'."
             in str(info.value))
 
+# validate_dependencies
 
-@pytest.mark.xfail(
-    reason="issue #1378: dependence analysis needs to be added.")
-def test_validate_dependent_variable():
+@pytest.mark.parametrize("assignment_str", ["a(i) = 1",
+                                            "a(j,i,j) = 1",
+                                            "a(j * 2 + 5 * i) = 1"])
+def test_validate_dependencies_lhs(fortran_reader, assignment_str):
     '''Test the expected exception is raised if the supplied assignment
-    depends on the loop iterator.
+    depends on the loop iterator on the left-hand side.
 
     '''
-    array_symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
-    loop_iterator = DataSymbol("i", INTEGER_TYPE)
-    array_reference = ArrayReference.create(
-        array_symbol, [Reference(loop_iterator)])
-    assignment = Assignment.create(array_reference, Literal("1.0", REAL_TYPE))
-    one = Literal("1", INTEGER_TYPE)
-    _ = Loop.create(
-        loop_iterator, one, one.copy(), one.copy(), [assignment])
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a(10)
+              do i=1, 10
+                  {0}
+              enddo
+              end subroutine test'''.format(assignment_str))
+    assignment = psyir.children[0].children[0].loop_body.children[0]
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
-    assert ("The supplied assignment node 'a(i) = 1.0\n' depends on the "
-            "parent loop iterator 'i'." in str(info.value))
+    assert ("The supplied assignment node '{0}' depends directly on the "
+            "parent loop iterator 'i' on the left-hand side."
+            .format(assignment_str) in str(info.value))
+
+
+@pytest.mark.parametrize("assignment_str", ["a = i",
+                                            "a = b(j,2 * i)",
+                                            "a = 1 + i * i"])
+def test_validate_dependencies_rhs(fortran_reader, assignment_str):
+    '''Test the expected exception is raised if the supplied assignment
+    depends on the loop iterator on the right hand side.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a, b(10, 20)
+              do i=1, 10
+                  {0}
+              enddo
+              end subroutine test'''.format(assignment_str))
+    assignment = psyir.children[0].children[0].loop_body.children[0]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as info:
+        hoist_trans.validate(assignment)
+    assert ("The supplied assignment node '{0}' depends directly on the "
+            "parent loop iterator 'i' on the right-hand side."
+            .format(assignment_str) in str(info.value))
+
+@pytest.mark.parametrize("assignment_str", ["a(j) = 1", "a(b(j)) = 2"])
+def test_validate_dependencies_indirect_lhs(fortran_reader, assignment_str):
+    '''Test the expected exception is raised if the supplied assignment
+    depends on the loop iterator on the right hand side.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a(10), b(10)
+              do i=1, 10
+                  {0}
+                  j = i+1
+              enddo
+              end subroutine test'''.format(assignment_str))
+    assignment = psyir.children[0].children[0].loop_body.children[0]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as info:
+        hoist_trans.validate(assignment)
+    assert ("The supplied assignment node '{0}' depends indirectly on the "
+            "parent loop iterator 'i' on the left-hand side via the "
+            "variable 'j'."
+            .format(assignment_str) in str(info.value))
+
+@pytest.mark.parametrize("assignment_str", ["a = j", "a = b(1,j + 1)"])
+def test_validate_dependencies_indirect_rhs(fortran_reader, assignment_str):
+    '''Test the expected exception is raised if the supplied assignment
+    depends on the loop iterator on the right hand side.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a, b(10)
+              do i=1, 10
+                  {0}
+                  j = i+1
+              enddo
+              end subroutine test'''.format(assignment_str))
+    assignment = psyir.children[0].children[0].loop_body.children[0]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as info:
+        hoist_trans.validate(assignment)
+    assert ("The supplied assignment node '{0}' depends indirectly on the "
+            "parent loop iterator 'i' on the right-hand side via the "
+            "variable 'j'."
+            .format(assignment_str) in str(info.value))
+
+def test_validate_dependencies_multi_write(fortran_reader):
+    '''Test the expected exception is raised if the supplied assignment
+    depends on the loop iterator on the right hand side.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a, b(10)
+              do i=1, 10
+                  a = 2
+                  b(i) = a
+                  a = 3
+                  j = a
+              enddo
+              end subroutine test''')
+    assignment = psyir.children[0].children[0].loop_body.children[0]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as info:
+        hoist_trans.validate(assignment)
+    assert ("There is more than one write to the variable 'a'."
+            in str(info.value))
 
 
 # str
