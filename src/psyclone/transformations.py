@@ -1135,6 +1135,121 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         return OMPLoopTrans.apply(self, node, options)
 
 
+class BlockTrans(LoopTrans):
+    '''
+    Apply a blocking transformationt to a loop (in order to permit a
+    chunked parallelisation). For example:
+
+    TODO
+    >>>
+    '''
+    # TODO: Finish docstring
+    def __str__(self):
+        return "Split a loop into a blocked loop"
+
+    def validate(self, node, options=None):
+        # TODO: Docstring
+        super(BlockTrans).validate(self, node, options=options)
+        # TODO: Other checks needed for validation
+
+    def apply(self, node, options=None):
+        '''
+        Converts the Loop represented by :py:obj:`node` into a
+        nested loop where the outer loop is over blocks and the inner
+        loop is over each block.
+
+        :param node: the loop to transform.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :returns: Tuple of modified schedule and record of transformation
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
+                 :py:class:`psyclone.undoredo.Memento`)
+        '''
+        # TODO: Add option for specifying block size
+        block_size = 32
+
+        self.validate(node, options)
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed transformation
+        keep = Memento(schedule, self, [node])
+
+        # If step is a variable lets be sad for now
+        if isinstance(node.children[2], Reference):
+            assert False
+
+        # Create (or find) the symbols we need for the blocking transformation
+        routine = node.ancestor(Routine)
+        end_inner_loop = routine.symbol_table.symbol_from_tag(
+                "el_inner", symbol_type=DataSymbol,
+                datatype=node.variable.datatype)
+        outer_loop_variable = routine.symbol_table.symbol_from_tag(
+                "out_var", symbol_type=DataSymbol,
+                datatype=node.variable.datatype)
+        end_outer_loop = routine.symbol_table.symbol_from_tag(
+                "el_outer", symbol_type=DataSymbol,
+                datatype=node.variable.datatype)
+
+        # TODO: Check if any ancestors use these variables?
+
+        # Store the node's parent for replacing later and the start and end
+        # indicies
+        loop_parent = node.parent
+        c0 = node.children[0]
+        c1 = node.children[1]
+
+        # If the step is larger than the block size that seems bad
+        if abs(int(node.children[2].value)) > block_size:
+            assert False
+
+        # Create the end bound for the inner loop
+        inner_loop_end = None
+        inner_loop_end_lit = Literal(end_inner_loop.name,
+                                     end_inner_loop.datatype)
+        # For positive steps we do el_inner = min(out_var+block_size, el_outer)
+        # For negative steps we do el_inner = max(out_var-block_size, el_outer)
+        if int(node.children[2].value) > 0:
+            add = BinaryOperation.create(BinaryOperation.Operator.ADD, Literal(
+                outer_loop_variable.name, outer_loop_variable.datatype),
+                Literal("{0}".block_size, node.variable.datatype))
+            mn = BinaryOperation.create(BinaryOperation.Operator.MIN, add,
+                                        Literal(c1.symbol.name,
+                                                c1.symbol.datatype))
+            inner_loop_end = Assignment.create(Literal(
+                end_inner_loop.name, end_inner_loop.datatype), mn)
+        elif int(node.children[2].value) < 0:
+            sub = BinaryOperation.create(BinaryOperation.Operator.SUB, Literal(
+                outer_loop_variable.name, outer_loop_variable.datatype),
+                Literal("{0}".block_size, node.variable.datatype))
+            mx = BinaryOperation.create(BinaryOperation.Operator.MAX, add,
+                                        Literal(c1.symbol.name,
+                                                c1.symbol.datatype))
+            inner_loop_end = Assignment.create(Literal(
+                end_inner_loop.name, end_inner_loop.datatype), mx)
+        else:
+            # step is 0 so assert for now
+            assert False
+
+        # Replace the inner loop start and end with the blocking ones
+        c0.replace_with(Literal(outer_loop_variable.name,
+                                outer_loop_variable.datatype))
+        c1.replace_with(Literal(end_inner_loop.name,
+                                end_inner_loop.datatype))
+
+        # Create the outerloop
+        outerloop = Loop.create(outer_loop_variable, c0, c1,
+                                Literal("{0}".format(block_size)),
+                                [inner_loop_end])
+        # Replace this loop with the outerloop
+        node.replace_with(outerloop)
+        # Add the loop to the innerloop's schedule
+        outerloop.children[3].addchild(node)
+
+        return schedule, keep
+
+
 class ColourTrans(LoopTrans):
     '''
     Apply a colouring transformation to a loop (in order to permit a
