@@ -832,6 +832,7 @@ class OMPTaskwaitTrans(Transformation):
         # Loop over the task regions
         for task_region in task_regions:
             create_endtaskwait = False
+            endwaits = []
             # Find all of the taskloops
             taskloops = task_region.walk(OMPTaskloopDirective)
             # Get the positions of all of the taskloops
@@ -865,6 +866,7 @@ class OMPTaskwaitTrans(Transformation):
                         # to see if a taskwait has been placed to satisfy their
                         # dependency, but that does not seem elegant somehow.
                         if forward_dep is task_region:
+                            endwaits.append(taskloop)
                             create_endtaskwait = True
                         forward_dep = None
                 if forward_dep is None:
@@ -932,7 +934,21 @@ class OMPTaskwaitTrans(Transformation):
                     # OMPTaskwaitDirective in that location instead
                     fdep_parent.addchild(OMPTaskwaitDirective(), loc)
             if create_endtaskwait:
-                task_region.children[0].addchild(OMPTaskwaitDirective())
+                create_endtaskwait = False
+                # For each taskloop that needed a taskwait at the end
+                for taskloop in endwaits:
+                    unsatisfied = True
+                    taskloop_pos = taskloop.abs_position
+                    # Find all the taskwaits in the task_region
+                    nodes = task_region.walk(OMPTaskwaitDirective)
+                    for node1 in nodes:
+                        # If the taskwait appears after this taskloop then
+                        # its dependency is satisfied
+                        if node1.abs_position > taskloop_pos:
+                            unsatisfied = False
+                    create_endtaskwait = create_endtaskwait or unsatisfied
+                if create_endtaskwait:
+                    task_region.children[0].addchild(OMPTaskwaitDirective())
 
         # All done, return
         return schedule, keep
