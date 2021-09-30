@@ -735,14 +735,8 @@ class OMPTaskwaitTrans(Transformation):
             if anc is taskloop:
                 continue
             node_vars = None
-            # Special cases:
-            # 1 .If we have a different parent serial node, and parent_single
-            # is not None then our parent_single is our dependency
-            if (taskloop.ancestor(OMPSerialDirective) is not
-                    node.ancestor(OMPSerialDirective) and
-                    parent_single is not None):
-                return parent_single
-            # 2. If we have a different parent parallel node, then our parent
+            # Special case:
+            # 1. If we have a different parent parallel node, then our parent
             # parallel node is our dependency
             if node.ancestor(OMPParallelDirective) is not parent_parallel:
                 return parent_parallel
@@ -783,6 +777,13 @@ class OMPTaskwaitTrans(Transformation):
                 # Otherwise, one of themwrites so return this node as
                 # we have a WaR or RaW dependency
                 if access1.is_written() or access2.is_written():
+                    # If we have a different parent serial node, and
+                    # parent_single is not None then our parent_single is our
+                    # dependency, otherwise this node is the dependency
+                    if (taskloop.ancestor(OMPSerialDirective) is not
+                            node.ancestor(OMPSerialDirective) and
+                            parent_single is not None):
+                        return parent_single
                     return node
         # If we found no dependencies, then return that!
         return None
