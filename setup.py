@@ -156,8 +156,10 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
+        # TODO #1193: Pinned jsonschema to support older versions of python
         install_requires=['pyparsing', 'fparser==0.0.12', 'configparser',
-                          'six', 'enum34 ; python_version < "3.0"'],
+                          'six', 'enum34 ; python_version < "3.0"',
+                          'jsonschema==3.0.2'],
         extras_require={
             'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex < 2.0.0",
