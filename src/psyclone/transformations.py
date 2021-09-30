@@ -830,6 +830,7 @@ class OMPTaskwaitTrans(Transformation):
 
         # Loop over the task regions
         for task_region in task_regions:
+            create_endtaskwait = False
             # Find all of the taskloops
             taskloops = task_region.walk(OMPTaskloopDirective)
             # Get the positions of all of the taskloops
@@ -847,6 +848,23 @@ class OMPTaskwaitTrans(Transformation):
                     # should ignore it
                     if (forward_dep is not None and
                             forward_dep.abs_position < taskloop.abs_position):
+                        # If we're in a blocking single region and the
+                        # dependency for any of its tasks points to its
+                        # parent single region, then its "real" next dependency
+                        # is outside of the single region. To ensure we
+                        # synchronize before this dependency, we must have a
+                        # task synchronization construct before the spawning
+                        # thread leaves the single region. It is possible that
+                        # this dependency could be handled by another
+                        # intermediary taskwait, however I can't work out a
+                        # good way to detect that now (since there is no
+                        # "end of single region" abs_position to map to).
+                        # I could store a list of all the taskloops that
+                        # require this final taskwait, and walk from each one
+                        # to see if a taskwait has been placed to satisfy their
+                        # dependency, but that does not seem elegant somehow.
+                        if forward_dep is task_region:
+                            create_endtaskwait = True
                         forward_dep = None
                 if forward_dep is None:
                     continue
@@ -912,6 +930,8 @@ class OMPTaskwaitTrans(Transformation):
                     # We've found the position, so we now insert an
                     # OMPTaskwaitDirective in that location instead
                     fdep_parent.addchild(OMPTaskwaitDirective(), loc)
+            if create_endtaskwait:
+                task_region.children[0].addchild(OMPTaskwaitDirective())
 
         # All done, return
         return schedule, keep

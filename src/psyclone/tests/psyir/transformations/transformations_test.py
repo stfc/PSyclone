@@ -887,7 +887,8 @@ def test_omptaskwait_apply_multiloops():
 
 def test_omptaskwait_apply_multiregion():
     '''Test the apply method of the OMPTaskwaitTrans works for
-    a system with dependencies only over the single boundary
+    a system with dependencies only over the single boundary. In
+    this case the single region should end with a taskwait.
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "multi_dependent_invoke.f90"),
@@ -905,10 +906,12 @@ def test_omptaskwait_apply_multiregion():
     oloop.apply(schedule1.children[2])
     oloop.apply(schedule1.children[3])
     sing.apply(schedule1.children[0:2])
+    the_sing = schedule1.children[0]
     sing.apply(schedule1.children[2:])
     trans.apply(schedule1.children)
     ttrans.apply(schedule1.children[0])
-    assert len(schedule1.walk(OMPTaskwaitDirective)) == 0
+    assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
+    assert isinstance(the_sing.children[0].children[-1], OMPTaskwaitDirective)
 
 
 def test_omptaskwait_ignore_nogroup_clause():
