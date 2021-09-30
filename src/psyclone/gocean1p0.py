@@ -224,6 +224,10 @@ class GOInvokes(Invokes):
                             [sub], CodeBlock.Structure.STATEMENT)
                         if item.name == name:
                             invoke.schedule.replace_with(codeblock)
+                            # We have replaced the schedule in the tree but
+                            # invoke.schedule is not the tree, just a reference
+                            # to the previous schedule, so it has to be updated
+                            # too.
                             invoke.schedule = codeblock
                         else:
                             invoke.schedule.parent.addchild(codeblock)
@@ -295,7 +299,7 @@ class GOInvoke(Invoke):
         result = []
         for call in self._schedule.kernels():
             for arg in args_filter(call.arguments.args, arg_types=["scalar"],
-                                   is_literal=False):
+                                   include_literals=False):
                 if arg.space.lower() == "go_r_scalar" and \
                    arg.name not in result:
                     result.append(arg.name)
@@ -312,7 +316,7 @@ class GOInvoke(Invoke):
         result = []
         for call in self._schedule.kernels():
             for arg in args_filter(call.arguments.args, arg_types=["scalar"],
-                                   is_literal=False):
+                                   include_literals=False):
                 if arg.space.lower() == "go_i_scalar" and \
                    arg.name not in result:
                     result.append(arg.name)
@@ -1536,7 +1540,7 @@ class GOKern(CodedKern):
 
         # Scalar arguments
         scalar_args = args_filter(self._arguments.args, arg_types=["scalar"],
-                                  is_literal=False)
+                                  include_literals=False)
         go_r_scalars = []
         other_scalars = []
         for arg in scalar_args:

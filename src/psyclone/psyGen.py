@@ -126,7 +126,7 @@ def zero_reduction_variables(red_call_list, parent):
 
 
 def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
-                is_literal=True):
+                include_literals=True):
     '''
     Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
@@ -141,8 +141,8 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
         :py:class:`psyclone.core.access_type.AccessType`
     :param arg_meshes: list of meshes that arguments must be on.
     :type arg_meshes: list of str
-    :param bool is_literal: whether or not to include literal arguments in \
-                            the returned list.
+    :param bool include_literals: whether or not to include literal arguments \
+                                  in the returned list.
 
     :returns: list of kernel arguments matching the requirements.
     :rtype: list of :py:class:`psyclone.parse.kernel.Descriptor`
@@ -159,7 +159,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
         if arg_meshes:
             if argument.mesh not in arg_meshes:
                 continue
-        if not is_literal:
+        if not include_literals:
             # We're not including literal arguments so skip this argument
             # if it is literal.
             if argument.is_literal:
@@ -707,7 +707,10 @@ class InvokeSchedule(Routine):
 
         # TODO #1134: If OpenCL is just a PSyIR transformation the following
         # properties may not be needed or are transformation options instead.
+        # Flag to choose whether or not to generate OpenCL
         self._opencl = False  # Whether or not to generate OpenCL
+        # Flag to choose whether or not to add an OpenCL barrier at the end of
+        # the Invoke code.
         self._opencl_end_barrier = True
 
         # This reference will store during gen_code() the block of code that

@@ -71,9 +71,15 @@ class GOOpenCLTrans(Transformation):
     # to generate a single OpenCL environment (e.g. to share the device data
     # pointers) and therefore guarantee the same properties, but this hasn't
     # been tested. PSycloneBench ShallowWater could be an example of this.
+
+    # Biggest queue number that any kernel is allocated to. The OpenCL
+    # environment should be set up with at least this number of queues.
     _max_queue_number = 1
+    # Whether to enable the profiling option in the OpenCL environment
     _enable_profiling = False
+    # Whether to enable the out_of_order option in the OpenCL environment
     _out_of_order = False
+    # Total number of invokes that have been transformed to OpenCL
     _transformed_invokes = 0
 
     @property
@@ -92,7 +98,13 @@ class GOOpenCLTrans(Transformation):
         :param node: the Schedule to check.
         :type node: :py:class:`psyclone.psyGen.InvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: dict of str:value or None
+        :param bool options["enable_profiling"]: whether or not to set up the \
+                OpenCL environment with the profiling option enabled.
+        :param bool options["out_of_order"]: whether or not to set up the \
+                OpenCL environment with the out_of_order option enabled.
+        :param bool options["end_barrier"]: whether or not to add an OpenCL \
+                barrier at the end of the transformed invoke.
 
         :raises TransformationError: if the InvokeSchedule is not for the \
                                      GOcean1.0 API.
@@ -137,26 +149,28 @@ class GOOpenCLTrans(Transformation):
             if ('enable_profiling' in options and
                     self._enable_profiling != options['enable_profiling']):
                 raise TransformationError(
-                    "Can't generate a OpenCL Invoke with enable_profiling='"
+                    "Can't generate an OpenCL Invoke with enable_profiling='"
                     "{0}' since a previous transformation used a different "
-                    "value, and their OpenCL environment must match."
+                    "value, and their OpenCL environments must match."
                     "".format(options['enable_profiling']))
 
             if ('out_of_order' in options and
                     self._out_of_order != options['out_of_order']):
                 raise TransformationError(
-                    "Can't generate a OpenCL Invoke with out_of_order='{0}' "
+                    "Can't generate an OpenCL Invoke with out_of_order='{0}' "
                     "since a previous transformation used a different value, "
-                    "and their OpenCL environment must match."
+                    "and their OpenCL environments must match."
                     "".format(options['out_of_order']))
 
-        # Now we need to check that any of the invoke arguments is a literal
-        args = args_filter(node.args, arg_types=["scalar"], is_literal=True)
+        # Now we need to check that none of the invoke arguments is a literal
+        args = args_filter(node.args, arg_types=["scalar"])
         for arg in args:
             if arg.is_literal:
                 raise TransformationError(
-                    "Cannot generate OpenCL for Invokes that contain "
-                    "kernels with arguments which are a literal.")
+                    "Cannot generate OpenCL for Invokes that contain kernel "
+                    "arguments which are a literal, but found the literal "
+                    "'{0}' used as an argument in invoke '{1}'."
+                    "".format(arg.name, node.name))
 
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
@@ -186,9 +200,13 @@ class GOOpenCLTrans(Transformation):
         :param node: the InvokeSchedule to transform.
         :type node: :py:class:`psyclone.psyGen.GOInvokeSchedule`
         :param options: set of option to tune the OpenCL generation.
-        :type options: dict of string:values or None
-        :param bool options["opencl"]: whether or not to enable OpenCL \
-                                       generation.
+        :type options: dict of str:value or None
+        :param bool options["enable_profiling"]: whether or not to set up the \
+                OpenCL environment with the profiling option enabled.
+        :param bool options["out_of_order"]: whether or not to set up the \
+                OpenCL environment with the out_of_order option enabled.
+        :param bool options["end_barrier"]: whether or not to add an OpenCL \
+                barrier at the end of the transformed invoke.
 
         :returns: None, None
         :rtype: (NoneType, NoneType)
@@ -213,7 +231,8 @@ class GOOpenCLTrans(Transformation):
             self._max_queue_number = max(self._max_queue_number,
                                          kernel.opencl_options["queue_number"])
 
-        # Insert necessary OpenCL helper subroutines in the root Container
+        # Insert, if they don't already exist, the necessary OpenCL helper
+        # subroutines in the root Container,
         self._insert_opencl_init_routine(node.root)
         self._insert_initialise_grid_buffers(node.root)
         self._insert_write_grid_buffers(node.root)
@@ -228,6 +247,7 @@ class GOOpenCLTrans(Transformation):
         if 'end_barrier' in options:
             node._opencl_end_barrier = options['end_barrier']
 
+        # TODO #595: Remove transformation return values
         return None, None
 
     def _insert_opencl_init_routine(self, node):
@@ -264,10 +284,10 @@ class GOOpenCLTrans(Transformation):
         # accelerators.
         distributed_memory = Config.get().distributed_memory
         devices_per_node = Config.get().ocl_devices_per_node
-        additional_decls = ""
+        additional_uses = ""
         additional_stmts = ""
         if devices_per_node > 1 and distributed_memory:
-            additional_decls += "USE parallel_mod, ONLY: get_rank"
+            additional_uses += "USE parallel_mod, ONLY: get_rank"
             additional_stmts += \
                 ("ocl_device_num = mod(get_rank() - 1, {0}) + 1"
                  "".format(devices_per_node))
@@ -293,7 +313,7 @@ class GOOpenCLTrans(Transformation):
             call add_kernels(1, kernel_names)
           end if
         end subroutine psy_init'''.format(
-                additional_decls,
+                additional_uses,
                 additional_stmts,
                 self._max_queue_number,
                 ".true." if self._enable_profiling else ".false.",

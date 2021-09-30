@@ -758,9 +758,9 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
     otrans.apply(invoke1_schedule, options={option_to_check: False})
     with pytest.raises(TransformationError) as err:
         otrans.apply(invoke2_schedule, options={option_to_check: True})
-    assert ("Can't generate a OpenCL Invoke with {0}='True' since a previous "
+    assert ("Can't generate an OpenCL Invoke with {0}='True' since a previous "
             "transformation used a different value, and their OpenCL "
-            "environment must match.".format(option_to_check)
+            "environments must match.".format(option_to_check)
             in str(err.value))
 
 
@@ -1042,8 +1042,9 @@ def test_set_arg_const_scalar():
     otrans = GOOpenCLTrans()
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
-    assert ("Cannot generate OpenCL for Invokes that contain kernels with "
-            "arguments which are a literal" in str(err.value))
+    assert ("Cannot generate OpenCL for Invokes that contain kernel arguments"
+            " which are a literal, but found the literal '0' used as an "
+            "argument in invoke 'invoke_0_bc_ssh'." in str(err.value))
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
