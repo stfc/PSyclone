@@ -162,6 +162,7 @@ if __name__ == '__main__':
             'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex < 2.0.0",
                     "sphinx_rtd_theme", "autoapi"],
+            'examples' : ["jsonscheme == 3.0.2"],
             'psydata': ["Jinja2"],
             'test': ["pep8", "pylint", "pytest-cov", "pytest-pep8",
                      "pytest-pylint", "pytest-flakes", "pytest-pep257"],
