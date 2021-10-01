@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by: R. W. Ford, STFC Daresbury Lab
+#              S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -67,16 +68,6 @@ class NanTestNode(PSyDataNode):
 
         '''
         return super(NanTestNode, self).psy_data_body
-
-    @property
-    def dag_name(self):
-        '''
-        Returns the name to use in a DAG for this Node
-
-        :returns: the dag name of NanTestNode.
-        :rtype: str
-        '''
-        return "nan_test_" + str(self.position)
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ

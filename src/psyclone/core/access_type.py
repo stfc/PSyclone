@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module implements the AccessType used throughout PSyclone.'''
@@ -45,16 +46,17 @@ class AccessType(Enum):
     '''A simple enum-class for the various valid access types.
     '''
 
-    INC = 1
+    READ = 1
     WRITE = 2
-    READ = 3
-    READWRITE = 4
-    SUM = 5
+    READWRITE = 3
+    INC = 4
+    READINC = 5
+    SUM = 6
     # This is used internally to indicate unknown access type of
     # a variable, e.g. when a variable is passed to a subroutine
     # and the access type of this variable in the subroutine
     # is unknown
-    UNKNOWN = 6
+    UNKNOWN = 7
 
     def __str__(self):
         '''Convert to a string representation, returning just the
@@ -88,9 +90,8 @@ class AccessType(Enum):
             if access.name == access_string.upper():
                 return access
         valid = [str(access).lower() for access in AccessType]
-        valid.sort()
         raise ValueError("Unknown access type '{0}'. Valid values are {1}."
-                         .format(access_string, str(valid)))
+                         .format(access_string, valid))
 
     @staticmethod
     def all_write_accesses():
@@ -98,8 +99,8 @@ class AccessType(Enum):
                      argument in some form.
         :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC] + \
-            AccessType.get_valid_reduction_modes()
+        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC,
+                AccessType.READINC] + AccessType.get_valid_reduction_modes()
 
     @staticmethod
     def all_read_accesses():
@@ -107,7 +108,8 @@ class AccessType(Enum):
                      argument in some form.
         :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.READ, AccessType.READWRITE, AccessType.INC]
+        return [AccessType.READ, AccessType.READWRITE, AccessType.INC,
+                AccessType.READINC]
 
     @staticmethod
     def get_valid_reduction_modes():
