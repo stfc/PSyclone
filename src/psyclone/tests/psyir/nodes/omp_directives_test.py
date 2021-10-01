@@ -47,7 +47,8 @@ from psyclone.psyir import nodes
 from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPMasterDirective, OMPTaskloopDirective, OMPTaskwaitDirective, Schedule, \
-    OMPTargetDirective
+    OMPTargetDirective, OMPLoopDirective, Loop, Literal, Assignment, Reference
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     DynamoOMPParallelLoopTrans, OMPSingleTrans, \
@@ -477,8 +478,102 @@ def test_omp_taskloop_validate_global_constraints():
 
 # Test OMPTargetDirective
 
-def test_omp_target_directive():
-    ''' Test the OMPTargetDirective. '''
+def test_omp_target_directive_constructor_and_strings():
+    ''' Test the OMPTargetDirective constructor and its output strings.'''
     target = OMPTargetDirective()
     assert target.begin_string() == "omp target"
     assert str(target) == "OMPTargetDirective[]"
+
+
+# Test OMPLoopDirective
+
+def test_omp_loop_directive_constructor_and_strings():
+    ''' Test the OMPLoopDirective constructor and its output strings.'''
+    target = OMPLoopDirective()
+    assert target.begin_string() == "omp loop"
+    assert str(target) == "OMPLoopDirective[]"
+    assert target.collapse is None
+
+    target = OMPLoopDirective(collapse=4)
+    assert target.collapse == 4
+    assert target.begin_string() == "omp loop collapse(4)"
+    assert str(target) == "OMPLoopDirective[collapse=4]"
+
+
+def test_omp_loop_directive_collapse_getter_and_setter():
+    ''' Test the OMPLoopDirective collapse property setter and getter.'''
+    target = OMPLoopDirective()
+    assert target.collapse is None
+    target.collapse = 3
+    assert target.collapse == 3
+    target.collapse = None
+    assert target.collapse is None
+
+    with pytest.raises(TypeError) as err:
+        target.collapse = 0
+    assert ("The OMPLoopDirective collapse clause must be a positive integer "
+            "or None, but value '0' has been given." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        target.collapse = 'a'
+    assert ("The OMPLoopDirective collapse clause must be a positive integer "
+            "or None, but value 'a' has been given." in str(err.value))
+
+
+def test_omp_loop_directive_validate_global_constraints():
+    ''' Test the OMPLoopDirective is inside a OMPParallelRegion and contains
+    as many immediate loops as specified by the collapse clause'''
+
+    schedule = Schedule()
+
+    # Check an OMPLoop outside a OMPParallel region
+    omploop = OMPLoopDirective()
+    schedule.addchild(omploop)
+    with pytest.raises(GenerationError) as err:
+        omploop.validate_global_constraints()
+    assert ("Generation Error: OMPLoopDirective must have an "
+            "OMPParallelDirective as an ancestor." in str(err.value))
+
+    # Check an empty OMPLoop
+    omploop.detach()
+    ompparallel = OMPParallelDirective()
+    schedule.addchild(ompparallel)
+    ompparallel.dir_body.addchild(omploop)
+    with pytest.raises(GenerationError) as err:
+        omploop.validate_global_constraints()
+    assert ("OMPLoopDirective must have exaclty one children in its associated"
+            " schedule." in str(err.value))
+
+    # Check an OMPLoop attached to a non-loop statement
+    variable = schedule.symbol_table.new_symbol("i", symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE)
+    stmt = Assignment.create(Reference(variable), Literal('4', INTEGER_TYPE))
+    omploop.dir_body.addchild(stmt)
+    with pytest.raises(GenerationError) as err:
+        omploop.validate_global_constraints()
+    assert ("OMPLoopDirective must have as much immediate nested loops as the "
+            "collapse clause specifies, or one immediate loop  if no collapse "
+            "is specified." in str(err.value))
+
+    # Check with an OMPLoop and a single Loop inside
+    stmt.detach()
+    loop = Loop.create(variable,
+                       Literal('1', INTEGER_TYPE),
+                       Literal('10', INTEGER_TYPE),
+                       Literal('1', INTEGER_TYPE),
+                       [stmt])
+    omploop.dir_body.addchild(loop)
+    omploop.validate_global_constraints()  # This is valid
+
+    # Check with an OMPLoop and collapse is 2 but just one loop inside
+    omploop.collapse = 2
+    with pytest.raises(GenerationError) as err:
+        omploop.validate_global_constraints()
+    assert ("OMPLoopDirective must have as much immediate nested loops as the "
+            "collapse clause specifies, or one immediate loop  if no collapse "
+            "is specified." in str(err.value))
+
+    # Check with an OMPLoop and collapse is 2 and 2 nested loops inside
+    loop2 = loop.copy()
+    loop.loop_body.children[0].replace_with(loop2)
+    omploop.validate_global_constraints()  # This is valid

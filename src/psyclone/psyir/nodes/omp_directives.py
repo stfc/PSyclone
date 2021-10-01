@@ -953,8 +953,112 @@ class OMPTargetDirective(OMPRegionDirective):
         return "omp target"
 
 
+class OMPLoopDirective(OMPRegionDirective):
+    ''' Class for the !$OMP LOOP directive that specifies that the iterations
+    of the associated loops may execute concurrently.
+
+    :param int collapse: optional number of nested loop to collapse into a \
+        single iteration space to parallelise. Defaults to None.
+    '''
+
+    def __init__(self, collapse=None, **kwargs):
+        super(OMPLoopDirective, self).__init__(**kwargs)
+        self._collapse = None
+        self.collapse = collapse  # Use setter with error checking
+
+    @property
+    def collapse(self):
+        '''
+        :returns: the value of the collapse clause.
+        :rtype: int or NoneType
+        '''
+        return self._collapse
+
+    @collapse.setter
+    def collapse(self, value):
+        '''
+        :param value: optional number of nested loop to collapse into a \
+            single iteration space to parallelise. Defaults to None.
+        :type value: int or NoneType.
+
+        :raises TypeError: if the collapse value given is not a positive \
+            integer or NoneType.
+
+        '''
+        if value is None or (isinstance(value, int) and value > 0):
+            self._collapse = value
+        else:
+            raise TypeError(
+                "The OMPLoopDirective collapse clause must be a positive "
+                "integer or None, but value '{0}' has been given."
+                "".format(value))
+
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        text = self.coloured_name(colour)
+        if self._collapse:
+            text += "[collapse={0}]".format(str(self._collapse))
+        else:
+            text += "[]"
+        return text
+
+    def begin_string(self):
+        ''' Returns the beginning statement of this directive, i.e. "omp loop".
+        The visitor is responsible for adding the correct directive beginning
+        (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        string = "omp loop"
+        if self._collapse:
+            string += " collapse({0})".format(str(self._collapse))
+        return string
+
+    def validate_global_constraints(self):
+        ''' Perform validation of those global constraints that can only be
+        done at code-generation time.
+
+        :raises GenerationError: if this OMPLoopDirective is not enclosed \
+                            within some OMPParallelDirective region.
+        '''
+        if not self.ancestor(OMPParallelDirective):
+            raise GenerationError(
+                "OMPLoopDirective must have an OMPParallelDirective as an "
+                "ancestor.")
+
+        # There must be as much immediate nested loops as the collapse clause
+        # specifies or just one immediate loop is the collapse clause is None
+        check_loops = self._collapse if self._collapse is not None else 1
+        if len(self.dir_body.children) != 1:
+            raise GenerationError(
+                "OMPLoopDirective must have exaclty one children in its "
+                "associated schedule.")
+
+        cursor = self.dir_body.children[0]
+        while check_loops > 0:
+            if not isinstance(cursor, Loop):
+                raise GenerationError(
+                    "OMPLoopDirective must have as much immediate nested loops"
+                    " as the collapse clause specifies, or one immediate loop "
+                    " if no collapse is specified.")
+            check_loops -= 1
+            cursor = cursor.loop_body.children[0]
+
+        super(OMPLoopDirective, self).validate_global_constraints()
+
+
 # For automatic API documentation generation
 __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
-           "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective"]
+           "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
+           "OMPLoopDirective"]
