@@ -46,7 +46,6 @@ import abc
 import six
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.errors import InternalError
 
 
@@ -119,15 +118,6 @@ class RegionDirective(Directive):
                     [type(child).__name__ for child in self.children]))
         return self.children[0]
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "region_directive_" + str(position)
-
 
 class StandaloneDirective(Directive):
     '''
@@ -155,15 +145,6 @@ class StandaloneDirective(Directive):
         '''
         # Children are not allowed for StandaloneDirective
         return False
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "standalone_directive_" + str(position)
 
 
 # For automatic API documentation generation

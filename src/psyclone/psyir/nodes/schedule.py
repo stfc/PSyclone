@@ -66,18 +66,6 @@ class Schedule(ScopingNode):
         # pylint: disable=unused-argument
         return isinstance(child, Statement)
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: The name of this node in the dag.
-        :rtype: str
-        '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.routine import Routine
-        _, position = self._find_position(self.ancestor(Routine))
-        return "schedule_" + str(position)
-
     def __getitem__(self, index):
         '''
         Overload the subscript notation ([int]) to access specific statements

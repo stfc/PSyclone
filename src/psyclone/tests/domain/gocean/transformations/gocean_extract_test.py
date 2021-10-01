@@ -99,7 +99,7 @@ def test_gocean_extract_trans():
     '''Tests basic functions in ExtractTrans.'''
     etrans = GOceanExtractTrans()
     assert str(etrans) == "Create a sub-tree of the PSyIR that has a " \
-                          "node of type GOceanExtractNode at its root."
+                          "node of type ExtractNode at its root."
     assert etrans.name == "GOceanExtractTrans"
 
 
@@ -198,7 +198,6 @@ def test_extract_node_position():
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos
     assert extract_node[0].depth == dpth
-    assert extract_node[0].dag_name == "gocean_extract_1"
 
 
 # -----------------------------------------------------------------------------

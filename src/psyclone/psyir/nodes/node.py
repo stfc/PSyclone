@@ -623,8 +623,23 @@ class Node(object):
 
     @property
     def dag_name(self):
-        '''Return the base dag name for this node.'''
-        return "node_" + str(self.abs_position)
+        '''Return the dag name for this node. This includes the name of the
+        class and the index of its relative position to the parent Routine. If
+        no parent Routine is found, the index used is the absolute position
+        in the tree.
+
+        :returns: the dag name for this node.
+        :rtype: str
+
+        '''
+        # Import here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Routine
+        if self.ancestor(Routine):
+            _, position = self._find_position(self.ancestor(Routine))
+        else:
+            position = self.abs_position
+        return self.coloured_name(False) + "_" + str(position)
 
     @property
     def args(self):

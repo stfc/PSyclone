@@ -315,7 +315,7 @@ class PSyDataTrans(RegionTrans):
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
-        # GOceanExtractNode. We pass the user-specified options to the
+        # ExtractNode. We pass the user-specified options to the
         # create() method.  An example use case for this is the
         # 'create_driver' flag, where the calling program can control if
         # a stand-alone driver program should be created or not (when

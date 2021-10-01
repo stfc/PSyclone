@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified by: R. W. Ford, STFC Daresbury Lab
+#              S. Siso, STFC Daresbury Lab
 
 '''
 This module provides support for verification that read-only variables are
@@ -71,16 +72,6 @@ class ReadOnlyVerifyNode(PSyDataNode):
 
         '''
         return super(ReadOnlyVerifyNode, self).psy_data_body
-
-    @property
-    def dag_name(self):
-        '''
-        Returns the name to use in a DAG for this Node
-
-        :returns: the dag name of ExtractNode.
-        :rtype: str
-        '''
-        return "read_only_verify_" + str(self.position)
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
