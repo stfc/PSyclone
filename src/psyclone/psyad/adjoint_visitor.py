@@ -45,42 +45,8 @@ from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Schedule, Reference, UnaryOperation, \
-    BinaryOperation, Literal, Assignment
+    BinaryOperation, Literal, Assignment, Node
 from psyclone.psyir.symbols import REAL_TYPE, INTEGER_TYPE
-
-
-def active(node, active_variables):
-    ''' Determines whether this node contains variables that are active.
-
-    :param node: the PSyIR node that is being evaluated.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
-    :param active_variables: a list of active variables.
-    :type active_variables: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-    :returns: True if active and False otherwise.
-    :rtype: bool
-
-    '''
-    for reference in node.walk(Reference):
-        if reference.symbol in active_variables:
-            return True
-    return False
-
-
-def passive(node, active_variables):
-    '''Determines whether this node contains only variables that are
-    passive.
-
-    :param node: the PSyIR node that is being evaluated.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
-    :param active_variables: a list of active variables.
-    :type active_variables: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-    :returns: True if passive and False otherwise.
-    :rtype: bool
-
-    '''
-    return not active(node, active_variables)
 
 
 class AdjointVisitor(PSyIRVisitor):
@@ -102,50 +68,78 @@ class AdjointVisitor(PSyIRVisitor):
         self._logger = logging.getLogger(__name__)
 
     def container_node(self, node):
-        '''This method is called if the visitor finds a Container node.
+        '''This method is called if the visitor finds a Container node. A copy
+        of the container is returned, as this does not change when
+        converting from tangent linear to adjoint, which contains
+        processed siblings.
 
-        :param node: a FileContainer PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.FileContainer`
+        :param node: a Container PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: a new PSyIR tree containing the adjoint equivalent \
-            of this node and its children nodes.
+            of this node and its sibling nodes.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         self._logger.debug("Copying Container")
-        node_copy = node.copy()
-        node_copy.children = []
-        for child in node.children:
-            result = self._visit(child)
-            node_copy.children.append(result)
-        return node_copy
+        return self._copy_and_process(node)
 
     def schedule_node(self, node):
-        '''This method is called if the visitor finds a Schedule node.'''
-        self._logger.debug("Transforming Schedule")
+        '''This method is called if the visitor finds a Schedule node. A copy
+        of the container is returned, as this does not change when
+        converting from tangent linear to adjoint and its children are
+        re-ordered and sorted dependending on whether they are active
+        or passive nodes.
 
+        As a schedule contains variable scoping information. i.e. a
+        symbol table, the symbols representing the active variable
+        strings supplied to the visitor are found and added to an
+        internal list so they are available when processing any
+        siblings.
+
+        :param node: a Schedule PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: a new PSyIR tree containing the adjoint equivalent \
+            of this node and its sibling nodes.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        self._logger.debug("Transforming Schedule")
         if not (len(node.children) == 1 and isinstance(node.children[0], Assignment)):
                 raise TangentLinearError(
                     "Support is currently limited to code with a single "
                     "assignment statement.")
-
         # A schedule has a scope so determine and store active variables
         symbol_table = node.scope.symbol_table
         self._active_variables = []
         for variable_name in self._active_variable_names:
             self._active_variables.append(symbol_table.lookup(variable_name))
-
-        node_copy = node.copy()
-        node_copy.children = []
-
-        result = self._visit(node.children[0])
-        node_copy.children.extend(result)
-
-        return node_copy
+        # At the moment support is limited to a single Assignment node
+        # so it is possible to make direct use of the
+        # _copy_and_process() method.
+        return self._copy_and_process(node)
 
     def assignment_node(self, node):
-        '''This method is called if the visitor finds an Assignment node.'''
+        '''This method is called if the visitor finds an Assignment node. The
+        adjoint equivalent of this tangent linear assignment is
+        returned via the AssignmentTrans transformation. As a single
+        tangent linear assignment can result in multiple adjoint
+        assignments, a list of nodes is returned.
 
+        :param node: a Schedule PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: a list of PSyIR nodes containing the adjoint \
+            equivalent of this node.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises VisitorError: if no active variable symbols are \
+            found. This should not be the case as these are set up in \
+            a Schedule node and an Assignment node should be a sibling \
+            of a Schedule node.
+
+        '''
         self._logger.debug("Transforming active assignment")
         if not self._active_variables:
             raise VisitorError(
@@ -159,3 +153,25 @@ class AdjointVisitor(PSyIRVisitor):
         dummy_schedule.children.append(new_node)
         assign_trans.apply(new_node)
         return dummy_schedule.pop_all_children()
+
+    def _copy_and_process(self, node):
+        '''Utility function to return a copy the current node containing the
+        result of processing all siblings.
+
+        :param node: a PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: a new PSyIR tree containing a copy of this node \
+            containing the result of processing all of its sibling nodes.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        node_copy = node.copy()
+        node_copy.children = []
+        for child in node.children:
+            result = self._visit(child)
+            # Result may be a node or a list of nodes
+            if isinstance(result, Node):
+                result = [result]
+            node_copy.children.extend(result)
+        return node_copy
