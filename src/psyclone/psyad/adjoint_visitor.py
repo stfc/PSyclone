@@ -43,10 +43,7 @@ import logging
 
 from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Schedule, Reference, UnaryOperation, \
-    BinaryOperation, Literal, Assignment, Node
-from psyclone.psyir.symbols import REAL_TYPE, INTEGER_TYPE
+from psyclone.psyir.nodes import Schedule, Assignment, Node
 
 
 class AdjointVisitor(PSyIRVisitor):
@@ -62,7 +59,9 @@ class AdjointVisitor(PSyIRVisitor):
     def __init__(self, active_variable_names):
         super(AdjointVisitor, self).__init__()
         if not active_variable_names:
-            raise TypeError("There should be at least one active variable supplied.")
+            raise TypeError(
+                "There should be at least one active variable supplied to "
+                "an AdjointVisitor.")
         self._active_variable_names = active_variable_names
         self._active_variables = None
         self._logger = logging.getLogger(__name__)
@@ -106,10 +105,11 @@ class AdjointVisitor(PSyIRVisitor):
 
         '''
         self._logger.debug("Transforming Schedule")
-        if not (len(node.children) == 1 and isinstance(node.children[0], Assignment)):
-                raise TangentLinearError(
-                    "Support is currently limited to code with a single "
-                    "assignment statement.")
+        if not (len(node.children) == 1 and
+                isinstance(node.children[0], Assignment)):
+            raise TangentLinearError(
+                "Support is currently limited to code with a single "
+                "assignment statement.")
         # A schedule has a scope so determine and store active variables
         symbol_table = node.scope.symbol_table
         self._active_variables = []
