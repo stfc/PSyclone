@@ -111,10 +111,10 @@ def main(args):
         # Create the adjoint (and associated test framework if requested)
         ad_fortran_str, test_fortran_str = generate_adjoint_str(
             tl_fortran_str, args.active, create_test=generate_test)
-    except (TangentLinearError, TypeError) as info:
+    except TangentLinearError as info:
         print(str(info.value))
         exit(1)
-    except (KeyError) as info:
+    except KeyError as info:
         print(str(info))
         exit(1)
 

@@ -237,6 +237,55 @@ def test_main_invalid_filename(capsys, caplog):
     assert "file 'does_not_exist.f90', not found." in caplog.text
 
 
+# Exceptions in adjoint generation (TangentLinearError, TypeError,
+# KeyError)
+
+def test_main_tangentlinearerror(tmpdir, capsys):
+    '''Test that a TangentLinearError exception is picked up when
+    generating an adjoint and appropriate information output to
+    stdout. This can be triggered by providing active variables that
+    mean that the supplied code is not tangent linear. For example,
+    for the assignment `a=b`, if `b` were specified as being active
+    but `a` was not, the code would not be a valid tangent linear
+    code.
+
+    '''
+    test_prog = (
+        "program test\n"
+        "real :: a, b\n"
+        "a = b\n"
+        "end program test\n")
+    filename = six.text_type(tmpdir.join("tl.f90"))
+    with open(filename, "a") as my_file:
+        my_file.write(test_prog)
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "b", "--", filename])
+    assert str(info.value) == "1"
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert ("Assignment node 'a = b\n' has the following active variables "
+            "on its RHS '['b']' but its LHS 'a' is not an active variable."
+            in output)
+
+
+def test_main_keyerror(tmpdir, capsys):
+    '''Test that a KeyError exception is picked up when generating an
+    adjoint and appropriate information output to stdout. This can be
+    triggered by providing a variable name that does not exist in the
+    code.
+
+    '''
+    filename = six.text_type(tmpdir.join("tl.f90"))
+    with open(filename, "a") as my_file:
+        my_file.write(TEST_PROG)
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "doesnotexist", "--", filename])
+    assert str(info.value) == "1"
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert "Could not find 'doesnotexist' in the Symbol Table." in output
+
+
 # writing to stdout
 def test_main_stdout(tmpdir, capsys):
     '''Test that the the main() function returns its output to stdout by
