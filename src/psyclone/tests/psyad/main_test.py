@@ -46,7 +46,7 @@ from psyclone.psyad import main
 
 TEST_PROG = (
     "program test\n"
-    "integer :: a\n"
+    "real :: a\n"
     "a = 0\n"
     "end program test\n")
 
@@ -245,13 +245,13 @@ def test_main_stdout(tmpdir, capsys):
     '''
     expected = (
         "program test_adj\n"
-        "  integer :: a\n\n"
-        "  a = 0\n\n"
+        "  real :: a\n\n"
+        "  a = 0.0\n\n"
         "end program test_adj\n")
     filename = six.text_type(tmpdir.join("tl.f90"))
     with open(filename, "a") as my_file:
         my_file.write(TEST_PROG)
-    main(["-a", "var", "--", filename])
+    main(["-a", "a", "--", filename])
     output, error = capsys.readouterr()
     assert error == ""
     assert expected in output
@@ -265,14 +265,14 @@ def test_main_fileout(tmpdir, capsys):
     '''
     expected = (
         "program test_adj\n"
-        "  integer :: a\n\n"
-        "  a = 0\n\n"
+        "  real :: a\n\n"
+        "  a = 0.0\n\n"
         "end program test_adj\n")
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(TEST_PROG)
-    main([filename_in, "-oad", filename_out, "-a", "var"])
+    main([filename_in, "-oad", filename_out, "-a", "a"])
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
@@ -287,7 +287,7 @@ def test_main_t_option(tmpdir, capsys):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(TEST_MOD)
-    main([filename_in, "-oad", filename_out, "-t", "-a", "var"])
+    main([filename_in, "-oad", filename_out, "-t", "-a", "field"])
     output, error = capsys.readouterr()
     assert error == ""
     assert EXPECTED_HARNESS_CODE in output
@@ -303,7 +303,7 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     harness_out = str(tmpdir.join("harness.f90"))
     with open(filename_in, "a") as my_file:
         my_file.write(TEST_MOD)
-    main([filename_in, "-a", "var", "-oad", filename_out,
+    main([filename_in, "-a", "field", "-oad", filename_out,
           "-otest", harness_out] + extra_args)
     output, error = capsys.readouterr()
     assert error == ""
@@ -325,7 +325,7 @@ def test_main_verbose(tmpdir, capsys, caplog):
     '''
     tl_code = (
         "program test\n"
-        "integer :: a\n"
+        "real :: a\n"
         "a = 0.0\n"
         "end program test\n")
     filename_in = str(tmpdir.join("tl.f90"))

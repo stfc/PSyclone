@@ -48,6 +48,7 @@ from psyclone.generator import write_unicode_file
 from psyclone.psyad.tl2ad import generate_adjoint_str
 from psyclone.psyad.transformations import TangentLinearError
 
+
 def main(args):
     '''Takes an LFRic tangent linear kernel source file as input and
     produces its adjoint.
@@ -112,6 +113,9 @@ def main(args):
             tl_fortran_str, args.active, create_test=generate_test)
     except (TangentLinearError, TypeError) as info:
         print(str(info.value))
+        exit(1)
+    except (KeyError) as info:
+        print(str(info))
         exit(1)
 
     # Output the Fortran code for the adjoint kernel
