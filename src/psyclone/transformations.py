@@ -63,7 +63,8 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective, OMPTaskloopDirective
+    ACCKernelsDirective, OMPTaskloopDirective, BlockedLoop, Literal, \
+    BinaryOperation
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -1135,7 +1136,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         return OMPLoopTrans.apply(self, node, options)
 
 
-class BlockTrans(LoopTrans):
+class BlockLoopTrans(LoopTrans):
     '''
     Apply a blocking transformationt to a loop (in order to permit a
     chunked parallelisation). For example:
@@ -1148,9 +1149,42 @@ class BlockTrans(LoopTrans):
         return "Split a loop into a blocked loop"
 
     def validate(self, node, options=None):
-        # TODO: Docstring
-        super(BlockTrans).validate(self, node, options=options)
+        '''
+        Validates that the Loop represented by :py:obj:`node` can have
+        a BlockLoopTrans applied.
+
+        :param node: the loop to validate.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformation.
+        :type options: dictionary of string:values or None
+        :param int options["blocksize"]: The size to block over for this \
+                transformation. If not specified, the value 32 is used.
+
+        :raises TransformationError: if the supplied Loop has a step size \
+                which is not a constant value.
+        :raises TransformationError: if the supplied Loop has a step size \
+                larger than the chosen block size.
+        :raises TransformationError: if the supplied Loop has an ancestor \
+                blocked loop
+        '''
+        super(BlockLoopTrans, self).validate(node, options=options)
+        # If step is a variable don't support it for now.
+        if options is None:
+            options = {}
+        if isinstance(node.children[2], nodes.Reference):
+            raise TransformationError("Cannot apply a BlockLoopTrans to "
+                                      "a loop with a non-constant step size")
+        block_size = options.get("blocksize", 32)
+        if abs(int(node.children[2].value)) > block_size:
+            raise TransformationError("Cannot apply a BlockLoopTrans to "
+                                      "a loop with larger step size than the "
+                                      "chosen block size")
+        if node.ancestor(BlockedLoop) is not None:
+            raise TransformationError("Cannot apply a BlockedLoopTrans to "
+                                      "a loop with a parent BlockedLoop node")
         # TODO: Other checks needed for validation
+        # Dependency analysis, following rules:
+        # No child has a write dependency to the loop variable
 
     def apply(self, node, options=None):
         '''
@@ -1162,26 +1196,25 @@ class BlockTrans(LoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param int options["blocksize"]: The size to block over for this \
+                transformation. If not specified, the value 32 is used.
 
         :returns: Tuple of modified schedule and record of transformation
         :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
-        # TODO: Add option for specifying block size
-        block_size = 32
 
         self.validate(node, options)
+        if options is None:
+            options = {}
+        block_size = options.get("blocksize", 32)
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [node])
 
-        # If step is a variable lets be sad for now
-        if isinstance(node.children[2], Reference):
-            assert False
-
         # Create (or find) the symbols we need for the blocking transformation
-        routine = node.ancestor(Routine)
+        routine = node.ancestor(nodes.Routine)
         end_inner_loop = routine.symbol_table.symbol_from_tag(
                 "el_inner", symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
@@ -1200,10 +1233,6 @@ class BlockTrans(LoopTrans):
         c0 = node.children[0]
         c1 = node.children[1]
 
-        # If the step is larger than the block size that seems bad
-        if abs(int(node.children[2].value)) > block_size:
-            assert False
-
         # Create the end bound for the inner loop
         inner_loop_end = None
         inner_loop_end_lit = Literal(end_inner_loop.name,
@@ -1213,7 +1242,7 @@ class BlockTrans(LoopTrans):
         if int(node.children[2].value) > 0:
             add = BinaryOperation.create(BinaryOperation.Operator.ADD, Literal(
                 outer_loop_variable.name, outer_loop_variable.datatype),
-                Literal("{0}".block_size, node.variable.datatype))
+                Literal("{0}".format(block_size), node.variable.datatype))
             mn = BinaryOperation.create(BinaryOperation.Operator.MIN, add,
                                         Literal(c1.symbol.name,
                                                 c1.symbol.datatype))
@@ -1222,7 +1251,7 @@ class BlockTrans(LoopTrans):
         elif int(node.children[2].value) < 0:
             sub = BinaryOperation.create(BinaryOperation.Operator.SUB, Literal(
                 outer_loop_variable.name, outer_loop_variable.datatype),
-                Literal("{0}".block_size, node.variable.datatype))
+                Literal("{0}".format(block_size), node.variable.datatype))
             mx = BinaryOperation.create(BinaryOperation.Operator.MAX, add,
                                         Literal(c1.symbol.name,
                                                 c1.symbol.datatype))
@@ -1239,9 +1268,10 @@ class BlockTrans(LoopTrans):
                                 end_inner_loop.datatype))
 
         # Create the outerloop
-        outerloop = Loop.create(outer_loop_variable, c0, c1,
-                                Literal("{0}".format(block_size)),
-                                [inner_loop_end])
+        outerloop = BlockedLoop.create(outer_loop_variable, c0, c1,
+                                       Literal("{0}".format(block_size),
+                                               outer_loop_variable.datatype),
+                                       [inner_loop_end])
         # Replace this loop with the outerloop
         node.replace_with(outerloop)
         # Add the loop to the innerloop's schedule

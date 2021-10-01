@@ -56,6 +56,7 @@ from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.array_of_structures_reference import \
     ArrayOfStructuresReference
 from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.blockedloop import BlockedLoop
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.extract_node import ExtractNode
@@ -95,6 +96,7 @@ __all__ = [
         'ArrayOfStructuresReference',
         'Assignment',
         'BinaryOperation',
+        'BlockedLoop',
         'Call',
         'CodeBlock',
         'Container',
