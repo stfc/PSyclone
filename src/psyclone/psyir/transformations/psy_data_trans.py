@@ -37,11 +37,15 @@
 '''Contains the PSyData transformation.
 '''
 
+import six
+
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
+
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvoke
-from psyclone.psyGen import InvokeSchedule
+from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
     OMPDoDirective, ACCDirective, ACCLoopDirective
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -85,14 +89,22 @@ class PSyDataTrans(RegionTrans):
     # that a region can contain as we don't have to understand them.
     excluded_node_types = (Return,)
 
+    # This dictionary keeps track of region+module names that are already
+    # used. For each key (which is module_name+"|"+region_name) it contains
+    # how many regions with that name have been created. This number will
+    # then be added as an index to create unique region identifiers.
+    _used_kernel_names = {}
+
     def __init__(self, node_class=PSyDataNode):
         super(PSyDataTrans, self).__init__()
         self._node_class = node_class
 
+    # ------------------------------------------------------------------------
     def __str__(self):
         return ("Create a sub-tree of the PSyIR that has a node of type "
                 "{0} at its root.").format(self._node_class.__name__)
 
+    # ------------------------------------------------------------------------
     @property
     def name(self):
         '''This function returns the name of the transformation.
@@ -106,6 +118,64 @@ class PSyDataTrans(RegionTrans):
 
         return self.__class__.__name__
 
+    # ------------------------------------------------------------------------
+    def get_unique_region_name(self, nodes, options):
+        '''This function returns the region and module name. If they are
+        specified in the user options, these names will just be returned (it
+        is then up to the user to guarantee uniqueness). Otherwise a name
+        based on the module and invoke will be created using indices to
+        make sure the name is unique.
+
+        :param nodes: a list of nodes.
+        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param (str,str) options["region_name"]: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region unless aggregate information \
+            is required (and is supported by the runtime library).
+
+        '''
+        # We don't use a static method here since it might be useful to
+        # overwrite this functions in derived classes
+        # pylint: disable=no-self-use
+        name = options.get("region_name", None)
+        if name:
+            # pylint: disable=too-many-boolean-expressions
+            if not isinstance(name, tuple) or not len(name) == 2 or \
+               not name[0] or not isinstance(name[0], str) or \
+               not name[1] or not isinstance(name[1], str):
+                raise InternalError(
+                    "Error in PSyDataTrans. The name must be a "
+                    "tuple containing two non-empty strings.")
+            # pylint: enable=too-many-boolean-expressions
+            # Valid PSyData names have been provided by the user.
+            return name
+
+        invoke = nodes[0].ancestor(InvokeSchedule).invoke
+        module_name = invoke.invokes.psy.name
+
+        # Use the invoke name as a starting point.
+        region_name = invoke.name
+        kerns = []
+        for node in nodes:
+            kerns.extend(node.walk(Kern))
+
+        if len(kerns) == 1:
+            # This PSyData region only has one kernel within it,
+            # so append the kernel name.
+            region_name += ":{0}".format(kerns[0].name)
+
+        # Add a region index to ensure uniqueness when there are
+        # multiple regions in an invoke.
+        key = module_name + "|" + region_name
+        idx = PSyDataTrans._used_kernel_names.get(key, 0)
+        PSyDataTrans._used_kernel_names[key] = idx + 1
+        region_name += ":r{0}".format(idx)
+        return (module_name, region_name)
+
+    # ------------------------------------------------------------------------
     def validate(self, nodes, options=None):
         '''
         Calls the validate method of the base class and then checks that,
@@ -137,6 +207,7 @@ class PSyDataTrans(RegionTrans):
             applies.
 
         '''
+        # pylint: disable=too-many-branches
         node_list = self.get_node_list(nodes)
 
         if not node_list:
@@ -183,16 +254,17 @@ class PSyDataTrans(RegionTrans):
                      [pdata_node.fortran_module]):
             try:
                 _ = table.lookup_with_tag(name)
-            except KeyError:
+            except KeyError as err:
                 # The tag doesn't exist which means that we haven't already
                 # added this symbol as part of a PSyData transformation. Check
                 # for any clashes with existing symbols.
                 try:
                     _ = table.lookup(name)
-                    raise TransformationError(
+                    raise six.raise_from(TransformationError(
                         "Cannot add PSyData calls because there is already a "
                         "symbol named '{0}' which clashes with one of those "
-                        "used by the PSyclone PSyData API. ".format(name))
+                        "used by the PSyclone PSyData API. ".format(name)),
+                        err)
                 except KeyError:
                     pass
 
@@ -221,6 +293,7 @@ class PSyDataTrans(RegionTrans):
                 "Specification Part) but '{0}' does not have any.".format(
                     invoke.name))
 
+    # ------------------------------------------------------------------------
     def apply(self, nodes, options=None):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
@@ -268,7 +341,7 @@ class PSyDataTrans(RegionTrans):
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
-        # GOceanExtractNode. We pass the user-specified options to the
+        # ExtractNode. We pass the user-specified options to the
         # create() method.  An example use case for this is the
         # 'create_driver' flag, where the calling program can control if
         # a stand-alone driver program should be created or not (when
@@ -282,5 +355,6 @@ class PSyDataTrans(RegionTrans):
         return root, keep
 
 
+# =============================================================================
 # For AutoAPI documentation generation
 __all__ = ['PSyDataTrans']

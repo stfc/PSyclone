@@ -66,21 +66,25 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
     tnode = Node()
-    # Node is an abstract class
-    with pytest.raises(NotImplementedError) as err:
-        tnode.node_str()
-    assert ("_text_name is an abstract attribute which needs to be given a "
-            "string value in the concrete class 'Node'." in str(err.value))
-    # Exception as _colour has not been set
-    tnode._text_name = "ATest"
+    # Exception as Node is abstract and _colour has not been set
     with pytest.raises(NotImplementedError) as err:
         _ = tnode.coloured_name()
     assert ("The _colour attribute is abstract so needs to be given a string "
             "value in the concrete class 'Node'." in str(err.value))
-    # Valid values
-    tnode._colour = "white"
-    assert tnode.coloured_name(False) == "ATest"
-    assert tnode.coloured_name(True) == colored("ATest", "white")
+
+    # Create a node type with a colour attribute
+    class MyNode(Node):
+        ''' Mock node sub-class with green coloured text. '''
+        _colour = "green"
+
+    mynode = MyNode()
+    assert mynode.coloured_name(False) == "MyNode"
+    assert mynode.coloured_name(True) == colored("MyNode", "green")
+
+    # Give MyNode a specific _text_name
+    MyNode._text_name = "MyFancyNodeName"
+    assert mynode.coloured_name(False) == "MyFancyNodeName"
+    assert mynode.coloured_name(True) == colored("MyFancyNodeName", "green")
 
 
 def test_node_coloured_name_exception(monkeypatch):
@@ -107,22 +111,21 @@ def test_node_coloured_name_exception(monkeypatch):
             "package." in str(err.value))
 
 
-def test_node_str():
+def test_node_str(monkeypatch):
     ''' Tests for the Node.node_str method. '''
     tnode = Node()
-    # Node is an abstract class
-    with pytest.raises(NotImplementedError) as err:
-        tnode.node_str()
-    assert ("_text_name is an abstract attribute which needs to be given a "
-            "string value in the concrete class 'Node'." in str(err.value))
 
-    # Manually set the _text_name and _colour for this node to
-    # something that will result in coloured output (if requested
-    # *and* termcolor is installed).
-    tnode._text_name = "FakeName"
-    tnode._colour = "green"
-    assert tnode.node_str(False) == "FakeName[]"
-    assert tnode.node_str(True) == colored("FakeName", "green") + "[]"
+    # Mock the coloured_name method because it is already tested elsewhere
+    def mock_coloured_name(colour):
+        if colour:
+            return "coloured_name_string"
+        return "plain_name_string"
+    monkeypatch.setattr(tnode, "coloured_name", mock_coloured_name)
+
+    # Test that the generic node_str calls the appropriate coloured_name and
+    # adds a [] at the end.
+    assert tnode.node_str(False) == "plain_name_string[]"
+    assert tnode.node_str(True) == "coloured_name_string[]"
 
 
 def test_node_depth():
@@ -503,7 +506,12 @@ def test_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    assert super(Schedule, schedule).dag_name == "node_1"
+
+    # Classes without the dag_name specialised should show the name of the
+    # class and the relative position to the ancestor routine
+    assert schedule.children[4].start_expr.dag_name == "Literal_6"
+
+    # Some classes have their own specialisation of the dag_name
     assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
     assert schedule.children[4].dag_name == "loop_5"
@@ -512,6 +520,12 @@ def test_dag_names():
     schedule.children[4].loop_type = ""
     assert (schedule.children[4].loop_body[0].dag_name ==
             "kernel_testkern_code_10")
+
+    # If there is no ancestor routine, the index is the absolute position
+    loop = schedule.children[4].detach()
+    assert loop.start_expr.dag_name == "Literal_1"
+
+    # GlobalSum and BuiltIn also have specialised dag_names
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
@@ -618,24 +632,24 @@ EXPECTED2 = re.compile(
     r"\s*loop_1_end\n"
     r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
     r"\s*routine_invoke_0_0_start -> loop_1_start \[color=blue\]\n"
-    r"\s*schedule_5_start\n"
-    r"\s*schedule_5_end\n"
-    r"\s*schedule_5_end -> loop_1_end \[color=blue\]\n"
-    r"\s*loop_1_start -> schedule_5_start \[color=blue\]\n"
+    r"\s*Schedule_5_start\n"
+    r"\s*Schedule_5_end\n"
+    r"\s*Schedule_5_end -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> Schedule_5_start \[color=blue\]\n"
     r"\s*kernel_testkern_qr_code_6\n"
-    r"\s*kernel_testkern_qr_code_6 -> schedule_5_end \[color=blue\]\n"
-    r"\s*schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_6 -> Schedule_5_end \[color=blue\]\n"
+    r"\s*Schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
     r"\s*loop_7_start\n"
     r"\s*loop_7_end\n"
     r"\s*loop_7_end -> routine_invoke_0_0_end \[color=blue\]\n"
     r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
-    r"\s*schedule_11_start\n"
-    r"\s*schedule_11_end\n"
-    r"\s*schedule_11_end -> loop_7_end \[color=blue\]\n"
-    r"\s*loop_7_start -> schedule_11_start \[color=blue\]\n"
+    r"\s*Schedule_11_start\n"
+    r"\s*Schedule_11_end\n"
+    r"\s*Schedule_11_end -> loop_7_end \[color=blue\]\n"
+    r"\s*loop_7_start -> Schedule_11_start \[color=blue\]\n"
     r"\s*kernel_testkern_qr_code_12\n"
-    r"\s*kernel_testkern_qr_code_12 -> schedule_11_end \[color=blue\]\n"
-    r"\s*schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_12 -> Schedule_11_end \[color=blue\]\n"
+    r"\s*Schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
     r"}")
 # pylint: enable=anomalous-backslash-in-string
 

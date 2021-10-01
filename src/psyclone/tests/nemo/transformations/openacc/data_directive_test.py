@@ -174,20 +174,6 @@ def test_add_region_comment_err(parser):
             "characters but got: '!end data'" in str(err.value))
 
 
-def test_data_view(parser, capsys):
-    ''' Check that the ACCDataDirective.view() method works as expected. '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    acc_trans.apply(schedule.children)
-    schedule.view()
-    output, _ = capsys.readouterr()
-    assert "[ACC DATA]" in output
-    assert schedule.children[0].dag_name == "ACC_data_1"
-
-
 def test_explicit_directive(parser):
     '''Check code generation for a single explicit loop containing a
     kernel with a pre-existing (openacc kernels) directive.

@@ -729,10 +729,6 @@ def test_call_abstract_methods():
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
 
     with pytest.raises(NotImplementedError) as excinfo:
-        my_call.__str__()
-    assert "Kern.__str__ should be implemented" in str(excinfo.value)
-
-    with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
     assert "Kern.gen_code should be implemented" in str(excinfo.value)
 

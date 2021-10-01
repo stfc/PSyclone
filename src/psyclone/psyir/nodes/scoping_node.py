@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors  S. Siso, STFC Daresbury Lab
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the ScopingNode implementation.'''
@@ -80,10 +80,25 @@ class ScopingNode(Node):
         self._symbol_table._node = self  # Associate to self
 
         # Update of children references to point to the equivalent symbols in
-        # the new symbol table attached to self
-        for ref in self.walk(Reference):
-            if ref.symbol in other.symbol_table.symbols:
-                ref.symbol = self.symbol_table.lookup(ref.symbol.name)
+        # the new symbol table attached to self.
+        # TODO #1377 Unfortunately Loop nodes currently store the associated
+        # loop variable in a `_variable` property rather than as a child so we
+        # must handle those separately. Also, in the LFRic API a Loop does not
+        # initially have the `_variable` property set which means that calling
+        # the `variable` getter causes an error (because it checks the
+        # internal-consistency of the Loop node). We therefore have to check
+        # the value of the 'private' `_variable` for now.
+        # We have to import Loop here to avoid a circular dependency.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.loop import Loop
+        for node in self.walk((Reference, Loop)):
+            if isinstance(node, Reference):
+                if node.symbol in other.symbol_table.symbols:
+                    node.symbol = self.symbol_table.lookup(node.symbol.name)
+            if isinstance(node, Loop) and node._variable:
+                if node.variable in other.symbol_table.symbols:
+                    node.variable = self.symbol_table.lookup(
+                        node.variable.name)
 
     @property
     def symbol_table(self):

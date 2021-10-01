@@ -172,6 +172,8 @@ class PSyDataNode(Statement):
         self._module_name = None
         self._region_name = None
 
+        # TODO: #1394 Fix code duplication between
+        # PSyDataTrans and this PSyDataNode
         name = options.get("region_name", None)
 
         if name:

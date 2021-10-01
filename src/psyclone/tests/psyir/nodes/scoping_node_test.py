@@ -31,17 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes import (Schedule, Assignment, Reference, Container,
-                                  Routine, ArrayReference)
+                                  Loop, Literal, Routine, ArrayReference)
 from psyclone.psyir.symbols import (DataSymbol, ArrayType, INTEGER_TYPE,
-                                    ArgumentInterface, SymbolTable)
-from psyclone.psyir.backend.fortran import FortranWriter
+                                    ArgumentInterface, SymbolTable, REAL_TYPE)
+from psyclone.tests.utilities import Compile
 
 
 def test_scoping_node_symbol_table():
@@ -95,7 +95,7 @@ def test_scoping_node_copy():
     assert new_schedule[0].rhs.symbol in new_schedule.symbol_table.symbols
 
 
-def test_scoping_node_copy_hierarchy():
+def test_scoping_node_copy_hierarchy(fortran_writer):
     ''' Test that the ScopingNode copy() method creates a new symbol table
     with copied symbols and updates the children references.
 
@@ -176,8 +176,50 @@ module module
 
 end module module
 '''
-    writer = FortranWriter()
-    output = writer(parent_node)
+    output = fortran_writer(parent_node)
     assert expected == output
     # TODO #1200: fixing this issue must allow to Compile the test output
     # assert Compile(tmpdir).string_compiles(output)
+
+
+def test_scoping_node_copy_loop(fortran_writer, tmpdir):
+    ''' Test that the ScopingNode copy() method correctly handles a Loop
+    and its associated loop variable.
+    TODO #1377 this test could be removed once we no longer have to take
+    special action when copying a Loop.
+
+    '''
+    # Create the PSyIR for a Routine containing a simple loop
+    schedule = Routine("routine")
+    symbol_table = schedule.scope.symbol_table
+    loop_var = symbol_table.new_symbol(root_name="idx",
+                                       symbol_type=DataSymbol,
+                                       datatype=INTEGER_TYPE)
+    array = symbol_table.new_symbol(root_name="a", symbol_type=DataSymbol,
+                                    datatype=ArrayType(REAL_TYPE, [10]))
+
+    tmparray = ArrayReference.create(array, [Reference(loop_var)])
+    assign1 = Assignment.create(tmparray, Reference(loop_var))
+
+    loop = Loop.create(loop_var, Literal("1", INTEGER_TYPE),
+                       Literal("10", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
+                       [assign1])
+    schedule.addchild(loop)
+    # Now take a copy of the schedule and check the consistency of the
+    # references to the loop variable.
+    new_schedule = schedule.copy()
+    assert new_schedule.symbol_table is not schedule.symbol_table
+    new_loop_var = new_schedule.symbol_table.lookup("idx")
+    assert new_loop_var is not loop_var
+    new_loop = new_schedule[0]
+    assert new_loop.variable is new_loop_var
+    assert new_loop.loop_body[0].rhs.symbol is new_loop_var
+    # Check that the copied tree results in compilable Fortran
+    output = fortran_writer(new_schedule)
+    assert Compile(tmpdir).string_compiles(output)
+    # Check that the copy operation succeeds, even if there is no variable
+    # associated with the Loop (as can be the case in the LFRic domain).
+    loop._variable = None
+    new_schedule2 = schedule.copy()
+    new_loop_var = new_schedule2.symbol_table.lookup("idx")
+    assert new_loop_var is not loop_var
