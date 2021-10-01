@@ -174,11 +174,11 @@ class PSyDataTrans(RegionTrans):
     # ------------------------------------------------------------------------
     def validate(self, nodes, options=None):
         '''
-        Calls the validate method of the base class and then checks that,
-        for the NEMO API, the routine that will contain the instrumented
-        region already has a Specification_Part (because we've not yet
-        implemented the necessary support if it doesn't).
-        TODO: #435
+        Checks that the supplied list of nodes is valid, that the location
+        for this node is valid (not between a loop-directive and its loop),
+        that there aren't any name clashes with symbols that must be
+        imported from the appropriate PSyData library and finally, calls the
+        validate method of the base class.
 
         :param nodes: a node or list of nodes to be instrumented with \
             PSyData API calls.
@@ -196,11 +196,15 @@ class PSyDataTrans(RegionTrans):
             should uniquely identify a region unless aggregate information \
             is required (and is supported by the runtime library).
 
-        :raises TransformationError: if we're using the NEMO API and the \
-            target routine has no Specification_Part.
+        :raises TransformationError: if the supplied list of nodes is empty.
         :raises TransformationError: if the PSyData node is inserted \
             between an OpenMP/ACC directive and the loop(s) to which it \
             applies.
+        :raises TransformationError: if the 'prefix' or 'region_name' options \
+            are not valid.
+        :raises TransformationError: if there will be a name clash between \
+            any existing symbols and those that must be imported from the \
+            appropriate PSyData library.
 
         '''
         # pylint: disable=too-many-branches
