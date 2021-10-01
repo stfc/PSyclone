@@ -80,6 +80,8 @@ class NemoInvokes(Invokes):
 
     :param psyir: the language-level PSyIR for the whole Fortran source file.
     :type psyir: :py:class:`psyclone.psyir.nodes.Container`
+    :param psy: the PSy object containing all information for this source file.
+    :type psy: :py:class:`psyclone.nemo.NemoPSy`
 
     '''
     def __init__(self, psyir, psy):

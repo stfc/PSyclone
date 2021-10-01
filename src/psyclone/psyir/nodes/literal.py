@@ -61,14 +61,15 @@ class Literal(DataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises TypeError: if the datatype is not an instance of \
-                       :py:class:`psyclone.psyir.symbols.DataType`.
-    :raises ValueError: if the datatype is not one of \
-                        self.VALID_DATA_TYPES.
+        :py:class:`psyclone.psyir.symbols.DataType`.
+    :raises ValueError: if the datatype is not one of self.VALID_DATA_TYPES.
     :raises TypeError: if the supplied value is not a string.
     :raises ValueError: if the supplied value is an empty string and the \
-                        Literal is not a CHARACTER.
+        Literal is not a CHARACTER.
     :raises ValueError: if the Literal is a BOOLEAN and the value is not \
-                        'true' or 'false'.
+        'true' or 'false'.
+    :raises ValueError: if the Literal is a REAL but does not conform to \
+        the supported format defined by the `_real_value` property.
 
     '''
     # Textual description of the node.
