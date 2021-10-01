@@ -113,10 +113,10 @@ def main(args):
             tl_fortran_str, args.active, create_test=generate_test)
     except TangentLinearError as info:
         print(str(info.value))
-        exit(1)
+        sys.exit(1)
     except KeyError as info:
         print(str(info))
-        exit(1)
+        sys.exit(1)
 
     # Output the Fortran code for the adjoint kernel
     if args.oad:
