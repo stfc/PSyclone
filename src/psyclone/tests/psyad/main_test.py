@@ -47,7 +47,7 @@ from psyclone.psyad import main
 TEST_PROG = (
     "program test\n"
     "real :: a\n"
-    "a = 0\n"
+    "a = 0.0\n"
     "end program test\n")
 
 TEST_MOD = (

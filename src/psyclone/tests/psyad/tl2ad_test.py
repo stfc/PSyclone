@@ -39,7 +39,6 @@ within the psyad directory.
 '''
 from __future__ import print_function, absolute_import
 import logging
-import six
 import pytest
 
 from psyclone.errors import InternalError
@@ -105,7 +104,8 @@ def test_generate_adjoint_str_generate_harness():
         "  end subroutine kern\n"
         "end module my_mod\n"
     )
-    result, harness = generate_adjoint_str(tl_code, ["field"], create_test=True)
+    result, harness = generate_adjoint_str(
+        tl_code, ["field"], create_test=True)
     assert "subroutine kern_adj(field)\n" in result
     assert '''program adj_test
   use my_mod, only : kern
@@ -283,8 +283,8 @@ def test_generate_adjoint_logging(caplog):
 
     with caplog.at_level(logging.DEBUG):
         ad_psyir = generate_adjoint(tl_psyir, ["a"])
-    assert ("Translating from TL to AD." in caplog.text)
-    assert ("AD kernel will be named 'test_adj'" in caplog.text)
+    assert "Translating from TL to AD." in caplog.text
+    assert "AD kernel will be named 'test_adj'" in caplog.text
 
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
