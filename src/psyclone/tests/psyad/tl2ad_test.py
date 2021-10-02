@@ -202,21 +202,23 @@ def test_generate_adjoint(fortran_reader):
 
     tl_fortran_str = (
         "program test\n"
-        "real :: a\n"
-        "a = 0.0\n"
+        "real :: a, b, c\n"
+        "a = b + c\n"
         "end program test\n")
     expected_ad_fortran_str = (
         "program test_adj\n"
-        "  real :: a\n\n"
+        "  real :: a\n  real :: b\n  real :: c\n\n"
+        "  b = b + a\n"
+        "  c = c + a\n"
         "  a = 0.0\n\n"
         "end program test_adj\n")
     tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
 
-    ad_psyir = generate_adjoint(tl_psyir, ["a"])
+    ad_psyir = generate_adjoint(tl_psyir, ["a", "b", "c"])
 
     writer = FortranWriter()
     ad_fortran_str = writer(ad_psyir)
-    assert expected_ad_fortran_str in ad_fortran_str
+    assert ad_fortran_str in expected_ad_fortran_str
 
 
 @pytest.mark.xfail(reason="issue #1426: only a single assignment statement is "
@@ -260,41 +262,29 @@ def test_generate_adjoint_logging(caplog):
     '''
     tl_fortran_str = (
         "program test\n"
-        "integer :: a\n"
+        "real :: a\n"
         "a = 0.0\n"
         "end program test\n")
     expected_ad_fortran_str = (
-        "program test\n"
-        "  integer :: a\n\n"
+        "program test_adj\n"
+        "  real :: a\n\n"
         "  a = 0.0\n\n"
-        "end program test\n")
+        "end program test_adj\n")
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
     with caplog.at_level(logging.INFO):
-        ad_psyir = generate_adjoint(tl_psyir, [])
+        ad_psyir = generate_adjoint(tl_psyir, ["a"])
     assert caplog.text == ""
 
     writer = FortranWriter()
     ad_fortran_str = writer(ad_psyir)
-    assert expected_ad_fortran_str in ad_fortran_str
+    assert ad_fortran_str in expected_ad_fortran_str
 
     with caplog.at_level(logging.DEBUG):
-        ad_psyir = generate_adjoint(tl_psyir, [])
-    # Python2 and 3 report different line numbers
-    if six.PY2:
-        line_number = 96
-    else:
-        line_number = 95
-    assert (
-        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:{0} Translation from generic "
-        "PSyIR to LFRic-specific PSyIR should be done now.".format(line_number)
-        in caplog.text)
-    assert (
-        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:100 Transformation from TL to "
-        "AD should be done now." in caplog.text)
-    assert ("DEBUG    psyclone.psyad.tl2ad:tl2ad.py:224 AD kernel will be "
-            "named 'kern_adj'" in caplog.text)
+        ad_psyir = generate_adjoint(tl_psyir, ["a"])
+    assert ("Translating from TL to AD." in caplog.text)
+    assert ("AD kernel will be named 'test_adj'" in caplog.text)
 
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
