@@ -204,6 +204,10 @@
 	70) PR #1326 for #1292. Add support for GH_READINC access for continuous
 	fields in the LFRic API.
 
+	71) PR #1409 for #1383. Standardises and cleans-up dag_name() methods
+	and pins jsonschema to version 3.0.2 to fix jupyter notebooks with
+	older versions of Python.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
