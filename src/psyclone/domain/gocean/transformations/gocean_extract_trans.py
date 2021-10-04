@@ -38,8 +38,8 @@
 '''This module contains the GOcean-specific extract transformation.
 '''
 
-from psyclone.domain.gocean.nodes import GOceanExtractNode
 from psyclone.gocean1p0 import GOLoop
+from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.symbols import REAL8_TYPE, INTEGER_TYPE
 from psyclone.psyir.tools import DependencyTools
 from psyclone.domain.common import ExtractDriverCreator
@@ -68,7 +68,7 @@ class GOceanExtractTrans(ExtractTrans):
     '''
 
     def __init__(self):
-        super(GOceanExtractTrans, self).__init__(GOceanExtractNode)
+        super(GOceanExtractTrans, self).__init__(ExtractNode)
         # Set the integer and real types to use. If required, the constructor
         # could take a parameter to change these.
 
@@ -88,14 +88,14 @@ class GOceanExtractTrans(ExtractTrans):
             be created in the current working directory with the name \
             "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
             corresponding values for this region. This flag is forwarded to \
-            the GoceanExtractNode. Its default value is False.
+            the ExtractNode. Its default value is False.
         :param (str,str) options["region_name"]: an optional name to \
             use for this data-extraction region, provided as a 2-tuple \
             containing a module name followed by a local name. The pair of \
             strings should uniquely identify a region unless aggregate \
             information is required (and is supported by the runtime \
             library). This option is forwarded to the PSyDataNode (where it \
-            changes the region names) and to the GOceanExtractNode (where it \
+            changes the region names) and to the ExtractNode (where it \
             changes the name of the created output files and the name of the \
             driver program).
 
@@ -128,7 +128,7 @@ class GOceanExtractTrans(ExtractTrans):
         the base class, it is only added here to provide the documentation
         for this function, since it accepts different options
         to the base class (e.g. create_driver, which is passed to the
-        GOceanExtractNode instance that will be inserted.).
+        ExtractNode instance that will be inserted.).
 
         :param nodes: can be a single node or a list of nodes.
         :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \

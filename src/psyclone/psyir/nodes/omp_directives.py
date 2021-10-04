@@ -54,7 +54,6 @@ from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.routine import Routine
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -120,15 +119,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
 
     '''
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_taskwait_" + str(position)
-
     def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
@@ -327,15 +317,6 @@ class OMPMasterDirective(OMPSerialDirective):
     # Textual description of the node
     _text_name = "OMPMasterDirective"
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_master_" + str(position)
-
     def gen_code(self, parent):
         '''Generate the Fortran OMP Master Directive and any associated
         code
@@ -383,15 +364,7 @@ class OMPMasterDirective(OMPSerialDirective):
 
 
 class OMPParallelDirective(OMPRegionDirective):
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_parallel_" + str(position)
+    ''' Class representing an OpenMP Parallel directive. '''
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
@@ -787,15 +760,6 @@ class OMPDoDirective(OMPRegionDirective):
         super(OMPDoDirective, self).__init__(children=children,
                                              parent=parent)
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_do_" + str(position)
-
     def node_str(self, colour=True):
         '''
         Returns the name of this node with (optional) control codes
@@ -938,15 +902,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 children=children,
                                 parent=parent,
                                 omp_schedule=omp_schedule)
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_parallel_do_" + str(position)
 
     def gen_code(self, parent):
 
