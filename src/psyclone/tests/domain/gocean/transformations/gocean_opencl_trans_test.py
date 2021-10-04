@@ -51,17 +51,40 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import Compile, get_invoke
-from psyclone.transformations import TransformationError
-
-# PSyclone API under test
-API = "gocean1.0"
+from psyclone.transformations import TransformationError, \
+    KernelImportsToArguments
 
 
 @pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use gocean1.0 as API.'''
+    '''Make sure that all tests here use the GOcean API and include the
+    gocean test_files directory (as some modules are imported from there
+    in the examples) and that we clean up the config file at the end of
+    the tests.'''
+
     Config._instance = None
+    # Each os.path.dirname() move up in the folder hierarchy
+    filepath = os.path.join(
+                   os.path.join(
+                       os.path.dirname(
+                           os.path.dirname(
+                               os.path.dirname(
+                                   os.path.dirname(
+                                       os.path.abspath(__file__))))),
+                       "test_files"),
+                   "gocean1p0")
+
     Config.get().api = "gocean1.0"
+    Config.get()._include_paths = [filepath]
+    yield()
+    # At the end of all tests make sure that we wipe the Config object
+    # so we get a fresh/default one for any further test (and not a
+    # left-over one from a test here).
+    Config._instance = None
+
+
+# PSyclone API under test
+API = "gocean1.0"
 
 
 # ----------------------------------------------------------------------------
@@ -531,6 +554,45 @@ def test_psy_init_defaults(kernel_outputdir):
         CALL ocl_env_init(1, ocl_device_num, .false., .false.)
         kernel_names(1) = 'compute_cu_code'
         CALL add_kernels(1, kernel_names)
+      END IF
+
+    END SUBROUTINE psy_init'''
+    assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
+def test_psy_init_multiple_kernels(kernel_outputdir):
+    ''' Check that we create a psy_init() routine that sets-up the
+    kernel_names correctly when there are multiple kernels, some of the
+    repeated. '''
+    # This example has 2 unique kernels, one of them repeated twice
+    psy, _ = get_invoke("single_invoke_three_kernels_with_use.f90",
+                        API, idx=0, dist_mem=True)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel and removing
+    # kernel imports are prerequisites for this test.
+    trans1 = GOMoveIterationBoundariesInsideKernelTrans()
+    trans2 = KernelImportsToArguments()
+    for kernel in sched.coded_kernels():
+        trans1.apply(kernel)
+        trans2.apply(kernel)
+
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen)
+    expected = '''
+    SUBROUTINE psy_init()
+      USE fortcl, ONLY: add_kernels, ocl_env_init
+      CHARACTER(LEN=30) kernel_names(1)
+      INTEGER :: ocl_device_num = 1
+      LOGICAL, SAVE :: initialised = .FALSE.
+
+      IF (.NOT.initialised) THEN
+        initialised = .true.
+        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
+        kernel_names(1) = 'kernel_with_use_code'
+        kernel_names(2) = 'kernel_with_use2_code'
+        CALL add_kernels(2, kernel_names)
       END IF
 
     END SUBROUTINE psy_init'''

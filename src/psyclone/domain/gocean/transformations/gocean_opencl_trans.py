@@ -307,18 +307,25 @@ class GOOpenCLTrans(Transformation):
             {1}
             call ocl_env_init({2}, ocl_device_num, {3}, {4})
             ! The kernels this psy layer module requires
-            kernel_names(1) = "compute_cu_code"
-            ! Create the opencl kernel objects. This expects to find all of
-            ! the compiled kernels in FORTCL_KERNELS_FILE environment variable
-            call add_kernels(1, kernel_names)
-          end if
-        end subroutine psy_init'''.format(
+        '''.format(
                 additional_uses,
                 additional_stmts,
                 self._max_queue_number,
                 ".true." if self._enable_profiling else ".false.",
                 ".true." if self._out_of_order else ".false.",
                 )
+
+        unique_kernels = {kernel.name for kernel in node.coded_kernels()}
+        for index, kernel_name in enumerate(unique_kernels):
+            code += "kernel_names({0}) = \"{1}\"\n".format(index + 1,
+                                                           kernel_name)
+
+        code += '''\
+            ! Create the opencl kernel objects. This expects to find all of
+            ! the compiled kernels in FORTCL_KERNELS_FILE environment variable
+            call add_kernels({0}, kernel_names)
+          end if
+        end subroutine psy_init'''.format(len(unique_kernels))
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
