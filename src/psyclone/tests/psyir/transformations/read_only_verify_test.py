@@ -96,9 +96,6 @@ def test_read_only_basic(capsys):
             0: {1}[]
                 {0}[]""".format(sched_node, read_node) in result
 
-    read_node = invoke.schedule[0].loop_body[0]
-    assert read_node.dag_name == "read_only_verify_0"
-
 
 # -----------------------------------------------------------------------------
 def test_read_only_options():

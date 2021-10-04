@@ -103,7 +103,7 @@ and an optional API specific section, for example for the
 
    [dynamo0.3]
    access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                    gh_inc: inc, gh_sum: sum
+                    gh_inc: inc, gh_readinc: readinc, gh_sum: sum
    COMPUTE_ANNEXED_DOFS = false
    supported_fortran_datatypes = real, integer, logical
    default_kind = real: r_def, integer: i_def, logical: l_def
@@ -187,14 +187,15 @@ access_mapping          This field defines the strings that are used by a
                         pairs, e.g.:
 
                         ``gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                        gh_inc: inc, gh_sum: sum``
+                        gh_inc: inc, gh_readinc: gh_sum: sum``
 
-                        At this stage these 5 types are defined for read, write,
-                        read+write, increment and summation access by PSyclone.
-                        Sum is a form of reduction.
-                        The GOcean APIs do not support increment or sum, so
-                        they only define three mappings for read, write, and 
-                        readwrite.
+                        At this stage these 6 types are defined for
+                        read, write, read+write, increment,
+                        read+increment and summation access by
+                        PSyclone. Sum is a form of reduction. The
+                        GOcean APIs do not support increment or sum,
+                        so they only define three mappings for read,
+                        write, and readwrite.
 ======================= =======================================================
 
 
