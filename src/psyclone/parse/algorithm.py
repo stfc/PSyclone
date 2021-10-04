@@ -687,7 +687,12 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
     for argument in argument_list:
         if isinstance(argument, (Real_Literal_Constant, Int_Literal_Constant)):
             # A simple constant e.g. 1.0, or 1_i_def
-            arguments.append(Arg('literal', argument.tostr().lower()))
+            if isinstance(argument, Real_Literal_Constant):
+                datatype = ("real", argument.children[1])
+            else:
+                datatype = ("integer", argument.children[1])
+            arguments.append(Arg('literal', argument.tostr().lower(),
+                                 datatype=datatype))
         elif isinstance(argument, Name):
             # A simple variable e.g. arg
             full_text = str(argument).lower()

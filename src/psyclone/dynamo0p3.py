@@ -1032,22 +1032,24 @@ class DynamoPSy(PSy):
                        const.DATA_TYPE_MAP["operator"]["module"]]
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
-        # Get configuration for valid argument kinds (start with
-        # 'real' and 'integer' kinds)
-        api_config = Config.get().api_conf("dynamo0.3")
 
         kind_names = set()
+        # Get the configuration. This will be used to access argument
+        # kinds.
+        api_config = Config.get().api_conf("dynamo0.3")
         # The infrastructure declares integer types with default
         # precision so always add this.
         kind_names.add(api_config.default_kind["integer"])
 
-        # Add any precision associated with scalar kernel arguments.
-        #for invoke in self.invokes.invoke_list:
-        #    schedule = invoke.schedule
-        #    for kernel in schedule.kernels():
-        #        for arg in kernel.args:
-        #            if arg.is_scalar:
-        #                kind_names.add(arg.precision)
+        # datatypes declare precision information themselves. However,
+        # that is not the case for literals. Therefore deal
+        # with these separately here.
+        for invoke in self.invokes.invoke_list:
+            schedule = invoke.schedule
+            for kernel in schedule.kernels():
+                for arg in kernel.args:
+                    if arg.is_literal:
+                        kind_names.add(arg.precision)
         # Add precision names. The assumption is that all of these
         # come from the same infrastructure module. Sort the names so
         # that all versions of Python return the same value (for
@@ -8767,9 +8769,10 @@ class DynKernelArgument(KernelArgument):
                         alg_datatype))
 
             # If the algorithm information is not being ignored and
-            # the datatype is known in the algorithm layer then its
-            # precision should also be defined.
-            if use_alg_info and alg_datatype and not alg_precision:
+            # the datatype is known in the algorithm layer and it is
+            # not a literal then its precision should also be defined.
+            if use_alg_info and alg_datatype and not alg_precision and \
+               not self.is_literal:
                 raise GenerationError(
                     "Scalars must have their precision defined in the "
                     "algorithm layer but '{0}' in '{1}' does not."
