@@ -292,30 +292,34 @@ class GOOpenCLTrans(Transformation):
                 ("ocl_device_num = mod(get_rank() - 1, {0}) + 1"
                  "".format(devices_per_node))
 
+        # Get a set of all kernel names in the Container. This implementation
+        # currently assumes all of them will be available in OpenCL
+        unique_kernels = {kernel.name for kernel in node.coded_kernels()}
+
         # Code of the subroutine in Fortran
         code = '''
         subroutine psy_init()
           {0}
           use fortcl, only: ocl_env_init, add_kernels
-          character(len=30) kernel_names(1)
+          character(len=30) kernel_names({1})
           integer :: ocl_device_num=1
           logical, save :: initialised=.false.
           ! Check to make sure we only execute this routine once
           if (.not. initialised) then
             initialised = .true.
             ! Initialise the opencl environment/device
-            {1}
-            call ocl_env_init({2}, ocl_device_num, {3}, {4})
+            {2}
+            call ocl_env_init({3}, ocl_device_num, {4}, {5})
             ! The kernels this psy layer module requires
         '''.format(
                 additional_uses,
+                len(unique_kernels),
                 additional_stmts,
                 self._max_queue_number,
                 ".true." if self._enable_profiling else ".false.",
                 ".true." if self._out_of_order else ".false.",
                 )
 
-        unique_kernels = {kernel.name for kernel in node.coded_kernels()}
         for index, kernel_name in enumerate(unique_kernels):
             code += "kernel_names({0}) = \"{1}\"\n".format(index + 1,
                                                            kernel_name)

@@ -581,6 +581,9 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
+    # Check that the kernel_names has enough space for all kernels
+    assert "CHARACTER(LEN=30) kernel_names(2)" in generated_code
+
     # The order doesn't matter as far as the two kernels are loaded
     assert ("kernel_names(1) = 'kernel_with_use_code'" in generated_code or
             "kernel_names(2) = 'kernel_with_use_code'" in generated_code)
@@ -588,6 +591,8 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     assert ("kernel_names(1) = 'kernel_with_use2_code'" in generated_code or
             "kernel_names(2) = 'kernel_with_use2_code'" in generated_code)
     assert "kernel_names(3)" not in generated_code
+
+    # Check that add_kernels is provided with the total number of kernels
     assert "CALL add_kernels(2, kernel_names)" in generated_code
 
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
