@@ -118,16 +118,6 @@ class ExtractNode(PSyDataNode):
         '''
         return super(ExtractNode, self).psy_data_body
 
-    @property
-    def dag_name(self):
-        '''
-        Returns the name to use in a DAG for this Node
-
-        :returns: the dag name of ExtractNode.
-        :rtype: str
-        '''
-        return "extract_" + str(self.position)
-
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''
