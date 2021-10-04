@@ -220,29 +220,6 @@ wmask(ji,jj,jk)
     assert isinstance(directive, OMPDoDirective)
 
 
-def test_omp_do_children_err():
-    ''' Tests that we raise the expected error when an OpenMP parallel do
-    directive has more than one child or the child is not a loop. '''
-    otrans = OMPParallelLoopTrans()
-    psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    otrans.apply(schedule[0].loop_body[2])
-    directive = schedule[0].loop_body[2]
-    assert isinstance(directive, OMPParallelDoDirective)
-    # Make the schedule invalid by adding a second child to the
-    # OMPParallelDoDirective
-    directive.dir_body.children.append(directive.dir_body[0].copy())
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("An OMPParallelDoDirective can only be applied to a single loop "
-            "but this Node has 2 children:" in str(err.value))
-    directive.dir_body.children = [Return()]
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("An OMPParallelDoDirective can only be applied to a loop but "
-            "this Node has a child of type 'Return'" in str(err.value))
-
-
 def test_omp_do_within_if():
     ''' Check that we can insert an OpenMP parallel do within an if block. '''
     otrans = OMPParallelLoopTrans()
