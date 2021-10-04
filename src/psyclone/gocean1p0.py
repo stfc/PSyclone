@@ -238,15 +238,19 @@ class GOInvokes(Invokes):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
-        # Lower the GOcean PSyIR to language level so it can be visited
-        # by the backends
-        invoke.schedule.root.lower_to_language_level()
-        # Then insert it into a f2pygen AST as a PSyIRGen node.
-        # Note that other routines besides the Invoke could have been
-        # inserted during the lowering (e.g. module-inlined kernels),
-        # so have to iterate over all current children of root.
-        for child in invoke.schedule.root.children:
-            parent.add(PSyIRGen(parent, child))
+        if self.invoke_list:
+            # We just need one invoke as they all have a common root.
+            invoke = self.invoke_list[0]
+
+            # Lower the GOcean PSyIR to language level so it can be visited
+            # by the backends
+            invoke.schedule.root.lower_to_language_level()
+            # Then insert it into a f2pygen AST as a PSyIRGen node.
+            # Note that other routines besides the Invoke could have been
+            # inserted during the lowering (e.g. module-inlined kernels),
+            # so have to iterate over all current children of root.
+            for child in invoke.schedule.root.children:
+                parent.add(PSyIRGen(parent, child))
 
 
 class GOInvoke(Invoke):

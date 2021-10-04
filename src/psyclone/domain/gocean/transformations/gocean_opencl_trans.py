@@ -334,7 +334,7 @@ class GOOpenCLTrans(Transformation):
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # Insert the code the provided node
+        # Add the subroutine as child of the provided node
         node.addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("ocl_init_routine")
@@ -426,7 +426,7 @@ class GOOpenCLTrans(Transformation):
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # Insert the code in the provided node
+        # Add the subroutine as child of the provided node
         node.addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("ocl_init_grid_buffers")
@@ -508,7 +508,7 @@ class GOOpenCLTrans(Transformation):
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # Insert the code in the provided node
+        # Add the subroutine as child of the provided node
         node.addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("ocl_write_grid_buffers")
@@ -599,7 +599,7 @@ class GOOpenCLTrans(Transformation):
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # Insert the code in the provided node
+        # Add the subroutine as child of the provided node
         node.addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("ocl_read_func")
@@ -689,7 +689,7 @@ class GOOpenCLTrans(Transformation):
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # Insert the code in the provided node
+        # Add the subroutine as child of the provided node
         node.addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("ocl_write_func")
@@ -697,7 +697,7 @@ class GOOpenCLTrans(Transformation):
     @staticmethod
     def _insert_ocl_initialise_buffer(node):
         '''
-        Returns the symbol of a subroutine that initialises a OpenCL buffer in
+        Returns the symbol of a subroutine that initialises an OpenCL buffer in
         the OpenCL device using FortCL. If the subroutine doesn't already exist
         it also generates it.
 
@@ -764,7 +764,7 @@ class GOOpenCLTrans(Transformation):
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # Insert the code in the provided node
+        # Add the subroutine as child of the provided node
         node.addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("ocl_init_buffer_func")

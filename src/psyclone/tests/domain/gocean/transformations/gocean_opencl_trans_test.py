@@ -580,23 +580,16 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
-    expected = '''
-    SUBROUTINE psy_init()
-      USE fortcl, ONLY: add_kernels, ocl_env_init
-      CHARACTER(LEN=30) kernel_names(1)
-      INTEGER :: ocl_device_num = 1
-      LOGICAL, SAVE :: initialised = .FALSE.
 
-      IF (.NOT.initialised) THEN
-        initialised = .true.
-        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
-        kernel_names(1) = 'kernel_with_use_code'
-        kernel_names(2) = 'kernel_with_use2_code'
-        CALL add_kernels(2, kernel_names)
-      END IF
+    # The order doesn't matter as far as the two kernels are loaded
+    assert ("kernel_names(1) = 'kernel_with_use_code'" in generated_code or
+            "kernel_names(2) = 'kernel_with_use_code'" in generated_code)
 
-    END SUBROUTINE psy_init'''
-    assert expected in generated_code
+    assert ("kernel_names(1) = 'kernel_with_use2_code'" in generated_code or
+            "kernel_names(2) = 'kernel_with_use2_code'" in generated_code)
+    assert "kernel_names(3)" not in generated_code
+    assert "CALL add_kernels(2, kernel_names)" in generated_code
+
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
