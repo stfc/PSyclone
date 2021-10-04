@@ -528,7 +528,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
           !$OMP END TASKLOOP
 
         At code-generation time (when
-        :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
+        :py:meth:`OMPTaskloopDirective.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP SERIAL region.
 
         If the keyword "nogroup" is specified in the options, it will cause a
@@ -537,7 +537,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         apply call to which the value is supplied.
 
         :param node: the supplied node to which we will apply the \
-                     OMPLoopTrans transformation
+                     OMPTaskloopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations\
                         and validation.
@@ -2087,11 +2087,11 @@ class OMPMasterTrans(ParallelRegionTrans):
 
         At code-generation time this node must be within (i.e. a child of)
         an OpenMP PARALLEL region. Code generation happens when
-        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
+        :py:meth:`OMPMasterDirective.gen_code` is called, or when the PSyIR
         tree is given to a backend.
 
         :param node_list: the supplied node or node list to which we will \
-                          apply the OMPSingleTrans transformation
+                          apply the OMPMasterTrans transformation
         :type node_list: (a list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a list with options for transformations \
                         and validation.
