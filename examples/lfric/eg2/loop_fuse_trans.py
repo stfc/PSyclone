@@ -33,12 +33,12 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
-from __future__ import print_function
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-
 ''' Module implementing a `trans` method for use as a PSyclone transformation
     script. This example performs loop fusion.
 '''
+
+from __future__ import print_function
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 
 
 def trans(psy):

@@ -62,7 +62,7 @@ def trans(psy):
     schedule.view()
     # Find the kernel we want to inline.
     kern = schedule.walk(Kern)[0]
-    # setting module inline directly
+    # Setting module inline directly.
     kern.module_inline = True
     schedule.view()
     # Unsetting module inline via a transformation.
