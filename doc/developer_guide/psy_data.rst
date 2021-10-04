@@ -494,7 +494,7 @@ node supports in the option dictionary:
                     name of the region. The names are used
                     e.g. by the ``ProfileNode`` to define
                     a unique region name for a profiled
-                    code region, or by ``GOceanExtractNode``
+                    code region, or by ``ExtractNode``
                     to define the file name for the output
                     data- and driver-files.
     prefix          A prefix to be used for the module name,
@@ -960,10 +960,7 @@ Kernel Extraction (PSyKE)
 -------------------------
 The PSyclone Kernel Extraction functionality (see :ref:`user_guide:psyke`)
 also relies on the PSyData API to write kernel input- and output-arguments
-to a file. The domain-specific versions of the extract transformations
-(e.g. ``GOceanExtractTrans``) validate if kernel extraction can be used
-at the specified part of the tree. Then a domain-specific extraction
-node is inserted in the tree (e.g. ``GOceanExtractNode``).
+to a file.
 
 When an extraction transformation is applied, it will determine the input-
 and output-variable for the code region using the dependency analysis

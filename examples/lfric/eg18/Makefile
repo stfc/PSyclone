@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,17 +30,20 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
+# ------------------------------------------------------------------------------
+# Author: R. W. Ford, STFC Daresbury Lab
 
-'''This module contains the transformations for GOcean.
-'''
+include ../../common.mk
 
-from psyclone.domain.gocean.nodes.gocean_extract_node \
-    import GOceanExtractNode
+.PHONY: vanilla compile run
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.gocean.nodes import GOceanExtractNodes
+transform: vanilla
 
-__all__ = ['GOceanExtractNode']
+vanilla:
+	${PSYCLONE} advection_alg_mod.x90
+
+compile: transform
+	@echo "No compilation supported for lfric/eg18"
+
+run: compile
+	@echo "No run targets for lfric/eg18"
