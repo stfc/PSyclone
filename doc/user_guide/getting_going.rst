@@ -472,7 +472,7 @@ going to use one of the LFRic examples::
        -opsy psy.f90 ./single_invoke.x90
 
 
-You should see two new files created called ``alg.f90`` (containing
+You should see two new files created, called ``alg.f90`` (containing
 the re-written algorithm layer) and ``psy.f90`` (containing the
 generated PSy- or middle-layer). Since this is an LFRic example the
 Fortran source code has dependencies on the LFRic system and
@@ -480,14 +480,14 @@ therefore cannot be compiled stand-alone.
 
 The PSy-layer that PSyclone creates is constructed using the PSyclone Internal
 Representation (:ref:`PSyIR <psyir-ug>`). Accessing this is demonstrated
-by the `print_psyir_trans.py` script in the second LFRic example::
+by the ``print_psyir_trans.py`` script in the second LFRic example::
 
   > cd <EGS_HOME>/examples/lfric/eg2
   > psyclone -api dynamo0.3 -d ../code -s ./print_psyir_trans.py \
-      -opsy psy.f90 -oalg alg.f90 multi_invoke_mod.x90
+      -opsy psy.f90 -oalg alg.f90 ./multi_invoke_mod.x90
 
-Take a look at the `print_psyir_trans.py` script for more information. Hint;
+Take a look at the ``print_psyir_trans.py`` script for more information. *Hint*;
 you can insert a single line in that script in order to break into the Python
-interpreter during exection: `import pdb; pdb.set_trace()`. This then enables
+interpreter during exection: ``import pdb; pdb.set_trace()``. This then enables
 interactive exploration of the PSyIR if you are interested. Alternatively,
 you can play with some interactive examples on `Binder <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.

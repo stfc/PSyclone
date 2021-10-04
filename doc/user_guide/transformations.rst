@@ -511,7 +511,7 @@ code. This allows us to generate a "vanilla" PSy layer. For example::
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
 
-    # This example uses the LFRIC (dynamo0.3) API
+    # This example uses the LFRic (Dynamo 0.3) API
     >>> api = "dynamo0.3"
 
     # Parse the file containing the algorithm specification and

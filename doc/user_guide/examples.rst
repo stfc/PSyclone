@@ -336,7 +336,8 @@ Basic operation of PSyclone with an ``invoke()`` containing two
 kernels, one :ref:`user-supplied <dynamo0.3-kernel>`, the other a
 :ref:`Built-in <lfric-built-ins>`. Code is generated both with and
 without distributed-memory support. Also demonstrates the use of the
-``-d`` flag to specify where to search for user-supplied kernel code.
+``-d`` flag to specify where to search for user-supplied kernel code
+(see :ref:`psyclone_command` section for more details).
 
 Example 2: Applying Transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -437,7 +438,7 @@ to the specified Kernel:
 
   > python find_kernel.py
 
-Example 13 : Kernel transformation
+Example 13 : Kernel Transformation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates how an LFRic kernel can be transformed. The example
