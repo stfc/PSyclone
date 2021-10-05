@@ -3214,12 +3214,17 @@ class DynCellIterators(DynCollection):
 
 class LFRicLoopBounds(DynCollection):
     '''
+    Handles all variables required for specifying loop limits.
+
     '''
 
     def initialise(self, parent):
         '''
-        Initialise all of the variables holding the lower and upper bounds
-        of all loops in an Invoke.
+        Updates the f2pygen AST so that all of the variables holding the lower
+        and upper bounds of all loops in an Invoke are initialised.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
         loops = self._invoke.schedule.loops()
@@ -3230,13 +3235,15 @@ class LFRicLoopBounds(DynCollection):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Set-up all of the loop bounds"))
         parent.add(CommentGen(parent, ""))
+
+        sym_table = self._invoke.schedule.symbol_table
+
         for idx, loop in enumerate(loops):
-            sym_table = self._invoke.schedule.root.symbol_table
-            root_name = "loop{0}_start".format(idx) #loop.abs_position)
+            root_name = "loop{0}_start".format(idx)
             lbound = sym_table.new_symbol(root_name=root_name, tag=root_name,
                                           symbol_type=DataSymbol,
                                           datatype=INTEGER_TYPE)
-            root_name = "loop{0}_stop".format(idx) #loop.abs_position)
+            root_name = "loop{0}_stop".format(idx)
             ubound = sym_table.new_symbol(root_name=root_name, tag=root_name,
                                           symbol_type=DataSymbol,
                                           datatype=INTEGER_TYPE)
@@ -7187,8 +7194,9 @@ class DynLoop(Loop):
             # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
             # TODO: Issue #696. Add kind (precision) when the support in the
             #                   Literal class is implemented.
-            sym_table = self.root.symbol_table
-            loops = self.ancestor(InvokeSchedule).loops()
+            inv_sched = self.ancestor(InvokeSchedule)
+            sym_table = inv_sched.symbol_table
+            loops = inv_sched.loops()
             posn = loops.index(self)
             lbound = sym_table.lookup_with_tag("loop{0}_start".format(posn))
             ubound = sym_table.lookup_with_tag("loop{0}_stop".format(posn))

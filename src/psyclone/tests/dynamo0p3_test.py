@@ -1977,6 +1977,7 @@ def test_halo_exchange_inc(monkeypatch, annexed):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
+
     output0 = (
         "      IF (a_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL a_proxy%halo_exchange(depth=1)\n"
@@ -2003,13 +2004,15 @@ def test_halo_exchange_inc(monkeypatch, annexed):
         "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        "      DO cell=loop0_start,loop0_stop\n")
     output2 = (
         "      IF (f_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        "      DO cell=loop1_start,loop1_stop\n")
+    assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
+    assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in result
     assert output1 in result
     if annexed:
         assert result.count("halo_exchange") == 5
@@ -2122,7 +2125,7 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
                 "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
                 "      END IF\n"
                 "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+                "      DO cell=loop0_start,loop0_stop\n")
     assert expected in result
 
 
@@ -2171,6 +2174,8 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
+    import pdb; pdb.set_trace()
+    result = str(psy.gen)
     expected1 = (
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
@@ -2189,7 +2194,7 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
         "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        "      DO cell=loop0_start,loop0_stop\n")
     if not annexed:
         assert expected1 in result
     assert expected2 in result
