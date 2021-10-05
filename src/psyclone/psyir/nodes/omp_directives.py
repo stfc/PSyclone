@@ -236,15 +236,6 @@ class OMPSingleDirective(OMPSerialDirective):
                                                  parent=parent)
 
     @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_single_" + str(position)
-
-    @property
     def nowait(self):
         '''
         Returns whether the nowait clause is specified for this directive.
@@ -627,15 +618,6 @@ class OMPTaskloopDirective(OMPRegionDirective):
         :rtype: bool
         '''
         return self._nogroup
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_taskloop_" + str(position)
 
     def validate_global_constraints(self):
         '''

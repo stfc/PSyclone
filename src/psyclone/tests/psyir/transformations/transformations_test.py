@@ -47,7 +47,7 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPTaskwaitDirective
+    OMPTaskwaitDirective, OMPTaskloopDirective, OMPParallelDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
@@ -941,3 +941,32 @@ def test_omptaskwait_ignore_nogroup_clause():
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
     assert (schedule1.walk(OMPTaskwaitDirective)[0] is
             the_sing.children[0].children[3])
+
+
+def test_omptaskwait_getforwarddep_invalid_type():
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans
+    returns an Error when the root node is not a OMPParallelDirective
+    '''
+    loop = Loop()
+    with pytest.raises(TransformationError) as excinfo:
+        OMPTaskwaitTrans.get_forward_dependence(None, loop)
+    assert ("Expected root to be an instance of OMPParallelDirective,"
+            " but was supplied an instance of 'Loop'") in str(excinfo.value)
+
+
+def test_omptaskwait_getforwarddep_required_parent(monkeypatch):
+    '''Test the get_forward_dependence method of the OMPTaskwaitTrans
+    returns an Error when there is no parent OMPParallelDirective
+    '''
+    pdir = OMPParallelDirective()
+
+    def validate_global_constraints(self):
+        # pylint: disable=unused-argument
+        pass
+    monkeypatch.setattr(OMPTaskloopDirective, "validate_global_constraints",
+                        validate_global_constraints)
+    tdir = OMPTaskloopDirective()
+    with pytest.raises(InternalError) as excinfo:
+        OMPTaskwaitTrans.get_forward_dependence(tdir, pdir)
+    assert ("No parent parallel directive was found for the taskloop region"
+            ":") in str(excinfo.value)

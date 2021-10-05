@@ -679,6 +679,7 @@ class OMPTaskwaitTrans(Transformation):
                 # error
                 if not valid:
                     fwriter = FortranWriter()
+                    # pylint: disable=cell-var-from-loop
                     raise TransformationError(LazyString(lambda:
                                                          "Couldn't satisfy "
                                                          "the dependencies due"
@@ -798,7 +799,9 @@ class OMPTaskwaitTrans(Transformation):
                 for child in node.walk(nodes.Node):
                     if child is not node and not isinstance(child,
                                                             (Schedule, Loop)):
-                        node_vars.merge(VariablesAccessInfo(child))
+                        refs = child.reference_accesses(node_vars)
+                        if refs is not None:
+                            node_vars.merge(refs)
             node_signatures = node_vars.all_signatures
             # Once we have the node's variable accesses, check for collisions
             for sig1 in taskloop_signatures:
@@ -821,6 +824,66 @@ class OMPTaskwaitTrans(Transformation):
                     return node
         # If we found no dependencies, then return that!
         return None
+
+    @staticmethod
+    def _eliminate_unneeded_dependencies(taskloop_positions,
+                                         dependence_positions,
+                                         dependence_nodes):
+        '''
+        Eliminates unneeded dependencies from a set of taskloop positions,
+        dependence_positions and dependence_nodes for a region of code.
+
+        :param taskloop_positions: integer positions of the taskloops
+        :type taskloop_positions: list of int
+        :param dependence_positions: integer positions of the taskloops'
+                                     dependencies
+        :type dependence_positions: list of int
+        :param dependence_nodes: The dependency nodes for each taskloop.
+        :type dependence_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: The updated dependence_positions and dependence_nodes arrays
+        :rval: Tuple of (list of int, list of
+               :py:class:`psyclone.psyir.nodes.Node`)
+
+        '''
+        # We loop over each dependence and perform the same operation:
+        # For each dependence we loop over all other
+        # taskloops whose position is before that dependence. If that
+        # dependence is fulfilled by this dependence (i.e.
+        # dependence_position[this] < dependence_position[that]) then
+        # we remove that dependence. If this dependence is fulfilled
+        # by that dependence (i.e. dependence_position[that] <
+        # dependence_position[this]) then we remove this dependence.
+        # This assumes that taskloop_positions is in ascending order,
+        # which I believe to be true by construction.
+        for i, dep_pos in enumerate(dependence_positions):
+            if dep_pos is None:
+                continue
+            # Grab the position of the next dependence
+            next_dependence = dep_pos
+            # Loop over the other taskloops
+            for j in range(i+1, len(dependence_positions)):
+                # If this taskloop happens after the next_dependence
+                # then we can just stop.
+                if taskloop_positions[j] >= next_dependence:
+                    break
+                # If the jth taskloop has no dependency then continue
+                if dependence_positions[j] is None:
+                    continue
+                # Check if next_dependence will satisfy the jth
+                # taskloops dependency
+                if next_dependence <= dependence_positions[j]:
+                    dependence_positions[j] = None
+                    dependence_nodes[j] = None
+                    continue
+                # Check if the jth taskloops dependence will satisfy
+                # the next_dependence
+                if dependence_positions[j] < next_dependence:
+                    dependence_positions[i] = None
+                    dependence_nodes[i] = None
+                    # If it does then we can move to the next taskloop
+                    break
+        return dependence_positions, dependence_nodes
 
     def apply(self, node, options=None):
         '''
@@ -912,43 +975,10 @@ class OMPTaskwaitTrans(Transformation):
                     dependence_position[i] = forward_dep.abs_position
                     dependence_node[i] = forward_dep
             # Forward dependency positions are now computed for this region.
-            # Next we eliminate unneccessary dependencies. We loop over
-            # each dependence. For each dependence we loop over all other
-            # taskloops whose position is before that dependence. If that
-            # dependence is fulfilled by this dependence (i.e.
-            # dependence_position[this] < dependence_position[that]) then
-            # we remove that dependence. If this dependence is fulfilled
-            # by that dependence (i.e. dependence_position[that] <
-            # dependence_position[this]) then we remove this dependence.
-            # This assumes that taskloop_positions is in ascending order,
-            # which I believe to be true by construction.
-            for i, dep_pos in enumerate(dependence_position):
-                if dep_pos is None:
-                    continue
-                # Grab the position of the next dependence
-                next_dependence = dep_pos
-                # Loop over the other taskloops
-                for j in range(i+1, len(dependence_position)):
-                    # If this taskloop happens after the next_dependence
-                    # then we can just stop.
-                    if taskloop_positions[j] >= next_dependence:
-                        break
-                    # If the jth taskloop has no dependency then continue
-                    if dependence_position[j] is None:
-                        continue
-                    # Check if next_dependence will satisfy the jth
-                    # taskloops dependency
-                    if next_dependence <= dependence_position[j]:
-                        dependence_position[j] = None
-                        dependence_node[j] = None
-                        continue
-                    # Check if the jth taskloops dependence will satisfy
-                    # the next_dependence
-                    if dependence_position[j] < next_dependence:
-                        dependence_position[i] = None
-                        dependence_node[i] = None
-                        # If it does then we can move to the next taskloop
-                        break
+            dependence_position, dependence_node = \
+                OMPTaskwaitTrans._eliminate_unneeded_dependencies(
+                            taskloop_positions, dependence_position,
+                            dependence_node)
             # dependence_position now contains only the required dependencies
             # to satisfy the full superset of dependencies. We can loop over
             # these by index, and if dependence_position[i] is not None then
