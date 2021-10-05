@@ -395,6 +395,16 @@ def test_script_trans():
     assert str(generated_code_1) == str(generated_code_2)
 
 
+def test_api_no_alg():
+    ''' Checks that generate works OK for an API (NEMO) which doesn't have
+    an Algorithm layer '''
+    alg, psy = generate(os.path.join(NEMO_BASE_PATH, "explicit_do.f90"),
+                        api="nemo")
+    assert alg is None
+    assert isinstance(psy, six.string_types)
+    assert psy.startswith("program")
+
+
 def test_alg_lines_too_long_tested():
     '''Test that the generate function causes an exception if the
     line_length argument is set to True and the algorithm file has
@@ -955,3 +965,8 @@ def test_utf_char(tmpdir):
         alg = afile.read().lower()
         assert "max reachable coeff" in alg
         assert "call invoke_0_kernel_utf" in alg
+    # Check for NEMO API when processing existing Fortran
+    test_file = os.path.join(NEMO_BASE_PATH, "utf_char.f90")
+    tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
+    main(["-api", "nemo", "-opsy", tmp_file, test_file])
+    assert os.path.isfile(tmp_file)

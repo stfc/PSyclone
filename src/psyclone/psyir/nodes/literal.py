@@ -51,7 +51,8 @@ class Literal(DataNode):
     this node are immutable.
 
     If the node represents "real" data and the value is expressed with
-    an exponent (e.g. 3.2e4) then the exponent must be a lower case "e".
+    an exponent (e.g. 3.2e4 or 0.1E-3) then the stored value always uses
+    a lower case "e".
 
     :param str value: the value of the literal.
     :param datatype: the datatype of this literal.
@@ -60,14 +61,15 @@ class Literal(DataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises TypeError: if the datatype is not an instance of \
-                       :py:class:`psyclone.psyir.symbols.DataType`.
-    :raises ValueError: if the datatype is not one of \
-                        self.VALID_DATA_TYPES.
+        :py:class:`psyclone.psyir.symbols.DataType`.
+    :raises ValueError: if the datatype is not one of self.VALID_DATA_TYPES.
     :raises TypeError: if the supplied value is not a string.
     :raises ValueError: if the supplied value is an empty string and the \
-                        Literal is not a CHARACTER.
+        Literal is not a CHARACTER.
     :raises ValueError: if the Literal is a BOOLEAN and the value is not \
-                        'true' or 'false'.
+        'true' or 'false'.
+    :raises ValueError: if the Literal is a REAL but does not conform to \
+        the supported format defined by the `_real_value` property.
 
     '''
     # Textual description of the node.
@@ -101,15 +103,17 @@ class Literal(DataNode):
                 "A scalar boolean literal can only be: 'true' or "
                 "'false' but found '{0}'.".format(value))
 
-        if (datatype.intrinsic == ScalarType.Intrinsic.REAL and not
-                re.match(Literal._real_value, value)):
-            raise ValueError(
-                "A scalar real literal value must conform to the "
-                "supported format ('{0}') but found '{1}'."
-                "".format(Literal._real_value, value))
-
+        if datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            if not re.match(Literal._real_value, value):
+                raise ValueError(
+                    "A scalar real literal value must conform to the "
+                    "supported format ('{0}') but found '{1}'."
+                    "".format(Literal._real_value, value))
+            # Ensure we always store any exponent with a lowercase 'e'
+            self._value = value.replace("E", "e", 1)
+        else:
+            self._value = value
         self._datatype = datatype
-        self._value = value
 
     @property
     def datatype(self):
