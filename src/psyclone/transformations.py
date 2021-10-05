@@ -684,7 +684,7 @@ class OMPTaskwaitTrans(Transformation):
                                                          "the dependencies due"
                                                          " to taskloop "
                                                          "dependencies across"
-                                                         "barrierless OMP "
+                                                         " barrierless OMP "
                                                          "serial regions. "
                                                          "Dependency is from"
                                                          " {0} to {1}".format(
