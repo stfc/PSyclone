@@ -154,6 +154,10 @@ class CreateNemoPSyTrans(Transformation):
 
         # First, transform suitable Loop bodies into Kernels
         loops = psyir.walk(Loop)
+        # Reverse the list so that we transform the deepest loop bodies first
+        # so as to try to reduce repeated walking of the tree.
+        loops.reverse()
+
         for loop in loops:
             try:
                 kern_trans.apply(loop.loop_body)

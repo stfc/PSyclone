@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,6 +78,20 @@ def test_generate_container(parser):
     assert container.symbol_table.lookup("mod1")
     assert container.symbol_table.lookup("mod2")
     assert container.symbol_table.lookup("dummy_code")
+
+
+def test_generate_container_no_module(parser):
+    ''' Check that generate_container returns None if the parse tree does
+    not contain a module. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "program my_prog\n"
+        "integer :: flag\n"
+        "end program")
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    container = processor.generate_container(ast)
+    assert container is None
 
 
 def test_generate_container_two_modules(parser):
