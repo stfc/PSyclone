@@ -611,10 +611,26 @@ optimised cuda, or gridtools code. Thus these simple Fortran examples
 can be transformed to optimised cuda and/or gridtools code by using
 PSyclone and then DAWN.
 
+Scripts
+^^^^^^^
+
+This contains examples of two different scripts that aid the use of PSyclone
+with the full NEMO model. The first, `process_nemo.py` is a simple wrapper
+script that allows a user to control which source files are transformed, which
+only have profiling instrumentation added and which are ignored altogether.
+The second, `kernels_trans.py` is a PSyclone transformation script which
+adds the largest possible OpenACC Kernels regions to the code being processed.
+
+For more details see the ``examples/nemo/README.md`` file.
+
+Note that these scripts are here to support the ongoing development of the
+NEMO API in PSyclone. They are *not* intended as 'turn-key' solutions but
+as a starting point.
+
 PSyIR
 -----
 
-Examples may all be found in the ``example/psyir`` directory. Read the
+Examples may all be found in the ``examples/psyir`` directory. Read the
 ``README.md`` file in this directory for full details.
 
 Example 1: Constructing PSyIR and Generating Code

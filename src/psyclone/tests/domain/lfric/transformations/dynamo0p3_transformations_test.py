@@ -844,8 +844,7 @@ def test_multi_kernel_single_omp_region(dist_mem):
             omp_do_idx = idx
         if "!$omp end do" in line:
             omp_end_do_idx = idx
-        if "!$omp parallel default(shared), " +\
-           "private(cell)" in line:
+        if "!$omp parallel default(shared), private(cell)" in line:
             omp_para_idx = idx
         if "END DO" in line:
             end_do_idx = idx
@@ -1073,8 +1072,8 @@ def test_loop_fuse_omp(dist_mem):
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_do_idx = idx
-        if "!$omp parallel do default(shared), " +\
-           "private(cell), schedule(static)" in line:
+        if ("!$omp parallel do default(shared), private(cell), "
+                "schedule(static)" in line):
             omp_para_idx = idx
         if "CALL testkern_w2v_code" in line:
             if call1_idx == -1:
@@ -3618,7 +3617,7 @@ def test_list_multiple_reductions(dist_mem):
     arg._argument_type = "gh_scalar"
     arg.descriptor._access = AccessType.SUM
     result = omp_loop_directive._reduction_string()
-    assert ", reduction(+:asum), reduction(+:f2)" in result
+    assert " reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():

@@ -1223,6 +1223,8 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
+        precision = node.datatype.precision
+
         if node.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
             # Booleans need to be converted to Fortran format
             result = '.' + node.value + '.'
@@ -1245,9 +1247,15 @@ class FortranWriter(LanguageWriter):
                             node.value))
                 quote_symbol = '"'
             result = quote_symbol + "{0}".format(node.value) + quote_symbol
+        elif (node.datatype.intrinsic == ScalarType.Intrinsic.REAL and
+              precision == ScalarType.Precision.DOUBLE):
+            # The PSyIR stores real scalar values using the standard 'e'
+            # notation. If the scalar is in fact double precision then this
+            # 'e' must be replaced by 'd' for Fortran.
+            result = node.value.replace("e", "d", 1)
         else:
             result = node.value
-        precision = node.datatype.precision
+
         if isinstance(precision, DataSymbol):
             # A KIND variable has been specified
             if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
@@ -1260,6 +1268,7 @@ class FortranWriter(LanguageWriter):
                 result = "{0}_{1}".format(precision, result)
             else:
                 result = "{0}_{1}".format(result, precision)
+
         return result
 
     # pylint: enable=no-self-use
