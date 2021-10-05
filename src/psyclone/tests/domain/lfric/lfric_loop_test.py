@@ -291,16 +291,19 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
+    assert "loop0_start = 1\n" in generated_code
     if dist_mem:
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
             "      !\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
     else:
+        assert "loop0_stop = m2_proxy%vspace%get_ncell()\n" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -320,15 +323,19 @@ def test_itn_space_fld_and_op_writers(tmpdir):
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         if dist_mem:
+            assert ("loop0_stop = mesh%get_last_halo_cell(1)\n" in
+                    generated_code)
             output = (
                 "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+                "      DO cell=loop0_start,loop0_stop\n")
             assert output in generated_code
         else:
+            assert ("loop0_stop = op1_proxy%fs_from%get_ncell()\n" in
+                    generated_code)
             output = (
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
+                "      DO cell=loop0_start,loop0_stop")
             assert output in generated_code
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -350,16 +357,20 @@ def test_itn_space_any_any_discontinuous(dist_mem, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    assert "loop0_start = 1\n" in generated_code
+
     if dist_mem:
+        assert "loop0_stop = mesh%get_last_halo_cell(1)" in generated_code
         output = (
             "      !\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
     else:
+        assert "loop0_stop = f1_proxy%vspace%get_ncell()" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
 
 
@@ -378,19 +389,23 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    assert "loop0_start = 1\n" in generated_code
+
     if dist_mem:
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
             "      !\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
     else:
         # Loop upper bound should use f2 as that field is *definitely*
         # on a continuous space (as opposed to the one on any_space
         # that might be).
+        assert "loop0_stop = f2_proxy%vspace%get_ncell()" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
 
 

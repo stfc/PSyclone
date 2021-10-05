@@ -3212,6 +3212,42 @@ class DynCellIterators(DynCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
+class LFRicLoopBounds(DynCollection):
+    '''
+    '''
+
+    def initialise(self, parent):
+        '''
+        Initialise all of the variables holding the lower and upper bounds
+        of all loops in an Invoke.
+
+        '''
+        loops = self._invoke.schedule.loops()
+
+        if not loops:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Set-up all of the loop bounds"))
+        parent.add(CommentGen(parent, ""))
+        for idx, loop in enumerate(loops):
+            sym_table = self._invoke.schedule.root.symbol_table
+            root_name = "loop{0}_start".format(idx) #loop.abs_position)
+            lbound = sym_table.new_symbol(root_name=root_name, tag=root_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+            root_name = "loop{0}_stop".format(idx) #loop.abs_position)
+            ubound = sym_table.new_symbol(root_name=root_name, tag=root_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[lbound.name, ubound.name]))
+            parent.add(AssignGen(parent, lhs=lbound.name,
+                                 rhs=loop._lower_bound_fortran()))
+            parent.add(AssignGen(parent, lhs=ubound.name,
+                                 rhs=loop._upper_bound_fortran()))
+
+
 class LFRicScalarArgs(DynCollection):
     '''
     Handles the declarations of scalar kernel arguments appearing in either
@@ -5128,6 +5164,10 @@ class DynInvoke(Invoke):
         # Properties of the mesh
         self.mesh_properties = LFRicMeshProperties(self)
 
+        # Manage the variables used to store the upper and lower limits of
+        # all loops in this Invoke.
+        self.loop_bounds = LFRicLoopBounds(self)
+
         # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
@@ -5277,7 +5317,7 @@ class DynInvoke(Invoke):
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties,
-                         self.mesh_properties]:
+                         self.mesh_properties, self.loop_bounds]:
             entities.initialise(invoke_sub)
 
         # Now that everything is initialised and checked, we can call
@@ -7147,10 +7187,13 @@ class DynLoop(Loop):
             # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
             # TODO: Issue #696. Add kind (precision) when the support in the
             #                   Literal class is implemented.
-            self.start_expr = Literal(self._lower_bound_fortran(),
-                                      INTEGER_TYPE, parent=self)
-            self.stop_expr = Literal(self._upper_bound_fortran(),
-                                     INTEGER_TYPE, parent=self)
+            sym_table = self.root.symbol_table
+            loops = self.ancestor(InvokeSchedule).loops()
+            posn = loops.index(self)
+            lbound = sym_table.lookup_with_tag("loop{0}_start".format(posn))
+            ubound = sym_table.lookup_with_tag("loop{0}_stop".format(posn))
+            self.start_expr = Reference(lbound)
+            self.stop_expr = Reference(ubound)
 
             super(DynLoop, self).gen_code(parent)
         else:

@@ -142,16 +142,25 @@ def test_colour_trans(tmpdir, dist_mem):
     output = ("      ncolour = mesh%get_ncolours()\n"
               "      cmap => mesh%get_colour_map()\n")
     assert output in gen
+
+    assert "loop0_start = 1" in gen
+    assert "loop0_stop = ncolour" in gen
+    assert "loop1_start = 1" in gen
+
     if dist_mem:
+        # TODO ARPDBG cannot set this loop bound like this because it depends
+        # upon 'colour'!
+        assert ("loop1_stop = mesh%get_last_halo_cell_per_colour(colour,1)" in
+                gen)
         output = (
-            "      do colour=1,ncolour\n"
-            "        do cell=1,mesh%get_last_halo_cell_per_colour("
-            "colour,1)\n")
+            "      do colour=loop0_start,loop0_stop\n"
+            "        do cell=loop1_start,loop1_stop\n")
     else:  # not dist_mem
+        assert ("loop1_stop = mesh%get_last_edge_cell_per_colour(colour)" in
+                gen)
         output = (
             "      do colour=1,ncolour\n"
-            "        do cell=1,mesh%get_last_edge_cell_per_colour("
-            "colour)\n")
+            "        do cell=1,loop1_stop\n")
     assert output in gen
 
     # Check that we're using the colour map when getting the cell dof maps
