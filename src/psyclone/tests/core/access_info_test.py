@@ -176,7 +176,7 @@ def test_variable_access_info_is_array():
 # -----------------------------------------------------------------------------
 def test_variable_access_info_read_write():
     '''Test the handling of READWRITE accesses. A READWRITE indicates both
-    a read and a write access, but if a variable as a READ and a WRITE
+    a read and a write access, but if a variable has a READ and a WRITE
     access, this is not one READWRITE access. A READWRITE access is only
     used in subroutine calls (depending on kernel metadata)
     '''
@@ -206,6 +206,29 @@ def test_variable_access_info_read_write():
     assert vai.has_read_write()
     assert vai.is_read()
     assert vai.is_written()
+
+
+# -----------------------------------------------------------------------------
+def test_accessed_before():
+    '''Tests that the 'is_written_before' function works as expected.
+
+    '''
+    var_accesses = VariablesAccessInfo()
+    var_sig = Signature("a")
+    node1 = Node()
+    var_accesses.add_access(var_sig, AccessType.READ, node1)
+    node2 = Node()
+    var_accesses.add_access(var_sig, AccessType.WRITE, node2)
+    node3 = Node()
+    var_accesses.add_access(var_sig, AccessType.WRITE, node3)
+
+    accesses = var_accesses[var_sig]
+    assert accesses.is_written_before(node2) is False
+    assert accesses.is_written_before(node3) is True
+
+    with pytest.raises(ValueError) as err:
+        accesses.is_written_before(Node())
+    assert "Node not found in access to variable 'a'" in str(err.value)
 
 
 # -----------------------------------------------------------------------------

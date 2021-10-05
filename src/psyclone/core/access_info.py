@@ -334,6 +334,29 @@ class SingleVariableAccessInfo(object):
         # The index variable is not used in any index in any access:
         return False
 
+    def is_written_before(self, node):
+        '''Returns if this variable is written before the specified node.
+
+        :param node: the node at which to stop for access checks.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: True if this variable is written before the specified node.
+        :rtype: bool
+
+        :raises ValueError: if the specified node is not in the list of \
+            all accesses.
+
+        '''
+        result = False
+
+        for access in self._accesses:
+            if access.node == node:
+                return result
+            if access.access_type == AccessType.WRITE:
+                result = True
+        raise ValueError("Node not found in access to variable '{0}'."
+                         .format(self.var_name))
+
 
 # =============================================================================
 class VariablesAccessInfo(dict):
