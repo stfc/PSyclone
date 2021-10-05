@@ -195,6 +195,19 @@
 	67) PR #1406 for #1404. Temporary copy() bug fix while the loop variable
 	is not part of the PSyIR tree.
 
+	68) PR #1407 towards #1383. Standardises the node_str() method of
+	DirectiveNode and remove un-needed code.
+
+	69) PR #1401 for #1400. Extend psyad script to allow list of active
+	variables to be specified.
+
+	70) PR #1326 for #1292. Add support for GH_READINC access for continuous
+	fields in the LFRic API.
+
+	71) PR #1409 for #1383. Standardises and cleans-up dag_name() methods
+	and pins jsonschema to version 3.0.2 to fix jupyter notebooks with
+	older versions of Python.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

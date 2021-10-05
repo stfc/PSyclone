@@ -63,29 +63,6 @@ EXPLICIT_LOOP = ("program do_loop\n"
                  "end program do_loop\n")
 
 
-def test_kernels_view(parser, capsys):
-    ''' Test the ACCKernelsDirective.view() method. '''
-    code = parser(FortranStringReader(EXPLICIT_LOOP))
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = ACCKernelsTrans()
-    acc_trans.apply(schedule.children, {"default_present": True})
-    schedule.view()
-    output, _ = capsys.readouterr()
-    assert "[ACC Kernels]" in output
-
-
-def test_kernels_dag_name(parser):
-    ''' Check that we get the correct name for a DAG node for an OpenACC
-    kernels directive. '''
-    code = parser(FortranStringReader(EXPLICIT_LOOP))
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = ACCKernelsTrans()
-    acc_trans.apply(schedule.children, {"default_present": True})
-    assert schedule.children[0].dag_name == "ACC_kernels_1"
-
-
 def test_kernels_single_node(parser):
     ''' Check that we can apply the ACCKernelsTrans to a single node
     instead of to a list of nodes. '''
