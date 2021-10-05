@@ -45,6 +45,11 @@ from collections import namedtuple
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
+from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
+from fparser.two import Fortran2003
+from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.statement import Statement
@@ -511,6 +516,145 @@ class PSyDataNode(Statement):
                                 var_name])
 
         self._add_call("PostEnd", parent)
+
+    def lower_to_language_level(self, options=None):
+        '''
+        Lowers this node (and all children) to language-level PSyIR. The
+        PSyIR tree is modified in-place. This PSyDataNode is replaced by a
+        pair of Fortran-specific CodeBlocks (representing the calls to the
+        start and stop procedures) with the body (children) of the PSyDataNode
+        inserted between them. This use of CodeBlocks means that currently only
+        the Fortran backend is capable of producing code representing the
+        PSyDataNode.
+
+        '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import Kern, InvokeSchedule
+        def gen_type_bound_call(typename, methodname, argument_list=None,
+                                annotations=None):
+            argument_str = ""
+            if argument_list:
+                argument_str += "("
+                argument_str += ",".join([str(arg) for arg in argument_list])
+                argument_str += ")"
+
+            reader = FortranStringReader(
+                "CALL {0}%{1}{2}".format(typename, methodname, argument_str))
+            # Tell the reader that the source is free format
+            reader.set_format(FortranFormat(True, False))
+            fp2_node = Fortran2003.Call_Stmt(reader)
+            return CodeBlock([fp2_node], CodeBlock.Structure.STATEMENT,
+                             annotations=annotations)
+
+        for child in self.children:
+            child.lower_to_language_level()
+
+        routine_schedule = self.ancestor(Routine)
+        invoke = self.ancestor(InvokeSchedule).invoke
+        module_name = self._module_name
+        if module_name is None:
+            # The user has not supplied a module (location) name so
+            # return the psy-layer module name as this will be unique
+            # for each PSyclone algorithm file.
+            module_name = invoke.invokes.psy.name
+
+        if self._region_name:
+            region_name = self._region_name
+        else:
+            # Create a name for this region by finding where this PSyDataNode
+            # is in the list of PSyDataNodes in this Invoke. We allow for any
+            # previously lowered PSyDataNodes by checking for CodeBlocks with
+            # the "psy-data-start" annotation.
+            pnodes = routine_schedule.walk((PSyDataNode, CodeBlock))
+            region_idx = 0
+            for node in pnodes[0:pnodes.index(self)]:
+                if (isinstance(node, PSyDataNode) or
+                        "psy-data-start" in node.annotations):
+                    region_idx += 1
+            region_name = "r{0}".format(region_idx)
+
+        if not options:
+            options = {}
+
+        pre_variable_list = options.get("pre_var_list", [])
+        post_variable_list = options.get("post_var_list", [])
+        pre_suffix = options.get("pre_var_postfix", "")
+        post_suffix = options.get("post_var_postfix", "")
+
+        has_var = pre_variable_list or post_variable_list
+
+        # PSyData start call (replaces existing PSyDataNode). We annotate this
+        # CodeBlock call to record the fact that it represents the start of a
+        # psydata region.
+        start_call = gen_type_bound_call(
+            self._var_name, "PreStart",
+            ["\"{0}\"".format(module_name),
+             "\"{0}\"".format(region_name),
+             len(pre_variable_list),
+             len(post_variable_list)],
+            ["psy-data-start"])
+        self.parent.children.insert(self.position, start_call)
+
+        # Each variable name can be given a suffix. The reason for
+        # this feature is that a library might have to distinguish if
+        # a variable is both in the pre- and post-variable list.
+        # Consider a NetCDF file that is supposed to store a
+        # variable that is read (i.e. it is in the pre-variable
+        # list) and written (it is also in the post-variable
+        # list). Since a NetCDF file uses the variable name as a key,
+        # there must be a way to distinguish these two variables.
+        # The application could for example give all variables in
+        # the post-variable list a suffix like "_post" to create
+        # a different key in the NetCDF file, allowing it to store
+        # values of a variable "A" as "A" in the pre-variable list,
+        # and store the modified value of "A" later as "A_post".
+        if has_var:
+            for var_name in pre_variable_list:
+                call = gen_type_bound_call(
+                    self._var_name, "PreDeclareVariable",
+                    ["\"{0}{1}\"".format(var_name, pre_suffix), var_name])
+                self.parent.children.insert(self.position, call)
+
+            for var_name in post_variable_list:
+                call = gen_type_bound_call(
+                    self._var_name, "PreDeclareVariable",
+                    ["\"{0}{1}\"".format(var_name, post_suffix), var_name])
+                self.parent.children.insert(self.position, call)
+
+            call = gen_type_bound_call(self._var_name, "PreEndDeclaration")
+            self.parent.children.insert(self.position, call)
+
+            for var_name in pre_variable_list:
+                call = gen_type_bound_call(
+                    self._var_name, "ProvideVariable",
+                    ["\"{0}{1}\"".format(var_name, pre_suffix), var_name])
+                self.parent.children.insert(self.position, call)
+
+            call = gen_type_bound_call(self._var_name, "PreEnd")
+            self.parent.children.insert(self.position, call)
+
+        # Insert the body of the profiled region between the start and
+        # end calls
+        for child in reversed(self.psy_data_body.pop_all_children()):
+            self.parent.children.insert(self.position, child)
+
+        if has_var:
+            # Only add PostStart() if there is at least one variable.
+            call = gen_type_bound_call(self._var_name, "PostStart")
+            self.parent.children.insert(self.position, call)
+            for var_name in post_variable_list:
+                call = gen_type_bound_call(
+                    self._var_name, "ProvideVariable",
+                    ["\"{0}{1}\"".format(var_name, post_suffix), var_name])
+                self.parent.children.insert(self.position, call)
+
+        # PSyData end call
+        end_call = gen_type_bound_call(self._var_name, "PostEnd")
+        self.parent.children.insert(self.position+1, end_call)
+
+        # Finally we can remove the original PSyDataNode from here
+        self.detach()
 
 
 # For AutoAPI documentation generation

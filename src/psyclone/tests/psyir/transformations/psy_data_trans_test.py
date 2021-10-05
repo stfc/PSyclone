@@ -87,7 +87,7 @@ def test_psy_data_trans_basic():
 
 
 # -----------------------------------------------------------------------------
-def test_class_definitions():
+def test_class_definitions(fortran_writer):
     '''Tests if the class-prefix can be set and behaves as expected.
     '''
 
@@ -97,40 +97,41 @@ def test_class_definitions():
 
     data_trans = PSyDataTrans()
     data_trans.apply(schedule)
-    code = str(psy.gen)
+    code = fortran_writer(schedule.root)
 
     # By default, no prefix should be used:
-    assert "USE psy_data_mod, ONLY: PSyDataType" in code
-    assert "TYPE(PSyDataType), target, save :: psy_data" in code
+    assert "use psy_data_mod, only : PSyDataType" in code
+    assert "type(psydatatype), save, target, private :: psy_data" in code
     assert "CALL psy_data" in code
 
     # This puts the new PSyDataNode with prefix "extract" around the
     # previous PSyDataNode, but the prefix was not used previously.
     data_trans.apply(schedule, {"prefix": "extract"})
-    code = str(psy.gen)
-    assert "USE extract_psy_data_mod, ONLY: extract_PSyDataType" in code
-    assert "TYPE(extract_PSyDataType), target, save :: extract_psy_data" \
-        in code
+    code = fortran_writer(schedule.root)
+    assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
+    assert ("type(extract_psydatatype), save, target, private :: "
+            "extract_psy_data" in code)
     assert "CALL extract_psy_data" in code
     # The old call must still be there (e.g. not somehow be changed
     # by setting the prefix)
-    assert "USE psy_data_mod, ONLY: PSyDataType" in code
-    assert "TYPE(PSyDataType), target, save :: psy_data" in code
+    assert "use psy_data_mod, only : PSyDataType" in code
+    assert "type(psydatatype), save, target, private :: psy_data" in code
     assert "CALL psy_data" in code
 
     # Now add a third class: "profile", and make sure all previous
     # and new declarations and calls are there:
     data_trans.apply(schedule, {"prefix": "profile"})
-    code = str(psy.gen)
-    assert "USE psy_data_mod, ONLY: PSyDataType" in code
-    assert "USE extract_psy_data_mod, ONLY: extract_PSyDataType" in code
-    assert "USE profile_psy_data_mod, ONLY: profile_PSyDataType" in code
+    code = fortran_writer(schedule.root)
+    print(code)
+    assert "use psy_data_mod, only : PSyDataType" in code
+    assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
+    assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
 
-    assert "TYPE(PSyDataType), target, save :: psy_data" in code
-    assert "TYPE(extract_PSyDataType), target, save :: extract_psy_data" \
-        in code
-    assert "TYPE(profile_PSyDataType), target, save :: profile_psy_data" \
-        in code
+    assert "type(psydatatype), save, target, private :: psy_data" in code
+    assert ("type(extract_psydatatype), save, target, private :: "
+            "extract_psy_data" in code)
+    assert ("type(profile_psydatatype), save, target, private :: "
+            "profile_psy_data" in code)
 
     assert "CALL psy_data" in code
     assert "CALL extract_psy_data" in code

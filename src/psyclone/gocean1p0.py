@@ -213,11 +213,6 @@ class GOInvokes(Invokes):
                 super(GOInvokes, self).gen_code(parent)
                 return
 
-            # TODO 1168: PSyDataNodes are not supported by the backend yet.
-            if invoke.schedule.root.walk(PSyDataNode):
-                super(GOInvokes, self).gen_code(parent)
-                return
-
         # Lower the GOcean PSyIR to language level so it can be visited
         # by the backends
         invoke.schedule.root.lower_to_language_level()
