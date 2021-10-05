@@ -687,10 +687,13 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
     for argument in argument_list:
         if isinstance(argument, (Real_Literal_Constant, Int_Literal_Constant)):
             # A simple constant e.g. 1.0, or 1_i_def
+            precision = argument.children[1]
+            if precision:
+                precision = str(precision)
             if isinstance(argument, Real_Literal_Constant):
-                datatype = ("real", argument.children[1])
+                datatype = ("real", precision)
             else:
-                datatype = ("integer", argument.children[1])
+                datatype = ("integer", precision)
             arguments.append(Arg('literal', argument.tostr().lower(),
                                  datatype=datatype))
         elif isinstance(argument, Name):
@@ -778,10 +781,13 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                 for literal in walk(
                         argument, (Real_Literal_Constant,
                                    Int_Literal_Constant)):
+                    precision = literal.children[1]
+                    if precision:
+                        precision = str(precision)
                     if isinstance(literal, Real_Literal_Constant):
-                        datatype = ("real", literal.children[1])
+                        datatype = ("real", precision)
                     elif isinstance(literal, Int_Literal_Constant):
-                        datatype = ("integer", literal.children[1])
+                        datatype = ("integer", precision)
                     else:
                         raise NotImplementedError(
                             "Found a literal passed into the invoke from the "
