@@ -569,10 +569,12 @@ def test_getkernel_invalid_arg(monkeypatch):
         in str(excinfo.value)
 
 
-@pytest.mark.parametrize('content',
-                         ["1.0", "1.0_r_def", "1_i_def", "- 1.0", "- 1",
-                          "1.0 * 1.0", "(1.0 * 1.0)"])
-def test_getkernel_isliteral(content):
+@pytest.mark.parametrize('content,datatype',
+                         [("1.0", ("real", None)),
+                          ("1.0_r_def", ("real", "r_def")),
+                          ("1", ("integer", None)),
+                          ("1_i_def", ("integer", "i_def"))])
+def test_getkernel_isliteral(content, datatype):
     '''Test that the get_kernel function recognises the possible forms of
     literal argument and returns them correctly.
 
@@ -586,7 +588,44 @@ def test_getkernel_isliteral(content):
     assert arg.is_literal()
     assert arg.text == content
     assert arg.varname is None
-    assert arg._datatype is None
+    assert arg._datatype == datatype
+
+
+@pytest.mark.parametrize('content,datatype', [
+    ("- 1.0", ("real", None)), ("- 1", ("integer", None)),
+    ("1.0 * 1.0", ("real", None)),
+    ("(1_i_def * 1_i_def)", ("integer", "i_def")),
+    ("(1.0_r_solver * 1.0_r_solver)", ("real", "r_solver"))])
+def test_getkernel_isliteral_expr(content, datatype):
+    '''Test that the get_kernel function recognises the possible forms of
+    literal expression and returns them correctly.
+
+    '''
+    tree = Structure_Constructor("sub({0})".format(content))
+    kern_name, args = get_kernel(tree, "dummy.f90", {})
+    assert kern_name == "sub"
+    assert len(args) == 1
+    arg = args[0]
+    assert isinstance(arg, Arg)
+    assert arg.is_literal()
+    assert arg.text == content
+    assert arg.varname is None
+    assert arg._datatype == datatype
+
+
+def test_getkernel_isliteral_expr_error():
+    '''Test that the get_kernel function raises the expected exception if
+    the literal expression contains a mix of different literal
+    datatypes.
+
+    '''
+    tree = Structure_Constructor("sub(1.0_r_def*1.0_r_solver)")
+    with pytest.raises(NotImplementedError) as info:
+        _, _ = get_kernel(tree, "dummy.f90", {})
+    assert ("Found two non-matching literals within an expression passed into "
+            "an invoke from the algorithm layer. '('real', 'r_solver')' and "
+            "'('real', 'r_def')' do not match. This is not supported in "
+            "PSyclone." in str(info.value))
 
 
 @pytest.mark.parametrize('content',

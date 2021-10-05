@@ -773,7 +773,32 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             if not walk(argument, Name):
                 # This is a literal so store the full expression as a
                 # string
-                arguments.append(Arg('literal', argument.tostr().lower()))
+                # First determine the datatype
+                candidate_datatype = None
+                for literal in walk(
+                        argument, (Real_Literal_Constant,
+                                   Int_Literal_Constant)):
+                    if isinstance(literal, Real_Literal_Constant):
+                        datatype = ("real", literal.children[1])
+                    elif isinstance(literal, Int_Literal_Constant):
+                        datatype = ("integer", literal.children[1])
+                    else:
+                        raise NotImplementedError(
+                            "Found a literal passed into the invoke from the "
+                            "the algorithm layer with an unsupported "
+                            "datatype '{0}'.".format(literal))
+                    if not candidate_datatype:
+                        # This is the first candidate
+                        candidate_datatype = datatype
+                    elif candidate_datatype != datatype:
+                        raise NotImplementedError(
+                            "Found two non-matching literals within an "
+                            "expression passed into an invoke from the "
+                            "algorithm layer. '{0}' and '{1}' do not match. "
+                            "This is not supported in PSyclone."
+                            "".format(datatype, candidate_datatype))
+                arguments.append(Arg('literal', argument.tostr().lower(),
+                                 datatype=datatype))
             else:
                 raise NotImplementedError(
                     "algorithm.py:get_kernel: Expressions containing "
