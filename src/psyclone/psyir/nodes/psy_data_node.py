@@ -531,6 +531,7 @@ class PSyDataNode(Statement):
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Kern, InvokeSchedule
+
         def gen_type_bound_call(typename, methodname, argument_list=None,
                                 annotations=None):
             argument_str = ""
@@ -551,13 +552,9 @@ class PSyDataNode(Statement):
             child.lower_to_language_level()
 
         routine_schedule = self.ancestor(Routine)
-        invoke = self.ancestor(InvokeSchedule).invoke
         module_name = self._module_name
         if module_name is None:
-            # The user has not supplied a module (location) name so
-            # return the psy-layer module name as this will be unique
-            # for each PSyclone algorithm file.
-            module_name = invoke.invokes.psy.name
+            module_name = routine_schedule.name
 
         if self._region_name:
             region_name = self._region_name
@@ -636,7 +633,7 @@ class PSyDataNode(Statement):
 
         # Insert the body of the profiled region between the start and
         # end calls
-        for child in reversed(self.psy_data_body.pop_all_children()):
+        for child in self.psy_data_body.pop_all_children():
             self.parent.children.insert(self.position, child)
 
         if has_var:

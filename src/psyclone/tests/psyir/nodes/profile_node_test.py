@@ -149,8 +149,8 @@ def test_lower_to_lang_level_single_node():
     # The ProfileNode should have been replaced by two CodeBlocks with its
     # children inserted between them.
     assert isinstance(kschedule[0], CodeBlock)
-    # The first CodeBlock should have the "profile-start" annotation.
-    assert kschedule[0].annotations == ["profile-start"]
+    # The first CodeBlock should have the "psy-data-start" annotation.
+    assert kschedule[0].annotations == ["psy-data-start"]
     ptree = kschedule[0].get_ast_nodes
     assert len(ptree) == 1
     assert isinstance(ptree[0], Fortran2003.Call_Stmt)
@@ -179,11 +179,11 @@ def test_lower_named_profile_node():
     Profiler.add_profile_nodes(kschedule, Loop)
     pnode = kschedule.walk(ProfileNode)[0]
     # Manually set the module and region names (to save using a transformation)
-    pnode._module_name = "my_mod"
-    pnode._region_name = "first"
+    pnode._module_name = 'my_mod'
+    pnode._region_name = 'first'
     kschedule.lower_to_language_level()
     cblocks = kschedule.walk(CodeBlock)
-    assert ("PreStart('my_mod', 'first', 0, 0)" in
+    assert ("PreStart(\"my_mod\", \"first\", 0, 0)" in
             str(cblocks[0].get_ast_nodes[0]))
 
 
@@ -207,11 +207,11 @@ def test_lower_to_lang_level_multi_node():
     cblocks = sched.walk(CodeBlock)
     ptree = cblocks[0].get_ast_nodes
     code = str(ptree[0]).lower()
-    assert "call profile_psy_data % prestart('invoke_0', 'r0'" in code
-    assert cblocks[0].annotations == ["profile-start"]
+    assert "call profile_psy_data % prestart(\"invoke_0\", \"r0\"" in code
+    assert cblocks[0].annotations == ["psy-data-start"]
     assert cblocks[1].annotations == []
     ptree = cblocks[2].get_ast_nodes
     code = str(ptree[0]).lower()
-    assert "call profile_psy_data_1 % prestart('invoke_0', 'r1'" in code
-    assert cblocks[2].annotations == ["profile-start"]
+    assert "call profile_psy_data_1 % prestart(\"invoke_0\", \"r1\"" in code
+    assert cblocks[2].annotations == ["psy-data-start"]
     assert cblocks[3].annotations == []
