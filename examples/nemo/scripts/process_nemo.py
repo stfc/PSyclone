@@ -134,7 +134,7 @@ if __name__ == "__main__":
         if file_name in EXCLUDED_FILES:
             print("Skipping {0} entirely.".format(ffile))
             continue
-        elif file_name in PROFILE_ONLY:
+        if file_name in PROFILE_ONLY:
             print("Instrumenting {0} for profiling...".format(file_name))
             extra_args = ["-p", "invokes",
                           "-oalg", "/dev/null",
