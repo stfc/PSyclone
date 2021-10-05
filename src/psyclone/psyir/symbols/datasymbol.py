@@ -63,11 +63,10 @@ class DataSymbol(TypedSymbol):
     :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, datatype=None, constant_value=None, **kwargs):
+    def __init__(self, name, datatype, constant_value=None, **kwargs):
         super(DataSymbol, self).__init__(name, datatype)
         self._constant_value = None
-        self._process_arguments(datatype=datatype,
-                                constant_value=constant_value,
+        self._process_arguments(constant_value=constant_value,
                                 **kwargs)
 
     def _process_arguments(self, **kwargs):

@@ -239,6 +239,7 @@ class Symbol(object):
         ''' Process the visibility and interface arguments of the constructor
         and the specialise methods.
 
+        :param visibility: the visibility of the symbol.
         :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
         :param interface: optional object describing the interface to this \
             symbol (i.e. whether it is passed as a routine argument or \

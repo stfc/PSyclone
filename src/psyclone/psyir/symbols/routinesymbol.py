@@ -53,10 +53,15 @@ class RoutineSymbol(TypedSymbol):
 
     '''
     def __init__(self, name, datatype=None, **kwargs):
+        # In general all arguments are processed by the _process_arguments
+        # but in the 'datatype' case it must be done here because it is a
+        # mandatory argument for the super constructor. There is equivalent
+        # logic in the _process_argument for when the RoutineSymbol is
+        # specialised instead of constructed.
         if datatype is None:
             datatype = NoType()
         super(RoutineSymbol, self).__init__(name, datatype)
-        self._process_arguments(datatype=datatype, **kwargs)
+        self._process_arguments(**kwargs)
 
     def _process_arguments(self, **kwargs):
         ''' Process the arguments for the constructor and the specialise

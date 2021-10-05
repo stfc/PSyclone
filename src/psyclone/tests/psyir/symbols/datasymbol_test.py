@@ -197,6 +197,10 @@ def test_datasymbol_constant_value_setter():
     assert isinstance(sym.constant_value, BinaryOperation)
     assert sym.constant_value is ct_expr
 
+    # Test setting it back no non-constant
+    sym.constant_value = None
+    assert sym.constant_value is None
+
 
 def test_datasymbol_constant_value_setter_invalid():
     '''Test that a DataSymbol constant value setter raises the appropriate

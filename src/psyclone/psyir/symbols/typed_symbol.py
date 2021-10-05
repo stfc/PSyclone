@@ -76,13 +76,14 @@ class TypedSymbol(Symbol):
         :type kwargs: unwrapped dict.
 
         :raises AttributeError: if the datatype argument is not given \
-            and it was also not pre-existent.
+            and it isn't already a property of this symbol.
 
         '''
         if "datatype" in kwargs:
             self.datatype = kwargs.pop("datatype")
         elif not hasattr(self, '_datatype'):
-            raise AttributeError("Missing mandatory 'datatype' attribute")
+            raise AttributeError("Missing mandatory 'datatype' attribute for "
+                                 "symbol '{0}'.".format(self.name))
 
         super(TypedSymbol, self)._process_arguments(**kwargs)
 

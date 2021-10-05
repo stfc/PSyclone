@@ -55,7 +55,7 @@ class ContainerSymbol(Symbol):
     :param bool wildcard_import: if all public Symbols of the Container are \
         imported into the current scope. Defaults to False.
     :param kwargs: additional keyword arguments provided by \
-                   :py:class:`psyclone.psyir.symbols.Symbol`
+        :py:class:`psyclone.psyir.symbols.Symbol`.
     :type kwargs: unwrapped dict.
 
     '''
