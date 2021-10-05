@@ -167,5 +167,6 @@ class ExtractNode(PSyDataNode):
 
         super(ExtractNode, self).lower_to_language_level(options)
 
+
 # For AutoAPI documentation generation
 __all__ = ['ExtractNode']

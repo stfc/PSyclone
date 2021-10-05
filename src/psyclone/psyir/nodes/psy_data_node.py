@@ -42,16 +42,17 @@ or profiling. '''
 
 from __future__ import absolute_import, print_function
 from collections import namedtuple
-from psyclone.configuration import Config
-from psyclone.errors import InternalError
-from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
+
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
+
+from psyclone.configuration import Config
+from psyclone.errors import InternalError
+from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
@@ -397,10 +398,14 @@ class PSyDataNode(Statement):
         '''Creates the PSyData code before and after the children
         of this node.
 
+        TODO #1010: This method and the lower_to_language_level below contain
+        duplicated logic, the gen_code method will be deleted when all APIs can
+        use the PSyIR backends.
+
         :param parent: the parent of this node in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dictionary of str:value or None
         :param options["pre_var_list"]: a list of variables to be extracted \
             before the first child.
         :type options["pre_var_list"]: list of str
@@ -527,13 +532,25 @@ class PSyDataNode(Statement):
         the Fortran backend is capable of producing code representing the
         PSyDataNode.
 
+        :type options: dictionary of str:value or None
+        :param options["pre_var_list"]: a list of variables to be extracted \
+            before the first child.
+        :type options["pre_var_list"]: list of str
+        :param options["post_var_list"]: a list of variables to be extracted \
+            after the last child.
+        :type options["post_var_list"]: list of str
+        :param str options["pre_var_postfix"]: an optional postfix that will \
+            be added to each variable name in the pre_var_list.
+        :param str options["post_var_postfix"]: an optional postfix that will \
+            be added to each variable name in the post_var_list.
+
         '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import Kern, InvokeSchedule
 
         def gen_type_bound_call(typename, methodname, argument_list=None,
                                 annotations=None):
+            ''' Helper utility to generate type-bound calls. Since this is
+            not directly supported in the PSyIR the call is inserted in a
+            PSyIR CodeBlock.'''
             argument_str = ""
             if argument_list:
                 argument_str += "("

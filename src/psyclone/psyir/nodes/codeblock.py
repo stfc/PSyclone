@@ -67,8 +67,8 @@ class CodeBlock(Statement, DataNode):
     _text_name = "CodeBlock"
     _colour = "red"
     #: The annotations that are supported by this node.
-    #: profile-start - this node has replaced a ProfileNode during the lowering
-    #: of the PSyIR to language level.
+    #: psy-data-start - this node has replaced a PSyDataNode during the
+    #: lowering of the PSyIR to language level.
     valid_annotations = ("psy-data-start")
 
     class Structure(Enum):

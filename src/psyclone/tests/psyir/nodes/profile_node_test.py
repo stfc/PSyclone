@@ -97,20 +97,6 @@ def test_profile_node_create():
             "type(profile_PSyDataType), save, target :: profile_psy_data")
 
 
-def test_malformed_profile_node(monkeypatch):
-    ''' Check that we raise the expected error if a ProfileNode does not have
-    a single Schedule node as its child. '''
-    pnode = ProfileNode()
-    monkeypatch.setattr(pnode, "_children", [])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-    monkeypatch.setattr(pnode, "_children", [Node(), Node()])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-
-
 @pytest.mark.parametrize("value", [["a", "b"], ("a"), ("a", "b", "c"),
                                    ("a", []), ([], "a")])
 def test_profile_node_invalid_name(value):
