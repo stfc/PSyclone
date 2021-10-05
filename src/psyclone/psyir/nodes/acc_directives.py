@@ -126,15 +126,6 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         self._variables_to_copy = []
         self._node_lowered = False
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this Node in a DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_data_" + str(position)
-
     def gen_code(self, parent):
         '''Generate the elements of the f2pygen AST for this Node in the
         Schedule.
@@ -252,15 +243,6 @@ class ACCParallelDirective(ACCRegionDirective):
     a DataDirective.
 
     '''
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this Node in a DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_parallel_" + str(position)
-
     def validate_global_constraints(self):
         '''
         Check that the PSyIR tree containing this node is valid. Since we
@@ -423,15 +405,6 @@ class ACCLoopDirective(ACCRegionDirective):
         super(ACCLoopDirective, self).__init__(children=children,
                                                parent=parent)
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this Node in a DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_loop_" + str(position)
-
     def node_str(self, colour=True):
         '''
         Returns the name of this node with (optional) control codes
@@ -565,15 +538,6 @@ class ACCKernelsDirective(ACCRegionDirective):
                                                   parent=parent)
         self._default_present = default_present
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this node in a dag.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_kernels_" + str(position)
-
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this
@@ -666,15 +630,6 @@ class ACCDataDirective(ACCRegionDirective):
     in the PSyIR.
 
     '''
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in a dag for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_data_" + str(position)
-
     def gen_code(self, _):
         '''
         :raises InternalError: the ACC data directive is currently only \
