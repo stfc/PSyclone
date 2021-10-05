@@ -182,10 +182,11 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         kernel code. Defaults to empty string.
     :param bool kern_naming: the scheme to use when re-naming transformed \
         kernels. Defaults to "multiple".
-    :return: 2-tuple containing fparser1 ASTs for the algorithm code and \
-        the psy code.
+    :return: 2-tuple containing the fparser1 AST for the algorithm code and \
+        the fparser1 AST or a string (for NEMO) of the psy code.
     :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
-             :py:class:`fparser.one.block_statements.Module`)
+             :py:class:`fparser.one.block_statements.Module`) or \
+            (:py:class:`fparser.one.block_statements.BeginSource`, str)
 
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.

@@ -324,12 +324,8 @@ def test_apply_inline_kern(tmpdir):
     nemo_trans.apply(psyir)
     assert len(psyir.walk(NemoKern)) == 1
     index_node = psyir.walk(Assignment)[0].lhs.children[2]
-    # It is not possible to compile this code, as CreateNemoPSyTrans()
-    # adds a NemoInvokeSchedule which currently only outputs the
-    # content of a routine (i.e. the "program" and "end program"
-    # statements and declarations are not output (issue #430).
     trans_write_check(
-        psyir, index_node, expected_result, tmpdir, compiles=False)
+        psyir, index_node, expected_result, tmpdir, compiles=True)
 
 
 def test_inlined_kern(tmpdir):

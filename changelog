@@ -208,6 +208,9 @@
 	and pins jsonschema to version 3.0.2 to fix jupyter notebooks with
 	older versions of Python.
 
+	72) PR #1147 for #430, #435 and #616. The NEMO API now uses the PSyIR
+	backend to generate output code.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
