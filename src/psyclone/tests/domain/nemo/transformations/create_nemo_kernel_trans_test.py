@@ -99,7 +99,7 @@ def test_kern_trans_validation(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.validate(loop.loop_body)
     assert isinstance(err.value.value, LazyString)
-    assert ("A NEMO Kernel cannot contain nodes of type: ['CodeBlock']" in
+    assert ("A NEMO Kernel cannot contain a node of type: 'CodeBlock'" in
             str(err.value))
 
 
@@ -121,7 +121,7 @@ def test_no_explicit_loop_in_kernel(fortran_reader):
     # 'loop.loop_body' is not a valid kernel because it itself contains a loop
     with pytest.raises(TransformationError) as err:
         trans.apply(loop.loop_body)
-    assert "Kernel cannot contain nodes of type: ['Loop']" in str(err.value)
+    assert "Kernel cannot contain a node of type: 'Loop'" in str(err.value)
 
 
 def test_no_implicit_loop_in_kernel(fortran_reader):
@@ -157,3 +157,16 @@ def test_basic_kern(fortran_reader):
     assert isinstance(loop.loop_body[0], InlinedKern)
     # Check that the body of the kernel is still the original assignment
     assert loop.loop_body[0].children[0][0] is assign
+
+
+def test_no_kernel_in_kernel(fortran_reader):
+    ''' Check that the transformation refuses to create a Kernel if the
+    supplied PSyIR already contains one. '''
+    trans = CreateNemoKernelTrans()
+    psyir = fortran_reader.psyir_from_source(BASIC_KERN_CODE)
+    loop = psyir.walk(Loop)[0]
+    trans.apply(loop.loop_body)
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop.loop_body)
+    assert ("A NEMO Kernel cannot contain a node of type: 'NemoKern'" in
+            str(err.value))
