@@ -240,6 +240,10 @@ class GOOpenCLTrans(Transformation):
         self._insert_ocl_write_to_device_function(node.root)
         self._insert_ocl_initialise_buffer(node.root)
 
+
+        for kern in node.coded_kernels():
+            self._insert_ocl_arg_setter_routine(kern, node.root)
+
         # TODO #1134: Some of the OpenCL logic is provided at generation time
         # when the following opencl flag is set. This should eventually be part
         # of this tranformation.
@@ -249,6 +253,145 @@ class GOOpenCLTrans(Transformation):
 
         # TODO #595: Remove transformation return values
         return None, None
+
+    def _insert_ocl_arg_setter_routine(self, kernel, node):
+        '''
+        Creates a Fortran routine to set the arguments of the OpenCL
+        version of this kernel.
+
+        :param parent: Parent node of the set-kernel-arguments routine
+        :type parent: :py:class:`psyclone.f2pygen.moduleGen`
+        '''
+        # Check if the subroutine already exist.
+        sub_name = kernel.name + "_set_args"
+        try:
+            return node.symbol_table.lookup_with_tag(sub_name)
+        except KeyError:
+            pass
+
+        # Create the new Routine symbol
+        node.symbol_table.add(RoutineSymbol(sub_name), tag=sub_name)
+
+        # pylint: disable=too-many-locals, too-many-statements
+        # The arg_setter code is in a subroutine, so we create a new scope
+        argsetter_st = SymbolTable()
+
+        # Add an argument symbol for the kernel object
+        kobj = argsetter_st.new_symbol("kernel_obj").name
+
+        # Keep track of the argument names
+        argument_names = [arg.name for arg in self.arguments.args]
+
+        argsetter_st.add(RoutineSymbol(sub_name), tag=sub_name)
+
+        # Create the f2pygen Subroutine node, the subroutine arguments are not
+        # provided yet as they have to be processed to avoid name clashes
+        sub = SubroutineGen(parent, name=sub_name)
+        parent.add(sub)
+
+        def resolve_argument_names(args):
+            ''' Utility to declare the given arguments in the argsetter_st and
+            if any name is already used, update the argument_names list with
+            a new name to avoid the clash.
+
+            :params args: A subset of arguments from self.arguments.args
+            :type args: list of :py:class:`psyclone.psyGen.Arguments`
+
+            :returns: Updated name list for the arguments
+            :rtype: list of str
+            '''
+            names = []
+            for arg in args:
+                name = argsetter_st.new_symbol(arg.name).name
+                argument_names[self.arguments.args.index(arg)] = name
+                names.append(name)
+            return names
+
+        # Add module imports
+        sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
+                       funcnames=["check_status"]))
+        sub.add(UseGen(sub, name="iso_c_binding", only=True,
+                       funcnames=["c_sizeof", "c_loc", "c_intptr_t"]))
+        sub.add(UseGen(sub, name="clfortran", only=True,
+                       funcnames=["clSetKernelArg"]))
+
+        # Declare arguments
+        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                        target=True, entity_decls=[kobj]))
+
+        # Get all Grid property arguments
+        grid_prop_args = args_filter(self._arguments.args,
+                                     arg_types=["field", "grid_property"])
+
+        # Array grid properties are c_intptr_t
+        args = [x for x in grid_prop_args if not x.is_scalar]
+        if args:
+            names = resolve_argument_names(args)
+            sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                            intent="in", target=True, entity_decls=names))
+
+        # Scalar integer grid properties
+        args = [x for x in grid_prop_args
+                if x.is_scalar and x.intrinsic_type == "integer"]
+
+        if args:
+            names = resolve_argument_names(args)
+            sub.add(DeclGen(sub, datatype="integer", intent="in",
+                            target=True, entity_decls=names))
+
+        # Scalar real grid properties
+        args = [x for x in grid_prop_args
+                if x.is_scalar and x.intrinsic_type == "real"]
+        if args:
+            names = resolve_argument_names(args)
+            sub.add(DeclGen(sub, datatype="real", intent="in", kind="go_wp",
+                            target=True, entity_decls=names))
+
+        # Scalar arguments
+        scalar_args = args_filter(self._arguments.args, arg_types=["scalar"],
+                                  include_literals=False)
+        go_r_scalars = []
+        other_scalars = []
+        for arg in scalar_args:
+            # Use symbol table to avoid name clashes
+            name = argsetter_st.new_symbol(arg.name).name
+            argument_names[self.arguments.args.index(arg)] = name
+            if arg.space.lower() == "go_r_scalar":
+                go_r_scalars.append(name)
+            else:
+                other_scalars.append(name)
+        if go_r_scalars:
+            sub.add(DeclGen(
+                sub, datatype="REAL", intent="in", kind="go_wp",
+                target=True, entity_decls=go_r_scalars))
+        if other_scalars:
+            sub.add(DeclGen(sub, datatype="INTEGER", intent="in",
+                            target=True, entity_decls=other_scalars))
+
+        # Declare local variables
+        err_name = argsetter_st.new_symbol(
+            "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+        sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
+
+        # Set kernel arguments
+        sub.add(CommentGen(
+            sub,
+            " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
+        index = 0
+        # Add a SetKenrelArg for each Argument and check the OpenCL status
+        for variable in argument_names:
+            sub.add(AssignGen(
+                sub, lhs=err_name,
+                rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+                format(kobj, index, variable)))
+            sub.add(CallGen(
+                sub, "check_status",
+                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
+                 err_name]))
+            index = index + 1
+
+        # Finally we can provide the updated argument list without name clashes
+        sub.args = [kobj] + argument_names
 
     def _insert_opencl_init_routine(self, node):
         '''
@@ -342,6 +485,7 @@ class GOOpenCLTrans(Transformation):
         node.addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("ocl_init_routine")
+
 
     @staticmethod
     def _insert_initialise_grid_buffers(node):
