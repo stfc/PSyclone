@@ -4406,11 +4406,13 @@ class DynBasisFunctions(DynCollection):
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
 
+        const = LFRicConstants()
+        
         for shape in self._qr_vars:
             qr_name = "_qr_" + shape.split("_")[-1]
             if shape == "gh_quadrature_xyoz":
-                datatype = QUADRATURE_TYPE_MAP[shape]["intrinsic"]
-                kind = QUADRATURE_TYPE_MAP[shape]["kind"]
+                datatype = const.QUADRATURE_TYPE_MAP[shape]["intrinsic"]
+                kind = const.QUADRATURE_TYPE_MAP[shape]["kind"]
                 parent.add(DeclGen(
                     parent, datatype=datatype, kind=kind,
                     intent="in", dimension="np_xy"+qr_name,
@@ -4421,14 +4423,16 @@ class DynBasisFunctions(DynCollection):
                     entity_decls=["weights_z"+qr_name]))
             elif shape == "gh_quadrature_face":
                 parent.add(DeclGen(
-                    parent, datatype=QUADRATURE_TYPE_MAP[shape]["intrinsic"],
-                    kind=QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                    parent,
+                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
                     dimension=",".join(["np_xyz"+qr_name, "nfaces"+qr_name]),
                     entity_decls=["weights_xyz"+qr_name]))
             elif shape == "gh_quadrature_edge":
                 parent.add(DeclGen(
-                    parent, datatype=QUADRATURE_TYPE_MAP[shape]["intrinsic"],
-                    kind=QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                    parent,
+                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
                     dimension=",".join(["np_xyz"+qr_name, "nedges"+qr_name]),
                     entity_decls=["weights_xyz"+qr_name]))
             else:
@@ -4453,7 +4457,7 @@ class DynBasisFunctions(DynCollection):
                 parent.add(
                     TypeDeclGen(parent,
                                 datatype=const.
-                                QUADRATURE_TYPE_MAP[shape]["type"],
+                                const.QUADRATURE_TYPE_MAP[shape]["type"],
                                 entity_decls=self._qr_vars[shape],
                                 intent="in"))
                 # For each of these we'll need a corresponding proxy, use
