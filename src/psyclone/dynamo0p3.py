@@ -1134,32 +1134,38 @@ class DynCollection(object):
     :raises InternalError: if the supplied node is not a DynInvoke or a \
                            DynKern.
     '''
-    def __init__(self, node):
-        if isinstance(node, DynInvoke):
+    def __init__(self, schedule):
+        from psyclone.psyir.nodes import KernelSchedule
+        if isinstance(schedule, DynInvokeSchedule):
             # We are handling declarations/initialisations for an Invoke
-            self._invoke = node
+            self._invoke = schedule.invoke
+            self._schedule = schedule
             self._kernel = None
-            self._symbol_table = self._invoke.schedule.symbol_table
+            self._symbol_table = schedule.symbol_table
             # The list of kernel calls we are responsible for
-            self._calls = node.schedule.kernels()
-        elif isinstance(node, DynKern):
+            self._calls = schedule.kernels()
+        elif isinstance(schedule, KernelSchedule):
             # We are handling declarations for a Kernel stub
             self._invoke = None
-            self._kernel = node
+            self._kernel = schedule.parent
+            self._schedule = schedule
             # TODO 719 The symbol table is not connected to other parts of
             # the Stub generation.
             self._symbol_table = SymbolTable()
             # We only have a single kernel call in this case
-            self._calls = [node]
+            self._calls = [self._kernel]
         else:
             raise InternalError("DynCollection takes only a DynInvoke "
                                 "or a DynKern but got: {0}".format(
-                                    type(node)))
+                                    type(schedule)))
 
         # Whether or not the associated Invoke contains only kernels that
         # operate on dofs.
         if self._invoke:
-            self._dofs_only = self._invoke.operates_on_dofs_only
+            # TODO move operates_on_dofs_only into Schedule class?
+            #self._dofs_only = self._invoke.operates_on_dofs_only
+            self._dofs_only = all(call.iterates_over.lower() == "dof" for
+                                  call in schedule.kernels())
         else:
             self._dofs_only = False
 
@@ -2600,7 +2606,7 @@ class DynFunctionSpaces(DynCollection):
         super(DynFunctionSpaces, self).__init__(kern_or_invoke)
 
         if self._invoke:
-            self._function_spaces = self._invoke.unique_fss()[:]
+            self._function_spaces = self._schedule.unique_fss()[:]
         else:
             self._function_spaces = self._calls[0].arguments.unique_fss
 
@@ -2621,7 +2627,7 @@ class DynFunctionSpaces(DynCollection):
             # kernels that operate on dofs and distributed memory is
             # enabled then the number of dofs is obtained from the
             # field proxy and undf is not required.
-            if self._invoke and self._invoke.field_on_space(function_space):
+            if self._invoke and self._schedule.field_on_space(function_space):
                 if not (self._dofs_only and Config.get().distributed_memory):
                     self._var_list.append(function_space.undf_name)
             elif self._kernel and \
@@ -2702,7 +2708,7 @@ class DynFunctionSpaces(DynCollection):
             # memory is enabled then the number of dofs is obtained
             # from the field proxy and undf is not required.
             if not (self._dofs_only and Config.get().distributed_memory):
-                if self._invoke.field_on_space(function_space):
+                if self._schedule.field_on_space(function_space):
                     undf_name = function_space.undf_name
                     parent.add(AssignGen(parent, lhs=undf_name,
                                          rhs=name + "%" +
@@ -3111,7 +3117,7 @@ class DynProxies(DynCollection):
         parent.add(CommentGen(parent,
                               " Initialise field and/or operator proxies"))
         parent.add(CommentGen(parent, ""))
-        for arg in self._invoke.psy_unique_vars:
+        for arg in self._schedule.psy_unique_vars:
             # We don't have proxies for scalars
             if arg.is_scalar:
                 continue
@@ -3152,7 +3158,7 @@ class DynCellIterators(DynCollection):
             # We're not generating a PSy layer so we're done here.
             return
         first_var = None
-        for var in self._invoke.psy_unique_vars:
+        for var in self._schedule.psy_unique_vars:
             if not var.is_scalar:
                 first_var = var
                 break
@@ -3732,7 +3738,7 @@ class DynMeshes(object):
                       :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects.
     '''
 
-    def __init__(self, invoke, unique_psy_vars):
+    def __init__(self, schedule, unique_psy_vars):
         # Dict of DynInterGrid objects holding information on the mesh-related
         # variables required by each inter-grid kernel. Keys are the kernel
         # names.
@@ -3743,7 +3749,7 @@ class DynMeshes(object):
         self._needs_colourmap = False
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
-        self._schedule = invoke.schedule
+        self._schedule = schedule
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -3797,7 +3803,7 @@ class DynMeshes(object):
                 "other kernel types but kernels '{0}' in invoke '{1}' are "
                 "not inter-grid kernels.".format(
                     ", ".join([call.name for call in non_intergrid_kernels]),
-                    invoke.name))
+                    self._schedule.parent.name))
 
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object if we have one or
@@ -3807,7 +3813,7 @@ class DynMeshes(object):
         # object but that is handled in _colourmap_init().)
         if not _name_set:
             if (requires_mesh or (Config.get().distributed_memory and
-                                  not invoke.operates_on_dofs_only)):
+                                  not schedule.operates_on_dofs_only)):
                 _name_set.add(
                     self._schedule.symbol_table.symbol_from_tag("mesh").name)
 
@@ -5124,6 +5130,113 @@ class DynInvoke(Invoke):
         # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
 
+        # Extend arg list with stencil information
+        self._alg_unique_args = (self.schedule.alg_unique_vars +
+                                 self.schedule.stencil.unique_alg_vars)
+
+        # adding in qr arguments
+        self._alg_unique_qr_args = []
+        for call in self.schedule.kernels():
+            for rule in call.qr_rules.values():
+                if rule.alg_name not in self._alg_unique_qr_args:
+                    self._alg_unique_qr_args.append(rule.alg_name)
+        self._alg_unique_args.extend(self._alg_unique_qr_args)
+        # we also need to work out the names to use for the qr
+        # arguments within the psy layer. These are stored in the
+        # _psy_unique_qr_vars list
+        self._psy_unique_qr_vars = []
+        for call in self.schedule.kernels():
+            for rule in call.qr_rules.values():
+                if rule.psy_name not in self._psy_unique_qr_vars:
+                    self._psy_unique_qr_vars.append(rule.psy_name)
+
+        # lastly, add in halo exchange calls and global sums if
+        # required. We only need to add halo exchange calls for fields
+        # since operators are assembled in place and scalars don't
+        # have halos. We only need to add global sum calls for scalars
+        # which have a gh_sum access.
+        if Config.get().distributed_memory:
+            # halo exchange calls
+            const = LFRicConstants()
+            for loop in self.schedule.loops():
+                loop.create_halo_exchanges()
+            # global sum calls
+            for loop in self.schedule.loops():
+                for scalar in loop.args_filter(
+                        arg_types=const.VALID_SCALAR_NAMES,
+                        arg_accesses=AccessType.get_valid_reduction_modes(),
+                        unique=True):
+                    global_sum = DynGlobalSum(scalar, parent=loop.parent)
+                    loop.parent.children.insert(loop.position+1, global_sum)
+
+    def arg_for_funcspace(self, fspace):
+        ''' Returns an argument object which is on the requested
+        function space. Searches through all Kernel calls in this
+        invoke. Currently the first argument object that is found is
+        used. Throws an exception if no argument exists. '''
+        for kern_call in self.schedule.kernels():
+            try:
+                return kern_call.arguments.get_arg_on_space(fspace)
+            except FieldNotFoundError:
+                pass
+        raise GenerationError(
+            "No argument found on '{0}' space".format(fspace.mangled_name))
+
+    def is_coloured(self):
+        ''' Returns true if at least one of the loops in the
+        schedule of this invoke has been coloured '''
+        for loop in self.schedule.loops():
+            if loop.loop_type == "colours":
+                return True
+        return False
+
+    def gen_code(self, parent):
+        '''
+        Generates Dynamo specific invocation code (the subroutine
+        called by the associated invoke call in the algorithm
+        layer). This consists of the PSy invocation subroutine and the
+        declaration of its arguments.
+
+        :param parent: The parent node in the AST (of the code to be \
+                       generated) to which the node describing the PSy \
+                       subroutine will be added
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        '''
+        # Create the subroutine
+        invoke_sub = SubroutineGen(parent, name=self.name,
+                                   args=self.psy_unique_var_names +
+                                   self.schedule.stencil.unique_alg_vars +
+                                   self._psy_unique_qr_vars)
+
+        # Add content from the schedule
+        self.schedule.gen_code(invoke_sub)
+
+        # finally, add me to my parent
+        parent.add(invoke_sub)
+
+
+class DynInvokeSchedule(InvokeSchedule):
+    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
+    specific factories for creating kernel and infrastructure calls
+    to the base class so it creates the ones we require.
+
+    :param str name: name of the Invoke.
+    :param arg: list of KernelCalls parsed from the algorithm layer.
+    :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param reserved_names: optional list of names that are not allowed in the \
+                           new InvokeSchedule SymbolTable.
+    :type reserved_names: list of str
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+
+    def __init__(self, invoke, arg, reserved_names=None, parent=None):
+        InvokeSchedule.__init__(self, invoke, DynKernCallFactory,
+                                LFRicBuiltInCallFactory, arg, reserved_names,
+                                parent=parent)
+
         self.scalar_args = LFRicScalarArgs(self)
 
         # initialise our invoke stencil information
@@ -5177,202 +5290,6 @@ class DynInvoke(Invoke):
         # all loops in this Invoke.
         self.loop_bounds = LFRicLoopBounds(self)
 
-        # Extend arg list with stencil information
-        self._alg_unique_args.extend(self.stencil.unique_alg_vars)
-
-        # adding in qr arguments
-        self._alg_unique_qr_args = []
-        for call in self.schedule.kernels():
-            for rule in call.qr_rules.values():
-                if rule.alg_name not in self._alg_unique_qr_args:
-                    self._alg_unique_qr_args.append(rule.alg_name)
-        self._alg_unique_args.extend(self._alg_unique_qr_args)
-        # we also need to work out the names to use for the qr
-        # arguments within the psy layer. These are stored in the
-        # _psy_unique_qr_vars list
-        self._psy_unique_qr_vars = []
-        for call in self.schedule.kernels():
-            for rule in call.qr_rules.values():
-                if rule.psy_name not in self._psy_unique_qr_vars:
-                    self._psy_unique_qr_vars.append(rule.psy_name)
-
-        # lastly, add in halo exchange calls and global sums if
-        # required. We only need to add halo exchange calls for fields
-        # since operators are assembled in place and scalars don't
-        # have halos. We only need to add global sum calls for scalars
-        # which have a gh_sum access.
-        if Config.get().distributed_memory:
-            # halo exchange calls
-            const = LFRicConstants()
-            for loop in self.schedule.loops():
-                loop.create_halo_exchanges()
-            # global sum calls
-            for loop in self.schedule.loops():
-                for scalar in loop.args_filter(
-                        arg_types=const.VALID_SCALAR_NAMES,
-                        arg_accesses=AccessType.get_valid_reduction_modes(),
-                        unique=True):
-                    global_sum = DynGlobalSum(scalar, parent=loop.parent)
-                    loop.parent.children.insert(loop.position+1, global_sum)
-
-    def arg_for_funcspace(self, fspace):
-        ''' Returns an argument object which is on the requested
-        function space. Searches through all Kernel calls in this
-        invoke. Currently the first argument object that is found is
-        used. Throws an exception if no argument exists. '''
-        for kern_call in self.schedule.kernels():
-            try:
-                return kern_call.arguments.get_arg_on_space(fspace)
-            except FieldNotFoundError:
-                pass
-        raise GenerationError(
-            "No argument found on '{0}' space".format(fspace.mangled_name))
-
-    def unique_fss(self):
-        ''' Returns the unique function space *objects* over all kernel
-        calls in this invoke. '''
-        unique_fs = []
-        unique_fs_names = []
-        for kern_call in self.schedule.kernels():
-            kern_fss = kern_call.arguments.unique_fss
-            for fspace in kern_fss:
-                if fspace.mangled_name not in unique_fs_names:
-                    unique_fs.append(fspace)
-                    unique_fs_names.append(fspace.mangled_name)
-        return unique_fs
-
-    def is_coloured(self):
-        ''' Returns true if at least one of the loops in the
-        schedule of this invoke has been coloured '''
-        for loop in self.schedule.loops():
-            if loop.loop_type == "colours":
-                return True
-        return False
-
-    @property
-    def operates_on_dofs_only(self):
-        '''
-        :returns: whether or not this Invoke consists only of kernels that \
-                  operate on DoFs.
-        :rtype: bool
-        '''
-        return all(call.iterates_over.lower() == "dof" for call in
-                   self.schedule.kernels())
-
-    def field_on_space(self, func_space):
-        ''' If a field exists on this space for any kernel in this
-        invoke then return that field. Otherwise return None. '''
-        for kern_call in self.schedule.kernels():
-            field = func_space.field_on_space(kern_call.arguments)
-            if field:
-                return field
-        return None
-
-    def gen_code(self, parent):
-        '''
-        Generates Dynamo specific invocation code (the subroutine
-        called by the associated invoke call in the algorithm
-        layer). This consists of the PSy invocation subroutine and the
-        declaration of its arguments.
-        :param parent: The parent node in the AST (of the code to be \
-                       generated) to which the node describing the PSy \
-                       subroutine will be added
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        '''
-        # Create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_var_names +
-                                   self.stencil.unique_alg_vars +
-                                   self._psy_unique_qr_vars)
-
-        # Declare all quantities required by this PSy routine (invoke)
-        for entities in [self.scalar_args, self.fields, self.lma_ops,
-                         self.stencil, self.meshes,
-                         self.function_spaces, self.dofmaps, self.cma_ops,
-                         self.boundary_conditions, self.evaluators,
-                         self.proxies, self.cell_iterators,
-                         self.reference_element_properties,
-                         self.mesh_properties,
-                         self.run_time_checks]:
-            entities.declarations(invoke_sub)
-
-        # Initialise all quantities required by this PSy routine (invoke)
-
-        if self.schedule.reductions(reprod=True):
-            # We have at least one reproducible reduction so we need
-            # to know the number of OpenMP threads
-            omp_function_name = "omp_get_max_threads"
-            tag = "omp_num_threads"
-            nthreads_name = \
-                self.schedule.symbol_table.lookup_with_tag(tag).name
-            invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
-                                  funcnames=[omp_function_name]))
-            # Note: There is no assigned kind for integer nthreads as this
-            # would imply assigning kind to th_idx and other elements of
-            # the OMPParallelDirective
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=[nthreads_name]))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(
-                invoke_sub, " Determine the number of OpenMP threads"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
-                                     rhs=omp_function_name+"()"))
-
-        for entities in [self.proxies, self.run_time_checks,
-                         self.cell_iterators, self.meshes,
-                         self.stencil, self.dofmaps,
-                         self.cma_ops, self.boundary_conditions,
-                         self.function_spaces, self.evaluators,
-                         self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds]:
-            entities.initialise(invoke_sub)
-
-        # Now that everything is initialised and checked, we can call
-        # our kernels
-
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-        if Config.get().distributed_memory:
-            invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
-                                      "communication routines"))
-        else:
-            invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # Add content from the schedule
-        self.schedule.gen_code(invoke_sub)
-
-        # Deallocate any basis arrays
-        self.evaluators.deallocate(invoke_sub)
-
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # finally, add me to my parent
-        parent.add(invoke_sub)
-
-
-class DynInvokeSchedule(InvokeSchedule):
-    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
-    specific factories for creating kernel and infrastructure calls
-    to the base class so it creates the ones we require.
-
-    :param str name: name of the Invoke.
-    :param arg: list of KernelCalls parsed from the algorithm layer.
-    :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
-    :param reserved_names: optional list of names that are not allowed in the \
-                           new InvokeSchedule SymbolTable.
-    :type reserved_names: list of str
-    :param parent: the parent of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-
-    def __init__(self, name, arg, reserved_names=None, parent=None):
-        InvokeSchedule.__init__(self, name, DynKernCallFactory,
-                                LFRicBuiltInCallFactory, arg, reserved_names,
-                                parent=parent)
-
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
 
@@ -5385,6 +5302,106 @@ class DynInvokeSchedule(InvokeSchedule):
         '''
         return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
                 "', dm=" + str(Config.get().distributed_memory)+"]")
+
+    @property
+    def operates_on_dofs_only(self):
+        '''
+        :returns: whether or not this Invoke consists only of kernels that \
+                  operate on DoFs.
+        :rtype: bool
+        '''
+        return all(call.iterates_over.lower() == "dof" for call in
+                   self.kernels())
+
+    def field_on_space(self, func_space):
+        ''' If a field exists on this space for any kernel in this
+        invoke then return that field. Otherwise return None. '''
+        for kern_call in self.kernels():
+            field = func_space.field_on_space(kern_call.arguments)
+            if field:
+                return field
+        return None
+
+    def unique_fss(self):
+        ''' Returns the unique function space *objects* over all kernel
+        calls in this invoke. '''
+        unique_fs = []
+        unique_fs_names = []
+        for kern_call in self.kernels():
+            kern_fss = kern_call.arguments.unique_fss
+            for fspace in kern_fss:
+                if fspace.mangled_name not in unique_fs_names:
+                    unique_fs.append(fspace)
+                    unique_fs_names.append(fspace.mangled_name)
+        return unique_fs
+
+    def gen_code(self, parent):
+        '''
+        '''
+        self._swap_out_symbol_table()
+
+        # Declare all quantities required by this PSy routine (invoke)
+        for entities in [self.scalar_args, self.fields, self.lma_ops,
+                         self.stencil, self.meshes,
+                         self.function_spaces, self.dofmaps, self.cma_ops,
+                         self.boundary_conditions, self.evaluators,
+                         self.proxies, self.cell_iterators,
+                         self.reference_element_properties,
+                         self.mesh_properties,
+                         self.run_time_checks]:
+            entities.declarations(parent)
+
+        # Initialise all quantities required by this PSy routine (invoke)
+
+        if self.reductions(reprod=True):
+            # We have at least one reproducible reduction so we need
+            # to know the number of OpenMP threads
+            omp_function_name = "omp_get_max_threads"
+            tag = "omp_num_threads"
+            nthreads_name = \
+                self.symbol_table.lookup_with_tag(tag).name
+            parent.add(UseGen(parent, name="omp_lib", only=True,
+                              funcnames=[omp_function_name]))
+            # Note: There is no assigned kind for integer nthreads as this
+            # would imply assigning kind to th_idx and other elements of
+            # the OMPParallelDirective
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[nthreads_name]))
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " Determine the number of OpenMP threads"))
+            parent.add(CommentGen(parent, ""))
+            parent.add(AssignGen(parent, lhs=nthreads_name,
+                                 rhs=omp_function_name+"()"))
+
+        for entities in [self.proxies, self.run_time_checks,
+                         self.cell_iterators, self.meshes,
+                         self.stencil, self.dofmaps,
+                         self.cma_ops, self.boundary_conditions,
+                         self.function_spaces, self.evaluators,
+                         self.reference_element_properties,
+                         self.mesh_properties, self.loop_bounds]:
+            entities.initialise(parent)
+
+        # Now that everything is initialised and checked, we can call
+        # our kernels
+
+        parent.add(CommentGen(parent, ""))
+        if Config.get().distributed_memory:
+            parent.add(CommentGen(parent, " Call kernels and "
+                                  "communication routines"))
+        else:
+            parent.add(CommentGen(parent, " Call our kernels"))
+        parent.add(CommentGen(parent, ""))
+
+        super(DynInvokeSchedule, self).gen_code(parent)
+
+        # Deallocate any basis arrays
+        self.evaluators.deallocate(parent)
+
+        parent.add(CommentGen(parent, ""))
+
+        self._swap_in_symbol_table()
 
 
 class DynGlobalSum(GlobalSum):
@@ -7925,7 +7942,7 @@ class DynKern(CodedKern):
         PSyIR Schedule using LFRic-specific PSyIR where possible.
 
         :returns: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         '''
         if self._kern_schedule is None:

@@ -528,7 +528,6 @@ class Invoke(object):
 
         self._invokes = invokes
         self._name = "invoke"
-        self._alg_unique_args = []
 
         if alg_invocation is None and idx is None:
             return
@@ -564,26 +563,6 @@ class Invoke(object):
         if container:
             container.addchild(self._schedule)
 
-        # let the schedule have access to me
-        self._schedule.invoke = self
-
-        # extract the argument list for the algorithm call and psy
-        # layer subroutine.
-        self._alg_unique_args = []
-        self._psy_unique_vars = []
-        tmp_arg_names = []
-        for call in self.schedule.kernels():
-            for arg in call.arguments.args:
-                if arg.text is not None:
-                    if arg.text not in self._alg_unique_args:
-                        self._alg_unique_args.append(arg.text)
-                    if arg.name not in tmp_arg_names:
-                        tmp_arg_names.append(arg.name)
-                        self._psy_unique_vars.append(arg)
-                else:
-                    # literals have no name
-                    pass
-
         # work out the unique dofs required in this subroutine
         self._dofs = {}
         for kern_call in self._schedule.coded_kernels():
@@ -597,7 +576,7 @@ class Invoke(object):
 
     def __str__(self):
         return self._name+"("+", ".join([str(arg) for arg in
-                                         self._alg_unique_args])+")"
+                                         self.alg_unique_args])+")"
 
     @property
     def invokes(self):
@@ -617,13 +596,9 @@ class Invoke(object):
         return self._alg_unique_args
 
     @property
-    def psy_unique_vars(self):
-        return self._psy_unique_vars
-
-    @property
     def psy_unique_var_names(self):
         names = []
-        for var in self._psy_unique_vars:
+        for var in self._schedule._psy_unique_vars:
             names.append(var.name)
         return names
 
@@ -895,6 +870,16 @@ class InvokeSchedule(Routine):
 
         self._invoke = invoke
 
+        # To hold the argument list for the algorithm call and PSy-layer
+        # subroutine.
+        self._alg_unique_args = []
+        self._psy_unique_vars = []
+
+        # TODO needed for making a temporary copy of the symbol table while
+        # doing code generation.
+        self._symbol_table_before_gen = None
+        self._psy_symbol_table_before_gen = None
+
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
             for reserved in reserved_names:
@@ -975,6 +960,36 @@ class InvokeSchedule(Routine):
     def invoke(self, my_invoke):
         self._invoke = my_invoke
 
+    @property
+    def psy_unique_vars(self):
+        if not self._psy_unique_vars:
+            # Extract the argument list for the psy-layer subroutine.
+            tmp_arg_names = []
+            for call in self.kernels():
+                for arg in call.arguments.args:
+                    if arg.text is not None:
+                        if arg.name not in tmp_arg_names:
+                            tmp_arg_names.append(arg.name)
+                            self._psy_unique_vars.append(arg)
+                    else:
+                        # literals have no name
+                        pass
+        return self._psy_unique_vars
+
+    @property
+    def alg_unique_vars(self):
+        if not self._alg_unique_args:
+            # Extract the argument list for the algorithm call.
+            for call in self.kernels():
+                for arg in call.arguments.args:
+                    if arg.text is not None:
+                        if arg.text not in self._alg_unique_args:
+                            self._alg_unique_args.append(arg.text)
+                    else:
+                        # literals have no name
+                        pass
+        return self._alg_unique_args
+
     def node_str(self, colour=True):
         '''
         Returns the name of this node with appropriate control codes
@@ -995,6 +1010,36 @@ class InvokeSchedule(Routine):
         result += "End " + self.coloured_name(False) + "\n"
         return result
 
+    def _swap_out_symbol_table(self):
+        ''' '''
+        # The gen_code methods may generate new Symbol names, however, we want
+        # subsequent calls to invoke.gen_code() to produce the exact same code,
+        # including symbol names, and therefore new symbols should not be kept
+        # permanently outside the hierarchic gen_code call-chain.
+        # To make this possible we create here a duplicate of the symbol table.
+        # This duplicate will be used by all recursive gen_code() methods
+        # called below this one and thus maintaining a consistent Symbol Table
+        # during the whole gen_code() chain, but at the end of this method the
+        # original symbol table is restored.
+        if not self._symbol_table_before_gen:
+            self._symbol_table_before_gen = self.symbol_table
+            self._psy_symbol_table_before_gen = self.parent.symbol_table
+            # pylint: disable=protected-access
+            self._symbol_table = self.symbol_table.shallow_copy()
+            self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
+            # pylint: enable=protected-access
+
+    def _swap_in_symbol_table(self):
+        ''' '''
+        if self._symbol_table_before_gen:
+            # Restore symbol table (with a protected access attribute change)
+            # pylint: disable=protected-access
+            self._symbol_table = self._symbol_table_before_gen
+            self.parent._symbol_table = self._psy_symbol_table_before_gen
+            # pylint: enable=protected-access
+            self._symbol_table_before_gen = None
+            self._psy_symbol_table_before_gen = None
+
     def gen_code(self, parent):
         '''
         Generate the Nodes in the f2pygen AST for this schedule.
@@ -1005,21 +1050,7 @@ class InvokeSchedule(Routine):
         '''
         from psyclone.f2pygen import DeclGen, AssignGen, IfThenGen
 
-        # The gen_code methods may generate new Symbol names, however, we want
-        # subsequent calls to invoke.gen_code() to produce the exact same code,
-        # including symbol names, and therefore new symbols should not be kept
-        # permanently outside the hierarchic gen_code call-chain.
-        # To make this possible we create here a duplicate of the symbol table.
-        # This duplicate will be used by all recursive gen_code() methods
-        # called below this one and thus maintaining a consistent Symbol Table
-        # during the whole gen_code() chain, but at the end of this method the
-        # original symbol table is restored.
-        symbol_table_before_gen = self.symbol_table
-        psy_symbol_table_before_gen = self.parent.symbol_table
-        # pylint: disable=protected-access
-        self._symbol_table = self.symbol_table.shallow_copy()
-        self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
-        # pylint: enable=protected-access
+        self._swap_out_symbol_table()
 
         # Imported symbols promoted from Kernel imports are in the SymbolTable.
         # First aggregate all variables imported from the same module in a map.
@@ -1124,12 +1155,7 @@ class InvokeSchedule(Routine):
                     AssignGen(parent, lhs=flag,
                               rhs="clFinish({0}({1}))".format(qlist,
                                                               queue_number)))
-
-        # Restore symbol table (with a protected access attribute change)
-        # pylint: disable=protected-access
-        self._symbol_table = symbol_table_before_gen
-        self.parent._symbol_table = psy_symbol_table_before_gen
-        # pylint: enable=protected-access
+        self._swap_in_symbol_table()
 
     @property
     def opencl(self):
