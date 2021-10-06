@@ -4457,7 +4457,7 @@ class DynBasisFunctions(DynCollection):
                 parent.add(
                     TypeDeclGen(parent,
                                 datatype=const.
-                                const.QUADRATURE_TYPE_MAP[shape]["type"],
+                                QUADRATURE_TYPE_MAP[shape]["type"],
                                 entity_decls=self._qr_vars[shape],
                                 intent="in"))
                 # For each of these we'll need a corresponding proxy, use
@@ -4762,16 +4762,17 @@ class DynBasisFunctions(DynCollection):
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
             const = LFRicConstants()
-            datatype = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyz"]["intrinsic"]
-            kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyz"]["kind"]
+            datatype = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"] \
+                ["intrinsic"]
+            kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             parent.add(
-                DeclGen(parent, datatype=datatype, kind=my_kind,
+                DeclGen(parent, datatype=datatype, kind=kind,
                         pointer=True, entity_decls=decl_list))
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
             const_mod_list = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
-            if my_kind not in const_mod_list:
-                const_mod_list.append(my_kind)
+            if kind not in const_mod_list:
+                const_mod_list.append(kind)
 
             # Get the quadrature proxy
             proxy_name = qr_arg_name + "_proxy"
@@ -4854,8 +4855,8 @@ class DynBasisFunctions(DynCollection):
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
             const_mod_list = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
-            if my_kind not in const_mod_list:
-                const_mod_list.append(my_kind)
+            if kind not in const_mod_list:
+                const_mod_list.append(kind)
             # Get the quadrature proxy
             proxy_name = symbol_table.symbol_from_tag(
                 qr_arg_name+"_proxy").name
