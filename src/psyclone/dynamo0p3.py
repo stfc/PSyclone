@@ -4757,11 +4757,12 @@ class DynBasisFunctions(DynCollection):
                                   for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
-            my_kind = api_config.default_kind["real"]
-            parent.add(
-                DeclGen(parent, datatype="real", kind=my_kind,
-                        pointer=True, entity_decls=decl_list))
             const = LFRicConstants()
+            datatype = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyz"]["intrinsic"]
+            kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyz"]["kind"]
+            parent.add(
+                DeclGen(parent, datatype=datatype, kind=my_kind,
+                        pointer=True, entity_decls=decl_list))
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
             const_mod_list = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
@@ -4840,11 +4841,12 @@ class DynBasisFunctions(DynCollection):
             decl_list = [
                 symbol_table.symbol_from_tag(name+"_"+qr_arg_name).name
                 + "(:,:) => null()" for name in self.qr_weight_vars[qr_type]]
-            my_kind = api_config.default_kind["real"]
-            parent.add(
-                DeclGen(parent, datatype="real", pointer=True, kind=my_kind,
-                        entity_decls=decl_list))
             const = LFRicConstants()
+            datatype = const.QUADRATURE_TYPE_MAP[quadrature_name]["intrinsic"]
+            kind = const.QUADRATURE_TYPE_MAP[quadrature_name]["kind"]
+            parent.add(
+                DeclGen(parent, datatype=datatype, pointer=True, kind=kind,
+                        entity_decls=decl_list))
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
             const_mod_list = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
