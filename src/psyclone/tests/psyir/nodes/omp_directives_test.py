@@ -46,12 +46,14 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
-    OMPMasterDirective, OMPTaskloopDirective, OMPTaskwaitDirective, Schedule
+    OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
+    OMPTaskwaitDirective, Schedule, Return
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
-    DynamoOMPParallelLoopTrans, OMPSingleTrans, \
+    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
     OMPMasterTrans, OMPTaskloopTrans
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
+from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -83,6 +85,29 @@ def test_ompdo_constructor():
     child = schedule.children[0].detach()
     ompdo = OMPDoDirective(parent=schedule, children=[child])
     assert len(ompdo.dir_body.children) == 1
+
+
+def test_omp_do_children_err():
+    ''' Tests that we raise the expected error when an OpenMP parallel do
+    directive has more than one child or the child is not a loop. '''
+    otrans = OMPParallelLoopTrans()
+    psy, invoke_info = get_invoke("imperfect_nest.f90", api="nemo", idx=0)
+    schedule = invoke_info.schedule
+    otrans.apply(schedule[0].loop_body[2])
+    directive = schedule[0].loop_body[2]
+    assert isinstance(directive, OMPParallelDoDirective)
+    # Make the schedule invalid by adding a second child to the
+    # OMPParallelDoDirective
+    directive.dir_body.children.append(directive.dir_body[0].copy())
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An OMPParallelDoDirective can only be applied to a single loop "
+            "but this Node has 2 children:" in str(err.value))
+    directive.dir_body.children = [Return()]
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An OMPParallelDoDirective can only be applied to a loop but "
+            "this Node has a child of type 'Return'" in str(err.value))
 
 
 def test_directive_get_private(monkeypatch):

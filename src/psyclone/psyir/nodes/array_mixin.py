@@ -240,8 +240,14 @@ class ArrayMixin(object):
         # Examine the indices, ignoring any on the innermost accesses (hence
         # the slice to `depth` rather than `depth + 1` below).
         for indices in zip(self_indices[:depth], node_indices[:depth]):
-            if ("".join(fwriter(idx) for idx in indices[0]) !=
-                    "".join(fwriter(idx) for idx in indices[1])):
+            # TODO #1424. We need to be able to compare PSyIR fragments
+            # natively rather than using a visitor. We use the `_visit` method
+            # directly here so as to avoid the deep-copying of the complete
+            # tree which is performed when using fwriter(). (This operation
+            # can become very, very costly for large trees.)
+            # pylint: disable=protected-access
+            if ("".join(fwriter._visit(idx) for idx in indices[0]) !=
+                    "".join(fwriter._visit(idx) for idx in indices[1])):
                 return False
         return True
 

@@ -187,10 +187,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
     :members: apply
     :noindex:
-
-.. note:: The ArrayRange2LoopTrans will have no effect when using the
-          NEMO API until it is updated to use the PSyIR back-ends to
-          generate code (see #435).
   
 ####
 
