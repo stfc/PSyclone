@@ -1034,14 +1034,13 @@ class DynamoPSy(PSy):
             (k, set()) for k in infmod_list)
 
         kind_names = set()
-        # Get the configuration. This will be used to access argument
-        # kinds.
-        api_config = Config.get().api_conf("dynamo0.3")
+
         # The infrastructure declares integer types with default
         # precision so always add this.
+        api_config = Config.get().api_conf("dynamo0.3")
         kind_names.add(api_config.default_kind["integer"])
 
-        # datatypes declare precision information themselves. However,
+        # Datatypes declare precision information themselves. However,
         # that is not the case for literals. Therefore deal
         # with these separately here.
         for invoke in self.invokes.invoke_list:
@@ -1050,10 +1049,9 @@ class DynamoPSy(PSy):
                 for arg in kernel.args:
                     if arg.is_literal:
                         kind_names.add(arg.precision)
-        # Add precision names. The assumption is that all of these
-        # come from the same infrastructure module. Sort the names so
-        # that all versions of Python return the same value (for
-        # testing purposes).
+        # Add precision names to the dictionary storing the required
+        # LFRic constants. Sort the names so that all versions of
+        # Python return the same order (for testing purposes).
         self._infrastructure_modules[const_mod] = list(sorted(kind_names))
 
     @property
@@ -4411,28 +4409,28 @@ class DynBasisFunctions(DynCollection):
         for shape in self._qr_vars:
             qr_name = "_qr_" + shape.split("_")[-1]
             if shape == "gh_quadrature_xyoz":
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in", dimension="np_xy"+qr_name,
-                                   entity_decls=["weights_xy"+qr_name]))
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in", dimension="np_z"+qr_name,
-                                   entity_decls=["weights_z"+qr_name]))
+                datatype = QUADRATURE_TYPE_MAP[shape]["intrinsic"]
+                kind = QUADRATURE_TYPE_MAP[shape]["kind"]
+                parent.add(DeclGen(
+                    parent, datatype=datatype, kind=kind,
+                    intent="in", dimension="np_xy"+qr_name,
+                    entity_decls=["weights_xy"+qr_name]))
+                parent.add(DeclGen(
+                    parent, datatype=datatype, kind=kind,
+                    intent="in", dimension="np_z"+qr_name,
+                    entity_decls=["weights_z"+qr_name]))
             elif shape == "gh_quadrature_face":
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in",
-                                   dimension=",".join(["np_xyz"+qr_name,
-                                                       "nfaces"+qr_name]),
-                                   entity_decls=["weights_xyz"+qr_name]))
+                parent.add(DeclGen(
+                    parent, datatype=QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                    kind=QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                    dimension=",".join(["np_xyz"+qr_name, "nfaces"+qr_name]),
+                    entity_decls=["weights_xyz"+qr_name]))
             elif shape == "gh_quadrature_edge":
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in",
-                                   dimension=",".join(["np_xyz"+qr_name,
-                                                       "nedges"+qr_name]),
-                                   entity_decls=["weights_xyz"+qr_name]))
+                parent.add(DeclGen(
+                    parent, datatype=QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                    kind=QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                    dimension=",".join(["np_xyz"+qr_name, "nedges"+qr_name]),
+                    entity_decls=["weights_xyz"+qr_name]))
             else:
                 raise InternalError(
                     "Quadrature shapes other than {0} are not yet "

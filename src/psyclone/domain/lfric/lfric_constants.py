@@ -335,13 +335,19 @@ class LFRicConstants(object):
         LFRicConstants.QUADRATURE_TYPE_MAP = {
             "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
                                    "type": "quadrature_xyoz_type",
-                                   "proxy_type": "quadrature_xyoz_proxy_type"},
+                                   "proxy_type": "quadrature_xyoz_proxy_type",
+                                   "intrinsic": "real",
+                                   "kind": "r_def"},
             "gh_quadrature_face": {"module": "quadrature_face_mod",
                                    "type": "quadrature_face_type",
-                                   "proxy_type": "quadrature_face_proxy_type"},
+                                   "proxy_type": "quadrature_face_proxy_type",
+                                   "intrinsic": "real",
+                                   "kind": "r_def"},
             "gh_quadrature_edge": {"module": "quadrature_edge_mod",
                                    "type": "quadrature_edge_type",
-                                   "proxy_type": "quadrature_edge_proxy_type"}}
+                                   "proxy_type": "quadrature_edge_proxy_type",
+                                   "intrinsic": "real",
+                                   "kind": "r_def"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type associated with mesh.
