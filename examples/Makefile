@@ -45,4 +45,3 @@ transform compile run notebook clean allclean:
 	${MAKE} -C psyir $@
 	${MAKE} -C psyad $@
 	${MAKE} -C stub_generation $@
-	${MAKE} -C transformations $@

@@ -326,43 +326,48 @@ code using the PSyIR language backends.
 LFRic
 ------
 
-Examples 1 and 2 are for the (deprecated) Dynamo 0.1 API. The remaining
-examples are all for the Dynamo 0.3 API.
+These examples illustrate the functionality of PSyclone for the LFRic
+domain.
 
-Example 1
-^^^^^^^^^
+Example 1: Basic Operation
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Basic operation of PSyclone with invoke()'s containing just one kernel
-for the Dynamo 0.1 API. Also includes an example of transforming for
-OpenMP.
+Basic operation of PSyclone with an ``invoke()`` containing two
+kernels, one :ref:`user-supplied <dynamo0.3-kernel>`, the other a
+:ref:`Built-in <lfric-built-ins>`. Code is generated both with and
+without distributed-memory support. Also demonstrates the use of the
+``-d`` flag to specify where to search for user-supplied kernel code
+(see :ref:`psyclone_command` section for more details).
 
-Example 2
-^^^^^^^^^
+Example 2: Applying Transformations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A more complex example for the Dynamo 0.1 API containing multi-kernel
-invokes. Provides examples of OpenMP and loop fusion transformations.
+A more complex example showing the use of PSyclone
+:ref:`transformations <dynamo0.3-api-transformations>` to
+change the generated PSy-layer code. Provides examples of
+kernel-inlining and loop-fusion transformations.
 
-Example 3
-^^^^^^^^^
+Example 3: Distributed and Shared Memory
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Shows the use of colouring and OpenMP for the Dynamo 0.3 API. Includes
 multi-kernel, named invokes with both user-supplied and built-in
 kernels. Also shows the use of ``Wchi`` function space metadata for
 coordinate fields in LFRic.
 
-Example 4
-^^^^^^^^^
+Example 4: Multiple Built-ins, Named Invokes and Boundary Conditions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the use of the special ``enforce_bc_kernel`` which
 PSyclone recognises as a boundary-condition kernel.
 
-Example 5
-^^^^^^^^^
+Example 5: Stencils
+^^^^^^^^^^^^^^^^^^^
 
 Example of kernels which require stencil information.
 
-Example 6
-^^^^^^^^^
+Example 6: Reductions
+^^^^^^^^^^^^^^^^^^^^^
 
 Example of applying OpenMP to an InvokeSchedule containing kernels
 that perform reduction operations. Two scripts are provided, one of
@@ -371,42 +376,42 @@ reproducible OpenMP reduction. (The default OpenMP reduction is not
 guaranteed to be reproducible from one run to the next on the same
 number of threads.)
 
-Example 7
-^^^^^^^^^
+Example 7: Column-Matrix Assembly Operators
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example of kernels requiring Column-Matrix Assembly operators.
 
-Example 8
-^^^^^^^^^
+Example 8: Redundant Computation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example of the use of the redundant-computation and move
 transformations to eliminate and re-order halo exchanges.
 
-Example 9
-^^^^^^^^^
+Example 9: Writing to Discontinuous Fields
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the behaviour of PSyclone for kernels that read and write
 quantities on horizontally-discontinuous function spaces. In addition,
 this example demonstrates how to write a PSyclone transformation script
 that only colours loops over continuous spaces.
 
-Example 10
-^^^^^^^^^^
+Example 10: Inter-grid Kernels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the use of "inter-grid" kernels that prolong or restrict
 fields (map between grids of different resolutions), as well as the
 use of ``ANY_DISCONTINUOUS_SPACE`` function space metadata.
 
-Example 11
-^^^^^^^^^^
+Example 11: Asynchronous Halo Exchanges
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example of the use of transformations to introduce redundant computation,
 split synchronous halo exchanges into asynchronous exchanges (start and
 stop) and move the starts of those exchanges in order to overlap them
 with computation.
 
-Example 12
-^^^^^^^^^^
+Example 12: Code Extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example of applying code extraction to Nodes in an Invoke Schedule:
 
@@ -433,7 +438,7 @@ to the specified Kernel:
 
   > python find_kernel.py
 
-Example 13 : Kernel transformation
+Example 13 : Kernel Transformation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates how an LFRic kernel can be transformed. The example
