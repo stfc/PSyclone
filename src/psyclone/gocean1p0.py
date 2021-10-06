@@ -146,7 +146,8 @@ class GOInvokes(Invokes):
 
     '''
     def __init__(self, alg_calls, psy):
-        self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
+        if False:
+            self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
         index_offsets = []
@@ -249,7 +250,9 @@ class GOInvoke(Invoke):
 
     '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = GOInvokeSchedule('name', None)  # for pyreverse
+        self._schedule = None
+        if False:
+            self._schedule = GOInvokeSchedule(None, None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
         if Config.get().distributed_memory:
@@ -381,8 +384,8 @@ class GOInvokeSchedule(InvokeSchedule):
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, name, alg_calls, reserved_names=None, parent=None):
-        InvokeSchedule.__init__(self, name, GOKernCallFactory,
+    def __init__(self, invoke, alg_calls, reserved_names=None, parent=None):
+        InvokeSchedule.__init__(self, invoke, GOKernCallFactory,
                                 GOBuiltInCallFactory,
                                 alg_calls, reserved_names, parent=parent)
 

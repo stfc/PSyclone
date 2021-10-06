@@ -53,6 +53,21 @@ from psyclone.tests.utilities import get_invoke
 API = "gocean1.0"
 
 
+class FakeInvoke(object):
+    ''' Fake Invoke class with the bare minimum of properties so that
+    we can create InvokeSchedules for testing. '''
+    def __init__(self):
+        self._name = "fake"
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+
 def test_goloop_no_parent():
     ''' Attempt to generate code for a loop that has no GOInvokeSchedule
     as a parent '''
@@ -64,7 +79,7 @@ def test_goloop_no_parent():
             "(directly or indirectly) of a GOInvokeSchedule" in str(err.value))
 
     # Now create it in a GOInvokeSchedule but then detach it
-    schedule = GOInvokeSchedule('name', [])
+    schedule = GOInvokeSchedule(FakeInvoke(), [])
     goloop = GOLoop(loop_type="inner", parent=schedule)
     schedule.children = [goloop]
     # Now remove parent and children
@@ -79,7 +94,7 @@ def test_goloop_no_parent():
 def test_goloop_no_children():
     ''' Attempt to generate code for a loop that has no child
     kernel calls '''
-    gosched = GOInvokeSchedule('name', [])
+    gosched = GOInvokeSchedule(FakeInvoke(), [])
     goloop = GOLoop(parent=gosched, loop_type="outer")
     # Try and generate the code for this loop even though it
     # has no children
@@ -100,7 +115,7 @@ def test_goloop_create(monkeypatch):
                         lambda x: Literal("20", INTEGER_TYPE))
 
     # Call the create method
-    gosched = GOInvokeSchedule('name', [])
+    gosched = GOInvokeSchedule(FakeInvoke(), [])
     goloop = GOLoop.create(parent=gosched,
                            loop_type="inner",
                            field_name="cv_fld",
@@ -128,7 +143,7 @@ def test_goloop_create(monkeypatch):
 def test_goloop_properties_getters_and_setters():
     ''' Test that the GOLoop getters and setters, retrieve and set the
     expected attributes. '''
-    gosched = GOInvokeSchedule('name', [])
+    gosched = GOInvokeSchedule(FakeInvoke(), [])
     goloop = GOLoop(loop_type="inner", parent=gosched)
 
     # Set and get iteration_space
@@ -180,7 +195,7 @@ def test_goloop_get_custom_bound_string_invalid_loop_type():
 def test_goloop_bounds_invalid_iteration_space():
     ''' Check that the _upper/lower_bound() methods raise the expected error
     if the iteration space is not recognised. '''
-    gosched = GOInvokeSchedule('name', [])
+    gosched = GOInvokeSchedule(FakeInvoke(), [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
 
     # Set the iteration space to something invalid
@@ -239,7 +254,7 @@ def test_goloop_validate_loop():
 
     # We need a parent in order to create the node, but then we detach it to
     # check that the validation works as expected.
-    schedule = GOInvokeSchedule('name', [])
+    schedule = GOInvokeSchedule(FakeInvoke(), [])
     goloop = GOLoop(loop_type="inner", parent=schedule)
     goloop.addchild(Literal("1", INTEGER_TYPE))
     goloop.addchild(Literal("1", INTEGER_TYPE))

@@ -557,7 +557,7 @@ class Invoke(object):
             container = self.invokes.psy.container
 
         # create the schedule
-        self._schedule = schedule_class(self._name, alg_invocation.kcalls,
+        self._schedule = schedule_class(self, alg_invocation.kcalls,
                                         reserved_names, parent=container)
 
         # Add the new Schedule to the top-level PSy Container
@@ -889,11 +889,11 @@ class InvokeSchedule(Routine):
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
-    def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
+    def __init__(self, invoke, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None, parent=None):
-        super(InvokeSchedule, self).__init__(name, parent=parent)
+        super(InvokeSchedule, self).__init__(invoke.name, parent=parent)
 
-        self._invoke = None
+        self._invoke = invoke
 
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:

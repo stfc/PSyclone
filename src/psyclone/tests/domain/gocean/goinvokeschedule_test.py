@@ -40,17 +40,29 @@
 
 from __future__ import absolute_import, print_function
 import os
-import pytest
-from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.parse.algorithm import parse
-from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Container
 from psyclone.psyGen import PSyFactory
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "gocean1p0")
+
+
+class FakeInvoke(object):
+    ''' Fake Invoke class with the bare minimum of properties so that
+    we can create InvokeSchedules for testing. '''
+    def __init__(self):
+        self._name = "fake"
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
 
 
 def test_gosched_parent():
@@ -61,11 +73,11 @@ def test_gosched_parent():
                            api=API)
     kcalls = invoke_info.calls[0].kcalls
     # With no parent specified
-    gsched = GOInvokeSchedule("my_sched", kcalls)
+    gsched = GOInvokeSchedule(FakeInvoke(), kcalls)
     assert gsched.parent is None
     # With a parent
     cont = Container("my_mod")
-    gsched = GOInvokeSchedule("my_sched", kcalls, parent=cont)
+    gsched = GOInvokeSchedule(FakeInvoke(), kcalls, parent=cont)
     assert gsched.parent is cont
 
 

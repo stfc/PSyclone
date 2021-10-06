@@ -5107,7 +5107,9 @@ class DynInvoke(Invoke):
         if not alg_invocation and not idx:
             # This if test is added to support pyreverse.
             return
-        self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
+        self._schedule = None
+        if False:
+            self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
         reserved_names_list = []
         const = LFRicConstants()
         reserved_names_list.extend(const.STENCIL_MAPPING.values())
