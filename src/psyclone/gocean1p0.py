@@ -74,7 +74,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop, Literal, Schedule, KernelSchedule, \
     StructureReference, BinaryOperation, Reference, Call, Assignment, \
-    PSyDataNode, ACCEnterDataDirective, ACCParallelDirective, CodeBlock, \
+    ACCEnterDataDirective, ACCParallelDirective, CodeBlock, \
     ACCKernelsDirective, Container, ACCUpdateDirective
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
@@ -3095,53 +3095,13 @@ class GOKernelType1p0(KernelType):
 
 class GOACCEnterDataDirective(ACCEnterDataDirective):
     '''
-    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
-    of data_on_device().
+    Sub-classes ACCEnterDataDirective to provide the dl_esm_inf infrastructure-
+    specific interfaces to flag and update when data is on a device.
 
     '''
-    def data_on_device(self, parent):
-        '''
-        Adds nodes into the f2pygen AST to flag that each of the
-        objects required by the kernels in the data region is now on the
-        device. We do this by setting the data_on_device attribute to .true.
-
-        :param parent: The node in the f2pygen AST to which to add the \
-                       assignment nodes.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        '''
-
-        # Get a reference to the f2pygen module root
-        module = parent
-        while module.parent:
-            module = module.parent
-
-        obj_list = []
-        for pdir in self._acc_dirs:
-            for var in pdir.fields:
-                if var not in obj_list:
-                    parent.add(AssignGen(parent,
-                                         lhs=var+"%data_on_device",
-                                         rhs=".true."))
-                    parent.add(AssignGen(
-                        parent,
-                        lhs=var+"%read_from_device_f",
-                        rhs=self._read_from_device_routine(module).name,
-                        pointer=True))
-                    obj_list.append(var)
-
-    def _read_from_device_routine(self, f2pygen_module=None, psyir=None):
+    def _read_from_device_routine(self):
         ''' Return the symbol of the routine that reads data from the OpenACC
-        device, if it doesn't exist create the Routine and the Symbol, and if
-        either f2pygen_module or psyir are supplied then a suitable node
-        representing the routine is inserted.
-
-        :param f2pygen_module: optional f2pygen module where to insert the \
-                               generated read_from_device routine.
-        :type f2pygen_module: :py:class:`psyclone.f2pygen.ModuleGen` or \
-                              NoneType
-        :param psyir: optional psyir tree where to insert the generated \
-                      read_from_device routine.
-        :type psyir: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+        device, if it doesn't exist create the Routine and the Symbol.
 
         :returns: the symbol representing the read_from_device routine.
         :rtype: :py:class:`psyclone.psyir.symbols.symbol`
@@ -3181,20 +3141,14 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # If a f2pygen module is provided insert a PSyIRGen node
-        if f2pygen_module:
-            f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
-
-        # If PSyIR is provided insert the routine as a child of the parent
-        # Container
-        if psyir:
-            if not psyir.ancestor(Container):
-                raise GenerationError(
-                    "The GOACCEnterDataDirective can only be generated/lowered"
-                    " inside a Container in order to insert a sibling "
-                    "subroutine, but '{0}' is not inside a Container."
-                    "".format(psyir))
-            psyir.ancestor(Container).addchild(subroutine.detach())
+        # Insert the routine as a child of the ancestor Container
+        if not self.ancestor(Container):
+            raise GenerationError(
+                "The GOACCEnterDataDirective can only be generated/lowered"
+                " inside a Container in order to insert a sibling "
+                "subroutine, but '{0}' is not inside a Container."
+                "".format(self))
+        self.ancestor(Container).addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("openacc_read_func")
 
@@ -3214,7 +3168,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                 if var not in obj_list:
                     obj_list.append(var)
 
-        read_routine_symbol = self._read_from_device_routine(psyir=self)
+        read_routine_symbol = self._read_from_device_routine()
 
         for var in obj_list:
             symbol = self.scope.symbol_table.lookup(var)
