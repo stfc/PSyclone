@@ -606,7 +606,7 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output in code
 
 
-def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicAPlusXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = a + X where 'a' is a real scalar and X and Y
@@ -641,6 +641,18 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower-to-language method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        # Check the type of the scalar
+        scalar = loop.scope.symbol_table.lookup("a")
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f2, 1\n"
+                "  f2_proxy%data(df) = a + f1_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm = (
             "      !\n"
@@ -660,7 +672,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm in code
 
 
-def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncAPlusXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a + X where 'a' is a real scalar and X is a
@@ -694,6 +706,14 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
+
+        # Test the lower-to-language method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = a + f1_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm = (
             "      !\n"
@@ -1239,7 +1259,7 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicAMinusXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = a - X where 'a' is a real scalar and X and Y
@@ -1264,6 +1284,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Check for the correct 'use' module statements
     output_mod = (
         "    USE constants_mod, ONLY: r_def, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n")
@@ -1279,6 +1300,14 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower-to-language method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f2, 1\n"
+                "  f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm = (
             "      !\n"
@@ -1298,7 +1327,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm in code
 
 
-def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncAMinusXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a - X where 'a' is a real scalar and X is a
@@ -1332,6 +1361,14 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
+
+        # Test the lower-to-language method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm = (
             "      !\n"
