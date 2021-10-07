@@ -1068,14 +1068,18 @@ def test_set_kern_float_arg():
     SUBROUTINE bc_ssh_code_set_args(kernel_obj, a_scalar, ssh_fld, xstop, \
 tmask, xstart, xstop_1, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
-      USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
+      USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld, tmask
-      INTEGER, INTENT(IN), TARGET :: xstop
-      REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
-      INTEGER, INTENT(IN), TARGET :: xstart, xstop_1, ystart, ystop
-      INTEGER ierr
       INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
+      REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld
+      INTEGER, INTENT(IN), TARGET :: xstop
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: tmask
+      INTEGER, INTENT(IN), TARGET :: xstart
+      INTEGER, INTENT(IN), TARGET :: xstop_1
+      INTEGER, INTENT(IN), TARGET :: ystart
+      INTEGER, INTENT(IN), TARGET :: ystop
+      INTEGER ierr
 '''
     assert expected in generated_code
     expected = '''\
@@ -1095,7 +1099,9 @@ tmask, xstart, xstop_1, ystart, ystop)
       CALL check_status('clSetKernelArg: arg 6 of bc_ssh_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 7, C_SIZEOF(ystop), C_LOC(ystop))
       CALL check_status('clSetKernelArg: arg 7 of bc_ssh_code', ierr)
+
     END SUBROUTINE bc_ssh_code_set_args'''
+
     assert expected in generated_code
     # The generated code of this test cannot be compiled due the duplication
     # of the xstop symbol in the argument list. This happens because the first
@@ -1233,23 +1239,18 @@ def test_opencl_kernel_output_file(kernel_outputdir):
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-    # Create dummy boundary symbols for the "name" kernel
-    sched.symbol_table.new_symbol(
-        "a", tag="xstart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    sched.symbol_table.new_symbol(
-        "b", tag="xstop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    sched.symbol_table.new_symbol(
-        "c", tag="ystart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    sched.symbol_table.new_symbol(
-        "d", tag="ystop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
 
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
-    sched.kernels()[0].name = "name"
     _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
 
     assert os.path.exists(
-        os.path.join(str(kernel_outputdir), "compute_cu_name_0.cl"))
+        os.path.join(str(kernel_outputdir), "compute_cu_compute_cu_0.cl"))
 
 
 def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):

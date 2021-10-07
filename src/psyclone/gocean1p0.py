@@ -214,15 +214,12 @@ class GOInvokes(Invokes):
                         sub = Subroutine_Subprogram(reader)
                         codeblock = CodeBlock(
                             [sub], CodeBlock.Structure.STATEMENT)
-                        if item.name == name:
-                            invoke.schedule.replace_with(codeblock)
-                            # We have replaced the schedule in the tree but
-                            # invoke.schedule is not the tree, just a reference
-                            # to the previous schedule, so it has to be updated
-                            # too.
-                            invoke.schedule = codeblock
-                        else:
-                            invoke.schedule.parent.addchild(codeblock)
+                        invoke.schedule.replace_with(codeblock)
+                        # We have replaced the schedule in the tree but
+                        # invoke.schedule is not the tree, just a reference
+                        # to the previous schedule, so it has to be updated
+                        # too.
+                        invoke.schedule = codeblock
 
             # TODO 1168: PSyDataNodes are not supported by the backend yet.
             # For now the f2pygen gen_code path is used instead
@@ -1935,6 +1932,21 @@ class GOKernelArgument(KernelArgument):
         raise InternalError("GOcean expects the Argument.argument_type() to be"
                             " 'field' or 'scalar' but found '{0}'."
                             "".format(self.argument_type))
+
+    @property
+    def intrinsic_type(self):
+        '''
+        :returns: the intrinsic type of this argument. If its not a scalar \
+            integer or real it will return an empty string.
+        :rtype: str
+
+        '''
+        if self.argument_type == "scalar":
+            if self.space.lower() == "go_r_scalar":
+                return "real"
+            if self.space.lower() == "go_r_scalar":
+                return "integer"
+        return ""
 
     @property
     def argument_type(self):

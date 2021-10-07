@@ -312,7 +312,7 @@ class GOOpenCLTrans(Transformation):
 
             name = argsetter.symbol_table.next_available_name(arg.name)
 
-            # This function requiers 'TARGET' annotated declarations which are
+            # This function requires 'TARGET' annotated declarations which are
             # not supported in the PSyIR, so we build them as UnknownFortraType
             # for now
             if arg.is_scalar and arg.intrinsic_type == "real":
