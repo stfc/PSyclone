@@ -43,7 +43,7 @@ from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.errors import GenerationError
 
 
-class Call(Statement):
+class Call(Statement, DataNode):
     '''Node representing a Call.
 
     :param routine: the routine that this call calls.
