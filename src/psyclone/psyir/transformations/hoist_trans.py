@@ -227,7 +227,7 @@ class HoistTrans(Transformation):
             if len(writes_to_var) > 1:
                 raise TransformationError("There is more than one write to "
                                           "the variable '{0}'."
-                                          .format(statement.lhs.name))
+                                          .format(str(written_sig)))
 
         # Now check if any variable read in the statement to be hoisted is
         # being written to somewhere in the loop. This especially includes
