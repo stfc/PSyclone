@@ -209,7 +209,7 @@ def test_variable_access_info_read_write():
 
 
 # -----------------------------------------------------------------------------
-def test_accessed_before():
+def test_is_written_before():
     '''Tests that the 'is_written_before' function works as expected.
 
     '''
@@ -228,7 +228,65 @@ def test_accessed_before():
 
     with pytest.raises(ValueError) as err:
         accesses.is_written_before(Node())
-    assert "Node not found in access to variable 'a'" in str(err.value)
+    assert ("Node not found in 'is_written_before' for variable "
+            "'a'" in str(err.value))
+
+
+# -----------------------------------------------------------------------------
+def test_is_read_before():
+    '''Tests that the 'is_read_before' function works as expected.
+
+    '''
+    var_accesses = VariablesAccessInfo()
+    var_sig = Signature("a")
+    node1 = Node()
+    var_accesses.add_access(var_sig, AccessType.WRITE, node1)
+    node2 = Node()
+    var_accesses.add_access(var_sig, AccessType.READ, node2)
+    node3 = Node()
+    var_accesses.add_access(var_sig, AccessType.WRITE, node3)
+
+    accesses = var_accesses[var_sig]
+    assert accesses.is_read_before(node2) is False
+    assert accesses.is_read_before(node3) is True
+
+    with pytest.raises(ValueError) as err:
+        accesses.is_read_before(Node())
+    assert ("Node not found in 'is_read_before' for variable 'a'."
+            in str(err.value))
+
+
+# -----------------------------------------------------------------------------
+def test_is_accessed_before():
+    '''Tests that the 'is_accessed_before' function works as expected.
+
+    '''
+
+    # First check a write access before the specified node:
+    var_accesses = VariablesAccessInfo()
+    var_sig = Signature("a")
+    node1 = Node()
+    var_accesses.add_access(var_sig, AccessType.WRITE, node1)
+    node2 = Node()
+    var_accesses.add_access(var_sig, AccessType.READ, node2)
+
+    accesses = var_accesses[var_sig]
+    assert accesses.is_accessed_before(node1) is False
+    assert accesses.is_accessed_before(node2) is True
+
+    # Now test a read access before the specified node:
+    var_accesses = VariablesAccessInfo()
+    var_accesses.add_access(var_sig, AccessType.READ, node1)
+    var_accesses.add_access(var_sig, AccessType.READ, node2)
+
+    accesses = var_accesses[var_sig]
+    assert accesses.is_accessed_before(node1) is False
+    assert accesses.is_accessed_before(node2) is True
+
+    with pytest.raises(ValueError) as err:
+        accesses.is_accessed_before(Node())
+    assert ("Node not found in 'is_accessed_before' for variable 'a'."
+            in str(err.value))
 
 
 # -----------------------------------------------------------------------------

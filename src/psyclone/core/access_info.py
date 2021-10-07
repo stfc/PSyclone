@@ -354,8 +354,57 @@ class SingleVariableAccessInfo(object):
                 return result
             if access.access_type == AccessType.WRITE:
                 result = True
-        raise ValueError("Node not found in access to variable '{0}'."
-                         .format(self.var_name))
+        raise ValueError("Node not found in 'is_written_before' for "
+                         "variable '{0}'.".format(self.var_name))
+
+    def is_read_before(self, node, mode=None):
+        '''Returns if this variable is read before the specified node.
+
+        :param node: the node at which to stop for access checks.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: True if this variable is read before the specified node.
+        :rtype: bool
+
+        :raises ValueError: if the specified node is not in the list of \
+            all accesses.
+
+        '''
+        result = False
+
+        for access in self._accesses:
+            if access.node == node:
+                return result
+            if access.access_type == AccessType.READ:
+                result = True
+        raise ValueError("Node not found in 'is_read_before' for "
+                         "variable '{0}'.".format(self.var_name))
+
+    def is_accessed_before(self, node):
+        '''Returns if this variable is accessed before the specified node.
+        This is equivalent to testing that 'node' is the very first access,
+        but this function will also verify that 'node' is indeed in the list
+        of accesses.
+
+        :param node: the node at which to stop for access checks.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: True if this variable is read before the specified node.
+        :rtype: bool
+
+        :raises ValueError: if the specified node is not in the list of \
+            all accesses.
+
+        '''
+
+        result = False
+
+        for access in self._accesses:
+            if access.node == node:
+                return result
+            result = True
+        raise ValueError("Node not found in 'is_accessed_before' for "
+                         "variable '{0}'.".format(self.var_name))
 
 
 # =============================================================================

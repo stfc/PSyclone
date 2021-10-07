@@ -39,7 +39,7 @@ is a name that is often used to describe this type of transformation.
 
 '''
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Loop, Assignment, Schedule
 from psyclone.psyir.transformations.transformation_error \
@@ -113,8 +113,8 @@ class HoistTrans(Transformation):
 
     def validate(self, node, options=None):
         '''Checks that the supplied node is a valid target for a hoist
-        transformation. Dependency and checks still need to be added,
-        see issue #1387.
+        transformation. At this stage only an assignment statement is
+        allowed to be hoisted, see #1387.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
@@ -153,74 +153,98 @@ class HoistTrans(Transformation):
                     "".format(self._writer(node), self._writer(current)))
             current = current.parent
 
-        # TODO: Dependency checks, see issue #1387.
+        # Check dependency issues that might prevent hoisting:
         self.validate_dependencies(node, parent_loop)
 
-    def validate_dependencies(self, assignment, parent_loop):
-        '''Checks if the variable usage allows hoistage, i.e. no dependency
-        on loop variable (directly or indirectly).
+    def validate_dependencies(self, statement, parent_loop):
+        '''Checks if the variable usage allows to host the specified statement
+        out of the loop, i.e. no dependency on loop variable (directly or
+        indirectly) etc. This validation does not assume that the statement
+        is an assignment, it should work with other types of nodes, too.
+
+        :param statement: the statement that is to be hoisted out of \
+            the loop.
+        :type statement: \
+            subclass of :py:class:`psyclone.psyir.nodes.Assignment`
+        :param parent_loop: the loop out of which the statement is to \
+            be hoisted.
+        :type parent_loop: subclass of :py:class:`psyclone.psyir.nodes.Loop`
+
+        :raises TransformationError: if a variable in the statement is read \
+            and written in the statement (e.g. reduction: a=a+1).
+        :raises TransformationError: if any variable that is written in the \
+            statement is accessed previously.
+        :raises TransformationError: if any variable that is written is \
+            written more than once in the loop.
+        :raises TransformationError: if the left- or right-hand-side of \
+            the statement depends directly or indirectly on the loop \
+            variable or loop iteration.
+
+
         '''
-        loop_var = parent_loop.variable
-        loop_sig = Signature(loop_var.name)
+        # Collect all variable usages in the loop
+        all_loop_vars = VariablesAccessInfo(parent_loop)
 
-        lhs = VariablesAccessInfo(assignment.lhs).all_signatures
-        rhs = VariablesAccessInfo(assignment.rhs).all_signatures
+        # Collect all variables used in the statement that will be hoisted.
+        all_statement_vars = VariablesAccessInfo(statement)
 
-        all_vars = VariablesAccessInfo(parent_loop)
-        var_accesses = all_vars[Signature(assignment.lhs.name)]
+        # Determine the variables which are written and which are read-only:
+        read_sigs = []
+        write_sigs = []
+        for sig in all_statement_vars.all_signatures:
+            if all_statement_vars[sig].is_written():
+                write_sigs.append(sig)
+            else:
+                read_sigs.append(sig)
 
-        # Check if there is more than one write access to the variable
-        # to be hoisted. That would likely create invalid code (unless
-        # all assignments are the same, or the assigned value is not used)
-        writes_to_var = [access for access in var_accesses
-                         if access.access_type == AccessType.WRITE]
-        if len(writes_to_var) > 1:
-            raise TransformationError("There is more than one write to the "
-                                      "variable '{0}'."
-                                      .format(assignment.lhs.name))
+        for written_sig in write_sigs:
+            statement_accesses = all_statement_vars[written_sig]
+            # If this written variable is also read in the statement to be
+            # hoisted, we can't hoist (likely a # reduction statement: a=a+1)
+            if statement_accesses.is_read():
+                raise TransformationError("The variable '{0}' is read "
+                                          "and written in the statement that "
+                                          "is hoisted."
+                                          .format(str(written_sig)))
 
-        if loop_sig in lhs:
-            raise TransformationError("The supplied assignment node '{0}' "
-                                      "depends directly on the parent loop "
-                                      "iterator '{1}' on the left-hand side."
-                                      .format(self._writer(assignment).strip(),
-                                              loop_var.name))
+            # Now see if the variable is written or read before the first
+            # access in the statement to be hoisted:
+            written_node = statement_accesses[0].node
+            # Get all access to that variable in the whole loop before the
+            # write access that is to be hoisted:
+            loop_accesses = all_loop_vars[written_sig]
+            if loop_accesses.is_accessed_before(written_node):
+                raise TransformationError("The variable '{0}' is accessed "
+                                          "before the statement that is "
+                                          "hoisted.".format(str(written_sig)))
 
-        if loop_sig in rhs:
-            raise TransformationError("The supplied assignment node '{0}' "
-                                      "depends directly on the parent loop "
-                                      "iterator '{1}' on the right-hand side."
-                                      .format(self._writer(assignment).strip(),
-                                              loop_var.name))
+            # Check if there is more than one write access to the variable
+            # to be hoisted. That would likely create invalid code (except
+            # e.g. a=1; a=2 sequences, where the first write access is
+            # side-effect free)
+            writes_to_var = [access for access in loop_accesses
+                             if access.access_type == AccessType.WRITE]
+            if len(writes_to_var) > 1:
+                raise TransformationError("There is more than one write to "
+                                          "the variable '{0}'."
+                                          .format(statement.lhs.name))
 
-        for sig in all_vars.all_signatures:
-            accesses = all_vars[sig]
-            if sig == Signature(assignment.lhs.name):
-                # Ignore access to the assignment variable
-                continue
+        # Now check if any variable read in the statement to be hoisted is
+        # being written to somewhere in the loop. This especially includes
+        # the loop variable (which is marked as write-read in the loop
+        # statement). This will create a direct (loop variable) or indirect
+        # dependency (to a value in the loop), which prohibits hoisting.
 
-            if sig == loop_sig:
-                # Ignore access to loop variable
-                continue
-            if accesses.is_written() and sig in lhs:
-                raise TransformationError(
-                    "The supplied assignment node '{0}' "
-                    "depends indirectly on the parent "
-                    "loop iterator '{1}' on the "
-                    "left-hand side via the variable '{2}'."
-                    .format(self._writer(assignment).strip(),
-                            loop_var.name,
-                            str(sig)))
-
-            if accesses.is_written() and sig in rhs:
-                raise TransformationError(
-                    "The supplied assignment node '{0}' "
-                    "depends indirectly on the parent "
-                    "loop iterator '{1}' on the "
-                    "right-hand side via the variable '{2}'."
-                    .format(self._writer(assignment).strip(),
-                            loop_var.name,
-                            str(sig)))
+        for read_sig in read_sigs:
+            # Get all access to this variable in the whole loop
+            loop_accesses = all_loop_vars[read_sig]
+            if loop_accesses.is_written():
+                code = self._writer(statement).strip()
+                raise TransformationError("The supplied statement node '{0}' "
+                                          "depends on the variable '{1}' "
+                                          "which is is written in the loop "
+                                          "hoisted."
+                                          .format(code, str(read_sig)))
 
     def __str__(self):
         return "Hoist an assignment outside of its parent loop"
