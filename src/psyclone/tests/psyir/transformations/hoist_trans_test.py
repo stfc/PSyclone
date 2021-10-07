@@ -269,8 +269,8 @@ def test_validate_dependencies_multi_write(fortran_reader):
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
-    assert ("There is more than one write to the variable 'a'."
-            in str(info.value))
+    assert ("There is at least one additional write to the variable 'a' in "
+            "the loop." in str(info.value))
 
 
 @pytest.mark.parametrize("assignment_str", ["a = 2", "b(i) = a"])
@@ -299,6 +299,97 @@ def test_validate_dependencies_read_or_write_before(assignment_str,
         hoist_trans.validate(assignment)
     assert ("The variable 'a' is accessed before the statement that is "
             "hoisted." in str(info.value))
+
+
+def test_validate_dependencies_if_statement(fortran_reader):
+    '''Test if various if-statements pass the dependency validation.
+
+    '''
+    # A simple constant test:
+    # -----------------------
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test(j)
+              integer :: i, j, a, b(10)
+              do i=1, 10
+                  if (j == 1) then
+                     a = 3
+                  else
+                     a = 4
+                  endif
+                  b(i) = a
+              enddo
+              end subroutine test''')
+    loop = psyir.children[0].children[0]
+    ifblock = loop.loop_body.children[0]
+    # Make sure we are trying to hoist the right statement:
+    assert isinstance(ifblock, IfBlock)
+    hoist_trans = HoistTrans()
+    hoist_trans.validate_dependencies(ifblock, loop)
+
+    # Test if there is more than one variable written:
+    # ------------------------------------------------
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test(j, a, b)
+              integer :: i, j, a, b, c(10)
+              do i=1, 10
+                  if (j == 1) then
+                     a = 3
+                  else
+                     b = 4
+                  endif
+                  c(i) = a+b
+              enddo
+              end subroutine test''')
+    loop = psyir.children[0].children[0]
+    ifblock = loop.loop_body.children[0]
+    # Make sure we are trying to hoist the right statement:
+    assert isinstance(ifblock, IfBlock)
+    hoist_trans.validate_dependencies(ifblock, loop)
+
+    # Now one part of the if statement contains a read-write:
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test(j, a, b)
+              integer :: i, j, a, b, c(10)
+              do i=1, 10
+                  if (j == 1) then
+                     a = 3
+                  else
+                     a = a + 1
+                  endif
+                  c(i) = a+b
+              enddo
+              end subroutine test''')
+    loop = psyir.children[0].children[0]
+    ifblock = loop.loop_body.children[0]
+    # Make sure we are trying to hoist the right statement:
+    assert isinstance(ifblock, IfBlock)
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.validate_dependencies(ifblock, loop)
+    assert ("The variable 'a' is read and written in the statement that "
+            "is hoisted." in str(err.value))
+
+    # The second written variable is written again in the loop:
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test(j, a, b)
+              integer :: i, j, a, b, c(10)
+              do i=1, 10
+                  if (j == 1) then
+                     a = 3
+                  else
+                     b = 4
+                  endif
+                  c(i) = a+b
+                  b = 2
+              enddo
+              end subroutine test''')
+    loop = psyir.children[0].children[0]
+    ifblock = loop.loop_body.children[0]
+    # Make sure we are trying to hoist the right statement:
+    assert isinstance(ifblock, IfBlock)
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.validate_dependencies(ifblock, loop)
+    assert ("There is at least one additional write to the variable 'b' in "
+            "the loop." in str(err.value))
 
 
 # str

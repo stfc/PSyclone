@@ -180,8 +180,8 @@ class HoistTrans(Transformation):
             the statement depends directly or indirectly on the loop \
             variable or loop iteration.
 
-
         '''
+        # pylint: disable=too-many-locals
         # Collect all variable usages in the loop
         all_loop_vars = VariablesAccessInfo(parent_loop)
 
@@ -207,27 +207,32 @@ class HoistTrans(Transformation):
                                           "is hoisted."
                                           .format(str(written_sig)))
 
-            # Now see if the variable is written or read before the first
+            # Check if the variable is written or read before the first
             # access in the statement to be hoisted:
             written_node = statement_accesses[0].node
             # Get all access to that variable in the whole loop before the
-            # write access that is to be hoisted:
+            # first write access that is to be hoisted:
             loop_accesses = all_loop_vars[written_sig]
             if loop_accesses.is_accessed_before(written_node):
                 raise TransformationError("The variable '{0}' is accessed "
                                           "before the statement that is "
                                           "hoisted.".format(str(written_sig)))
 
-            # Check if there is more than one write access to the variable
-            # to be hoisted. That would likely create invalid code (except
-            # e.g. a=1; a=2 sequences, where the first write access is
-            # side-effect free)
-            writes_to_var = [access for access in loop_accesses
-                             if access.access_type == AccessType.WRITE]
-            if len(writes_to_var) > 1:
-                raise TransformationError("There is more than one write to "
-                                          "the variable '{0}'."
-                                          .format(str(written_sig)))
+            # Make sure that there is no additional write statement to a
+            # written variable in the loop outside of the statement to be
+            # hoisted. E.g.:
+            #    a = 3; b(i) = a;  a = 2;  c(i) = a
+            # Hoisting any of the assignments to 'a' out is invalid.
+            # This is done by counting the write accesses to the variable
+            # in the loop and in the statement.
+            writes_in_loop = sum(access.access_type == AccessType.WRITE
+                                 for access in loop_accesses)
+            writes_in_statement = sum(access.access_type == AccessType.WRITE
+                                      for access in statement_accesses)
+            if writes_in_loop > writes_in_statement:
+                raise TransformationError("There is at least one additional "
+                                          "write to the variable '{0}' in "
+                                          "the loop.".format(str(written_sig)))
 
         # Now check if any variable read in the statement to be hoisted is
         # being written to somewhere in the loop. This especially includes
