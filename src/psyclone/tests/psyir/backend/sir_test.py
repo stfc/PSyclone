@@ -39,9 +39,13 @@
 
 from __future__ import absolute_import
 import pytest
+
+from psyclone.nemo import NemoKern
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, Assignment, Node
+from fparser.common.readfortran import FortranStringReader
 
 
 # pylint: disable=redefined-outer-name
@@ -82,8 +86,6 @@ def get_schedule(parser, code):
     :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
 
     '''
-    from fparser.common.readfortran import FortranStringReader
-    from psyclone.psyGen import PSyFactory
     reader = FortranStringReader(code)
     prog = parser(reader)
     psy = PSyFactory(api="nemo").create(prog)
@@ -102,7 +104,6 @@ def get_kernel(parser, code):
     :rtype: :py:class:`psyclone.nemo.NemoKern`
 
     '''
-    from psyclone.nemo import NemoKern
     schedule = get_schedule(parser, code)
     loop1 = schedule.children[0]
     loop2 = loop1.loop_body.children[0]
@@ -124,7 +125,6 @@ def get_assignment(parser, code):
     :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
     '''
-    from psyclone.psyir.nodes import Assignment
     kernel = get_kernel(parser, code)
     kernel_schedule = kernel.get_kernel_schedule()
     assignment = kernel_schedule.children[0]
@@ -255,10 +255,8 @@ def test_sirwriter_node_1(parser):
     True. Also check for SIR indentation.
 
     '''
-    from psyclone.psyir.nodes import Node
     schedule = get_schedule(parser, CODE)
 
-    # pylint: disable=abstract-method
     class Unsupported(Node):
         '''A PSyIR node that will not be supported by the SIR writer but
         accepts any children inside.'''
@@ -752,7 +750,10 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
     literal.
 
     '''
-    code = CODE.replace("1.0", "-a(i,j,k)")
+    code = CODE.replace("1.0", "-(a(i,j,k)-b(i,j,k))")
+    code = code.replace(
+        "    real :: a(n,n,n)\n",
+        "    real :: a(n,n,n), b(n,n,n)\n")
     rhs = get_rhs(parser, code)
     result = sir_writer.unaryoperation_node(rhs)
     assert (
@@ -760,7 +761,12 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
         "make_binary_operator(\n"
         "  make_literal_access_expr(\"-1.0\", BuiltinType.Float),\n"
         "  \"*\",\n"
-        "  make_field_access_expr(\"a\", [0, 0, 0]))\n")
+        "  make_binary_operator(\n"
+        "    make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "    \"-\",\n"
+        "    make_field_access_expr(\"b\", [0, 0, 0])\n"
+        "    )\n"
+        ")\n")
 
 
 # (1/4) Method ifblock_node

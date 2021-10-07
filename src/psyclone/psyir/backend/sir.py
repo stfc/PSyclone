@@ -39,6 +39,7 @@ limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
 gen() method to generate Fortran.
 
 '''
+from __future__ import absolute_import
 
 import six
 
@@ -472,7 +473,8 @@ class SIRWriter(PSyIRVisitor):
 
         # The unary minus operator is being applied to something that
         # is not a literal. Default to REAL as we currently have no
-        # way of finding out the type. Replace -x with -1.0 * x.
+        # way of finding out the type, see issue #658. Replace -x with
+        # -1.0 * x.
         datatype = TYPE_MAP_TO_SIR[ScalarType.Intrinsic.REAL]
         self._depth += 1
         lhs = "{0}make_literal_access_expr(\"-1.0\", {1})".format(
