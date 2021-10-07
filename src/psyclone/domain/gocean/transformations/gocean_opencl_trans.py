@@ -48,6 +48,9 @@ from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
 from psyclone.transformations import TransformationError, KernelTrans
 
 
+api_config = Config.get().api_conf("gocean1.0")
+
+
 class GOOpenCLTrans(Transformation):
     '''
     Switches on/off the generation of an OpenCL PSy layer for a given
@@ -85,6 +88,7 @@ class GOOpenCLTrans(Transformation):
     _out_of_order = False
     # Total number of invokes that have been transformed to OpenCL
     _transformed_invokes = 0
+
 
     @property
     def name(self):
@@ -238,11 +242,11 @@ class GOOpenCLTrans(Transformation):
         # Insert, if they don't already exist, the necessary OpenCL helper
         # subroutines in the root Container,
         psy_init = self._insert_opencl_init_routine(node.root)
-        self._insert_initialise_grid_buffers(node.root)
+        inti_grid = self._insert_initialise_grid_buffers(node.root)
         self._insert_write_grid_buffers(node.root)
         self._insert_ocl_read_from_device_function(node.root)
         self._insert_ocl_write_to_device_function(node.root)
-        self._insert_ocl_initialise_buffer(node.root)
+        init_buf = self._insert_ocl_initialise_buffer(node.root)
 
         for kern in node.coded_kernels():
             self._insert_ocl_arg_setter_routine(kern, node.root)
@@ -261,12 +265,19 @@ class GOOpenCLTrans(Transformation):
         node.symbol_table.add(get_kernel_by_name)
         clfortran = ContainerSymbol("clforntran")
         clfortran.wildcard_import = True
-        clFinish = RoutineSymbol(
-                "clFinish", interface=ImportInterface(clfortran))
         node.symbol_table.add(clfortran)
+        cl_finish = RoutineSymbol(
+                "clFinish", interface=ImportInterface(clfortran))
         iso_c_bindings = ContainerSymbol("iso_c_binding")
         iso_c_bindings.wildcard_import = True
         node.symbol_table.add(iso_c_bindings)
+        # Include the check_status subroutine if we are in debug_mode
+        if api_config.debug_mode:
+            ocl_utils = ContainerSymbol("ocl_utils_mod")
+            check_status = RoutineSymbol(
+                "check_status", interface=ImportInterface(ocl_utils))
+            node.symbol_table.add(ocl_utils)
+            node.symbol_table.add(check_status)
 
         # Declare local variables needed on a OpenCL PSy-layer invoke
         nqueues = node.symbol_table.new_symbol(
@@ -324,13 +335,6 @@ class GOOpenCLTrans(Transformation):
                     Call.create(get_kernel_by_name,
                                 [Literal(kern.name, CHARACTER_TYPE)])))
 
-        return
-        # Include the check_status subroutine if we are in debug_mode
-        api_config = Config.get().api_conf("gocean1.0")
-        if api_config.debug_mode:
-            parent.add(UseGen(parent, name="ocl_utils_mod", only=True,
-                              funcnames=["check_status"]))
-
         # Generate code inside the first_time block to ensure the device
         # buffers are initialised and the data is on the device. A set_args
         # call is also inserted because in some platforms (e.g. Xiling FPGA)
@@ -340,8 +344,44 @@ class GOOpenCLTrans(Transformation):
         # repeated in multiple kernels, but the performance penalty is small
         # because it just happens during the first iteration.
         # TODO #1134: Explore removing duplicated write operations.
-        ft_block = self.ancestor(InvokeSchedule)._first_time_block
-        self.gen_ocl_buffers_initialisation(ft_block)
+        for loop in node.walk(GOLoop):
+            pass
+
+        # Traverse all arguments and make sure the buffers are initialised
+        for kern in node.coded_kernels():
+            for arg in kern.arguments.args:
+                if arg.argument_type == "field":
+                    # Call the init_buffer routine with this field
+                    field = node.symbol_table.lookup(arg.name)
+                    call = Call.create(init_buf, [Reference(field)])
+                    setup_block.if_body.addchild(call)
+                elif arg.argument_type == "grid_property" and not arg.is_scalar:
+                    # Call the grid init_buffer routine
+                    field = node.symbol_table.lookup(
+                            kern.arguments.find_grid_access().name)
+                    call = Call.create(init_grid, [Reference(field)])
+                    setup_block.if_body.addchild(call)
+                if not arg.is_scalar:
+                    # All buffers will be assigned to a local OpenCL memory
+                    # object to easily reference them, make sure this local
+                    # variable is declared in the Invoke.
+                    name = arg.name + "_cl_mem"
+                    try:
+                        node.symbol_table.lookup_with_tag(name)
+                    except KeyError:
+                        node.symbol_table.new_symbol(
+                            name, tag=name, symbol_type=DataSymbol,
+                            # TODO #1134: We could import the kind symbols from a
+                            # iso_c_binding global container.
+                            datatype=UnknownFortranType("INTEGER(KIND=c_intptr_t)"
+                                                        " :: " + name))
+
+        from psyclone.psyir.backend.fortran import FortranWriter
+        fw = FortranWriter()
+        print(fw(node))
+
+
+        return
         self.gen_ocl_set_args_call(ft_block)
         self.gen_ocl_buffers_initial_write(ft_block)
 
@@ -487,7 +527,6 @@ class GOOpenCLTrans(Transformation):
                 parent, "check_status",
                 ["'Errors during {0}'".format(self.name), flag]))
 
-
         for loop in node.walk(GOLoop):
             pass
 
@@ -499,18 +538,97 @@ class GOOpenCLTrans(Transformation):
                                                       INTEGER_TYPE)])
                 node.addchild(
                     Assignment.create(
-                        Reference(flag), Call.create(clFinish, [queue])))
+                        Reference(flag), Call.create(cl_finish, [queue])))
                 if not added_comment:
                     node.children[-1].preceding_comment = \
                         "Wait until all kernels have finished"
                     added_comment = True
 
-        from psyclone.psyir.backend.fortran import FortranWriter
-        fw = FortranWriter()
-        print(fw(node))
-
         # TODO #595: Remove transformation return values
         return None, None
+
+    def _insert_set_args_call(self, node, kernel):
+        '''
+        Generate the Call statement to the set_args subroutine for the
+        provided kernel.
+
+        :param parent: parent subroutine in f2pygen AST of generated code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        # Retrieve symbol table and kernel symbol
+        symtab = node.symbol_table
+        kernel = symtab.lookup_with_tag("kernel_" + kernel.name)
+
+        # Find the symbol that defines each boundary for this kernel.
+        # In OpenCL the iteration boundaries are passed as arguments to the
+        # kernel because the global work size may exceed the dimensions and
+        # therefore the updates outside the boundaries should be masked.
+        # If any of the boundaries is not found, it can not proceed.
+        boundaries = []
+        try:
+            for boundary in ["xstart", "xstop", "ystart", "ystop"]:
+                tag = boundary + "_" + self.name
+                symbol = symtab.lookup_with_tag(tag)
+                boundaries.append(symbol.name)
+        except KeyError as err:
+            six.raise_from(GenerationError(
+                "Boundary symbol tag '{0}' not found while generating the "
+                "OpenCL code for kernel '{1}'. Make sure to apply the "
+                "GOMoveIterationBoundariesInsideKernelTrans before attempting"
+                " the OpenCL code generation.".format(tag, self.name)), err)
+
+        # If this is an IfBlock, make a copy of boundary assignments statements
+        # to make sure they are initialised before calling the set_args routine
+        # that have them as a parameter.
+        # TODO #1134: If everything was PSyIR we could probably move this
+        # assignment before the IfBlock instead of duplicating it inside.
+        if isinstance(parent, IfThenGen):
+            for node in self.ancestor(InvokeSchedule).walk(Assignment):
+                if node.lhs.symbol.name in boundaries:
+                    parent.add(PSyIRGen(parent, node.copy()))
+
+        # Prepare the argument list for the set_args routine
+        arguments = [kernel]
+        for arg in self._arguments.args:
+            if arg.argument_type == "scalar":
+                if arg.name in boundaries:
+                    # Boundary values are 0-indexed in OpenCL
+                    arguments.append(arg.name + " - 1")
+                else:
+                    arguments.append(arg.name)
+            elif arg.argument_type == "field":
+                # Cast buffer to cl_mem type expected by OpenCL
+                field = symtab.lookup(arg.name)
+                symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                source = StructureReference.create(field, ['device_ptr'])
+                dest = Reference(symbol)
+                bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
+                                             source, dest)
+                assig = Assignment.create(dest.copy(), bop)
+                parent.add(PSyIRGen(parent, assig))
+                arguments.append(symbol.name)
+            elif arg.argument_type == "grid_property":
+                garg = self._arguments.find_grid_access()
+                if arg.is_scalar:
+                    arguments.append(arg.dereference(garg.name))
+                else:
+                    # Cast grid buffer to cl_mem type expected by OpenCL
+                    device_grid_property = arg.name + "_device"
+                    field = symtab.lookup(garg.name)
+                    source = StructureReference.create(
+                                field, ['grid', device_grid_property])
+                    symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                    dest = Reference(symbol)
+                    bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
+                                                 source, dest)
+                    assig = Assignment.create(dest.copy(), bop)
+                    parent.add(PSyIRGen(parent, assig))
+                    arguments.append(symbol.name)
+
+        sub_name = symtab.lookup_with_tag(self.name + "_set_args").name
+        parent.add(CallGen(parent, sub_name, arguments))
+
 
     def _insert_ocl_arg_setter_routine(self, kernel, node):
         '''
@@ -742,7 +860,6 @@ class GOOpenCLTrans(Transformation):
                                             tag="ocl_init_grid_buffers").name
 
         # Get the GOcean API property names used in this routine
-        api_config = Config.get().api_conf("gocean1.0")
         props = api_config.grid_properties
         num_x = props["go_grid_nx"].fortran.format("field")
         num_y = props["go_grid_ny"].fortran.format("field")
@@ -833,7 +950,6 @@ class GOOpenCLTrans(Transformation):
                                             tag="ocl_write_grid_buffers").name
 
         # Get the GOcean API property names used in this routine
-        api_config = Config.get().api_conf("gocean1.0")
         props = api_config.grid_properties
         num_x = props["go_grid_nx"].fortran.format("field")
         num_y = props["go_grid_ny"].fortran.format("field")
@@ -1096,7 +1212,6 @@ class GOOpenCLTrans(Transformation):
                                             tag="ocl_init_buffer_func").name
 
         # Get the GOcean API property names used in this routine
-        api_config = Config.get().api_conf("gocean1.0")
         host_buff = \
             api_config.grid_properties["go_grid_data"].fortran.format("field")
         props = api_config.grid_properties
