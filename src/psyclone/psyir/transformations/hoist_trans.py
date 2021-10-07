@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module contains the HoistTrans transformation. HoistTrans
 moves an assignment out of a parent loop if it is safe to do so. Hoist
@@ -143,7 +144,7 @@ class HoistTrans(Transformation):
                 "but no loop was found.".format(self._writer(node)))
 
         # The assignment should be directly within a loop i.e. no other
-        # control logic inbetween.
+        # control logic in between.
         current = node.parent
         while current is not parent_loop:
             if not isinstance(current, Schedule):

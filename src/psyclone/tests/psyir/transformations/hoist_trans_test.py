@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module tests the hoist transformation.
 '''
@@ -50,7 +51,7 @@ from psyclone.psyir.transformations import HoistTrans, TransformationError
 # init
 
 def test_init():
-    '''Test a hoist transformation can be succesfully created.'''
+    '''Test a hoist transformation can be successfully created.'''
     hoist_trans = HoistTrans()
     assert isinstance(hoist_trans, HoistTrans)
 
@@ -148,7 +149,7 @@ def test_validate_direct_loop():
                                             "a = sin(a)"])
 def test_validate_error_read_and_write(fortran_reader, assignment_str):
     '''Test the expected exception is raised if the supplied assignment
-    depends on the loop iterator on the left-hand side.
+    depends on the loop iteration.
 
     '''
     psyir = fortran_reader.psyir_from_source(
@@ -194,9 +195,7 @@ def test_validate_read_and_write(fortran_reader, assignment_str):
                                             "a = 1 + i * i"])
 def test_validate_direct_dependency_errors(fortran_reader, assignment_str):
     '''Test the expected exception is raised if the supplied assignment
-    depends on a variable that is written in the loop (which includes
-    direct dependencies to the loop variable, but also indirect
-    dependencies)
+    depends directly on the loop variable.
 
     '''
     psyir = fortran_reader.psyir_from_source(
@@ -252,7 +251,7 @@ def test_validate_indirect_dependency_errors(fortran_reader, statement_var):
 
 def test_validate_dependencies_multi_write(fortran_reader):
     '''Test the expected exception is raised if the variable is written
-    to more than once.
+    more than once.
 
     '''
     psyir = fortran_reader.psyir_from_source(
@@ -276,7 +275,7 @@ def test_validate_dependencies_multi_write(fortran_reader):
 @pytest.mark.parametrize("assignment_str", ["a = 2", "b(i) = a"])
 def test_validate_dependencies_read_or_write_before(assignment_str,
                                                     fortran_reader):
-    '''Test the expected exception is raised if variable is read or
+    '''Test that the expected exception is raised if variable is read or
     written before the assignment that is to be hoisted.
 
     '''
@@ -302,7 +301,8 @@ def test_validate_dependencies_read_or_write_before(assignment_str,
 
 
 def test_validate_dependencies_if_statement(fortran_reader):
-    '''Test if various if-statements pass the dependency validation.
+    '''Test if various if-statements pass the dependency validation to
+    be allowed to be hoisted.
 
     '''
     # A simple constant test:
