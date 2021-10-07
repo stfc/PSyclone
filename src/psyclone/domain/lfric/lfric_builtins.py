@@ -1031,22 +1031,24 @@ class LFRicATimesXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Copy a scaled real-valued field"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        a_times_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We multiply each element of f1 by the real scalar argument and
-        # store the result in f2 (real-valued fields).
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name = self._arguments.args[1].name
-        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        parent.add(AssignGen(parent, lhs=field_name2,
-                             rhs=scalar_name + " * " + field_name1))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar * proxy1%data(df)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncATimesXKern(LFRicBuiltIn):
@@ -1056,21 +1058,25 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Scale a real-valued field"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_a_times_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # In this case we're multiplying each element of a real-valued
-        # field by the supplied real scalar value.
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        scalar_name = self._arguments.args[0].name
-        parent.add(AssignGen(parent, lhs=field_name,
-                             rhs=scalar_name + " * " + field_name))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar * proxy0%data(df)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 # ------------------------------------------------------------------- #

@@ -1871,12 +1871,13 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Scaling real fields (multiplying by a real scalar) ---------- #
 
 
-def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicATimesXKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Y = a*X where 'a' is a real scalar and X and Y are real-valued fields.
     Test with and without annexed dofs being computed as this affects the
     generated code.
+    Also tests the lower_to_language_level() method.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1910,8 +1911,16 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f2, 1\n"
+                "  f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+                "enddo") in code
     else:
-        output_dm_2 = (
+        output_dm = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -1925,16 +1934,17 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f2_proxy%set_dirty()\n"
             "      !\n")
         if not annexed:
-            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
-        assert output_dm_2 in code
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
 
 
-def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncATimesXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X where 'a' is a real scalar and X is a real-valued
     field. Test with and without annexed dofs being computed as this
     affects the generated code.
+    Also tests the lower_to_language_level() method.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1985,8 +1995,16 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+                "enddo") in code
     else:
-        output = (
+        output_dm = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -1998,8 +2016,8 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      CALL f1_proxy%set_dirty()")
         if not annexed:
-            output = output.replace("dof_annexed", "dof_owned")
-        assert output in code
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
 
 
 # ------------- Dividing real fields ---------------------------------------- #
