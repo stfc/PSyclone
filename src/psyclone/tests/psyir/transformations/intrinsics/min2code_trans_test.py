@@ -33,24 +33,24 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the Max2CodeTrans transformation.'''
+'''Module containing tests for the Min2CodeTrans transformation.'''
 
 from __future__ import absolute_import
 
 from psyclone.psyir.nodes import BinaryOperation, NaryOperation
-from psyclone.psyir.transformations import Max2CodeTrans
+from psyclone.psyir.transformations import Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
     MinOrMax2CodeTrans
 
 
 def test_initialise():
-    '''Check that the class Max2CodeTrans behaves as expected when an
+    '''Check that the class Min2CodeTrans behaves as expected when an
     instance of the class is created.
 
     '''
-    assert issubclass(Max2CodeTrans, MinOrMax2CodeTrans)
-    trans = Max2CodeTrans()
-    assert trans._operator_name == "MAX"
-    assert trans._operators == (BinaryOperation.Operator.MAX,
-                                NaryOperation.Operator.MAX)
-    assert trans._compare_operator == BinaryOperation.Operator.GT
+    assert issubclass(Min2CodeTrans, MinOrMax2CodeTrans)
+    trans = Min2CodeTrans()
+    assert trans._operator_name == "MIN"
+    assert trans._operators == (BinaryOperation.Operator.MIN,
+                                NaryOperation.Operator.MIN)
+    assert trans._compare_operator == BinaryOperation.Operator.LT
