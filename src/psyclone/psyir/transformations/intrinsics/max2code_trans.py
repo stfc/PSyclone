@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: A. R. Porter, STFC Daresbury Laboratory
 
-'''Module providing a transformation from a PSyIR MIN operator to
-PSyIR code. This could be useful if the MIN operator is not supported
+'''Module providing a transformation from a PSyIR MAX operator to
+PSyIR code. This could be useful if the MAX operator is not supported
 by the back-end or if the performance in the inline code is better
 than the intrinsic.
 
@@ -47,8 +46,8 @@ from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
         MinOrMax2CodeTrans
 
 
-class Min2CodeTrans(MinOrMax2CodeTrans):
-    '''Provides a transformation from a PSyIR MIN Operator node to
+class Max2CodeTrans(MinOrMax2CodeTrans):
+    '''Provides a transformation from a PSyIR MAX Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed (by a parent class).
 
@@ -56,23 +55,23 @@ class Min2CodeTrans(MinOrMax2CodeTrans):
 
     .. code-block:: python
 
-        R = MIN(A, B, C ...)
+        R = MAX(A, B, C ...)
 
     with the following logic:
 
     .. code-block:: python
 
         R = A
-        if B < R:
+        if B > R:
             R = B
-        if C < R:
+        if C > R:
             R = C
         ...
 
     '''
     def __init__(self):
-        super(Min2CodeTrans, self).__init__()
-        self._operator_name = "MIN"
-        self._operators = (BinaryOperation.Operator.MIN,
-                           NaryOperation.Operator.MIN)
-        self._compare_operator = BinaryOperation.Operator.LT
+        super(Max2CodeTrans, self).__init__()
+        self._operator_name = "MAX"
+        self._operators = (BinaryOperation.Operator.MAX,
+                           NaryOperation.Operator.MAX)
+        self._compare_operator = BinaryOperation.Operator.GT
