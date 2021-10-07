@@ -211,7 +211,7 @@ def test_validate_direct_dependency_errors(fortran_reader, assignment_str):
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
     assert ("The supplied statement node '{0}' depends on the variable 'i' "
-            "which is is written in the loop hoisted.".format(assignment_str)
+            "which is is written in the loop.".format(assignment_str)
             in str(info.value))
 
 
@@ -246,7 +246,7 @@ def test_validate_indirect_dependency_errors(fortran_reader, statement_var):
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
     assert ("The supplied statement node '{0}' depends on the variable '{1}' "
-            "which is is written in the loop hoisted."
+            "which is is written in the loop."
             .format(statement_var[0], statement_var[1]) in str(info.value))
 
 

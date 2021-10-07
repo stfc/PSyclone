@@ -247,8 +247,7 @@ class HoistTrans(Transformation):
                 code = self._writer(statement).strip()
                 raise TransformationError("The supplied statement node '{0}' "
                                           "depends on the variable '{1}' "
-                                          "which is is written in the loop "
-                                          "hoisted."
+                                          "which is is written in the loop."
                                           .format(code, str(read_sig)))
 
     def __str__(self):
