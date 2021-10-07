@@ -515,7 +515,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower-to-language method
+        # Test the lower_to_language_level() method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -580,7 +580,7 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO\n")
         assert output in code
 
-        # Test the lowering to language-level PSyIR
+        # Test the lower_to_language_level() method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -642,7 +642,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower-to-language method
+        # Test the lower_to_language_level() method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         # Check the type of the scalar
@@ -707,7 +707,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0")
         assert output in code
 
-        # Test the lower-to-language method
+        # Test the lower_to_language_level() method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1301,7 +1301,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower-to-language method
+        # Test the lower_to_language_level() method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1362,7 +1362,7 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0")
         assert output in code
 
-        # Test the lower-to-language method
+        # Test the lower_to_language_level() method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)

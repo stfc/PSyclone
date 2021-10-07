@@ -238,7 +238,7 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                 "  f2_proxy%data(df) = a + f1_proxy%data(df)\n"
                 "enddo" in code)
     else:
-        output_dm_2 = (
+        output_dm = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -252,16 +252,18 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      CALL f2_proxy%set_dirty()\n"
             "      !\n")
         if not annexed:
-            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
-        assert output_dm_2 in code
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
 
 
-def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem,
+                          fortran_writer):
     ''' Test that 1) the str method of LFRicIntIncAPlusXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a + X where 'a' is an integer scalar and X is an
     integer-valued field. Test with and without annexed dofs being
     computed as this affects the generated code.
+    Also tests the lower_to_language_level() method.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -288,8 +290,16 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = a + f1_proxy%data(df)\n"
+                "enddo" in code)
     else:
-        output_dm_2 = (
+        output_dm = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -303,8 +313,8 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n")
         if not annexed:
-            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
-        assert output_dm_2 in code
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
 
 
 # ------------- Subtracting integer fields ---------------------------------- #
