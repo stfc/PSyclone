@@ -67,7 +67,7 @@ class GOOpenCLTrans(Transformation):
     # data transfers when generating an OpenCL PSy-layer
     _OCL_MANAGEMENT_QUEUE = 1
 
-    # TODO #1134: This are class attributes because multiple invokes may have
+    # TODO #1134: These are class attributes because multiple invokes may have
     # to generate a single OpenCL environment (e.g. to share the device data
     # pointers) and therefore guarantee the same properties, but this hasn't
     # been tested. PSycloneBench ShallowWater could be an example of this.

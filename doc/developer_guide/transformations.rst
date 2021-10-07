@@ -165,7 +165,7 @@ Such code may then be executed on devices such as GPUs and FPGAs
 Since OpenCL code is very different to that which PSyclone
 normally generates, its creation is handled by ``gen_ocl`` methods
 instead of the normal ``gen_code``. There is work in progress to
-deprecate the both generation methods and let the
+deprecate both of these generation methods and let the
 ``psyclone.domain.gocean.transformations.GOOpenCLTrans``
 transformation handle the code modification entirely in PSyIR.
 However, for the time being the transformation only modifies part of
@@ -290,7 +290,7 @@ retrieved from the OpenCL device is provided by the dl_esm_inf
 ``read_from_device_*`` and ``write_to_device_*`` function pointers.
 In the current implementation it does a just-when-is-needed synchronous data
 transfer using a single command queue which can bottleneck the OpenCL
-performance is there are many I/O operations.
+performance if there are many I/O operations.
 
 
 ArrayRange2LoopTrans

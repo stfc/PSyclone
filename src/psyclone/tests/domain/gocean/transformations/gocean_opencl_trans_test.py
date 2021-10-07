@@ -77,7 +77,7 @@ def setup():
     Config.get().api = "gocean1.0"
     Config.get()._include_paths = [filepath]
     yield()
-    # At the end of all tests make sure that we wipe the Config object
+    # At the end of every tests make sure that we wipe the Config object
     # so we get a fresh/default one for any further test (and not a
     # left-over one from a test here).
     Config._instance = None
@@ -563,8 +563,8 @@ def test_psy_init_defaults(kernel_outputdir):
 
 def test_psy_init_multiple_kernels(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
-    kernel_names correctly when there are multiple kernels, some of the
-    repeated. '''
+    kernel_names correctly when there are multiple kernels, some of
+    them repeated. '''
     # This example has 2 unique kernels, one of them repeated twice
     psy, _ = get_invoke("single_invoke_three_kernels_with_use.f90",
                         API, idx=0, dist_mem=True)
