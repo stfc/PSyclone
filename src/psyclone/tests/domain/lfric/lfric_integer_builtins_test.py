@@ -699,7 +699,7 @@ def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Scaling integer fields (multiplying by an integer scalar) --- #
 
 
-def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem,fortran_writer):
+def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIntATimesXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = a*X where 'a' is an integer scalar and X and Y are
@@ -794,28 +794,19 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem,
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(a, f1, b, f2, f3)\n"
-            "      INTEGER(KIND=i_def), intent(in) :: a, b\n"
-            "      TYPE(integer_field_type), intent(in) :: f1, f2, f3\n"
+            "    SUBROUTINE invoke_0(a_scalar, f1)\n"
+            "      INTEGER(KIND=i_def), intent(in) :: a_scalar\n"
+            "      TYPE(integer_field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
-            "      INTEGER(KIND=i_def) ndf_aspc1_f1, "
-            "undf_aspc1_f1\n"
-            "      INTEGER(KIND=i_def) nlayers\n"
-            "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
+            "      TYPE(integer_field_proxy_type) f1_proxy\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
-            "      f2_proxy = f2%get_proxy()\n"
-            "      f3_proxy = f3%get_proxy()\n"
-            "      !\n"
-            "      ! Initialise number of layers\n"
-            "      !\n"
-            "      nlayers = f1_proxy%vspace%get_nlayers()\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
             "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
@@ -824,6 +815,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem,
             "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
+        assert output in code
 
         # Test the lower_to_language_level() method
         kern.lower_to_language_level()

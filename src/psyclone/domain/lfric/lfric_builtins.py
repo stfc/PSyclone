@@ -425,7 +425,7 @@ class LFRicXPlusYKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -451,7 +451,7 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -478,7 +478,7 @@ class LFRicAPlusXKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -506,7 +506,7 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -770,7 +770,7 @@ class LFRicAMinusXKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -798,7 +798,7 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -1033,7 +1033,7 @@ class LFRicATimesXKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -1060,7 +1060,7 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -1148,22 +1148,24 @@ class LFRicADividebyXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Inverse scaling of a real-valued field (Y = a/X)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        a_divideby_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We divide the real scalar argument by each element of f1 and
-        # store the result in f2 (real-valued fields).
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name = self._arguments.args[1].name
-        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        parent.add(AssignGen(parent, lhs=field_name2,
-                             rhs=scalar_name + " / " + field_name1))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar / proxy1%data(df)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncADividebyXKern(LFRicBuiltIn):
@@ -1175,21 +1177,25 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Inverse scaling of a real-valued field (X = a/X)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_a_divideby_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We divide the real scalar argument by each element of f1 and
-        # return the result in f1 (real-valued field).
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        scalar_name = self._arguments.args[0].name
-        parent.add(AssignGen(parent, lhs=field_name,
-                             rhs=scalar_name + " / " + field_name))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar / proxy0%data(df)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 # ------------------------------------------------------------------- #
@@ -1206,7 +1212,7 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -1232,7 +1238,7 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
