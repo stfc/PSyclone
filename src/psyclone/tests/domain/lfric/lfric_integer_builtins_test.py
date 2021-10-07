@@ -426,6 +426,136 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
+def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that 1) the str method of LFRicIntAMinusXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = a - X where 'a' is an integer scalar and X and Y
+    are integer-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
+    Also tests the lower_to_language_level() method.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.22.3_int_a_minus_X_builtin.f90"),
+                           api=API)
+
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule[0].loop_body[0]
+    assert str(kern) == "Built-in: int_a_minus_X (integer-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check for the correct 'use' module statements
+    output_mod = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE integer_field_mod, ONLY: integer_field_type,"
+        " integer_field_proxy_type\n")
+    assert output_mod in code
+
+    if not dist_mem:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f2, 1\n"
+                "  f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+                "enddo" in code)
+    else:
+        output_dm = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
+
+
+def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem,
+                           fortran_writer):
+    ''' Test that 1) the str method of LFRicIntIncAMinusXKern returns
+    the expected string and 2) we generate correct code for the
+    built-in operation X = a - X where 'a' is an integer scalar and
+    X is an integer-valued field. Test with and without annexed dofs
+    being computed as this affects the generated code.
+    Also tests the lower_to_language_level() method.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.22.4_int_inc_a_minus_X_builtin.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: int_inc_a_minus_X (integer-valued field)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0")
+        assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+                "enddo" in code)
+    else:
+        output_dm = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
+
+
 # ------------- Multiplying integer fields ---------------------------------- #
 
 

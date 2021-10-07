@@ -1553,7 +1553,7 @@ class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
 
     '''
     def __str__(self):
-        return "Built-in: inc_int_a_minus_X (integer-valued fields)"
+        return "Built-in: int_inc_a_minus_X (integer-valued field)"
 
 
 # ------------------------------------------------------------------- #
