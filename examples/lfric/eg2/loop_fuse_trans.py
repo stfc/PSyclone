@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,40 +31,49 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
+
+''' Module implementing a `trans` method for use as a PSyclone transformation
+    script. This example performs loop fusion.
+'''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.profiler import Profiler
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 
-# This example shows also how to automatically enable
-# inserting of profiling calls. The code below will
-# automatically instrument all kernel calls. You can
-# also use Profiler.INVOKES to automatically instrument
-# all invokes (or both by specifying both options as
-# the list parameter).
-Profiler.set_options([Profiler.KERNELS])
 
-# This example uses version 0.1 of the Dynamo API
-api = "dynamo0.1"
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which performs loop
+    fusion for the Built-in 'setval_c' kernels in the first 'invoke'. For the
+    sake of this example we use the 'same_space' option to tell the
+    transformation that this is safe to do.
 
-# Parse the file containing the algorithm specification and
-# return the Abstract Syntax Tree and invokeInfo objects
-ast, invokeInfo = parse("dynamo.F90", api=api)
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-# Create the PSy-layer object using the invokeInfo
-psy = PSyFactory(api).create(invokeInfo)
-# Generate the Fortran code for the PSy layer
-print(psy.gen)
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-# List the invokes that the PSy layer has
-print(psy.invokes.names)
+    '''
+    print(psy.gen)
 
-# Examine the 'schedule' (e.g. loop structure) that each
-# invoke has
-schedule = psy.invokes.get('invoke_0_v3_kernel_type').schedule
-schedule.view()
+    print(psy.invokes.names)
 
-schedule = psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
-schedule.view()
+    schedule = psy.invokes.get('invoke_0').schedule
+    schedule.view()
+
+    lftrans = LFRicLoopFuseTrans()
+
+    # Since the arguments to the 'setval_c' built-in are on 'ANY_SPACE', we
+    # assert that the various loops over degrees of freedom are of
+    # the same extent and may safely be fused. (This is not actually true
+    # for this particular example but we do this for the purposes of
+    # illustration.)
+    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
+    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
+    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
+
+    schedule.view()
+
+    return psy
