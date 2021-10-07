@@ -642,7 +642,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
     else:
-        output_dm_2 = (
+        output_dm = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -656,8 +656,8 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f2_proxy%set_dirty()\n"
             "      !\n")
         if not annexed:
-            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
-        assert output_dm_2 in code
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
 
 
 def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
@@ -666,6 +666,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
     operation X = a + X where 'a' is a real scalar and X is a
     real-valued field. Test with and without annexed dofs being
     computed as this affects the generated code.
+    Also test the lower_to_language_level() method.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -694,7 +695,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0")
         assert output in code
     else:
-        output_dm_2 = (
+        output_dm = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -708,8 +709,8 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n")
         if not annexed:
-            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
-        assert output_dm_2 in code
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
 
 
 def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1236,6 +1237,118 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
+
+
+def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicAMinusXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = a - X where 'a' is a real scalar and X and Y
+    are real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
+    Also test the lower_to_language_level() method.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.7_a_minus_X_builtin.f90"),
+                           api=API)
+
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: a_minus_X (real-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output_mod = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert output_mod in code
+
+    if not dist_mem:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
+
+
+def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIncAMinusXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a - X where 'a' is a real scalar and X is a
+    real-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code.
+    Also test the lower_to_language_level() method.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.8_inc_a_minus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: inc_a_minus_X (real-valued field)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0")
+        assert output in code
+    else:
+        output_dm = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
 
 
 def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
