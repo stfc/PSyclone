@@ -440,6 +440,7 @@ def test_profile_named_dynamo0p3():
 # -----------------------------------------------------------------------------
 def test_transform():
     '''Tests normal behaviour of profile region transformation.'''
+
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
@@ -480,7 +481,9 @@ def test_transform():
 
 # -----------------------------------------------------------------------------
 def test_transform_errors(capsys):
-    '''Tests error handling of the profile region transformation.'''
+    '''Tests error handling of the profile region transformation. Most of
+    it is already covered in PSyDataTrans, but we need also to verify
+    that the right transformation and node name is used.'''
 
     # This has been imported and tested before, so we can assume
     # here that this all works as expected/
@@ -527,6 +530,7 @@ def test_transform_errors(capsys):
            "directive and the loop(s) to which it applies!" \
            in str(excinfo.value)
 
+    # Make sure the error message contains ProfileTrans
     with pytest.raises(TransformationError) as excinfo:
         prt.apply(invoke.schedule[0], {"region_name": "xx"})
     assert "Error in ProfileTrans. User-supplied region name must be a " \

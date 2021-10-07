@@ -44,7 +44,7 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.symbols import DataSymbol, ScalarType
+from psyclone.psyir.symbols import DataSymbol, ScalarType, UnknownFortranType
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
@@ -160,7 +160,7 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
         "module a\n"
         "  implicit none\n"
         "  public\n\n"
-        "  public :: my_fUnc\n\n"
+        "  public :: my_func\n\n"
         "  contains\n"
         "  function my_fUnc()\n"
         "    {0} :: my_fUnc\n"
@@ -248,6 +248,52 @@ def test_function_missing_return_type(fortran_reader):
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
+
+
+def test_function_unsupported_type(fortran_reader):
+    ''' Test that the frontend handles a function when the return type is not
+    supported in the PSyIR. '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func()\n"
+        "    complex :: my_func\n"
+        "    my_func = CMPLX(1.0, 1.0)\n"
+        "  end function my_func\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0].children[0]
+    assert isinstance(routine, Routine)
+    assert routine.return_symbol.name == "my_func"
+    assert isinstance(routine.return_symbol.datatype, UnknownFortranType)
+    assert (routine.return_symbol.datatype.declaration.lower() ==
+            "complex :: my_func")
+
+
+def test_function_unsupported_derived_type(fortran_reader):
+    ''' Test that the frontend handles a function when the return type is a
+    derived type that is not supported in the PSyIR. '''
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func()\n"
+        "    type :: my_type\n"
+        "      integer :: flag\n"
+        "    end type my_type\n"
+        "    type(my_type), pointer :: my_func, var1\n"
+        "    my_func => null()\n"
+        "  end function my_func\n"
+        "end module a\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0].children[0]
+    assert isinstance(routine, Routine)
+    assert routine.return_symbol.name == "my_func"
+    assert isinstance(routine.return_symbol.datatype, UnknownFortranType)
+    assert (routine.return_symbol.datatype.declaration.lower() ==
+            "type(my_type), pointer :: my_func")
+    sym = routine.symbol_table.lookup("var1")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
 
 
 @pytest.mark.parametrize("fn_prefix",

@@ -42,18 +42,15 @@ or profiling. '''
 
 from __future__ import absolute_import, print_function
 from collections import namedtuple
-from fparser.common.sourceinfo import FortranFormat
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.utils import walk
-from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
-                                    ContainerSymbol, DeferredType,
+                                    ContainerSymbol, DeferredType, Symbol,
                                     UnknownFortranType, ImportInterface)
 
 
@@ -172,6 +169,8 @@ class PSyDataNode(Statement):
         self._module_name = None
         self._region_name = None
 
+        # TODO: #1394 Fix code duplication between
+        # PSyDataTrans and this PSyDataNode
         name = options.get("region_name", None)
 
         if name:
@@ -188,9 +187,6 @@ class PSyDataNode(Statement):
             self._region_name = name[1]
             self.set_region_identifier(self._module_name,
                                        self._region_name)
-
-        # TODO #435. This can be removed when update() is removed.
-        self.use_stmt = ""
 
     @classmethod
     def create(cls, children, symbol_table, ast=None, options=None):
@@ -253,19 +249,9 @@ class PSyDataNode(Statement):
             symbol_table.add(csym, tag=data_node.fortran_module)
 
         # A PSyData node always contains a Schedule
-        # TODO 435 we can probably get rid of _insert_schedule() once we
-        # do away with the ast argument?
-        # pylint: disable=protected-access
-        sched = data_node._insert_schedule(children=children, ast=ast)
+        sched = Schedule(children=children, parent=data_node)
         data_node.addchild(sched)
 
-        # The use statement that will be inserted by the update() method. Any
-        # use of a module of the same name that doesn't match this will result
-        # in a NotImplementedError at code-generation time.
-        # TODO #435 remove this when removing the update() method
-        data_node.use_stmt = "use {0}, only: ".format(
-            data_node.fortran_module) + ", ".join(symbol.name for symbol in
-                                                  data_node.imported_symbols)
         # Add the symbols that will be imported from the module. Use the
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
@@ -284,7 +270,8 @@ class PSyDataNode(Statement):
             "type({0}), save, target :: {1}".format(data_node.type_name,
                                                     data_node._var_name))
         symbol_table.new_symbol(data_node._var_name, symbol_type=DataSymbol,
-                                datatype=psydata_type)
+                                datatype=psydata_type,
+                                visibility=Symbol.Visibility.PRIVATE)
         return data_node
 
     @staticmethod
@@ -463,10 +450,13 @@ class PSyDataNode(Statement):
         use = UseGen(parent, self.fortran_module, only=True,
                      funcnames=[sym.name for sym in self.imported_symbols])
         parent.add(use)
+        # We only set the visibility of this symbol if we are *not* within
+        # a Routine.
+        set_private = self.ancestor(Routine) is None
         var_decl = TypeDeclGen(parent,
                                datatype=self.type_name,
                                entity_decls=[self._var_name],
-                               save=True, target=True)
+                               save=True, target=True, private=set_private)
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
@@ -521,220 +511,6 @@ class PSyDataNode(Statement):
                                 var_name])
 
         self._add_call("PostEnd", parent)
-
-    # -------------------------------------------------------------------------
-    def update(self):
-        # pylint: disable=too-many-branches, too-many-statements
-        # pylint: disable=too-many-locals
-        '''
-        Update the underlying fparser2 parse tree to implement the PSyData
-        region represented by this Node. This involves adding the necessary
-        module use statement as well as the calls to the PSyData API.
-
-        TODO #435 - remove this whole method once the NEMO API uses the
-        Fortran backend of the PSyIR.
-
-        :raises NotImplementedError: if the routine which is to have \
-                             PSyData calls added to it does not already have \
-                             a Specification Part (i.e. some declarations).
-        :raises NotImplementedError: if there would be a name clash with \
-                             existing variable/module names in the code to \
-                             be transformed.
-        :raises InternalError: if we fail to find the node in the parse tree \
-                             corresponding to the end of the PSyData region.
-
-        '''
-        # Avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import object_index, InvokeSchedule
-        from psyclone.psyir.nodes import ProfileNode
-
-        # The update function at this stage only supports profiling
-        if not isinstance(self, ProfileNode):
-            raise InternalError("PSyData.update is only supported for a "
-                                "ProfileNode, not for a node of type {0}."
-                                .format(type(self)))
-
-        # Ensure child nodes are up-to-date
-        super(PSyDataNode, self).update()
-
-        # Get the parse tree of the routine containing this region
-        routine_schedule = self.ancestor(InvokeSchedule)
-        ptree = routine_schedule.ast
-
-        # Rather than repeatedly walk the tree, we do it once for all of
-        # the node types we will be interested in...
-        node_list = walk([ptree], (Fortran2003.Main_Program,
-                                   Fortran2003.Subroutine_Stmt,
-                                   Fortran2003.Function_Stmt,
-                                   Fortran2003.Specification_Part,
-                                   Fortran2003.Use_Stmt,
-                                   Fortran2003.Name))
-        if self._module_name:
-            routine_name = self._module_name
-        else:
-            for node in node_list:
-                if isinstance(node, (Fortran2003.Main_Program,
-                                     Fortran2003.Subroutine_Stmt,
-                                     Fortran2003.Function_Stmt)):
-                    names = walk([node], Fortran2003.Name)
-                    routine_name = str(names[0]).lower()
-                    break
-
-        for node in node_list:
-            if isinstance(node, Fortran2003.Specification_Part):
-                spec_part = node
-                break
-        else:
-            # This limitation will be removed when we use the Fortran
-            # backend of the PSyIR (#435)
-            raise NotImplementedError(
-                "Addition of PSyData regions to routines without any "
-                "existing declarations is not supported and '{0}' has no "
-                "Specification-Part".format(routine_name))
-
-        # TODO #703: Rename the PSyDataType instead of
-        # aborting.
-        # Get the existing use statements
-        found = False
-        for node in node_list[:]:
-            if isinstance(node, Fortran2003.Use_Stmt) and \
-               self.fortran_module == str(node.items[2]).lower():
-                # Check that the use statement matches the one we would
-                # insert (i.e. the code doesn't already contain a module
-                # with the same name as that used by the PSyData API)
-                if str(node).lower() != self.use_stmt.lower():
-                    raise NotImplementedError(
-                        "Cannot add PSyData calls to '{0}' because it "
-                        "already 'uses' a module named '{1}'".format(
-                            routine_name, self.fortran_module))
-                found = True
-                # To make our check on name clashes below easier, remove
-                # the Name nodes associated with this use from our
-                # list of nodes.
-                names = walk([node], Fortran2003.Name)
-                for name in names:
-                    node_list.remove(name)
-
-        if not found:
-            # We don't already have a use for the PSyData module so
-            # add one.
-            reader = FortranStringReader(
-                "use {0}, only: {1}"
-                .format(self.add_psydata_class_prefix("psy_data_mod"),
-                        self.type_name))
-            # Tell the reader that the source is free format
-            reader.set_format(FortranFormat(True, False))
-            use = Fortran2003.Use_Stmt(reader)
-            spec_part.content.insert(0, use)
-
-        # Check that we won't have any name-clashes when we insert the
-        # symbols required for the PSyData API. This check uses the list of
-        # symbols that we created before adding the `use psy_data_mod...`
-        # statement.
-        if not routine_schedule.psy_data_name_clashes_checked:
-            for node in node_list:
-                if isinstance(node, Fortran2003.Name):
-                    text = str(node).lower()
-                    # Check for the symbols we import from the PSyData module
-                    for symbol in self.imported_symbols:
-                        if text == symbol.name.lower():
-                            raise NotImplementedError(
-                                "Cannot add PSyData calls to '{0}' because it "
-                                "already contains a symbol that clashes with "
-                                "one of those ('{1}') that must be imported "
-                                "from the PSyclone PSyData module.".
-                                format(routine_name, symbol.name))
-                    # Check for the name of the PSyData module itself
-                    if text == self.fortran_module:
-                        raise NotImplementedError(
-                            "Cannot add PSyData calls to '{0}' because it "
-                            "already contains a symbol that clashes with the "
-                            "name of the PSyclone PSyData module "
-                            "('{1}')". format(routine_name,
-                                              self.fortran_module))
-                    # Check for the names of PSyData variables
-                    if text.startswith(self._psy_data_symbol_with_prefix):
-                        raise NotImplementedError(
-                            "Cannot add PSyData calls to '{0}' because it "
-                            "already contains symbols that potentially clash "
-                            "with the variables we will insert for each "
-                            "PSyData region ('{1}*').".
-                            format(routine_name,
-                                   self._psy_data_symbol_with_prefix))
-        # Flag that we have now checked for name clashes so that if there's
-        # more than one PSyData node we don't fall over on the symbols
-        # we've previous inserted.
-        # TODO #435 the psy_data_name_clashes_checked attribute only exists
-        # for a NemoInvokeSchedule. Since this whole `update()` routine will
-        # be removed once we are able to use the PSyIR backend to re-generate
-        # NEMO code, the pylint warning is disabled.
-        # pylint: disable=attribute-defined-outside-init
-        routine_schedule.psy_data_name_clashes_checked = True
-        # pylint: enable=attribute-defined-outside-init
-
-        # Create a name for this region by finding where this PSyDataNode
-        # is in the list of PSyDataNodes in this Invoke.
-        pnodes = routine_schedule.walk(PSyDataNode)
-        region_idx = pnodes.index(self)
-        if self._region_name:
-            region_name = self._region_name
-        else:
-            region_name = "r{0}".format(region_idx)
-        var_name = "{0}{1}".format(self.add_psydata_class_prefix("psy_data"),
-                                   region_idx)
-
-        # Create a variable for this PSyData region
-        reader = FortranStringReader(
-            "type({0}), target, save :: {1}".format(self.type_name, var_name))
-        # Tell the reader that the source is free format
-        reader.set_format(FortranFormat(True, False))
-        decln = Fortran2003.Type_Declaration_Stmt(reader)
-        spec_part.content.append(decln)
-
-        # Find the parent in the parse tree - first get a pointer to the
-        # AST for the content of this region.
-        content_ast = self.psy_data_body.children[0].ast
-        # Now store the parent of this region
-        fp_parent = content_ast.parent
-        # Find the location of the AST of our first child node in the
-        # list of child nodes of our parent in the fparser parse tree.
-        ast_start_index = object_index(fp_parent.content,
-                                       content_ast)
-        # Do the same for our last child node
-        if self.psy_data_body[-1].ast_end:
-            ast_end = self.psy_data_body[-1].ast_end
-        else:
-            ast_end = self.psy_data_body[-1].ast
-
-        if ast_end.parent is not fp_parent:
-            raise InternalError(
-                "The beginning ({0}) and end ({1}) nodes of the PSyData "
-                "region in the fparser2 parse tree do not have the same "
-                "parent.".format(content_ast, ast_end))
-        ast_end_index = object_index(fp_parent.content, ast_end)
-
-        # Add the PSyData end call
-        reader = FortranStringReader(
-            "CALL {0}%PostEnd".format(var_name))
-        # Tell the reader that the source is free format
-        reader.set_format(FortranFormat(True, False))
-        pecall = Fortran2003.Call_Stmt(reader)
-        pecall.parent = fp_parent
-        fp_parent.content.insert(ast_end_index+1, pecall)
-
-        # Add the PSyData start call
-        reader = FortranStringReader(
-            "CALL {2}%PreStart('{0}', '{1}', 0, 0)".format(
-                routine_name, region_name, var_name))
-        reader.set_format(FortranFormat(True, False))
-        pscall = Fortran2003.Call_Stmt(reader)
-        pscall.parent = fp_parent
-        fp_parent.content.insert(ast_start_index, pscall)
-        # Set the pointers back into the modified parse tree
-        self.ast = pscall
-        self.ast_end = pecall
-        self.set_region_identifier(routine_name, region_name)
 
 
 # For AutoAPI documentation generation

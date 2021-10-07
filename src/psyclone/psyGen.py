@@ -173,20 +173,24 @@ class PSyFactory(object):
     Creates a specific version of the PSy. If a particular api is not
     provided then the default api, as specified in the psyclone.cfg
     file, is chosen.
+
+    :param str api: name of the PSyclone API (domain) for which to create \
+        a factory.
+    :param bool distributed_memory: whether or not the PSy object created \
+        will include support for distributed-memory parallelism.
+
+    :raises TypeError: if the distributed_memory argument is not a bool.
+
     '''
     def __init__(self, api="", distributed_memory=None):
-        '''Initialises a factory which can create API specific PSY objects.
-        :param str api: Name of the API to use.
-        :param bool distributed_memory: True if distributed memory should be \
-                                        supported.
-        '''
+
         if distributed_memory is None:
             _distributed_memory = Config.get().distributed_memory
         else:
             _distributed_memory = distributed_memory
 
         if _distributed_memory not in [True, False]:
-            raise GenerationError(
+            raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
         Config.get().distributed_memory = _distributed_memory
@@ -196,13 +200,21 @@ class PSyFactory(object):
         '''
         Create the API-specific PSy instance.
 
-        :param invoke_info: information on the invoke()s found by parsing
-                            the Algorithm layer.
-        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
+        :param invoke_info: information on the invoke()s found by parsing \
+                            the Algorithm layer or (for NEMO) the fparser2 \
+                            parse tree of the source file.
+        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` or \
+                           :py:class:`fparser.two.Fortran2003.Program`
 
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+
+        :raises InternalError: if this factory is found to have an \
+                               unsupported type (API).
         '''
+        # Conditional run-time importing is a part of this factory
+        # implementation.
+        # pylint: disable=import-outside-toplevel
         if self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynamoPSy as PSyClass
         elif self._type == "dynamo0.3":
@@ -216,9 +228,9 @@ class PSyFactory(object):
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed
         else:
-            raise GenerationError("PSyFactory: Internal Error: Unsupported "
-                                  "api type '{0}' found. Should not be "
-                                  "possible.".format(self._type))
+            raise InternalError(
+                "PSyFactory: Unsupported API type '{0}' found. Expected one "
+                "of {1}.".format(self._type, Config.get().supported_apis))
         return PSyClass(invoke_info)
 
 
@@ -1214,9 +1226,6 @@ class GlobalSum(Statement):
         return "{0}[scalar='{1}']".format(self.coloured_name(colour),
                                           self._scalar.name)
 
-    def __str__(self):
-        return self.node_str(False)
-
 
 class HaloExchange(Statement):
     '''
@@ -1376,9 +1385,6 @@ class HaloExchange(Statement):
                     self._halo_type, self._halo_depth,
                     self._check_dirty))
 
-    def __str__(self):
-        return self.node_str(False)
-
 
 class Kern(Statement):
     '''
@@ -1456,8 +1462,10 @@ class Kern(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return (self.coloured_name(colour) + " " + self.name +
-                "(" + self.arguments.names + ")")
+        if self.name:
+            return (self.coloured_name(colour) + " " + self.name +
+                    "(" + self.arguments.names + ")")
+        return self.coloured_name(colour) + "[]"
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -1599,7 +1607,7 @@ class Kern(Statement):
                 "reduction_sum_loop(). Expected one of {1}.".
                 format(reduction_access.api_specific_name(),
                        api_strings)), err)
-        symtab = self.root.symbol_table
+        symtab = self.scope.symbol_table
         thread_idx = symtab.lookup_with_tag("omp_thread_index").name
         nthreads = symtab.lookup_with_tag("omp_num_threads").name
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
@@ -1667,23 +1675,12 @@ class Kern(Statement):
             parent_loop = parent_loop.ancestor(Loop)
         return False
 
-    def clear_cached_data(self):
-        '''This function is called to remove all cached data (which
-        then forces all functions to recompute their results). At this
-        stage it supports gen_code by enforcing all arguments to
-        be recomputed.
-        '''
-        self.arguments.clear_cached_data()
-
     @property
     def iterates_over(self):
         return self._iterates_over
 
     def local_vars(self):
         raise NotImplementedError("Kern.local_vars should be implemented")
-
-    def __str__(self):
-        raise NotImplementedError("Kern.__str__ should be implemented")
 
     def gen_code(self, parent):
         raise NotImplementedError("Kern.gen_code should be implemented")
@@ -2375,6 +2372,7 @@ class InlinedKern(Kern):
         Node.__init__(self, parent=parent)
         schedule = Schedule(children=psyir_nodes, parent=self)
         self.children = [schedule]
+        self._arguments = None
 
     @staticmethod
     def _validate_child(position, child):
@@ -2388,21 +2386,6 @@ class InlinedKern(Kern):
 
         '''
         return position == 0 and isinstance(child, Schedule)
-
-    def node_str(self, colour=True):
-        '''
-        Creates a class-specific text description of this node, optionally
-        including colour control codes (for coloured output in a terminal).
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: the class-specific text describing this node.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
-
-    def __str__(self):
-        return self.coloured_name(False)
 
     @abc.abstractmethod
     def local_vars(self):
@@ -2486,11 +2469,6 @@ class Arguments(object):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-
-    def clear_cached_data(self):
-        '''This function is called to clear all cached data, which
-        enforces that raw_arg_list is recomputed.'''
-        self._raw_arg_list = []
 
     @property
     def names(self):

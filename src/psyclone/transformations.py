@@ -58,18 +58,18 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOLoop
+from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective, OMPTaskloopDirective
+    ACCKernelsDirective, Routine, OMPTaskloopDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 from psyclone.undoredo import Memento
-from psyclone.nemo import NemoInvokeSchedule
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -325,6 +325,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     :type grainsize: int or None
     :param num_tasks: the num_tasks to use for this transformation.
     :type num_tasks: int or None
+    :param bool nogroup: whether or not to use a nogroup clause for this
+                         transformation. Default is False.
 
     For example:
 
@@ -361,16 +363,44 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> schedule.view()
 
     '''
-    def __init__(self, grainsize=None, num_tasks=None):
+    def __init__(self, grainsize=None, num_tasks=None, nogroup=False):
         self._grainsize = None
         self._num_tasks = None
         self.omp_grainsize = grainsize
         self.omp_num_tasks = num_tasks
-
+        self.omp_nogroup = nogroup
         super(OMPTaskloopTrans, self).__init__()
 
     def __str__(self):
         return "Adds an 'OpenMP TASKLOOP' directive to a loop"
+
+    @property
+    def omp_nogroup(self):
+        '''
+        Returns whether the nogroup clause should be specified for
+        this transformation. By default the nogroup clause is applied.
+
+        :returns: whether the nogroup clause should be specified by
+                  this transformation.
+        :rtype: bool
+        '''
+        return self._nogroup
+
+    @omp_nogroup.setter
+    def omp_nogroup(self, nogroup):
+        '''
+        Sets whether the nogroup clause should be specified for this
+        transformation.
+
+        :param bool nogroup: value to set whether the nogroup clause should be
+                             used for this transformation.
+
+        raises TypeError: if the nogroup parameter is not a bool.
+        '''
+        if not isinstance(nogroup, bool):
+            raise TypeError("Expected nogroup to be a bool "
+                            "but got a {0}".format(type(nogroup).__name__))
+        self._nogroup = nogroup
 
     @property
     def omp_grainsize(self):
@@ -477,8 +507,60 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                 "'!$omp taskloop' directives.")
         _directive = OMPTaskloopDirective(children=children,
                                           grainsize=self.omp_grainsize,
-                                          num_tasks=self.omp_num_tasks)
+                                          num_tasks=self.omp_num_tasks,
+                                          nogroup=self.omp_nogroup)
         return _directive
+
+    def apply(self, node, options=None):
+        '''Apply the OMPTaskloopTrans transformation to the specified node in
+        a Schedule. This node must be a Loop since this transformation
+        corresponds to wrapping the generated code with directives like so:
+
+        .. code-block:: fortran
+
+          !$OMP TASKLOOP
+          do ...
+             ...
+          end do
+          !$OMP END TASKLOOP
+
+        At code-generation time (when
+        :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
+        within (i.e. a child of) an OpenMP SERIAL region.
+
+        If the keyword "nogroup" is specified in the options, it will cause a
+        nogroup clause be generated if it is set to True. This will override
+        the value supplied to the constructor, but will only apply to the
+        apply call to which the value is supplied.
+
+        :param node: the supplied node to which we will apply the \
+                     OMPLoopTrans transformation
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations\
+                        and validation.
+        :type options: dict of str:values or None
+        :param bool options["nogroup"]:
+                indicating whether a nogroup clause should be applied to
+                this taskloop.
+
+        :returns: (:py:class:`psyclone.psyir.nodes.Schedule`, \
+        :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        if not options:
+            options = {}
+        current_nogroup = self.omp_nogroup
+        # If nogroup is specified it overrides that supplied to the
+        # constructor of the Transformation, but will be reset at the
+        # end of this function
+        self.omp_nogroup = options.get("nogroup", current_nogroup)
+
+        try:
+            rval = super(OMPTaskloopTrans, self).apply(node, options)
+        finally:
+            # Reset the nogroup value to the original value
+            self.omp_nogroup = current_nogroup
+        return rval
 
 
 class OMPLoopTrans(ParallelLoopTrans):
@@ -643,22 +725,23 @@ class OMPLoopTrans(ParallelLoopTrans):
         self._reprod = options.get("reprod",
                                    Config.get().reproducible_reductions)
 
-        # Add variable names for OMP functions into the InvokeSchedule (root)
-        # symboltable if they don't already exist
-        if not isinstance(node.root, NemoInvokeSchedule):
-            symtab = node.root.symbol_table
-            try:
-                symtab.lookup_with_tag("omp_thread_index")
-            except KeyError:
-                symtab.new_symbol(
-                    "th_idx", tag="omp_thread_index",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            try:
-                symtab.lookup_with_tag("omp_num_threads")
-            except KeyError:
-                symtab.new_symbol(
-                    "nthreads", tag="omp_num_threads",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        # Add variable names for OMP functions into the InvokeSchedule
+        # (a Routine) symboltable if they don't already exist
+        root = node.ancestor(Routine)
+
+        symtab = root.symbol_table
+        try:
+            symtab.lookup_with_tag("omp_thread_index")
+        except KeyError:
+            symtab.new_symbol(
+                "th_idx", tag="omp_thread_index",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        try:
+            symtab.lookup_with_tag("omp_num_threads")
+        except KeyError:
+            symtab.new_symbol(
+                "nthreads", tag="omp_num_threads",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         return super(OMPLoopTrans, self).apply(node, options)
 
@@ -1493,7 +1576,7 @@ class OMPSingleTrans(ParallelRegionTrans):
             this transformation. Checks that the value supplied in
             :py:obj:`value` is a bool
 
-            :param bool value: Whether this Single clause should have a \
+            :param bool value: whether this Single clause should have a \
                                nowait applied.
 
             :raises TypeError: if the value parameter is not a bool.
@@ -3011,8 +3094,8 @@ class ACCKernelsTrans(RegionTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises NotImplementedError: if the supplied Nodes do not belong to \
-                                     a NemoInvokeSchedule.
+        :raises NotImplementedError: if the supplied Nodes belong to \
+                                     a GOInvokeSchedule.
         :raises TransformationError: if there are no Loops within the \
                                      proposed region.
 

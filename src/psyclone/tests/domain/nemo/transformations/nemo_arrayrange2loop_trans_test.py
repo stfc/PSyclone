@@ -50,7 +50,7 @@ from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
     import get_outer_index
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.nemo import NemoKern, NemoLoop
 from psyclone.psyir.nodes import Schedule
 from psyclone.errors import InternalError
@@ -72,7 +72,7 @@ def test_transform():
     assert isinstance(NemoArrayRange2LoopTrans(), Transformation)
 
 
-def test_apply_bounds():
+def test_apply_bounds(tmpdir):
     '''Check that the apply method uses a) configuration bounds if they
     are provided or b) lbound and ubound intrinsics when no bounds
     information is available. Also check that a NemoKern is added
@@ -98,20 +98,21 @@ def test_apply_bounds():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "  do jt = 1, UBOUND(umask, 4), 1\n"
-        "    do jk = 1, jpk, 1\n"
-        "      do jj = 1, jpj, 1\n"
-        "        do ji = 1, jpi, 1\n"
-        "          umask(ji,jj,jk,jt,idx) = vmask(ji,jj,jk,jt,idx) + 1.0\n"
+        "  do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "    do jt = 1, UBOUND(umask, 4), 1\n"
+        "      do jk = 1, jpk, 1\n"
+        "        do jj = 1, jpj, 1\n"
+        "          do ji = 1, jpi, 1\n"
+        "            umask(ji,jj,jk,jt,idx) = vmask(ji,jj,jk,jt,idx) + 1.0\n"
+        "          enddo\n"
         "        enddo\n"
         "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_fixed_bounds():
+def test_apply_fixed_bounds(tmpdir):
     '''Check that the apply method uses bounds information from the range
     node if it is supplied.
 
@@ -127,16 +128,17 @@ def test_apply_fixed_bounds():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do jk = 1, jpk, 1\n"
-        "  do jj = 2, 4, 1\n"
-        "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jj,jk) = 0.0e0\n"
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 2, 4, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jj,jk) = 0.0d0\n"
+        "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_reference_literal():
+def test_apply_reference_literal(tmpdir):
     '''Check that the apply method add bounds appropriately when the
     config file specifies a lower bound as a reference and an upper
     bound as a literal.
@@ -160,20 +162,21 @@ def test_apply_reference_literal():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "  do jt = 1, UBOUND(umask, 4), 1\n"
-        "    do jk = jpk, 1, 1\n"
-        "      do jj = 1, jpj, 1\n"
-        "        do ji = jpi, 1, 1\n"
-        "          umask(ji,jj,jk,jt,idx) = vmask(ji,jj,jk,jt,idx) + 1.0\n"
+        "  do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "    do jt = 1, UBOUND(umask, 4), 1\n"
+        "      do jk = jpk, 1, 1\n"
+        "        do jj = 1, jpj, 1\n"
+        "          do ji = jpi, 1, 1\n"
+        "            umask(ji,jj,jk,jt,idx) = vmask(ji,jj,jk,jt,idx) + 1.0\n"
+        "          enddo\n"
         "        enddo\n"
         "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_different_dims():
+def test_apply_different_dims(tmpdir):
     '''Check that the apply method adds loop iterators appropriately when
     the range dimensions differ in different arrays.
 
@@ -189,16 +192,17 @@ def test_apply_different_dims():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "  do jk = 1, jpk, 1\n"
-        "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jpj,jk,ndim,idx) = vmask(jpi,ji,jk,idx,ndim) + 1.0\n"
+        "  do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "    do jk = 1, jpk, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jpj,jk,ndim,idx) = vmask(jpi,ji,jk,idx,ndim) + 1.0\n"
+        "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_var_name():
+def test_apply_var_name(tmpdir):
     '''Check that the variable name that is used when no names are
     specified in the config file does not clash with an existing symbol.
 
@@ -215,12 +219,13 @@ def test_apply_var_name():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do idx_1 = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "  umask(:,:,:,:,idx_1) = vmask(:,:,:,:,idx_1) + 1.0\n"
-        "enddo" in result)
+        "  do idx_1 = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "    umask(:,:,:,:,idx_1) = vmask(:,:,:,:,idx_1) + 1.0\n"
+        "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_existing_names():
+def test_apply_existing_names(tmpdir):
     '''Check that the apply method uses existing iterators appropriately
     when their symbols are already defined.
 
@@ -242,13 +247,14 @@ def test_apply_existing_names():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do jk = 1, jpk, 1\n"
-        "  do jj = 1, jpj, 1\n"
-        "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jj,jk) = 0.0e0\n"
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jj,jk) = 0.0d0\n"
+        "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_apply_different_num_dims():
@@ -284,10 +290,10 @@ def test_apply_array_valued_function():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "jn = 2\n"
-        "do jk = 1, jpk, 1\n"
-        "  z3d(1,:,jk) = ptr_sjk(pvtr(:,:,:),btmsk(:,:,jn) * btm30(:,:))\n"
-        "enddo" in result)
+        "  jn = 2\n"
+        "  do jk = 1, jpk, 1\n"
+        "    z3d(1,:,jk) = ptr_sjk(pvtr(:,:,:),btmsk(:,:,jn) * btm30(:,:))\n"
+        "  enddo" in result)
 
 
 def test_apply_calls_validate():

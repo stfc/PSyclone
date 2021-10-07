@@ -54,7 +54,6 @@ from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.routine import Routine
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -99,6 +98,8 @@ class OMPRegionDirective(OMPDirective, RegionDirective):
         result = []
         const = Config.get().api_conf().get_constants()
         for call in self.kernels():
+            if not call.arguments:
+                continue
             for arg in call.arguments.args:
                 if arg.argument_type in const.VALID_SCALAR_NAMES:
                     if arg.descriptor.access == reduction_type:
@@ -120,29 +121,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
 
     '''
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_taskwait_" + str(position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes. \
-                            Default value is True.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-
-        '''
-        return self.coloured_name(colour) + "[OMP taskwait]"
-
     def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
@@ -259,29 +237,6 @@ class OMPSingleDirective(OMPSerialDirective):
         super(OMPSingleDirective, self).__init__(children=children,
                                                  parent=parent)
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_single_" + str(position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes. \
-                            Default value is True.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-
-        '''
-        return self.coloured_name(colour) + "[OMP single]"
-
     def gen_code(self, parent):
         '''Generate the fortran OMP Single Directive and any associated
         code
@@ -345,27 +300,6 @@ class OMPMasterDirective(OMPSerialDirective):
     # Textual description of the node
     _text_name = "OMPMasterDirective"
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_master_" + str(position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP master]"
-
     def gen_code(self, parent):
         '''Generate the Fortran OMP Master Directive and any associated
         code
@@ -413,27 +347,7 @@ class OMPMasterDirective(OMPSerialDirective):
 
 
 class OMPParallelDirective(OMPRegionDirective):
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_parallel_" + str(position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP parallel]"
+    ''' Class representing an OpenMP Parallel directive. '''
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
@@ -519,7 +433,7 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        result = "omp parallel"
+        result = "omp parallel default(shared)"
         # TODO #514: not yet working with NEMO, so commented out for now
         # if not self._reprod:
         #     result += self._reduction_string()
@@ -527,7 +441,7 @@ class OMPParallelDirective(OMPRegionDirective):
         private_str = ",".join(private_list)
 
         if private_str:
-            result = "{0} private({1})".format(result, private_str)
+            result = "{0}, private({1})".format(result, private_str)
         return result
 
     def end_string(self):
@@ -638,18 +552,6 @@ class OMPParallelDirective(OMPRegionDirective):
             #                       "any OpenMP directives. This is probably "
             #                       "not what you want.")
 
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        parallel region.
-
-        '''
-        # TODO #435: Remove this function once this is fixed
-        self._add_region(
-            start_text="parallel default(shared), private({0})".format(
-                ",".join(self._get_private_list())),
-            end_text="end parallel")
-
 
 class OMPTaskloopDirective(OMPRegionDirective):
     '''
@@ -668,42 +570,26 @@ class OMPTaskloopDirective(OMPRegionDirective):
                       the num_tasks clause is not applied. Default value \
                       is None.
     :type num_tasks: int or None.
+    :param nogroup: Whether the nogroup clause should be used for this node. \
+                    Default value is False
+    :type nogroup: bool
 
     :raises GenerationError: if this OMPTaskloopDirective has both \
                              a grainsize and num_tasks value \
                              specified.
     '''
+    # pylint: disable=too-many-arguments
     def __init__(self, children=None, parent=None, grainsize=None,
-                 num_tasks=None):
+                 num_tasks=None, nogroup=False):
         self._grainsize = grainsize
         self._num_tasks = num_tasks
+        self._nogroup = nogroup
         if self._grainsize is not None and self._num_tasks is not None:
             raise GenerationError(
                 "OMPTaskloopDirective must not have both grainsize and "
                 "numtasks clauses specified.")
         super(OMPTaskloopDirective, self).__init__(children=children,
                                                    parent=parent)
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_taskloop_" + str(position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return "{0}[OMP taskloop]".format(self.coloured_name(colour))
 
     def validate_global_constraints(self):
         '''
@@ -741,10 +627,17 @@ class OMPTaskloopDirective(OMPRegionDirective):
         self.validate_global_constraints()
 
         extra_clauses = ""
+        # Find the specified clauses
+        clause_list = []
         if self._grainsize is not None:
-            extra_clauses = "grainsize({0})".format(self._grainsize)
+            clause_list.append("grainsize({0})".format(self._grainsize))
         if self._num_tasks is not None:
-            extra_clauses = "num_tasks({0})".format(self._num_tasks)
+            clause_list.append("num_tasks({0})".format(self._num_tasks))
+        if self._nogroup:
+            clause_list.append("nogroup")
+
+        # Generate the string containing the required clauses
+        extra_clauses = ", ".join(clause_list)
 
         parent.add(DirectiveGen(parent, "omp", "begin", "taskloop",
                                 extra_clauses))
@@ -766,12 +659,20 @@ class OMPTaskloopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        clauses = ""
+        extra_clauses = ""
+        # Find the specified clauses
+        clause_list = []
         if self._grainsize is not None:
-            clauses = " grainsize({0})".format(self._grainsize)
+            clause_list.append(" grainsize({0})".format(self._grainsize))
         if self._num_tasks is not None:
-            clauses = " num_tasks({0})".format(self._num_tasks)
-        return "omp taskloop" + clauses
+            clause_list.append(" num_tasks({0})".format(self._num_tasks))
+        if self._nogroup:
+            clause_list.append(" nogroup")
+
+        # Generate the string containing the required clauses
+        extra_clauses = ",".join(clause_list)
+
+        return "omp taskloop" + extra_clauses
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
@@ -813,15 +714,6 @@ class OMPDoDirective(OMPRegionDirective):
         super(OMPDoDirective, self).__init__(children=children,
                                              parent=parent)
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_do_" + str(position)
-
     def node_str(self, colour=True):
         '''
         Returns the name of this node with (optional) control codes
@@ -833,10 +725,10 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
         '''
         if self.reductions():
-            reprod = "[reprod={0}]".format(self._reprod)
+            reprod = "reprod={0}".format(self._reprod)
         else:
             reprod = ""
-        return "{0}[OMP do]{1}".format(self.coloured_name(colour), reprod)
+        return "{0}[{1}]".format(self.coloured_name(colour), reprod)
 
     def _reduction_string(self):
         ''' Return the OMP reduction information as a string '''
@@ -872,7 +764,30 @@ class OMPDoDirective(OMPRegionDirective):
                 "OMPDoDirective must be inside an OMP parallel region but "
                 "could not find an ancestor OMPParallelDirective node")
 
+        self._validate_single_loop()
+
         super(OMPDoDirective, self).validate_global_constraints()
+
+    def _validate_single_loop(self):
+        '''
+        Checks that this directive is only applied to a single Loop node.
+
+        :raises GenerationError: if this directive has more than one child.
+        :raises GenerationError: if the child of this directive is not a Loop.
+
+        '''
+        if len(self.dir_body.children) != 1:
+            raise GenerationError(
+                "An {0} can only be applied to a single loop "
+                "but this Node has {1} children: {2}".
+                format(type(self).__name__, len(self.dir_body.children),
+                       self.dir_body.children))
+
+        if not isinstance(self.dir_body[0], Loop):
+            raise GenerationError(
+                "An {0} can only be applied to a loop "
+                "but this Node has a child of type '{1}'".format(
+                    type(self).__name__, type(self.dir_body[0]).__name__))
 
     def gen_code(self, parent):
         '''
@@ -931,27 +846,6 @@ class OMPDoDirective(OMPRegionDirective):
         # pylint: disable=no-self-use
         return "omp end do"
 
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP do.
-
-        :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenMP parallel do.
-        '''
-        self.validate_global_constraints()
-
-        # Since this is an OpenMP do, it can only be applied
-        # to a single loop.
-        if len(self.dir_body.children) != 1:
-            raise GenerationError(
-                "An OpenMP DO can only be applied to a single loop "
-                "but this Node has {0} children: {1}".
-                format(len(self.dir_body.children), self.dir_body.children))
-
-        self._add_region(start_text="do schedule({0})".format(
-            self._omp_schedule), end_text="end do")
-
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
     ''' Class for the !$OMP PARALLEL DO directive. This inherits from
@@ -964,27 +858,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 children=children,
                                 parent=parent,
                                 omp_schedule=omp_schedule)
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "OMP_parallel_do_" + str(position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP parallel do]"
 
     def gen_code(self, parent):
 
@@ -1031,28 +904,15 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # pylint: disable=no-self-use
         return "omp end parallel do"
 
-    def update(self):
+    def validate_global_constraints(self):
         '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        parallel do.
+        Perform validation checks that can only be done at code-generation
+        time.
 
-        :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenMP parallel do.
         '''
-        # Since this is an OpenMP (parallel) do, it can only be applied
-        # to a single loop.
-        if len(self.dir_body.children) != 1:
-            raise GenerationError(
-                "An OpenMP PARALLEL DO can only be applied to a single loop "
-                "but this Node has {0} children: {1}".
-                format(len(self.dir_body.children), self.dir_body.children))
+        super(OMPParallelDoDirective, self).validate_global_constraints()
 
-        self._add_region(
-            start_text="parallel do default(shared), private({0}), "
-            "schedule({1})".format(",".join(self._get_private_list()),
-                                   self._omp_schedule),
-            end_text="end parallel do")
+        self._validate_single_loop()
 
 
 # For automatic API documentation generation

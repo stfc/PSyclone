@@ -844,8 +844,7 @@ def test_multi_kernel_single_omp_region(dist_mem):
             omp_do_idx = idx
         if "!$omp end do" in line:
             omp_end_do_idx = idx
-        if "!$omp parallel default(shared), " +\
-           "private(cell)" in line:
+        if "!$omp parallel default(shared), private(cell)" in line:
             omp_para_idx = idx
         if "END DO" in line:
             end_do_idx = idx
@@ -1073,8 +1072,8 @@ def test_loop_fuse_omp(dist_mem):
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_do_idx = idx
-        if "!$omp parallel do default(shared), " +\
-           "private(cell), schedule(static)" in line:
+        if ("!$omp parallel do default(shared), private(cell), "
+                "schedule(static)" in line):
             omp_para_idx = idx
         if "CALL testkern_w2v_code" in line:
             if call1_idx == -1:
@@ -3455,7 +3454,8 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
 
     # Ensure we check for text containing the correct (colour) control codes
     isched = colored("InvokeSchedule", InvokeSchedule._colour)
-    directive = colored("Directive", Directive._colour)
+    ompparallel = colored("OMPParallelDirective", Directive._colour)
+    ompdo = colored("OMPDoDirective", Directive._colour)
     gsum = colored("GlobalSum", GlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
@@ -3483,9 +3483,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     if dist_mem:  # annexed can be True or False
         expected = (
             isched + "[invoke='invoke_0', dm=True]\n" +
-            indent + "0: " + directive + "[OMP parallel]\n" +
+            indent + "0: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3496,9 +3496,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             indent + "1: " + gsum + "[scalar='asum']\n" +
-            indent + "2: " + directive + "[OMP parallel]\n" +
+            indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do]\n" +
+            3*indent + "0: " + ompdo + "[]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3508,9 +3508,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
-            indent + "3: " + directive + "[OMP parallel]\n" +
+            indent + "3: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3526,9 +3526,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     else:  # not dist_mem. annexed can be True or False
         expected = (
             isched + "[invoke='invoke_0', dm=False]\n" +
-            indent + "0: " + directive + "[OMP parallel]\n" +
+            indent + "0: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3538,9 +3538,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
-            indent + "1: " + directive + "[OMP parallel]\n" +
+            indent + "1: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do]\n" +
+            3*indent + "0: " + ompdo + "[]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3550,9 +3550,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
-            indent + "2: " + directive + "[OMP parallel]\n" +
+            indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3617,7 +3617,7 @@ def test_list_multiple_reductions(dist_mem):
     arg._argument_type = "gh_scalar"
     arg.descriptor._access = AccessType.SUM
     result = omp_loop_directive._reduction_string()
-    assert ", reduction(+:asum), reduction(+:f2)" in result
+    assert " reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():

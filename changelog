@@ -147,8 +147,8 @@
 
 	50) PR #1344 for #1309. Fix bug in PSyIR backend name comparison.
 
-        51) PR #1372 for #1371. Bring tutorial notebooks up-to-date and add
-        them to the CI.
+	51) PR #1372 for #1371. Bring tutorial notebooks up-to-date and add
+	them to the CI.
 
 	52) PR #1341 towards #1134. Move OpenCL transformation to GOcean
 	transformations folder and rename.
@@ -156,10 +156,10 @@
 	53) PR #1368 towards #1338. Adds OMPTaskWaitDirective node.
 
 	54) PR #1282 for #871. Adds generation of callback routines for
-        GOcean in order to do data movement with OpenACC.
+	GOcean in order to do data movement with OpenACC.
 
 	55) PR #1267 for #1232. Adds a TL to Adjoint transformation for
-        assignments.
+	assignments.
 
 	56) PR #1263 for #1139. Adds a transformation that converts an
 	array access into a single-trip loop.
@@ -174,10 +174,46 @@
 	costly error messages when these are not used.
 
 	60) PR #1354 for #1256. Change GOConstLoopBoundsTrans to modify the
-        tree rather than just setting a flag.
+	tree rather than just setting a flag.
 
 	61) PR #1343 for #1336. Use github actions to verify all links in
-		all markdown files.
+	all markdown files.
+
+	62) PR #1385 towards #430 and 737. Improve accessibility attribute support
+	on the PSyIR Fortran frontend and backend.
+
+	63) PR #1363 for #1356. Adds a hoist transformation for assignments.
+
+	64) PR #1330 for #1297. Adds TL to Adjoint test harness code
+	generation.
+
+	65) PR #1379 towards #1288. Alters the driver generation for
+	GOcean kernel extraction to use the PSyIR.
+
+	66) PR #1403. Adds support for private clause for declarations in f2pygen.
+
+	67) PR #1406 for #1404. Temporary copy() bug fix while the loop variable
+	is not part of the PSyIR tree.
+
+	68) PR #1407 towards #1383. Standardises the node_str() method of
+	DirectiveNode and remove un-needed code.
+
+	69) PR #1401 for #1400. Extend psyad script to allow list of active
+	variables to be specified.
+
+	70) PR #1326 for #1292. Add support for GH_READINC access for continuous
+	fields in the LFRic API.
+
+	71) PR #1409 for #1383. Standardises and cleans-up dag_name() methods
+	and pins jsonschema to version 3.0.2 to fix jupyter notebooks with
+	older versions of Python.
+
+	72) PR #1147 for #430, #435 and #616. The NEMO API now uses the PSyIR
+	backend to generate output code.
+
+	73) PR #1395 for #1100. Replaces the first two LFRic examples with new
+	ones that use the 'dynamo0.3'/'lfric' domain instead of 'dynamo0.1'.
+	This is a step towards removing the 'dynamo0.1' domain.
 
 release 2.0.0 28th April 2021
 
@@ -1360,7 +1396,7 @@ release 1.7.0 20th December 2018
 
 release 1.6.1 6th December 2018
 
-  	1) #250. Change setup.py (used for pip installation) to only use
+	1) #250. Change setup.py (used for pip installation) to only use
 	version 0.0.7 of fparser.
 
 release 1.6.0 18th May 2018

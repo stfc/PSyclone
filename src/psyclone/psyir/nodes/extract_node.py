@@ -49,6 +49,8 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
+
+from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
@@ -73,6 +75,10 @@ class ExtractNode(PSyDataNode):
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "extract", which means the module name used will be \
         ``extract_psy_data_mode``, and the data type ``extract_PSyDataType``.
+    :param str options["post_var_postfix"]: a postfix to be used when \
+        creating names to store values of output variable. A variable 'a' \
+        would store its value as 'a', and its output values as 'a_post' with \
+        the default post_var_postfix of '_post'.
 
     '''
     # Textual description of the node.
@@ -90,13 +96,18 @@ class ExtractNode(PSyDataNode):
         # modified to make sure the names can be distinguished between pre-
         # and post-variables (i.e. here input and output). A variable
         # "myvar" will be stored as "myvar" with its input value, and
-        # "myvar_post" with its output value.
-        self._post_name = "_post"
+        # "myvar_post" with its output value. It is the responsibility
+        # of the transformation that inserts this node to make sure this
+        # name is consistent with the name used when creating the driver
+        # (otherwise the driver will not be able to read in the dumped
+        # valued), and also to handle any potential name clashes (e.g. a
+        # variable 'a' exists, which creates 'a_out' for the output variable,
+        # which would clash with a variable 'a_out' used in the program unit).
 
-        # Store the list of input- and output-variables, so that a driver
-        # generator can get the list of variables that are written.
-        self._input_list = []
-        self._output_list = []
+        if options:
+            self._post_name = options.get("post_var_postfix", "_post")
+        else:
+            self._post_name = "_post"
 
     @property
     def extract_body(self):
@@ -106,44 +117,6 @@ class ExtractNode(PSyDataNode):
 
         '''
         return super(ExtractNode, self).psy_data_body
-
-    @property
-    def dag_name(self):
-        '''
-        Returns the name to use in a DAG for this Node
-
-        :returns: the dag name of ExtractNode.
-        :rtype: str
-        '''
-        return "extract_" + str(self.position)
-
-    @property
-    def input_list(self):
-        '''
-        :returns: the list of variables that are inputs to this \
-            extraction region.
-        :rtype: list of str
-        '''
-        return self._input_list
-
-    @property
-    def output_list(self):
-        '''
-        :returns: the list of variables that are outputs of this \
-            extraction region.
-        :rtype: list of str
-        '''
-        return self._output_list
-
-    def update_vars_and_postname(self):
-        '''
-        This function is called after the variables to be extracted
-        have been stored in self._input_list and self._output_list.
-        It can be used to e.g. remove unnecessary variables (e.g. loop
-        counter), or adjust the postfix to assure that no duplicated
-        variable name is created. This default function does not
-        do anything atm.
-        '''
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
@@ -155,23 +128,19 @@ class ExtractNode(PSyDataNode):
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+
         '''
-
-        # Determine the variables to write:
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to write:
         dep = DependencyTools()
-        self._input_list, self._output_list = dep.get_in_out_parameters(self)
+        input_list, output_list = dep.get_in_out_parameters(self)
 
-        # Add a callback here so that derived classes can adjust the list
-        # of variables to provide, or the suffix used (which might
-        # depend on the variable name which could create clashes).
-        self.update_vars_and_postname()
-
-        options = {'pre_var_list': self._input_list,
-                   'post_var_list': self._output_list,
+        options = {'pre_var_list': input_list,
+                   'post_var_list': output_list,
                    'post_var_postfix': self._post_name}
 
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
         parent.add(CommentGen(parent, ""))

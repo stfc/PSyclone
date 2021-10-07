@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,44 +30,20 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Laboratory
+# ------------------------------------------------------------------------------
+# Author: R. W. Ford, STFC Daresbury Lab
 
-''' example showing the use of the module-inline transformation '''
-from __future__ import print_function
-import os
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.transformations import KernelModuleInlineTrans
+include ../../common.mk
 
+.PHONY: vanilla compile run
 
-def inline():
-    ''' function exercising the module-inline transformation '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "psyclone", "tests",
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1")
-    psy = PSyFactory("dynamo0.1").create(info)
-    invokes = psy.invokes
-    print(psy.invokes.names)
-    invoke = invokes.get("invoke_0_testkern_type")
-    schedule = invoke.schedule
-    schedule.view()
-    kern = schedule.children[0].loop_body[0]
-    # setting module inline directly
-    kern.module_inline = True
-    schedule.view()
-    # unsetting module inline via a transformation
-    trans = KernelModuleInlineTrans()
-    trans.apply(kern, {"inline": False})
-    schedule.view()
-    # setting module inline via a transformation
-    trans.apply(kern)
-    schedule.view()
-    print(str(psy.gen))
+transform: vanilla
 
+vanilla:
+	${PSYCLONE} advection_alg_mod.x90
 
-if __name__ == "__main__":
-    inline()
+compile: transform
+	@echo "No compilation supported for lfric/eg18"
+
+run: compile
+	@echo "No run targets for lfric/eg18"
