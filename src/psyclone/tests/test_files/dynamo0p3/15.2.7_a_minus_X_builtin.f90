@@ -36,7 +36,7 @@
 program single_invoke
 
   ! Description: single point-wise operation (Y = a - X, DoF-wise subtraction
-  ! of a scalar value) specified in an invoke call.
+  ! of a field from a real scalar value) specified in an invoke call.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
 
