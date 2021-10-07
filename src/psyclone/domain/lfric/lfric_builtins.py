@@ -1525,11 +1525,35 @@ class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
     the corresponding element of another, integer-valued, field, `X`,
     and store the result back in `X`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicXMinusYKern`.
+    equivalent `LFRicIncXMinusYKern`.
 
     '''
     def __str__(self):
         return "Built-in: Decrement an integer-valued field"
+
+
+class LFRicIntAMinusXKern(LFRicAMinusXKern):
+    ''' Subtract each element of an integer-valued field, `X`, from
+    an integer scalar value, `a`, and return the result as a second,
+    integer-valued, field, `Y`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicAMinusXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_a_minus_X (integer-valued fields)"
+
+
+class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
+    ''' Subtract each element of an integer-valued field, `X`, from
+    an integer scalar value, `a`, and return the result in the
+    same field.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncAMinusXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_int_a_minus_X (integer-valued fields)"
 
 
 # ------------------------------------------------------------------- #
@@ -1738,6 +1762,8 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # Subtracting integer fields
     "int_X_minus_Y": LFRicIntXMinusYKern,
     "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
+    "int_a_minus_X": LFRicIntAMinusXKern,
+    "int_inc_a_minus_X": LFRicIntIncAMinusXKern,
     # Multiplying (scaled) real fields
     "int_X_times_Y": LFRicIntXTimesYKern,
     "int_inc_X_times_Y": LFRicIntIncXTimesYKern,
@@ -1808,6 +1834,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntIncAPlusXKern',
            'LFRicIntXMinusYKern',
            'LFRicIntIncXMinusYKern',
+           'LFRicIntAMinusXKern',
+           'LFRicIntIncAMinusXKern',
            'LFRicIntXTimesYKern',
            'LFRicIntIncXTimesYKern',
            'LFRicIntATimesXKern',
