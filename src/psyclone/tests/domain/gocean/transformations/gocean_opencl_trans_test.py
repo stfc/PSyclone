@@ -191,13 +191,16 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       use fortcl, only: get_num_cmd_queues, get_cmd_queues, get_kernel_by_name
       use clfortran
       use iso_c_binding
-      type(r2d_field), intent(inout), target :: cu_fld, p_fld, u_fld
+      type(r2d_field), intent(inout), target :: cu_fld
+      type(r2d_field), intent(inout), target :: p_fld
+      type(r2d_field), intent(inout), target :: u_fld
+      integer j
+      integer i
       integer ystop
       integer ystart
       integer xstop
       integer xstart
-      integer i
-      integer j
+
       integer(kind=c_size_t), target :: localsize(2)
       integer(kind=c_size_t), target :: globalsize(2)
       integer(kind=c_intptr_t) u_fld_cl_mem

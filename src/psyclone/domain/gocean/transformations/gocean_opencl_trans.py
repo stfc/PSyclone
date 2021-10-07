@@ -37,13 +37,14 @@
 '''
 
 from psyclone.configuration import Config
-from psyclone.gocean1p0 import GOInvokeSchedule
+from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation, args_filter, InvokeSchedule
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Routine, Call, Reference, Literal, Assignment
+from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
+    Assignment, IfBlock, ArrayReference
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
-    INTEGER_TYPE, CHARACTER_TYPE, DeferredType
+    INTEGER_TYPE, CHARACTER_TYPE, DeferredType, ArrayType, BOOLEAN_TYPE
 from psyclone.transformations import TransformationError, KernelTrans
 
 
@@ -236,7 +237,7 @@ class GOOpenCLTrans(Transformation):
 
         # Insert, if they don't already exist, the necessary OpenCL helper
         # subroutines in the root Container,
-        self._insert_opencl_init_routine(node.root)
+        psy_init = self._insert_opencl_init_routine(node.root)
         self._insert_initialise_grid_buffers(node.root)
         self._insert_write_grid_buffers(node.root)
         self._insert_ocl_read_from_device_function(node.root)
@@ -246,12 +247,267 @@ class GOOpenCLTrans(Transformation):
         for kern in node.coded_kernels():
             self._insert_ocl_arg_setter_routine(kern, node.root)
 
-        # TODO #1134: Some of the OpenCL logic is provided at generation time
-        # when the following opencl flag is set. This should eventually be part
-        # of this tranformation.
-        node.opencl = True
-        if 'end_barrier' in options:
-            node._opencl_end_barrier = options['end_barrier']
+        # Insert fortcl, clfotran and c_iso_binding import statement
+        fortcl = ContainerSymbol("fortcl")
+        node.symbol_table.add(fortcl)
+        get_num_cmd_queues = RoutineSymbol(
+                "get_num_cmd_queues", interface=ImportInterface(fortcl))
+        get_cmd_queues = RoutineSymbol(
+                "get_cmd_queues", interface=ImportInterface(fortcl))
+        get_kernel_by_name = RoutineSymbol(
+                "get_kernel_by_name", interface=ImportInterface(fortcl))
+        node.symbol_table.add(get_num_cmd_queues)
+        node.symbol_table.add(get_cmd_queues)
+        node.symbol_table.add(get_kernel_by_name)
+        clfortran = ContainerSymbol("clforntran")
+        clfortran.wildcard_import = True
+        clFinish = RoutineSymbol(
+                "clFinish", interface=ImportInterface(clfortran))
+        node.symbol_table.add(clfortran)
+        iso_c_bindings = ContainerSymbol("iso_c_binding")
+        iso_c_bindings.wildcard_import = True
+        node.symbol_table.add(iso_c_bindings)
+
+        # Declare local variables needed on a OpenCL PSy-layer invoke
+        nqueues = node.symbol_table.new_symbol(
+            "num_cmd_queues", symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE, tag="opencl_num_cmd_queues")  # Was SAVE
+        qlist = node.symbol_table.new_symbol(
+            "cmd_queues", symbol_type=DataSymbol,
+            datatype=ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE]),
+            tag="opencl_cmd_queues")  # Was SAVE
+        first = node.symbol_table.new_symbol(
+            "first_time", symbol_type=DataSymbol, datatype=BOOLEAN_TYPE,
+            tag="first_time")  # Must be SAVE and have initial value TRUE
+        flag = node.symbol_table.new_symbol(
+            "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            tag="opencl_error")
+        size_bytes = node.symbol_table.new_symbol(
+            "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            tag="opencl_bytes")
+        write_event = node.symbol_table.new_symbol(
+            "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            tag="opencl_wevent")
+
+        # Create block of code to execute only the first time:
+        setup_block = IfBlock.create(Reference(first), [])
+        node.children.insert(0, setup_block)
+        setup_block.if_body.addchild(
+            Assignment.create(Reference(first),
+                              Literal("false", BOOLEAN_TYPE)))
+        setup_block.if_body.addchild(Call.create(psy_init, []))
+        setup_block.if_body.children[-1].preceeding_comment = \
+            "Ensure OpenCL run-time is initialised for this PSy-layer module"
+
+        # FIXME: We could bring this out of setup_block to avoid SAVE
+        setup_block.if_body.addchild(
+            Assignment.create(Reference(nqueues),
+                              Call.create(get_num_cmd_queues, [])))
+        # FIXME: This should be a pointer assignment
+        setup_block.if_body.addchild(
+            Assignment.create(Reference(qlist),
+                              Call.create(get_cmd_queues, [])))
+
+        # Declare and assign kernel pointers
+        for kern in node.coded_kernels():
+            name = "kernel_" + kern.name
+            try:
+                kpointer = node.symbol_table.lookup_with_tag(name)
+            except KeyError:
+                pointer_type = UnknownFortranType(
+                    "INTEGER(KIND=c_intptr_t), TARGET, SAVE :: " + name)
+                kpointer = DataSymbol(name, datatype=pointer_type)
+                node.symbol_table.add(kpointer, tag=name)
+            setup_block.if_body.addchild(
+                Assignment.create(
+                    Reference(kpointer),
+                    Call.create(get_kernel_by_name,
+                                [Literal(kern.name, CHARACTER_TYPE)])))
+
+        return
+        # Include the check_status subroutine if we are in debug_mode
+        api_config = Config.get().api_conf("gocean1.0")
+        if api_config.debug_mode:
+            parent.add(UseGen(parent, name="ocl_utils_mod", only=True,
+                              funcnames=["check_status"]))
+
+        # Generate code inside the first_time block to ensure the device
+        # buffers are initialised and the data is on the device. A set_args
+        # call is also inserted because in some platforms (e.g. Xiling FPGA)
+        # knowing which arguments each kernel is going to use allows the write
+        # operation to place the data into the appropriate memory bank.
+        # This will create duplicate write operation for fields that are
+        # repeated in multiple kernels, but the performance penalty is small
+        # because it just happens during the first iteration.
+        # TODO #1134: Explore removing duplicated write operations.
+        ft_block = self.ancestor(InvokeSchedule)._first_time_block
+        self.gen_ocl_buffers_initialisation(ft_block)
+        self.gen_ocl_set_args_call(ft_block)
+        self.gen_ocl_buffers_initial_write(ft_block)
+
+        # Call the set_args again outside the first_time block in case some
+        # value has changed between iterations. This doesn't seem to have any
+        # performance penalty, but some of these could be removed for nicer
+        # code generation.
+        # TODO #1134: Explore removing unnecessary set_args calls.
+        self.gen_ocl_set_args_call(parent)
+
+        # Create array for the global work size argument of the kernel. Use the
+        # InvokeSchedule symbol table to share this symbols for all the kernels
+        # in the Invoke.
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        garg = self._arguments.find_grid_access()
+        glob_size = symtab.new_symbol(
+            "globalsize", symbol_type=DataSymbol,
+            datatype=ArrayType(INTEGER_TYPE, [2])).name
+        parent.add(DeclGen(parent, datatype="integer", target=True,
+                           kind="c_size_t", entity_decls=[glob_size + "(2)"]))
+        num_x = api_config.grid_properties["go_grid_nx"].fortran\
+            .format(garg.name)
+        num_y = api_config.grid_properties["go_grid_ny"].fortran\
+            .format(garg.name)
+        parent.add(AssignGen(parent, lhs=glob_size,
+                             rhs="(/{0}, {1}/)".format(num_x, num_y)))
+
+        # Create array for the local work size argument of the kernel
+        local_size = symtab.new_symbol(
+            "localsize", symbol_type=DataSymbol,
+            datatype=ArrayType(INTEGER_TYPE, [2])).name
+        parent.add(DeclGen(parent, datatype="integer", target=True,
+                           kind="c_size_t", entity_decls=[local_size + "(2)"]))
+
+        local_size_value = self._opencl_options['local_size']
+        parent.add(AssignGen(parent, lhs=local_size,
+                             rhs="(/{0}, 1/)".format(local_size_value)))
+
+        # Check that the global_size is multiple of the local_size
+        if api_config.debug_mode:
+            condition = "mod({0}, {1}) .ne. 0".format(num_x, local_size_value)
+            ifthen = IfThenGen(parent, condition)
+            parent.add(ifthen)
+            message = ('"Global size is not a multiple of local size ('
+                       'mandatory in OpenCL < 2.0)."')
+            # Since there is no print and break functionality in f2pygen, we
+            # use the check_status function here, this could be improved when
+            # translating to PSyIR.
+            ifthen.add(CallGen(ifthen, "check_status", [message, '-1']))
+
+        # Retrieve kernel name
+        kernel = symtab.lookup_with_tag("kernel_" + self.name).name
+
+        # Get the name of the list of command queues (set in
+        # psyGen.InvokeSchedule)
+        qlist = symtab.lookup_with_tag("opencl_cmd_queues").name
+        flag = symtab.lookup_with_tag("opencl_error").name
+
+        # Choose the command queue number to which to dispatch this kernel. We
+        # have do deal with possible dependencies to kernels dispatched in
+        # different command queues as the order of execution is not guaranteed.
+        queue_number = self._opencl_options['queue_number']
+        cmd_queue = qlist + "({0})".format(queue_number)
+        outer_loop = self.parent.parent.parent.parent
+        dependency = outer_loop.backward_dependence()
+
+        # If the dependency is a loop containing a kernel, add a barrier if the
+        # previous kernels were dispatched in a different command queue
+        if dependency and dependency.coded_kernels():
+            for kernel_dep in dependency.coded_kernels():
+                # TODO #1134: The OpenCL options should not leak from the
+                # OpenCL transformation.
+                # pylint: disable=protected-access
+                previous_queue = kernel_dep._opencl_options['queue_number']
+                if previous_queue != queue_number:
+                    # If the backward dependency is being executed in another
+                    # queue we add a barrier to make sure the previous kernel
+                    # has finished before this one starts.
+                    parent.add(AssignGen(
+                        parent,
+                        lhs=flag,
+                        rhs="clFinish({0}({1}))".format(
+                            qlist, str(previous_queue))))
+
+        # If the dependency is something other than a kernel, currently we
+        # dispatch everything else to queue _OCL_MANAGEMENT_QUEUE, so add a
+        # barrier if this kernel is not on queue _OCL_MANAGEMENT_QUEUE.
+        if dependency and not dependency.coded_kernels() and \
+                queue_number != _OCL_MANAGEMENT_QUEUE:
+            parent.add(AssignGen(
+                parent,
+                lhs=flag,
+                rhs="clFinish({0}({1}))".format(
+                    qlist, str(_OCL_MANAGEMENT_QUEUE))))
+
+        if api_config.debug_mode:
+            # Check that everything has succeeded before the kernel launch,
+            # since kernel executions are asynchronous, we insert a clFinish
+            # command as a barrier to make sure everything until here has been
+            # executed.
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + cmd_queue + ")"))
+            parent.add(CallGen(
+                parent, "check_status",
+                ["'Errors before {0} launch'".format(self.name), flag]))
+
+        # Then we call clEnqueueNDRangeKernel
+        parent.add(CommentGen(parent, " Launch the kernel"))
+        cnull = "C_NULL_PTR"
+        args = ", ".join([
+            # OpenCL Command Queue
+            cmd_queue,
+            # OpenCL Kernel object
+            kernel,
+            # Number of work dimensions
+            "2",
+            # Global offset (if NULL the global IDs start at offset (0,0,0))
+            cnull,
+            # Global work size
+            "C_LOC({0})".format(glob_size),
+            # Local work size
+            "C_LOC({0})".format(local_size),
+            # Number of events in wait list
+            "0",
+            # Event wait list that need to be completed before this kernel
+            cnull,
+            # Event that identifies this kernel completion
+            cnull])
+        parent.add(AssignGen(parent, lhs=flag,
+                             rhs="clEnqueueNDRangeKernel({0})".format(args)))
+        parent.add(CommentGen(parent, ""))
+
+        # Add additional checks if we are in debug mode
+        if api_config.debug_mode:
+            parent.add(CallGen(
+                parent, "check_status",
+                ["'{0} clEnqueueNDRangeKernel'".format(self.name), flag]))
+
+            # Add a barrier and check that the kernel executed successfully
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + cmd_queue + ")"))
+            parent.add(CallGen(
+                parent, "check_status",
+                ["'Errors during {0}'".format(self.name), flag]))
+
+
+        for loop in node.walk(GOLoop):
+            pass
+
+        if 'end_barrier' in options or True:
+            # We need a clFinish for each of the queues in the implementation
+            added_comment = False
+            for num in range(1, self._max_queue_number + 1):
+                queue = ArrayReference.create(qlist, [Literal(str(num),
+                                                      INTEGER_TYPE)])
+                node.addchild(
+                    Assignment.create(
+                        Reference(flag), Call.create(clFinish, [queue])))
+                if not added_comment:
+                    node.children[-1].preceding_comment = \
+                        "Wait until all kernels have finished"
+                    added_comment = True
+
+        from psyclone.psyir.backend.fortran import FortranWriter
+        fw = FortranWriter()
+        print(fw(node))
 
         # TODO #595: Remove transformation return values
         return None, None
