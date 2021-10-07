@@ -187,10 +187,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
     :members: apply
     :noindex:
-
-.. note:: The ArrayRange2LoopTrans will have no effect when using the
-          NEMO API until it is updated to use the PSyIR back-ends to
-          generate code (see #435).
   
 ####
 
@@ -506,68 +502,52 @@ Interactive
 +++++++++++
 
 To apply a transformation interactively we first parse and analyse the
-code. This allows us to generate a "vanilla" PSy layer. For example ...
-::
+code. This allows us to generate a "vanilla" PSy layer. For example::
 
-    from psyclone.parse.algorithm import parse
-    from psyclone.psyGen import PSyFactory
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
 
-    # This example uses version 0.1 of the Dynamo API
-    api = "dynamo0.1"
+    # This example uses the LFRic (Dynamo 0.3) API
+    >>> api = "dynamo0.3"
 
     # Parse the file containing the algorithm specification and
     # return the Abstract Syntax Tree and invokeInfo objects
-    ast, invokeInfo = parse("dynamo.F90", api=api)
+    >>> ast, invokeInfo = parse("dynamo.F90", api=api)
 
     # Create the PSy-layer object using the invokeInfo
-    psy = PSyFactory(api).create(invokeInfo)
+    >>> psy = PSyFactory(api).create(invokeInfo)
 
     # Optionally generate the vanilla PSy layer fortran
-    print psy.gen
+    >>> print(psy.gen)
 
 We then extract the particular schedule we are interested
-in. For example ...
-::
+in. For example::
 
     # List the various invokes that the PSy layer contains
-    print psy.invokes.names
+    >>> print(psy.invokes.names)
 
     # Get the required invoke
-    invoke = psy.invokes.get('invoke_0_v3_kernel_type')
+    >>> invoke = psy.invokes.get('invoke_0_v3_kernel_type')
 
     # Get the schedule associated with the required invoke
-    schedule = invoke.schedule
-    schedule.view()
+    >>> schedule = invoke.schedule
+    >>> schedule.view()
 
 
 Now we have the schedule we can create and apply a transformation to
 it to create a new schedule and then replace the original schedule
-with the new one. For example ...
-::
+with the new one. For example::
 
-    # Get the list of possible loop transformations
-    from psyclone.psyGen import TransInfo
-    t = TransInfo()
-    print t.list
-
-    # Create an OpenMPLoop-transformation
-    ol = t.get_trans_name('OMPParallelLoopTrans')
+    # Create an OpenMPParallelLoopTrans
+    >>> from psyclone.transformations import OMPParallelLoopTrans
+    >>> ol = OMPParallelLoopTrans()
 
     # Apply it to the loop schedule of the selected invoke
-    new_schedule,memento = ol.apply(schedule.children[0])
-    new_schedule.view()
-
-    # Replace the original loop schedule of the selected invoke
-    # with the new, transformed schedule
-    invoke.schedule=new_schedule
+    >>> new_schedule, memento = ol.apply(schedule.children[0])
+    >>> new_schedule.view()
 
     # Generate the Fortran code for the new PSy layer
-    print psy.gen
-
-More examples of use of the interactive application of transformations
-can be found in the runme*.py files within the examples/lfric/eg1 and
-examples/lfric/eg2 directories. Some simple examples of the use of
-transformations are also given in the previous section.
+    >> print(psy.gen)
 
 .. _sec_transformations_script:
 

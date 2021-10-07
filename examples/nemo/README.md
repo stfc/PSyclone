@@ -91,6 +91,19 @@ and OpenACC directives:
    OpenACC directives and places fine-grained profiling instrumentation around
    any regions that haven't had OpenACC added.
 
+These scripts are a *work in progress* and are being developed to work on the
+MO_GO8 configuration of NEMO supplied by the Met Office. This configuration is
+based on version 4.0.2 of NEMO and is compiled using:
+
+    ./makenemo -n MO_GO8_GPU -r SPITZ12 -m linux_pgf90_gpu \
+        del_key "key_iomput key_mpp_mpi" add_key "key_nosignedzero"
+
+(where you will need an `arch/arch-linux_pgf90_gpu.fcm` FCM configuration
+file specifying how to use the NVIDIA compiler).
+
+If you are applying PSyclone to any other version or configuration of NEMO then
+these scripts should serve as a useful starting point.
+
 ## Example 1
 
 OpenMP parallelisation of tra_adv over levels.

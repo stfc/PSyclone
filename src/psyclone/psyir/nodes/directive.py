@@ -44,12 +44,8 @@
 from __future__ import absolute_import
 import abc
 import six
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Comment
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.node import Node
 from psyclone.errors import InternalError
 
 
@@ -88,7 +84,7 @@ class RegionDirective(Directive):
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
-        sched = self._insert_schedule(children, ast)
+        sched = Schedule(children=children, parent=self)
         super(RegionDirective, self).__init__(ast, children=[sched],
                                               parent=parent)
 
@@ -121,133 +117,6 @@ class RegionDirective(Directive):
                 "Schedule as a child but found: {0}".format(
                     [type(child).__name__ for child in self.children]))
         return self.children[0]
-
-    def _add_region(self, start_text, end_text=None, data_movement=None):
-        '''
-        Modifies the underlying fparser2 parse tree to include a subset
-        of nodes within a region. (e.g. a 'kernels' or 'data' region.)
-
-        :param str start_text: the directive body to insert at the \
-                               beginning of the region. "!$"+self._PREFIX+" " \
-                               is prepended to the supplied text.
-        :param str end_text: the directive body to insert at the end of \
-                             the region (or None). "!$"+self._PREFIX+" " is \
-                             prepended to the supplied text.
-        :param str data_movement: whether to include data-movement clauses and\
-                               if so, whether to determine them by analysing \
-                               the code within the region ("analyse") or to \
-                               specify 'default(present)' ("present").
-
-        :raises InternalError: if either start_text or end_text already
-                               begin with '!'.
-        :raises InternalError: if data_movement is not None and not one of \
-                               "present" or "analyse".
-        :raises InternalError: if data_movement=="analyse" and this is an \
-                               OpenMP directive.
-        '''
-        # pylint:disable=import-outside-toplevel
-        from psyclone.psyGen import object_index
-        from psyclone.psyir.nodes.acc_directives import ACCDirective
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        valid_data_movement = ["present", "analyse"]
-
-        # Ensure the fparser2 AST is up-to-date for all of our children
-        Node.update(self)
-
-        # Check that we haven't already been called
-        if self.ast:
-            return
-
-        # Sanity check the supplied begin/end text
-        if start_text.lstrip()[0] == "!":
-            raise InternalError(
-                "_add_region: start_text must be a plain label without "
-                "directive or comment characters but got: '{0}'".
-                format(start_text))
-        if end_text and end_text.lstrip()[0] == "!":
-            raise InternalError(
-                "_add_region: end_text must be a plain label without directive"
-                " or comment characters but got: '{0}'".format(end_text))
-        # We only deal with data movement if this is an OpenACC directive
-        if data_movement and data_movement == "analyse" and \
-           not isinstance(self, ACCDirective):
-            raise InternalError(
-                "_add_region: the data_movement='analyse' option is only valid"
-                " for an OpenACC directive.")
-
-        # Find a reference to the fparser2 parse tree that belongs to
-        # the contents of this region. Then go back up one level in the
-        # parse tree to find the node to which we will add directives as
-        # children. (We do this because our parent PSyIR node may be a
-        # directive which has no associated entry in the fparser2 parse tree.)
-        first_child = self.children[0][0]
-        last_child = self.children[0][-1]
-        content_ast = first_child.ast
-        fp_parent = content_ast.parent
-
-        try:
-            # Find the location of the AST of our first child node in the
-            # list of child nodes of our parent in the fparser parse tree.
-            ast_start_index = object_index(fp_parent.content,
-                                           content_ast)
-            if end_text:
-                if last_child.ast_end:
-                    ast_end_index = object_index(fp_parent.content,
-                                                 last_child.ast_end)
-                else:
-                    ast_end_index = object_index(fp_parent.content,
-                                                 last_child.ast)
-
-                text = "!$" + self._PREFIX + " " + end_text
-                directive = Comment(FortranStringReader(text,
-                                                        ignore_comments=False))
-                directive.parent = fp_parent
-                fp_parent.content.insert(ast_end_index+1, directive)
-                # Ensure this end directive is included with the set of
-                # statements belonging to this PSyIR node.
-                self.ast_end = directive
-                self.dir_body.ast_end = directive
-        except(IndexError, ValueError) as error:
-            six.raise_from(InternalError("Failed to find locations to insert "
-                                         "begin/end directives."), error)
-
-        text = "!$" + self._PREFIX + " " + start_text
-
-        if data_movement:
-            if data_movement == "analyse":
-                # Identify the inputs and outputs to the region (variables that
-                # are read and written).
-                processor = Fparser2Reader()
-                readers, writers, readwrites = processor.get_inputs_outputs(
-                    fp_parent.content[ast_start_index:ast_end_index+1])
-
-                if readers:
-                    text += " COPYIN({0})".format(",".join(readers))
-                if writers:
-                    text += " COPYOUT({0})".format(",".join(writers))
-                if readwrites:
-                    text += " COPY({0})".format(",".join(readwrites))
-
-            elif data_movement == "present":
-                text += " DEFAULT(PRESENT)"
-            else:
-                raise InternalError(
-                    "_add_region: the optional data_movement argument must be "
-                    "one of {0} but got '{1}'".format(valid_data_movement,
-                                                      data_movement))
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        directive.parent = fp_parent
-        fp_parent.content.insert(ast_start_index, directive)
-
-        self.ast = directive
-        self.dir_body.ast = directive
-        # If this is a directive applied to a Loop then update the ast_end
-        # for this Node to point to the parse tree for the loop. We have to
-        # do this because the loop is a sibling (rather than a child) of the
-        # directive in the parse tree.
-        if not end_text and isinstance(first_child, Loop):
-            self.ast_end = fp_parent.content[ast_start_index+1]
 
 
 class StandaloneDirective(Directive):

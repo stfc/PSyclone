@@ -131,7 +131,7 @@ def test_apply_fixed_bounds(tmpdir):
         "  do jk = 1, jpk, 1\n"
         "    do jj = 2, 4, 1\n"
         "      do ji = 1, jpi, 1\n"
-        "        umask(ji,jj,jk) = 0.0e0\n"
+        "        umask(ji,jj,jk) = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo" in result)
@@ -250,7 +250,7 @@ def test_apply_existing_names(tmpdir):
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
         "      do ji = 1, jpi, 1\n"
-        "        umask(ji,jj,jk) = 0.0e0\n"
+        "        umask(ji,jj,jk) = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo" in result)

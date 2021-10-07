@@ -150,9 +150,10 @@ def test_literal_init_empty_value():
 @pytest.mark.parametrize("value",
                          ["2", "+2", "-2", "2.", "23", "23.4", "-23.45",
                           "+23.45e0", "23.45e10", "-23.45e-10",
-                          "+23.45e+10", "+23e-10", "23.e10"])
+                          "+23.45e+10", "+23e-10", "23.e10", "2.4E-5"])
 def test_literal_init_valid_value(value):
-    '''Test the initialisation of a Literal object with valid real values.'''
+    '''Test the initialisation of a Literal object with valid real values.
+    Include check that we are not case sensitive. '''
     _ = Literal(value, REAL_DOUBLE_TYPE)
 
 
@@ -162,6 +163,16 @@ def test_literal_value():
         ScalarType.Intrinsic.INTEGER, ScalarType.Precision.DOUBLE)
     literal = Literal("1", integer_type)
     assert literal.value == "1"
+
+
+@pytest.mark.parametrize("value", ["1.0E+3", "1.0", "0.01E-3", "3.14e-2"])
+def test_literal_real_value(value):
+    ''' Test the value property returns the expected string for a Literal
+    representing a real quantity. '''
+    real_type = ScalarType(
+        ScalarType.Intrinsic.REAL, ScalarType.Precision.DOUBLE)
+    literal = Literal(value, real_type)
+    assert literal.value == value.lower()
 
 
 def test_literal_node_str():

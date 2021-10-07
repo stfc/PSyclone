@@ -96,6 +96,7 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
 # the PGI compiler or because it just isn't worth it)
 ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
               "day_mth",  # Just calendar operations
+              "obs_surf_alloc",
               "oce_alloc",
               "trc_bc_ini",  # Str manipulation and is only an init routine
               "trc_ini_age",  # Triggers "missing branch target block"
@@ -110,11 +111,14 @@ ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
 # We therefore work-around this by keeping a list of known NEMO
 # functions that must be excluded from within KERNELS regions.
 NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
+                      "cp_air",
                       "eos_pt_from_ct",
-                      "ice_var_sshdyn",
+                      "gamma_moist",
+                      "ice_var_sshdyn", "l_vap",
                       "sbc_dcy", "solfrac", "One_on_L",
                       "psi_h", "psi_m", "psi_m_coare",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
+                      "q_sat", "rho_air",
                       "Ri_bulk", "visc_air", "sbc_dcy", "glob_sum",
                       "glob_sum_full", "ptr_sj", "ptr_sjk",
                       "interp1", "interp2", "interp3", "integ_spline"])
@@ -241,26 +245,6 @@ def valid_acc_kernel(node):
                        if isinstance(enode, NemoKern)]:
             ksched = kernel.get_kernel_schedule()
             excluded_nodes += ksched.walk(IfBlock)
-
-    # Since SELECT blocks are mapped to nested IfBlocks in the PSyIR,
-    # we have to be careful to exclude attempts to put multiple
-    # CASE branches inside a single region. (Once we are no longer
-    # reliant on the original fparser2 parse tree this restriction
-    # can be lifted - #435.)
-    # Is the supplied node a child of an IfBlock originating from a
-    # SELECT block?
-    if isinstance(node, IfBlock) and "was_case" in node.annotations:
-        if isinstance(node.parent.parent, IfBlock) and \
-           "was_case" in node.parent.parent.annotations:
-            log_msg(routine_name, "cannot split children of a SELECT", node)
-            return False
-
-    if (isinstance(node.parent.parent, IfBlock) and
-            "was_where" in node.parent.parent.annotations):
-        # Cannot put KERNELS *within* a loop nest tht originated from
-        # a WHERE construct.
-        log_msg(routine_name, "cannot put KERNELs *inside* a WHERE", node)
-        return False
 
     for enode in excluded_nodes:
         if isinstance(enode, (CodeBlock, Return, Call)):
@@ -393,10 +377,6 @@ def valid_acc_kernel(node):
             log_msg(routine_name,
                     "Loop contains function call: {0}".format(ref.name), ref)
             return False
-        if isinstance(ref, NemoLoop):
-            if contains_unsupported_sum(ref.ast):
-                log_msg(routine_name, "Loop contains unsupport SUM", ref)
-                return False
     return True
 
 
@@ -585,14 +565,7 @@ def add_profile_region(nodes):
                 # 'IF(condition) CALL blah()' inside profiling regions
                 return
         try:
-            if len(nodes) == 1 and isinstance(nodes[0], IfBlock) and \
-               "was_elseif" in nodes[0].annotations:
-                # Special case for IfBlocks that represent else-ifs in the
-                # fparser2 parse tree - we can't apply transformations to
-                # them, only to their body. TODO #435.
-                PROFILE_TRANS.apply(nodes[0].if_body)
-            else:
-                PROFILE_TRANS.apply(nodes)
+            PROFILE_TRANS.apply(nodes)
         except TransformationError:
             pass
 
@@ -632,17 +605,7 @@ def try_kernels_trans(nodes):
         excluding = EXCLUDING["default"]
 
     try:
-        if len(nodes) == 1 and isinstance(nodes[0], IfBlock) and \
-           "was_elseif" in nodes[0].annotations:
-            # Special case for IfBlocks that represent else-ifs in the fparser2
-            # parse tree - we can't apply transformations to them, only to
-            # their body. TODO #435.
-            ACC_KERN_TRANS.apply(nodes[0].if_body, {"default_present": False})
-            if nodes[0].else_body and nodes[0].else_body.walk(Loop):
-                ACC_KERN_TRANS.apply(nodes[0].else_body,
-                                     {"default_present": False})
-        else:
-            ACC_KERN_TRANS.apply(nodes, {"default_present": False})
+        ACC_KERN_TRANS.apply(nodes, {"default_present": False})
 
         # Force the compiler to parallelise the loops within this kernels
         # region if required. We also put COLLAPSE on any tightly-nested
