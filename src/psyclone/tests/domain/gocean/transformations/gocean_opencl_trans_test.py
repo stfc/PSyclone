@@ -965,12 +965,17 @@ def test_set_kern_args(kernel_outputdir):
     # Declarations
     expected = '''\
       USE clfortran, ONLY: clSetKernelArg
-      USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
+      USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: cu_fld, p_fld, u_fld
-      INTEGER, INTENT(IN), TARGET :: xstart, xstop, ystart, ystop
-      INTEGER ierr
-      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj'''
+      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: cu_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: p_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: u_fld
+      INTEGER, INTENT(IN), TARGET :: xstart
+      INTEGER, INTENT(IN), TARGET :: xstop
+      INTEGER, INTENT(IN), TARGET :: ystart
+      INTEGER, INTENT(IN), TARGET :: ystop
+      INTEGER ierr'''
     assert expected in generated_code
     expected = '''\
       ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
@@ -987,6 +992,7 @@ def test_set_kern_args(kernel_outputdir):
       CALL check_status('clSetKernelArg: arg 5 of compute_cu_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(ystop), C_LOC(ystop))
       CALL check_status('clSetKernelArg: arg 6 of compute_cu_code', ierr)
+
     END SUBROUTINE compute_cu_code_set_args'''
     assert expected in generated_code
 
@@ -1023,12 +1029,19 @@ def test_set_kern_args_real_grid_property():
     SUBROUTINE compute_kernel_code_set_args(kernel_obj, out_fld, in_out_fld, \
 in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
-      USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
+      USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: out_fld, in_out_fld, \
-in_fld, dx, gphiu
+      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: out_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: in_out_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: in_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: dx
       REAL(KIND=go_wp), INTENT(IN), TARGET :: dx_1
-      INTEGER, INTENT(IN), TARGET :: xstart, xstop, ystart, ystop'''
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: gphiu
+      INTEGER, INTENT(IN), TARGET :: xstart
+      INTEGER, INTENT(IN), TARGET :: xstop
+      INTEGER, INTENT(IN), TARGET :: ystart
+      INTEGER, INTENT(IN), TARGET :: ystop'''
     assert expected in generated_code
     # TODO 284: Currently this example cannot be compiled because it needs to
     # import a module which won't be found on kernel_outputdir
