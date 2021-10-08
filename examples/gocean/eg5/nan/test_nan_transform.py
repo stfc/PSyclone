@@ -30,9 +30,48 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-EXAMPLES=extract nan profile readonly
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds kernel NAN-verification to
+the invokes. This then creates code that, at runtime, verifies that
+all input and output parameters of a kernel are a valid number, i.e.
+not infinity or NAN.
+'''
 
-include ../../top_level.mk
+from __future__ import print_function
+
+from psyclone.psyir.transformations import NanTestTrans
+
+
+def trans(psy):
+    '''
+    Take the supplied psy object, and add verification to both
+    invokes that read only parameters are not modified.
+
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+
+    '''
+    nan_test = NanTestTrans()
+
+    invoke = psy.invokes.get("invoke_0")
+    schedule = invoke.schedule
+
+    # You could just apply the transform for all elements of
+    # psy.invokes.invoke_list. But in this case we also
+    # want to give the regions a friendlier name:
+    nan_test.apply(schedule.children, {"region_name": ("main", "init")})
+
+    invoke = psy.invokes.get("invoke_1_update_field")
+    schedule = invoke.schedule
+
+    # Enclose everything in a nan_test region
+    nan_test.apply(schedule.children, {"region_name": ("main", "update")})
+
+    # newschedule.view()
+    return psy
