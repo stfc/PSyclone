@@ -49,12 +49,15 @@ PROGRAM dependent_invoke_test
   implicit none
 
   type(grid_type), target :: model_grid
-  !> Pressure at current time step
-  type(r2d_field) :: p_fld
-  !> Velocity in x direction at current time step
-  type(r2d_field) :: u_fld
-  !> Mass flux in x direction at current time step
-  type(r2d_field) :: cu_fld
+  !> We create two copies of each field type to use
+  !> in a multi-call invoke to create a specific
+  !> dependency pattern
+  !> Two copies of a "pressure" field
+  type(r2d_field) :: p_fld, p2_fld
+  !> Two copies of an "x velocity" field
+  type(r2d_field) :: u_fld, u2_fld
+  !> Two copies of a "x mass flux" field
+  type(r2d_field) :: cu_fld, cu_fld
 
   !> Loop counter for time-stepping loop
   INTEGER :: ncycle

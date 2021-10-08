@@ -57,11 +57,11 @@ from psyclone.core import VariablesAccessInfo
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.errors import LazyString, InternalError
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.psyir import nodes
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
@@ -362,6 +362,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
+    >>> # Ensure loop dependencies are satisfied
     >>> taskwaittrans.apply(schedule.children)
     >>> schedule.view()
 
@@ -680,20 +681,17 @@ class OMPTaskwaitTrans(Transformation):
                 if not valid:
                     fwriter = FortranWriter()
                     # pylint: disable=cell-var-from-loop
-                    raise TransformationError(LazyString(lambda:
-                                                         "Couldn't satisfy "
-                                                         "the dependencies due"
-                                                         " to taskloop "
-                                                         "dependencies across"
-                                                         " barrierless OMP "
-                                                         "serial regions. "
-                                                         "Dependency is from"
-                                                         " {0} to {1}".format(
-                                                            fwriter(taskloop)
-                                                            .rstrip("\n"),
-                                                            fwriter(
-                                                                forward_dep)
-                                                            .rstrip("\n"))))
+                    raise TransformationError(
+                                LazyString(lambda: "Couldn't satisfy the "
+                                                   "dependencies due to "
+                                                   "taskloop dependencies "
+                                                   "across barrierless OMP "
+                                                   "serial regions. Dependency"
+                                                   " is from\n{0}\nto\n{1}"
+                                           .format(
+                                               fwriter(taskloop).rstrip("\n"),
+                                               fwriter(forward_dep)
+                                                   .rstrip("\n"))))
 
     @staticmethod
     def get_forward_dependence(taskloop, root):
@@ -724,7 +722,7 @@ class OMPTaskwaitTrans(Transformation):
         The forward dependency is never a child of taskloop, and must have
         abs_position > taskloop.abs_position
 
-        :param taskloop: the taskloop node for which to find the
+        :param taskloop: the taskloop node for which to find the \
                          forward_dependence.
         :type taskloop: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
         :param root: the tree in which to search for the forward_dependence.
@@ -736,7 +734,7 @@ class OMPTaskwaitTrans(Transformation):
         '''
         # Check supplied the correct type for root
         if not isinstance(root, OMPParallelDirective):
-            raise TransformationError("Expected root to be an instance of "
+            raise TransformationError("Expected the root to be an instance of "
                                       "OMPParallelDirective, but was supplied "
                                       "an instance of '{0}'"
                                       .format(type(root).__name__))
@@ -768,11 +766,10 @@ class OMPTaskwaitTrans(Transformation):
         # Raise an error if there is no parent_parallel region
         if parent_parallel is None:
             fwriter = FortranWriter()
-            raise InternalError(LazyString(lambda: "No parent parallel "
-                                           "directive was found for the "
-                                           "taskloop region: {0}".format(
-                                                fwriter(taskloop).rstrip("\n")
-                                                )))
+            raise InternalError(
+                    LazyString(lambda: "No parent parallel directive was "
+                                       "found for the taskloop region: {0}"
+                               .format(fwriter(taskloop).rstrip("\n"))))
 
         for node in node_list:
             if node.abs_position <= taskloop.abs_position:
@@ -833,23 +830,24 @@ class OMPTaskwaitTrans(Transformation):
         Eliminates unneeded dependencies from a set of taskloop positions,
         dependence_positions and dependence_nodes for a region of code.
 
-        :param taskloop_positions: integer positions of the taskloops
+        :param taskloop_positions: positions of the taskloops.
         :type taskloop_positions: list of int
-        :param dependence_positions: integer positions of the taskloops'
-                                     dependencies
+        :param dependence_positions: positions of the taskloops' dependencies.
         :type dependence_positions: list of int
-        :param dependence_nodes: The dependency nodes for each taskloop.
+        :param dependence_nodes: the nodes respresenting the forward \
+                                 dependency of each taskloop node.
         :type dependence_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: The updated dependence_positions and dependence_nodes arrays
-        :rval: Tuple of (list of int, list of
+        :returns: the updated dependence_positions and dependence_nodes arrays
+        :rval: 2-tuple of (list of int, list of
                :py:class:`psyclone.psyir.nodes.Node`)
 
         '''
         # We loop over each dependence and perform the same operation:
         # For each dependence we loop over all other
-        # taskloops whose position is before that dependence. If that
-        # dependence is fulfilled by this dependence (i.e.
+        # taskloops whose position is after this taskloop, but before
+        # this taskloop's forward dependency. If that dependence is
+        # fulfilled by this dependence (i.e.
         # dependence_position[this] < dependence_position[that]) then
         # we remove that dependence. If this dependence is fulfilled
         # by that dependence (i.e. dependence_position[that] <
@@ -857,6 +855,8 @@ class OMPTaskwaitTrans(Transformation):
         # This assumes that taskloop_positions is in ascending order,
         # which I believe to be true by construction.
         for i, dep_pos in enumerate(dependence_positions):
+            # Corresponding taskloop has no dependency or was satisfied
+            # by another dependency being resolved.
             if dep_pos is None:
                 continue
             # Grab the position of the next dependence
@@ -876,7 +876,7 @@ class OMPTaskwaitTrans(Transformation):
                     dependence_positions[j] = None
                     dependence_nodes[j] = None
                     continue
-                # Check if the jth taskloops dependence will satisfy
+                # Check if the jth taskloop's dependence will satisfy
                 # the next_dependence
                 if dependence_positions[j] < next_dependence:
                     dependence_positions[i] = None

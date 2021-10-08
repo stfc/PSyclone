@@ -238,10 +238,9 @@ class OMPSingleDirective(OMPSerialDirective):
     @property
     def nowait(self):
         '''
-        Returns whether the nowait clause is specified for this directive.
-
         :returns: whether the nowait clause is specified for this directive.
         :rtype: bool
+
         '''
         return self._nowait
 

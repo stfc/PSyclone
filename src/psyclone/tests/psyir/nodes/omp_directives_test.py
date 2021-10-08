@@ -46,7 +46,8 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
-    OMPMasterDirective, OMPTaskloopDirective, OMPTaskwaitDirective, Schedule
+    OMPMasterDirective, OMPTaskloopDirective, OMPTaskwaitDirective, Schedule, \
+    OMPSingleDirective
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     DynamoOMPParallelLoopTrans, OMPSingleTrans, \
@@ -171,14 +172,8 @@ def test_omp_forward_dependence():
 @pytest.mark.parametrize("nowait", [False, True])
 def test_omp_single_nowait(nowait):
     ''' Test the nowait getter of the OMPSingle directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    single = OMPSingleTrans(nowait=nowait)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    _, _ = single.apply(schedule.children[0])
-    assert schedule.children[0].nowait is nowait
+    single = OMPSingleDirective(nowait=nowait)
+    assert single.nowait is nowait
 
 
 @pytest.mark.parametrize("nowait", [False, True])
