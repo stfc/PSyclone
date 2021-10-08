@@ -796,7 +796,7 @@ class OMPTaskwaitTrans(Transformation):
                 for child in node.walk(nodes.Node):
                     if child is not node and not isinstance(child,
                                                             (Schedule, Loop)):
-                        refs = child.reference_accesses(node_vars)
+                        refs = VariablesAccessInfo(child)
                         if refs is not None:
                             node_vars.merge(refs)
             node_signatures = node_vars.all_signatures
