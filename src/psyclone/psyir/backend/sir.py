@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab.
+# Author: R. W. Ford, STFC Daresbury Lab.
 # Modified by: A. R. Porter, STFC Daresbury Lab.
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
@@ -39,6 +39,7 @@ limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
 gen() method to generate Fortran.
 
 '''
+from __future__ import absolute_import
 
 import six
 
@@ -453,23 +454,37 @@ class SIRWriter(PSyIRVisitor):
                 "Method unaryoperation_node in class SIRWriter, unsupported "
                 "operator '{0}' found.".format(str(node.operator))),
                 err)
-        # Currently only '-<literal>' is supported in the SIR mapping.
-        if not (len(node.children) == 1 and
-                isinstance(node.children[0], Literal)):
-            raise VisitorError(
-                "Currently, unary operators can only be applied to literals.")
-        literal = node.children[0]
-        if literal.datatype.intrinsic not in [ScalarType.Intrinsic.REAL,
-                                              ScalarType.Intrinsic.INTEGER]:
-            # The '-' operator can only be applied to REAL and INTEGER
-            # datatypes.
-            raise VisitorError(
-                "PSyIR type '{0}' does not work with the '-' operator."
-                "".format(str(literal.datatype)))
-        result = literal.value
-        datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
-        return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
-                "".format(self._nindent, oper, result, datatype))
+        if isinstance(node.children[0], Literal):
+            # The unary minus operator is being applied to a
+            # literal. This is a special case as the literal value can
+            # be negative in SIR.
+            literal = node.children[0]
+            if literal.datatype.intrinsic not in [
+                    ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]:
+                # The '-' operator can only be applied to REAL and INTEGER
+                # datatypes.
+                raise VisitorError(
+                    "PSyIR type '{0}' does not work with the '-' operator."
+                    "".format(str(literal.datatype)))
+            result = literal.value
+            datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
+            return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
+                    "".format(self._nindent, oper, result, datatype))
+
+        # The unary minus operator is being applied to something that
+        # is not a literal. Default to REAL as we currently have no
+        # way of finding out the type, see issue #658. Replace -x with
+        # -1.0 * x.
+        datatype = TYPE_MAP_TO_SIR[ScalarType.Intrinsic.REAL]
+        self._depth += 1
+        lhs = "{0}make_literal_access_expr(\"-1.0\", {1})".format(
+            self._nindent, datatype)
+        operator = "{0}\"*\"".format(self._nindent)
+        rhs = self._visit(node.children[0])
+        self._depth -= 1
+        result = "{0}make_binary_operator(\n{1},\n{2},\n{3})\n".format(
+            self._nindent, lhs, operator, rhs)
+        return result
 
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in

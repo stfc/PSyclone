@@ -45,7 +45,7 @@ from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
     Operator2CodeTrans
 from psyclone.psyir.transformations import Abs2CodeTrans
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
-    Reference, Literal, IfBlock
+    Reference, Literal, IfBlock, Routine
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
@@ -122,7 +122,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
         # pylint: disable=too-many-locals
         self.validate(node)
 
-        schedule = node.root
+        schedule = node.ancestor(Routine)
         symbol_table = schedule.symbol_table
 
         oper_parent = node.parent

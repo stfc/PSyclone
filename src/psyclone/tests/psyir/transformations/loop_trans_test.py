@@ -108,20 +108,6 @@ def test_loop_trans_validate_options(monkeypatch):
     trans.validate(loop, options={"node-type-check": False})
 
 
-def test_loop_trans_validate_nemo_specific(monkeypatch):
-    ''' Test the NEMO-specifc part of the validation routine.
-    TODO #435 remove this test. '''
-    trans = OMPParallelLoopTrans()
-    _, invoke_info = get_invoke("explicit_do.f90", api="nemo", idx=0)
-    schedule = invoke_info.schedule
-    loop = schedule.loops()[0]
-    monkeypatch.setattr(loop, "_annotations", ["was_where"])
-    with pytest.raises(TransformationError) as err:
-        trans.validate(loop)
-    assert ("In the NEMO API a transformation cannot be applied to a PSyIR "
-            "loop representing a WHERE construct." in str(err.value))
-
-
 def test_all_loop_trans_base_validate(monkeypatch):
     ''' Check that all transformations that sub-class LoopTrans call the
     base validate() method. '''
